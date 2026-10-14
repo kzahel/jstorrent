@@ -2,7 +2,14 @@ import {
   formatList,
   message as localizedMessage,
 } from "../../localization/runtime";
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 
 import type { DataUnits } from "../appearance";
 import { copyText } from "../clipboard";
@@ -27,12 +34,7 @@ import { PeerTable } from "./PeerTable";
 import { SwarmTable } from "./SwarmTable";
 import { FileTable } from "./FileTable";
 import { TrackerTable } from "./TrackerTable";
-import { DiskPanel } from "./DiskPanel";
-import { PieceMapPanel } from "./PieceMapPanel";
 import { PreparationProgress } from "./PreparationProgress";
-import { LogConsole } from "./LogConsole";
-import { SpeedPanel } from "./SpeedPanel";
-import { DhtPanel } from "./DhtPanel";
 import { Icon, type IconName } from "./Icon";
 import { useToast } from "./Toast";
 import { useTorrentActions } from "./TorrentActionContext";
@@ -44,6 +46,26 @@ import {
   OverlayButton,
 } from "./overlays/AnchoredOverlay";
 import styles from "./DetailPane.module.css";
+
+// Tactical 352: session and piece views load when first opened, not with
+// the shell.
+const DiskPanel = lazy(() =>
+  import("./DiskPanel").then(({ DiskPanel }) => ({ default: DiskPanel })),
+);
+const PieceMapPanel = lazy(() =>
+  import("./PieceMapPanel").then(({ PieceMapPanel }) => ({
+    default: PieceMapPanel,
+  })),
+);
+const LogConsole = lazy(() =>
+  import("./LogConsole").then(({ LogConsole }) => ({ default: LogConsole })),
+);
+const SpeedPanel = lazy(() =>
+  import("./SpeedPanel").then(({ SpeedPanel }) => ({ default: SpeedPanel })),
+);
+const DhtPanel = lazy(() =>
+  import("./DhtPanel").then(({ DhtPanel }) => ({ default: DhtPanel })),
+);
 
 export function DetailPane({
   remoteAccess,
@@ -178,6 +200,7 @@ export function DetailPane({
           role="tabpanel"
           aria-labelledby={`tab-${activeTab}`}
         >
+          <Suspense fallback={null}>
           {torrent === undefined && !sessionView ? (
             <EmptyDetail />
           ) : activeTab === "peers" && currentTorrentId !== null ? (
@@ -203,6 +226,7 @@ export function DetailPane({
           ) : (
             <UnavailableDetail />
           )}
+          </Suspense>
         </div>
       </TableToolbarSlot.Provider>
     </section>

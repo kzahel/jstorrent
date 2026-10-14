@@ -3,6 +3,8 @@ import jstorrentIcon from "../../assets/jstorrent.png";
 import { message as localizedMessage } from "../../localization/runtime";
 import { markStartup } from "../../startup-timing";
 import {
+  lazy,
+  Suspense,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -45,7 +47,7 @@ import { DetailPane } from "./DetailPane";
 import { Icon } from "./Icon";
 import { LibraryView } from "./LibraryView";
 import { ScenarioBar } from "./ScenarioBar";
-import { SettingsDialog, type SettingsCategory } from "./SettingsDialog";
+import type { SettingsCategory } from "./SettingsDialog";
 import { navigationTitle, Sidebar } from "./Sidebar";
 import { TorrentActions } from "./TorrentActions";
 import { TorrentActionProvider } from "./TorrentActionContext";
@@ -112,6 +114,15 @@ export interface AppProps {
   readonly productPrivacy?: ProductPrivacyController | undefined;
   readonly about?: AboutFacts | undefined;
 }
+
+// Tactical 352: Settings loads on first open; App prefetches it once the
+// library has arrived so opening it does not wait on the network.
+const loadSettingsDialog = () => import("./SettingsDialog");
+const SettingsDialog = lazy(() =>
+  loadSettingsDialog().then(({ SettingsDialog }) => ({
+    default: SettingsDialog,
+  })),
+);
 
 export function App({
   oneCurrentRoot,
@@ -185,6 +196,9 @@ function AppContent({
   const libraryLoading = useInspectionStore(
     (state) => state.viewStatus.library.status === "loading",
   );
+  useEffect(() => {
+    if (!libraryLoading) void loadSettingsDialog();
+  }, [libraryLoading]);
   const execute = useInspectionCommand();
   const controller = useInspectionController();
   const destination = useInspectionStore(
@@ -560,6 +574,7 @@ function AppContent({
         </aside>
       ) : null}
       {settingsOpen ? (
+        <Suspense fallback={null}>
         <SettingsDialog
           colorTheme={colorTheme}
           interfaceSize={interfaceSize}
@@ -712,6 +727,7 @@ function AppContent({
           onWebAuthSignedOut={() => window.location.reload()}
           onClose={() => setSettingsOpen(false)}
         />
+        </Suspense>
       ) : null}
       {productPrivacy === undefined ? null : (
         <ProductDisclosure productPrivacy={productPrivacy} />

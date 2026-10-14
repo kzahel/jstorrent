@@ -6,8 +6,6 @@ import { App, type AppProps } from "./components/App";
 import { WebAuthGate } from "./components/WebAuthGate";
 import { InspectionProvider } from "./context";
 import { InspectionController } from "./controller";
-import { DemoApplication } from "./demo/DemoApplication";
-import { isDemoScenarioId } from "./demo/catalog";
 import { LiveApplication } from "./live/LiveApplication";
 import type { DemoScenarioId } from "./model";
 import type { DesktopRemoteAccess } from "./remote-access/types";
@@ -17,7 +15,14 @@ import { createHostedHostIntegration } from "../headless-updater";
 import { markStartup } from "../startup-timing";
 import "./global.css";
 
-export function startDemoInspection(parameters: URLSearchParams): void {
+// Demo scenarios load only for demo mode, not with every live shell.
+export async function startDemoInspection(
+  parameters: URLSearchParams,
+): Promise<void> {
+  const [{ DemoApplication }, { isDemoScenarioId }] = await Promise.all([
+    import("./demo/DemoApplication"),
+    import("./demo/catalog"),
+  ]);
   const requested = parameters.get("demo");
   const scenarioId: DemoScenarioId = isDemoScenarioId(requested)
     ? requested

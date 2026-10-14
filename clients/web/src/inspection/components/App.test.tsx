@@ -191,7 +191,7 @@ describe("inspection application", () => {
     expect(within(filters).getByRole("button", { name: /^All torrents$/ })).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Settings" }));
-    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    const dialog = await screen.findByRole("dialog", { name: "Settings" });
     await user.click(within(dialog).getByRole("tab", { name: "Connection & seeding" }));
     expect(within(dialog).getByText("Loading current settings…")).toBeVisible();
     expect(within(dialog).getByRole("button", { name: "Save settings" })).toBeDisabled();
@@ -1029,7 +1029,7 @@ describe("inspection application", () => {
     expect(peersTab).toHaveTextContent(/^Peers$/);
     await user.click(screen.getByRole("tab", { name: "Logs" }));
     expect(
-      screen.getByRole("log", { name: "Chronological diagnostic events" }),
+      await screen.findByRole("log", { name: "Chronological diagnostic events" }),
     ).toBeVisible();
   });
 
@@ -2011,7 +2011,7 @@ describe("inspection application", () => {
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Disk" }));
     expect(
-      screen.getByText("Receive → write → verify → checkpoint"),
+      await screen.findByText("Receive → write → verify → checkpoint"),
     ).toBeVisible();
     expect(screen.getByLabelText("Disk pressure Backpressured")).toBeVisible();
     const pieces = screen.getByRole("grid", { name: "Active storage pieces" });
@@ -2031,7 +2031,7 @@ describe("inspection application", () => {
 
     await user.click(screen.getByRole("tab", { name: "Pieces" }));
 
-    const canvas = screen.getByRole("img", {
+    const canvas = await screen.findByRole("img", {
       name: /250,000 pieces: 135,000 verified, 6 active/i,
     }) as HTMLCanvasElement;
     expect(canvas).toBeVisible();

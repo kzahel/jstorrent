@@ -30,7 +30,7 @@ async function startInspection(): Promise<void> {
   );
   switch (target.type) {
     case "demo":
-      startDemoInspection(target.parameters);
+      await startDemoInspection(target.parameters);
       break;
     case "live":
       await startLiveInspection(target.parameters);
