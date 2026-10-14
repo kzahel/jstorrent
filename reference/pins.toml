@@ -12,7 +12,7 @@ required = true
 name = "rqbit"
 path = "reference/rqbit"
 repository = "https://github.com/ikatson/rqbit.git"
-revision = "4e5f94cbcf1d57ec500885c77cf1e24d70232d89"
+revision = "a499d2f243d124e144aef137afe7cb304a6e3f36"
 purpose = "Native Rust and Tokio engine, application API, storage, uTP, and implementation comparison"
 required = true
 
@@ -40,9 +40,25 @@ revision = "c26f57b2debbe35ed0ace1ad419de529f7a5bf95"
 purpose = "Rust and Tokio uTP implementation, test, and dependency comparison"
 required = true
 
+[[checkout]]
+name = "qbittorrent"
+path = "reference/qbittorrent"
+repository = "https://github.com/qbittorrent/qBittorrent.git"
+revision = "a1e4649cb8ae581925acc161dbab5cbc6584c542"
+purpose = "Mature libtorrent-based client for application policy such as share limits, queueing, and per-torrent overrides"
+required = false
+
+[[checkout]]
+name = "transmission"
+path = "reference/transmission"
+repository = "https://github.com/transmission/transmission.git"
+revision = "838877323facc4cc2b677fe817e203779c437bb1"
+purpose = "Independent mature client for application policy such as ratio and idle limits, queueing, and per-torrent overrides"
+required = false
+
 [[sibling]]
 name = "jstorrent"
-path = "../jstorrent"
+path = "../jstorrent-typescript"
 repository = "git@github.com:kzahel/jstorrent-typescript"
 branch = "main"
 purpose = "First-party product behavior, fixtures, integration scenarios, and Android and ChromeOS lessons"

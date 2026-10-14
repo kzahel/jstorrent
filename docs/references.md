@@ -192,6 +192,10 @@ file before importing material.
   Boost Software License 1.0, while its optional `simulation/libsimulator`
   submodule is GPL-3.0.
 - JSTorrent is MIT.
+- qBittorrent source is GPL-2.0-or-later with GPL-3.0-or-later binary assets,
+  and Transmission is GPL-2.0 or GPL-3.0 (checked 2026-10-14). They are
+  behavior and test references only; no source, fixture, test data or asset
+  from either may enter RSTorrent.
 - The official BitTorrent BEP repository does not currently state a
   repository-wide license, and individual document statements vary. Cite and
   independently summarize protocol behavior rather than copying BEP prose or
@@ -308,9 +312,7 @@ reference source, fixture or APK is imported into this repository.
 
 Repository: [kzahel/jstorrent-typescript](https://github.com/kzahel/jstorrent-typescript)
 
-Typical local checkout: `~/code/jstorrent`
-
-Managed reference entry: `../jstorrent`, first-party `main`
+Managed reference entry: `../jstorrent-typescript`, first-party `main`
 
 JSTorrent is the closest product reference because it captures the maintainer's
 existing torrent behavior and platform lessons. High-value areas include:
@@ -615,8 +617,9 @@ Project: [rqbit](https://github.com/ikatson/rqbit)
 
 Library documentation: [librqbit](https://docs.rs/librqbit/)
 
-Managed source checkout: `reference/rqbit`, pinned to the exact current 9.0
-release-candidate development revision recorded in `reference/pins.toml`
+Managed source checkout: `reference/rqbit`, pinned to release `v9.0.1`
+(`a499d2f243d124e144aef137afe7cb304a6e3f36`). Tacticals before 2026-10-14 cite
+the earlier 9.0 development revision `4e5f94cbcf1d57ec500885c77cf1e24d70232d89`.
 
 rqbit is a BitTorrent client written natively in Rust. `librqbit` is its
 reusable engine crate and exposes torrent sessions, torrent and magnet inputs,
@@ -635,6 +638,26 @@ RSTorrent does not adopt librqbit as its engine. It remains useful for:
 
 If RSTorrent ever imports rqbit source or fixtures, review and record the exact
 license and provenance at that time.
+
+## qBittorrent And Transmission
+
+Sources: [qbittorrent/qBittorrent](https://github.com/qbittorrent/qBittorrent)
+and [transmission/transmission](https://github.com/transmission/transmission)
+
+Managed source checkouts: `reference/qbittorrent`, pinned to `release-5.2.4`,
+and `reference/transmission`, pinned to `4.1.3`. Both are optional entries in
+`reference/pins.toml`.
+
+These mature clients are application-policy references, not protocol oracles.
+libtorrent's seed goals only rank the seed queue, so product behavior such as
+stopping a torrent at a share ratio or seeding time, per-torrent overrides,
+queue interaction and how a stopped-by-limit torrent is presented must come
+from clients. qBittorrent shows that policy layered over libtorrent;
+Transmission shows an independent engine's choices. Record exact paths,
+functions and tests in the owning tactical, as for libtorrent.
+
+Both are GPL. Read them for behavior and tests only and write RSTorrent's
+implementation and tests independently.
 
 ## MSE/PE References
 

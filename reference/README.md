@@ -34,11 +34,13 @@ branch-tracking sibling, status compares against the locally fetched
 | Local path | Revision policy | Role |
 | --- | --- | --- |
 | `reference/bittorrent.org` | `7b7b41f46d57ff1d1cb1e24ed6e9bacfbf958c06` | Authoritative offline BEP source documents and protocol index |
-| `reference/rqbit` | `4e5f94cbcf1d57ec500885c77cf1e24d70232d89` | Native Rust/Tokio engine, application API, storage, uTP, and implementation comparison |
+| `reference/rqbit` | `v9.0.1` (`a499d2f243d124e144aef137afe7cb304a6e3f36`) | Native Rust/Tokio engine, application API, storage, uTP, and implementation comparison |
 | `reference/libtorrent` | `v2.0.13` (`7d7fc38fac61177fa5e02148f791b2f65250b09d`) | Primary external interoperability oracle and broad protocol reference |
 | `reference/libutp` | `2b364cbb0650bdab64a5de2abb4518f9f228ec44` | Standalone MIT uTP source, C callback API, and build comparison; the pin has no maintained test suite |
 | `reference/librqbit-utp` | `c26f57b2debbe35ed0ace1ad419de529f7a5bf95` (crates.io `0.7.0`) | Rust/Tokio uTP source, tests, task model, and dependency comparison |
-| `../jstorrent` | first-party `main` | Product behavior, fixtures, integration scenarios, and Android/ChromeOS lessons |
+| `reference/qbittorrent` | `release-5.2.4` (`a1e4649cb8ae581925acc161dbab5cbc6584c542`); optional | GPL client application policy: share limits, queueing, and per-torrent overrides |
+| `reference/transmission` | `4.1.3` (`838877323facc4cc2b677fe817e203779c437bb1`); optional | GPL client application policy: ratio and idle limits, queueing, and per-torrent overrides |
+| `../jstorrent-typescript` | first-party `main` | Product behavior, fixtures, integration scenarios, and Android/ChromeOS lessons |
 
 The bittorrent.org checkout provides the original reStructuredText BEP sources
 under `reference/bittorrent.org/beps/`. It supersedes JSTorrent's convenient
@@ -51,11 +53,25 @@ BEPs may contain their own public-domain or other copyright statement. Keep the
 checkout ignored rather than vendoring the prose, and inspect the exact
 document before copying any of its text or assets into a tracked RSTorrent file.
 
-The rqbit pin follows the current 9.0 release-candidate development line rather
-than the older 8.1.1 stable crate. It includes the implementation we want to
-study—especially uTP, full IPv6, local peer discovery, current engine
-organization, and the initial BitTorrent v2 groundwork. The exact commit keeps
-that moving branch reproducible.
+The rqbit pin is the `v9.0.1` release. It moved on 2026-10-14 from the 9.0
+release-candidate development revision
+`4e5f94cbcf1d57ec500885c77cf1e24d70232d89` that earlier tacticals cite. It
+includes the implementation we want to study—especially uTP, full IPv6, local
+peer discovery, current engine organization, and the initial BitTorrent v2
+groundwork. v9.0.1 still locks `librqbit-utp` `0.7.0`, which remains the newest
+published crate, so that pin is unchanged.
+
+The qBittorrent and Transmission pins are the newest stable releases on
+2026-10-14. They were added for the seeding stop-limit survey and are reference
+sources for mature application policy rather than protocol oracles: share
+limits and their actions, queueing, per-torrent overrides and how each client
+presents them. qBittorrent drives libtorrent, so it shows how a product layers
+policy over libtorrent's priority-only seed goals; Transmission is an
+independent engine. Both are GPL. Read them for behavior and tests only; do not
+copy, translate or vendor their source, fixtures or assets. They are
+`required = false`, so `status` tolerates their absence on machines that do not
+need them, while `sync` still clones them. Transmission's third-party
+submodules are deliberately not initialized.
 
 The libtorrent pin matches the 2.0.13 Python binding used by JSTorrent's
 integration environment. The source checkout and Python package have different
@@ -76,7 +92,12 @@ the package archive; neither form is an accepted RSTorrent dependency.
 
 JSTorrent remains a sibling because it is a first-party product repository that
 may be maintained independently. Do not create a second copy under
-`reference/`.
+`reference/`. Since the repository rename in Tactical `305`, this repository
+is the canonical `jstorrent` checkout and the TypeScript sibling lives at
+`../jstorrent-typescript` with origin `kzahel/jstorrent-typescript`. A
+checkout cloned before the rename still has origin `kzahel/jstorrent`; repoint
+it with `git remote set-url` before syncing, because that URL now names this
+repository.
 
 ## Source-Use Rules
 
@@ -86,7 +107,9 @@ may be maintained independently. Do not create a second copy under
 - Read and preserve the source license before copying any source, fixture, or
   test data. rqbit is Apache-2.0; Rasterbar libtorrent's main library is
   BSD-3-Clause but its root `LICENSE` records file-level exceptions; JSTorrent
-  is MIT.
+  is MIT. qBittorrent is GPL-2.0-or-later source with GPL-3.0-or-later binary
+  assets, and Transmission is GPL-2.0/GPL-3.0; nothing from either may be
+  copied into RSTorrent.
 - The bittorrent.org checkout is for local specification reading. Its
   per-document copyright statements vary, so do not vendor BEP prose merely
   because the repository is public.

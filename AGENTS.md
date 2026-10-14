@@ -233,7 +233,7 @@ Before importing source, fixtures, or test data, identify its origin and
 license, record why reuse is permitted, and preserve required attribution.
 Prefer independently authored tests against public protocol behavior.
 
-The normal local JSTorrent reference is `~/code/jstorrent`. Its most valuable
+The normal local JSTorrent reference is the `../jstorrent-typescript` sibling. Its most valuable
 inputs are product behavior, integration scenarios, deterministic fixture
 patterns, Android/ChromeOS lessons, and known failure cases.
 
