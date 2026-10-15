@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [367 — Encrypted short links](367-encrypted-short-links.md): proposed; an
+  opt-in `link.jstorrent.com` short link whose Cloudflare Worker stores only
+  ciphertext, keyed from the fragment, for a readable Share panel QR code.
 - [364 — Library review fixes](364-library-review-fixes.md): albums and shows
   named by a torrent's own folder, file counts per preset, kind icons, inline
   audio, shared segmented toggles, a sortable Library table and adding from
