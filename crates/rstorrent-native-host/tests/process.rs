@@ -1,5 +1,7 @@
 use std::io::Write;
-use std::process::{Command, Stdio};
+use std::path::Path;
+use std::process::{Child, Command, Stdio};
+use std::sync::Mutex;
 
 use rstorrent_native_host::decode_frames;
 
@@ -11,14 +13,34 @@ fn framed(json: &str) -> Vec<u8> {
     bytes
 }
 
-fn spawn_host() -> std::process::Child {
-    Command::new(env!("CARGO_BIN_EXE_rstorrent-native-host"))
-        .arg(ORIGIN)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("spawn native host")
+// A child forked while another test still holds a copied executable open for
+// writing inherits that descriptor until exec, and exec of the copy then fails
+// with ETXTBSY. Copies and spawns therefore never overlap; spawn returns only
+// after the child has exec'd and dropped inherited descriptors.
+static SPAWN: Mutex<()> = Mutex::new(());
+
+fn copy_host(destination: &Path) {
+    let _guard = SPAWN
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    std::fs::copy(env!("CARGO_BIN_EXE_rstorrent-native-host"), destination).unwrap();
+}
+
+fn spawn(command: &mut Command) -> Child {
+    let _guard = SPAWN
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    command.spawn().expect("spawn native host")
+}
+
+fn spawn_host() -> Child {
+    spawn(
+        Command::new(env!("CARGO_BIN_EXE_rstorrent-native-host"))
+            .arg(ORIGIN)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped()),
+    )
 }
 
 #[test]
@@ -69,18 +91,18 @@ fn product_origins_can_attach_without_launching_a_stopped_desktop() {
     }
     let suffix = if cfg!(windows) { ".exe" } else { "" };
     let executable = owned.path().join(format!("host{suffix}"));
-    std::fs::copy(env!("CARGO_BIN_EXE_rstorrent-native-host"), &executable).unwrap();
+    copy_host(&executable);
     for origin in [
         rstorrent_native_host::control::PRODUCTION_ORIGIN,
         rstorrent_native_host::control::BETA_ORIGIN,
     ] {
-        let mut child = Command::new(&executable)
-            .arg(origin)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
+        let mut child = spawn(
+            Command::new(&executable)
+                .arg(origin)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped()),
+        );
         child
             .stdin
             .take()
@@ -111,15 +133,15 @@ fn retired_host_never_reads_launch_configuration_or_returns_authority() {
         "{}fixture{suffix}",
         rstorrent_native_host::legacy::REFUSAL_PREFIX
     ));
-    std::fs::copy(env!("CARGO_BIN_EXE_rstorrent-native-host"), &executable).unwrap();
+    copy_host(&executable);
     // A missing launch config is deliberate: this process must not consult one.
-    let mut child = Command::new(executable)
-        .arg(ORIGIN)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
+    let mut child = spawn(
+        Command::new(executable)
+            .arg(ORIGIN)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped()),
+    );
     let mut input = child.stdin.take().unwrap();
     for op in ["handshake", "takeOver", "kvSet", "start_control"] {
         input.write_all(&framed(&format!(r#"{{"id":"{op}","op":"{op}","protocolVersion":1,"extensionId":"legacy","key":"source","value":"do not write"}}"#))).unwrap();
