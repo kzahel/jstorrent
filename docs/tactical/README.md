@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [371 — Statistics and compatibility reporting rollout](371-statistics-and-compatibility-rollout.md):
+  ready; handoff plan for the update server's opt-out logging and estimate,
+  lifting the release hold, the companion header fix, releases, and
+  compatibility reports over update checks and the relay.
 - [370 — Version handshake and compatibility reports](370-version-handshake-and-compatibility-reports.md):
   slices 1–3 complete; value exposures checked for tolerant clients, a
   computed support window that forces cleanup, client identity in `connect`
