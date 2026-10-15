@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [360 — Hosted remote controller on its own subdomain](360-remote-controller-subdomain.md):
+  proposed for later; serve the remote controller from `remote.jstorrent.com`,
+  deployed only from `remote-v*` tags and isolated from the marketing site.
 - [359 — Mixed-version compatibility matrix](359-mixed-version-compatibility-matrix.md):
   proposed; proves old/new host × old/new client for every release in the
   support window from artifacts captured from each release's own source, and
