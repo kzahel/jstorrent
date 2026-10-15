@@ -739,7 +739,7 @@ production-shaped local Tactical `192` rather than being implied by the proof.
 Do not add a production remote listener from this topic alone. Completed
 Tactical
 [`190`](../tactical/190-opaque-wasm-relay-foundation.md) owns the controlled
-native-host/browser-Wasm construction and evidence record; its retired proof
+host/browser-Wasm construction and evidence record; its retired proof
 binary was never a product mode.
 
 Completed Tactical

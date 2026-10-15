@@ -432,7 +432,7 @@ construction or a platform trust store.
 
 Accepted Tactical
 [`190`](tactical/190-opaque-wasm-relay-foundation.md) selects an account-free
-OPAQUE native-host/browser-Wasm proof through a controlled dumb relay. The
+OPAQUE host/browser-Wasm proof through a controlled dumb relay. The
 normative sources are [RFC 9807](https://www.rfc-editor.org/rfc/rfc9807.html)
 for OPAQUE, [RFC 9497](https://www.rfc-editor.org/rfc/rfc9497.html) for its
 VOPRF, and [RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html) for

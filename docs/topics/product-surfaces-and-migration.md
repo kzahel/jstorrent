@@ -1605,7 +1605,7 @@ fixture, or wire contract from either sibling project.
 
 - Remaining store delivery and installed migration evidence after the desktop
   0.3.0 cutover through JSTorrent's existing product and updater identity.
-- The exact desktop native-host/backend process, single-instance, window, and
+- The exact desktop native-host and host process, single-instance, window, and
   shutdown ownership model. Desktop beta updating now adopts the external
   `desktop-update-v1` contract; its independent route/key, client presentation,
   and release pipeline are implemented through local gates, while hosted

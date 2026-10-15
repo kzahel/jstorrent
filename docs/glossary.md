@@ -57,7 +57,7 @@ their names.
 | **Companion** | Extension pages that control the Android app (ChromeOS) or the desktop app. |
 | **Relay** | The service that forwards encrypted circuits between remote clients and hosts (`rstorrent-remote-relay`). It sees neither side's plaintext. |
 | **Remote host** | The component inside a host that keeps the host reachable through the relay (`rstorrent-remote-host`). Despite the name it is part of a host, not a separate host. |
-| **Native messaging host** | Chrome's term for a local program an extension launches and talks to over native messaging (`rstorrent-native-host`). A different sense of "host"; write the full term. |
+| **Native messaging host** (*native host*) | Chrome's term for a local helper program an extension starts with `chrome.runtime.sendNativeMessage` and talks to as length-prefixed JSON over stdin and stdout. Ours is `rstorrent-native-host`, registered as `com.jstorrent.rstorrent.native` by the desktop app. It only bootstraps: it starts the desktop app if needed and hands the extension the app's loopback address and a credential for it; the companion page then connects to the desktop app's gateway directly. It is not a host in this glossary's sense and carries no application data. Use *native host* only for this helper, never for a JSTorrent host. |
 | **Relay circuit** | One end-to-end encrypted path between one client and one host through the relay. |
 
 Do not use *session* for any of these; it already means the engine session,
