@@ -11,6 +11,13 @@ reads the same file-scoped capability URL with same-origin byte ranges and
 feeds the 313 playsvideo source. The route, capability and limits are
 unchanged; development gateways mint media URLs on their visible origin so the
 Vite proxy carries them. Tactical
+[368](../tactical/368-local-mp4-native-playback.md) lets local MP4/M4V prefer
+native playback of that URL when the browser accepts the parsed codecs,
+with HLS remuxing as the codec-checked fallback. MP3 audio in the maintainer's
+H.264 Big Buck Bunny file works natively in Chromium even though MP3 in
+fragmented MP4/MSE is rejected. Parser disposal after native handoff releases
+range reads without closing the player; the dialog still owns teardown.
+MKV and remote playback keep their existing remux paths. Tactical
 [364](../tactical/364-library-review-fixes.md) plays completed MP3, M4A/M4B,
 AAC, FLAC, Ogg, Opus and WAV in the same dialog with a native `<audio>`
 element on that URL; the route names M4B, AAC and Opus with audio types.

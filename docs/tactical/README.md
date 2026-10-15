@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [368 — Local MP4 native playback](368-local-mp4-native-playback.md): complete;
+  prefer codec-checked native MP4/M4V playback so Big Buck Bunny's MP3 audio
+  plays without transcoding; parser disposal preserves the player session.
 - [367 — Encrypted short links](367-encrypted-short-links.md): proposed; an
   opt-in `link.jstorrent.com` short link whose Cloudflare Worker stores only
   ciphertext, keyed from the fragment, for a readable Share panel QR code.

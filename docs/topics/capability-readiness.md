@@ -129,6 +129,10 @@ Tactical [362](../tactical/362-local-browser-inline-playback.md) adds local
 browser-hosted Play for completed MP4/M4V/MKV through the same consumer over
 same-origin capability ranges; one Chromium MKV/MP4 decoded-frame and seek
 sample passes. Desktop, incomplete files and transcoding stay deferred.
+Tactical [368](../tactical/368-local-mp4-native-playback.md) fixes local MP4
+audio rejected by the remux pipeline: native codec-checked URL playback now
+precedes HLS. The maintainer's H.264/MP3 Big Buck Bunny passes decoded video
+and audio, forward/back seeks and close/reopen in headless Chromium.
 
 Completed local Tactical [312](../tactical/312-reliable-credit-range-streams.md)
 adds reliable ordered v2 byte ranges, cumulative consumption credit, shared

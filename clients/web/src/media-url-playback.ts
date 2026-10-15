@@ -7,9 +7,10 @@ import type { VideoPlaybackRequest } from "./inspection/video-playback";
 export function startPlaysVideo(
   video: HTMLVideoElement,
   source: DirectFilePlaybackSource,
-  callbacks: {
+  options: {
     readonly onReady?: (() => void) | undefined;
     readonly onError: (message: string) => void;
+    readonly nativeMp4Url?: string | undefined;
   },
 ): PlaysVideoEngine {
   const engine = new PlaysVideoEngine(video, {
@@ -17,10 +18,23 @@ export function startPlaysVideo(
     transcodeWorkers: 0,
   });
   engine.addEventListener("error", (event) => {
-    callbacks.onError((event as CustomEvent<{ message: string }>).detail.message);
+    options.onError((event as CustomEvent<{ message: string }>).detail.message);
   });
-  engine.addEventListener("ready", () => callbacks.onReady?.());
-  engine.loadSource(source, { targetSegmentDuration: 4 });
+  engine.addEventListener("ready", () => options.onReady?.());
+  if (options.nativeMp4Url) {
+    // Native MP4 playback can accept codecs (notably MP3) that fMP4/MSE cannot.
+    // playsvideo checks the parsed codecs with canPlayType before selecting it.
+    engine.loadWithOptions({
+      source,
+      options: [
+        { mode: "direct-url", mimeType: "video/mp4", url: options.nativeMp4Url },
+        { mode: "hls" },
+      ],
+      targetSegmentDuration: 4,
+    });
+  } else {
+    engine.loadSource(source, { targetSegmentDuration: 4 });
+  }
   return engine;
 }
 
@@ -40,7 +54,8 @@ export async function playMediaUrl(
     ? AbortSignal.any([request.signal, lifetime.signal])
     : lifetime.signal;
   signal.throwIfAborted();
-  const ranges = new HttpRangeReader(new URL(url, globalThis.location?.href).href, BigInt(request.lengthBytes));
+  const mediaUrl = new URL(url, globalThis.location?.href).href;
+  const ranges = new HttpRangeReader(mediaUrl, BigInt(request.lengthBytes));
   let engine: PlaysVideoEngine | undefined;
   let closed: Promise<void> | undefined;
   const close = () =>
@@ -55,10 +70,13 @@ export async function playMediaUrl(
   const abort = () => {
     void close();
   };
-  const source = new DirectFilePlaybackSource(ranges, abort);
+  // Native handoff disposes the parser before playback ends. The dialog's
+  // signal/close owns this session; parser disposal only releases range reads.
+  const source = new DirectFilePlaybackSource(ranges, () => {});
   signal.addEventListener("abort", abort, { once: true });
   engine = startPlaysVideo(request.video, source, {
     onReady: request.onReady,
+    nativeMp4Url: /\.(mp4|m4v)$/i.test(request.fileName) ? mediaUrl : undefined,
     onError: (message) => {
       request.onError?.(message);
       void close();
