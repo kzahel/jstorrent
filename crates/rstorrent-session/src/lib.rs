@@ -31,6 +31,7 @@ mod session_network;
 mod session_utp;
 mod settings;
 mod share_peer_hints;
+mod shutdown;
 mod speed;
 mod store;
 mod store_migration;
@@ -115,6 +116,9 @@ pub use settings::{
     StorageRootSnapshot, StorageSettingsSnapshot, TorrentSeedStopLimit, TorrentSeedStopLimits,
     TorrentSettingsPatch, TorrentTransferLimits, TransferRateLimit, TransportAddressFamily,
     TransportFamilyRuntimeView,
+};
+pub use shutdown::{
+    DEFAULT_NETWORK_CLEANUP_BUDGET, ShutdownOptions, ShutdownProgress, ShutdownProgressSink,
 };
 pub use speed::{
     SessionCurrentRatesView, SpeedCurrentRate, SpeedHistoryAppend, SpeedHistoryAppendError,

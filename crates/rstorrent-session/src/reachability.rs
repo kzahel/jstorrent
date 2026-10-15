@@ -27,9 +27,11 @@ use crate::settings::{
     PortMappingFailureStage, PortMappingMechanism, PortMappingPolicy, PortMappingStatus,
     SettingsDomainGeneration,
 };
+use crate::shutdown::CleanupCutoff;
 use crate::views::ViewHub;
 
 const DELETE_TIMEOUT: Duration = Duration::from_secs(5);
+const CLEANUP_CUT_SHORT: &str = "removal cut short by the application shutdown cleanup budget";
 const RENEWAL_RETRY_DELAY: Duration = Duration::from_secs(60);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -200,6 +202,13 @@ struct ReachabilityRunOutcome {
 }
 
 #[derive(Debug)]
+pub(crate) struct ReachabilityFinalShutdown {
+    pub terminal: ReachabilityOwnerCounts,
+    /// Leases whose removal the cleanup cutoff ended, one message each.
+    pub left_behind: Vec<String>,
+}
+
+#[derive(Debug)]
 pub(crate) struct ReachabilityGenerationShutdown {
     pub terminal: ReachabilityOwnerCounts,
     pub uncertain_tcp_mapping: Option<UncertainMappingLease>,
@@ -224,6 +233,7 @@ struct MappingTaskContext {
     counters: Arc<ReachabilityCounters>,
     settings_generation: SettingsDomainGeneration,
     discovery_config: Option<UpnpDiscoveryConfig>,
+    cleanup_cancellation: CancellationToken,
 }
 
 #[derive(Clone, Debug)]
@@ -237,6 +247,9 @@ struct ReachabilityTaskContext {
     evidence: ReachabilityEvidenceProbe,
     cleanup_permitted: Arc<AtomicBool>,
     network_cancellation: Option<CancellationToken>,
+    /// Ends in-flight mapping and pinhole deletes when application shutdown
+    /// runs out of network cleanup time.
+    cleanup_cancellation: CancellationToken,
 }
 
 #[derive(Debug)]
@@ -246,6 +259,7 @@ pub(crate) struct ReachabilityCoordinator {
     counters: Arc<ReachabilityCounters>,
     endpoint_selector: AdvertisedPeerEndpointSelector,
     cleanup_permitted: Arc<AtomicBool>,
+    cleanup_cancellation: CancellationToken,
 }
 
 impl ReachabilityCoordinator {
@@ -297,6 +311,8 @@ impl ReachabilityCoordinator {
             || udp_mapping_state.local_endpoint().is_some()
             || pinhole_state.internal_endpoint().is_some();
         let task_cleanup_permitted = cleanup_permitted.clone();
+        let cleanup_cancellation = CancellationToken::new();
+        let task_cleanup_cancellation = cleanup_cancellation.clone();
         let task = has_work.then(|| {
             counters.tasks.store(1, Ordering::Release);
             let task_cancellation = cancellation.clone();
@@ -319,6 +335,7 @@ impl ReachabilityCoordinator {
                         evidence,
                         cleanup_permitted: task_cleanup_permitted,
                         network_cancellation: Some(network_cancellation),
+                        cleanup_cancellation: task_cleanup_cancellation,
                     },
                 )
                 .await;
@@ -332,6 +349,7 @@ impl ReachabilityCoordinator {
             counters,
             endpoint_selector,
             cleanup_permitted,
+            cleanup_cancellation,
         }
     }
 
@@ -347,9 +365,16 @@ impl ReachabilityCoordinator {
         self.task.as_ref().is_some_and(JoinHandle::is_finished)
     }
 
-    pub(crate) async fn shutdown(mut self) -> Result<ReachabilityOwnerCounts, String> {
-        let shutdown = self.shutdown_inner(true).await?;
+    /// Final application shutdown. Deletes still running when `cutoff` is
+    /// reached are cancelled; their leases are returned as `left_behind`
+    /// rather than as errors.
+    pub(crate) async fn shutdown(
+        mut self,
+        cutoff: &CleanupCutoff,
+    ) -> Result<ReachabilityFinalShutdown, String> {
+        let shutdown = self.shutdown_inner(true, Some(cutoff)).await?;
         let mut errors = shutdown.error.into_iter().collect::<Vec<_>>();
+        let mut left_behind = Vec::new();
         for uncertain in [
             shutdown.uncertain_tcp_mapping,
             shutdown.uncertain_udp_mapping,
@@ -357,26 +382,40 @@ impl ReachabilityCoordinator {
         .into_iter()
         .flatten()
         {
-            errors.push(format!(
+            let message = format!(
                 "{}; external {:?} endpoint {}:{} may remain for {} seconds",
                 uncertain.detail,
                 uncertain.transport,
                 uncertain.external_address,
                 uncertain.external_port,
                 uncertain.remaining_lease_seconds(Instant::now()),
-            ));
+            );
+            if uncertain.detail == CLEANUP_CUT_SHORT {
+                left_behind.push(message);
+            } else {
+                errors.push(message);
+            }
         }
         if let Some(uncertain) = shutdown.uncertain_pinhole {
-            errors.push(format!(
+            let message = format!(
                 "{}; IPv6 endpoint {} may remain pinholed for {} seconds",
                 uncertain.detail,
                 uncertain.internal_endpoint,
                 uncertain.remaining_lease_seconds(Instant::now()),
-            ));
+            );
+            if uncertain.detail == CLEANUP_CUT_SHORT {
+                left_behind.push(message);
+            } else {
+                errors.push(message);
+            }
         }
         if errors.is_empty() {
-            Ok(shutdown.terminal)
+            Ok(ReachabilityFinalShutdown {
+                terminal: shutdown.terminal,
+                left_behind,
+            })
         } else {
+            errors.extend(left_behind);
             Err(errors.join("; "))
         }
     }
@@ -384,26 +423,37 @@ impl ReachabilityCoordinator {
     pub(crate) async fn shutdown_generation(
         mut self,
     ) -> Result<ReachabilityGenerationShutdown, String> {
-        self.shutdown_inner(false).await
+        self.shutdown_inner(false, None).await
     }
 
     pub(crate) async fn shutdown_without_network_cleanup(
         mut self,
     ) -> Result<ReachabilityGenerationShutdown, String> {
         self.cleanup_permitted.store(false, Ordering::Release);
-        self.shutdown_inner(true).await
+        self.shutdown_inner(true, None).await
     }
 
     async fn shutdown_inner(
         &mut self,
         final_application_shutdown: bool,
+        cutoff: Option<&CleanupCutoff>,
     ) -> Result<ReachabilityGenerationShutdown, String> {
         if final_application_shutdown {
             self.endpoint_selector.stop();
         }
         self.cancellation.cancel();
-        let outcome = if let Some(task) = self.task.take() {
-            match task.await {
+        let outcome = if let Some(mut task) = self.task.take() {
+            let joined = match cutoff {
+                Some(cutoff) => tokio::select! {
+                    joined = &mut task => joined,
+                    () = cutoff.reached() => {
+                        self.cleanup_cancellation.cancel();
+                        task.await
+                    }
+                },
+                None => task.await,
+            };
+            match joined {
                 Ok(outcome) => outcome,
                 Err(error) if error.is_cancelled() => ReachabilityRunOutcome::default(),
                 Err(error) => return Err(format!("reachability task join: {error}")),
@@ -447,6 +497,7 @@ async fn run_mapping(
         counters,
         settings_generation,
         discovery_config,
+        cleanup_cancellation,
     } = context;
     if let Err(error) = publish_mapping_status(
         Ipv4MappingKind::Tcp,
@@ -500,13 +551,16 @@ async fn run_mapping(
         state,
         local_endpoint,
         gateway,
-        context_without_discovery(
-            views,
-            endpoint_selector,
-            cancellation,
-            counters,
-            settings_generation,
-        ),
+        ReachabilityTaskContext {
+            cleanup_cancellation,
+            ..context_without_discovery(
+                views,
+                endpoint_selector,
+                cancellation,
+                counters,
+                settings_generation,
+            )
+        },
     )
     .await
 }
@@ -529,6 +583,7 @@ fn context_without_discovery(
         evidence: ReachabilityEvidenceProbe::default(),
         cleanup_permitted: Arc::new(AtomicBool::new(true)),
         network_cancellation: None,
+        cleanup_cancellation: CancellationToken::new(),
     }
 }
 
@@ -891,6 +946,7 @@ async fn run_ipv4_mapping(
         evidence: _,
         cleanup_permitted,
         network_cancellation,
+        cleanup_cancellation,
     } = context;
     if let Err(error) = publish_mapping_status(
         kind,
@@ -1050,7 +1106,6 @@ async fn run_ipv4_mapping(
     {
         run_error = Some(error);
     }
-    let cleanup_cancellation = CancellationToken::new();
     let delete = tokio::time::timeout(
         DELETE_TIMEOUT,
         gateway.delete_mapping(&mapping, &cleanup_cancellation),
@@ -1059,6 +1114,13 @@ async fn run_ipv4_mapping(
     counters.mappings.fetch_sub(1, Ordering::AcqRel);
     let uncertain_mapping = match delete {
         Ok(Ok(())) => None,
+        Ok(Err(_)) | Err(_) if cleanup_cancellation.is_cancelled() => Some(UncertainMappingLease {
+            transport: kind.transport(),
+            external_address: mapping.external_address,
+            external_port: mapping.external_port,
+            expires_at: lease_deadline,
+            detail: CLEANUP_CUT_SHORT.to_owned(),
+        }),
         Ok(Err(error)) => {
             record_failure_diagnostic(kind, &views, &error);
             Some(UncertainMappingLease {
@@ -1107,6 +1169,7 @@ async fn run_ipv6_pinhole(
         evidence,
         cleanup_permitted,
         network_cancellation,
+        cleanup_cancellation,
     } = context;
     let status = match firewall.firewall_status(&cancellation).await {
         Ok(status) => status,
@@ -1356,7 +1419,6 @@ async fn run_ipv6_pinhole(
         if endpoint_selector.ipv6_pinhole_lost(state.generation()) {
             let _ = publish_selected_endpoint(&endpoint_selector, &views);
         }
-        let cleanup_cancellation = CancellationToken::new();
         let delete = tokio::time::timeout(
             DELETE_TIMEOUT,
             firewall.delete_pinhole(&pinhole, &cleanup_cancellation),
@@ -1371,6 +1433,13 @@ async fn run_ipv6_pinhole(
             Ok(Err(error)) if error.fault_code() == Some(704) => {
                 evidence.record_deleted(&firewall, &pinhole);
                 None
+            }
+            Ok(Err(_)) | Err(_) if cleanup_cancellation.is_cancelled() => {
+                (latest_possible_deadline > Instant::now()).then(|| UncertainPinholeLease {
+                    internal_endpoint,
+                    expires_at: latest_possible_deadline,
+                    detail: CLEANUP_CUT_SHORT.to_owned(),
+                })
             }
             Ok(Err(error)) => {
                 record_pinhole_failure_diagnostic(&views, &error);
@@ -2316,6 +2385,7 @@ mod tests {
                 evidence: evidence.clone(),
                 cleanup_permitted: Arc::new(AtomicBool::new(true)),
                 network_cancellation: None,
+                cleanup_cancellation: CancellationToken::new(),
             },
         ));
         tokio::time::timeout(Duration::from_secs(3), async {
@@ -2502,7 +2572,69 @@ mod tests {
 
     #[tokio::test]
     async fn scripted_delete_failure_reports_one_finite_uncertain_lease() {
-        let (config, transcript, udp_task, http_task) = scripted_delete_failure_gateway().await;
+        let (outcome, transcript) =
+            map_then_stop_against_scripted_gateway(ScriptedDelete::Fail, None).await;
+        let uncertain = outcome
+            .uncertain_tcp_mapping
+            .expect("failed delete retains uncertain lease");
+        assert_eq!(uncertain.transport, UpnpTransport::Tcp);
+        assert_eq!(uncertain.external_address, Ipv4Addr::new(203, 0, 113, 10));
+        assert_eq!(uncertain.external_port, 42_000);
+        assert!(uncertain.remaining_lease_seconds(Instant::now()) <= 1);
+        assert!(uncertain.detail.contains("delete UPnP mapping"));
+        assert_eq!(
+            transcript,
+            [
+                "GET /root.xml",
+                "GET /wan.xml",
+                "GetExternalIPAddress",
+                "GetSpecificPortMappingEntry",
+                "AddPortMapping",
+                "GetSpecificPortMappingEntry",
+                "DeletePortMapping",
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn cleanup_cancellation_cuts_a_stalled_delete_short() {
+        let started = Instant::now();
+        let (outcome, transcript) = map_then_stop_against_scripted_gateway(
+            ScriptedDelete::Stall,
+            Some(Duration::from_millis(200)),
+        )
+        .await;
+        let uncertain = outcome
+            .uncertain_tcp_mapping
+            .expect("cut-short delete retains uncertain lease");
+        assert_eq!(uncertain.detail, CLEANUP_CUT_SHORT);
+        assert_eq!(uncertain.external_port, 42_000);
+        assert!(outcome.error.is_none(), "{:?}", outcome.error);
+        assert_eq!(
+            transcript.last().map(String::as_str),
+            Some("DeletePortMapping")
+        );
+        assert!(
+            started.elapsed() < DELETE_TIMEOUT,
+            "cleanup cancellation must end the delete before its own timeout"
+        );
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum ScriptedDelete {
+        Fail,
+        Stall,
+    }
+
+    /// Maps one TCP port through a scripted gateway, stops the generation,
+    /// and cancels the cleanup token `cut_short_after` the stop when given.
+    /// Returns the run outcome and the gateway transcript.
+    async fn map_then_stop_against_scripted_gateway(
+        delete: ScriptedDelete,
+        cut_short_after: Option<Duration>,
+    ) -> (ReachabilityRunOutcome, Vec<String>) {
+        let (config, transcript, udp_task, http_task) =
+            scripted_delete_failure_gateway(delete).await;
         let listener = ListenerStatus::Listening {
             address: Ipv4Addr::LOCALHOST.to_string(),
             port: 42_000,
@@ -2532,6 +2664,7 @@ mod tests {
             .set_client_settings_mapping_generation(settings_generation)
             .expect("install mapping generation");
         let cancellation = CancellationToken::new();
+        let cleanup_cancellation = CancellationToken::new();
         let counters = Arc::new(ReachabilityCounters::default());
         let mapping_task = tokio::spawn(run_mapping(
             state,
@@ -2543,6 +2676,7 @@ mod tests {
                 counters: counters.clone(),
                 settings_generation,
                 discovery_config: Some(config),
+                cleanup_cancellation: cleanup_cancellation.clone(),
             },
         ));
         tokio::time::timeout(Duration::from_secs(2), async {
@@ -2561,30 +2695,19 @@ mod tests {
         assert_eq!(counters.mappings.load(Ordering::Acquire), 1);
 
         cancellation.cancel();
+        if let Some(delay) = cut_short_after {
+            tokio::time::sleep(delay).await;
+            cleanup_cancellation.cancel();
+        }
         let outcome = mapping_task.await.expect("join scripted mapping");
-        let uncertain = outcome
-            .uncertain_tcp_mapping
-            .expect("failed delete retains uncertain lease");
-        assert_eq!(uncertain.transport, UpnpTransport::Tcp);
-        assert_eq!(uncertain.external_address, Ipv4Addr::new(203, 0, 113, 10));
-        assert_eq!(uncertain.external_port, 42_000);
-        assert!(uncertain.remaining_lease_seconds(Instant::now()) <= 1);
-        assert!(uncertain.detail.contains("delete UPnP mapping"));
         assert_eq!(counters.mappings.load(Ordering::Acquire), 0);
         udp_task.await.expect("join scripted SSDP");
-        http_task.await.expect("join scripted HTTP");
-        assert_eq!(
-            transcript.lock().unwrap().as_slice(),
-            [
-                "GET /root.xml",
-                "GET /wan.xml",
-                "GetExternalIPAddress",
-                "GetSpecificPortMappingEntry",
-                "AddPortMapping",
-                "GetSpecificPortMappingEntry",
-                "DeletePortMapping",
-            ]
-        );
+        match delete {
+            ScriptedDelete::Fail => http_task.await.expect("join scripted HTTP"),
+            ScriptedDelete::Stall => http_task.abort(),
+        }
+        let transcript = transcript.lock().unwrap().clone();
+        (outcome, transcript)
     }
 
     async fn scripted_dual_gateway(
@@ -2769,7 +2892,9 @@ mod tests {
         )
     }
 
-    async fn scripted_delete_failure_gateway() -> (
+    async fn scripted_delete_failure_gateway(
+        delete: ScriptedDelete,
+    ) -> (
         UpnpDiscoveryConfig,
         Arc<Mutex<Vec<String>>>,
         tokio::task::JoinHandle<()>,
@@ -2829,6 +2954,12 @@ mod tests {
                         "AddPortMapping" => {
                             mapped = true;
                             ("200 OK", soap_response(action, ""))
+                        }
+                        "DeletePortMapping" if delete == ScriptedDelete::Stall => {
+                            http_transcript.lock().unwrap().push(action.to_owned());
+                            // Never answer; the caller aborts this task.
+                            std::future::pending::<()>().await;
+                            unreachable!();
                         }
                         "DeletePortMapping" => {
                             ("500 Internal Server Error", soap_fault(501, "DeleteFailed"))

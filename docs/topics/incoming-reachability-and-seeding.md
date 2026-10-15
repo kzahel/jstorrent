@@ -1,5 +1,12 @@
 # Incoming Reachability And Seeding
 
+Tactical [366](../tactical/366-bounded-host-shutdown.md) bounds UPnP mapping
+and pinhole removal during application shutdown. Removal shares a 2 s budget
+with tracker `stopped` announces and ends at once when the host hurries. A
+removal ended that way leaves the lease to expire on the router; shutdown
+reports it as progress and a warning diagnostic rather than as an error.
+Other delete failures remain shutdown errors.
+
 Tactical [357](../tactical/357-rich-share-links.md) reuses reachability for
 share-link peer hints. An internet address is offered only after an incoming
 connection from a public address reached the current advertised endpoint
@@ -642,7 +649,8 @@ joined shutdown indefinitely.
 UPnP IGD, PCP, and NAT-PMP mappings are volatile leases owned beneath one
 session reachability coordinator. They are created only for real bound
 protocol endpoints, renewed before expiry, replaced when the relevant
-interface or port changes, and removed on clean shutdown when practical.
+interface or port changes, and removed on clean shutdown when practical
+(within the shared shutdown cleanup budget of Tactical 366).
 Crash recovery relies on bounded lease expiry and fresh discovery rather than
 persisting a mapping as trusted state.
 

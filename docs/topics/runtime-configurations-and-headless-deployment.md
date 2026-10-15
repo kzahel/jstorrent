@@ -1,5 +1,17 @@
 # Runtime Configurations And Headless Deployment
 
+Tactical [366](../tactical/366-bounded-host-shutdown.md) bounds application
+shutdown and makes it observable. Tracker `stopped` announces and UPnP removal
+share a 2 s budget (`ApplicationService::shutdown_with`), accounting is
+flushed before that network phase, and work cut short is reported rather than
+failing shutdown. The gateway prints `shutdown:` progress lines and escalates
+on repeated SIGINT/SIGTERM: graceful, then skip network cleanup, then exit
+130. `./scripts/webui` runs the gateway and Vite in their own process groups,
+relays that progress, and kills the gateway on a third Ctrl+C. Process tests
+confirm `session.db` passes `integrity_check` after every exit path,
+including SIGKILL. Desktop, Android and iOS get the shorter budget but no new
+signal or progress surface.
+
 Tactical [356](../tactical/356-precompressed-hosted-web-assets.md) makes the
 gateway's static fallback serve `.br` and `.gz` copies written by
 `npm run build:hosted`, which the headless and Crostini packages and
