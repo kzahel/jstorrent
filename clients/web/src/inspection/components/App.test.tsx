@@ -1821,6 +1821,7 @@ describe("inspection application", () => {
     const localPlayback: LocalVideoPlayback = {
       play: vi.fn(async () => ({ close: async () => {} })),
       openExternally: vi.fn(async () => {}),
+      mediaUrl: vi.fn(async () => "/media/v1/test"),
     };
     renderApplication(
       application, undefined, undefined, undefined, undefined, undefined,
@@ -2918,16 +2919,18 @@ describe("inspection application", () => {
     expect(within(items()).getAllByRole("listitem")).toHaveLength(5);
     expect(screen.getByText("5 items")).toBeVisible();
     expect(within(items()).getAllByText(/^S01 · E01 · North Shore Stories$/)).toHaveLength(1);
-    expect(within(items()).getAllByText(/^Offline · /)).toHaveLength(2);
+    expect(within(items()).getAllByText(/^Complete · /)).toHaveLength(2);
+    // Art shows the kind of media, not initials.
+    expect(within(items()).queryByText("NS")).not.toBeInTheDocument();
 
     const filters = screen.getByRole("navigation", { name: "Library filters" });
-    expect(within(filters).getByRole("button", { name: /^TV shows/ })).toHaveTextContent("1");
+    expect(within(filters).getByRole("button", { name: /^TV shows/ })).toHaveTextContent("4");
     expect(within(filters).getByRole("button", { name: /^Movies/ })).toHaveTextContent("0");
     await user.click(within(filters).getByRole("button", { name: /^TV shows/ }));
     const shows = screen.getByRole("list", { name: "TV shows" });
     const show = within(shows).getByRole("button", { name: /North Shore Stories/ });
     expect(show).toHaveTextContent("4 episodes · 2 seasons");
-    expect(show).toHaveTextContent("2 of 4 offline");
+    expect(show).toHaveTextContent("2 of 4 complete");
     await user.click(show);
     expect(screen.getByRole("heading", { name: "North Shore Stories" })).toBeVisible();
     expect(within(items()).getAllByRole("listitem")).toHaveLength(4);
@@ -2942,9 +2945,9 @@ describe("inspection application", () => {
     await waitFor(() =>
       expect(within(items()).getAllByRole("listitem")).toHaveLength(1),
     );
-    await user.click(screen.getByRole("button", { name: "List" }));
-    const table = screen.getByRole("table");
-    expect(within(table).getByRole("columnheader", { name: "Show or album" })).toBeVisible();
+    await user.click(screen.getByRole("radio", { name: "List" }));
+    const table = screen.getByRole("grid", { name: "Library items" });
+    expect(within(table).getByRole("columnheader", { name: /Show or album/ })).toBeVisible();
     expect(within(table).getAllByRole("row")).toHaveLength(2);
 
     await user.click(
@@ -2956,7 +2959,7 @@ describe("inspection application", () => {
     await user.click(screen.getByRole("button", { name: "Back to Library" }));
     // The search and page return with the Library, and focus with the item.
     expect(
-      within(screen.getByRole("table")).getByRole("button", {
+      within(screen.getByRole("grid", { name: "Library items" })).getByRole("button", {
         name: /^Show .* in its torrent$/,
       }),
     ).toHaveFocus();
@@ -3034,7 +3037,7 @@ describe("inspection application", () => {
       }),
     );
     // A new query returns to the first page and keeps the last page shown.
-    await user.click(screen.getByRole("button", { name: "Offline" }));
+    await user.click(screen.getByRole("radio", { name: "Complete" }));
     await waitFor(() =>
       expect(application.views.at(-1)?.libraryMedia).toMatchObject({
         offset: 0,
@@ -3375,6 +3378,33 @@ describe("inspection application", () => {
       ),
     );
     expect(await findToast("Added 2. Already in your list: 0.")).toBeVisible();
+  });
+
+  it("adds from the header on every destination where there is room", async () => {
+    const user = userEvent.setup();
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: liveSnapshot({
+        roots: [downloadRoot("root_a", "Downloads")],
+        defaultRoot: "root_a",
+        showAddOptions: false,
+      }),
+    });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    const header = screen.getByRole("banner");
+    const magnet = `magnet:?xt=urn:btih:${"c".repeat(40)}&dn=Library`;
+    await user.type(
+      within(header).getByRole("textbox", { name: "Magnet link or torrent URL" }),
+      magnet,
+    );
+    await user.click(within(header).getByRole("button", { name: "Add" }));
+    await waitFor(() =>
+      expect(application.commands).toEqual([
+        { type: "add_magnet", magnet, storageRoot: "root_a", startContent: true },
+      ]),
+    );
+    expect(screen.getAllByRole("textbox", { name: "Magnet link or torrent URL" })).toHaveLength(1);
   });
 
   it("adds each pasted magnet link with one summary", async () => {

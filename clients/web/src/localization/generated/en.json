@@ -5786,19 +5786,19 @@
   "inspection.components.library.media.availability.any": [
     {
       "type": 0,
-      "value": "Everything"
+      "value": "All"
     }
   ],
   "inspection.components.library.media.availability.incomplete": [
     {
       "type": 0,
-      "value": "Downloading"
+      "value": "Incomplete"
     }
   ],
   "inspection.components.library.media.availability.offline": [
     {
       "type": 0,
-      "value": "Offline"
+      "value": "Complete"
     }
   ],
   "inspection.components.library.media.back": [
@@ -6074,7 +6074,7 @@
     },
     {
       "type": 0,
-      "value": " offline"
+      "value": " complete"
     }
   ],
   "inspection.components.library.media.group.show": [
@@ -6208,13 +6208,13 @@
   "inspection.components.library.media.item.offline": [
     {
       "type": 0,
-      "value": "Offline"
+      "value": "Complete"
     }
   ],
   "inspection.components.library.media.item.offline.archived": [
     {
       "type": 0,
-      "value": "Offline · Archived"
+      "value": "Complete · Archived"
     }
   ],
   "inspection.components.library.media.item.open": [
@@ -6370,7 +6370,7 @@
   "inspection.components.library.media.play.unavailable": [
     {
       "type": 0,
-      "value": "This file is not downloaded and verified yet."
+      "value": "This file is not complete yet."
     }
   ],
   "inspection.components.library.media.preset.all": [

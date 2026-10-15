@@ -52,17 +52,17 @@ const PRESET_SYMBOLS: Readonly<Record<LibraryPreset, string>> = {
   torrents: "≡",
 };
 
-/** What each preset lists at its top level, within the current search. */
+/** The files each preset holds within the current search; torrents for By torrent. */
 function presetCount(preset: LibraryPreset, facets: LibraryFacetsView): number {
   switch (preset) {
     case "all":
       return facets.items;
     case "shows":
-      return facets.series;
+      return facets.episodes;
     case "movies":
       return facets.movies;
     case "music":
-      return facets.albums;
+      return facets.tracks;
     case "torrents":
       return facets.torrents;
   }

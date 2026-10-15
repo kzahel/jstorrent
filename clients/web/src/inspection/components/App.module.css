@@ -65,6 +65,20 @@
   display: none;
 }
 
+/* The add field follows the brand; rates and Settings stay at the end. */
+.header:has(.headerAdd) .brand {
+  margin-right: 0;
+}
+
+.headerAdd {
+  display: flex;
+  min-width: 14rem;
+  max-width: 32rem;
+  flex: 1 1 24rem;
+  margin-right: auto;
+  margin-left: var(--ui-space-md);
+}
+
 .sessionStats {
   display: flex;
   align-items: center;

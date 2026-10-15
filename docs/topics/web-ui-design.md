@@ -1,5 +1,14 @@
 # Web UI Design
 
+Tactical [364](../tactical/364-library-review-fixes.md) moves the add field
+into the header beside the brand on wide and compact layouts, so torrents can
+be added from every destination; narrow layouts keep it in the Torrents bar.
+`TorrentAddProvider` owns adding app-wide. The Library list is a
+`VirtualTable` whose headers set the host sort through `externalSort`, its
+toggles are the shared `SegmentedControl` that Settings also draws, cards show
+a film or music icon instead of initials, and availability reads All,
+Complete and Incomplete.
+
 Tactical [363](../tactical/363-library-media-index.md) gives the Library a
 `LibraryMediaView` over the host's `library_media` pages when the host offers
 them. The sidebar lists the All media, TV shows, Movies, Music and By torrent

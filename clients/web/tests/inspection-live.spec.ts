@@ -1014,7 +1014,7 @@ test("live Library media detail follows metadata through completion", async ({
   await page.keyboard.press("Escape");
   await expect(card).toBeFocused();
   await libraryFilters.getByRole("button", { name: /^TV shows/ }).click();
-  await expect(show).toContainText("5 of 5 offline");
+  await expect(show).toContainText("5 of 5 complete");
   await libraryFilters.getByRole("button", { name: /^All media/ }).click();
 
   const payloadHash = createHash("sha1");

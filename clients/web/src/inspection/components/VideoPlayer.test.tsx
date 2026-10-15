@@ -134,6 +134,7 @@ describe("video player", () => {
         return { close };
       }),
       openExternally: vi.fn(async () => {}),
+      mediaUrl: vi.fn(async () => "/media/v1/test"),
     };
     render(
       <PlaybackProvider localPlayback={localPlayback}>
@@ -154,9 +155,43 @@ describe("video player", () => {
     expect(request.signal!.aborted).toBe(true);
     expect(close).toHaveBeenCalledOnce();
   });
+  it("plays local audio in the dialog from the file's media URL", async () => {
+    const localPlayback: LocalVideoPlayback = {
+      play: vi.fn(async () => ({ close: async () => {} })),
+      openExternally: vi.fn(async () => {}),
+      mediaUrl: vi.fn(async () => "/media/v1/song"),
+    };
+    const song = { ...file, fileName: "01 - Song.flac" };
+    function SongTrigger() {
+      const playback = usePlayback();
+      return (
+        <button
+          onClick={() =>
+            playback.canPlay(song.fileName, "available") && playback.play(song)
+          }
+        >
+          Play song
+        </button>
+      );
+    }
+    render(
+      <PlaybackProvider localPlayback={localPlayback}>
+        <SongTrigger />
+      </PlaybackProvider>,
+    );
+    await userEvent.click(screen.getByText("Play song"));
+    const dialog = screen.getByRole("dialog", { name: "Play 01 - Song.flac" });
+    await waitFor(() =>
+      expect(dialog.querySelector("audio")?.getAttribute("src")).toBe("/media/v1/song"),
+    );
+    expect(localPlayback.mediaUrl).toHaveBeenCalledWith(song, expect.any(AbortSignal));
+    expect(localPlayback.play).not.toHaveBeenCalled();
+    expect(dialog.querySelector("video")).toBeNull();
+  });
   it("shows a failed new-tab Open inside the dialog", async () => {
     const localPlayback: LocalVideoPlayback = {
       play: async () => ({ close: async () => {} }),
+      mediaUrl: async () => "/media/v1/test",
       openExternally: async () => {
         throw new Error("Allow pop-ups to open this file in a new tab");
       },
@@ -183,7 +218,7 @@ describe("video player", () => {
     render(
       <PlaybackProvider
         remoteAccess={remoteAccess}
-        localPlayback={{ play, openExternally: vi.fn() }}
+        localPlayback={{ play, openExternally: vi.fn(), mediaUrl: vi.fn() }}
       >
         <Trigger />
       </PlaybackProvider>,

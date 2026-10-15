@@ -9,7 +9,9 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -863,6 +865,37 @@ const LIST_COLUMNS: readonly VirtualColumn<Item>[] = [
     render: () => "table only",
   },
 ];
+
+describe("VirtualTable external sort", () => {
+  it("reports header sorts and keeps the caller's order", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <VirtualTable
+        tableId="external"
+        label="External rows"
+        rows={[
+          { id: "b", value: "2" },
+          { id: "a", value: "10" },
+        ]}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="No rows"
+        externalSort={{ sort: { columnId: "value", direction: "asc" }, onChange }}
+      />,
+    );
+    const grid = screen.getByRole("grid", { name: "External rows" });
+    expect(
+      within(grid)
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => row.textContent),
+    ).toEqual(["2", "10"]);
+    await user.click(within(grid).getByRole("button", { name: /^Value/ }));
+    expect(onChange).toHaveBeenCalledWith({ columnId: "value", direction: "desc" });
+  });
+});
 
 describe("VirtualTable narrow list", () => {
   const originalMatchMedia = window.matchMedia;

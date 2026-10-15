@@ -236,8 +236,10 @@ test("media Library browses presets, groups and layouts across widths", async ({
   await capture(page, "rstorrent-media-library-shows.png");
   await show.click();
   await expect(page.getByRole("heading", { name: "North Shore Stories" })).toBeVisible();
-  await page.getByRole("button", { name: "List" }).click();
-  await expect(page.getByRole("table").getByRole("row")).toHaveCount(5);
+  await page.getByRole("radio", { name: "List" }).click();
+  await expect(
+    page.getByRole("grid", { name: "Library items" }).getByRole("row"),
+  ).toHaveCount(5);
   await capture(page, "rstorrent-media-library-list.png");
   const violations = (
     await new AxeBuilder({ page }).analyze()
@@ -249,7 +251,7 @@ test("media Library browses presets, groups and layouts across widths", async ({
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("heading", { name: "North Shore Stories" })).toBeVisible();
-  await page.getByRole("button", { name: "Cards" }).click();
+  await page.getByRole("radio", { name: "Cards" }).click();
   await expect(items.getByRole("listitem")).toHaveCount(4);
   await capture(page, "rstorrent-media-library-phone.png");
   const phoneViolations = (

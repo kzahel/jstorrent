@@ -13,6 +13,7 @@ import type { DesktopRemoteAccess } from "../remote-access/types";
 import {
   canPlayLocalFile,
   canPlayRemoteFile,
+  isAudioFile,
   type LocalVideoPlayback,
   type VideoFile,
   type VideoPlaybackRequest,
@@ -95,11 +96,19 @@ export function PlaybackProvider({
                   {localizedMessage("remote.video.close")}
                 </button>
               </header>
-              <Video
-                key={`${file.torrentId}:${file.fileIndex}`}
-                file={file}
-                source={source}
-              />
+              {source.type === "local" && isAudioFile(file.fileName) ? (
+                <Audio
+                  key={`${file.torrentId}:${file.fileIndex}`}
+                  file={file}
+                  playback={source.playback}
+                />
+              ) : (
+                <Video
+                  key={`${file.torrentId}:${file.fileIndex}`}
+                  file={file}
+                  source={source}
+                />
+              )}
             </Dialog>
           </Modal>
         </ModalOverlay>
@@ -132,6 +141,49 @@ function OpenExternallyButton({
         {localizedMessage("video.open.new.tab")}
         <Icon name="openExternal" />
       </button>
+    </>
+  );
+}
+
+/** The browser decodes audio itself from the media URL's ranges. */
+function Audio({
+  file,
+  playback,
+}: {
+  readonly file: VideoFile;
+  readonly playback: LocalVideoPlayback;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [status, setStatus] = useState(localizedMessage("video.loading"));
+  useEffect(() => {
+    const lifetime = new AbortController();
+    playback.mediaUrl(file, lifetime.signal).then(
+      (value) => {
+        if (!lifetime.signal.aborted) setUrl(value);
+      },
+      (reason: unknown) => {
+        if (!lifetime.signal.aborted) {
+          setStatus(reason instanceof Error ? reason.message : String(reason));
+        }
+      },
+    );
+    return () => lifetime.abort();
+  }, [file, playback]);
+  return (
+    <>
+      {url === null ? null : (
+        <audio
+          src={url}
+          controls
+          autoPlay
+          preload="metadata"
+          aria-label={file.fileName}
+          onPlaying={() => setStatus(localizedMessage("remote.video.playing"))}
+          onWaiting={() => setStatus(localizedMessage("remote.video.buffering"))}
+          onError={() => setStatus(localizedMessage("remote.video.decode.error"))}
+        />
+      )}
+      <p role="status">{status}</p>
     </>
   );
 }

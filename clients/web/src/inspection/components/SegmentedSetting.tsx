@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { SegmentedControl } from "./SegmentedControl";
 import styles from "./SettingsDialog.module.css";
 
 export interface SegmentedOption<Value extends string> {
@@ -42,21 +43,13 @@ export function SegmentedSetting<Value extends string>({
         <span id={descriptionId}>{selected?.description}</span>
         {children}
       </div>
-      <div className={styles.segmented}>
-        {options.map((option) => (
-          <label key={option.value} className={styles.segment} title={option.description}>
-            <input
-              type="radio"
-              name={name}
-              value={option.value}
-              checked={value === option.value}
-              disabled={disabled}
-              onChange={() => onChange(option.value)}
-            />
-            <span>{option.label}</span>
-          </label>
-        ))}
-      </div>
+      <SegmentedControl
+        name={name}
+        options={options}
+        value={value}
+        disabled={disabled}
+        onChange={onChange}
+      />
     </div>
   );
 }

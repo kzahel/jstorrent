@@ -17,6 +17,15 @@ export interface LocalVideoPlayback {
   play(request: VideoPlaybackRequest): Promise<{ close(): Promise<void> }>;
   /** Hands the file to a new tab; call directly from a user activation. */
   openExternally(file: VideoFile): Promise<void>;
+  /** A capability URL for the file on this page's origin, for `<audio>`. */
+  mediaUrl(file: VideoFile, signal?: AbortSignal): Promise<string>;
+}
+
+/** Audio the browser plays natively from a range-capable URL. */
+const AUDIO_FILE = /\.(mp3|m4a|m4b|aac|flac|ogg|oga|opus|wav)$/i;
+
+export function isAudioFile(name: string): boolean {
+  return AUDIO_FILE.test(name);
 }
 
 export function canPlayRemoteFile(name: string, availability: string): boolean {
@@ -24,5 +33,8 @@ export function canPlayRemoteFile(name: string, availability: string): boolean {
 }
 
 export function canPlayLocalFile(name: string, availability: string): boolean {
-  return availability === "available" && /\.(mp4|m4v|mkv)$/i.test(name);
+  return (
+    availability === "available" &&
+    (/\.(mp4|m4v|mkv)$/i.test(name) || isAudioFile(name))
+  );
 }

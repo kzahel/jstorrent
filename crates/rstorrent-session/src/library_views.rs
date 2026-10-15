@@ -888,16 +888,7 @@ impl IndexedTorrent {
             })
             .collect::<Vec<_>>();
         let path_of = paths.iter().copied().collect::<HashMap<_, _>>();
-        // Folder names shared by many files are searched once per torrent.
-        let mut roots = BTreeSet::new();
-        for (_, path) in &paths {
-            if path.len() > 1 {
-                roots.insert(path[0].as_str());
-            }
-        }
-        let mut torrent_parts = vec![input.name];
-        torrent_parts.extend(roots.iter().copied());
-        let name_search = search_text(&torrent_parts);
+        let name_search = search_text(&[input.name]);
         let mut groups = HashMap::<String, Arc<IndexedGroup>>::new();
         let mut group = |id: String, title: &str| {
             Arc::clone(groups.entry(id.clone()).or_insert_with(|| {
@@ -907,7 +898,7 @@ impl IndexedTorrent {
                 })
             }))
         };
-        let entries = classify_library(paths.iter().copied())
+        let entries = classify_library(paths.iter().copied(), files.content_root())
             .into_iter()
             .filter_map(|file| {
                 let (length, wanted) = *details.get(&file.file_index)?;
@@ -960,11 +951,9 @@ impl IndexedTorrent {
                         entry.track_number = track.track_number;
                     }
                 }
-                // Titles, series and albums derive from the path, so the path
-                // below its root folder is the whole searchable text.
-                let below_root = if path.len() > 1 { &path[1..] } else { *path };
-                entry.search =
-                    search_text(&below_root.iter().map(String::as_str).collect::<Vec<_>>());
+                // Titles, series and albums derive from the path and the
+                // torrent name, which is searched per torrent.
+                entry.search = search_text(&path.iter().map(String::as_str).collect::<Vec<_>>());
                 Some(entry)
             })
             .collect();

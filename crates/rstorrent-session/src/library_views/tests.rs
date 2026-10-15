@@ -570,3 +570,36 @@ fn hundred_thousand_files_build_and_query_within_bounds() {
     );
     assert!(bytes / 100_000 < 1_024, "index grew to {bytes} bytes");
 }
+
+#[test]
+fn a_multi_file_torrent_folder_names_its_album() {
+    let mut fixture = Fixture::new();
+    fixture.torrent(
+        1,
+        "The WIRED CD - Rip. Sample. Mash. Share.",
+        &[
+            "01 - Beastie Boys - Now Get Busy.mp3",
+            "02 - David Byrne - My Fair Lady.mp3",
+        ],
+        &[0, 1],
+        &[],
+    );
+    // A single-file torrent's path is its name, so it has no folder.
+    fixture.torrent(2, "Loose Song.mp3", &["Loose Song.mp3"], &[0], &[]);
+    let index = fixture.index();
+    let albums = fixture.evaluate(
+        &index,
+        LibraryMediaQuery {
+            grouping: LibraryGrouping::Album,
+            ..LibraryMediaQuery::default()
+        },
+    );
+    assert_eq!(albums.groups.len(), 1);
+    assert_eq!(
+        albums.groups[0].title,
+        "The WIRED CD - Rip. Sample. Mash. Share"
+    );
+    assert_eq!(albums.groups[0].item_count, 2);
+    assert_eq!(albums.facets.tracks, 3);
+    assert_eq!(albums.facets.albums, 1);
+}

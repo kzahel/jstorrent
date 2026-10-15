@@ -431,9 +431,10 @@ fn mime_type(file_name: &str) -> &'static str {
         Some("avi") => "video/x-msvideo",
         Some("ogv") => "video/ogg",
         Some("mp3") => "audio/mpeg",
-        Some("m4a") => "audio/mp4",
+        Some("m4a" | "m4b") => "audio/mp4",
+        Some("aac") => "audio/aac",
         Some("flac") => "audio/flac",
-        Some("ogg" | "oga") => "audio/ogg",
+        Some("ogg" | "oga" | "opus") => "audio/ogg",
         Some("wav") => "audio/wav",
         Some("jpg" | "jpeg") => "image/jpeg",
         Some("png") => "image/png",
@@ -664,6 +665,9 @@ mod tests {
     fn maps_a_bounded_extension_set_without_sniffing() {
         assert_eq!(mime_type("MOVIE.MP4"), "video/mp4");
         assert_eq!(mime_type("captions.vtt"), "text/plain; charset=utf-8");
+        assert_eq!(mime_type("Book.M4B"), "audio/mp4");
+        assert_eq!(mime_type("song.opus"), "audio/ogg");
+        assert_eq!(mime_type("song.aac"), "audio/aac");
         assert_eq!(mime_type("unknown.bin"), "application/octet-stream");
         assert_eq!(mime_type("no-extension"), "application/octet-stream");
     }

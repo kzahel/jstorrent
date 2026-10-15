@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [364 — Library review fixes](364-library-review-fixes.md): albums and shows
+  named by a torrent's own folder, file counts per preset, kind icons, inline
+  audio, shared segmented toggles, a sortable Library table and adding from
+  the header on every destination.
 - [363 — Library media index](363-library-media-index.md): the host indexes
   video and audio across torrents in memory and serves `library_media` pages
   by query; the web Library browses them with search, filters, presets for

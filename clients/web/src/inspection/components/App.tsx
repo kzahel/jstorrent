@@ -50,6 +50,7 @@ import { ScenarioBar } from "./ScenarioBar";
 import type { SettingsCategory } from "./SettingsDialog";
 import { navigationTitle, Sidebar } from "./Sidebar";
 import { TorrentActions } from "./TorrentActions";
+import { AddTorrentForm, TorrentAddProvider } from "./TorrentAdd";
 import { TorrentActionProvider } from "./TorrentActionContext";
 import { ToastProvider } from "./Toast";
 import { TorrentTable } from "./TorrentTable";
@@ -376,6 +377,10 @@ function AppContent({
   } as CSSProperties;
 
   return (
+    <TorrentAddProvider
+      showCrostiniStorageHelp={hostedProduct === "crostini"}
+      oneCurrentRoot={oneCurrentRoot === true}
+    >
     <div
       className={styles.app}
       inert={interrupted}
@@ -401,6 +406,12 @@ function AppContent({
           <strong>{localizedMessage("inspection.components.app.rstorrent")}</strong>
         </div>
         <strong className={styles.locationTitle}>{title}</strong>
+        {/* Where there is room, adding works from every destination. */}
+        {layout === "phone" ? null : (
+          <div className={styles.headerAdd}>
+            <AddTorrentForm />
+          </div>
+        )}
         {showRates ? (
           <div
             className={styles.sessionStats}
@@ -501,10 +512,7 @@ function AppContent({
           {destination === "library" ? (
             <LibraryView />
           ) : destination === "transfers" ? (
-            <TransfersView
-              showCrostiniStorageHelp={hostedProduct === "crostini"}
-              oneCurrentRoot={oneCurrentRoot === true}
-            />
+            <TransfersView />
           ) : (
             <>
               <section
@@ -512,8 +520,7 @@ function AppContent({
                 aria-label={localizedMessage("inspection.components.app.workbench.torrent.collection")}
               >
                 <TorrentActions
-                  showCrostiniStorageHelp={hostedProduct === "crostini"}
-                  oneCurrentRoot={oneCurrentRoot === true}
+                  showAddForm={layout === "phone"}
                   tableToolbarRef={setCollectionToolbar}
                 />
                 <div className={styles.tableWrap}>
@@ -736,6 +743,7 @@ function AppContent({
         <ProductDisclosure productPrivacy={productPrivacy} />
       )}
     </div>
+    </TorrentAddProvider>
   );
 }
 

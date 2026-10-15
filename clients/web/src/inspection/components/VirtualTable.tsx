@@ -87,6 +87,17 @@ export interface VirtualTableProps<Row> {
   /** Names the row count, such as "3 torrents"; defaults to rows. */
   readonly formatCount?: (count: number) => string;
   readonly initialSort?: { readonly columnId: string; readonly direction: "asc" | "desc" };
+  /**
+   * The caller sorts the rows, as for one page of a host-sorted result:
+   * headers report the chosen sort and the table keeps the given order.
+   * Sortable columns still declare a sortValue.
+   */
+  readonly externalSort?: {
+    readonly sort: { readonly columnId: string; readonly direction: "asc" | "desc" } | null;
+    readonly onChange: (
+      sort: { readonly columnId: string; readonly direction: "asc" | "desc" } | null,
+    ) => void;
+  };
 }
 
 export interface VirtualTableContextMenu<Row> {
@@ -145,6 +156,7 @@ export function VirtualTable<Row>({
   emptyAction,
   formatCount,
   initialSort,
+  externalSort,
 }: VirtualTableProps<Row>) {
   const metrics = INTERFACE_METRICS[interfaceSize];
   const list = useNarrowViewport();
@@ -170,7 +182,12 @@ export function VirtualTable<Row>({
       right: false,
     });
   const [focusIndex, setFocusIndex] = useState(0);
-  const [sort, setSort] = useState<SortState | null>(initialSort ?? null);
+  const [internalSort, setInternalSort] = useState<SortState | null>(initialSort ?? null);
+  const sort = externalSort === undefined ? internalSort : externalSort.sort;
+  const setSort = (next: SortState | null) => {
+    if (externalSort === undefined) setInternalSort(next);
+    else externalSort.onChange(next);
+  };
   const [contextOpenRowId, setContextOpenRowId] = useState<string | null>(null);
   // Live updates re-sort the rows, except while the user is interacting with
   // the table, so a row does not move out from under a pending click.
@@ -222,7 +239,7 @@ export function VirtualTable<Row>({
     const loaded = loadTableConfig(tableId, columns);
     setHiddenColumns(loaded?.hiddenColumns ?? defaultHiddenColumns(columns));
     setColumnWidths(loaded?.widths ?? {});
-    setSort(
+    setInternalSort(
       loaded?.sort ??
         (initialSortColumnId === undefined || initialSortDirection === undefined
           ? null
@@ -235,9 +252,9 @@ export function VirtualTable<Row>({
     saveTableConfig(tableId, {
       hiddenColumns,
       widths: columnWidths,
-      sort,
+      sort: internalSort,
     });
-  }, [columnWidths, hiddenColumns, sort, tableId]);
+  }, [columnWidths, hiddenColumns, internalSort, tableId]);
 
   useEffect(() => {
     const element = viewportRef.current;
@@ -265,8 +282,9 @@ export function VirtualTable<Row>({
         })),
     [columnWidths, columns, hiddenColumns],
   );
+  const externallySorted = externalSort !== undefined;
   const { sortedRows, orderHeld } = useMemo(() => {
-    if (sort === null) return { sortedRows: rows, orderHeld: false };
+    if (sort === null || externallySorted) return { sortedRows: rows, orderHeld: false };
     const column = columns.find((candidate) => candidate.id === sort.columnId);
     if (column?.sortValue === undefined) {
       return { sortedRows: rows, orderHeld: false };
@@ -286,7 +304,7 @@ export function VirtualTable<Row>({
       sortedRows: held,
       orderHeld: held.some((row, index) => row !== liveRows[index]),
     };
-  }, [columns, getRowId, heldOrder, rows, sort]);
+  }, [columns, externallySorted, getRowId, heldOrder, rows, sort]);
 
   const holdingOrder = recentActivity || contextOpenRowId !== null;
   useEffect(() => {

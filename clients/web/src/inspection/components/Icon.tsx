@@ -6,11 +6,13 @@ export type IconName =
   | "chevronDown"
   | "close"
   | "copy"
+  | "film"
   | "github"
   | "library"
   | "link"
   | "magnet"
   | "menu"
+  | "music"
   | "moreVertical"
   | "openExternal"
   | "pause"
@@ -69,6 +71,13 @@ function IconPaths({ name }: { readonly name: IconName }) {
           <path d="M13.75 6.25v-1.5a.5.5 0 0 0-.5-.5h-8.5a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 .5.5h1.5" />
         </>
       );
+    case "film":
+      return (
+        <>
+          <rect x="3.25" y="4.25" width="13.5" height="11.5" rx="1.25" />
+          <path d="M6.25 4.25v11.5M13.75 4.25v11.5M3.25 8h3M3.25 12h3M13.75 8h3M13.75 12h3" />
+        </>
+      );
     case "github":
       // GitHub's mark (Primer Octicons, MIT), scaled from its 16-unit grid.
       return (
@@ -99,6 +108,14 @@ function IconPaths({ name }: { readonly name: IconName }) {
         <>
           <path d="M4 3.5h3.5V10a2.5 2.5 0 0 0 5 0V3.5H16V10a6 6 0 0 1-12 0z" />
           <path d="M4 6.75h3.5M12.5 6.75H16" />
+        </>
+      );
+    case "music":
+      return (
+        <>
+          <path d="M7.75 14.25V4.75l8.5-1.5v9.5" />
+          <circle cx="5.75" cy="14.25" r="2" />
+          <circle cx="14.25" cy="12.75" r="2" />
         </>
       );
     case "menu":

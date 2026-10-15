@@ -10,7 +10,10 @@ adds in-page Play for completed MP4/M4V/MKV in the browser-hosted UI: the page
 reads the same file-scoped capability URL with same-origin byte ranges and
 feeds the 313 playsvideo source. The route, capability and limits are
 unchanged; development gateways mint media URLs on their visible origin so the
-Vite proxy carries them.
+Vite proxy carries them. Tactical
+[364](../tactical/364-library-review-fixes.md) plays completed MP3, M4A/M4B,
+AAC, FLAC, Ogg, Opus and WAV in the same dialog with a native `<audio>`
+element on that URL; the route names M4B, AAC and Opus with audio types.
 
 Topic: `http-file-serving-and-streaming`
 

@@ -66,8 +66,14 @@ to the probe cache.
 ### Conservative grouping, merged across torrents
 
 - **Series.** Episodes group by a normalized series title (case-folded,
-  separators collapsed, a trailing year removed), so a season pack and a lone
-  episode from another torrent form one show.
+  separators collapsed, a trailing year, `Season N`, `SNN` or `Complete`
+  removed), so a season pack and a lone episode from another torrent form one
+  show.
+- **The torrent's folder counts.** A multi-file torrent's paths start below
+  its own folder, which still names the show, album or movie, so
+  classification treats it as the outermost folder (Tactical
+  [364](../tactical/364-library-review-fixes.md)). A single-file torrent has
+  no folder.
 - **Albums.** Audio groups by its nearest meaningful folder, skipping disc
   folders such as `CD1` or `Disc 2`, with bracketed tags and format tokens
   removed from the key. Audio with no folder has no album.

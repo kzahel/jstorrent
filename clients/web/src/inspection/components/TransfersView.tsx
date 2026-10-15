@@ -9,15 +9,7 @@ import { TransferTable } from "./TransferTable";
 import { TableToolbarSlot } from "./VirtualTable";
 import styles from "./TransfersView.module.css";
 
-interface TransfersViewProps {
-  readonly showCrostiniStorageHelp: boolean;
-  readonly oneCurrentRoot?: boolean;
-}
-
-export function TransfersView({
-  showCrostiniStorageHelp,
-  oneCurrentRoot = false,
-}: TransfersViewProps) {
+export function TransfersView() {
   const order = useInspectionStore((state) => state.torrentOrder);
   const torrents = useInspectionStore((state) => state.torrents);
   const category = useInspectionStore(
@@ -55,8 +47,7 @@ export function TransfersView({
           {activeCount.toLocaleString()}{" "}{localizedMessage("inspection.components.transfers.view.active")}</span>
       </div>
       <TorrentActions
-        showCrostiniStorageHelp={showCrostiniStorageHelp}
-        oneCurrentRoot={oneCurrentRoot}
+        showAddForm={layout === "phone"}
         tableToolbarRef={setTableToolbar}
       />
       <div className={styles.table}>

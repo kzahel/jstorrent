@@ -13,6 +13,8 @@ export function createBrowserVideoPlayback(
       ]);
       return playMediaUrl(url, request);
     },
+    mediaUrl: (file, signal) =>
+      application.createMediaUrl(file.torrentId, file.fileIndex, signal),
     openExternally: async (file) => {
       const result = await application.dispatch({
         type: "open_file",

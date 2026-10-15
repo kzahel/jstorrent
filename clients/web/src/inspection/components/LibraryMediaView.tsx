@@ -1,5 +1,5 @@
 import { message as localizedMessage } from "../../localization/runtime";
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import type { LibraryAvailabilityFilter, LibraryMediaSort } from "../../api";
 import type { DataUnits } from "../appearance";
@@ -13,7 +13,9 @@ import {
   type LibraryPreset,
 } from "../library-browse";
 import type { LibraryGroupRow, LibraryItemRow, LibraryMediaSet } from "../model";
-import { Icon } from "./Icon";
+import { Icon, type IconName } from "./Icon";
+import { SegmentedControl } from "./SegmentedControl";
+import { VirtualTable, type VirtualColumn } from "./VirtualTable";
 import { isPlaybackEligible, useMediaPlayback } from "./useMediaPlayback";
 import styles from "./LibraryMediaView.module.css";
 
@@ -67,30 +69,33 @@ export function LibraryMediaView({
           </h1>
           <p aria-live="polite">{summary(media, status.status, grouped, browse.preset)}</p>
         </div>
-        <div
-          className={styles.segments}
-          role="group"
-          aria-label={localizedMessage("inspection.components.library.media.layout")}
-        >
-          {(["grid", "list"] as const).map((layout) => (
-            <button
-              key={layout}
-              type="button"
-              aria-pressed={browse.layout === layout}
-              onClick={() => update({ layout, page: browse.page })}
-            >
-              {layout === "grid"
-                ? localizedMessage("inspection.components.library.media.layout.grid")
-                : localizedMessage("inspection.components.library.media.layout.list")}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          name="library-layout"
+          label={localizedMessage("inspection.components.library.media.layout")}
+          value={browse.layout}
+          options={[
+            {
+              value: "grid",
+              label: localizedMessage("inspection.components.library.media.layout.grid"),
+            },
+            {
+              value: "list",
+              label: localizedMessage("inspection.components.library.media.layout.list"),
+            },
+          ]}
+          onChange={(layout) => update({ layout, page: browse.page })}
+        />
       </header>
       <Toolbar browse={browse} />
       <div
         className={styles.viewport}
         aria-busy={status.status === "loading" || undefined}
         data-stale={(media !== null && !current) || undefined}
+        data-layout={
+          !grouped && browse.layout === "list" && (media?.items.length ?? 0) > 0
+            ? "list"
+            : undefined
+        }
       >
         <LibraryContent
           media={media}
@@ -140,39 +145,27 @@ function Toolbar({ browse }: { readonly browse: LibraryBrowseState }) {
         onChange={(event) => setText(event.currentTarget.value)}
       />
       {presetGroups(browse.preset) && browse.preset !== "torrents" && browse.group === null ? (
-        <div
-          className={styles.segments}
-          role="group"
-          aria-label={localizedMessage("inspection.components.library.media.grouping")}
-        >
-          {[true, false].map((grouped) => (
-            <button
-              key={String(grouped)}
-              type="button"
-              aria-pressed={browse.grouped === grouped}
-              onClick={() => update({ grouped })}
-            >
-              {groupingLabel(browse.preset, grouped)}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          name="library-grouping"
+          label={localizedMessage("inspection.components.library.media.grouping")}
+          value={browse.grouped ? "groups" : "items"}
+          options={[
+            { value: "groups", label: groupingLabel(browse.preset, true) },
+            { value: "items", label: groupingLabel(browse.preset, false) },
+          ]}
+          onChange={(value) => update({ grouped: value === "groups" })}
+        />
       ) : null}
-      <div
-        className={styles.segments}
-        role="group"
-        aria-label={localizedMessage("inspection.components.library.media.availability")}
-      >
-        {(["any", "offline", "incomplete"] as const).map((availability) => (
-          <button
-            key={availability}
-            type="button"
-            aria-pressed={browse.availability === availability}
-            onClick={() => update({ availability })}
-          >
-            {availabilityLabel(availability)}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        name="library-availability"
+        label={localizedMessage("inspection.components.library.media.availability")}
+        value={browse.availability}
+        options={(["any", "offline", "incomplete"] as const).map((availability) => ({
+          value: availability,
+          label: availabilityLabel(availability),
+        }))}
+        onChange={(availability) => update({ availability })}
+      />
       <label className={styles.sort}>
         <span>{localizedMessage("inspection.components.library.media.sort.label")}</span>
         <select
@@ -192,9 +185,10 @@ function Toolbar({ browse }: { readonly browse: LibraryBrowseState }) {
         type="button"
         className={styles.toggle}
         aria-pressed={browse.descending}
+        title={localizedMessage("inspection.components.library.media.sort.descending")}
         onClick={() => update({ descending: !browse.descending })}
       >
-        {browse.descending ? "↓" : "↑"}{" "}
+        <span aria-hidden="true">{browse.descending ? "↓" : "↑"}</span>
         {localizedMessage("inspection.components.library.media.sort.descending")}
       </button>
       <label className={styles.archived}>
@@ -273,7 +267,7 @@ function LibraryContent({
                 style={waterLevel(group.offlineCount, group.itemCount)}
                 aria-hidden="true"
               >
-                <span>{initials(group.title)}</span>
+                <Icon className={styles.kind} name={groupIcon(group.id)} />
               </span>
               <span className={styles.cardBody}>
                 <strong title={group.title}>{group.title}</strong>
@@ -335,7 +329,11 @@ function ItemGrid({
               data-full={item.offline || undefined}
               style={waterLevel(Number(item.verifiedBytes), Number(item.lengthBytes))}
             >
-              <span aria-hidden="true">{item.kind === "audio" ? "♪" : initials(item.title)}</span>
+              <Icon
+                className={styles.kind}
+                name={item.kind === "audio" ? "music" : "film"}
+                aria-hidden="true"
+              />
               <PlayButton item={item} playback={playback} />
             </span>
             <button
@@ -360,6 +358,13 @@ function ItemGrid({
   );
 }
 
+/** Host sorts behind the list headers; other columns do not sort. */
+const SORT_COLUMNS: Readonly<Record<string, LibraryMediaSort>> = {
+  title: "title",
+  size: "size",
+  torrent: "source",
+};
+
 function ItemList({
   items,
   dataUnits,
@@ -373,51 +378,105 @@ function ItemList({
 }) {
   const playback = useMediaPlayback();
   const focusReturn = useReturnFocus(returnFocusItemId);
+  const browse = useInspectionStore((state) => state.presentation.libraryBrowse);
+  const update = useInspectionStore((state) => state.updateLibraryBrowse);
+  const interfaceSize = useInspectionStore((state) => state.presentation.interfaceSize);
+  const [currentId, setCurrentId] = useState<string | null>(returnFocusItemId);
+  const columns = useMemo(
+    (): readonly VirtualColumn<LibraryItemRow>[] => [
+      {
+        id: "play",
+        label: localizedMessage("inspection.components.library.media.column.play"),
+        width: 52,
+        minimumWidth: 52,
+        sortable: false,
+        listRole: "trailing",
+        listLabel: null,
+        render: (item) => <PlayButton item={item} playback={playback} />,
+      },
+      {
+        id: "title",
+        label: localizedMessage("inspection.components.library.media.column.title"),
+        width: 320,
+        sortValue: (item) => item.title,
+        listRole: "title",
+        render: (item) => <span title={item.fileName}>{item.title}</span>,
+      },
+      {
+        id: "context",
+        label: localizedMessage("inspection.components.library.media.column.context"),
+        width: 260,
+        sortable: false,
+        listRole: "subtitle",
+        render: (item) => itemContext(item),
+      },
+      {
+        id: "size",
+        label: localizedMessage("inspection.components.library.media.column.size"),
+        width: 96,
+        align: "right",
+        sortValue: (item) => Number(item.lengthBytes),
+        listRole: "detail",
+        render: (item) => formatBytes(Number(item.lengthBytes), dataUnits),
+      },
+      {
+        id: "status",
+        label: localizedMessage("inspection.components.library.media.column.status"),
+        width: 160,
+        sortable: false,
+        listRole: "detail",
+        render: (item) => itemState(item),
+      },
+      {
+        id: "torrent",
+        label: localizedMessage("inspection.components.library.media.column.torrent"),
+        width: 240,
+        sortValue: (item) => item.torrentName,
+        listRole: "detail",
+        render: (item) => (
+          <button
+            type="button"
+            className={styles.link}
+            ref={item.id === returnFocusItemId ? focusReturn : undefined}
+            aria-label={localizedMessage("inspection.components.library.media.item.open", {
+              title: item.title,
+            })}
+            onClick={() => onOpenTorrent(item.torrentId, item.id)}
+          >
+            {item.torrentName}
+          </button>
+        ),
+      },
+    ],
+    [dataUnits, focusReturn, onOpenTorrent, playback, returnFocusItemId],
+  );
+  const columnId =
+    Object.entries(SORT_COLUMNS).find(([, sort]) => sort === browse.sort)?.[0] ?? "title";
   return (
-    <table className={styles.table}>
-      <thead>
-        <tr>
-          <th scope="col">
-            <span className={styles.hidden}>
-              {localizedMessage("inspection.components.library.media.column.play")}
-            </span>
-          </th>
-          <th scope="col">{localizedMessage("inspection.components.library.media.column.title")}</th>
-          <th scope="col">{localizedMessage("inspection.components.library.media.column.context")}</th>
-          <th scope="col">{localizedMessage("inspection.components.library.media.column.size")}</th>
-          <th scope="col">{localizedMessage("inspection.components.library.media.column.status")}</th>
-          <th scope="col">{localizedMessage("inspection.components.library.media.column.torrent")}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((item) => (
-          <tr key={item.id} data-archived={item.archived || undefined}>
-            <td>
-              <PlayButton item={item} playback={playback} />
-            </td>
-            <td>
-              <strong title={item.fileName}>{item.title}</strong>
-            </td>
-            <td>{itemContext(item)}</td>
-            <td>{formatBytes(Number(item.lengthBytes), dataUnits)}</td>
-            <td>{itemState(item)}</td>
-            <td>
-              <button
-                type="button"
-                className={styles.link}
-                aria-label={localizedMessage("inspection.components.library.media.item.open", {
-                  title: item.title,
-                })}
-                ref={item.id === returnFocusItemId ? focusReturn : undefined}
-                onClick={() => onOpenTorrent(item.torrentId, item.id)}
-              >
-                {item.torrentName}
-              </button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className={styles.tableWrap}>
+      <VirtualTable
+        tableId="library-media"
+        label={localizedMessage("inspection.components.library.media.items")}
+        rows={items}
+        getRowId={(item) => item.id}
+        columns={columns}
+        interfaceSize={interfaceSize}
+        currentRowId={currentId}
+        onActivate={(item) => setCurrentId(item.id)}
+        emptyMessage={localizedMessage("inspection.components.library.media.empty.filters")}
+        formatCount={(count) =>
+          localizedMessage("inspection.components.library.media.count.items", { count })
+        }
+        externalSort={{
+          sort: { columnId, direction: browse.descending ? "desc" : "asc" },
+          onChange: (sort) =>
+            update({
+              sort: sort === null ? "title" : (SORT_COLUMNS[sort.columnId] ?? "title"),
+              descending: sort?.direction === "desc",
+            }),
+        }}
+      />
+    </div>
   );
 }
 
@@ -669,14 +728,10 @@ function pad(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-function initials(name: string): string {
-  const value = name
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.slice(0, 1).toUpperCase())
-    .join("");
-  return value === "" ? "◇" : value;
+function groupIcon(groupId: string): IconName {
+  if (groupId.startsWith("album:")) return "music";
+  if (groupId.startsWith("series:")) return "film";
+  return "library";
 }
 
 /** The art is the item's box: water rises with verified progress. */

@@ -41,7 +41,6 @@
 }
 
 .back,
-.segments button,
 .toggle,
 .pager button {
   display: inline-flex;
@@ -66,38 +65,9 @@
 }
 
 .back:hover,
-.segments button:hover,
 .toggle:hover,
 .pager button:hover:not(:disabled) {
   background: var(--surface-hover);
-}
-
-.segments {
-  display: inline-flex;
-  flex: 0 0 auto;
-}
-
-.segments button {
-  border-radius: 0;
-}
-
-.segments button:first-child {
-  border-radius: var(--radius-md) 0 0 var(--radius-md);
-}
-
-.segments button:last-child {
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-}
-
-.segments button + button {
-  border-left-width: 0;
-}
-
-.segments button[aria-pressed="true"],
-.toggle[aria-pressed="true"] {
-  border-color: var(--accent);
-  color: var(--accent-strong);
-  background: var(--selection);
 }
 
 .toolbar {
@@ -153,6 +123,24 @@
 /* A page answering the previous search stays until the new one arrives. */
 .viewport[data-stale="true"] {
   opacity: 0.6;
+}
+
+/* The list is a torrent-style table that scrolls by itself. */
+.viewport[data-layout="list"] {
+  display: grid;
+  overflow: hidden;
+  padding: 0;
+}
+
+.tableWrap {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+}
+
+.toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent-strong);
 }
 
 .grid {
@@ -237,6 +225,21 @@
 
 .art > span {
   position: relative;
+}
+
+/* The kind of media, faint behind the water until there is artwork. */
+.art > .kind {
+  position: absolute;
+  inset: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin: auto;
+  color: var(--clay-strong);
+  opacity: 0.55;
+}
+
+.art[data-full="true"] > .kind {
+  color: var(--accent-strong);
 }
 
 .art .play {

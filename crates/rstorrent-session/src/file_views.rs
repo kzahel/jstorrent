@@ -61,6 +61,8 @@ pub(crate) struct FileViewChange {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct FileCatalog {
     layout: ContentLayout,
+    /// The folder a multi-file torrent's paths are relative to.
+    content_root: Option<String>,
     media: DerivedMediaCatalog,
     selection: FileSelection,
     high_priority_files: BTreeSet<usize>,
@@ -182,6 +184,13 @@ impl FileProgressModel {
     ) -> Result<Self, FileProgressError> {
         let layout = ContentLayout::from_content(content);
         let media = DerivedMediaCatalog::from_layout(&layout);
+        // A single-file torrent's one path is its name; any other layout is
+        // relative to a folder of that name.
+        let single_file = matches!(
+            layout.files().iter().filter(|file| !file.padding).collect::<Vec<_>>()[..],
+            [file] if file.path.len() == 1 && file.path[0] == content.name()
+        );
+        let content_root = (!single_file).then(|| content.name().to_owned());
         let skipped = skipped
             .iter()
             .map(|index| usize::try_from(*index).map_err(|_| FileProgressError::FileIndexOverflow))
@@ -198,6 +207,7 @@ impl FileProgressModel {
         let mut model = Self {
             catalog: Arc::new(FileCatalog {
                 layout,
+                content_root,
                 media,
                 selection,
                 high_priority_files,
@@ -366,6 +376,10 @@ impl FileProgressModel {
     /// pointer cannot be reused while it is compared.
     pub(crate) fn catalog_identity(&self) -> FileCatalogIdentity {
         FileCatalogIdentity(Arc::clone(&self.catalog))
+    }
+
+    pub(crate) fn content_root(&self) -> Option<&str> {
+        self.catalog.content_root.as_deref()
     }
 
     /// Non-padding files as `(file index, path, length, wanted)`.

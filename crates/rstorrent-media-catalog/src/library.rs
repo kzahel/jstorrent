@@ -85,16 +85,30 @@ pub struct LibraryFile {
 
 /// Classifies one torrent's files for the Library.
 ///
-/// `files` are the torrent's non-padding files as `(file index, path)`.
+/// `files` are the torrent's non-padding files as `(file index, path)`, and
+/// `root` is the folder a multi-file torrent's paths are relative to.
 /// Whether a non-episode video is a movie depends on the other videos in the
 /// same torrent: it is when it names a year, or is the only one in a torrent
 /// without episodes.
 pub fn classify_library<'path>(
     files: impl IntoIterator<Item = (usize, &'path [String])>,
+    root: Option<&str>,
 ) -> Vec<LibraryFile> {
     let mut output = Vec::new();
     let mut loose_videos = Vec::new();
-    for (file_index, path) in files {
+    for (file_index, relative) in files {
+        // A multi-file torrent's paths start below its own folder, which
+        // still names the show, album or movie.
+        let rooted;
+        let path = match root {
+            Some(root) => {
+                rooted = std::iter::once(root.to_owned())
+                    .chain(relative.iter().cloned())
+                    .collect::<Vec<_>>();
+                rooted.as_slice()
+            }
+            None => relative,
+        };
         let Some(filename) = path.last() else {
             continue;
         };
@@ -179,10 +193,39 @@ pub fn classify_library<'path>(
 /// The key that groups episodes of one series across torrents.
 pub fn series_group_key(series_title: &str) -> String {
     let mut words = normalized_words(series_title);
-    if words.len() > 1 && words.last().is_some_and(|word| is_year(word)) {
-        words.pop();
+    // Trailing years, season labels and pack words name a release, not the
+    // show: `Show (2019) Season 1 Complete` groups with `Show`.
+    loop {
+        let before = words.len();
+        if words.len() > 1
+            && words
+                .last()
+                .is_some_and(|word| is_year(word) || word == "complete")
+        {
+            words.pop();
+        }
+        if words.len() > 2
+            && matches!(words[words.len() - 2].as_str(), "season" | "series")
+            && words
+                .last()
+                .is_some_and(|word| word.bytes().all(|byte| byte.is_ascii_digit()))
+        {
+            words.truncate(words.len() - 2);
+        }
+        if words.len() > 1
+            && words.last().is_some_and(|word| {
+                word.len() <= 3
+                    && word.starts_with('s')
+                    && word.len() > 1
+                    && word[1..].bytes().all(|byte| byte.is_ascii_digit())
+            })
+        {
+            words.pop();
+        }
+        if words.len() == before {
+            return words.join(" ");
+        }
     }
-    words.join(" ")
 }
 
 /// The key that groups tracks of one album across torrents.
@@ -367,6 +410,7 @@ mod tests {
                 .iter()
                 .enumerate()
                 .map(|(index, value)| (index, value.as_slice())),
+            None,
         )
     }
 
@@ -448,6 +492,43 @@ mod tests {
     }
 
     #[test]
+    fn the_torrent_folder_names_albums_shows_and_movies() {
+        let paths = [
+            vec!["01 - Beastie Boys - Now Get Busy.mp3".to_owned()],
+            vec!["S01E02.mkv".to_owned()],
+        ];
+        let files = classify_library(
+            paths
+                .iter()
+                .enumerate()
+                .map(|(index, path)| (index, path.as_slice())),
+            Some("The WIRED CD - Rip. Sample. Mash. Share."),
+        );
+        let LibraryRole::Track(track) = &files[0].role else {
+            panic!("track");
+        };
+        assert_eq!(
+            track.album_title_hint.as_deref(),
+            Some("The WIRED CD - Rip. Sample. Mash. Share")
+        );
+        let LibraryRole::Episode(episode) = &files[1].role else {
+            panic!("episode");
+        };
+        assert_eq!(
+            series_group_key(&episode.series_title_hint),
+            "the wired cd rip sample mash share"
+        );
+        let movie = classify_library(
+            [(0, [String::from("movie.mkv")].as_slice())],
+            Some("Some Movie (2019) [1080p]"),
+        );
+        assert_eq!(
+            (movie[0].title.as_str(), movie[0].year),
+            ("Some Movie", Some(2019))
+        );
+    }
+
+    #[test]
     fn an_extra_beside_episodes_is_not_a_movie() {
         let files = classify(&[
             "Show/Season 01/Show.S01E01.mkv",
@@ -508,6 +589,9 @@ mod tests {
             series_group_key("The Office UK")
         );
         assert_eq!(series_group_key("1923"), "1923");
+        assert_eq!(series_group_key("Show (2019) Season 1 Complete"), "show");
+        assert_eq!(series_group_key("Show S02"), "show");
+        assert_eq!(series_group_key("Season 2"), "season 2");
         assert_eq!(
             album_group_key("Artist - Album (2019) [FLAC]"),
             album_group_key("artist_album 320")

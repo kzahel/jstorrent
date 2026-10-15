@@ -2445,15 +2445,15 @@
     "description": "Cross-torrent Library: label of the group of availability filters."
   },
   "inspection.components.library.media.availability.any": {
-    "defaultMessage": "Everything",
+    "defaultMessage": "All",
     "description": "Cross-torrent Library: availability filter that shows every file."
   },
   "inspection.components.library.media.availability.offline": {
-    "defaultMessage": "Offline",
-    "description": "Cross-torrent Library: availability filter for files that are completely downloaded and verified."
+    "defaultMessage": "Complete",
+    "description": "Cross-torrent Library: availability filter for files whose every byte is downloaded and verified."
   },
   "inspection.components.library.media.availability.incomplete": {
-    "defaultMessage": "Downloading",
+    "defaultMessage": "Incomplete",
     "description": "Cross-torrent Library: availability filter for wanted files that are not complete yet."
   },
   "inspection.components.library.media.back": {
@@ -2529,7 +2529,7 @@
     "description": "Cross-torrent Library: facts on a torrent card in the By torrent view."
   },
   "inspection.components.library.media.group.offline": {
-    "defaultMessage": "{offline} of {count} offline",
+    "defaultMessage": "{offline} of {count} complete",
     "description": "Cross-torrent Library: how many files of a show, album or torrent are completely downloaded."
   },
   "inspection.components.library.media.grouping": {
@@ -2553,11 +2553,11 @@
     "description": "Cross-torrent Library: list every track instead of albums."
   },
   "inspection.components.library.media.item.offline": {
-    "defaultMessage": "Offline",
+    "defaultMessage": "Complete",
     "description": "Cross-torrent Library: state of a completely downloaded file."
   },
   "inspection.components.library.media.item.offline.archived": {
-    "defaultMessage": "Offline · Archived",
+    "defaultMessage": "Complete · Archived",
     "description": "Cross-torrent Library: state of a completely downloaded file in an archived torrent."
   },
   "inspection.components.library.media.item.partial": {
@@ -2633,7 +2633,7 @@
     "description": "Cross-torrent Library: why play buttons wait while one file opens."
   },
   "inspection.components.library.media.play.unavailable": {
-    "defaultMessage": "This file is not downloaded and verified yet.",
+    "defaultMessage": "This file is not complete yet.",
     "description": "Cross-torrent Library: why a play button is disabled for an incomplete file."
   },
   "inspection.components.library.media.preset.all": {
