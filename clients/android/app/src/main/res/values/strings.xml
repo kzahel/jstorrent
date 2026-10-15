@@ -211,7 +211,7 @@
     <string name="torrent_list_export">Export torrent list</string>
     <string name="torrent_list_export_detail">Save all your torrents to one file. You can import it here or on another device.</string>
     <string name="torrent_list_import">Import torrent list</string>
-    <string name="torrent_list_import_detail">Add the torrents from an exported file to the default folder. Torrents already in your list are skipped. Files already downloaded are checked, not downloaded again.</string>
+    <string name="torrent_list_import_detail">Add torrents from an exported file to the default folder.</string>
     <string name="torrent_list_import_needs_folder">Add a download folder before importing.</string>
     <string name="action_export">Export</string>
     <string name="action_import">Import</string>

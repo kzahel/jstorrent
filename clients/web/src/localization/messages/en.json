@@ -5652,7 +5652,7 @@
     "description": "Settings > Data & reset: title of the row that adds the torrents from an exported file"
   },
   "inspection.components.torrent.list.import.description": {
-    "defaultMessage": "Add the torrents from an exported file. Torrents already in your list are skipped, and files already downloaded are checked instead of downloaded again.",
+    "defaultMessage": "Add torrents from an exported file.",
     "description": "Settings > Data & reset: explains Import torrent list"
   },
   "inspection.components.torrent.list.import": {
