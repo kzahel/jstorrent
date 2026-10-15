@@ -229,6 +229,14 @@ telemetry:
 
 A periodic version-population record belongs here once these are read.
 
+**Hosted remote controller usage is unknown.** Nothing records whether
+anyone uses `jstorrent.com/remote/` or which host versions it connects to.
+The relay could count authenticated circuits by host build (it sees
+`host_build` only inside the encrypted channel today, so this needs a
+privacy-reviewed, coarse signal), and the site could count page loads. Until
+then, decisions about the remote controller rest on the maintainer's belief
+that it has very few users.
+
 ## Gaps And Next Work
 
 - **Publish extension 1.1.5** through the Web Store dashboard, then lift the
@@ -238,7 +246,8 @@ A periodic version-population record belongs here once these are read.
 - **Relay authentication leniency** for unknown fields, after a security
   review against `remote-access-authentication`.
 - **Out-of-date notice and update screen**, with Tactical 343's About work.
-- **Version-population record** from the sources above.
+- **Version-population record** from the sources above, and a usage signal
+  for the hosted remote controller (see Version Observability).
 - **Automatic updates**, Tactical 355.
 - **Store automation.** Extension upload and submission are manual through
   the dashboard; Google review still takes days.
