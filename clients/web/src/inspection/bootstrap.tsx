@@ -88,13 +88,15 @@ export async function startLiveInspection(
     );
     return;
   }
+  // Hosts without browser-session authentication (development or bearer
+  // modes) report the store unavailable; offer no Web access settings there.
   await openLiveInspection(
     root,
     baseUrl,
     token,
     transport,
     waitMillis,
-    webAuth,
+    authStatus?.available === true ? webAuth : undefined,
   );
 }
 
