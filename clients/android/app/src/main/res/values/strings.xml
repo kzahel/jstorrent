@@ -695,4 +695,26 @@
     <string name="chrome_extension_setup_notifications">Allow Android notifications so JSTorrent can stay connected while you use Chrome. This does not enable background downloads or seeding.</string>
     <string name="chrome_extension_setup_allow_notifications">Allow notifications</string>
     <string name="chrome_extension_setup_notification_settings">Open notification settings</string>
+    <!-- Tactical 369: shown instead of the library when the torrent list cannot be opened. It never offers to discard data. -->
+    <string name="catalog_recovery_migration_failed_title">JSTorrent couldn’t update your torrent list</string>
+    <string name="catalog_recovery_migration_failed_body">Your torrents, settings and downloaded files are safe and unchanged. An update will fix this.</string>
+    <string name="catalog_recovery_newer_version_title">This torrent list is from a newer version of JSTorrent</string>
+    <string name="catalog_recovery_newer_version_body">Install the latest version to open it. Your torrents and downloaded files are unchanged.</string>
+    <string name="catalog_recovery_retired_version_title">This torrent list is from an early test version</string>
+    <string name="catalog_recovery_retired_version_body">This version can’t open it. Nothing was changed or deleted, and your downloaded files are unchanged.</string>
+    <string name="catalog_recovery_locked_title">JSTorrent is already open</string>
+    <string name="catalog_recovery_locked_body">Close the other JSTorrent window, then open JSTorrent again.</string>
+    <string name="catalog_recovery_unreadable_title">JSTorrent couldn’t read its torrent list</string>
+    <string name="catalog_recovery_unreadable_body">Nothing was changed or deleted. Check for an update, or copy the details and report the problem.</string>
+    <string name="catalog_recovery_check_updates">Check for updates</string>
+    <string name="catalog_recovery_copy_details">Copy details</string>
+    <string name="catalog_recovery_report_problem">Report a problem</string>
+    <string name="catalog_recovery_show_details">Show details</string>
+    <string name="catalog_recovery_hide_details">Hide details</string>
+    <!-- Clipboard label for the copied problem details. -->
+    <string name="catalog_recovery_details_label">JSTorrent problem details</string>
+    <string name="catalog_recovery_details_copied">Details copied.</string>
+    <string name="catalog_recovery_exported">Torrent list saved.</string>
+    <string name="catalog_recovery_export_failed">Couldn’t export the torrent list.</string>
+    <string name="catalog_recovery_store_unavailable">Couldn’t open the app store.</string>
 </resources>

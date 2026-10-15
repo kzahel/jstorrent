@@ -1,6 +1,6 @@
 # Tactical 369: Recovery Screen When The Torrent Catalog Will Not Open
 
-Status: In progress, 2026-10-15. Maintainer-directed; implementation and
+Status: Complete, 2026-10-15. Maintainer-directed; implementation and
 commits authorized.
 Topics: `client-persistence`, `durable-data-migrations`, `web-ui-design`,
 `android-jstorrent-replacement`.
@@ -152,4 +152,16 @@ dry run is recorded, and the owning topics and ledger are updated.
 - `cargo test -p rstorrent-desktop` (61), `-p rstorrent-headless`,
   `-p rstorrent-gateway`, `-p rstorrent-android`; workspace `clippy` and
   `fmt`.
+- Android: an engine open failure stores `diagnoseCatalog` in product state;
+  the activity then shows `CatalogRecoveryScreen` (same titles and actions;
+  Check for updates opens the Play listing; export uses
+  `exportTorrentListReadOnly` through its own create-document flow without
+  the engine), unbinds the failed service and does not restart it, so the
+  screen is not hidden by retries. `clients/android/build.sh debug` (204 JVM
+  tests, 11 new), `compileDebugAndroidTestKotlin` (3 new Compose tests,
+  compiled only) and `lintDebug` (no new errors) pass. Not run on a device or
+  emulator.
+- Known limit: Android shows recovery for every engine open failure, so a
+  failure unrelated to the catalog with a current-version catalog reads
+  "couldn't read its torrent list" (with export offered).
 

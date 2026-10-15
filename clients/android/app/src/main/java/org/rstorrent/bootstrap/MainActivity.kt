@@ -3,6 +3,9 @@ package org.rstorrent.bootstrap
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationManager
+import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -16,18 +19,23 @@ import android.provider.Settings
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.viewModels
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.rstorrent.bootstrap.ui.CatalogRecoveryScreen
 import org.rstorrent.bootstrap.ui.ChromeExtensionSetupDialog
 import org.rstorrent.bootstrap.ui.ProductApp
 import org.rstorrent.bootstrap.ui.ProductThemeMode
+import org.rstorrent.bootstrap.ui.RstorrentTheme
+import org.rstorrent.session.uniffi.CatalogRecoveryStatus
 import org.rstorrent.session.uniffi.FileIndexRange
 import org.rstorrent.session.uniffi.FileSelectionIntent
 
@@ -36,6 +44,7 @@ class MainActivity : ComponentActivity() {
     private val productService = mutableStateOf<ProductEngineService?>(null)
     private val notificationsGranted = mutableStateOf(false)
     private val notificationNavigation = mutableStateOf<ProductNotificationNavigation?>(null)
+    private val catalogRecovery: CatalogRecoveryModel by viewModels()
     private val themeMode = mutableStateOf(ProductThemeMode.SYSTEM)
     private val dynamicColor = mutableStateOf(true)
     private val chromeExtensionSetupVisible = mutableStateOf(false)
@@ -168,6 +177,18 @@ class MainActivity : ComponentActivity() {
                 service.exportTorrentList(destination)
             }
         }
+    private val catalogRecoveryExportPicker =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val destination = result.data?.data
+            if (result.resultCode != RESULT_OK || destination == null) {
+                return@registerForActivityResult
+            }
+            catalogRecovery.export(
+                applicationContext.contentResolver,
+                destination,
+                productProfileDirectory().absolutePath,
+            )
+        }
     private val torrentListImportPicker =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             ProductInteractionRegistry.setLease(
@@ -234,8 +255,13 @@ class MainActivity : ComponentActivity() {
                 serviceStopWatch?.cancel()
                 serviceStopWatch =
                     lifecycleScope.launch {
-                        service.state.first { it.serviceStopped }
-                        reconnectStoppedProductService(service)
+                        val settled = service.state.first { it.serviceStopped || it.catalogRecovery != null }
+                        val recovery = settled.catalogRecovery
+                        if (recovery != null) {
+                            enterCatalogRecovery(service, recovery)
+                        } else {
+                            reconnectStoppedProductService(service)
+                        }
                     }
                 recordProductForegroundIfPending(service)
                 pendingProductMagnet?.let {
@@ -367,6 +393,24 @@ class MainActivity : ComponentActivity() {
                 productService.value = null
             }
         }
+
+    /**
+     * Tactical 369: the catalog did not open. Show recovery and release the
+     * failed service so it can stop; nothing restarts it until the activity
+     * is created again, so the catalog is not retried behind the screen.
+     */
+    private fun enterCatalogRecovery(
+        failed: ProductEngineService,
+        status: CatalogRecoveryStatus,
+    ) {
+        catalogRecovery.enter(status)
+        serviceStopWatch = null
+        if (productService.value === failed && productBound) {
+            unbindService(productConnection)
+            productBound = false
+            productService.value = null
+        }
+    }
 
     /**
      * The service can stop itself while this activity is still bound, for
@@ -662,7 +706,10 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (catalogRecovery.active) {
+            // Recovery mode does not open the catalog for an added torrent.
+            android.util.Log.i("RSTorrentProduct", "external_intake_skipped catalog_recovery=true")
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(serviceIntent)
         } else {
             startService(serviceIntent)
@@ -706,55 +753,71 @@ class MainActivity : ComponentActivity() {
         if (!productMode) {
             productMode = true
             setContent {
-                ProductApp(
-                    service = productService.value,
-                    onSelectStorage = { launchProductTreePicker() },
-                    onRepairStorage = { launchProductTreePicker(it) },
-                    onBrowseTorrent = ::launchProductTorrentPicker,
-                    onExportTorrentList = ::launchTorrentListExport,
-                    onImportTorrentList = ::launchTorrentListImport,
-                    notificationsGranted = notificationsGranted.value,
-                    onRequestNotifications = ::requestNotificationPermission,
-                    onOpenNotificationSettings = ::openNotificationSettings,
-                    onOpenFeedback = ::openFeedback,
-                    onOpenPrivacy = ::openPrivacy,
-                    onConnectChromeExtension = if (isChromeOs()) {
-                        { chromeExtensionSetupVisible.value = true }
-                    } else {
-                        null
-                    },
-                    onShutdown = {
-                        productService.value?.shutdownFromUi()
-                        finishAndRemoveTask()
-                    },
-                    onBackgroundDownloads = ::setBackgroundDownloads,
-                    notificationNavigation = notificationNavigation.value,
-                    onNotificationNavigationConsumed = { sequence ->
-                        if (notificationNavigation.value?.sequence == sequence) {
-                            notificationNavigation.value = null
-                        }
-                    },
-                    themeMode = themeMode.value,
-                    dynamicColor = dynamicColor.value,
-                    onThemeMode = ::setThemeMode,
-                    onDynamicColor = ::setDynamicColor,
-                )
-                if (chromeExtensionSetupVisible.value) {
-                    val notifications = productService.value?.state
-                        ?.collectAsStateWithLifecycle()?.value?.notifications ?: ProductNotificationState()
-                    ChromeExtensionSetupDialog(
-                        ready = productService.value != null,
-                        busy = chromeExtensionSetupBusy.value,
-                        failed = chromeExtensionSetupFailed.value,
-                        onOpenChrome = ::openChromeExtension,
-                        notificationAction = ProductChromeExtensionSetup.notificationAction(notifications),
-                        onAllowNotifications = ::requestNotificationPermission,
+                val recovery = catalogRecovery.status.collectAsStateWithLifecycle().value
+                if (recovery != null) {
+                    val exportState = catalogRecovery.export.collectAsStateWithLifecycle().value
+                    RstorrentTheme(mode = themeMode.value, dynamicColor = dynamicColor.value) {
+                        CatalogRecoveryScreen(
+                            status = recovery,
+                            exportState = exportState,
+                            onCheckForUpdates = ::openStoreListing,
+                            onExportTorrentList = ::launchCatalogRecoveryExport,
+                            onCopyDetails = { copyCatalogRecoveryDetails(recovery.details) },
+                            onReportProblem = ::openRecoveryFeedback,
+                            onClose = ::finish,
+                        )
+                    }
+                } else {
+                    ProductApp(
+                        service = productService.value,
+                        onSelectStorage = { launchProductTreePicker() },
+                        onRepairStorage = { launchProductTreePicker(it) },
+                        onBrowseTorrent = ::launchProductTorrentPicker,
+                        onExportTorrentList = ::launchTorrentListExport,
+                        onImportTorrentList = ::launchTorrentListImport,
+                        notificationsGranted = notificationsGranted.value,
+                        onRequestNotifications = ::requestNotificationPermission,
                         onOpenNotificationSettings = ::openNotificationSettings,
-                        onDismiss = {
-                            chromeExtensionSetupJob?.cancel()
-                            chromeExtensionSetupVisible.value = false
+                        onOpenFeedback = ::openFeedback,
+                        onOpenPrivacy = ::openPrivacy,
+                        onConnectChromeExtension = if (isChromeOs()) {
+                            { chromeExtensionSetupVisible.value = true }
+                        } else {
+                            null
                         },
+                        onShutdown = {
+                            productService.value?.shutdownFromUi()
+                            finishAndRemoveTask()
+                        },
+                        onBackgroundDownloads = ::setBackgroundDownloads,
+                        notificationNavigation = notificationNavigation.value,
+                        onNotificationNavigationConsumed = { sequence ->
+                            if (notificationNavigation.value?.sequence == sequence) {
+                                notificationNavigation.value = null
+                            }
+                        },
+                        themeMode = themeMode.value,
+                        dynamicColor = dynamicColor.value,
+                        onThemeMode = ::setThemeMode,
+                        onDynamicColor = ::setDynamicColor,
                     )
+                    if (chromeExtensionSetupVisible.value) {
+                        val notifications = productService.value?.state
+                            ?.collectAsStateWithLifecycle()?.value?.notifications ?: ProductNotificationState()
+                        ChromeExtensionSetupDialog(
+                            ready = productService.value != null,
+                            busy = chromeExtensionSetupBusy.value,
+                            failed = chromeExtensionSetupFailed.value,
+                            onOpenChrome = ::openChromeExtension,
+                            notificationAction = ProductChromeExtensionSetup.notificationAction(notifications),
+                            onAllowNotifications = ::requestNotificationPermission,
+                            onOpenNotificationSettings = ::openNotificationSettings,
+                            onDismiss = {
+                                chromeExtensionSetupJob?.cancel()
+                                chromeExtensionSetupVisible.value = false
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -1082,6 +1145,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startProductService(action: String? = null) {
+        // Recovery mode does not retry the catalog behind the screen.
+        if (catalogRecovery.active) return
         val serviceIntent =
             Intent(this, ProductEngineService::class.java)
                 .setAction(action)
@@ -1174,6 +1239,52 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    private fun productProfileDirectory(): File =
+        File(filesDir, ProductPrivateProfileReset.PROFILE_DIRECTORY)
+
+    /** Needs no engine service, so it holds no interaction lease. */
+    private fun launchCatalogRecoveryExport() {
+        try {
+            catalogRecoveryExportPicker.launch(
+                Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = TorrentListDocuments.EXPORT_MIME_TYPE
+                    putExtra(Intent.EXTRA_TITLE, TorrentListDocuments.EXPORT_FILE_NAME)
+                },
+            )
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, R.string.torrent_list_no_document_app, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun openStoreListing() {
+        for (uri in catalogRecoveryStoreUris(packageName)) {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))
+                return
+            } catch (_: ActivityNotFoundException) {
+                continue
+            }
+        }
+        Toast.makeText(this, R.string.catalog_recovery_store_unavailable, Toast.LENGTH_LONG).show()
+    }
+
+    private fun copyCatalogRecoveryDetails(details: String) {
+        getSystemService(ClipboardManager::class.java)
+            .setPrimaryClip(
+                ClipData.newPlainText(getString(R.string.catalog_recovery_details_label), details),
+            )
+    }
+
+    /** The plain feedback page; recovery has no engine to prepare a reviewed URL. */
+    private fun openRecoveryFeedback() {
+        AndroidFeedbackLauncher.launchReviewed(
+            url = AndroidFeedbackUrl.BASE_URL,
+            startExternalActivity = ::startActivity,
+            onFailure = ::showFeedbackFailure,
+        )
+    }
+
     private fun launchTorrentListImport() {
         launchTorrentListDocument(
             torrentListImportPicker,
@@ -1208,7 +1319,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun bindProductService() {
-        if (productBound) return
+        if (productBound || catalogRecovery.active) return
         productBound =
             bindService(
                 Intent(this, ProductEngineService::class.java),

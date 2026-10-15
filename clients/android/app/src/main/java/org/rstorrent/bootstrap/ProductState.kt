@@ -3,6 +3,7 @@ package org.rstorrent.bootstrap
 import org.rstorrent.session.uniffi.ActivePiece
 import org.rstorrent.session.uniffi.ActivePieceFieldUpdate
 import org.rstorrent.session.uniffi.ActivePieceUpdate
+import org.rstorrent.session.uniffi.CatalogRecoveryStatus
 import org.rstorrent.session.uniffi.CatalogPageView
 import org.rstorrent.session.uniffi.ClientSettingsRuntimeView
 import org.rstorrent.session.uniffi.DhtInspectionView
@@ -186,6 +187,8 @@ data class ProductState(
     /** The service has shut down; a still-bound activity must rebind to a new one. */
     val serviceStopped: Boolean = false,
     val error: ProductError? = null,
+    /** Tactical 369: the torrent catalog did not open; the UI shows recovery instead. */
+    val catalogRecovery: CatalogRecoveryStatus? = null,
     val storageRootReady: Boolean = false,
     val storageRootChecking: Boolean = true,
     val storageRootLabel: String? = null,

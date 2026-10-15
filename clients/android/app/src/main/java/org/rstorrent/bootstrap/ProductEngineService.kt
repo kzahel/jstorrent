@@ -68,6 +68,7 @@ import org.rstorrent.bootstrap.uniffi.AndroidPlatformStorageRoot
 import org.rstorrent.bootstrap.uniffi.AndroidViewSubscription
 import org.rstorrent.bootstrap.uniffi.SafStorageFailureKind
 import org.rstorrent.bootstrap.uniffi.SafStorageOperation
+import org.rstorrent.bootstrap.uniffi.diagnoseCatalog
 import org.rstorrent.session.uniffi.Command
 import org.rstorrent.session.uniffi.CommandResult
 import org.rstorrent.session.uniffi.MagnetExportOptions
@@ -77,6 +78,7 @@ import org.rstorrent.session.uniffi.AddTorrentResult
 import org.rstorrent.session.uniffi.AddTorrentBytesRequest
 import org.rstorrent.session.uniffi.ActiveSeedLimit
 import org.rstorrent.session.uniffi.CatalogPageRequest
+import org.rstorrent.session.uniffi.CatalogRecoveryStatus
 import org.rstorrent.session.uniffi.ClientSettings
 import org.rstorrent.session.uniffi.ClientSettingsPatch
 import org.rstorrent.session.uniffi.ClientSettingsApplicationState
@@ -415,11 +417,13 @@ class ProductEngineService : Service() {
                     presentationReady.completeExceptionally(error)
                 }
                 Log.e(TAG, "product service initialization failed", error)
+                val catalogRecovery = (error as? ProductCatalogOpenException)?.let(::diagnoseCatalogOpenFailure)
                 mutableState.update {
                     it.copy(
                         ready = false,
                         storageRootChecking = false,
                         error = ProductError.Technical(productFailureDetail(error, getString(R.string.error_operation_failed))),
+                        catalogRecovery = catalogRecovery,
                     )
                 }
                 notificationCoordinator.updateOngoingNotification(
@@ -480,6 +484,21 @@ class ProductEngineService : Service() {
         }
     }
 
+    /**
+     * Tactical 369: classifies a failed catalog open for the recovery screen.
+     * Reads only, and never throws: without a diagnosis the generic error
+     * remains.
+     */
+    private fun diagnoseCatalogOpenFailure(failure: ProductCatalogOpenException): CatalogRecoveryStatus? =
+        try {
+            diagnoseCatalog(failure.profile.absolutePath, failure.detail).also {
+                Log.i(TAG, "catalog_recovery reason=${it.reason.name} export=${it.exportAvailable}")
+            }
+        } catch (error: Throwable) {
+            Log.e(TAG, "catalog_recovery_diagnosis_failed", error)
+            null
+        }
+
     private suspend fun openProductApplication(
         safRegistry: ProductSafRootRegistryState,
         initialNetworkState: AndroidDefaultNetworkState,
@@ -494,27 +513,34 @@ class ProductEngineService : Service() {
         val profile = File(filesDir, ProductPrivateProfileReset.PROFILE_DIRECTORY)
         check(profile.mkdirs() || profile.isDirectory)
         val openedClient =
-            withTimeout(PRODUCT_LIFETIME_STARTUP_MILLIS) {
-                AndroidApplicationClient.open(
-                    AndroidApplicationConfig(
-                        File(noBackupFilesDir, PRODUCT_STATE_DIRECTORY).absolutePath,
-                        BuildConfig.VERSION_NAME,
-                        profile.absolutePath,
-                        "default",
-                        "",
-                        true,
-                        // A root without a grant stays in the engine catalog;
-                        // configuring it would let the engine make it current.
-                        safRegistry.roots
-                            .filter { ProductSafDocuments.hasGrant(this@ProductEngineService, Uri.parse(it.treeUri)) }
-                            .map { AndroidPlatformStorageRoot(it.rootId, it.label) },
-                        AndroidNetworkPolicy.ONLINE,
-                        desiredNetworkPrerequisite(initialNetworkState),
-                        15UL,
-                        60UL,
-                        packageName,
-                    ),
-                )
+            try {
+                withTimeout(PRODUCT_LIFETIME_STARTUP_MILLIS) {
+                    AndroidApplicationClient.open(
+                        AndroidApplicationConfig(
+                            File(noBackupFilesDir, PRODUCT_STATE_DIRECTORY).absolutePath,
+                            BuildConfig.VERSION_NAME,
+                            profile.absolutePath,
+                            "default",
+                            "",
+                            true,
+                            // A root without a grant stays in the engine catalog;
+                            // configuring it would let the engine make it current.
+                            safRegistry.roots
+                                .filter { ProductSafDocuments.hasGrant(this@ProductEngineService, Uri.parse(it.treeUri)) }
+                                .map { AndroidPlatformStorageRoot(it.rootId, it.label) },
+                            AndroidNetworkPolicy.ONLINE,
+                            desiredNetworkPrerequisite(initialNetworkState),
+                            15UL,
+                            60UL,
+                            packageName,
+                        ),
+                    )
+                }
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                // Tactical 369: the native open failed, typically on the
+                // torrent catalog; the outer handler classifies it.
+                throw ProductCatalogOpenException(profile, error)
             }
         startupCheckpoint("native_open")
         val productSummary = openedClient.productSummary()
