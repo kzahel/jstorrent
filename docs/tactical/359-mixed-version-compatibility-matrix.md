@@ -66,7 +66,8 @@ UIs.
   shallow, so checks that need history fetch it explicitly.
 - **Tactical 354's audits are tightened:** the schema comparison recurses
   into properties, items and branches and compares types and references; an
-  absent nullable field is not `null` (validation now fills it).
+  absent nullable field is not `null`, so the typing audit no longer exempts
+  nullable fields.
 - **Capture runs once per release outside ordinary CI**, with pinned
   toolchains, recorded digests, and verification that regenerated contracts
   match the committed ones.
@@ -86,10 +87,11 @@ compat/
 
 ## Slices
 
-0. **Quick fixes.** The hosted-site deploy runs the web typecheck and tests
-   before deploying. The contract comparison recurses and compares types.
-   Absent nullable fields are filled with `null`, and the generator rejects
-   any omittable field TypeScript types as present.
+0. **Quick fixes.** Complete; see **Evidence**. The hosted-site deploy runs
+   the web tests before deploying. The contract comparison recurses and
+   compares types and constraints. The generator rejects any omittable
+   field, nullable or not, that TypeScript types as present unless every
+   released host already sends it.
 1. **First matrix slice (review's recommendation).** Capture extension 1.1.4
    from `5fa018ff` with `scripts/compat-capture.mjs` (temporary worktree,
    rolldown bundle of its `validation.ts` and `view-set-reducer.ts`). D2:
@@ -141,4 +143,27 @@ the runbook.
 
 ## Evidence
 
-Recorded per slice below as work lands.
+Slice 0, 2026-10-15:
+
+- `deploy-website.yml` runs `npm run test` for `clients/web` after the
+  typecheck and before building and deploying the remote client
+  (`actionlint` passes).
+- `contract-compatibility.test.ts` compares recursively through properties,
+  array items, map values and tagged branches, and flags changed `type`,
+  `format`, `const`, `pattern` and bounds, re-pointed references, removals,
+  new requirements and removed enum values or branches. Against
+  `desktop-v0.3.1` it finds no breaking change and the same five reviewed
+  exposures. Two synthetic tests cover nested breaking changes and nested
+  exposures.
+- `generate-validators.mjs` no longer exempts nullable fields. A field Ajv
+  cannot fill may be typed as present only if every released schema in
+  `src/fixtures/released/` either has it or never sends its definition or
+  branch. Negative control: a new nullable field in an existing row-update
+  branch typed as present fails generation.
+- Considered and rejected: filling absent nullable fields with `null` during
+  validation. Hand-written validators and consumers distinguish absent from
+  `null` (eight tests failed, for example a command `result` absent versus
+  null), and Ajv cannot fill inside union branches anyway. The audit covers
+  the version-skew case instead.
+- Runs: `npm run typecheck` and `npm run test` in `clients/web` (699
+  passed); the generated validators are byte-identical.

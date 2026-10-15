@@ -109,6 +109,12 @@ jobs:
         working-directory: clients/web
         run: npm run typecheck
 
+      # The remote client controls hosts of other versions; its compatibility
+      # and released-host tests must pass before it is deployed.
+      - name: Test remote client
+        working-directory: clients/web
+        run: npm run test
+
       - name: Build remote client
         working-directory: clients/web
         env:

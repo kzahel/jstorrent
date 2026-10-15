@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -47,7 +47,21 @@ const HANDWRITTEN_DEFAULTS = [["ServiceSnapshot", "client_settings"]];
 
 const schema = JSON.parse(await readFile(resolve(generatedDirectory, "v1.schema.json"), "utf8"));
 const typescript = await readFile(resolve(generatedDirectory, "v1.ts"), "utf8");
-checkAbsentFieldsAreTyped(schema, typescript);
+// Schemas of released hosts. A field present in all of them is sent by every
+// supported host, so it cannot be absent for version reasons.
+const releasedDirectory = resolve(webRoot, "src/fixtures/released");
+const releasedSchemas = await Promise.all(
+  (await readdir(releasedDirectory, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory())
+    .map(async (entry) =>
+      JSON.parse(
+        await readFile(resolve(releasedDirectory, entry.name, "v1.schema.json"), "utf8"),
+      ),
+    ),
+);
+if (releasedSchemas.length === 0) throw new Error("no released schemas found");
+
+checkAbsentFieldsAreTyped(schema, typescript, releasedSchemas);
 for (const [definition, property] of HANDWRITTEN_DEFAULTS) {
   const field = schema.$defs[definition]?.properties?.[property];
   if (field?.default === undefined) {
@@ -173,12 +187,12 @@ function declare(validators) {
 }
 
 /**
- * A host may omit a property the schema does not require. Unless the schema
- * gives a default (filled in during validation) or allows null, the
- * TypeScript declaration must make the property optional; otherwise code
- * typed against the newest contract reads `undefined` from an older host.
+ * A host older than a property omits it. Unless the schema gives a default
+ * (filled in during validation) or every released host's schema already has
+ * the property, the TypeScript declaration must make it optional; otherwise
+ * code typed against the newest contract reads `undefined` from an older host.
  */
-function checkAbsentFieldsAreTyped(contract, declarations) {
+function checkAbsentFieldsAreTyped(contract, declarations, released) {
   const problems = [];
   for (const [name, definition] of Object.entries(contract.$defs)) {
     // Declarations with documented fields span several lines; one ends where
@@ -187,7 +201,10 @@ function checkAbsentFieldsAreTyped(contract, declarations) {
       `^export type ${name} = ([\\s\\S]*?)(?=^export |(?![\\s\\S]))`,
       "m",
     ).exec(declarations)?.[1];
-    for (const [property, field] of absentWithoutDefault(definition)) {
+    for (const [property, field, branch] of absentWithoutDefault(definition)) {
+      if (released.every((schema) => hasProperty(schema.$defs[name], branch, property))) {
+        continue;
+      }
       if (declaration === undefined) {
         problems.push(`${name}.${property}: no TypeScript declaration`);
       } else if (
@@ -206,22 +223,43 @@ function checkAbsentFieldsAreTyped(contract, declarations) {
   }
 }
 
-function* absentWithoutDefault(definition) {
+function* absentWithoutDefault(definition, branch = null) {
   const required = new Set(definition.required ?? []);
   for (const [property, field] of Object.entries(definition.properties ?? {})) {
-    if (required.has(property) || "default" in field || nullable(field)) continue;
-    yield [property, field];
+    if (required.has(property) || "default" in field) continue;
+    yield [property, field, branch];
   }
   for (const key of ["oneOf", "anyOf"]) {
-    for (const branch of definition[key] ?? []) yield* absentWithoutDefault(branch);
+    for (const child of definition[key] ?? []) {
+      yield* absentWithoutDefault(child, discriminator(child) ?? branch);
+    }
   }
 }
 
-function nullable(field) {
-  if (Array.isArray(field.type) && field.type.includes("null")) return true;
-  return [...(field.anyOf ?? []), ...(field.oneOf ?? [])].some(
-    (branch) => branch.type === "null",
-  );
+/** The tag that identifies a union branch, such as `field=value`. */
+function discriminator(branch) {
+  for (const [key, property] of Object.entries(branch.properties ?? {})) {
+    if (property.const !== undefined) return `${key}=${String(property.const)}`;
+  }
+  return null;
+}
+
+/**
+ * Whether a released host always sends the property when it sends its object:
+ * the property exists there, or that host never sends the definition or
+ * branch at all (so only newer hosts, which have the property, send it).
+ */
+function hasProperty(definition, branch, property) {
+  if (definition === undefined) return true;
+  const children = [...(definition.oneOf ?? []), ...(definition.anyOf ?? [])];
+  if (branch === null) {
+    return (
+      definition.properties?.[property] !== undefined ||
+      children.some((child) => child.properties?.[property] !== undefined)
+    );
+  }
+  const matching = children.filter((child) => discriminator(child) === branch);
+  return matching.length === 0 || matching.some((child) => child.properties?.[property] !== undefined);
 }
 
 /**
