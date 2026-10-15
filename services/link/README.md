@@ -36,7 +36,11 @@ npm run deploy
 Deployment needs Wrangler OAuth access to the account owning `jstorrent.com`,
 or `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Workers Custom Domains
 manages the subdomain and certificate. `.github/workflows/deploy-link.yml`
-validates pull requests and deploys changes on main using the existing secrets.
+validates pull requests and deploys changes on main using
+`CLOUDFLARE_LINK_API_TOKEN` and the existing `CLOUDFLARE_ACCOUNT_ID` secret.
+The link token has Individual Workers Editor on `jstorrent-link`, plus Zone
+Read and Workers Routes Write on `jstorrent.com`; it has no Pages or direct
+KV access. The separate Pages deployment token is unchanged.
 The Worker deploys separately from the immutable website/remote artifact.
 
 ## Limits and operational behavior

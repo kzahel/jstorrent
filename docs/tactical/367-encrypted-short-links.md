@@ -260,7 +260,7 @@ share page with its content preserved.
   after provisioning settled, actual CORS and end-to-end operations passed.
   KV's eventual consistency is accepted; no immediate global guarantee.
 - `.github/workflows/deploy-link.yml` validates the service and deploys main
-  using existing Cloudflare secrets. Shared codec changes also trigger the
+  using a separate scoped deployment token. Shared codec changes trigger the
   existing website/remote deployment. Privacy disclosure is included in that
   same website artifact before the new hosted checkbox is published.
 - No Rust/engine code or generated host contract changes; Rust and native
@@ -275,3 +275,21 @@ including when the local profile has a saved true choice. Its ARC/native
 network allowlist remains unchanged. `build:companion`, 69 extension tests
 and the extension validator pass; the companion JavaScript contains no
 short-link service URL. Web typecheck and all 832 web tests pass again.
+
+## Deployment Automation Qualification
+
+The original repository `CLOUDFLARE_API_TOKEN` is a Pages-only account token;
+CI successfully validated the Worker but could not deploy with it. Created a
+separate `github-jstorrent-link-production` account token and saved it only
+as the repository Actions secret `CLOUDFLARE_LINK_API_TOKEN`. Permissions:
+Individual Workers Editor for `jstorrent-link`, plus Zone Read and Workers
+Routes Write for `jstorrent.com`. No account-wide Worker role, Pages access,
+direct KV access or billing permission. Existing Pages credentials unchanged.
+A full deploy with this scoped token succeeds, including static assets, KV
+binding and the existing custom domain. Temporary token file removed.
+
+The first Actions runner stalled during dependency installation and was
+cancelled; a fresh runner installed dependencies and passed both typechecks,
+all 11 service tests and the asset build before exposing the token mismatch.
+The public Website workflow and exact canonical 42-file deployment verifier
+pass at web build `ed779d3131bdf304472dbd6f1d89b960e93cf2f8`.
