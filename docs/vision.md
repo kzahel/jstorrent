@@ -44,7 +44,7 @@ persistence, and hot-path data movement across supported native products.
 
 ## Intended Product Shape
 
-Native clients should normally run the engine in-process:
+Native products should normally run the engine in-process:
 
 ```text
 Desktop UI ─────────── in-process adapter ─┐
@@ -66,10 +66,10 @@ explicit architecture and security decision. The vision does not authorize a
 generic socket proxy, filesystem proxy, public daemon API, or REST/WebSocket
 service during engine bring-up.
 
-The accepted graduation-level separation between native backends and
-detachable presentations, including desktop extension use, the two isolated
-ChromeOS backends, their three UI configurations, launch handoff, and later
-JSTorrent graduation, is recorded in
+The accepted graduation-level separation between hosts and detachable
+clients, including desktop extension use, the two isolated ChromeOS hosts,
+their three UI configurations, launch handoff, and later JSTorrent graduation,
+is recorded in
 [`topics/product-surfaces-and-migration.md`](topics/product-surfaces-and-migration.md).
 That direction does not make extension or migration work part of the current
 engine tactical.
@@ -84,7 +84,7 @@ repository and the independent RSTorrent release track is frozen.
 The original progression was:
 
 1. Build and validate the engine under the RSTorrent working name.
-2. Ship an explicitly experimental native client to learn from real use.
+2. Ship an explicitly experimental native app to learn from real use.
 3. Establish reliable desktop and Android/ChromeOS products around the same
    engine, while front-loading physical iOS storage and lifecycle constraints
    that could otherwise fracture that engine.
@@ -133,7 +133,7 @@ than assumed.
 - Removing TypeScript, Kotlin, or other appropriate UI and integration code.
 - Building the browser extension before native application contracts exist.
 - Turning the native engine into a general-purpose remote daemon.
-- Preserving every historical feature before the new client is useful.
+- Preserving every historical feature before the new product is useful.
 - Exhaustive migration of every historical setting, profile, or runtime
   detail.
 - Ending maintenance of the current JSTorrent product before a responsible

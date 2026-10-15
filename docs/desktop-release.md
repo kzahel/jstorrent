@@ -15,7 +15,7 @@ source, matching source archive, website and all 11 updater offers.
 The RSTorrent track is frozen at its last recorded Stable 0.1.4 and Latest
 0.2.801 offers. No new incubation releases or resumed nightly publication are
 planned. Its descriptor, artifacts and updater route remain historical
-compatibility; old clients use a different signing root and must not be
+compatibility; old installed apps use a different signing root and must not be
 redirected to JSTorrent packages. See the
 [owning release policy](topics/product-surfaces-and-migration.md#jstorrent-only-release-policy-2026-10-11)
 and [updater configuration](../update-server/README.md).
@@ -60,8 +60,8 @@ up; it never downgrades. The selector is offered for macOS app, Windows NSIS,
 and Linux AppImage installations. MSI, DEB, and RPM continue through their
 package managers. The update service must deploy the channel registry from
 [`update-server/rstorrent.json`](../update-server/rstorrent.json) before Latest
-checks can succeed. The native client discovers the registry and verifies the
-selected channel in the response, while old clients continue to use Stable.
+checks can succeed. The desktop app discovers the registry and verifies the
+selected channel in the response, while old apps continue to use Stable.
 Remy's registry was deployed on 2026-09-27 and publicly advertises both
 channels. The first signed Latest release was `desktop-latest-v0.2.301`.
 The current qualified Latest is `desktop-latest-v0.2.801` at source `fc401ecf`;
@@ -202,7 +202,7 @@ service health check passed on 2026-08-23. Public `desktop-v0.1.1` now resolves:
 a current `0.1.1` version returns HTTP 204 and installed `0.1.0` returns signed
 Tauri metadata referencing that immutable GitHub Release. Both results passed
 for all five default updater targets after publication. The installed macOS
-arm64 client then completed the real replacement/relaunch and reported the
+arm64 app then completed the real replacement/relaunch and reported the
 new exact version/build; the other four installed targets remain open.
 
 ## Windows First-Launch Consent

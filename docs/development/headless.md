@@ -42,7 +42,7 @@ channel or authorize deployment.
 The [runtime configuration topic](../topics/runtime-configurations-and-headless-deployment.md#configuration-contract)
 owns the configuration schema. Its [deployment security modes](../topics/runtime-configurations-and-headless-deployment.md#deployment-security-modes)
 explain authenticated hosting, exact trusted-LAN binding and a separate
-loopback backend behind Tailscale Serve.
+loopback host behind Tailscale Serve.
 
 Choose exposure deliberately. The no-auth modes give every permitted network
 participant full owner control; exact Host/Origin validation is still required.

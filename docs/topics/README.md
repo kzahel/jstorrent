@@ -43,7 +43,7 @@ Topics own the current truth for a continuing concern. Tactical docs under
 - [`runtime-configurations-and-headless-deployment.md`](runtime-configurations-and-headless-deployment.md):
   visible, background, windowless, and headless runtime compositions; explicit
   Linux service, listener, origin, authentication, and reverse-proxy policy;
-  and the separation of backend availability from UI and seeding lifetime.
+  and the separation of host availability from UI and seeding lifetime.
 - [`product-state-and-feedback.md`](product-state-and-feedback.md):
   installation identity, local usage summaries, prompt campaign state,
   lifecycle/version facts, disclosed update/feedback/uninstall context, and
@@ -182,7 +182,7 @@ testing instructions live in the development map above.
 
 - [`product-surfaces-and-migration.md`](product-surfaces-and-migration.md):
   accepted release identity, frozen incubation routes, legacy handoff and
-  backend/presentation compatibility.
+  host/client compatibility.
 - [`desktop-jstorrent-replacement.md`](desktop-jstorrent-replacement.md):
   desktop state import, host ownership and installed replacement evidence.
 - [`android-jstorrent-replacement.md`](android-jstorrent-replacement.md):

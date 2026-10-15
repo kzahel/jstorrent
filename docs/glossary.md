@@ -15,6 +15,7 @@ repository "client" means something narrower. Use these terms:
 | **Host** | A running JSTorrent process that owns an engine and a profile and serves the application API: the desktop app, the Android app, the iOS app, the headless server, the Crostini gateway. Older docs call this the *backend*. |
 | **Client** | Anything that connects to a host through the application API to show or control it: the web UI in the desktop window, the hosted remote controller, the extension companion pages, the gateway-served web UI, Android Compose, iOS. Some run in the same process as their host. |
 | **UI**, **web UI**, **frontend** | The shared React application in `clients/web`, a client. Android Compose is named explicitly as *Android* or *Compose*. |
+| **Shell** | What loads the web UI: a browser tab, the desktop Tauri window or an extension page. Not a host: the desktop window's shell ships inside the desktop app with its host; a browser tab is separate from the host it connects to. |
 | **Profile** | A host's durable state: its session catalog, settings and product state. |
 
 A **surface** or **product** is something we ship and users install:
@@ -22,6 +23,25 @@ desktop, Android, extension, headless, Crostini, iOS. A surface can contain
 a host, a client or both. Desktop, Android and iOS ship a host with a
 matching client; the extension ships only clients; the hosted remote controller is a
 client served from the website.
+
+### Older terms
+
+Earlier documents and names use other words for the same ideas. Prefer the
+glossary term in new and edited prose; names in code, paths and topic slugs
+keep their spelling.
+
+| Older term | Use instead |
+| --- | --- |
+| *backend*, *native backend* (a process that owns the engine and serves the API) | **host** |
+| *presentation* (a UI attached to a backend) | **client** |
+| *backend/presentation model* | **host/client model** |
+| *product client*, *client surface*, *desktop client*, *native client* (an app we ship) | **surface**, **product** or the app's name; it may contain a host and a client |
+| *client* for another BitTorrent program in a swarm | **peer** |
+
+*Backend* keeps its ordinary meaning for storage, persistence, rendering and
+cryptography backends, and `ApiBackendIdentity` / `hello.backend` keep their
+code names. The `clients/` directory and the `client-surfaces` topic keep
+their names.
 
 ## Connecting a client to a host
 
@@ -37,6 +57,7 @@ client served from the website.
 | **Companion** | Extension pages that control the Android app (ChromeOS) or the desktop app. |
 | **Relay** | The service that forwards encrypted circuits between remote clients and hosts (`rstorrent-remote-relay`). It sees neither side's plaintext. |
 | **Remote host** | The component inside a host that keeps the host reachable through the relay (`rstorrent-remote-host`). Despite the name it is part of a host, not a separate host. |
+| **Native messaging host** | Chrome's term for a local program an extension launches and talks to over native messaging (`rstorrent-native-host`). A different sense of "host"; write the full term. |
 | **Relay circuit** | One end-to-end encrypted path between one client and one host through the relay. |
 
 Do not use *session* for any of these; it already means the engine session,

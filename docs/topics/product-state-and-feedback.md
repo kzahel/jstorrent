@@ -144,7 +144,7 @@ Do not reuse one identifier across unrelated ownership boundaries:
 | --- | --- | --- |
 | Installation ID | One product installation across profiles and application updates | Random resettable 128-bit value in installation product state; may be sent only through the disclosed update, feedback, and extension-uninstall boundaries |
 | Profile ID | One torrent catalog, settings set, roots, and application-service instance | Stable beneath the profile root; never an analytics identity |
-| Client instance ID | One attached presentation lifetime and its reconnect/takeover ownership | Ephemeral; not product history |
+| Client instance ID | One attached client lifetime and its reconnect/takeover ownership | Ephemeral; not product history |
 | Report ID | One user-submitted feedback or support case | Generated for that submission; may be sent with the visible report |
 | Separate analytics ID | A second identity created only for remote measurement | Does not exist and is not needed by the accepted design; the installation ID is the sole disclosed pseudonymous product identity |
 
@@ -185,7 +185,7 @@ One product-lifetime owner above application-service instances owns
 `product.db`. Platform adapters supply the application-data root, current
 product version, wall-clock observation, and foreground lifecycle facts.
 Profile application services publish bounded semantic milestones upward only
-after the authoritative profile transition succeeds. Product clients read a
+after the authoritative profile transition succeeds. Clients read a
 typed summary and record prompt disposition through that owner; they do not
 open SQLite independently.
 
@@ -299,7 +299,7 @@ preference. Appropriate context is closed to:
 - product and platform version;
 - days since first use;
 - the closed aggregate counters;
-- whether the product has ever successfully connected to its engine/backend;
+- whether the product has ever successfully connected to its engine/host;
   and
 - Android's already accepted OS release and manufacturer/model fields.
 
@@ -379,7 +379,7 @@ than describing navigation as a private local preview.
 ## Invariants
 
 - Product-state scope is one local installation, not one torrent profile,
-  presentation, process, device account, or remote user.
+  client, process, device account, or remote user.
 - Profile and transport identities are never repurposed as analytics identity.
 - The installation identity is pseudonymous, resettable, and never an
   authorization or hardware identity.

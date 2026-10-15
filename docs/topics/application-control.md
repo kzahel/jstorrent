@@ -351,11 +351,11 @@ Storage roots and platform capabilities are installed when an application
 service instance is constructed or through a later platform-specific
 capability operation. A remotely meaningful command selects an established
 root identity; it never supplies an ambient local path or open descriptor. The
-accepted first-add, default-root, local picker, and remote-presentation behavior
+accepted first-add, default-root, local picker, and remote-client behavior
 is recorded in [`download-roots.md`](download-roots.md).
 
 Tactical [`194`](../tactical/194-chromeos-android-extension-control.md) applies that
-split to the same-device ChromeOS Android presentation. The authenticated
+split to the same-device ChromeOS Android companion client. The authenticated
 platform client may request Android's SAF picker with only an optional opaque
 repair-root ID and receives only the resulting root snapshot. The application
 service remains authoritative for the single current/default root, retained
@@ -369,7 +369,7 @@ guest address; ChromeOS extension connection and same-LAN refusal pass.
 
 Tactical `062` keeps publication naming behind this boundary. Verified
 metainfo and the selected root resolve a durable relative publication
-component inside the application/engine layers; no presentation command gains
+component inside the application/engine layers; no client command gains
 a local path, proposed filename, or infohash-layout switch.
 
 Tactical `063` keeps file selection semantic as well. The command carries a
@@ -391,7 +391,7 @@ terminal stopped announces, paused final state, and no payload artifacts.
 
 Force recheck is likewise semantic. A replayed successful request cannot
 start another generation, and a stale request mutates neither runtime nor
-durable state. During checking, presentation exposes no old verified total as
+durable state. During checking, clients expose no old verified total as
 current authority. Valid paused content may return to complete; invalid paused
 content retains its exact replacement bitmap without admitting peer repair,
 while running intent downloads only the missing or corrupt wanted pieces.
@@ -409,7 +409,7 @@ Android application request IDs now include a process-random namespace before
 their monotonic suffix, matching the browser contract and preventing a
 restarted process from reusing `android-1` for different durable intent.
 The torrent application view now also projects whether current durable managed
-content can accept Force recheck. Presentation uses that semantic value only
+content can accept Force recheck. Clients use that semantic value only
 to derive exact-selection availability; dispatch and durable request handling
 remain authoritative if state races after activation.
 
@@ -547,7 +547,7 @@ drop the metadata/content supervisor; the supervisor publishes disconnecting
 and final removal observations after joining child owners. A deterministic
 session test proves the pause response follows TCP close, and the same leased
 view set receives the peer removal plus zero active-peer and payload-rate
-summary fields without another command or a presentation-side clear. A
+summary fields without another command or a client-side clear. A
 terminal owner-cleanup failure is recorded and propagated through pause rather
 than being accepted as successful joined cleanup.
 
@@ -594,7 +594,7 @@ mutations, serially observes the existing per-torrent removal jobs, and does
 not advance to private-profile reset or captured-grant release until those jobs
 reach authoritative terminal states. A separate value-free
 `ResetClientSettings` command now installs the application configuration's
-complete fresh-profile setting set atomically; presentations do not reconstruct
+complete fresh-profile setting set atomically; clients do not reconstruct
 defaults. Store/application/workspace and API 28/35 service evidence passes;
 the owned API 35 two-root Keep/DeleteData profile also passes exact sentinel
 preservation, re-add/recheck, bounded descriptors, and genuine mid-delete
@@ -615,7 +615,7 @@ that value to `unencrypted`, `encrypted_system_trust`, and
 `encrypted_unauthenticated`, and extends the existing complete settings
 command with a default-secure policy plus one advanced compatibility value.
 It adds no certificate route, tracker credential command, environment
-side-channel, or presentation-owned success rule.
+side-channel, or client-owned success rule.
 
 The application-owned content supervisor also retains a cancellation-owned
 external discovery sender from metadata transition through content startup.
@@ -669,7 +669,7 @@ background task was added.
 
 [`../tactical/075-ephemeral-application-state.md`](../tactical/075-ephemeral-application-state.md)
 adds an immutable persistence-mode choice at the same service-lifetime
-boundary. Presentation and transport detachment do not close or clear an
+boundary. Client and transport detachment do not close or clear an
 ephemeral service; joined service shutdown remains the owner of final DHT and
 speed-history flushes. Durable open or write failure never falls back to the
 ephemeral mode.

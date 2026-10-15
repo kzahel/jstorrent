@@ -930,7 +930,7 @@ GET    /api/v1/connect
 authenticates once and carries typed hello, command, view-set creation/update/
 close, attachment, batch and exact cursor-acknowledgement frames directly. It
 does not require an HTTP-created view set, and one socket multiplexes every
-bounded view attachment for that client/backend connection. The accepted
+bounded view attachment for that client/host connection. The accepted
 framing, ownership, resume and relay-compatible layering live in
 [`application-connection-architecture.md`](application-connection-architecture.md).
 
@@ -1411,7 +1411,7 @@ without changing its cursor or payload. These decimal instants are not Unix
 timestamps and cannot be persisted across application restart. The adapter
 anchors this clock to `performance.now()` once per view-set epoch; retained
 rows, partial patches, tab reopen and unrelated updates preserve deadlines.
-The React table ticks locally without backend timer patches. Transport delay
+The React table ticks locally without host timer patches. Transport delay
 can produce a small display offset; the engine remains scheduling authority.
 
 The torrent summary also carries an additive optional configured-tracker

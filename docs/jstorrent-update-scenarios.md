@@ -26,7 +26,7 @@ finish-line report; use absolute Markdown image links in conversation.
 - [ ] Submit store candidates with Chrome Web Store deferred publishing and
   Play managed publishing; verify those controls before submission.
 - [ ] Wait for approvals, then make desktop and Android updates available.
-- [ ] Verify both backend updates are obtainable, then publish the extension.
+- [ ] Verify both host updates are obtainable, then publish the extension.
 - [ ] Check actual existing-install updates and the mixed pairs below. Users
   can remain on different versions after publication; no simultaneous arrival
   is assumed.
@@ -53,7 +53,7 @@ finish-line report; avoid adding private device details to this document.
 | [ ] | New extension + old desktop | Name **JSTorrent Desktop** as needing an update; offer the desktop download/update path, then Retry. Native use remains available meanwhile. | Local source/render pass now offers desktop and extension update links plus native-use guidance. Protocol uncertainty remains explicit; real mixed-install check is pending. |
 | [ ] | New extension + old Android | Say **Update the JSTorrent Android app in Google Play**; link its listing, then Retry. Android can be used directly meanwhile. | Specific classification, Play link and bounded no-legacy-pairing tests exist; real store-update check remains. |
 | [ ] | Old extension + new desktop/Android | Open the native app directly. Update the **JSTorrent extension**, then reconnect and approve fresh pairing if requested. | Actual official1.1.1 + managed27 shows generic Offline and a launch fallback into Play Store; native shelf return remains usable. This non-migrated profile has no migration card. Imported-cohort guidance and the complete row remain open; old extension errors cannot be rewritten. No intermediate legacy release is required. |
-| [ ] | New extension + new backend | Open/connect to the same migrated library; approve pairing when requested. | Controlled evidence exists; verify exact released identities and an existing browser profile. |
+| [ ] | New extension + new host | Open/connect to the same migrated library; approve pairing when requested. | Controlled evidence exists; verify exact released identities and an existing browser profile. |
 | [ ] | Required update is not offered | Explain that delivery may still be rolling out. Use the installed native app and retry later. If the OS is unsupported, explain the requirement and alternatives. | Local bundled help now links each store and explains waiting, native use and unsupported OS alternatives. Actual store availability remains unchecked. Never promise an update that the store is not offering. |
 | [ ] | App absent, stopped, or service unreachable | Offer the appropriate install link or Open app action. Check browser control and permission; then Retry. | Do not infer “outdated” or “not installed” from a timeout. Local source/render pass distinguishes missing native registration from stopped desktop startup, and names Android permission/setup actions. Real installed recovery remains pending. |
 | [ ] | Pairing denied, expired, or changed after update | Open the same app, approve the named request and Retry. Keep the library; do not recommend clearing data or reinstalling as the normal fix. | Existing Android pairing and desktop identity-change paths; final installed check remains. |
@@ -83,7 +83,7 @@ The first pass covers nine injected packaged connection states and bundled
 no-update help, with before/after screenshots. New links, plain recovery copy
 and button contrast are locally qualified. No full installed/store scenario
 row above is closed by this pass. Remaining captures include old/old, actual
-old-extension/new-backend native guidance, new/new migrated library, physical
+old-extension/new-host native guidance, new/new migrated library, physical
 folder recovery and the final Linux fallback package. Public desktop download
 availability still depends on the website cutover.
 
@@ -101,7 +101,7 @@ validation and the ignored finish-line report for screenshots.
   the requested action. Check one narrow-window screenshot and keyboard access.
 - [ ] Unsupported Android versions, managed devices and older Linux systems
   receive a usable explanation without repeated installation loops.
-- [ ] Update/recovery instructions preserve existing data and keep one backend
+- [ ] Update/recovery instructions preserve existing data and keep one host
   owner. Stop failed migration visibly; no old-protocol writer fallback.
 
 Known destinations:

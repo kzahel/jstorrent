@@ -66,7 +66,7 @@ construction-only, default-off application path: one fixed-548 IPv4 service,
 ordinary incoming admission, eligible plaintext outgoing selection, exact
 peer transport views, and one sequential TCP fallback under the same logical
 dial. Exact pinned-libtorrent application transfers pass in both uTP roles and
-against a TCP-only fallback peer, while every shipped/default client remains
+against a TCP-only fallback peer, while every shipped/default product remains
 TCP-only. The BEP 29 claim therefore remains **Unsupported** pending explicit
 default/reachability scope and graduation evidence. Completed Tactical
 [`132`](../tactical/132-utp-default-readiness-evidence.md) adds bounded volatile

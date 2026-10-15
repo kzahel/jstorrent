@@ -49,7 +49,8 @@ a living topic records an accepted replacement:
   to libtorrent, librqbit, or another engine dependency.
 - The engine owns ordinary peer networking, hashing, scheduling, session
   state, and hot-path data movement.
-- Product clients are first-party and normally run the engine in-process.
+- Products are first-party, and each normally runs its own host, with the
+  engine, in-process.
 - Platform adapters may own operating-system integration such as Android
   activities, lifecycle, permissions, notifications, and SAF document access,
   or eventual Apple UI lifecycle, security scopes, and file coordination.
@@ -57,7 +58,7 @@ a living topic records an accepted replacement:
   proxy, or separate IO daemon without an explicit architectural decision.
 - Android/ChromeOS and desktop are the initial product surfaces. iOS is an
   accepted eventual first-party in-process product; bounded physical-device
-  feasibility work may be explicitly authorized before the complete client.
+  feasibility work may be explicitly authorized before the complete app.
   An extension, complete iOS port, remote daemon, and additional platforms are
   not implied work outside their owning tactical.
 - Android/ChromeOS Android is a first-party engine parity gate. An applicable
@@ -84,8 +85,8 @@ a living topic records an accepted replacement:
   publish new incubation releases or re-enable its nightly publication. Retained
   RSTorrent routes, descriptors, keys and historical artifacts are legacy
   compatibility, not a second shipping lane. Isolated debug/test identities may
-  remain; do not redirect old incubation clients across signing roots.
-- Engine and product-client work both proceed, each under its own numbered
+  remain; do not redirect old incubation installs across signing roots.
+- Engine and product work both proceed, each under its own numbered
   tactical. Neither is globally paused in favor of the other, and neither is
   standing authorization to start implementing without one.
 
@@ -313,7 +314,7 @@ Live public-swarm and comparative performance smokes are opt-in and follow
 [`docs/topics/performance-and-live-evidence.md`](docs/topics/performance-and-live-evidence.md)
 and the active campaign runbook.
 Engine-only work defaults to headless CLI or application-service validation;
-do not launch visible product clients merely to exercise engine behavior.
+do not launch visible apps merely to exercise engine behavior.
 
 ## ChromeOS Hardware Testing
 

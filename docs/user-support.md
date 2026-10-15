@@ -9,7 +9,7 @@ Android 9/API 28 is the replacement minimum. Older Android devices retain the
 old app and need a supported OS/device; an unavailable store update is not a
 transfer failure to retry indefinitely. App and extension updates may arrive
 separately, and companion pairing may need renewal. Android and the explicitly
-selected Linux backend retain separate libraries.
+selected Linux host retain separate libraries.
 
 Earlier `0.1.x` preview packages are unsupported incubation builds. Their
 torrent catalog, settings and private application state may be reset by a

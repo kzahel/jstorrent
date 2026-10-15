@@ -41,7 +41,7 @@ This topic owns the desktop/web product information architecture:
 responsive behavior, accessibility, rendering, and browser-local presentation
 state. [`desktop-inspection-surface.md`](desktop-inspection-surface.md) owns why
 detailed torrent observation is a product and maintainer requirement.
-[`client-surfaces.md`](client-surfaces.md) owns the browser and Tauri hosts and
+[`client-surfaces.md`](client-surfaces.md) owns the browser and Tauri shells and
 their platform lifecycle.
 
 ## Previous Three-Destination Shape

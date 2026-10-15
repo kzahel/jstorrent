@@ -186,9 +186,10 @@ not silently send file bytes through the control relay as a fallback.
   public endpoint/timing metadata but no file or account identity, and cannot
   relay payload. Outage degrades to other direct candidates or a truthful
   unavailable result.
-- **No new mobile-host claim.** The first investigation targets the already
-  implemented desktop and configured headless remote hosts. Android and iOS
-  hosting, background policy, and platform file presentation remain separate.
+- **No new mobile-host claim.** The first investigation targets the desktop
+  and configured headless hosts that already implement remote access. Android
+  and iOS hosting, background policy, and platform file presentation remain
+  separate.
 
 ## Leading WebRTC Shape
 

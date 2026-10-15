@@ -167,8 +167,8 @@ Tactical
 [`109-stable-same-origin-web-launch.md`](../tactical/109-stable-same-origin-web-launch.md)
 removes caller-selected browser gateway destinations and makes hosted browser
 authority the exact page origin. That reduces local bootstrap ambiguity but
-does not supply remote host identity, owner authentication, a relay, or E2E
-encryption.
+does not supply host identity for remote access, owner authentication, a
+relay, or E2E encryption.
 
 [`http-file-serving-and-streaming.md`](http-file-serving-and-streaming.md)
 owns local verified-file capability URLs and future incomplete-file streaming.
@@ -268,7 +268,7 @@ key and proves possession of it on later connections.
 
 The host identity key answers which RSTorrent installation accepted the
 connection. A device key answers which remembered controller initiated it.
-The relay registration credential answers which backend may claim a routing
+The relay registration credential answers which host may claim a routing
 slot. A connection traffic key protects one connection generation. None is a
 substitute for the others.
 

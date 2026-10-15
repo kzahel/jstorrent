@@ -223,7 +223,7 @@ select representative historical sources and browsers. Keep each unrun lane open
   launch, explicit Quit, passive reconnect and browser restart.
 - [ ] **P-07 Mixed desktop versions:** new extension + old desktop gives an explicit
   desktop update requirement; old extension + new desktop cannot write through the
-  retired protocol. Both new presentations show the migrated library. Credentials
+  retired protocol. Both new clients show the migrated library. Credentials
   rotate on replacement and repeated pairing/registration repair preserves state.
 
 ## Android And Chromebook Installed Matrix
@@ -259,11 +259,11 @@ rows independently; those tests use disposable signing and owned emulators.
   journeys and bounded cohort-A sideload/extension recovery, including real
   rejection, declared-window expiry and terminal manual cancellation. Real Play and
   cohort-B acceptance stay open.
-- [ ] **A-07 Troubleshooting and Linux fallback:** before backend connection,
+- [ ] **A-07 Troubleshooting and Linux fallback:** before host connection,
   explain the observed failed stage and manual next action; offer explicit
   Crostini setup where permitted. Qualify Linux-not-enabled, package absent,
   stopped VM and unshared folder. Explain separate libraries, preserve Android
-  state and show an unsupported outcome if neither backend is available.
+  state and show an unsupported outcome if neither host is available.
   Cohort-A offline recovery and exact Linux package runtime pass. Normal Terminal
   startup restores registration; current isolated browser file-picker intake,
   stopped-VM manual Retry and durable-profile row/byte retention pass. Current
@@ -274,7 +274,7 @@ rows independently; those tests use disposable signing and owned emulators.
   bounded cold-launch, verified transfer, view detach, interrupted connection,
   storage repair, restart and lifecycle cohort passes on both devices. Every
   unqualified route remains explicit before ChromeOS rollout. Cohort A passes
-  three independent byte-verified recovery repetitions per backend and both
+  three independent byte-verified recovery repetitions per host and both
   controlled 60-minute observations. Android detached completion and actual
   Remove/keep/restart pass. Linux hour observations and three repetitions remain
   runtime only; the follow-up adds bounded real browser/file-picker and

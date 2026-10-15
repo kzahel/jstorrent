@@ -19,7 +19,7 @@ product or treating its internal APIs, persistence formats, and process
 topology as compatibility requirements.
 
 The intended lineage was always product succession rather than a permanently
-separate brand: prove a first-party native engine and clients, then graduate
+separate brand: prove a first-party native engine and apps, then graduate
 them into JSTorrent when the replacement is ready.
 
 ## Why A First-Party Rust Engine
@@ -33,7 +33,7 @@ The project started from these product constraints:
   ordinary torrent sockets or payload I/O through another runtime;
 - Android and ChromeOS should be first-class product surfaces;
 - desktop should provide a fast development and validation surface and become
-  a first-class client of the same engine; and
+  a first-class surface of the same engine; and
 - early implementation should be free to evolve without inheriting JSTorrent
   feature parity or internal compatibility as its starting obligation.
 
@@ -48,8 +48,8 @@ The initial center of gravity was a reusable Rust engine with a small
 application-facing command, snapshot, and event API:
 
 ```text
-Android client ─┐
-Desktop client ─┼──> application service ──> Rust torrent engine
+Android app ────┐
+Desktop app ────┼──> application service ──> Rust torrent engine
 CLI and tests ──┘
 ```
 

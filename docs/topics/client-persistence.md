@@ -415,7 +415,7 @@ Profile creation/deletion does not rotate the installation identity.
 This topic owns durable client state, resume and restart correctness, database
 portability, storage-root identity, and the boundary between the reusable
 torrent engine and the first-party application service shared by platform
-clients.
+surfaces.
 
 [`download-roots.md`](download-roots.md) owns how users acquire, default,
 select, repair, and remove those roots and how the desktop, WebUI, and Android
@@ -508,7 +508,7 @@ responsibilities:
 - A **platform adapter** owns operating-system capabilities such as the
   application-data directory, Android persisted SAF grants and descriptors,
   foreground-service lifetime, notifications, and desktop integration.
-- A **product client** owns presentation and user interaction. Android and
+- A **client** owns presentation and user interaction. Android and
   desktop clients consume the same application service in-process.
 
 The application service is native Rust product code. Placing SQLite there does
@@ -590,7 +590,7 @@ in-memory databases for one service lifetime. The mode creates no profile
 directory or database auxiliary files, preserves transactions, request
 idempotency and the ordinary owner/task lifecycle while open, and restores
 nothing after the service shuts down, joins its owners, is dropped, and closes
-its private SQLite connections. Detaching the last presentation or transport
+its private SQLite connections. Detaching the last client or transport
 connection does not stop the service or clear its state.
 
 Durable persistence remains the normal desktop and Android product mode.

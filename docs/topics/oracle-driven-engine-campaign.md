@@ -1397,7 +1397,7 @@ installed macOS/Windows/Linux replacement. 243 repairs Windows syncing of the
 private SQLite backup without opening the legacy source for write; 18 migration
 tests pass on each native platform. Tactical
 [244](../tactical/244-unavailable-storage-presentation.md) corrects shared React
-blocked-storage presentation without changing backend/checker semantics. Next
+blocked-storage presentation without changing host/checker semantics. Next
 resolve production qualification.
 
 Completed Tactical

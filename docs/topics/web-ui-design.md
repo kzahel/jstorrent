@@ -215,7 +215,7 @@ Tactical [281](../tactical/281-managed-package-update-status.md) locally
 repairs the actual MSI About-screen automatic-update contradiction. MSI/DEB/RPM
 and unknown packages start and stay in existing manual package guidance, own
 no check timers, and show no in-app check/install or automatic-check privacy
-copy. Backend policy, trust/routes and preference behavior remain unchanged.
+copy. Host policy, trust/routes and preference behavior remain unchanged.
 Full web typecheck/478 tests (two existing skips),20 focused bundled-Chromium
 render/accessibility cases and16 inspected managed/theme/width captures pass.
 The exact original-signed a7 MSI now passes actual native About & updates
@@ -306,7 +306,7 @@ shell. Diagnostics use JSTorrent names; exact internal shell commands are
 clipboard actions, with an accessible stronger-color release link. The final
 53 browser capture states have no obsolete display brand, page-wide horizontal
 overflow, uncaught page errors or serious/critical Axe violations. Demo and
-mocked-platform rendering is distinguished from backend/installed evidence.
+mocked-platform rendering is distinguished from host/installed evidence.
 Eight design/coverage follow-ups remain, including phone settings-category
 discoverability, dense Linux help and native empty-state hierarchy.
 
@@ -369,7 +369,7 @@ as well as the connected product. Show the known failed stage, one next action
 and manual Retry/Cancel. Unreachable Android is not proof Play is disabled or
 the app absent. Offer an explicit Linux setup route when Android installation
 or connection is unavailable, explain its separate library, and give an honest
-unsupported outcome when neither backend is available. Both physical devices
+unsupported outcome when neither host is available. Both physical devices
 must qualify these journeys; existing popup rendering tests do not suffice.
 
 Tactical [249](../tactical/249-jstorrent-brand-and-extension-refresh.md) restores
@@ -708,7 +708,7 @@ Completed Tactical
 capability-gated **Remote access security** category rather than overloading
 that loopback **Web access** panel. This first implementation is exercised only
 from the release-built bundle at a distinct loopback HTTPS origin and does not
-become a published client surface. After the first successful remote password
+become a published surface. After the first successful remote password
 login, the browser offers an explicit primary **Private browser — stay
 authorized** choice and a secondary **Shared browser — this page only** choice.
 A returning private browser shows bounded connection progress while it attempts
@@ -798,7 +798,7 @@ client-derived eligibility.
 
 ## Purpose
 
-The shared browser and Tauri presentation should become RSTorrent's detailed
+The shared browser and Tauri client should become RSTorrent's detailed
 product and inspection surface without inheriting JSTorrent's frontend
 architecture. It must remain useful as a dense desktop torrent client while
 also adapting gracefully to small desktop windows, touch input, tablets, and

@@ -455,7 +455,7 @@ incoming peers locally or through one proven UPnP-mapped public TCP endpoint:
   successfully written, and bounded snapshots expose exact totals and rates;
 - pure, storage, socket, lifecycle, application-restart, and simultaneous
   two-RSTorrent/two-libtorrent evidence passes for single-file and cross-file
-  content, with all four clients independently verifying 67,109,595 bytes and
+  content, with all four peers independently verifying 67,109,595 bytes and
   the seed recording the exact 268,438,380 uploaded payload bytes;
 - one schema-version-11 atomic settings group persists listener intent,
   explicit disabled-or-UPnP mapping policy, 1--2,000 ordinary peer
@@ -772,7 +772,7 @@ Grow from one useful incoming peer to a coherent bounded upload owner:
 - retain prompt pause, completion-policy, removal, and shutdown joins.
 
 Controlled simultaneous RSTorrent and libtorrent evidence now proves exact
-content, declared high-water marks, and cleanup. Two clients of each kind
+content, declared high-water marks, and cleanup. Two peers of each kind
 overlapped against one seed and independently verified the 67,109,595-byte
 fixture; exact physical upload was four copies, or 268,438,380 bytes. Scripted
 ten-peer evidence proves the eight-slot ceiling, one optimistic slot, fair

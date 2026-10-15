@@ -1,7 +1,7 @@
 # Reference Implementations And Provenance
 
 RSTorrent is independently implemented, but it uses specifications and other
-clients as sources of behavioral evidence.
+BitTorrent clients as sources of behavioral evidence.
 
 ## Reference Policy
 
@@ -74,8 +74,9 @@ This managed checkout is pinned to the exact upstream revision in
 generated from a May 2020 snapshot. The original reStructuredText retains
 document metadata, history, and each BEP's copyright section.
 
-Where deployed clients disagree with a specification, record the observed
-compatibility behavior rather than silently replacing the documented contract.
+Where deployed BitTorrent clients disagree with a specification, record the
+observed compatibility behavior rather than silently replacing the documented
+contract.
 
 ## Direct Remote Transport References
 

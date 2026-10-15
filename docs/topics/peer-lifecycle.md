@@ -355,7 +355,7 @@ resolution, upload, and terminal-generation vocabulary. Completed Tactical
 [`131`](../tactical/131-bounded-product-utp-composition.md) composes that path
 into the application behind a default-off constructor policy. Selected uTP is
 published atomically with an outgoing connecting generation; joined fallback
-updates that same generation to TCP. Every shipped/default client remains TCP-
+updates that same generation to TCP. Every shipped/default product remains TCP-
 only and no second peer model was introduced.
 Completed Tactical
 [`132`](../tactical/132-utp-default-readiness-evidence.md) adds capability
@@ -486,7 +486,7 @@ and required completion results. The peer campaign must cover these families:
 - peers connect, become briefly useful, and repeatedly churn;
 - the registry has many eligible candidates while established and pending
   socket limits remain enforced; and
-- no alternative candidate exists, so the client retains plausible peers and
+- no alternative candidate exists, so the engine retains plausible peers and
   discovery schedules instead of cycling connections pointlessly.
 
 An established socket does not earn an indefinite slot merely by remaining

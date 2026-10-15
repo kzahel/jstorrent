@@ -534,9 +534,9 @@ Completed bounded slice [242](../tactical/242-legacy-desktop-handoff-rehearsal.m
 installs a refusal-only helper for `com.jstorrent.native` only under the future
 production identity. It covers released browser registrations and the Linux
 AppImage host copy, then checks for same-user old processes before import and
-again before engine startup. Registration failures and live legacy clients show
-native guidance and stop without opening a catalog/engine. Incubation does not
-take over the old name. Manually retained old binaries remain unsupported.
+again before engine startup. Registration failures and live legacy processes
+show native guidance and stop without opening a catalog/engine. Incubation does
+not take over the old name. Manually retained old binaries remain unsupported.
 
 A claimed macOS arm64 guest passes a generated, installed v0.2.1 replacement
 at the same bundle path/identifier: idle pre-handshake host and registration
@@ -557,7 +557,7 @@ each native platform.
 intent. [244](../tactical/244-unavailable-storage-presentation.md) corrects the
 shared React adapter: blocked storage shows Storage unavailable and belongs
 to Needs attention, while active storage preparation retains active membership.
-Paused operational state and backend storage/checker behavior remain unchanged.
+Paused operational state and host storage/checker behavior remain unchanged.
 Deterministic adapter, component and migration checks pass; the corrected UI
 has not been requalified in installed guests. Local candidates are unsigned and
 unpublished. Actual production extension pairs, signed production delivery,
@@ -700,10 +700,10 @@ importer design, production identity and rollout gates.
 Replace JSTorrent's desktop implementation through its existing product
 identity and updater trust, preserve useful torrent intent and payload, retain
 an effective support/reporting journey, and coordinate the browser extension's
-change from engine owner to native-backend presentation.
+change from engine owner to a client of the desktop host.
 
 The existing [product migration topic](product-surfaces-and-migration.md) owns
-the accepted backend/presentation architecture. This topic owns the desktop
+the accepted host/client architecture. This topic owns the desktop
 replacement campaign, source cohorts, acceptance gates, and rollout questions.
 [Android replacement](android-jstorrent-replacement.md) remains independent,
 but a shared production extension update must preserve its supported journeys.
@@ -712,7 +712,7 @@ until an explicitly selected graduation candidate.
 
 Preserve the extension-first experience: open the familiar browser UI, see the
 library, choose folders, manage torrents and report problems. Native desktop
-and Android views attach to the same respective backend. Users should not need
+and Android views attach to the same respective host. Users should not need
 to understand the move from a JavaScript engine to a native engine. This is
 workflow continuity rather than a promise of identical pixels or every legacy
 feature; missing behavior requires an explicit disposition.
@@ -849,7 +849,7 @@ Target: one desktop Rust application/profile/engine, with an embedded Tauri
 view and a full extension view attaching to that same owner. Opening either
 view must not perform normal profile takeover or create another engine.
 Every authorized browser profile/extension connection attaches to this same
-desktop library. Backend/profile identity may remain internal protocol facts
+desktop library. Host/profile identity may remain internal protocol facts
 for detecting stale or wrong connections; they do not expose a profile picker
 or permit an extension to create or select another desktop data owner.
 
@@ -871,16 +871,16 @@ A launcher-only extension is not the intended successor desktop experience.
 ChromeOS Android already implements this ownership pattern in Tactical `194`:
 the extension hosts React and sends semantic commands while the Android service
 owns the engine, profile and SAF grants. Compose is another view. Desktop should
-reuse the presentation and application contract with its own authenticated
-bootstrap and OS capabilities. Crostini remains a distinct backend with its
-existing backend-served UI handoff. Browser media and other platform differences
+reuse the client and application contract with its own authenticated
+bootstrap and OS capabilities. Crostini remains a distinct host with its
+existing host-served UI handoff. Browser media and other platform differences
 must stay visible in the parity ledger rather than being assumed equivalent.
 
 The desktop transport tactical must settle native-host discovery/bootstrap,
 same-user admission and exact extension identity, protocol/version negotiation,
 credential scope/revocation, bounded frames and queues, and cold windowless
 launch followed by optional webview creation. Reuse the semantic application
-contract and proven extension presentation; do not recreate the raw IO daemon.
+contract and proven extension client; do not recreate the raw IO daemon.
 Compare native-messaging delivery with an authenticated local control channel
 before selecting the transport. ChromeOS Android's transport is useful evidence,
 not proof of desktop authentication or lifecycle behavior.
@@ -910,7 +910,7 @@ must not be required to explain why that service could not open its profile.
 
 Proposed bounded local report: exact build/package/channel, source format and
 version when known, migration phase and outcome counts, closed failure reasons,
-recheck progress/duration, root-health categories, backend/control versions,
+recheck progress/duration, root-health categories, host/control versions,
 owner conflicts, interrupted-recovery state and diagnostic loss counts.
 Use a migration-attempt correlation value scoped to the local operation; do
 not turn it into another installation tracking ID. Keep richer paths, torrent

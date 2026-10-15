@@ -401,7 +401,7 @@ Tactical [281](../tactical/281-managed-package-update-status.md) locally
 repairs the actual MSI About-screen automatic-update contradiction. MSI/DEB/RPM
 and unknown packages start and stay in existing manual package guidance, own
 no check timers, and show no in-app check/install or automatic-check privacy
-copy. Backend policy, trust/routes and preference behavior remain unchanged.
+copy. Host policy, trust/routes and preference behavior remain unchanged.
 Full web typecheck/478 tests (two existing skips),20 focused bundled-Chromium
 render/accessibility cases and16 inspected managed/theme/width captures pass.
 Fresh exact-source signed native MSI evidence remains open under259; renderer
@@ -424,7 +424,7 @@ from the private NSIS class; no NSIS-validator pass is inferred.
 The real MSI About screen initially claims automatic updates are enabled.
 Manual Check correctly changes to package-channel guidance, but automatic
 schedule/privacy copy and the check button remain. Tactical281 repairs this
-presentation/controller initialization issue; the native backend already
+presentation/controller initialization issue; the desktop host already
 refuses managed-package checks and replacement. Source8c screenshots are
 unchanged before-fix evidence. The empty detail panel's implementation-oriented
 copy is an additional design note, rather than an unstyled page.
@@ -713,7 +713,7 @@ adds host-built isolated Android/extension artifacts and a native x86_64 Ubuntu
 22.04 Crostini package. The exact unsigned package resolves dependencies and
 passes controlled runtime byte/restart checks in cohort A's Debian 12
 container. Android candidate-page pairing/recovery and byte-checked file intake
-pass bounded slices. Both backends finish controlled 60-minute byte-verified
+pass bounded slices. Both hosts finish controlled 60-minute byte-verified
 observations and three recovery repetitions; owned test state is restored.
 Normal Terminal startup restores Linux registration; the final offline connection
 page and isolated current-package browser pass real file-picker intake and
@@ -733,7 +733,7 @@ until the exact candidate authenticates and an owned old-release guest passes.
 
 Initial CI updater inputs are positively identified as the incubation key,
 not JSTorrent's original key. Package attempts retain diagnostic evidence,
-but cannot qualify old-client updating. The owned macOS 0.2.1 endpoint check
+but cannot qualify old-app updating. The owned macOS 0.2.1 endpoint check
 passes; production delivery rows remain open.
 The Android retry passes signed APK/AAB construction, JVM tests and release lint,
 then rejects the wrong original-APK certificate at staging. The first macOS
@@ -962,7 +962,7 @@ explicit release findings, not a zero-issues claim from the audit exit code.
 
 Current checkpoint (2026-09-26): public signed desktop `0.1.4` passed its
 source, five package, and publication jobs. All five production routes offer
-signed `0.1.4` metadata to `0.1.1` clients. Native Windows 11 x86_64
+signed `0.1.4` metadata to `0.1.1` apps. Native Windows 11 x86_64
 fresh-default `0.1.1` NSIS updated through the app's production route,
 automatically reset and relaunched into exact build `691143b6db1c`, retained
 expected Authenticode trust, and left an unrelated pre-update Documents
@@ -1123,7 +1123,7 @@ extension-control Tactical
 [`194`](../tactical/194-chromeos-android-extension-control.md) alongside
 Tactical `158`. It is the first migration-critical JSTorrent Android parity
 slice: Android retains the only Rust engine/profile owner and the extension is
-a detachable shared React presentation. It includes Android's
+a detachable shared React client. It includes Android's
 extension-triggered SAF picker and retained-root semantics so changing the
 current root for new downloads does not discard grants used by older torrents.
 It does not authorize store publication or turn other missing Android features
@@ -1234,13 +1234,13 @@ compatibility and rollback policy declared with that baseline.
   the general later goal: graduate the proven implementation through a normal
   JSTorrent update retaining JSTorrent branding, `com.jstorrent.desktop`, and
   its existing updater trust root. Exact timing and best-effort state migration
-  are later scope; released RSTorrent routes and clients do not silently change
+  are later scope; released RSTorrent routes and apps do not silently change
   identity.
 - [ ] **REL-002 — Freeze application identifiers.** Desktop currently uses
   the accepted operational `com.jstorrent.rstorrent`, and release validation
   rejects accidental drift.
   Android still uses the unreleased `org.rstorrent.bootstrap`, and iOS uses
-  `org.rstorrent.ios.dev`. Incubation clients do not inherit an existing
+  `org.rstorrent.ios.dev`. Incubation apps do not inherit an existing
   JSTorrent application/store identity, and no `0.1.x` value constrains the
   future supported release. The shared gate remains open for those mobile
   lanes and for explicit reconfirmation at each lane's support boundary.
@@ -1688,7 +1688,7 @@ operation; [`android-jstorrent-replacement.md`](android-jstorrent-replacement.md
 owns its package/state handoff, production-extension rollout, and explicit
 disposition of current JSTorrent Android features.
 
-- [x] **AND-001 — Maintain a real first-party product client.** Compose,
+- [x] **AND-001 — Maintain a real first-party product.** Compose,
   in-process Rust, foreground-service lifecycle, SAF storage, generated UniFFI
   contract, dual ABI packaging, AVD, ChromeOS, and physical Android evidence
   exist. Tactical `157` graduates the complete module from `experiments/` to
@@ -1722,7 +1722,7 @@ disposition of current JSTorrent Android features.
   device proves persistence, acquisition through screen-off Dozing, absence of
   a Wi-Fi lock, service-stop release, and exact data/root cleanup.
 - [x] **AND-008 — Qualify ChromeOS Android extension control.** Tactical `194`
-  carries the release-built shared React presentation through explicit
+  carries the release-built shared React client through explicit
   Android-approved pairing to the one foreground-service application/engine/
   profile owner. Physical ChromeOS 150 now passes pairing, identity, packaged
   React control, Compose convergence, extension-triggered retained SAF roots,
@@ -1791,7 +1791,7 @@ disposition of current JSTorrent Android features.
 
 ## iOS/iPadOS Beta Checklist
 
-- [x] **IOS-001 — Maintain a real first-party product client.** SwiftUI,
+- [x] **IOS-001 — Maintain a real first-party product.** SwiftUI,
   in-process Rust/UniFFI, app Documents and qualified selected roots,
   simulator/physical lifecycle evidence, system preview, and reproducible
   unsigned/development archives exist.
@@ -1842,7 +1842,7 @@ These useful gaps are **not automatic beta blockers** when disclosed:
   priorities, ratio/time seed goals, and durable transfer totals;
 - production remote access, relay, third-party pairing, and migration from
   legacy JSTorrent. Extension control remains required only for the explicitly
-  advertised ChromeOS Android companion-presentation lane under `AND-008`;
+  advertised ChromeOS Android companion-client lane under `AND-008`;
 - VPN-only, proxy, interface-specific, and broader power policy. Android
   metered-network safety is separately promoted to `AND-010`;
 - local service discovery (BEP 14), HTTP web seeds (BEP 17/19), tracker scrape
@@ -1939,7 +1939,7 @@ concurrently when directed, without demoting other active work.
    engine evidence but no longer displaces the explicit beta-readiness
    campaign.
 15. **Complete — Tactical `167`: ChromeOS Crostini bundled web launcher.** The
-    bundled Rust backend and React UI, static user service, registered Linux
+    bundled Rust host and React UI, static user service, registered Linux
     Launcher, and exact beta-extension handoff pass source gates and the
     available warm, twice-stopped-VM, detachable-transfer, preservation, and
     purge matrix on the physical Chromebook. The conditional full reboot was

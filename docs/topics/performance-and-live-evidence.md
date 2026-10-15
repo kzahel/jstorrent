@@ -1267,7 +1267,7 @@ milestones diagnostic rather than product throughput measurements.
 
 Tactical `043` adds at most 32 small complete tracker rows at a 250 ms minimum
 selected-view cadence. One delivered monotonic deadline is mapped to a local
-wall-clock target, so the UI's one-second countdown does not create backend
+wall-clock target, so the UI's one-second countdown does not create host
 updates, queue traffic, or JSON encoding work. Same-catalog piece checkpoints
 preserve the tracker projection instead of rebuilding it from durable state.
 

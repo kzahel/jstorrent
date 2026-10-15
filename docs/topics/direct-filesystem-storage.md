@@ -237,7 +237,7 @@ Provider rename is no longer a correctness boundary. Grant/bookmark loss,
 provider replacement, exact-path ambiguity, and unsupported random-access or
 durability semantics still fail closed and enter the existing repair flow.
 Android remains a non-deferrable engine parity gate, and the maintained iOS
-client must remove its publication-specific coordination and presentation in
+app must remove its publication-specific coordination and presentation in
 the implementing tactical.
 
 ## Application And Presentation Contract

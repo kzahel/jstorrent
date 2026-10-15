@@ -93,7 +93,7 @@ The local JSTorrent reference implements that product layer explicitly:
 
 Adopt the separation among HTTP response ownership, stream-session demand,
 and torrent scheduling. Do not inherit JSTorrent's companion-daemon topology:
-RSTorrent's first-party clients normally run the Rust engine in-process.
+RSTorrent's first-party products normally run the Rust engine in-process.
 
 RSTorrent now has a reusable verified logical-file reader in
 `crates/rstorrent-engine/src/seed_content.rs` alongside conservative peer-
@@ -123,7 +123,7 @@ The same bounded media router has two deployment modes:
    mount `/media/v1/<capability>` on that listener. Browser-hosted and private
    deployments therefore retain one address, port, origin, TLS termination,
    process lifetime, and graceful-shutdown owner.
-2. **In-process client without an HTTP gateway.** A client such as Tauri or
+2. **In-process app without an HTTP gateway.** An app such as Tauri or
    Android may start one media-only listener on `127.0.0.1:0`. Port `0` asks
    the operating system for an available ephemeral port. This is a narrow
    byte-serving exception to the ordinary no-application-socket posture, not

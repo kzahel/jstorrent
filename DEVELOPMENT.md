@@ -35,7 +35,7 @@ source scripts/dev-env.sh
 
 Rust is pinned by [rust-toolchain.toml](rust-toolchain.toml). Web clients need
 Node/npm; controlled interoperability uses uv and the locked Python 3.12
-environment in [tests/interop](tests/interop/README.md). Native clients add
+environment in [tests/interop](tests/interop/README.md). Native apps add
 their platform toolchains; the [client guide](docs/development/clients.md)
 links the Android and iOS setup/build instructions. CI versions and platform
 dependencies live in the [workflows](.github/workflows).
@@ -53,7 +53,7 @@ selection, direct output, verification and stateless recheck. Use the
 [controlled scenario map](tests/interop/README.md) for persistence, failure
 injection and independent-peer validation.
 
-## Run a client
+## Run the app
 
 ```bash
 ./scripts/desktop

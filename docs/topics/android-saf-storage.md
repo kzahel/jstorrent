@@ -110,14 +110,14 @@ implements the first multi-root Android product extension of this boundary. It
 replaces the
 singleton tree URI with a bounded root-ID-to-grant registry, routes the
 existing root-tagged broker requests through the exact retained grant, and
-lets the shared React presentation invoke Android's SAF picker. One root is
+lets the shared React client invoke Android's SAF picker. One root is
 current for new downloads; earlier roots remain for torrents already bound to
 them and may be made current explicitly. The existing `tree-uri`/`downloads`
 pair migrates in place for RSTorrent users. No locator, descriptor, or payload
 path moves into the extension. Physical ChromeOS proves two independent roots,
 future-add current/default selection, durable old-torrent binding, referenced
 removal rejection, independent grant loss/repair, restart, Compose/React
-convergence, and exact cleanup. The companion presentation remains blocked by
+convergence, and exact cleanup. The companion client remains blocked by
 its LAN-reachable ChromeOS transport; that does not roll back the in-process
 Compose retained-root capability.
 
@@ -216,7 +216,7 @@ It complements:
   which owns shared positional I/O, durability epochs, and session/root
   scheduling; and
 - [`application-control.md`](application-control.md), which keeps platform
-  capabilities and descriptor values out of portable presentation commands.
+  capabilities and descriptor values out of portable client commands.
 
 This topic does not implement desktop-shaped per-add selection among retained
 Android roots, cloud document providers, torrent relocation, a general virtual
