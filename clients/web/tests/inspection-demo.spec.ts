@@ -517,13 +517,11 @@ test("phone destinations and contextual filters remain reachable", async ({
     page.getByRole("list", { name: "Torrent-backed content" }),
   ).toBeVisible();
   await expect(page.locator("header")).toContainText("Library");
-  await toggleNavigation.click();
+  // Choosing a destination keeps the drawer open on its new categories.
   await expect(
     page.getByRole("navigation", { name: "Library filters" }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Close navigation" })
-    .click({ position: { x: 370, y: 400 } });
+  await closeNavigation(page);
   await capture(page, "rstorrent-library-phone.png");
 
   await toggleNavigation.click();
@@ -2162,13 +2160,27 @@ async function openScenario(
     page.getByRole("button", { name: "Settings", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Demo data", { exact: true })).toBeVisible();
-  // Narrow layouts keep the destinations in the navigation drawer.
+  // Narrow layouts keep the destinations in the navigation drawer, which
+  // stays open after a destination is chosen.
   const drawer = page.getByRole("button", { name: "Toggle navigation" });
-  if (await drawer.isVisible()) await drawer.click();
+  const narrow = await drawer.isVisible();
+  if (narrow) await drawer.click();
   await page
     .getByRole("navigation", { name: "Primary" })
     .getByRole("button", { name: "Torrents" })
     .click();
+  if (narrow) await closeNavigation(page);
+}
+
+async function closeNavigation(page: Page) {
+  // The drawer covers the scrim's leading edge; dismiss it at the far edge.
+  const scrim = page.getByRole("button", { name: "Close navigation" });
+  const bounds = await scrim.boundingBox();
+  expect(bounds).not.toBeNull();
+  await scrim.click({ position: { x: bounds!.width - 10, y: bounds!.height / 2 } });
+  await expect(
+    page.getByRole("button", { name: "Toggle navigation" }),
+  ).toHaveAttribute("aria-expanded", "false");
 }
 
 async function setDataUnits(page: Page, label: "Decimal" | "Binary") {
