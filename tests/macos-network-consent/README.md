@@ -78,7 +78,7 @@ clang -Wall -Wextra -Werror -mmacosx-version-min=13.0 \
 ```
 
 The research-only Rust example exercises the same application service used by
-the native apps, headlessly. It does not qualify macOS GUI consent or change
+native clients, headlessly. It does not qualify macOS GUI consent or change
 product defaults. Build after sourcing `scripts/dev-env.sh`:
 
 ```bash

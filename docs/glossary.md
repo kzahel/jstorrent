@@ -35,7 +35,7 @@ keep their spelling.
 | *backend*, *native backend* (a process that owns the engine and serves the API) | **host** |
 | *presentation* (a UI attached to a backend) | **client** |
 | *backend/presentation model* | **host/client model** |
-| *product client*, *client surface*, *desktop client*, *native client* (an app we ship) | **surface**, **product** or the app's name; it may contain a host and a client. Avoid *native client* entirely: it is the name of a Chrome technology (see below). |
+| *product client*, *client surface*, *desktop client*, *native client* (an app we ship) | **surface**, **product** or the app's name; it may contain a host and a client |
 | *client* for another BitTorrent program in a swarm | **peer** |
 
 *Backend* keeps its ordinary meaning for storage, persistence, rendering and
@@ -57,7 +57,6 @@ their names.
 | **Companion** | Extension pages that control the Android app (ChromeOS) or the desktop app. |
 | **Relay** | The service that forwards encrypted circuits between remote clients and hosts (`rstorrent-remote-relay`). It sees neither side's plaintext. |
 | **Remote host** | The component inside a host that keeps the host reachable through the relay (`rstorrent-remote-host`). Despite the name it is part of a host, not a separate host. |
-| **Native Client** (NaCl, PNaCl) | Chrome's retired technology for running sandboxed native code in apps and extensions, once considered for the legacy JSTorrent Chrome app. Say *native app* for our Android, iOS and desktop apps. |
 | **Native messaging host** | Chrome's term for a local program an extension launches and talks to over native messaging (`rstorrent-native-host`). A different sense of "host"; write the full term. |
 | **Relay circuit** | One end-to-end encrypted path between one client and one host through the relay. |
 
