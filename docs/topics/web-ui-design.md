@@ -1,5 +1,11 @@
 # Web UI Design
 
+Tactical [367](../tactical/367-encrypted-short-links.md) adds a remembered,
+initially off **Short link** choice to the web Share panel. It uploads only an
+encrypted copy, expires it after 30 days, and uses the returned link for the
+field, Copy, Share… and QR. Failure retains the full link. **Include my IP
+address** remains independent. Menus and file-share actions keep full links.
+
 Tactical [365](../tactical/365-url-navigation-and-hot-reload.md) puts
 navigation in the URL fragment: `#/library[/<category>]` and
 `#/torrents[/<category>]`, with `torrent`, `tab` or `view=files`, `open=1`

@@ -1,0 +1,21 @@
+{
+  "name": "jstorrent-link",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.worker.json",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261015.1",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "wrangler": "4.151.0"
+  }
+}

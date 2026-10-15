@@ -19,7 +19,10 @@ import {
   sharedLinksMessage,
   type ShareExport,
 } from "../share-export";
-import { loadPeerHintPreference } from "../share-preferences";
+import {
+  loadPeerHintPreference, loadShortLinkPreference, saveShortLinkPreference,
+} from "../share-preferences";
+import { createShortLink, type ShortLink } from "../share-short-link";
 import { Icon } from "./Icon";
 import { trapTab } from "./PeerHintDialog";
 import { useToast } from "./Toast";
@@ -58,6 +61,15 @@ export function SharePanel({
   const [includeAddress, setIncludeAddress] = useState(
     () => loadPeerHintPreference() === "include",
   );
+  const [useShortLink, setUseShortLink] = useState(loadShortLinkPreference);
+  const [shortState, setShortState] = useState<{
+    source: string;
+    result?: ShortLink;
+    failed?: boolean;
+  } | null>(null);
+  const uploads = useRef(new Map<string, Promise<ShortLink>>());
+  const requests = useRef(new Set<AbortController>());
+  const mounted = useRef(false);
   const [state, setState] = useState<ShareState>({ status: "loading" });
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -88,6 +100,49 @@ export function SharePanel({
     };
   }, [controller, peerHint, torrent.id]);
 
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      // StrictMode reattaches immediately; only abort on an actual unmount.
+      queueMicrotask(() => {
+        if (!mounted.current) {
+          for (const request of requests.current) request.abort();
+          requests.current.clear();
+          uploads.current.clear();
+        }
+      });
+    };
+  }, []);
+
+  const fullLink = state.status === "ready" ? state.result.link : "";
+  useEffect(() => {
+    if (!useShortLink || fullLink === "") return;
+    let active = true;
+    setShortState({ source: fullLink });
+    let upload = uploads.current.get(fullLink);
+    if (upload === undefined) {
+      // Bound panel-lifetime state even if a live host changes its exports.
+      if (uploads.current.size >= 16) {
+        setShortState({ source: fullLink, failed: true });
+        return;
+      }
+      const controller = new AbortController();
+      requests.current.add(controller);
+      const timeout = setTimeout(() => controller.abort(), 15_000);
+      upload = createShortLink(fullLink, controller.signal).finally(() => {
+        clearTimeout(timeout);
+        requests.current.delete(controller);
+      });
+      uploads.current.set(fullLink, upload);
+    }
+    upload.then(
+      (result) => { if (active) setShortState({ source: fullLink, result }); },
+      () => { if (active) setShortState({ source: fullLink, failed: true }); },
+    );
+    return () => { active = false; };
+  }, [fullLink, useShortLink]);
+
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -102,12 +157,15 @@ export function SharePanel({
   };
 
   const ready = state.status === "ready" ? state : null;
-  const link = ready?.result.link ?? "";
+  const shortened = useShortLink && shortState?.source === fullLink ? shortState : null;
+  const shortening = useShortLink && fullLink !== "" &&
+    (shortened === null || (shortened.result === undefined && !shortened.failed));
+  const link = shortened?.result?.link ?? fullLink;
   const status = ready === null ? null : peerHintStatus(ready.result);
 
   const copy = () => {
-    if (ready === null) return;
-    copyText(ready.result.link).then(
+    if (ready === null || shortening) return;
+    copyText(link).then(
       () =>
         toast.show({
           message: sharedLinksMessage([torrent], [ready.result], ready.peerHint),
@@ -123,10 +181,10 @@ export function SharePanel({
   };
 
   const share = () => {
-    if (ready === null || !canShare) return;
+    if (ready === null || shortening || !canShare) return;
     // Called inside the click with the link already in hand, so the
     // browser keeps the user activation the share sheet needs.
-    navigator.share({ title: torrent.name, url: ready.result.link }).catch(
+    navigator.share({ title: torrent.name, url: link }).catch(
       (error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
         toast.show({
@@ -171,8 +229,8 @@ export function SharePanel({
             className={styles.link}
             type="text"
             readOnly
-            disabled={ready === null}
-            value={ready === null ? localizedMessage("share.panel.loading") : link}
+            disabled={ready === null || shortening}
+            value={ready === null || shortening ? localizedMessage("share.panel.loading") : link}
             onFocus={(event) => event.currentTarget.select()}
           />
         </label>
@@ -180,20 +238,43 @@ export function SharePanel({
           <button
             type="button"
             className={styles.primary}
-            disabled={ready === null}
+            disabled={ready === null || shortening}
             onClick={copy}
           >
             {localizedMessage("share.panel.copy")}
           </button>
           {canShare ? (
-            <button type="button" disabled={ready === null} onClick={share}>
+            <button type="button" disabled={ready === null || shortening} onClick={share}>
               {localizedMessage("share.panel.share")}
             </button>
           ) : null}
         </div>
         <div className={styles.qrFrame}>
-          {ready === null ? null : <ShareQrCode value={link} />}
+          {ready === null || shortening ? null : <ShareQrCode value={link} />}
         </div>
+        <div className={styles.addressOption}>
+          <input
+            id="share-panel-short"
+            type="checkbox"
+            checked={useShortLink}
+            aria-describedby="share-panel-short-help"
+            onChange={(event) => {
+              const enabled = event.currentTarget.checked;
+              saveShortLinkPreference(enabled);
+              setUseShortLink(enabled);
+            }}
+          />
+          <label htmlFor="share-panel-short">{localizedMessage("share.panel.short.label")}</label>
+          <span id="share-panel-short-help">{localizedMessage("share.panel.short.description")}</span>
+        </div>
+        {shortened?.result ? (
+          <p className={styles.status}>
+            {localizedMessage("share.panel.short.expires", { date: new Date(shortened.result.expiresAt) })}
+          </p>
+        ) : null}
+        {shortened?.failed ? (
+          <p className={styles.error} role="alert">{localizedMessage("share.panel.short.failed")}</p>
+        ) : null}
         {showAddressOption ? (
           <div className={styles.addressOption}>
             <input

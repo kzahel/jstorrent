@@ -447,7 +447,7 @@ test("share panel, address question and file share stay accessible", async ({
   await expect(
     panel.getByRole("img", { name: "QR code for the share link" }),
   ).toBeVisible();
-  await panel.getByRole("checkbox", { name: "Include my address" }).check();
+  await panel.getByRole("checkbox", { name: "Include my IP address" }).check();
   await expect(link).toHaveValue(/&x\.pe=192\.168\.1\.20:6881$/);
   await expect(panel.getByRole("status")).toHaveText(
     "Includes your local network address 192.168.1.20:6881. Only people on your network can use it.",

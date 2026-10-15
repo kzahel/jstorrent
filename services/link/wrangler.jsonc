@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jstorrent-link",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-15",
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "build": { "command": "npm run build" },
+  "assets": { "directory": "dist", "binding": "ASSETS", "run_worker_first": true },
+  "routes": [{ "pattern": "link.jstorrent.com", "custom_domain": true }],
+  "kv_namespaces": [{ "binding": "LINKS", "id": "afd854e06ac94260aa5146a925bf9524" }],
+  "ratelimits": [
+    { "name": "CREATE_LIMIT", "namespace_id": "36701", "simple": { "limit": 10, "period": 60 } },
+    { "name": "READ_LIMIT", "namespace_id": "36702", "simple": { "limit": 120, "period": 60 } }
+  ]
+}

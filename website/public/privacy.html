@@ -88,6 +88,23 @@
       information.
     </p>
 
+    <h2>Shared links</h2>
+    <p>
+      Full share links keep torrent information in the link itself. If you enable Short link in
+      the web or desktop Share panel, your device encrypts that information and uploads an
+      encrypted copy to link.jstorrent.com, hosted by Cloudflare. Copies expire after 30 days.
+      The decryption key stays in the link's fragment and is not sent to the storage API;
+      the recipient's browser decrypts the copy before opening the share page. Anyone with the
+      complete link can read it. The service can observe network addresses, request times and
+      the padded size of the encrypted copy. It has no accounts, link listing or content analytics.
+      The Short link choice is remembered on that client and can be turned off in the Share panel.
+    </p>
+    <p>
+      Include my IP address is a separate choice: it puts a direct connection address in the
+      shared information. Leaving that unchecked does not hide your network address from a
+      service you contact or from BitTorrent peers.
+    </p>
+
     <h2>Remote access</h2>
     <p>
       The remote controller at jstorrent.com and its relay are a hosted service. The connection

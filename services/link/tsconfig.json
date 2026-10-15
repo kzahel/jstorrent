@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "ESNext", "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM"], "strict": true, "noUncheckedIndexedAccess": true,
+    "noEmit": true, "allowImportingTsExtensions": true, "skipLibCheck": true
+  },
+  "include": ["src/codec.ts", "src/open.ts"]
+}

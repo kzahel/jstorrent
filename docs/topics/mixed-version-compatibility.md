@@ -1,5 +1,11 @@
 # Mixed-Version Compatibility
 
+Tactical [367](../tactical/367-encrypted-short-links.md) is client-only:
+short links wrap the existing host-exported fragment and add no host command,
+field or capability. Menu copies remain full links. Its separately deployed
+service keeps the v1 decryptor through the 30-day record lifetime; older web
+clients can drop the optional remembered choice safely back to off.
+
 Topic: `mixed-version-compatibility`
 
 Status: Active, started 2026-10-14 by Tactical

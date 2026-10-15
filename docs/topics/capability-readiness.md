@@ -1,5 +1,12 @@
 # Capability Readiness
 
+Tactical [367](../tactical/367-encrypted-short-links.md) implements the web
+Share panel's remembered encrypted-short-link opt-in and deploys its separate
+Cloudflare service at `link.jstorrent.com`. Records expire after 30 days;
+full links remain the default and failure fallback. Codec/handler tests,
+web/website checks and automated browser round trips with all 32 trackers
+pass. Android short links and native application releases remain separate.
+
 Tactical [348](../tactical/348-torrent-list-export-import.md) adds torrent
 list export and import: a portable bundle on web (gateway), desktop and
 Android, plus adding several `.torrent` files or magnets at once on every

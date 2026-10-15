@@ -1,5 +1,10 @@
 # Localization
 
+Tactical [367](../tactical/367-encrypted-short-links.md) adds four web
+messages for encrypted short links, disclosure, expiry and fallback, and
+renames the Share panel checkbox to **Include my IP address**. The separate
+Worker open page is English-only, with no new localization runtime.
+
 Tactical [357](../tactical/357-rich-share-links.md) adds 37 web messages
 (1,499 total) and 27 Android strings (580 total) for share panels, the
 address prompt, peer-hint results, file shares and sizes from the link.

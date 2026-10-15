@@ -19,7 +19,7 @@ const csp = htmlResponse.headers.get("content-security-policy") ?? "";
 for (const directive of [
   "default-src 'none'",
   "base-uri 'none'",
-  "connect-src 'self' wss://relay.rstorrent.com",
+  "connect-src 'self' wss://relay.rstorrent.com https://link.jstorrent.com",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "script-src 'self' 'wasm-unsafe-eval'",

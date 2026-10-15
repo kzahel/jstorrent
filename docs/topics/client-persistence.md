@@ -1,5 +1,13 @@
 # Client Persistence And Session Boundary
 
+Tactical [367](../tactical/367-encrypted-short-links.md) adds optional
+`shortLink: boolean` to the existing version-1 web share record. Missing,
+unreadable or newer values read as off without a write. A user change saves
+the checkbox; a remembered true allows uploads in subsequently opened Share
+panels. Current writes preserve independent address and unknown fields. Older
+clients can drop the opt-in when rewriting the record; that safely returns it
+to off. Only panel-lifetime encrypted-link results are cached, at most 16.
+
 ## Share-Link Address Preference
 
 Tactical [357](../tactical/357-rich-share-links.md) stores the remembered

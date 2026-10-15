@@ -45,7 +45,7 @@ export function savePeerHintPreference(
   try {
     storage.setItem(
       SHARE_PREFERENCES_STORAGE_KEY,
-      JSON.stringify({ version: VERSION, peerHint: preference }),
+      JSON.stringify({ ...readCurrentRecord(storage), version: VERSION, peerHint: preference }),
     );
   } catch {
     // Without storage the choice is asked again next time.
@@ -57,5 +57,37 @@ function browserStorage(): Storage | null {
     return globalThis.localStorage ?? null;
   } catch {
     return null;
+  }
+}
+
+/** Missing, malformed and newer choices never opt a user into uploads. */
+export function loadShortLinkPreference(
+  storage: AppearanceStorage | null = browserStorage(),
+): boolean {
+  return storage !== null && readCurrentRecord(storage).shortLink === true;
+}
+
+export function saveShortLinkPreference(
+  enabled: boolean,
+  storage: AppearanceStorage | null = browserStorage(),
+): void {
+  if (storage === null) return;
+  try {
+    storage.setItem(SHARE_PREFERENCES_STORAGE_KEY, JSON.stringify({
+      ...readCurrentRecord(storage), version: VERSION, shortLink: enabled,
+    }));
+  } catch {
+    // If storage fails the checkbox still works for this panel.
+  }
+}
+
+function readCurrentRecord(storage: AppearanceStorage): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(storage.getItem(SHARE_PREFERENCES_STORAGE_KEY) ?? "null");
+    return typeof parsed === "object" && parsed !== null &&
+      (parsed as { version?: unknown }).version === VERSION
+      ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
   }
 }

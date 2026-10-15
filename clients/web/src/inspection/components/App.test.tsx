@@ -616,7 +616,7 @@ describe("inspection application", () => {
     const panel = await screen.findByRole("dialog", { name: "Share torrent" });
     // A private torrent never carries the address, so there is no choice.
     expect(
-      within(panel).queryByRole("checkbox", { name: "Include my address" }),
+      within(panel).queryByRole("checkbox", { name: "Include my IP address" }),
     ).toBeNull();
     const copy = within(panel).getByRole("button", { name: "Copy" });
     await waitFor(() => expect(copy).toBeEnabled());
@@ -5243,7 +5243,7 @@ describe("rich share links", () => {
     const panel = await screen.findByRole("dialog", { name: "Share torrent" });
     await within(panel).findByRole("textbox", { name: "Share link" });
     expect(
-      within(panel).queryByRole("checkbox", { name: "Include my address" }),
+      within(panel).queryByRole("checkbox", { name: "Include my IP address" }),
     ).not.toBeInTheDocument();
   });
 
@@ -5267,7 +5267,7 @@ describe("rich share links", () => {
       await user.click(screen.getByRole("tab", { name: "General" }));
       await user.click(screen.getByRole("button", { name: "Share" }));
       const panel = await screen.findByRole("dialog", { name: "Share torrent" });
-      const address = within(panel).getByRole("checkbox", { name: "Include my address" });
+      const address = within(panel).getByRole("checkbox", { name: "Include my IP address" });
       expect(address).toBeChecked();
       const hinted =
         `https://jstorrent.com/share/#xt=urn:btih:${current.infoHash}&dn=Name` +

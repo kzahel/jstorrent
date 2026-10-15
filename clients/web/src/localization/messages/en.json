@@ -6008,7 +6008,7 @@
     "description": "Shown instead of a QR code when the share link does not fit"
   },
   "share.panel.include.address": {
-    "defaultMessage": "Include my address",
+    "defaultMessage": "Include my IP address",
     "description": "Checkbox in the Share panel that adds this device's address to the link"
   },
   "share.panel.include.address.description": {
@@ -6186,5 +6186,21 @@
   "inspection.recovery.update.failed": {
     "defaultMessage": "Couldn't check for updates: {detail}",
     "description": "Recovery screen error; detail is the reason"
+  },
+  "share.panel.short.label": {
+    "defaultMessage": "Short link",
+    "description": "Share panel encrypted short link label"
+  },
+  "share.panel.short.description": {
+    "defaultMessage": "Encrypted on your device and stored on link.jstorrent.com for 30 days. The decryption key stays in the link.",
+    "description": "Share panel encrypted short link description"
+  },
+  "share.panel.short.expires": {
+    "defaultMessage": "Expires {date, date, medium}.",
+    "description": "Share panel encrypted short link expires"
+  },
+  "share.panel.short.failed": {
+    "defaultMessage": "Could not create a short link. You can still use the full link.",
+    "description": "Share panel encrypted short link failed"
   }
 }

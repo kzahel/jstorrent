@@ -11802,7 +11802,7 @@
   "share.panel.include.address": [
     {
       "type": 0,
-      "value": "Include my address"
+      "value": "Include my IP address"
     }
   ],
   "share.panel.include.address.description": [
@@ -11849,6 +11849,39 @@
     {
       "type": 1,
       "value": "error"
+    }
+  ],
+  "share.panel.short.description": [
+    {
+      "type": 0,
+      "value": "Encrypted on your device and stored on link.jstorrent.com for 30 days. The decryption key stays in the link."
+    }
+  ],
+  "share.panel.short.expires": [
+    {
+      "type": 0,
+      "value": "Expires "
+    },
+    {
+      "type": 3,
+      "value": "date",
+      "style": "medium"
+    },
+    {
+      "type": 0,
+      "value": "."
+    }
+  ],
+  "share.panel.short.failed": [
+    {
+      "type": 0,
+      "value": "Could not create a short link. You can still use the full link."
+    }
+  ],
+  "share.panel.short.label": [
+    {
+      "type": 0,
+      "value": "Short link"
     }
   ],
   "share.panel.title": [
