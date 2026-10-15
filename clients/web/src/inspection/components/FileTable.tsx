@@ -334,6 +334,7 @@ export function FileTable({
         return {
           ...action,
           label: localizedMessage("remote.video.play"),
+          external: false,
           disabled: action.disabled || availability?.disabled !== false || remoteAccess?.playCompletedFile === undefined,
           ...(reason === undefined ? {} : { disabledReason: reason }),
         };

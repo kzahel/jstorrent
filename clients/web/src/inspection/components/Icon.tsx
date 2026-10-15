@@ -11,6 +11,7 @@ export type IconName =
   | "magnet"
   | "menu"
   | "moreVertical"
+  | "openExternal"
   | "pause"
   | "play"
   | "plus"
@@ -97,6 +98,13 @@ function IconPaths({ name }: { readonly name: IconName }) {
           <circle cx="10" cy="4.75" r="0.6" />
           <circle cx="10" cy="10" r="0.6" />
           <circle cx="10" cy="15.25" r="0.6" />
+        </>
+      );
+    case "openExternal":
+      return (
+        <>
+          <path d="M15.5 11.5v3.75a1.25 1.25 0 0 1-1.25 1.25h-9.5a1.25 1.25 0 0 1-1.25-1.25v-9.5A1.25 1.25 0 0 1 4.75 4.5H8.5" />
+          <path d="M11.75 3.5h4.75v4.75M16.5 3.5 9.5 10.5" />
         </>
       );
     case "pause":

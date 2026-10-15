@@ -13,6 +13,8 @@ interface OpenFileActionDefinition {
   readonly id: "open";
   readonly label: string;
   readonly group: "open";
+  /** The file opens outside this window, such as in a new browser tab. */
+  readonly external: boolean;
 }
 
 interface DownloadFileActionDefinition {
@@ -46,7 +48,7 @@ export type ResolvedFileAction = FileActionDefinition & {
 };
 
 export const FILE_ACTIONS: readonly FileActionDefinition[] = [
-  { id: "open", label: localizedMessage("inspection.file.actions.open"), group: "open" },
+  { id: "open", label: localizedMessage("inspection.file.actions.open"), group: "open", external: true },
   { id: "download_now", label: localizedMessage("inspection.file.actions.download.now"), group: "download" },
   { id: "high", label: localizedMessage("inspection.file.actions.high"), group: "priority", priority: "high" },
   { id: "normal", label: localizedMessage("inspection.file.actions.normal"), group: "priority", priority: "normal" },

@@ -1823,7 +1823,10 @@ describe("inspection application", () => {
     const files = screen.getByRole("grid", { name: "Torrent files" });
     await user.click(within(files).getByText(file.name));
     await user.click(screen.getByRole("button", { name: "More file actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Open" }));
+    const open = screen.getByRole("menuitem", { name: "Open" });
+    // The file opens in a new tab or app, so the item says so visually.
+    expect(open.querySelector("svg")).not.toBeNull();
+    await user.click(open);
 
     await waitFor(() =>
       expect(application.commands.at(-1)).toEqual({
