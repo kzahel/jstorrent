@@ -520,6 +520,8 @@ export type UpdateBatch = {
 /**
  * Milliseconds on the current application instance's monotonic clock.
  * Refreshed at delivery; tracker *_at_millis fields use this same origin.
+ * Hosts released before 0.3.1 omit it; they also omit the tracker
+ * instants it anchors, so clients default it to "0".
  */
 server_now_millis: string, api_version: number, view_set_id: string, epoch: string, base_cursor: string, cursor: string, durable_revision: string, updates: Array<ViewSetUpdate>, };
 

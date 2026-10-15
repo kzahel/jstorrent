@@ -1,0 +1,116 @@
+{
+  "$comment": "Append-only ledger of published or submitted deliveries for the mixed-version compatibility matrix (docs/tactical/359-mixed-version-compatibility-matrix.md). Each delivery names the source commit captured under compat/captures/<commit>/. Add an entry when a delivery is submitted; update its status as it moves; never delete one.",
+  "windowDays": 30,
+  "excluded": [
+    {
+      "tagPattern": "^desktop-v0\\.1\\.",
+      "reason": "RSTorrent incubation desktop releases; the incubation track is frozen (2026-10-11) and not a supported JSTorrent delivery."
+    },
+    {
+      "tagPattern": "^desktop-latest-v",
+      "reason": "RSTorrent incubation Latest channel; frozen."
+    },
+    {
+      "tagPattern": "^crostini-v0\\.1\\.0$",
+      "reason": "RSTorrent incubation Crostini package; serves its own matched UI."
+    },
+    {
+      "tagPattern": "^android-v0\\.",
+      "reason": "RSTorrent incubation Android identity, not the production app."
+    },
+    {
+      "surface": "android",
+      "versionBelow": "1.0.28",
+      "reason": "Production 1.0.23 and earlier are the legacy TypeScript app, not an application-API host; 1.0.25-1.0.27 went only to Play's internal track."
+    }
+  ],
+  "deliveries": [
+    {
+      "surface": "desktop",
+      "version": "0.3.0",
+      "tag": "desktop-v0.3.0",
+      "commit": "ff632f4588a474d7b169de3cea228bd406e6982d",
+      "channel": "stable",
+      "status": "published",
+      "submitted": "2026-10-10",
+      "firstPublic": "2026-10-10",
+      "roles": ["host"]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.28",
+      "commit": "b25482902a1b52a5216fafa460a91e58fc49f74b",
+      "commitBasis": "Commit that set versionCode 28; the release was not tagged and the exact build commit is unconfirmed.",
+      "channel": "play-production",
+      "status": "published",
+      "submitted": "2026-10-10",
+      "firstPublic": "2026-10-10",
+      "roles": ["host"]
+    },
+    {
+      "surface": "extension",
+      "version": "1.1.3",
+      "commit": "bff14e72a26575ee5d042d1a6de3335d0898775e",
+      "commitBasis": "Commit that set the production manifest to 1.1.3; the exact packaged commit is unconfirmed.",
+      "channel": "chrome-web-store",
+      "status": "published",
+      "submitted": "2026-10-10",
+      "firstPublic": "2026-10-11",
+      "roles": ["client"]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.29",
+      "tag": "android-v1.0.29",
+      "commit": "8ddf2e8be2c50e957f2e4946dbde68e58ba76e4d",
+      "channel": "play-production",
+      "status": "submitted",
+      "submitted": "2026-10-12",
+      "firstPublic": null,
+      "roles": ["host"]
+    },
+    {
+      "surface": "desktop",
+      "version": "0.3.1",
+      "tag": "desktop-v0.3.1",
+      "commit": "5fa018ff589f8058f6ed3910f5cea5fcd06410ab",
+      "channel": "stable",
+      "status": "published",
+      "submitted": "2026-10-13",
+      "firstPublic": "2026-10-13",
+      "roles": ["host"]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.30",
+      "tag": "android-v1.0.30",
+      "commit": "5fa018ff589f8058f6ed3910f5cea5fcd06410ab",
+      "channel": "play-production",
+      "status": "published",
+      "submitted": "2026-10-13",
+      "firstPublic": "2026-10-13",
+      "roles": ["host"]
+    },
+    {
+      "surface": "extension",
+      "version": "1.1.4",
+      "commit": "5fa018ff589f8058f6ed3910f5cea5fcd06410ab",
+      "channel": "chrome-web-store",
+      "status": "submitted",
+      "submitted": "2026-10-13",
+      "firstPublic": null,
+      "roles": ["client"]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.31",
+      "tag": "android-v1.0.31",
+      "commit": "70150ec99ff5613bb468fd816fed46c687ff7557",
+      "channel": "play-production",
+      "status": "submitted",
+      "submitted": "2026-10-13",
+      "firstPublic": null,
+      "roles": ["host"]
+    }
+  ]
+}

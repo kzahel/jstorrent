@@ -68,8 +68,7 @@ import type {
   DesktopPowerSettings,
 } from "../desktop-power/types";
 import type { DesktopRemoteAccess, RemoteCompletedFileSaveRequest } from "../remote-access/types";
-import released031Hello from "../../fixtures/released/desktop-v0.3.1/api-hello.json";
-import released031Trace from "../../fixtures/released/desktop-v0.3.1/view-set-trace.json";
+import { HOST_CAPTURES } from "../../compat/captures";
 import { decodeOpenViewSetResponse } from "../../validation";
 import { App } from "./App";
 import { RemoveTorrentDialog } from "./RemoveTorrentDialog";
@@ -134,6 +133,13 @@ afterEach(async () => {
     controllers.splice(0).map((controller) => controller.close()),
   );
 });
+
+// desktop 0.3.1 and Android 1.0.30, captured from their release commit.
+const released031 = HOST_CAPTURES.find(
+  (capture) => capture.commit === "5fa018ff589f8058f6ed3910f5cea5fcd06410ab",
+)!;
+const released031Hello = released031.hello;
+const released031Trace = released031.trace;
 
 describe("inspection application", () => {
   it("updates the tab title with live session rates and restores it on unmount", async () => {

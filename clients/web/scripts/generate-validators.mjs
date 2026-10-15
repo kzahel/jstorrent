@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -47,20 +48,22 @@ const HANDWRITTEN_DEFAULTS = [["ServiceSnapshot", "client_settings"]];
 
 const schema = JSON.parse(await readFile(resolve(generatedDirectory, "v1.schema.json"), "utf8"));
 const typescript = await readFile(resolve(generatedDirectory, "v1.ts"), "utf8");
-// Schemas of released hosts. A field present in all of them is sent by every
-// supported host, so it cannot be absent for version reasons.
-const releasedDirectory = resolve(webRoot, "src/fixtures/released");
+// Schemas of captured released hosts (compat/captures, Tactical 359). A field
+// present in all of them is sent by every supported host, so it cannot be
+// absent for version reasons.
+const capturesDirectory = resolve(webRoot, "../../compat/captures");
 const releasedSchemas = await Promise.all(
-  (await readdir(releasedDirectory, { withFileTypes: true }))
+  (await readdir(capturesDirectory, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
-    .map(async (entry) =>
-      JSON.parse(
-        await readFile(resolve(releasedDirectory, entry.name, "v1.schema.json"), "utf8"),
-      ),
+    .map((entry) => resolve(capturesDirectory, entry.name))
+    .filter((capture) => existsSync(resolve(capture, "hello.json")))
+    .map(async (capture) =>
+      JSON.parse(await readFile(resolve(capture, "v1.schema.json"), "utf8")),
     ),
 );
 if (releasedSchemas.length === 0) throw new Error("no released schemas found");
 
+fillNewerNullables(schema, typescript, releasedSchemas);
 checkAbsentFieldsAreTyped(schema, typescript, releasedSchemas);
 for (const [definition, property] of HANDWRITTEN_DEFAULTS) {
   const field = schema.$defs[definition]?.properties?.[property];
@@ -195,22 +198,14 @@ function declare(validators) {
 function checkAbsentFieldsAreTyped(contract, declarations, released) {
   const problems = [];
   for (const [name, definition] of Object.entries(contract.$defs)) {
-    // Declarations with documented fields span several lines; one ends where
-    // the next top-level export begins.
-    const declaration = new RegExp(
-      `^export type ${name} = ([\\s\\S]*?)(?=^export |(?![\\s\\S]))`,
-      "m",
-    ).exec(declarations)?.[1];
+    const declaration = declarationOf(name, declarations);
     for (const [property, field, branch] of absentWithoutDefault(definition)) {
       if (released.every((schema) => hasProperty(schema.$defs[name], branch, property))) {
         continue;
       }
       if (declaration === undefined) {
         problems.push(`${name}.${property}: no TypeScript declaration`);
-      } else if (
-        new RegExp(`\\b${property}: `).test(declaration) &&
-        !new RegExp(`\\b${property}\\?: `).test(declaration)
-      ) {
+      } else if (typedAsPresent(declaration, property)) {
         problems.push(`${name}.${property}: ${JSON.stringify(field).slice(0, 80)}`);
       }
     }
@@ -234,6 +229,50 @@ function* absentWithoutDefault(definition, branch = null) {
       yield* absentWithoutDefault(child, discriminator(child) ?? branch);
     }
   }
+}
+
+/**
+ * A supported host older than a nullable property omits it, meaning it does
+ * not know the value: fill those with `null`, as current hosts send for
+ * unknown. Only properties some released host lacks are filled, so absent
+ * keeps its meaning everywhere else. Ajv cannot fill inside union branches;
+ * such a property makes generation fail (IGNORED_DEFAULTS) until handled.
+ */
+function fillNewerNullables(contract, declarations, released) {
+  for (const [name, definition] of Object.entries(contract.$defs)) {
+    const declaration = declarationOf(name, declarations);
+    const required = new Set(definition.required ?? []);
+    for (const [property, field] of Object.entries(definition.properties ?? {})) {
+      if (required.has(property) || "default" in field || !nullable(field)) continue;
+      if (released.every((schema) => hasProperty(schema.$defs[name], null, property))) continue;
+      // An optional declaration already allows absence; keep it absent.
+      if (declaration === undefined || !typedAsPresent(declaration, property)) continue;
+      field.default = null;
+    }
+  }
+}
+
+function declarationOf(name, declarations) {
+  // Declarations with documented fields span several lines; one ends where
+  // the next top-level export begins.
+  return new RegExp(
+    `^export type ${name} = ([\\s\\S]*?)(?=^export |(?![\\s\\S]))`,
+    "m",
+  ).exec(declarations)?.[1];
+}
+
+function typedAsPresent(declaration, property) {
+  return (
+    new RegExp(`\\b${property}: `).test(declaration) &&
+    !new RegExp(`\\b${property}\\?: `).test(declaration)
+  );
+}
+
+function nullable(field) {
+  if (Array.isArray(field.type) && field.type.includes("null")) return true;
+  return [...(field.anyOf ?? []), ...(field.oneOf ?? [])].some(
+    (branch) => branch.type === "null",
+  );
 }
 
 /** The tag that identifies a union branch, such as `field=value`. */

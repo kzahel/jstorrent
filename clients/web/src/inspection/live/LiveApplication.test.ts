@@ -23,8 +23,7 @@ import type {
 import type { ApplicationViewClient, MediaOpenTarget } from "../../api/client";
 import { HttpApiError } from "../../api/client";
 import { ApplicationViewError } from "../../api/errors";
-import released031Hello from "../../fixtures/released/desktop-v0.3.1/api-hello.json";
-import released031Schema from "../../fixtures/released/desktop-v0.3.1/v1.schema.json";
+import { HOST_CAPTURES, knownBreaks } from "../../compat/captures";
 import type { InspectionCommand, InspectionSnapshot } from "../model";
 import { LiveApplication } from "./LiveApplication";
 import { MAGNET_EXPORT_OPTIONS } from "../host-capabilities";
@@ -2152,9 +2151,12 @@ async function waitUntil(predicate: () => boolean): Promise<void> {
 // the user's intent would be silently dropped.
 // docs/tactical/359-mixed-version-compatibility-matrix.md
 describe("requests to released hosts", () => {
-  const RELEASED_HOSTS = [
-    { release: "desktop-v0.3.1", hello: released031Hello, schema: released031Schema },
-  ];
+  const RELEASED_HOSTS = HOST_CAPTURES.map((capture) => ({
+    release: capture.deliveries,
+    commit: capture.commit,
+    hello: capture.hello,
+    schema: capture.schema,
+  }));
   const STORAGE_ROOT = "root_a";
   const COMMANDS: readonly InspectionCommand[] = [
     { type: "add_magnet", magnet: "magnet:?xt=urn:btih:" + "a".repeat(40), storageRoot: STORAGE_ROOT, startContent: true },
@@ -2212,7 +2214,7 @@ describe("requests to released hosts", () => {
     },
   ];
 
-  describe.each(RELEASED_HOSTS)("$release", ({ hello, schema }) => {
+  describe.each(RELEASED_HOSTS)("$release", ({ commit, hello, schema }) => {
     const validate = exactRequestValidator(schema, "RequestEnvelope");
     const validateUpload = exactRequestValidator(schema, "AddTorrentBytesRequest");
 
@@ -2241,7 +2243,10 @@ describe("requests to released hosts", () => {
           problems.push(`add_torrent_bytes: ${JSON.stringify(validateUpload.errors?.[0])}`);
         }
       }
-      expect(problems).toEqual([]);
+      // Commands this host rejects, recorded in compat/known-breaks.json.
+      expect([...new Set(problems.map((problem) => problem.split(":")[0]!))].sort()).toEqual(
+        knownBreaks([commit], "requests"),
+      );
       await application.close();
     });
 
@@ -2258,7 +2263,7 @@ describe("requests to released hosts", () => {
   });
 
   it("flags a field the released schema lacks (negative control)", () => {
-    const validate = exactRequestValidator(released031Schema, "RequestEnvelope");
+    const validate = exactRequestValidator(HOST_CAPTURES[0]!.schema, "RequestEnvelope");
     expect(
       validate({
         version: 1,

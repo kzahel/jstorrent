@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import current from "./fixtures/view-set-trace.json";
-import released031 from "./fixtures/released/desktop-v0.3.1/view-set-trace.json";
-import hello031 from "./fixtures/released/desktop-v0.3.1/api-hello.json";
+import { HOST_CAPTURES } from "./compat/captures";
 import {
   decodeApiHello,
   decodeOpenViewSetResponse,
@@ -23,7 +22,7 @@ type Trace = { readonly open: unknown; readonly updates: readonly unknown[] };
 
 const TRACES: readonly { readonly name: string; readonly trace: Trace }[] = [
   { name: "current", trace: current },
-  { name: "desktop-v0.3.1", trace: released031 },
+  ...HOST_CAPTURES.map((capture) => ({ name: capture.deliveries, trace: capture.trace })),
 ];
 
 describe.each(TRACES)("a newer host than the $name trace", ({ trace }) => {
@@ -80,13 +79,15 @@ describe.each(TRACES)("a newer host than the $name trace", ({ trace }) => {
 
 describe("a newer host's hello", () => {
   it("adds fields and capabilities the client ignores", () => {
-    const hello = decodeApiHello(
-      JSON.stringify({
-        ...(addField(hello031) as object),
-        capabilities: [...hello031.capabilities, "future_capability"],
-      }),
-    );
-    expect(hello.capabilities).toContain("torrent_list");
+    for (const { hello: released } of HOST_CAPTURES) {
+      const hello = decodeApiHello(
+        JSON.stringify({
+          ...(addField(released) as object),
+          capabilities: [...released.capabilities, "future_capability"],
+        }),
+      );
+      expect(hello.capabilities).toContain("torrent_list");
+    }
   });
 });
 

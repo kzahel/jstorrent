@@ -9140,7 +9140,8 @@
           "type": "string"
         },
         "server_now_millis": {
-          "description": "Milliseconds on the current application instance's monotonic clock.\nRefreshed at delivery; tracker *_at_millis fields use this same origin.",
+          "default": "0",
+          "description": "Milliseconds on the current application instance's monotonic clock.\nRefreshed at delivery; tracker *_at_millis fields use this same origin.\nHosts released before 0.3.1 omit it; they also omit the tracker\ninstants it anchors, so clients default it to \"0\".",
           "type": "string"
         },
         "updates": {
@@ -9154,7 +9155,6 @@
         }
       },
       "required": [
-        "server_now_millis",
         "api_version",
         "view_set_id",
         "epoch",

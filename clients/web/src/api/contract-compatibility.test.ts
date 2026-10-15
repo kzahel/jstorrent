@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import current from "./generated/v1.schema.json";
 import { HOST_CAPABILITY_REGISTRY } from "./generated/v1";
 import releaseCompatibility from "./release-compatibility.json";
-import released031 from "../fixtures/released/desktop-v0.3.1/v1.schema.json";
+import { CLIENT_CAPTURES, HOST_CAPTURES, knownBreaks } from "../compat/captures";
 
 /**
  * The application contract against every released host's contract. Rules
@@ -20,7 +20,21 @@ import released031 from "../fixtures/released/desktop-v0.3.1/v1.schema.json";
 const REVIEWED_STRICT_CLIENT_EXPOSURE: Readonly<Record<string, string>> =
   releaseCompatibility.reviewedStrictClientExposure;
 
-const RELEASED = [{ tag: "desktop-v0.3.1", schema: released031 }];
+/** Each distinct released contract, labeled with the deliveries that ship it. */
+const RELEASED = [...HOST_CAPTURES, ...CLIENT_CAPTURES].reduce<
+  { tag: string; schema: unknown; commits: string[] }[]
+>((releases, capture) => {
+  const existing = releases.find(
+    (release) => JSON.stringify(release.schema) === JSON.stringify(capture.schema),
+  );
+  if (existing === undefined) {
+    releases.push({ tag: capture.deliveries, schema: capture.schema, commits: [capture.commit] });
+  } else {
+    existing.tag = `${existing.tag}; ${capture.deliveries}`;
+    existing.commits.push(capture.commit);
+  }
+  return releases;
+}, []);
 
 /** Types a client builds and a host parses with unknown keys rejected. */
 const CLIENT_SENT_PATCHES = {
@@ -43,7 +57,7 @@ type Schema = {
 };
 type Definitions = Readonly<Record<string, Schema>>;
 
-describe.each(RELEASED)("contract against $tag", ({ schema }) => {
+describe.each(RELEASED)("contract against $tag", ({ schema, commits }) => {
   const before = (schema as { $defs: Definitions }).$defs;
   const after = (current as { $defs: Definitions }).$defs;
 
@@ -57,7 +71,7 @@ describe.each(RELEASED)("contract against $tag", ({ schema }) => {
       }
       problems.push(...breakingChanges(name, old, next));
     }
-    expect(problems).toEqual([]);
+    expect(problems.sort()).toEqual(knownBreaks(commits, "contract"));
   });
 
   it("gates every new client-sent key on a host capability", () => {
@@ -94,7 +108,7 @@ describe.each(RELEASED)("contract against $tag", ({ schema }) => {
         }
       }
     }
-    expect(problems).toEqual([]);
+    expect(problems.sort()).toEqual(knownBreaks(commits, "client-sent"));
   });
 
   it("records every addition released strict clients would reject", () => {

@@ -1,0 +1,27 @@
+{
+  "commit": "5fa018ff589f8058f6ed3910f5cea5fcd06410ab",
+  "roles": [
+    "client",
+    "host"
+  ],
+  "capturedWith": {
+    "node": "v24.20.0",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "rolldown": "1.1.5"
+  },
+  "sourceDigests": {
+    "crates/rstorrent-session/src/views/contract.rs": "b410a39a804a62b11395e20ce9ee47d96b9bbf27d23a9e77ee7ed4c111db2345",
+    "crates/rstorrent-session/src/settings/contract.rs": "4af0c85d17ba0769380e27a4b768d4a6fda4b74e2241be2cfd6a01debb2b818a",
+    "clients/web/src/validation.ts": "bc144922bbfea6da4e36b426cbc45e3dc061a1622ac908f2019d197541415768",
+    "clients/web/src/view-set-reducer.ts": "f40609493523ae2bd4d474145686ec4333726e7727eec1932fc03284a6f2e2f2",
+    "clients/web/src/api/generated/v1.validators.js": "a00318783ca47215bb40aed8f177e8b04604b01b7f2cb51b8d5657a8ee1932ac"
+  },
+  "artifactDigests": {
+    "v1.schema.json": "e3347abdc3be4998de0f0b6cbdc590794d7b90cbf12c03a9f68cc475a5e7a7fa",
+    "reactive-trace.json": "14f6a73e9fe4d7f870c66e93a51bf77d8cbeafa7a8137c3dee54cd47b7667b38",
+    "view-set-trace.json": "d7d09bb85a59b94f09def1450fb0a4b44b22d1f248e727f0eca12d28dd0c6d41",
+    "hello.json": "863b4af46ce3f501372dff9f3f50883293907a64c8d5a47c0444a7b9f3c9d804",
+    "settings.json": "0aec42f13b453d08d1e7df7b43290e676328ae3857b8e3d7a8c612f3cd7df149",
+    "client-decoder.mjs": "9e033c59a27379899c4b3fcd61c5b7b181e05f68c48f2cb809099271b76e1a8b"
+  }
+}

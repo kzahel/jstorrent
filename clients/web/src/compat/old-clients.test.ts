@@ -4,30 +4,13 @@ import { DEFAULT_API_HELLO } from "../api";
 import currentSchema from "../api/generated/v1.schema.json";
 import releaseCompatibility from "../api/release-compatibility.json";
 import currentTrace from "../fixtures/view-set-trace.json";
+import { CLIENT_CAPTURES, type CapturedDecoder } from "./captures";
 import { stripExposures, type ContractSchema } from "./exposures";
 
-// D2 of the compatibility matrix: what the current host sends, decoded by a
-// released client's own captured decoder (compat/captures/<release>/,
+// D2 of the compatibility matrix: what the current host sends, decoded by
+// each released client's own captured decoder (compat/captures/<commit>/,
 // produced by scripts/compat-capture.mjs from that release's source).
 // docs/tactical/359-mixed-version-compatibility-matrix.md
-
-interface CapturedDecoder {
-  decodeApiHello(source: string): unknown;
-  decodeOpenViewSetResponse(source: string): unknown;
-  decodeUpdateBatch(source: string): unknown;
-  reduceOpenViewSet(response: unknown): unknown;
-  reduceUpdateBatch(state: unknown, batch: unknown): unknown;
-}
-
-const CAPTURED_CLIENTS = [
-  {
-    release: "extension-1.1.4",
-    load: () =>
-      import(
-        "../../../../compat/captures/extension-1.1.4/client-decoder.mjs"
-      ) satisfies Promise<CapturedDecoder>,
-  },
-];
 
 type Frame = {
   readonly name: string;
@@ -132,7 +115,21 @@ function decode(decoder: CapturedDecoder, frame: Frame, value: unknown): string 
   }
 }
 
-describe.each(CAPTURED_CLIENTS)("released client $release", ({ load }) => {
+/** Frames each released client fails on today; a change must be deliberate. */
+const RAW_FAILURES: Readonly<Record<string, readonly string[]>> = {
+  "extension 1.1.3": [
+    "library open",
+    "seeding torrent with stop limits",
+    "row updates of new kinds",
+  ],
+  "extension 1.1.4": [
+    "library open",
+    "seeding torrent with stop limits",
+    "row updates of new kinds",
+  ],
+};
+
+describe.each(CLIENT_CAPTURES)("released client $deliveries", ({ deliveries, load }) => {
   it("fails on current host data only through reviewed exposures, under the hold", async () => {
     const decoder = await load();
     const raw = CURRENT_HOST_FRAMES.map((frame) => ({
@@ -157,11 +154,7 @@ describe.each(CAPTURED_CLIENTS)("released client $release", ({ load }) => {
     });
     expect(unattributed).toEqual([]);
     // Record which frames break this client today, so a change is visible.
-    expect(failing.map((result) => result.frame)).toEqual([
-      "library open",
-      "seeding torrent with stop limits",
-      "row updates of new kinds",
-    ]);
+    expect(failing.map((result) => result.frame)).toEqual(RAW_FAILURES[deliveries]);
   });
 
   it("rejects an unreviewed addition even after reviewed exposures are removed", async () => {

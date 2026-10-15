@@ -716,10 +716,32 @@ describe("checker progress validation", () => {
 });
 
 describe("tracker view validation", () => {
+  it("fills tracker timing an older host does not send with null", () => {
+    // Desktop 0.3.0 and Android 1.0.28 predate these fields
+    // (compat/captures, Tactical 359); absent there means unknown.
+    const batch = trackerBatch();
+    const tracker = batch.updates[0]!.snapshot.trackers[0]! as Record<string, unknown>;
+    delete tracker.next_action_at_millis;
+    delete tracker.last_success_at_millis;
+    delete tracker.last_failure_at_millis;
+    const update = decodeUpdateBatch(JSON.stringify(batch)).updates[0]!;
+    expect(update.type === "snapshot" && update.snapshot.type === "trackers"
+      ? update.snapshot.trackers[0]
+      : null).toMatchObject({
+      next_action_at_millis: null,
+      last_success_at_millis: null,
+      last_failure_at_millis: null,
+    });
+  });
+
   it("requires a canonical server clock and tracker instants", () => {
-    for (const clock of [undefined, "-1", "1.5", "01", "184467440737095516160"]) {
+    for (const clock of ["-1", "1.5", "01", "184467440737095516160"]) {
       expect(() => decodeUpdateBatch(JSON.stringify({ ...trackerBatch(), server_now_millis: clock }))).toThrow(ContractError);
     }
+    // Hosts before 0.3.1 send no clock (and no tracker instants): it defaults to 0.
+    const legacy = trackerBatch() as Partial<ReturnType<typeof trackerBatch>>;
+    delete legacy.server_now_millis;
+    expect(decodeUpdateBatch(JSON.stringify(legacy)).server_now_millis).toBe("0");
     const batch = trackerBatch();
     batch.updates[0]!.snapshot.trackers[0]!.next_action_at_millis = "-1";
     expect(() => decodeUpdateBatch(JSON.stringify(batch))).toThrow(ContractError);

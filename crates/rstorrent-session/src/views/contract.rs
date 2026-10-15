@@ -546,10 +546,17 @@ impl ViewSetUpdate {
     }
 }
 
+fn legacy_server_now_millis() -> String {
+    "0".to_owned()
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 pub struct UpdateBatch {
     /// Milliseconds on the current application instance's monotonic clock.
     /// Refreshed at delivery; tracker *_at_millis fields use this same origin.
+    /// Hosts released before 0.3.1 omit it; they also omit the tracker
+    /// instants it anchors, so clients default it to "0".
+    #[serde(default = "legacy_server_now_millis")]
     pub server_now_millis: String,
     pub api_version: u16,
     pub view_set_id: String,
