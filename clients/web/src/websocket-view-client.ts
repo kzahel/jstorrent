@@ -1,6 +1,7 @@
 import { message } from "./localization/runtime";
 import type {
   AddTorrentBytesRequest,
+  ApiClientInfo,
   ApiHello,
   ApplicationCall,
   ApplicationCallResult,
@@ -71,6 +72,8 @@ export interface ApplicationWebSocketPlatformClient {
 
 export interface ApplicationWebSocketClientOptions {
   readonly connectPath?: string;
+  /** Sent in `connect`; hosts released before it ignore it. */
+  readonly client?: ApiClientInfo;
   readonly platformClient?: ApplicationWebSocketPlatformClient;
   readonly desktopRootPicker?: boolean;
   readonly onConnectionState?: (connected: boolean) => void;
@@ -526,6 +529,7 @@ export class WebSocketApplicationViewClient
             encoding: "json",
             client_instance_id: this.clientInstanceId,
             ...(this.token === null ? {} : { token: this.token }),
+            ...(this.options.client === undefined ? {} : { client: this.options.client }),
           });
         } catch (error) {
           failHandshake(asError(error));

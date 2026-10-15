@@ -11,6 +11,10 @@ use ts_rs::TS;
 
 pub const SEED_STOP_LIMITS: &str = "seed_stop_limits";
 pub const MAGNET_EXPORT_OPTIONS: &str = "magnet_export_options";
+/// The host reads the client identity in `Connect` (Tactical 370). It owns
+/// no gated surface: clients send the identity before the hello, and hosts
+/// without this capability ignore it.
+pub const CLIENT_IDENTITY: &str = "client_identity";
 
 /// One registered capability and the contract surface it owns.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -55,6 +59,16 @@ pub const HOST_CAPABILITIES: &[HostCapability] = &[
         lifecycle: HostCapabilityLifecycle::Transitional,
         commands: &[],
         command_fields: &["export_magnet.options"],
+        client_settings_patch_keys: &[],
+        torrent_settings_patch_keys: &[],
+    },
+    HostCapability {
+        name: CLIENT_IDENTITY,
+        id: 3,
+        introduced: "2026-10-15",
+        lifecycle: HostCapabilityLifecycle::Transitional,
+        commands: &[],
+        command_fields: &[],
         client_settings_patch_keys: &[],
         torrent_settings_patch_keys: &[],
     },

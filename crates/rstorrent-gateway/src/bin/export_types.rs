@@ -11,8 +11,8 @@ use rstorrent_session::{
     ActiveDownloadsClampReason, ActivePiece, ActivePieceFieldUpdate, ActivePieceStageView,
     ActivePieceUpdate, ActiveSeedLimit, AddTorrentBytesRequest, AddTorrentDisposition,
     AddTorrentResult, AdvertisedPeerEndpointScope, AdvertisedPeerEndpointStatus,
-    AdvertisedPeerEndpointUnavailableReason, ApiBackendIdentity, ApiEncoding, ApiHello, ApiLimits,
-    ApiProductInfo, ApiVersion, ApplicationCall, ApplicationCallResult,
+    AdvertisedPeerEndpointUnavailableReason, ApiBackendIdentity, ApiClientInfo, ApiEncoding,
+    ApiHello, ApiLimits, ApiProductInfo, ApiVersion, ApplicationCall, ApplicationCallResult,
     ApplicationNetworkPrerequisiteView, ApplicationNetworkRuntimeState,
     ApplicationNetworkRuntimeView, BandwidthDirectionRuntimeView, BandwidthRuntimeView,
     CapabilityStatus, CatalogPageRequest, CatalogPageView, CatalogRecoveryReason,
@@ -330,6 +330,7 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<ApiLimits>(&mut declarations)?;
     append::<ApiBackendIdentity>(&mut declarations)?;
     append::<ApiProductInfo>(&mut declarations)?;
+    append::<ApiClientInfo>(&mut declarations)?;
     append::<ApiHello>(&mut declarations)?;
     append::<ViewDeliveryPolicy>(&mut declarations)?;
     append::<ViewSpec>(&mut declarations)?;

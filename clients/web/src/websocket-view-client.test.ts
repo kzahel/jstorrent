@@ -14,6 +14,7 @@ import type {
   ApplicationWebSocket,
   ApplicationWebSocketFactory,
 } from "./websocket-view-client";
+import { clientIdentity } from "./client-identity";
 import { WebSocketApplicationViewClient } from "./websocket-view-client";
 import {
   clientSettingsFixture,
@@ -129,6 +130,31 @@ describe("multiplexed application WebSocket adapter", () => {
     await rejected;
     expect(socket.sent.some((frame) => frame.type === "choose_download_root")).toBe(false);
     await client.close();
+  });
+
+  it("reports its identity in connect only when given one", async () => {
+    for (const identity of [clientIdentity("remote", { buildId: "abc123" }), undefined]) {
+      let socket!: FakeWebSocket;
+      const client = new WebSocketApplicationViewClient(
+        "http://127.0.0.1:3030",
+        "token",
+        (url) => {
+          socket = new FakeWebSocket(url, (frame, active) => {
+            if (frame.type === "connect") queueMicrotask(() => active.server(connected()));
+          });
+          return socket;
+        },
+        clientInstanceId,
+        identity === undefined ? {} : { client: identity },
+      );
+      const hello = client.hello();
+      socket.open();
+      await hello;
+      const connect = socket.sent[0] as Extract<ApplicationClientFrame, { type: "connect" }>;
+      expect(connect.client).toEqual(identity);
+      expect("client" in connect).toBe(identity !== undefined);
+      await client.close();
+    }
   });
 
   it("creates an ephemeral media URL through the application call", async () => {

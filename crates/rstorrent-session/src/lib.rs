@@ -74,8 +74,8 @@ pub use diagnostics::{
 pub use file_views::{FileCatalogState, FileSelectionView, FileView};
 pub use have::{HaveError, HaveState};
 pub use host_capabilities::{
-    HOST_CAPABILITIES, HostCapability, HostCapabilityDefinition, HostCapabilityLifecycle,
-    MAGNET_EXPORT_OPTIONS, SEED_STOP_LIMITS, host_capability_definitions,
+    CLIENT_IDENTITY, HOST_CAPABILITIES, HostCapability, HostCapabilityDefinition,
+    HostCapabilityLifecycle, MAGNET_EXPORT_OPTIONS, SEED_STOP_LIMITS, host_capability_definitions,
 };
 pub use library_views::{
     DEFAULT_LIBRARY_PAGE_ROWS, LibraryArchivedFilter, LibraryAvailabilityFilter, LibraryFacetsView,
@@ -144,16 +144,16 @@ pub use tracker_views::{
 };
 pub use views::{
     API_VERSION, ActivePiece, ActivePieceFieldUpdate, ActivePieceStageView, ActivePieceUpdate,
-    ApiBackendIdentity, ApiEncoding, ApiHello, ApiLimits, ApiProductInfo, ApiVersion,
-    CapabilityStatus, CatalogPageRequest, CatalogPageView, CheckingPhaseView, CheckingProgressView,
-    DeliveryMode, DeliveryPolicy, DhtAddressFamilyView, DhtBucketView, DhtFamilyInspectionView,
-    DhtInspectionView, DhtLifecycleView, DhtLookupView, DhtNetworkPolicyView,
-    DiskCheckpointStageView, DiskPieceStageView, DiskPieceView, DiskPipelineView, DiskPressureView,
-    FileFieldUpdate, FileRowUpdate, IndexRange, IntegrityPreparationPhaseView,
-    IntegrityPreparationView, MetadataAcquisitionPhaseView, MetadataAcquisitionView,
-    OpenViewSetOptions, OpenViewSetRequest, OpenViewSetResponse, PeerDirection,
-    PeerDisconnectReason, PeerFieldCapabilities, PeerFieldUpdate, PeerFlagView, PeerLifecycle,
-    PeerMseMethodView, PeerRequestPhase, PeerRole, PeerRowUpdate, PeerSourceView,
+    ApiBackendIdentity, ApiClientInfo, ApiEncoding, ApiHello, ApiLimits, ApiProductInfo,
+    ApiVersion, CapabilityStatus, CatalogPageRequest, CatalogPageView, CheckingPhaseView,
+    CheckingProgressView, DeliveryMode, DeliveryPolicy, DhtAddressFamilyView, DhtBucketView,
+    DhtFamilyInspectionView, DhtInspectionView, DhtLifecycleView, DhtLookupView,
+    DhtNetworkPolicyView, DiskCheckpointStageView, DiskPieceStageView, DiskPieceView,
+    DiskPipelineView, DiskPressureView, FileFieldUpdate, FileRowUpdate, IndexRange,
+    IntegrityPreparationPhaseView, IntegrityPreparationView, MetadataAcquisitionPhaseView,
+    MetadataAcquisitionView, OpenViewSetOptions, OpenViewSetRequest, OpenViewSetResponse,
+    PeerDirection, PeerDisconnectReason, PeerFieldCapabilities, PeerFieldUpdate, PeerFlagView,
+    PeerLifecycle, PeerMseMethodView, PeerRequestPhase, PeerRole, PeerRowUpdate, PeerSourceView,
     PeerTransportKind, PeerView, ProgressAction, ProgressAssessment, ProgressDisposition,
     ProgressInputs, ProgressPhase, ProgressReason, ResetReason, RowUpdateError, SeedAdmissionView,
     SeedGoalStatusView, SeedGoalView, SeedStopView, SubscriptionError, SubscriptionSpec,
@@ -163,5 +163,5 @@ pub use views::{
     UpdateBatch, UpdateViewSetRequest, VIEW_CONTRACT_VERSION, ViewDeliveryPolicy, ViewHub,
     ViewPatch, ViewProjection, ViewSelector, ViewSet, ViewSetError, ViewSetOwner, ViewSetStats,
     ViewSetUpdate, ViewSnapshot, ViewSpec, ViewSubscription, ViewUpdate, ViewUpdatePayload,
-    assess_progress,
+    assess_progress, deserialize_client_info,
 };

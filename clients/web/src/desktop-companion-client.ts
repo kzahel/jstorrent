@@ -2,6 +2,7 @@ import { message } from "./localization/runtime";
 import { ApplicationViewError, type ApplicationViewClient } from "./api/client";
 import type { ApiHello } from "./api/generated/v1";
 import { ContractError } from "./validation";
+import { clientIdentity, extensionVersion } from "./client-identity";
 import { WebSocketApplicationViewClient } from "./websocket-view-client";
 
 interface Ready {
@@ -63,6 +64,7 @@ export async function connectDesktopCompanion(signal: AbortSignal): Promise<{
   let disconnected!: () => void;
   const closed = new Promise<void>((resolve) => { disconnected = resolve; });
   const socket = new WebSocketApplicationViewClient(ready.endpoint, ready.credential, undefined, undefined, {
+    client: clientIdentity("extension", { version: extensionVersion() }),
     desktopRootPicker: true,
     platformClient: {
       async chooseDownloadRoot() { throw new Error(message("desktop.companion.native-folder")); },

@@ -15,6 +15,7 @@ import {
   type RemoteClientStore,
 } from "../remote-client-store";
 import { WebSocketApplicationViewClient } from "../websocket-view-client";
+import { clientIdentity } from "../client-identity";
 import { createRemoteSecurityClient } from "../remote-security-client";
 import type { DesktopRemoteAccess } from "../inspection/remote-access/types";
 import styles from "./RemoteAccessGate.module.css";
@@ -204,6 +205,8 @@ export function RemoteAccessGate({
         });
         return activeTransport;
       },
+      undefined,
+      { client: clientIdentity("remote", { buildId: clientBuild }) },
     );
     const currentClientId = currentClientIdentifier(initialAuthentication);
     const remoteAccess = createRemoteSecurityClient({

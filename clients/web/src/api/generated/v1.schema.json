@@ -622,6 +622,28 @@
       ],
       "type": "object"
     },
+    "ApiClientInfo": {
+      "description": "What a client reports about itself when it connects. Informational\nonly: hosts count and log it and never decide features from it. The\nstrings are open so that a newer client kind or version format never\nbreaks a host's handshake.",
+      "properties": {
+        "build_id": {
+          "description": "Source commit, or a local marker such as `development`.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "`remote` (the hosted controller), `extension` (an extension page) or\n`web` (a page the host serves); newer clients may report others.",
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "build_id"
+      ],
+      "type": "object"
+    },
     "ApiEncoding": {
       "enum": [
         "json",
@@ -1051,6 +1073,17 @@
               "maximum": 65535,
               "minimum": 0,
               "type": "integer"
+            },
+            "client": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ApiClientInfo"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The client's own product identity. Hosts released before it\nignore it; a malformed identity is dropped, never fatal."
             },
             "client_instance_id": {
               "type": "string"

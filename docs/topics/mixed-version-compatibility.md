@@ -111,6 +111,16 @@ never deleted.
   so nothing it could not accept passes. The web client turns that reply into
   a localized "update JSTorrent there" result. Hosts released before
   2026-10-15 still close the connection, which the client's gating avoids.
+- **Two-way identity.** Hosts report `ApiHello.product`; clients report
+  `ApiClientInfo { kind, version, build_id }` in `connect` (Tactical
+  [370](../tactical/370-version-handshake-and-compatibility-reports.md)):
+  `remote`, `extension` or `web`, from `clients/web/src/client-identity.ts`.
+  Every captured host ignores unknown `connect` fields (checked per capture,
+  and live by the matrix driver, which sends one), so the identity is sent
+  before the hello and is the one ungated client addition. A malformed
+  identity is dropped, never fatal. Hosts count connections and refused
+  calls per `kind version` in their connection metrics (32 identities, then
+  `other`), advertise `client_identity`, and never decide features from it.
 - Android Compose and iOS run the engine in process and need no gates; the
   Kotlin and Swift exports of the registry are deferred until a native client
   controls another host.

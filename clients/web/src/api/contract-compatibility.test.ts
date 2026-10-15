@@ -153,6 +153,18 @@ describe.each(RELEASED)("contract against $tag", ({ schema, commits, tolerantOnl
   });
 });
 
+describe.each(HOST_CAPTURES)("connect parsed by $deliveries", ({ schema }) => {
+  // Clients send their identity in connect before they see the hello, so
+  // every supported host must ignore fields of connect it does not know
+  // (Tactical 370). The live matrix proves the same over real transports.
+  it("accepts fields it does not know", () => {
+    const frame = (schema as { $defs: Definitions }).$defs.ApplicationClientFrame;
+    const connect = branches(frame).find(([variant]) => variant === "type=connect")?.[1];
+    expect(connect).toBeDefined();
+    expect(connect!.additionalProperties).not.toBe(false);
+  });
+});
+
 describe("reviewed client exposures", () => {
   it("are each still produced by a released contract", () => {
     const produced = new Set(

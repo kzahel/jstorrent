@@ -171,6 +171,51 @@ pub struct ApiProductInfo {
     pub profile_location: Option<String>,
 }
 
+/// What a client reports about itself when it connects. Informational
+/// only: hosts count and log it and never decide features from it. The
+/// strings are open so that a newer client kind or version format never
+/// breaks a host's handshake.
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, JsonSchema, TS)]
+pub struct ApiClientInfo {
+    /// `remote` (the hosted controller), `extension` (an extension page) or
+    /// `web` (a page the host serves); newer clients may report others.
+    pub kind: String,
+    pub version: String,
+    /// Source commit, or a local marker such as `development`.
+    pub build_id: String,
+}
+
+impl ApiClientInfo {
+    pub const MAX_KIND_BYTES: usize = 32;
+    pub const MAX_VERSION_BYTES: usize = 32;
+    pub const MAX_BUILD_ID_BYTES: usize = 64;
+
+    /// The identity if every field is printable ASCII within its bound.
+    pub fn validated(self) -> Option<Self> {
+        let valid = |value: &str, maximum: usize| {
+            !value.is_empty()
+                && value.len() <= maximum
+                && value.bytes().all(|byte| byte.is_ascii_graphic())
+        };
+        (valid(&self.kind, Self::MAX_KIND_BYTES)
+            && valid(&self.version, Self::MAX_VERSION_BYTES)
+            && valid(&self.build_id, Self::MAX_BUILD_ID_BYTES))
+        .then_some(self)
+    }
+}
+
+/// Reads an optional client identity without ever failing: a malformed or
+/// out-of-bounds identity becomes `None`, so the connection proceeds.
+pub fn deserialize_client_info<'de, D>(deserializer: D) -> Result<Option<ApiClientInfo>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(serde_json::from_value::<ApiClientInfo>(value)
+        .ok()
+        .and_then(ApiClientInfo::validated))
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 pub struct ApiBackendIdentity {
     pub kind: String,

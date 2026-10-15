@@ -17,6 +17,7 @@ import type { ApplicationViewClient } from "../api/client";
 import { WebAuthClient } from "../web-auth-client";
 import { createBrowserVideoPlayback } from "../browser-video-playback";
 import { createHostedHostIntegration } from "../headless-updater";
+import { clientIdentity } from "../client-identity";
 import { markStartup } from "../startup-timing";
 import "./global.css";
 
@@ -126,7 +127,9 @@ async function openLiveInspection(
             )
           : import("../websocket-view-client").then(
               ({ WebSocketApplicationViewClient }) =>
-                new WebSocketApplicationViewClient(baseUrl.href, token),
+                new WebSocketApplicationViewClient(baseUrl.href, token, undefined, undefined, {
+                  client: clientIdentity("web"),
+                }),
             ),
       torrentListBundles: true,
     },

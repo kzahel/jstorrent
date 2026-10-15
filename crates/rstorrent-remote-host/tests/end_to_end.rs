@@ -579,6 +579,7 @@ async fn application_connect(socket: &mut ClientSocket, channel: &mut SecureChan
         encoding: ApiEncoding::Json,
         client_instance_id: "00000000000000000000000000000001".to_owned(),
         token: None,
+        client: None,
     };
     let plaintext = serde_json::to_vec(&connect).unwrap();
     socket

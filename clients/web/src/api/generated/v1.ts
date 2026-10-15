@@ -153,11 +153,11 @@ export type HostCapabilityLifecycle = "transitional" | "required";
 
 export type HostCapabilityDefinition = { name: string, id: number, introduced: string, lifecycle: HostCapabilityLifecycle, commands: Array<string>, command_fields: Array<string>, client_settings_patch_keys: Array<string>, torrent_settings_patch_keys: Array<string>, };
 
-export const DEFAULT_API_HELLO: ApiHello = {"api":{"current":1,"minimum":1},"encodings":["json"],"deliveries":["poll","long_poll"],"capabilities":["torrent_list","torrent_summary","torrent_preparation","torrent_peers","torrent_swarm","torrent_files","torrent_media","torrent_trackers","library_media","session_disk","session_dht","session_current_rates","session_speed_history","piece_activity","diagnostics","seed_stop_limits","magnet_export_options"],"limits":{"max_view_sets_per_owner":8,"max_views_per_set":16,"max_view_id_bytes":64,"min_queue_bytes":16384,"default_queue_bytes":262144,"max_queue_bytes":524288,"max_snapshot_bytes":16777216,"max_wait_millis":20000,"lease_millis":"300000"}};
+export const DEFAULT_API_HELLO: ApiHello = {"api":{"current":1,"minimum":1},"encodings":["json"],"deliveries":["poll","long_poll"],"capabilities":["torrent_list","torrent_summary","torrent_preparation","torrent_peers","torrent_swarm","torrent_files","torrent_media","torrent_trackers","library_media","session_disk","session_dht","session_current_rates","session_speed_history","piece_activity","diagnostics","seed_stop_limits","magnet_export_options","client_identity"],"limits":{"max_view_sets_per_owner":8,"max_views_per_set":16,"max_view_id_bytes":64,"min_queue_bytes":16384,"default_queue_bytes":262144,"max_queue_bytes":524288,"max_snapshot_bytes":16777216,"max_wait_millis":20000,"lease_millis":"300000"}};
 
 export const UNSUPPORTED_CALL_MESSAGE: string = "this JSTorrent version does not support this request; update it to use this feature";
 
-export const HOST_CAPABILITY_REGISTRY: ReadonlyArray<HostCapabilityDefinition> = [{"name":"seed_stop_limits","id":1,"introduced":"2026-10-14","lifecycle":"transitional","commands":[],"command_fields":[],"client_settings_patch_keys":["seed_stop_ratio_percent","seed_stop_time_seconds"],"torrent_settings_patch_keys":["seed_stop_ratio_percent","seed_stop_time_seconds"]},{"name":"magnet_export_options","id":2,"introduced":"2026-10-15","lifecycle":"transitional","commands":[],"command_fields":["export_magnet.options"],"client_settings_patch_keys":[],"torrent_settings_patch_keys":[]}];
+export const HOST_CAPABILITY_REGISTRY: ReadonlyArray<HostCapabilityDefinition> = [{"name":"seed_stop_limits","id":1,"introduced":"2026-10-14","lifecycle":"transitional","commands":[],"command_fields":[],"client_settings_patch_keys":["seed_stop_ratio_percent","seed_stop_time_seconds"],"torrent_settings_patch_keys":["seed_stop_ratio_percent","seed_stop_time_seconds"]},{"name":"magnet_export_options","id":2,"introduced":"2026-10-15","lifecycle":"transitional","commands":[],"command_fields":["export_magnet.options"],"client_settings_patch_keys":[],"torrent_settings_patch_keys":[]},{"name":"client_identity","id":3,"introduced":"2026-10-15","lifecycle":"transitional","commands":[],"command_fields":[],"client_settings_patch_keys":[],"torrent_settings_patch_keys":[]}];
 
 export type FilePriority = "normal" | "high" | "skip";
 
@@ -575,6 +575,17 @@ identifier?: string | null, profile_id: string,
  */
 profile_location?: string | null, };
 
+export type ApiClientInfo = {
+/**
+ * `remote` (the hosted controller), `extension` (an extension page) or
+ * `web` (a page the host serves); newer clients may report others.
+ */
+kind: string, version: string,
+/**
+ * Source commit, or a local marker such as `development`.
+ */
+build_id: string, };
+
 export type ApiHello = { api: ApiVersion, encodings: Array<ApiEncoding>, deliveries: Array<DeliveryMode>, capabilities: Array<string>, backend?: ApiBackendIdentity | null, product?: ApiProductInfo | null, limits: ApiLimits, };
 
 export type ViewDeliveryPolicy = { min_interval_millis: number, };
@@ -610,7 +621,12 @@ export type ApplicationConnectionError = { code: ApplicationConnectionErrorCode,
 
 export type ApplicationConnectionLimits = { max_attachments: number, max_pending_calls: number, max_client_message_bytes: number, max_application_payload_bytes: number, max_torrent_source_bytes: number, heartbeat_idle_millis: number, heartbeat_timeout_millis: number, };
 
-export type ApplicationClientFrame = { "type": "choose_download_root", call_id: string, request: ChooseDownloadRootRequest, } | { "type": "connect", api_version: number, encoding: ApiEncoding, client_instance_id: string, token?: string | null, } | { "type": "call", call_id: string, operation: ApplicationCall, } | { "type": "begin_torrent_upload", call_id: string, upload_id: string, request: AddTorrentBytesRequest, } | { "type": "attach", call_id: string, stream_id: string, view_set_id: string, after: string, } | { "type": "ack", stream_id: string, cursor: string, } | { "type": "detach", call_id: string, stream_id: string, };
+export type ApplicationClientFrame = { "type": "choose_download_root", call_id: string, request: ChooseDownloadRootRequest, } | { "type": "connect", api_version: number, encoding: ApiEncoding, client_instance_id: string, token?: string | null,
+/**
+ * The client's own product identity. Hosts released before it
+ * ignore it; a malformed identity is dropped, never fatal.
+ */
+client?: ApiClientInfo | null, } | { "type": "call", call_id: string, operation: ApplicationCall, } | { "type": "begin_torrent_upload", call_id: string, upload_id: string, request: AddTorrentBytesRequest, } | { "type": "attach", call_id: string, stream_id: string, view_set_id: string, after: string, } | { "type": "ack", stream_id: string, cursor: string, } | { "type": "detach", call_id: string, stream_id: string, };
 
 export type ApplicationServerFrame = { "type": "download_root_chosen", call_id: string, response: ChooseDownloadRootResponse, } | { "type": "connected", api_version: number, encoding: ApiEncoding, hello: ApiHello, connection_limits: ApplicationConnectionLimits, } | { "type": "result", call_id: string, result: ApplicationCallResult, } | { "type": "call_error", call_id: string, error: ApplicationConnectionError, } | { "type": "torrent_upload_ready", call_id: string, upload_id: string, } | { "type": "attached", call_id: string, stream_id: string, view_set_id: string, } | { "type": "view_batch", stream_id: string, batch: UpdateBatch, } | { "type": "stream_error", stream_id: string, error: ApplicationConnectionError, } | { "type": "detached", call_id: string, stream_id: string, } | { "type": "connection_error", error: ApplicationConnectionError, };
 

@@ -2358,6 +2358,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".into(),
                 token: Some("correct-token".into()),
+                client: None,
             },
         )
         .await;
@@ -3216,6 +3217,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -3445,6 +3447,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: None,
+                client: None,
             },
         )
         .await;
@@ -3513,6 +3516,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -3754,6 +3758,7 @@ mod tests {
                     encoding: rstorrent_session::ApiEncoding::Json,
                     client_instance_id: "00000000000000000000000000000001".to_owned(),
                     token: token.map(str::to_owned),
+                    client: None,
                 },
             )
             .await;
@@ -3800,6 +3805,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -3923,6 +3929,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -4100,6 +4107,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("wrong-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -4121,6 +4129,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000002".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -4986,6 +4995,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000009".to_owned(),
                 token: None,
+                client: None,
             },
         )
         .await;
@@ -5499,6 +5509,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: None,
+                client: None,
             },
         )
         .await;

@@ -72,6 +72,9 @@ interface Snapshot {
           gatewayToken!,
           (url) => new NodeWebSocket(url, { origin: gatewayOrigin! }) as never,
           "00000000000000000000000000000001",
+          // Sent by clients from Tactical 370 on and ignored by releases
+          // before it, so every captured host proves it accepts the field.
+          { client: { kind: "web", version: "compat-live", build_id: "compat-live" } } as never,
         );
         application = await LiveApplication.open(client);
         application.subscribe((update) => {

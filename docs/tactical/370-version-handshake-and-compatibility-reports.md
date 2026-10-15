@@ -99,9 +99,11 @@ existing machinery:
 - Rust: `ApiClientInfo` in the session contract; `Connect.client` with a
   lenient deserializer. Kind and version up to 32 bytes, build up to 64,
   printable ASCII; anything else is dropped.
-- The gateway keeps identity per connection and logs one structured
-  `application_client_connected` line with client and host identity. The
-  remote bridge keeps `client` when it re-serializes.
+- The gateway keeps identity per connection and counts connections and
+  sentinel refusals per `kind version` in `ApplicationConnectionMetrics`,
+  which the gateway logs as `gateway_connection_metrics` and Android and
+  the companion server already observe. The remote bridge keeps `client`
+  when it re-serializes.
 - Web: entry points name their kind (`remote`, `extension`, `web`).
   Version is the extension manifest version or the web package version;
   build is the existing `VITE_RSTORRENT_REMOTE_BUILD_ID` for the hosted page
