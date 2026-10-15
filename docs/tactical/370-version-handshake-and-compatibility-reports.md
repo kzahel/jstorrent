@@ -1,8 +1,9 @@
 # Tactical 370: Version Handshake And Compatibility Reports
 
-Status: Slices 1–3 complete, 2026-10-15 (see **Evidence**). Slice 4 waits
-for maintainer decisions on consent and an endpoint; slice 5 moves to its
-own tactical. Revised after an independent review (see **Review**).
+Status: Slices 1–3 complete, 2026-10-15 (see **Evidence**). Slice 4's
+consent question is settled by maintainer policy (opt-out statistics;
+remote access may record operational data); its channels need changes and
+deployments outside this repository. Slice 5 moves to its own tactical. Revised after an independent review (see **Review**).
 Maintainer-directed: a two-way version handshake, opt-in mismatch
 reporting that either end can send, and a graceful path with cleanup for
 changes such as a new torrent state.
@@ -69,13 +70,12 @@ existing machinery:
    handshake. A host never rejects a connection because of client identity.
 6. **Features are never decided by the peer's version.** Identity is for
    logs, diagnostics and reports only.
-7. **Reporting needs fresh consent.** The existing disclosure covers
-   update counting and feedback only, and changing its text later cannot
-   broaden consent already given. Automatic compatibility reports require
-   acknowledgement of a new disclosure (or a separate default-off choice),
-   which on native hosts is an append-only `product.db` migration
-   (`disclosure_version` is constrained to 0–1 today). This is slice 4 and
-   waits for the maintainer.
+7. **Reporting follows the maintainer's opt-out policy** (2026-10-15,
+   recorded in `product-state-and-feedback`). The existing usage-statistics
+   preference, chosen on first run, governs compatibility reports; no new
+   disclosure version or assent record. Remote access is a hosted service
+   and may record operational version data regardless of that preference.
+   The privacy policy says both.
 
 ## Design
 
@@ -125,19 +125,25 @@ existing machinery:
   counters saturate.
 - Both are in memory and exposed for diagnostics; nothing is transmitted.
 
-### Slice 4: reports (maintainer decisions needed)
+### Slice 4: reports
 
-A closed `CompatibilityReport` (`schema`, `day`, reporter role/kind/version,
-peer kind/version, saturating counts by category), no installation ID, no
-build IDs, normalized identity values. One installation-lifetime owner per
-reporter with a global daily budget, day pruning, restart-safe dedupe,
-bounded retries with cancellation, and a consent recheck immediately before
-sending. Receiver log retention must be specified, since IP metadata and
-rare version/day pairs remain correlatable. Decisions needed: consent model
-(new disclosure version on the default-on preference with prior opt-outs
-preserved, or a separate default-off choice), the endpoint and its
-retention, and a durable consent owner for the hosted page (today it has
-none, so it cannot report).
+Two channels, both stored like update-server request logs, both carrying
+only versions and counts:
+
+- **Desktop host, on its update check.** With statistics on, the check
+  adds one bounded header summarizing client identities and refusals seen
+  since the previous check (from the gateway's connection metrics), plus
+  the host's own mismatch counts. Needs a matching change to
+  `kzahel/simple-app-update-server`, which logs a fixed field list, and its
+  deployment. Android has no update check; its reports wait for a channel.
+- **Remote access, at the relay.** The browser client and the remote host
+  send their product and version in the relay's plaintext handshake frames
+  (bounded, optional, ignored by older relays), and the relay counts
+  circuits by version pair in its operator status. Client observations
+  from the hosted controller go the same way. Needs a relay deployment.
+
+Extension observations against an old host have no channel yet; the
+extension companion can forward them to a current host later.
 
 ### Slice 5: open value lists (own tactical)
 
@@ -153,14 +159,15 @@ then, add a new optional field instead of a new value.
 ## Non-Goals
 
 - Host-side shaping of output by client version.
-- Transmitting anything in this tactical; slice 4 needs decisions first.
+- Deploying the update server or relay changes slice 4 needs.
 - Reporting from Tauri or Android Compose (matched pairs).
 
 ## Invariants
 
 - A host never rejects or closes a connection because of client identity.
 - Features are decided by capabilities, never by the peer's version.
-- Nothing is transmitted without the reporter's own current consent.
+- In-app reports honor the usage-statistics preference; remote-access
+  operational data is limited to versions, counts and outcomes.
 - Every exposure of every supported contract is recorded and classified,
   and every record is still needed.
 
@@ -224,5 +231,5 @@ reviewed entry). The reviewer also confirmed the classification against
 
 ## Stopping Condition
 
-Slices 1–3 land with tests and topic updates; slice 4's decisions are put
-to the maintainer; slice 5 has its own tactical when work starts.
+Slices 1–4 land with tests and topic updates, the privacy policy describes
+what is sent, and slice 5 has its own tactical when work starts.

@@ -1,5 +1,33 @@
 # Installation Product State And Feedback
 
+## Maintainer policy, 2026-10-15
+
+Maintainer direction supersedes the narrower transmission rules below where
+they conflict. JSTorrent is open-source software in early release; the aim is
+best-effort trustworthiness, not a consent-tracking system.
+
+- **Opt-out statistics.** Basic usage and operational statistics are
+  collected unless the user opts out. One clear choice, shown on first run
+  (Android's first screen; desktop's first-run dialog), turns off all of it
+  except the minimum an update check needs (version, platform, ordinary
+  request metadata). The existing **Include usage statistics** preference is
+  that choice. No versioned legal assent record is kept beyond what the
+  preference already stores, and a disclosure text change does not require
+  re-acknowledgement.
+- **Compatibility reports** (Tactical
+  [370](../tactical/370-version-handshake-and-compatibility-reports.md)):
+  with statistics on, hosts and clients may send coarse version and
+  mismatch counts, stored like update-server request logs, to help operate
+  and fix the product.
+- **Remote access.** Using the hosted remote controller and relay is using
+  a website: the service may record basic operational data (product and
+  controller versions, connection counts and outcomes, usage metadata) to
+  operate the service and keep it reliable, regardless of the in-app
+  statistics preference. Never torrent names, hashes, paths, peers or
+  content.
+- **Privacy policy.** `website/public/privacy.html` is kept current with what
+  is collected; update it in the same change that adds collection.
+
 Tactical [321](../tactical/321-android-feedback-statistics-checkbox.md) verifies
 the deployed privacy, feedback, uninstall and bounded-parser source on
 2026-10-12 and enables Android's hosted-context gate. The feedback checkbox

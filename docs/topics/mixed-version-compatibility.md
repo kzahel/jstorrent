@@ -300,8 +300,9 @@ that it has very few users.
   for the hosted remote controller (see Version Observability). The desktop
   update server already reports desktop version counts
   (`runbooks/update-server-analytics.md` in the maintainer's dotfiles).
-- **Compatibility reports** (Tactical 370 slice 4): opt-in transmission of
-  the observations above from hosts and clients. Needs fresh consent (a new
-  disclosure version or a separate choice), an endpoint with stated
-  retention, and a consent owner for the hosted page.
+- **Compatibility reports** (Tactical 370 slice 4): the observations above
+  sent with the desktop update check (when usage statistics are on) and
+  through the relay's handshake for remote access, under the maintainer's
+  opt-out policy in `product-state-and-feedback`. Needs changes to the
+  update server and relay and their deployment.
 - **Automatic updates**, Tactical 355.
