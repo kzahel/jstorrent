@@ -2,7 +2,7 @@
 //! before migrating it, and the user's explicit Clear app data. Nothing here
 //! discards a catalog that holds data on the application's own initiative.
 
-use std::fs::{self, File};
+use std::fs;
 use std::path::Path;
 use std::time::Duration;
 
@@ -166,7 +166,10 @@ pub(crate) fn write_pre_migration_copy(
     connection
         .backup(MAIN_DB, &temporary, None)
         .map_err(profile_sqlite_error)?;
-    File::open(&temporary)
+    // Windows FlushFileBuffers requires write access.
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&temporary)
         .and_then(|file| file.sync_all())
         .map_err(|source| io_error("sync pre-migration copy", source))?;
     validate_fixed_file(&destination, PRE_MIGRATION_FILENAME)?;
@@ -219,7 +222,7 @@ fn remove_fixed_file(path: &Path, basename: &'static str) -> Result<(), StoreErr
 
 #[cfg(unix)]
 fn sync_directory(profile_root: &Path) -> Result<(), StoreError> {
-    File::open(profile_root)
+    fs::File::open(profile_root)
         .and_then(|directory| directory.sync_all())
         .map_err(|source| io_error("sync profile directory", source))
 }
