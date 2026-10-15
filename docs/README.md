@@ -27,6 +27,8 @@ do not repeat shipment checkpoints or migration rehearsal results.
 
 ## Contracts and evidence
 
+- The [glossary](glossary.md) defines host, client, peer and the other
+  overloaded words used across these documents.
 - [Engineering principles](engineering-principles.md) own invariant and
   dependency rules; [vision](vision.md) records product direction.
 - [Topics](topics/README.md) own current decisions and feature contracts.

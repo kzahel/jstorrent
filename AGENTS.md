@@ -16,6 +16,11 @@ Start with [`README.md`](README.md) and
   sets; and
 - [`docs/references.md`](docs/references.md).
 
+[`docs/glossary.md`](docs/glossary.md) fixes the meaning of overloaded terms:
+a **host** is a running JSTorrent process that owns the engine and serves the
+application API; a **client** is a UI or program that connects to a host; a
+**peer** is another BitTorrent program.
+
 [`docs/topics/README.md`](docs/topics/README.md) indexes every living topic;
 read the ones that own the area you are about to change rather than the whole
 directory. Engine, protocol, and performance work also reads

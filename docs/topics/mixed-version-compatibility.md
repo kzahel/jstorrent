@@ -15,6 +15,8 @@ version observability and automatic updates (Tactical
 This topic owns how clients and hosts of different versions work together:
 the support horizon, the capability model, the contract rules every feature
 follows, the checks that enforce them, and the release and removal runbooks.
+Terms such as host, client, matched pair and strict client are defined in
+the [glossary](../glossary.md).
 [`durable-data-migrations`](durable-data-migrations.md) owns stored data;
 [`application-view-api`](application-view-api.md) owns the contract itself.
 

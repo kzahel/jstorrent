@@ -270,6 +270,9 @@ still requires its own bounded tactical and migration decision.
 
 ## Terminology
 
+The [glossary](../glossary.md) owns the shared terms; *backend* below means
+a **host** there.
+
 - An **application connection** is one client-side controller and its
   authenticated relationship with one RSTorrent backend. It may survive more
   than one physical connection generation through bounded reconnect.
