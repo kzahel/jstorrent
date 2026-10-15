@@ -42,6 +42,8 @@ import {
 import type { ViewSetState } from "../../view-set-reducer";
 import type { InspectionApplication } from "../application";
 import { supportedPatch } from "../host-capabilities";
+import { UNSUPPORTED_CALL_MESSAGE } from "../../api";
+import { ApplicationViewError } from "../../api/errors";
 import type {
   CommandResult,
   DesiredInspectionViews,
@@ -676,7 +678,23 @@ export class LiveApplication implements InspectionApplication {
                       torrent_id: command.torrentId,
                     },
     };
-    const response = await this.controller?.dispatch(request);
+    let response;
+    try {
+      response = await this.controller?.dispatch(request);
+    } catch (error) {
+      // A host may refuse one call, for example a command it predates,
+      // without closing the connection.
+      if (error instanceof ApplicationViewError && error.code === "invalid_call") {
+        return {
+          accepted: false,
+          message:
+            error.detail === UNSUPPORTED_CALL_MESSAGE
+              ? localizedMessage("inspection.live.live.application.request.needs.newer.host")
+              : error.detail,
+        };
+      }
+      throw error;
+    }
     if (response === undefined) {
       return { accepted: false, message: localizedMessage("inspection.live.live.application.live.controller.is.unavailable") };
     }

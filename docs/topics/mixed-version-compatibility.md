@@ -96,6 +96,15 @@ never deleted.
   `validateCommand`, for what the client builds, is generated separately
   from the exact schema (`v1.client-validators.js`) and stays strict, as do
   enum values and other variants.
+- **Hosts refuse unknown calls one at a time.** When a frame cannot be
+  parsed but carries a well-formed `call_id` (and is not `connect`), the
+  gateway answers that call with `call_error` / `invalid_call` and the
+  exported `UNSUPPORTED_CALL_MESSAGE`, without counting it toward the
+  three-invalid-messages limit. The relay host forwards such a frame to the
+  gateway instead of closing the circuit; the gateway parses the same types,
+  so nothing it could not accept passes. The web client turns that reply into
+  a localized "update JSTorrent there" result. Hosts released before
+  2026-10-15 still close the connection, which the client's gating avoids.
 - Android Compose and iOS run the engine in process and need no gates; the
   Kotlin and Swift exports of the registry are deferred until a native client
   controls another host.
@@ -199,9 +208,8 @@ A periodic version-population record belongs here once these are read.
   release hold once it has had a few days to auto-update.
 - **Unknown enum values and frame types.** Still rejected by every client.
   Mapping them to an explicit unknown needs per-type handling in the UI.
-- **Per-call `unsupported`.** A released host closes the connection on an
-  unknown key; current hosts should answer per call instead.
-- **Relay authentication leniency** for unknown fields.
+- **Relay authentication leniency** for unknown fields, after a security
+  review against `remote-access-authentication`.
 - **Out-of-date notice and update screen**, with Tactical 343's About work.
 - **Version-population record** from the sources above.
 - **Automatic updates**, Tactical 355.

@@ -21,6 +21,7 @@ import type {
 } from "../../api";
 import type { ApplicationViewClient, MediaOpenTarget } from "../../api/client";
 import { HttpApiError } from "../../api/client";
+import { ApplicationViewError } from "../../api/errors";
 import type { InspectionSnapshot } from "../model";
 import { LiveApplication } from "./LiveApplication";
 import type { ViewSetState } from "../../view-set-reducer";
@@ -82,8 +83,11 @@ class FakeLiveClient implements ApplicationViewClient {
     };
   }
 
+  dispatchError: Error | null = null;
+
   async dispatch(request: RequestEnvelope): Promise<ResponseEnvelope> {
     this.requests.push(request);
+    if (this.dispatchError !== null) throw this.dispatchError;
     return {
       version: 1,
       request_id: request.request_id,
@@ -769,6 +773,30 @@ describe("LiveApplication", () => {
       message: expect.stringContaining("newer JSTorrent"),
     });
     expect(client.requests).toHaveLength(1);
+    await application.close();
+  });
+
+  it("reports a call the host refuses without failing the connection", async () => {
+    const client = new FakeLiveClient();
+    const application = await LiveApplication.open(client);
+    client.dispatchError = new ApplicationViewError(
+      "invalid_call",
+      "this JSTorrent version does not support this request; update it to use this feature",
+    );
+    await expect(
+      application.dispatch({ type: "pause", torrentId: TORRENT_ID }),
+    ).resolves.toEqual({
+      accepted: false,
+      message: expect.stringContaining("older JSTorrent"),
+    });
+    client.dispatchError = new ApplicationViewError("invalid_call", "upload length differs");
+    await expect(
+      application.dispatch({ type: "pause", torrentId: TORRENT_ID }),
+    ).resolves.toEqual({ accepted: false, message: "upload length differs" });
+    client.dispatchError = new ApplicationViewError("resource_limit", "busy");
+    await expect(
+      application.dispatch({ type: "pause", torrentId: TORRENT_ID }),
+    ).rejects.toThrow("busy");
     await application.close();
   });
 

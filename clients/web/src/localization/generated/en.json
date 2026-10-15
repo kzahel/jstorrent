@@ -9796,6 +9796,12 @@
       "value": "Padding files cannot be opened"
     }
   ],
+  "inspection.live.live.application.request.needs.newer.host": [
+    {
+      "type": 0,
+      "value": "The computer you are controlling runs an older JSTorrent that cannot do this. Update JSTorrent there."
+    }
+  ],
   "inspection.live.live.application.setting.needs.newer.host": [
     {
       "type": 0,

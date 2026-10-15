@@ -152,6 +152,12 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<HostCapabilityDefinition>(&mut declarations)?;
     append_value(
         &mut declarations,
+        "UNSUPPORTED_CALL_MESSAGE",
+        "string",
+        &rstorrent_gateway::UNSUPPORTED_CALL_MESSAGE,
+    )?;
+    append_value(
+        &mut declarations,
         "HOST_CAPABILITY_REGISTRY",
         "ReadonlyArray<HostCapabilityDefinition>",
         &host_capability_definitions(),

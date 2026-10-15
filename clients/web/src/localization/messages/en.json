@@ -4752,6 +4752,10 @@
     "defaultMessage": "The torrent is being removed",
     "description": "Product copy in inspection/live/LiveApplication.ts"
   },
+  "inspection.live.live.application.request.needs.newer.host": {
+    "defaultMessage": "The computer you are controlling runs an older JSTorrent that cannot do this. Update JSTorrent there.",
+    "description": "Error when the connected host is too old to understand a request"
+  },
   "inspection.live.live.application.setting.needs.newer.host": {
     "defaultMessage": "This setting needs a newer JSTorrent on the computer you are controlling. Update it there to use this setting.",
     "description": "Error when saving a setting the connected host is too old to support"

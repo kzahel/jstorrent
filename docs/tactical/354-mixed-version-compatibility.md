@@ -1,7 +1,8 @@
 # Tactical 354: Mixed-Version Compatibility And Capabilities
 
 Status: Slices 1 and 2 complete, 2026-10-15 (extension 1.1.5 packaged, not
-yet submitted); Slices 3–5 open. Maintainer selected
+yet submitted); Slice 3 complete except relay authentication leniency;
+Slices 4–5 open. Host releases are gated in CI. Maintainer selected
 the flexible capability model and a 30-day starting horizon, then authorized
 implementation with commits. The living rules and runbooks moved to
 [`mixed-version-compatibility`](../topics/mixed-version-compatibility.md).
@@ -189,8 +190,9 @@ UI fixes. It remains a possible safety net below the support horizon.
    packaged. Unknown enum values and frame types were narrowed out: they
    need per-type UI handling and stay strict (topic rules treat them as
    breaking).
-3. **Host tolerance.** Per-call `unsupported` for unknown commands and patch
-   keys; relay authentication leniency.
+3. **Host tolerance.** Per-call refusal of unknown commands and patch keys
+   is complete; see **Evidence**. Relay authentication leniency remains,
+   pending a security review.
 4. **Released-client fixtures and lint.** The released extension's
    validators against current host output; no raw capability strings.
 5. **Policy surfaces.** Release-date manifest, out-of-date notice and update
@@ -293,6 +295,32 @@ Slice 2, 2026-10-15:
   contains the fallback-branch validator and the capability gate.
 - **Runs.** `npm run typecheck` and `npm run test` for `clients/web` (696
   passed, 2 skipped).
+
+Release gate and Slice 3, 2026-10-15:
+
+- **Release gate.** Reviewed strict-client exposures moved to
+  `clients/web/src/api/release-compatibility.json` with
+  `strictClients.supported`, the surfaces strict clients control (desktop,
+  Android) and `acceptedBreaks` per release tag.
+  `scripts/check-release-compatibility.mjs` runs in the desktop
+  `release-input` job (enforced when publishing) and the Android build job
+  (enforced for `android-v*` tag pushes); other runs warn. Five node tests;
+  the check fails for `desktop-v0.3.2` today. `actionlint` passes.
+- **Per-call refusal.** The gateway answers an unparseable frame that has a
+  valid, not-pending `call_id` with `call_error`/`invalid_call` and
+  `UNSUPPORTED_CALL_MESSAGE` (exported to TypeScript), uncounted toward the
+  invalid-message limit; the relay host forwards such frames after
+  `connect` instead of closing the circuit. Tests: a unit test of
+  `unsupported_call_id`; the gateway WebSocket test sends four unsupported
+  calls, gets four correlated errors and then still closes after three
+  malformed frames; the relay end-to-end test gets a correlated error over a
+  circuit that stays live (negative control: without the relay change it
+  fails). `LiveApplication` maps the reply to a localized result and other
+  `invalid_call` replies to their detail; other errors still throw.
+- **Runs.** `cargo fmt --check`; `cargo clippy -p rstorrent-gateway -p
+  rstorrent-remote-host --all-targets -D warnings`; `cargo test` on both
+  crates; `npm run typecheck` and `npm run test` in `clients/web` (697
+  passed).
 
 ## Stopping Condition
 

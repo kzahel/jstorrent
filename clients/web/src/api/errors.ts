@@ -11,9 +11,9 @@ export class ViewSetContinuityError extends Error {}
 export class ApplicationViewError extends Error {
   public constructor(
     public readonly code: string,
-    message: string,
+    public readonly detail: string,
   ) {
-    super(`${code}: ${message}`);
+    super(`${code}: ${detail}`);
   }
 }
 

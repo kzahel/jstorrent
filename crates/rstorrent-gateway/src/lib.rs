@@ -12,6 +12,7 @@ pub use application_websocket::{
     ApplicationClientFrame, ApplicationConnectionError, ApplicationConnectionErrorCode,
     ApplicationConnectionLimits, ApplicationConnectionMetrics,
     ApplicationConnectionMetricsSnapshot, ApplicationFrameMetrics, ApplicationServerFrame,
+    UNSUPPORTED_CALL_MESSAGE, unsupported_call_id,
 };
 pub use chromeos_companion::{
     ANDROID_COMPANION_PORTS, ARC_COMPANION_HOST, BETA_EXTENSION_ORIGIN, CompanionPairingError,

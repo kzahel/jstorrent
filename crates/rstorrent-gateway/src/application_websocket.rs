@@ -1002,6 +1002,17 @@ async fn serve_application_connection(
                     Message::Text(text) if text.len() <= MAX_INCOMING_MESSAGE_BYTES => {
                         let parsed = serde_json::from_str::<ApplicationClientFrame>(&text);
                         let Ok(frame) = parsed else {
+                            if let Some(call_id) = unsupported_call_id(&text)
+                                .filter(|call_id| !pending_contains(&pending_ids, call_id))
+                            {
+                                send_call_error(
+                                    &control,
+                                    call_id,
+                                    ApplicationConnectionErrorCode::InvalidCall,
+                                    UNSUPPORTED_CALL_MESSAGE,
+                                ).await;
+                                continue;
+                            }
                             invalid_messages = invalid_messages.saturating_add(1);
                             if invalid_messages >= MAX_INVALID_MESSAGES {
                                 fatal_connection(
@@ -2023,6 +2034,32 @@ fn insert_pending(pending: &StdMutex<BTreeSet<String>>, call_id: &str) -> bool {
     true
 }
 
+fn pending_contains(pending: &StdMutex<BTreeSet<String>>, call_id: &str) -> bool {
+    pending
+        .lock()
+        .expect("pending call lock poisoned")
+        .contains(call_id)
+}
+
+/// Sent for a call this host cannot parse, typically a command or settings
+/// key from a newer client. See docs/topics/mixed-version-compatibility.md.
+pub const UNSUPPORTED_CALL_MESSAGE: &str =
+    "this JSTorrent version does not support this request; update it to use this feature";
+
+/// The call an unparseable frame belongs to. A newer client may send a
+/// command, settings key or frame this host predates; answering that call
+/// keeps the connection, where a protocol error would close it. Frames
+/// without a well-formed call ID, and `connect`, remain protocol errors.
+pub fn unsupported_call_id(text: &str) -> Option<String> {
+    let value = serde_json::from_str::<serde_json::Value>(text).ok()?;
+    let frame = value.as_object()?;
+    if frame.get("type")?.as_str()? == "connect" {
+        return None;
+    }
+    let call_id = frame.get("call_id")?.as_str()?;
+    valid_identifier(call_id).then(|| call_id.to_owned())
+}
+
 fn remove_pending(pending: &StdMutex<BTreeSet<String>>, call_id: &str) {
     pending
         .lock()
@@ -2162,6 +2199,37 @@ fn acknowledged_stream_error(error: AcknowledgedViewStreamError) -> ApplicationC
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn only_a_well_formed_call_id_makes_a_call_unsupported() {
+        assert_eq!(
+            super::unsupported_call_id(
+                r#"{"type":"call","call_id":"c-1","operation":{"type":"future"}}"#
+            ),
+            Some("c-1".to_owned())
+        );
+        assert_eq!(
+            super::unsupported_call_id(r#"{"type":"future_frame","call_id":"c.2"}"#),
+            Some("c.2".to_owned())
+        );
+        for frame in [
+            r#"{}"#,
+            r#"not json"#,
+            r#"[]"#,
+            r#"{"type":"call","operation":{}}"#,
+            r#"{"type":"call","call_id":""}"#,
+            r#"{"type":"call","call_id":"has space"}"#,
+            r#"{"type":"call","call_id":7}"#,
+            r#"{"type":"connect","call_id":"c-3"}"#,
+            r#"{"call_id":"c-4"}"#,
+        ] {
+            assert_eq!(super::unsupported_call_id(frame), None, "{frame}");
+        }
+        let long = "a".repeat(super::MAX_IDENTIFIER_BYTES + 1);
+        assert_eq!(
+            super::unsupported_call_id(&format!(r#"{{"type":"call","call_id":"{long}"}}"#)),
+            None
+        );
+    }
     use super::{
         ApplicationClientFrame, ApplicationConnectionErrorCode, ApplicationConnectionRegistry,
         CLIENT_INSTANCE_ID_BYTES, MAX_PENDING_CALLS, insert_pending, valid_client_instance_id,

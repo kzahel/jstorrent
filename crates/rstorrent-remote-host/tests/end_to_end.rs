@@ -293,6 +293,22 @@ async fn shared_browser_gets_application_access_without_durable_authorization() 
     let succeeded = authentication_succeeded(&mut client.socket, &mut client.channel).await;
     assert!(succeeded.authorization.is_none());
     application_connect(&mut client.socket, &mut client.channel).await;
+    // A newer client's command this host cannot parse fails only that call.
+    let unsupported = br#"{"type":"call","call_id":"future-1","operation":{"type":"dispatch","request":{"version":1,"request_id":"r-1","command":{"type":"future_command"}}}}"#;
+    client
+        .socket
+        .send(Message::Binary(
+            client.channel.seal(unsupported).unwrap().into(),
+        ))
+        .await
+        .unwrap();
+    let response = binary(&mut client.socket).await;
+    let frame: ApplicationServerFrame =
+        serde_json::from_slice(&client.channel.open(&response).unwrap().plaintext).unwrap();
+    assert!(matches!(
+        frame,
+        ApplicationServerFrame::CallError { call_id, .. } if call_id == "future-1"
+    ));
     let view = harness.owner.security_view().await.unwrap();
     assert!(view.authority.as_ref().unwrap().clients.is_empty());
     assert_eq!(view.live_circuits.len(), 1);

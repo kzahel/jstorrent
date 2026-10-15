@@ -133,6 +133,8 @@ export type HostCapabilityLifecycle = "transitional" | "required";
 
 export type HostCapabilityDefinition = { name: string, id: number, introduced: string, lifecycle: HostCapabilityLifecycle, commands: Array<string>, client_settings_patch_keys: Array<string>, torrent_settings_patch_keys: Array<string>, };
 
+export const UNSUPPORTED_CALL_MESSAGE: string = "this JSTorrent version does not support this request; update it to use this feature";
+
 export const HOST_CAPABILITY_REGISTRY: ReadonlyArray<HostCapabilityDefinition> = [{"name":"seed_stop_limits","id":1,"introduced":"2026-10-14","lifecycle":"transitional","commands":[],"client_settings_patch_keys":["seed_stop_ratio_percent","seed_stop_time_seconds"],"torrent_settings_patch_keys":["seed_stop_ratio_percent","seed_stop_time_seconds"]}];
 
 export type FilePriority = "normal" | "high" | "skip";
