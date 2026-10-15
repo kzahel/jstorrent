@@ -327,7 +327,7 @@ selected-detail and adversarial all-view cases:
 
 Use the production WebSocket for the first remote-bandwidth matrix. HTTP long
 polling remains an explicit loopback diagnostic comparison and is not required
-for a product baseline or fallback claim. Tauri and native clients require
+for a product baseline or fallback claim. Tauri and native app clients require
 separate adapter-cost evidence only when their in-process encoding becomes a
 measured concern. Named hardware profiles should carry generous calibrated
 floors or ratios; noisy hosted CI may use deterministic byte, batch,

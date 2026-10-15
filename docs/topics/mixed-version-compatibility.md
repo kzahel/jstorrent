@@ -108,7 +108,7 @@ never deleted.
   a localized "update JSTorrent there" result. Hosts released before
   2026-10-15 still close the connection, which the client's gating avoids.
 - Android Compose and iOS run the engine in process and need no gates; the
-  Kotlin and Swift exports of the registry are deferred until a native client
+  Kotlin and Swift exports of the registry are deferred until Compose or iOS
   controls another host.
 
 ## Checks
