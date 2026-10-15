@@ -308,7 +308,9 @@ jobs:
             bundle: appimage
             artifact-arch: arm64
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    # A cold Windows cache takes about an hour. rust-cache saves only after a
+    # successful job, so a tighter limit can keep the cache from recovering.
+    timeout-minutes: 90
     env:
       APPIMAGE_EXTRACT_AND_RUN: "1"
     steps:
