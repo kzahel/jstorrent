@@ -177,7 +177,15 @@ jobs:
             scripts/nightly-desktop-release.test.mjs \
             scripts/desktop-release-input.test.mjs \
             scripts/apply-desktop-nightly-version.test.mjs \
-            scripts/check-release-compatibility.test.mjs
+            scripts/check-release-compatibility.test.mjs \
+            scripts/compat-ledger.test.mjs
+
+      # Every delivery in the support window must be captured for the
+      # compatibility matrix (docs/tactical/359-mixed-version-compatibility-matrix.md).
+      - name: Check compatibility delivery ledger
+        run: |
+          git fetch --force --tags --depth=1 origin
+          node scripts/compat-ledger.mjs
 
       - name: Verify dependency and distribution review tools
         run: python3 -m unittest discover -s scripts -p test_distribution_review.py

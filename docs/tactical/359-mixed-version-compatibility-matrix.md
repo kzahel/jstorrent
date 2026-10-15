@@ -102,7 +102,7 @@ compat/
    current `LiveApplication.dispatch` against desktop 0.3.1's hello, record
    emitted requests, validate them against 0.3.1's exact schema, and require
    capability-owned actions to emit nothing. Negative controls for each.
-2. **Ledger and coverage.** `deliveries.json` for every published delivery
+2. **Ledger and coverage.** Complete; see **Evidence**. `deliveries.json` for every published delivery
    since the JSTorrent cutover; move the `desktop-v0.3.1` fixtures into
    captures; capture desktop 0.3.0 / extension 1.1.3 and Android 1.0.29–1.0.31;
    the window check on every `main` push and in release workflows (full
@@ -205,3 +205,43 @@ Slice 1, 2026-10-15:
   rstorrent-gateway --all-targets -D warnings`; `cargo test -p
   rstorrent-session --lib` (447 passed); `npm run typecheck` and
   `npm run test` in `clients/web` (705 passed).
+
+Slice 2, 2026-10-15:
+
+- **Ledger.** `compat/deliveries.json`: desktop 0.3.0 and 0.3.1; Android
+  1.0.28 (untagged; commit that set versionCode 28), 1.0.29, 1.0.30,
+  1.0.31; extension 1.1.3 (manifest commit) and 1.1.4. Exclusions: frozen
+  incubation tags and the legacy TypeScript Android app (1.0.23 and
+  earlier; 1.0.25–1.0.27 were internal-track only). Package digests are not
+  yet recorded.
+- **Captures.** `scripts/compat-capture.mjs` now keys captures by commit and
+  adds a host role: that commit's `export_types` (schema, traces, with a
+  shared `target/compat-capture` build directory) and a temporary
+  `examples/compat_capture.rs` printing `ApiHello::default()` and the
+  fresh-profile settings runtime view. Five commits captured: `ff632f45`,
+  `b2548290`, `8ddf2e8b`, `5fa018ff` (host and client), `70150ec9`, plus
+  `bff14e72` (client). Capturing `5fa018ff` reproduces the earlier
+  hand-copied `desktop-v0.3.1` fixtures byte for byte; those fixtures are
+  removed. A host capture takes about 80 seconds.
+- **Ledger check.** `scripts/compat-ledger.mjs` (three node tests) runs in
+  CI's `release-tools` job, the desktop and Android release workflows
+  (enforced when publishing, warning otherwise) and the hosted deploy, each
+  fetching tags first. It passes against the current tags.
+- **Findings.** Running the matrix over the older captures found:
+  - 0.3.1 made `UpdateBatch.server_now_millis` required, so current clients
+    rejected every view update from desktop 0.3.0 and Android 1.0.28 (the
+    hosted controller and extension companions included). Fixed: it is a
+    serde default of `"0"`, and the generator now fills `null` for nullable
+    fields that some supported host lacks and TypeScript types as present
+    (here the three tracker instants), failing generation if Ajv cannot.
+    Absent stays absent everywhere else.
+  - Tracker age fields were removed in 0.3.1; extension 1.1.3 requires them.
+  - Current clients send `download_all_pending_add` to desktop 0.3.0 and
+    Android 1.0.28, and its `disable_future` field to Android 1.0.29.
+    Released hosts advertise no capabilities, so 0.3.0 cannot be told from
+    0.3.1 by capability.
+  The last two are recorded in `compat/known-breaks.json` for a decision.
+- **Runs.** `npm run typecheck` and `npm run test` in `clients/web` (742
+  passed); `cargo test -p rstorrent-session -p rstorrent-gateway`; clippy;
+  `node --test scripts/compat-ledger.test.mjs`; `actionlint` on the four
+  workflows.

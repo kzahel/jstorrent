@@ -66,6 +66,13 @@ jobs:
           RELEASE: desktop-v${{ steps.identity.outputs.version }}
           ENFORCE: ${{ steps.identity.outputs.publish == 'true' || steps.identity.outputs.productionPublication == 'true' }}
         run: node scripts/check-release-compatibility.mjs --surface desktop --release "$RELEASE" --enforce "$ENFORCE"
+      - name: Require captures for every supported delivery
+        env:
+          RELEASE: desktop-v${{ steps.identity.outputs.version }}
+          ENFORCE: ${{ steps.identity.outputs.publish == 'true' || steps.identity.outputs.productionPublication == 'true' }}
+        run: |
+          git fetch --force --tags --depth=1 origin
+          node scripts/compat-ledger.mjs --release "$RELEASE" || [ "$ENFORCE" != true ]
       - name: Refuse to overwrite a published release
         if: steps.identity.outputs.publish == 'true'
         env:

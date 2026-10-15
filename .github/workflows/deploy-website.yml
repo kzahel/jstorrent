@@ -115,6 +115,11 @@ jobs:
         working-directory: clients/web
         run: npm run test
 
+      - name: Require captures for every supported delivery
+        run: |
+          git fetch --force --tags --depth=1 origin
+          node scripts/compat-ledger.mjs
+
       - name: Build remote client
         working-directory: clients/web
         env:

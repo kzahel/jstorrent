@@ -42,6 +42,14 @@ jobs:
           ENFORCE: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/android-v') }}
         run: node scripts/check-release-compatibility.mjs --surface android --release "$RELEASE" --enforce "$ENFORCE"
 
+      - name: Require captures for every supported delivery
+        env:
+          RELEASE: ${{ github.ref_name }}
+          ENFORCE: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/android-v') }}
+        run: |
+          git fetch --force --tags --depth=1 origin
+          node scripts/compat-ledger.mjs --release "$RELEASE" || [ "$ENFORCE" != true ]
+
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin

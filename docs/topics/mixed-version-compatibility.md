@@ -115,10 +115,21 @@ never deleted.
 
 ## Checks
 
-- `clients/web/src/released-hosts.test.ts` decodes the hello, views and
-  settings each released host produced (fixtures copied unchanged from the
-  release tag into `clients/web/src/fixtures/released/<tag>/`) and checks
-  every current field is present and every newer capability is gated.
+- **Captures and ledger.** `compat/deliveries.json` lists every submitted
+  or published delivery (surface, version, source commit, status, dates,
+  roles), with explicit exclusions for frozen incubation lanes and the
+  legacy TypeScript Android app. `scripts/compat-capture.mjs --commit <sha>
+  --roles host,client` checks the commit out in a temporary worktree and
+  records what that source produces into `compat/captures/<commit>/`: for a
+  host its schema, view-set trace, hello and default settings; for a client
+  its bundled decoder. `scripts/compat-ledger.mjs` fails when a delivery in
+  the window (or the newest of a surface) lacks a capture, or a production
+  tag is neither recorded nor excluded; it runs in CI, both release
+  workflows (enforced when publishing) and the hosted deploy.
+  `clients/web/src/compat/captures.ts` loads them for the tests below.
+- `clients/web/src/released-hosts.test.ts` (D1) decodes every captured
+  host's hello, views and settings and checks every current field is
+  present and every newer capability is gated.
 - `App.test.tsx` renders Settings and torrent detail against a released host
   and requires its missing features to be hidden.
 - `clients/web/src/api/contract-compatibility.test.ts` diffs the generated
@@ -132,8 +143,6 @@ never deleted.
 - Rust tests keep registry names and IDs unique, every owned patch key and
   command field real, and every entry advertised in the hello.
 - **Matrix ([Tactical 359](../tactical/359-mixed-version-compatibility-matrix.md)).**
-  `scripts/compat-capture.mjs` captures a released client's own decoder from
-  its commit into `compat/captures/<release>/`.
   `clients/web/src/compat/old-clients.test.ts` (D2) runs each captured
   decoder over current host frames; raw failures are allowed only under the
   release hold and must disappear when exactly the reviewed exposures are
@@ -141,6 +150,10 @@ never deleted.
   `LiveApplication.test.ts` (R1) record what current dispatch emits against a
   released host's hello and validate it against that host's exact schema with
   every object closed; actions it lacks emit nothing.
+- **Known breaks.** `compat/known-breaks.json` records incompatibilities the
+  matrix found in released combinations, each awaiting a fix-or-accept
+  decision. The contract and R1 tests accept exactly those items for those
+  captures and fail on anything else.
 
 ## Current Release Hold
 
@@ -179,11 +192,11 @@ Before any host release (desktop, headless, Android):
    tolerant extension, or accept and record that break for the release. An
    enum value or non-row variant breaks even tolerant clients; do not ship one
    without a gate.
-3. After the release, add its fixtures: copy `v1.schema.json`, an API hello
-   built from that release's source and the generated
-   `view-set-trace.json` and default settings view from the release tag into
-   `clients/web/src/fixtures/released/<tag>/`, add the tag to both test
-   files, and move reviewed exposures the release shipped into history.
+3. When a delivery is submitted (desktop, Android, headless, extension),
+   add it to `compat/deliveries.json` and run `scripts/compat-capture.mjs`
+   for its commit with the roles it plays, then commit both. The ledger
+   check fails CI until this is done for a pushed production tag; extension
+   versions have no tags, so record them when submitting.
 
 Before deploying the hosted controller: the same web tests pass. It deploys
 from `main`, so a contract change is live for every connected host as soon
