@@ -5612,7 +5612,7 @@
     "description": "Settings > Data & reset: title of the row that saves the torrent list to a file"
   },
   "inspection.components.torrent.list.description": {
-    "defaultMessage": "Save every torrent to one file to keep as a backup or to open on another device.",
+    "defaultMessage": "Save your list of torrents to a file. Downloaded files are not included.",
     "description": "Settings > Data & reset: explains Export torrent list"
   },
   "inspection.components.torrent.list.export": {

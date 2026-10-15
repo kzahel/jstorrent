@@ -8062,7 +8062,7 @@
   "inspection.components.torrent.list.description": [
     {
       "type": 0,
-      "value": "Save every torrent to one file to keep as a backup or to open on another device."
+      "value": "Save your list of torrents to a file. Downloaded files are not included."
     }
   ],
   "inspection.components.torrent.list.export": [

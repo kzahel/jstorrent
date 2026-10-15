@@ -209,7 +209,7 @@
 
     <!-- Torrent list export and import, and adding several torrents at once. -->
     <string name="torrent_list_export">Export torrent list</string>
-    <string name="torrent_list_export_detail">Save all your torrents to one file. You can import it here or on another device.</string>
+    <string name="torrent_list_export_detail">Save your list of torrents to a file. Downloaded files are not included.</string>
     <string name="torrent_list_import">Import torrent list</string>
     <string name="torrent_list_import_detail">Add torrents from an exported file to the default folder.</string>
     <string name="torrent_list_import_needs_folder">Add a download folder before importing.</string>
