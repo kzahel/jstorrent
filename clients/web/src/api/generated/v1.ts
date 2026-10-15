@@ -23,6 +23,26 @@ export type TorrentSettingsPatch = { upload_rate_limit?: TransferRateLimit, down
 
 export type TorrentListImportTarget = { storage_root: string, keep_matching_locations: boolean, };
 
+export type CatalogRecoveryReason = "migration_failed" | "newer_version" | "retired_version" | "locked" | "unreadable";
+
+export type CatalogRecoveryStatus = { reason: CatalogRecoveryReason,
+/**
+ * The catalog's stored version, when it could be read.
+ */
+catalog_version?: number | null,
+/**
+ * The catalog version this build writes.
+ */
+supported_version: number,
+/**
+ * Whether the torrent list can be exported from the catalog.
+ */
+export_available: boolean,
+/**
+ * Bounded text for a bug report: versions and the open error.
+ */
+details: string, };
+
 export type TorrentListImportFailure = { name: string, reason: string, };
 
 export type TorrentListImportReport = { added: number, already_present: number, failed: Array<TorrentListImportFailure>, };

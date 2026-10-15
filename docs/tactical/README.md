@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [369 — Recovery screen when the torrent catalog will not open](369-catalog-recovery-screen.md):
+  desktop, Android and headless offer updates, a read-only torrent list export
+  and bug-report details instead of crashing or a generic error.
 - [368 — Local MP4 native playback](368-local-mp4-native-playback.md): complete;
   prefer codec-checked native MP4/M4V playback so Big Buck Bunny's MP3 audio
   plays without transcoding; parser disposal preserves the player session.

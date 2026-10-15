@@ -11,16 +11,37 @@ impl SessionStore {
     /// Every torrent not being removed, in catalog order, ready for
     /// `torrent_list::write_bundle`. Reads only; never changes the catalog.
     pub(crate) fn torrent_list_export(&self) -> Result<Vec<ExportedTorrent>, StoreError> {
-        let mut statement = self.connection.prepare(
+        torrent_list_export_from(&self.connection)
+    }
+}
+
+/// The exporter over any catalog of schema 26 or later, including one newer
+/// than this build or one that failed to migrate (Tactical 369). It reads
+/// baseline tables and uses later columns only when they exist.
+pub(crate) fn torrent_list_export_from(
+    connection: &Connection,
+) -> Result<Vec<ExportedTorrent>, StoreError> {
+    let has_stop_limits = connection.query_row(
+        "SELECT count(*) FROM pragma_table_info('torrents')
+             WHERE name IN ('seed_stop_ratio_percent', 'seed_stop_time_seconds')",
+        [],
+        |row| row.get::<_, i64>(0),
+    )? == 2;
+    let stop_columns = if has_stop_limits {
+        "t.seed_stop_ratio_percent, t.seed_stop_time_seconds"
+    } else {
+        "NULL, NULL"
+    };
+    {
+        let mut statement = connection.prepare(&format!(
             "SELECT t.torrent_id, s.label, t.desired_state, t.archived, t.raw_info,
-                    t.upload_rate_limit, t.download_rate_limit,
-                    t.seed_stop_ratio_percent, t.seed_stop_time_seconds
+                    t.upload_rate_limit, t.download_rate_limit, {stop_columns}
              FROM torrents t
              JOIN storage_roots s ON s.root_id = t.storage_root
              LEFT JOIN removal_jobs r ON r.torrent_id = t.torrent_id
              WHERE r.torrent_id IS NULL
-             ORDER BY t.torrent_id",
-        )?;
+             ORDER BY t.torrent_id"
+        ))?;
         let rows = statement
             .query_map([], |row| {
                 Ok((
@@ -39,10 +60,10 @@ impl SessionStore {
         let mut torrents = Vec::with_capacity(rows.len());
         for (id, label, desired_state, archived, raw_info, upload, download, ratio, time) in rows {
             let torrent_id = decode_stored_torrent_id(id)?;
-            let info_hashes = read_info_hashes(&self.connection, &torrent_id)?;
+            let info_hashes = read_info_hashes(connection, &torrent_id)?;
             let name = raw_info.as_deref().map(durable_content_name).transpose()?;
-            let (source, metainfo) = self.export_source(&torrent_id, raw_info.as_deref())?;
-            let (default, exceptions) = read_selection_state(&self.connection, &torrent_id)?;
+            let (source, metainfo) = export_source(connection, &torrent_id, raw_info.as_deref())?;
+            let (default, exceptions) = read_selection_state(connection, &torrent_id)?;
             let positive_rate = |value: i64| u32::try_from(value).ok().filter(|rate| *rate != 0);
             torrents.push(ExportedTorrent {
                 manifest: ManifestTorrent {
@@ -65,7 +86,7 @@ impl SessionStore {
                         .to_owned(),
                         exceptions,
                     },
-                    high_priority_files: read_high_priority_files(&self.connection, &torrent_id)?,
+                    high_priority_files: read_high_priority_files(connection, &torrent_id)?,
                     limits: ManifestLimits {
                         upload_bytes_per_second: positive_rate(upload),
                         download_bytes_per_second: positive_rate(download),
@@ -78,16 +99,17 @@ impl SessionStore {
         }
         Ok(torrents)
     }
+}
 
-    /// The retained `.torrent` when there is one, a `.torrent` built from
-    /// verified metadata for a magnet add, or the magnet itself.
-    fn export_source(
-        &self,
-        torrent_id: &TorrentId,
-        raw_info: Option<&[u8]>,
-    ) -> Result<(ManifestSource, Option<Vec<u8>>), StoreError> {
-        let retained = self
-            .connection
+/// The retained `.torrent` when there is one, a `.torrent` built from
+/// verified metadata for a magnet add, or the magnet itself.
+fn export_source(
+    connection: &Connection,
+    torrent_id: &TorrentId,
+    raw_info: Option<&[u8]>,
+) -> Result<(ManifestSource, Option<Vec<u8>>), StoreError> {
+    {
+        let retained = connection
             .query_row(
                 "SELECT fidelity, metainfo FROM torrent_source
                  WHERE torrent_id = ?1 AND kind = 'metainfo'",
@@ -105,7 +127,7 @@ impl SessionStore {
             ));
         }
         if let Some(raw_info) = raw_info {
-            let trackers = read_trackers(&self.connection, torrent_id)?;
+            let trackers = read_trackers(connection, torrent_id)?;
             return Ok((
                 ManifestSource::Metainfo {
                     file: String::new(),
@@ -114,7 +136,7 @@ impl SessionStore {
                 Some(synthesized_metainfo(raw_info, &trackers)),
             ));
         }
-        let (magnet, _) = self.export_base_magnet(&torrent_id.to_string())?;
+        let (magnet, _) = export_base_magnet_from(connection, &torrent_id.to_string())?;
         Ok((
             ManifestSource::Magnet {
                 magnet: magnet.magnet,

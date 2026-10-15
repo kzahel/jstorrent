@@ -10,6 +10,7 @@ mod advertised_endpoint;
 mod application;
 mod application_connection;
 mod auto_manager;
+mod catalog_recovery;
 mod control;
 mod dht_views;
 mod diagnostics;
@@ -51,6 +52,10 @@ pub use application::{
 pub use application_connection::{
     AcknowledgedViewStream, AcknowledgedViewStreamError, ApplicationCall, ApplicationCallError,
     ApplicationCallResult,
+};
+pub use catalog_recovery::{
+    CatalogExportError, CatalogRecoveryReason, CatalogRecoveryStatus, diagnose_catalog,
+    export_torrent_list_read_only,
 };
 pub use control::{
     AddTorrentBytesRequest, AddTorrentDisposition, AddTorrentResult, CONTROL_VERSION, Command,

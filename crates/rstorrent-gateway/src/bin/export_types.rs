@@ -15,18 +15,18 @@ use rstorrent_session::{
     ApiProductInfo, ApiVersion, ApplicationCall, ApplicationCallResult,
     ApplicationNetworkPrerequisiteView, ApplicationNetworkRuntimeState,
     ApplicationNetworkRuntimeView, BandwidthDirectionRuntimeView, BandwidthRuntimeView,
-    CapabilityStatus, CatalogPageRequest, CatalogPageView, CheckingPhaseView, CheckingProgressView,
-    ClientSettings, ClientSettingsApplicationState, ClientSettingsDegradedReason,
-    ClientSettingsPatch, ClientSettingsRuntimeView, Command, CommandResult, DeliveryMode,
-    DeliveryPolicy, DhtAddressFamilyView, DhtBucketView, DhtFamilyInspectionView,
-    DhtInspectionView, DhtLifecycleView, DhtLookupView, DhtNetworkPolicyView, DiagnosticCategory,
-    DiagnosticEvent, DiagnosticField, DiagnosticFilter, DiagnosticProfile, DiagnosticRetention,
-    DiagnosticSeverity, DiagnosticSubject, DiagnosticValue, DiskCheckpointStageView,
-    DiskPieceStageView, DiskPieceView, DiskPipelineView, DiskPressureView,
-    EffectiveListenerSettings, EncryptionPolicy, ErrorCode, ErrorResponse, FileCatalogState,
-    FileFieldUpdate, FileIndexRange, FilePriority, FileRowUpdate, FileSelectionIntent,
-    FileSelectionOverride, FileSelectionView, FileView, HostCapabilityDefinition,
-    HostCapabilityLifecycle, HttpsServerAuthenticationPolicy, IndexRange,
+    CapabilityStatus, CatalogPageRequest, CatalogPageView, CatalogRecoveryReason,
+    CatalogRecoveryStatus, CheckingPhaseView, CheckingProgressView, ClientSettings,
+    ClientSettingsApplicationState, ClientSettingsDegradedReason, ClientSettingsPatch,
+    ClientSettingsRuntimeView, Command, CommandResult, DeliveryMode, DeliveryPolicy,
+    DhtAddressFamilyView, DhtBucketView, DhtFamilyInspectionView, DhtInspectionView,
+    DhtLifecycleView, DhtLookupView, DhtNetworkPolicyView, DiagnosticCategory, DiagnosticEvent,
+    DiagnosticField, DiagnosticFilter, DiagnosticProfile, DiagnosticRetention, DiagnosticSeverity,
+    DiagnosticSubject, DiagnosticValue, DiskCheckpointStageView, DiskPieceStageView, DiskPieceView,
+    DiskPipelineView, DiskPressureView, EffectiveListenerSettings, EncryptionPolicy, ErrorCode,
+    ErrorResponse, FileCatalogState, FileFieldUpdate, FileIndexRange, FilePriority, FileRowUpdate,
+    FileSelectionIntent, FileSelectionOverride, FileSelectionView, FileView,
+    HostCapabilityDefinition, HostCapabilityLifecycle, HttpsServerAuthenticationPolicy, IndexRange,
     IntegrityPreparationPhaseView, IntegrityPreparationView, Ipv6PinholeFailureStage,
     Ipv6PinholeStatus, LibraryArchivedFilter, LibraryAvailabilityFilter, LibraryFacetsView,
     LibraryGroupView, LibraryGrouping, LibraryMediaItemView, LibraryMediaKind, LibraryMediaQuery,
@@ -102,6 +102,8 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<TorrentSeedStopLimits>(&mut declarations)?;
     append::<TorrentSettingsPatch>(&mut declarations)?;
     append::<TorrentListImportTarget>(&mut declarations)?;
+    append::<CatalogRecoveryReason>(&mut declarations)?;
+    append::<CatalogRecoveryStatus>(&mut declarations)?;
     append::<TorrentListImportFailure>(&mut declarations)?;
     append::<TorrentListImportReport>(&mut declarations)?;
     append::<ActiveSeedLimit>(&mut declarations)?;

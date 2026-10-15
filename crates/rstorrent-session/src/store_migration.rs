@@ -16,6 +16,10 @@ use rusqlite::{Connection, Transaction, TransactionBehavior};
 use crate::store::StoreError;
 use crate::store_schema::{BASELINE_SCHEMA_VERSION, SCHEMA_VERSION};
 
+/// Debug builds only: set to fail every catalog migration (Tactical 369).
+#[cfg(debug_assertions)]
+pub(crate) const FAIL_MIGRATION_ENV: &str = "RSTORRENT_TEST_FAIL_MIGRATION";
+
 /// Moves a catalog from one version to the next inside the runner's
 /// transaction. It must not commit, change `user_version` or touch files.
 pub(crate) type MigrationStep = fn(&Transaction<'_>) -> Result<(), StoreError>;
@@ -111,6 +115,14 @@ fn migrate_with_steps(
         )));
     }
     apply_steps(&transaction, from, steps)?;
+    // Tactical 369 dry runs: debug builds can fail a real migration after its
+    // steps ran, exercising the rollback and the recovery screen.
+    #[cfg(debug_assertions)]
+    if std::env::var_os(FAIL_MIGRATION_ENV).is_some() {
+        return Err(StoreError::DurableState(format!(
+            "migration from schema {from} failed on purpose ({FAIL_MIGRATION_ENV})"
+        )));
+    }
     let violations: i64 =
         transaction.query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |row| {
             row.get(0)

@@ -14,7 +14,7 @@ use crate::store_schema::{BASELINE_SCHEMA_VERSION, SCHEMA_VERSION};
 
 pub(crate) const DATABASE_FILENAME: &str = "session.db";
 const METRICS_DATABASE_FILENAME: &str = "metrics.db";
-const WAL_FILENAME: &str = "session.db-wal";
+pub(crate) const WAL_FILENAME: &str = "session.db-wal";
 const SHM_FILENAME: &str = "session.db-shm";
 pub(crate) const PRE_MIGRATION_FILENAME: &str = "session.db.pre-migration";
 const PRE_MIGRATION_TEMPORARY_FILENAME: &str = "session.db.pre-migration.tmp";
@@ -192,7 +192,7 @@ fn inspect_user_version(database_path: &Path) -> Result<i64, StoreError> {
         .map_err(profile_sqlite_error)
 }
 
-fn validate_fixed_file(path: &Path, basename: &'static str) -> Result<(), StoreError> {
+pub(crate) fn validate_fixed_file(path: &Path, basename: &'static str) -> Result<(), StoreError> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_symlink() => Err(StoreError::UnsafeProfileFile {
             basename,

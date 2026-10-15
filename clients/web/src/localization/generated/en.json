@@ -10708,6 +10708,170 @@
       "value": "uTP"
     }
   ],
+  "inspection.recovery.body.locked": [
+    {
+      "type": 0,
+      "value": "Close the other JSTorrent window, then open JSTorrent again."
+    }
+  ],
+  "inspection.recovery.body.migration": [
+    {
+      "type": 0,
+      "value": "Your torrents, settings and downloaded files are safe and unchanged. An update will fix this."
+    }
+  ],
+  "inspection.recovery.body.newer": [
+    {
+      "type": 0,
+      "value": "Install the latest version to open it. Your torrents and downloaded files are unchanged."
+    }
+  ],
+  "inspection.recovery.body.retired": [
+    {
+      "type": 0,
+      "value": "This version can't open it. Nothing was changed or deleted, and your downloaded files are unchanged."
+    }
+  ],
+  "inspection.recovery.body.unreadable": [
+    {
+      "type": 0,
+      "value": "Nothing was changed or deleted. Check for an update, or copy the details and report the problem."
+    }
+  ],
+  "inspection.recovery.details": [
+    {
+      "type": 0,
+      "value": "Details"
+    }
+  ],
+  "inspection.recovery.details.copied": [
+    {
+      "type": 0,
+      "value": "Details copied"
+    }
+  ],
+  "inspection.recovery.details.copy": [
+    {
+      "type": 0,
+      "value": "Copy details"
+    }
+  ],
+  "inspection.recovery.export": [
+    {
+      "type": 0,
+      "value": "Export torrent list"
+    }
+  ],
+  "inspection.recovery.export.failed": [
+    {
+      "type": 0,
+      "value": "Couldn't export the torrent list: "
+    },
+    {
+      "type": 1,
+      "value": "detail"
+    }
+  ],
+  "inspection.recovery.export.saved": [
+    {
+      "type": 0,
+      "value": "Torrent list saved."
+    }
+  ],
+  "inspection.recovery.quit": [
+    {
+      "type": 0,
+      "value": "Quit"
+    }
+  ],
+  "inspection.recovery.report": [
+    {
+      "type": 0,
+      "value": "Report a problem"
+    }
+  ],
+  "inspection.recovery.title.locked": [
+    {
+      "type": 0,
+      "value": "JSTorrent is already open"
+    }
+  ],
+  "inspection.recovery.title.migration": [
+    {
+      "type": 0,
+      "value": "JSTorrent couldn't update your torrent list"
+    }
+  ],
+  "inspection.recovery.title.newer": [
+    {
+      "type": 0,
+      "value": "This torrent list is from a newer version of JSTorrent"
+    }
+  ],
+  "inspection.recovery.title.retired": [
+    {
+      "type": 0,
+      "value": "This torrent list is from an early test version"
+    }
+  ],
+  "inspection.recovery.title.unreadable": [
+    {
+      "type": 0,
+      "value": "JSTorrent couldn't read its torrent list"
+    }
+  ],
+  "inspection.recovery.update.check": [
+    {
+      "type": 0,
+      "value": "Check for updates"
+    }
+  ],
+  "inspection.recovery.update.checking": [
+    {
+      "type": 0,
+      "value": "Checking for updates…"
+    }
+  ],
+  "inspection.recovery.update.current": [
+    {
+      "type": 0,
+      "value": "No update is available yet."
+    }
+  ],
+  "inspection.recovery.update.failed": [
+    {
+      "type": 0,
+      "value": "Couldn't check for updates: "
+    },
+    {
+      "type": 1,
+      "value": "detail"
+    }
+  ],
+  "inspection.recovery.update.install": [
+    {
+      "type": 0,
+      "value": "Install version "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    }
+  ],
+  "inspection.recovery.update.installing": [
+    {
+      "type": 0,
+      "value": "Installing version "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": "…"
+    }
+  ],
   "inspection.seed.stop.custom": [
     {
       "type": 0,

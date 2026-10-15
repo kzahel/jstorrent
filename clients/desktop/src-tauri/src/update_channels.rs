@@ -260,14 +260,14 @@ async fn discover_at(
 pub(crate) async fn desktop_check_update(
     app: tauri::AppHandle,
     state: State<'_, Mutex<ChannelUpdates>>,
-    product: State<'_, crate::DesktopState>,
+    product: State<'_, crate::DesktopProduct>,
     reason: String,
 ) -> Result<ChannelCheckResult, String> {
     if !matches!(reason.as_str(), "startup" | "periodic" | "manual") {
         return Err("Invalid update check reason".into());
     }
     let installation_id = product
-        .product_state
+        .0
         .updater_installation_id()
         .map_err(|error| format!("read updater installation policy: {error}"))?;
     let (channel, generation) = {

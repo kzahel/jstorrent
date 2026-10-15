@@ -162,6 +162,17 @@ async function openLiveInspection(
 // Renders before any desktop adapter exists; each adapter tolerates absence
 // and arrives in one later render. Nothing here rejects after that render.
 export async function startTauriInspection(): Promise<void> {
+  // A torrent catalog that did not open shows recovery instead (Tactical 369).
+  const recovery = await import("../tauri-recovery")
+    .then(({ loadTauriRecovery }) => loadTauriRecovery())
+    .catch((error: unknown) => {
+      console.error("Desktop recovery status was unavailable:", error);
+      return null;
+    });
+  if (recovery !== null) {
+    await startTauriRecovery(recovery);
+    return;
+  }
   const application = LiveApplication.connect({
     load: () =>
       import("../tauri-view-client").then(
@@ -231,6 +242,30 @@ export async function startTauriInspection(): Promise<void> {
     openExternalUrl,
     about: { connection: "desktop" },
   });
+}
+
+async function startTauriRecovery(
+  recovery: import("../tauri-recovery").DesktopRecovery,
+): Promise<void> {
+  const { RecoveryScreen } = await import("./components/RecoveryScreen");
+  const root = createRoot(applicationRoot());
+  const render = (props: Omit<import("./components/RecoveryScreen").RecoveryScreenProps, "recovery">) =>
+    root.render(<RecoveryScreen recovery={recovery} {...props} />);
+  render({});
+  markStartup("shell_rendered");
+  const [updater, openExternalUrl] = await Promise.all([
+    adapter("updater", () =>
+      import("../tauri-updater").then(({ createTauriDesktopUpdater }) =>
+        createTauriDesktopUpdater(),
+      ),
+    ),
+    adapter("external links", () =>
+      import("../tauri-external-links").then(
+        ({ openTauriExternalUrl }) => openTauriExternalUrl,
+      ),
+    ),
+  ]);
+  render({ updater, openExternalUrl });
 }
 
 function adapter<T>(

@@ -66,6 +66,11 @@ recording them share one transaction. Tactical 358 also moves `product.db` to
 the same baseline-plus-steps pattern (baseline 2, released fixture) and adds
 the desktop shell switches as product schema 3.
 
+A catalog that will not open (failed migration, newer, retired, locked or
+unreadable) shows a recovery screen on desktop and Android instead of crashing
+or a generic error, with update, read-only export and bug-report actions
+(Tactical [369](../tactical/369-catalog-recovery-screen.md)).
+
 The same rule covers every other durable format. Tactical 345 records the
 audit; [`durable-data-migrations`](durable-data-migrations.md) is the ledger
 of every migration and compatibility reader and when each may be retired.

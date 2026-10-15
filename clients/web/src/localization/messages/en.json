@@ -6090,5 +6090,101 @@
   "inspection.components.share.settings.section.omit.description": {
     "defaultMessage": "Share links never include your address.",
     "description": "Explains the Never include choice"
+  },
+  "inspection.recovery.title.migration": {
+    "defaultMessage": "JSTorrent couldn't update your torrent list",
+    "description": "Recovery screen title: the stored torrent list failed to move to this version's format"
+  },
+  "inspection.recovery.body.migration": {
+    "defaultMessage": "Your torrents, settings and downloaded files are safe and unchanged. An update will fix this.",
+    "description": "Recovery screen explanation after a failed upgrade of the torrent list"
+  },
+  "inspection.recovery.title.newer": {
+    "defaultMessage": "This torrent list is from a newer version of JSTorrent",
+    "description": "Recovery screen title: a newer app version saved the torrent list"
+  },
+  "inspection.recovery.body.newer": {
+    "defaultMessage": "Install the latest version to open it. Your torrents and downloaded files are unchanged.",
+    "description": "Recovery screen explanation when an older version was installed over a newer one"
+  },
+  "inspection.recovery.title.retired": {
+    "defaultMessage": "This torrent list is from an early test version",
+    "description": "Recovery screen title: a pre-release torrent list this version cannot read"
+  },
+  "inspection.recovery.body.retired": {
+    "defaultMessage": "This version can't open it. Nothing was changed or deleted, and your downloaded files are unchanged.",
+    "description": "Recovery screen explanation for an unsupported pre-release torrent list"
+  },
+  "inspection.recovery.title.locked": {
+    "defaultMessage": "JSTorrent is already open",
+    "description": "Recovery screen title: another running copy is using the torrent list"
+  },
+  "inspection.recovery.body.locked": {
+    "defaultMessage": "Close the other JSTorrent window, then open JSTorrent again.",
+    "description": "Recovery screen explanation when another copy holds the torrent list"
+  },
+  "inspection.recovery.title.unreadable": {
+    "defaultMessage": "JSTorrent couldn't read its torrent list",
+    "description": "Recovery screen title: the torrent list or app data could not be read"
+  },
+  "inspection.recovery.body.unreadable": {
+    "defaultMessage": "Nothing was changed or deleted. Check for an update, or copy the details and report the problem.",
+    "description": "Recovery screen explanation when the torrent list cannot be read"
+  },
+  "inspection.recovery.export": {
+    "defaultMessage": "Export torrent list",
+    "description": "Recovery screen button: save the torrent list to a file"
+  },
+  "inspection.recovery.export.saved": {
+    "defaultMessage": "Torrent list saved.",
+    "description": "Recovery screen confirmation after exporting the torrent list"
+  },
+  "inspection.recovery.export.failed": {
+    "defaultMessage": "Couldn't export the torrent list: {detail}",
+    "description": "Recovery screen error; detail is the reason"
+  },
+  "inspection.recovery.details": {
+    "defaultMessage": "Details",
+    "description": "Recovery screen disclosure showing technical details for a bug report"
+  },
+  "inspection.recovery.details.copy": {
+    "defaultMessage": "Copy details",
+    "description": "Recovery screen button: copy technical details for a bug report"
+  },
+  "inspection.recovery.details.copied": {
+    "defaultMessage": "Details copied",
+    "description": "Recovery screen button label after copying details"
+  },
+  "inspection.recovery.report": {
+    "defaultMessage": "Report a problem",
+    "description": "Recovery screen button: open the feedback page"
+  },
+  "inspection.recovery.quit": {
+    "defaultMessage": "Quit",
+    "description": "Recovery screen button: quit JSTorrent"
+  },
+  "inspection.recovery.update.check": {
+    "defaultMessage": "Check for updates",
+    "description": "Recovery screen button: look for a newer version"
+  },
+  "inspection.recovery.update.install": {
+    "defaultMessage": "Install version {version}",
+    "description": "Recovery screen button: install the available update; version is its number"
+  },
+  "inspection.recovery.update.checking": {
+    "defaultMessage": "Checking for updates…",
+    "description": "Recovery screen status while checking for an update"
+  },
+  "inspection.recovery.update.current": {
+    "defaultMessage": "No update is available yet.",
+    "description": "Recovery screen status when no newer version exists"
+  },
+  "inspection.recovery.update.installing": {
+    "defaultMessage": "Installing version {version}…",
+    "description": "Recovery screen status while an update installs"
+  },
+  "inspection.recovery.update.failed": {
+    "defaultMessage": "Couldn't check for updates: {detail}",
+    "description": "Recovery screen error; detail is the reason"
   }
 }

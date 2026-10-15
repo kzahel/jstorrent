@@ -1055,6 +1055,92 @@ async fn desktop_import_torrent_bundle(
         .map_err(|error| error.to_string())
 }
 
+/// The product database, managed on its own so updates can be checked even
+/// when the torrent catalog is in recovery (Tactical 369).
+pub(crate) struct DesktopProduct(pub(crate) ProductStateOwner);
+
+/// Why the torrent catalog did not open, and where it is.
+struct DesktopRecovery {
+    status: rstorrent_session::CatalogRecoveryStatus,
+    profile_root: PathBuf,
+}
+
+/// Debug builds only: `RSTORRENT_DESKTOP_DATA_ROOT` keeps config and data
+/// under one folder so recovery dry runs never touch a real profile.
+fn debug_data_root_override() -> Option<PathBuf> {
+    if cfg!(debug_assertions) {
+        std::env::var_os("RSTORRENT_DESKTOP_DATA_ROOT").map(PathBuf::from)
+    } else {
+        None
+    }
+}
+
+fn enter_desktop_recovery(app: &tauri::App, profile_root: &Path, failure: &str) {
+    eprintln!("JSTorrent could not open its torrent catalog: {failure}");
+    let status = rstorrent_session::diagnose_catalog(profile_root, failure);
+    app.manage(DesktopRecovery {
+        status,
+        profile_root: profile_root.to_owned(),
+    });
+}
+
+#[tauri::command]
+fn desktop_recovery_status(app: AppHandle) -> Option<rstorrent_session::CatalogRecoveryStatus> {
+    app.try_state::<DesktopRecovery>()
+        .map(|recovery| recovery.status.clone())
+}
+
+/// Saves the torrent list from the catalog without opening it for writing.
+/// Returns false when the user cancels the save dialog.
+#[tauri::command]
+async fn desktop_recovery_export(window: WebviewWindow, app: AppHandle) -> Result<bool, String> {
+    let Some(recovery) = app.try_state::<DesktopRecovery>() else {
+        return Err("JSTorrent is not in recovery".to_owned());
+    };
+    let profile_root = recovery.profile_root.clone();
+    let bundle = tauri::async_runtime::spawn_blocking(move || {
+        rstorrent_session::export_torrent_list_read_only(&profile_root)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+    .map_err(|error| error.to_string())?;
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    window
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .set_title(desktop_localization::text(
+            "dialog.torrent-list-export.title",
+        ))
+        .set_file_name("jstorrent-torrents.zip")
+        .add_filter(
+            desktop_localization::text("dialog.torrent-list.filter"),
+            &["zip"],
+        )
+        .save_file(move |selection| {
+            let _ = sender.send(selection);
+        });
+    let Some(selection) = receiver
+        .await
+        .map_err(|_| "save dialog closed without a result".to_owned())?
+    else {
+        return Ok(false);
+    };
+    let path = selection
+        .into_path()
+        .map_err(|error| format!("resolve export location: {error}"))?;
+    tauri::async_runtime::spawn_blocking(move || std::fs::write(&path, bundle))
+        .await
+        .map_err(|error| error.to_string())?
+        .map_err(|error| format!("save torrent list: {error}"))?;
+    Ok(true)
+}
+
+#[tauri::command]
+fn desktop_recovery_quit(app: AppHandle) {
+    app.exit(0);
+}
+
 async fn pick_download_directory(
     window: &WebviewWindow,
     starting_directory: &Path,
@@ -1575,7 +1661,11 @@ async fn application_shutdown(
 }
 
 #[tauri::command]
-async fn application_restart(app: AppHandle, state: State<'_, DesktopState>) -> Result<(), String> {
+async fn application_restart(app: AppHandle) -> Result<(), String> {
+    let Some(state) = app.try_state::<DesktopState>() else {
+        // Recovery (Tactical 369): nothing to shut down after an update.
+        app.restart();
+    };
     let started = request_application_shutdown(&app, true);
     if !started && state.shutdown.phase() == ShutdownPhase::Running {
         return Err("desktop restart shutdown could not be started".to_owned());
@@ -1584,7 +1674,15 @@ async fn application_restart(app: AppHandle, state: State<'_, DesktopState>) -> 
 }
 
 fn request_application_shutdown(app: &AppHandle, restart_after_shutdown: bool) -> bool {
-    let state = app.state::<DesktopState>();
+    // In recovery (Tactical 369) nothing is running: quit exits, and the
+    // restart after installing an update restarts directly.
+    let Some(state) = app.try_state::<DesktopState>() else {
+        if restart_after_shutdown {
+            app.restart();
+        }
+        app.exit(0);
+        return true;
+    };
     if !state.shutdown.try_start() {
         return false;
     }
@@ -2009,7 +2107,9 @@ fn handle_desktop_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
 }
 
 fn toggle_run_in_background(app: &AppHandle) {
-    let state = app.state::<DesktopState>();
+    let Some(state) = app.try_state::<DesktopState>() else {
+        return;
+    };
     let mut settings = state
         .shell_settings
         .lock()
@@ -2056,8 +2156,10 @@ fn request_manual_update_check(app: &AppHandle) {
         eprintln!("failed to restore desktop window for update check: {error}");
         return;
     }
-    let generation = app
-        .state::<DesktopState>()
+    let Some(state) = app.try_state::<DesktopState>() else {
+        return;
+    };
+    let generation = state
         .update_check_generation
         .fetch_add(1, Ordering::AcqRel)
         .wrapping_add(1);
@@ -2067,8 +2169,11 @@ fn request_manual_update_check(app: &AppHandle) {
 }
 
 #[tauri::command]
-fn desktop_update_check_generation(state: State<'_, DesktopState>) -> u64 {
-    state.update_check_generation.load(Ordering::Acquire)
+fn desktop_update_check_generation(app: AppHandle) -> u64 {
+    // Recovery (Tactical 369) has no desktop state but still checks updates.
+    app.try_state::<DesktopState>().map_or(0, |state| {
+        state.update_check_generation.load(Ordering::Acquire)
+    })
 }
 
 fn handle_external_activation_values<I, S>(app: &AppHandle, values: I)
@@ -2260,16 +2365,24 @@ pub fn run() {
         .plugin(tauri_plugin_opener::Builder::new().open_js_links_on_click(false).build())
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
-            let config_dir = app
-                .path()
-                .app_config_dir()
-                .map_err(|error| format!("resolve desktop config directory: {error}"))?;
+            let data_root_override = debug_data_root_override();
+            let config_dir = match &data_root_override {
+                Some(root) => root.join("config"),
+                None => app
+                    .path()
+                    .app_config_dir()
+                    .map_err(|error| format!("resolve desktop config directory: {error}"))?,
+            };
             #[cfg(target_os = "linux")]
             let appimage = app.env().appimage.map(PathBuf::from);
             #[cfg(not(target_os = "linux"))]
             let appimage: Option<PathBuf> = None;
             let production_replacement = app.config().identifier == rstorrent_native_host::legacy::PRODUCTION_IDENTIFIER;
             let registration = (|| {
+                if data_root_override.is_some() {
+                    // A dry run never touches the real Chrome registration.
+                    return Err("skipped for a debug data root".to_owned());
+                }
                 let home_dir = app.path().home_dir().map_err(|error| error.to_string())?;
                 let report = repair_native_host_registration(&config_dir, &home_dir, appimage.as_deref())?;
                 native_host_registration::install_legacy_refusal(
@@ -2286,10 +2399,32 @@ pub fn run() {
                 }
                 Err(error) => eprintln!("RSTorrent native host registration could not be repaired: {error}"),
             }
+            let app_data = match &data_root_override {
+                Some(root) => root.join("data"),
+                None => app
+                    .path()
+                    .app_data_dir()
+                    .map_err(|error| format!("resolve application data directory: {error}"))?,
+            };
+            let profile_root = app_data.join("profile");
             // Shell switches live in the product database (Tactical 358), so
-            // it opens before the tray is built.
-            let product_state = open_desktop_product_state(&config_dir, env!("CARGO_PKG_VERSION"))?;
-            let shell_settings = load_desktop_shell_settings(&config_dir, &product_state)?;
+            // it opens before the tray is built. A store that will not open
+            // shows the recovery screen instead (Tactical 369).
+            let product_state = match open_desktop_product_state(&config_dir, env!("CARGO_PKG_VERSION")) {
+                Ok(product_state) => product_state,
+                Err(error) => {
+                    enter_desktop_recovery(app, &profile_root, &format!("product state: {error}"));
+                    return Ok(());
+                }
+            };
+            app.manage(DesktopProduct(product_state.clone()));
+            let shell_settings = match load_desktop_shell_settings(&config_dir, &product_state) {
+                Ok(shell_settings) => shell_settings,
+                Err(error) => {
+                    enter_desktop_recovery(app, &profile_root, &error);
+                    return Ok(());
+                }
+            };
             if let Some(diagnostic) = &shell_settings.diagnostic {
                 eprintln!("{diagnostic}");
             }
@@ -2298,10 +2433,6 @@ pub fn run() {
             let updater = tauri_plugin_updater::Builder::new().build();
             app.handle().plugin(updater)?;
             app.manage(StdMutex::new(ChannelUpdates::open(&config_dir)));
-            let app_data = app
-                .path()
-                .app_data_dir()
-                .map_err(|error| format!("resolve application data directory: {error}"))?;
             let migration = if app.config().identifier == "com.jstorrent.desktop" {
                 match legacy_migration::migrate_before_startup(
                     &app.config().identifier,
@@ -2326,9 +2457,15 @@ pub fn run() {
                     rstorrent_session::PathRootStartupPolicy::PreserveUnavailable,
                 );
             }
-            let service = tauri::async_runtime::block_on(open_desktop_application(
+            let service = match tauri::async_runtime::block_on(open_desktop_application(
                 application_config, &shell_settings,
-            ))?;
+            )) {
+                Ok(service) => service,
+                Err(error) => {
+                    enter_desktop_recovery(app, &profile_root, &error);
+                    return Ok(());
+                }
+            };
             if let Some(report) = migration.filter(|report| !report.already_completed) {
                 eprintln!("JSTorrent migration: imported={}, already_present={}, skipped={}, skipped_profiles={}",
                     report.imported, report.already_present, report.skipped, report.skipped_profiles.len());
@@ -2493,6 +2630,9 @@ pub fn run() {
             choose_download_root,
             desktop_export_torrent_list,
             desktop_import_torrent_bundle,
+            desktop_recovery_status,
+            desktop_recovery_export,
+            desktop_recovery_quit,
             application_view_hello,
             application_view_open,
             application_view_update,

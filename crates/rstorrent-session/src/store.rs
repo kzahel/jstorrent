@@ -67,6 +67,7 @@ pub use legacy_desktop::{
     LegacyAndroidBootstrap, LegacyAndroidRootBinding, LegacyDesktopImportReport,
     LegacyDesktopRecordOutcome,
 };
+pub(crate) use torrent_list_export::torrent_list_export_from;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfiguredStorageRoot {
@@ -1703,43 +1704,7 @@ impl SessionStore {
         &self,
         torrent_id: &str,
     ) -> Result<(MagnetExportResult, Option<Vec<u8>>), StoreError> {
-        let torrent_id = decode_torrent_id(torrent_id)
-            .ok_or_else(|| StoreError::DurableState("invalid torrent identity".to_owned()))?;
-        let raw_info = self
-            .connection
-            .query_row(
-                "SELECT raw_info FROM torrents WHERE torrent_id = ?1",
-                [torrent_id.as_bytes()],
-                |row| row.get::<_, Option<Vec<u8>>>(0),
-            )
-            .optional()?
-            .ok_or_else(|| StoreError::UnknownTorrent(torrent_id.to_string()))?;
-        let content_name = raw_info.as_deref().map(durable_content_name).transpose()?;
-
-        let info_hashes = read_info_hashes(&self.connection, &torrent_id)?;
-        if let Some(retained) =
-            read_verified_retained_magnet(&self.connection, &torrent_id, info_hashes)?
-        {
-            return Ok((
-                MagnetExportResult {
-                    magnet: retained.magnet,
-                    source: retained.source,
-                    omitted_tracker_count: 0,
-                    peer_hints: Vec::new(),
-                    peer_hint_omission: None,
-                },
-                raw_info,
-            ));
-        }
-
-        Ok((
-            synthesize_magnet_export(
-                info_hashes,
-                content_name.as_deref(),
-                &read_trackers(&self.connection, &torrent_id)?,
-            ),
-            raw_info,
-        ))
+        export_base_magnet_from(&self.connection, torrent_id)
     }
 
     pub fn load_removal(&self, torrent_id: &str) -> Result<RemovalRecord, StoreError> {
@@ -2656,6 +2621,46 @@ struct VerifiedRetainedMagnet {
     magnet: String,
     source: MagnetExportSource,
     parsed: Magnet,
+}
+
+fn export_base_magnet_from(
+    connection: &Connection,
+    torrent_id: &str,
+) -> Result<(MagnetExportResult, Option<Vec<u8>>), StoreError> {
+    let torrent_id = decode_torrent_id(torrent_id)
+        .ok_or_else(|| StoreError::DurableState("invalid torrent identity".to_owned()))?;
+    let raw_info = connection
+        .query_row(
+            "SELECT raw_info FROM torrents WHERE torrent_id = ?1",
+            [torrent_id.as_bytes()],
+            |row| row.get::<_, Option<Vec<u8>>>(0),
+        )
+        .optional()?
+        .ok_or_else(|| StoreError::UnknownTorrent(torrent_id.to_string()))?;
+    let content_name = raw_info.as_deref().map(durable_content_name).transpose()?;
+
+    let info_hashes = read_info_hashes(connection, &torrent_id)?;
+    if let Some(retained) = read_verified_retained_magnet(connection, &torrent_id, info_hashes)? {
+        return Ok((
+            MagnetExportResult {
+                magnet: retained.magnet,
+                source: retained.source,
+                omitted_tracker_count: 0,
+                peer_hints: Vec::new(),
+                peer_hint_omission: None,
+            },
+            raw_info,
+        ));
+    }
+
+    Ok((
+        synthesize_magnet_export(
+            info_hashes,
+            content_name.as_deref(),
+            &read_trackers(connection, &torrent_id)?,
+        ),
+        raw_info,
+    ))
 }
 
 fn read_verified_retained_magnet(

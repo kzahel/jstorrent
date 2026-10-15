@@ -34,9 +34,10 @@ decision here:
 2. At least 12 months have passed since the first public release that wrote
    the new floor.
 3. A user holding an older store still has a way out: the store is refused
-   unchanged, and the torrent list can be exported (Tactical
-   [348](../tactical/348-torrent-list-export-import.md); the failed-migration
-   recovery screen is the next step).
+   unchanged, the app shows the recovery screen, and the torrent list can be
+   exported from it (Tacticals
+   [348](../tactical/348-torrent-list-export-import.md) and
+   [369](../tactical/369-catalog-recovery-screen.md)).
 
 Then, in one commit: make the floor version's fresh schema the new frozen
 baseline, delete the steps and fixtures below it, keep the floor's fixture,
@@ -75,8 +76,6 @@ below to **Retired** with the commit.
 
 ## Open Follow-Ups
 
-- The failed-migration recovery screen, including a dry run of a failing
-  migration on a temporary profile (next tactical).
 
 ## Retired
 
