@@ -146,6 +146,10 @@ It mirrors Yep Anywhere's setup:
 Verify without changing the store:
 `gh workflow run extension-release.yml --ref main -f mode=check`.
 
+To see which version browsers are being served right now, with no
+credentials: `node scripts/extension-store-version.mjs` (add
+`--expect 1.1.5` to fail unless that version is live).
+
 ## Store Review Boundary
 
 The extension detects and opens the locally installed RSTorrent desktop

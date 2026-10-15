@@ -179,7 +179,8 @@ jobs:
             scripts/apply-desktop-nightly-version.test.mjs \
             scripts/check-release-compatibility.test.mjs \
             scripts/compat-ledger.test.mjs \
-            scripts/compat-window.test.mjs
+            scripts/compat-window.test.mjs \
+            scripts/extension-store-version.test.mjs
 
       # Every supported delivery must be captured for the compatibility
       # matrix (docs/tactical/359 and 370).
