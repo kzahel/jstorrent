@@ -8038,6 +8038,7 @@ mod tests {
             Some(root.join("profile").display().to_string())
         );
         application.shutdown().await.expect("join application");
+        drop(application);
         fs::remove_dir_all(root).expect("remove test root");
     }
 
