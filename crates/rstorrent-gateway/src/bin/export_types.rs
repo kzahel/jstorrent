@@ -152,6 +152,12 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<HostCapabilityDefinition>(&mut declarations)?;
     append_value(
         &mut declarations,
+        "DEFAULT_API_HELLO",
+        "ApiHello",
+        &ApiHello::default(),
+    )?;
+    append_value(
+        &mut declarations,
         "UNSUPPORTED_CALL_MESSAGE",
         "string",
         &rstorrent_gateway::UNSUPPORTED_CALL_MESSAGE,

@@ -133,6 +133,8 @@ export type HostCapabilityLifecycle = "transitional" | "required";
 
 export type HostCapabilityDefinition = { name: string, id: number, introduced: string, lifecycle: HostCapabilityLifecycle, commands: Array<string>, client_settings_patch_keys: Array<string>, torrent_settings_patch_keys: Array<string>, };
 
+export const DEFAULT_API_HELLO: ApiHello = {"api":{"current":1,"minimum":1},"encodings":["json"],"deliveries":["poll","long_poll"],"capabilities":["torrent_list","torrent_summary","torrent_preparation","torrent_peers","torrent_swarm","torrent_files","torrent_media","torrent_trackers","session_disk","session_dht","session_current_rates","session_speed_history","piece_activity","diagnostics","seed_stop_limits"],"limits":{"max_view_sets_per_owner":8,"max_views_per_set":16,"max_view_id_bytes":64,"min_queue_bytes":16384,"default_queue_bytes":262144,"max_queue_bytes":524288,"max_snapshot_bytes":16777216,"max_wait_millis":20000,"lease_millis":"300000"}};
+
 export const UNSUPPORTED_CALL_MESSAGE: string = "this JSTorrent version does not support this request; update it to use this feature";
 
 export const HOST_CAPABILITY_REGISTRY: ReadonlyArray<HostCapabilityDefinition> = [{"name":"seed_stop_limits","id":1,"introduced":"2026-10-14","lifecycle":"transitional","commands":[],"client_settings_patch_keys":["seed_stop_ratio_percent","seed_stop_time_seconds"],"torrent_settings_patch_keys":["seed_stop_ratio_percent","seed_stop_time_seconds"]}];
