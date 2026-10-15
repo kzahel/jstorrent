@@ -214,6 +214,13 @@ reviewed entry). The reviewer also confirmed the classification against
   without the fix), sentinel refusals by operation and decode failures;
   the released-host request test checks stripped fields, the Download all
   substitution and library attachment for every captured host.
+- **Live.** `compat_live_matrix.py --host <each captured host> --client
+  current`, with the driver sending a client identity: current, desktop
+  0.3.0 (`ff632f45`), Android 1.0.28 (`b2548290`), Android 1.0.29
+  (`8ddf2e8b`), desktop 0.3.1 / Android 1.0.30 (`5fa018ff`) and Android
+  1.0.31 (`70150ec9`) each completed connect, set download folder, add,
+  download, verify, remove and data removed (4–5 s each). Released hosts
+  ignore the identity over a real WebSocket, as the schema check predicts.
 
 ## Stopping Condition
 
