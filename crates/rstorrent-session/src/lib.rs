@@ -95,7 +95,7 @@ pub use product_state::{
     MAX_PRODUCT_SOURCES, PRODUCT_FEEDBACK_URL, PRODUCT_PRIVACY_URL, ProductFeedbackEnvironment,
     ProductFeedbackField, ProductFeedbackPlatform, ProductFeedbackPreview, ProductMilestone,
     ProductMilestoneKind, ProductStateError, ProductStateOwner, ProductStatePageUsage,
-    ProductStateStore, ProductSummary, build_product_feedback_preview,
+    ProductStateStore, ProductSummary, UpdaterStatistics, build_product_feedback_preview,
 };
 pub use profile_reset::ProfileResetReport;
 pub use reachability::Ipv6PinholeDiagnosticResult;

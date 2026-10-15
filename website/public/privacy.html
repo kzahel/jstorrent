@@ -63,7 +63,8 @@
     <p>
       Ordinary BitTorrent operation contacts peers and discovery services, which can observe network
       addresses and protocol information. Desktop update checks contact the update service with
-      version and platform information. Depending on the version and disclosed statistics
+      version and platform information and whether usage statistics are on, off or not yet chosen.
+      That choice is sent without any identifier, so we can count how many installations opt out. Depending on the version and disclosed statistics
       preference, an update check may also include the installation identifier. The replacement can
       preserve an older desktop installation's existing update identifier until you review the new
       disclosure. Once you review it, disabling statistics omits that identifier from update checks.
@@ -72,7 +73,8 @@
     <p>
       Usage statistics are on unless you turn them off. The choice is shown when you first open the
       app and stays available in its settings. Turning statistics off stops everything described in
-      this section except what an update check needs: the version and platform information above.
+      this section except what an update check needs: the version, platform and statistics-choice
+      information above.
     </p>
     <p>
       With statistics on, the app may also send basic compatibility information: which versions of

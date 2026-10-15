@@ -14,6 +14,10 @@ best-effort trustworthiness, not a consent-tracking system.
   that choice. No versioned legal assent record is kept beyond what the
   preference already stores, and a disclosure text change does not require
   re-acknowledgement.
+- **Opt-outs are counted.** Desktop update checks send `X-Statistics: on`,
+  `off` or `unreviewed` with no identifier, so the opted-in sample (unique
+  `X-CFU-Id` values) can be scaled to an estimated population. The update
+  server must log the header for this to be readable.
 - **Compatibility reports** (Tactical
   [370](../tactical/370-version-handshake-and-compatibility-reports.md)):
   with statistics on, hosts and clients may send coarse version and

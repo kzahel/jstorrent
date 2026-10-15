@@ -270,6 +270,12 @@ pub(crate) async fn desktop_check_update(
         .0
         .updater_installation_id()
         .map_err(|error| format!("read updater installation policy: {error}"))?;
+    // Sent without any identifier, so opted-out installations can be
+    // counted and the population estimated from the identified sample.
+    let statistics = product
+        .0
+        .updater_statistics()
+        .map_err(|error| format!("read updater statistics choice: {error}"))?;
     let (channel, generation) = {
         let mut updates = state.lock().map_err(|error| error.to_string())?;
         if updates.installing {
@@ -297,6 +303,8 @@ pub(crate) async fn desktop_check_update(
         .map_err(|error| error.to_string())?
         .header("X-Check-Reason", reason)
         .map_err(|error| error.to_string())?
+        .header("X-Statistics", statistics.as_str())
+        .map_err(|error| error.to_string())?
         .timeout(CHECK_TIMEOUT);
     if let Some(id) = installation_id {
         builder = builder
@@ -311,7 +319,8 @@ pub(crate) async fn desktop_check_update(
         .map_err(|error| error.to_string())?;
     if let Some(update) = &mut candidate {
         // The updater reuses check headers for the asset download. Keep the
-        // installation identifier and check reason on the product route only.
+        // installation identifier, check reason and statistics choice on the
+        // product route only.
         update.headers.clear();
     }
     if supported

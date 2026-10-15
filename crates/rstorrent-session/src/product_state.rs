@@ -396,6 +396,26 @@ impl From<rusqlite::Error> for ProductStateError {
     }
 }
 
+/// The usage-statistics choice as an update check reports it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum UpdaterStatistics {
+    /// The current disclosure was not reviewed yet (first run not finished).
+    Unreviewed,
+    On,
+    Off,
+}
+
+impl UpdaterStatistics {
+    /// The `X-Statistics` header value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Unreviewed => "unreviewed",
+            Self::On => "on",
+            Self::Off => "off",
+        }
+    }
+}
+
 pub struct ProductStateStore {
     connection: Connection,
     database_path: Option<PathBuf>,
@@ -492,6 +512,10 @@ impl ProductStateOwner {
 
     pub fn updater_installation_id(&self) -> Result<Option<String>, ProductStateError> {
         self.store()?.updater_installation_id()
+    }
+
+    pub fn updater_statistics(&self) -> Result<UpdaterStatistics, ProductStateError> {
+        self.store()?.updater_statistics()
     }
 
     pub fn desktop_shell_preferences(
@@ -738,6 +762,26 @@ impl ProductStateStore {
     }
 
     pub fn updater_installation_id(&self) -> Result<Option<String>, ProductStateError> {
+        let (installation_id, current_disclosure, statistics_enabled, legacy_permitted) =
+            self.updater_policy()?;
+        Ok(((current_disclosure && statistics_enabled)
+            || (!current_disclosure && legacy_permitted))
+            .then_some(installation_id))
+    }
+
+    /// The statistics choice an update check reports, without any identifier,
+    /// so opted-out installations can be counted (maintainer policy,
+    /// 2026-10-15, in `docs/topics/product-state-and-feedback.md`).
+    pub fn updater_statistics(&self) -> Result<UpdaterStatistics, ProductStateError> {
+        let (_, current_disclosure, statistics_enabled, _) = self.updater_policy()?;
+        Ok(match (current_disclosure, statistics_enabled) {
+            (false, _) => UpdaterStatistics::Unreviewed,
+            (true, true) => UpdaterStatistics::On,
+            (true, false) => UpdaterStatistics::Off,
+        })
+    }
+
+    fn updater_policy(&self) -> Result<(String, bool, bool, bool), ProductStateError> {
         let (installation_id, disclosure_version, statistics_enabled, legacy_permitted) =
             self.connection.query_row(
                 "SELECT installation_id, disclosure_version, statistics_enabled,
@@ -755,9 +799,12 @@ impl ProductStateStore {
             )?;
         let current_disclosure =
             disclosure_version == i64::from(CURRENT_PRODUCT_DISCLOSURE_VERSION);
-        Ok(((current_disclosure && statistics_enabled)
-            || (!current_disclosure && legacy_permitted))
-            .then_some(installation_id))
+        Ok((
+            installation_id,
+            current_disclosure,
+            statistics_enabled,
+            legacy_permitted,
+        ))
     }
 
     pub fn record_clean_shutdown(&mut self) -> Result<(), ProductStateError> {
@@ -1308,7 +1355,8 @@ mod tests {
     use super::{
         CURRENT_PRODUCT_DISCLOSURE_VERSION, MAX_PRODUCT_SOURCES, PRODUCT_DATABASE_FILENAME,
         PRODUCT_FEEDBACK_URL, PRODUCT_SCHEMA_VERSION, ProductFeedbackEnvironment, ProductMilestone,
-        ProductMilestoneKind, ProductStateError, ProductStateStore, build_product_feedback_preview,
+        ProductMilestoneKind, ProductStateError, ProductStateStore, UpdaterStatistics,
+        build_product_feedback_preview,
     };
 
     const START: u64 = 1_800_000_000_000;
@@ -1451,6 +1499,10 @@ mod tests {
         assert_eq!(first_summary.disclosure_version, 0);
         assert!(!first_summary.transmission_allowed);
         assert_eq!(first.updater_installation_id().unwrap(), None);
+        assert_eq!(
+            first.updater_statistics().unwrap(),
+            UpdaterStatistics::Unreviewed
+        );
         assert_eq!(first_summary.days_since_first_use, 0);
         drop(first);
 
@@ -1538,10 +1590,13 @@ mod tests {
         );
         assert!(acknowledged.transmission_allowed);
         assert!(store.updater_installation_id().unwrap().is_some());
+        assert_eq!(store.updater_statistics().unwrap(), UpdaterStatistics::On);
         let disabled = store.set_statistics_enabled(false).unwrap();
         assert!(!disabled.statistics_enabled);
         assert!(!disabled.transmission_allowed);
         assert_eq!(store.updater_installation_id().unwrap(), None);
+        assert_eq!(store.updater_statistics().unwrap(), UpdaterStatistics::Off);
+        assert_eq!(UpdaterStatistics::Off.as_str(), "off");
         let old_id = disabled.installation_id;
         let old_generation = disabled.reset_generation;
         store.record_foreground_session().unwrap();
