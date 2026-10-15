@@ -99,7 +99,7 @@ const CURRENT_HOST_FRAMES: readonly Frame[] = [
   },
 ];
 
-const exposures = new Set(Object.keys(releaseCompatibility.reviewedStrictClientExposure));
+const exposures = new Set(Object.keys(releaseCompatibility.reviewedClientExposure));
 const contract = currentSchema as unknown as ContractSchema;
 
 function decode(decoder: CapturedDecoder, frame: Frame, value: unknown): string | null {

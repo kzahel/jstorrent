@@ -178,10 +178,11 @@ jobs:
             scripts/desktop-release-input.test.mjs \
             scripts/apply-desktop-nightly-version.test.mjs \
             scripts/check-release-compatibility.test.mjs \
-            scripts/compat-ledger.test.mjs
+            scripts/compat-ledger.test.mjs \
+            scripts/compat-window.test.mjs
 
-      # Every delivery in the support window must be captured for the
-      # compatibility matrix (docs/tactical/359-mixed-version-compatibility-matrix.md).
+      # Every supported delivery must be captured for the compatibility
+      # matrix (docs/tactical/359 and 370).
       - name: Check compatibility delivery ledger
         run: |
           git fetch --force --tags --depth=1 origin

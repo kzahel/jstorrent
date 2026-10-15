@@ -60,9 +60,9 @@ Ask one question: **does this add something the client sends?**
 | New field a host sends | Give it a serde default or make it `Option`. Generation fails if a field a host may omit is typed as always present. |
 | New field in an existing command | A released host's command parser ignores it, silently dropping the intent. Own it with a capability's `command_fields` (`command.field`); live dispatch strips it for hosts without the capability, and the UI hides what depends on it. CI fails on an unowned field. |
 | New command, settings patch key or torrent settings patch key | Add a capability in `crates/rstorrent-session/src/host_capabilities.rs` that owns it, gate the control with `hostSupports`, and let the live dispatch filter drop it for hosts without it. CI fails on an unowned key. |
-| New row field kind a host sends (a `*FieldUpdate` variant) | Tolerant clients drop unknown kinds. Record it in `reviewedStrictClientExposure` while strict clients (extension 1.1.4 and older) are still supported. |
+| New row field kind a host sends (a `*FieldUpdate` variant) | Tolerant clients drop unknown kinds. Record it in `reviewedClientExposure` as a `field`; it blocks host releases only while strict clients (extension 1.1.4 and older) are supported. |
 | New field inside a type released clients validate strictly (`additionalProperties: false`) | Same as a new row field kind. |
-| New enum value or other tagged variant a host sends | Every client still rejects it, tolerant ones included. Treat it as breaking: add a new optional field instead, or make clients tolerate that type first. Record any that ships in `reviewedStrictClientExposure`. |
+| New enum value or other tagged variant a host sends | Every released client rejects it, tolerant ones included, and CI checks every contract in the window for it. Add a new optional field instead, or make clients tolerate that type first. It is a `value` in `reviewedClientExposure` and blocks host releases unless a host sends it only after a request no supported released client can make (`requestedBy`, checked in CI). |
 | Remove, rename, retype or newly require anything released | Not allowed in v1. Add a new field or capability instead. |
 | Change the meaning of a released field or capability | Not allowed. New semantics take a new name. |
 
@@ -124,10 +124,20 @@ never deleted.
   --roles host,client` checks the commit out in a temporary worktree and
   records what that source produces into `compat/captures/<commit>/`: for a
   host its schema, view-set trace, hello and default settings; for a client
-  its bundled decoder. `scripts/compat-ledger.mjs` fails when a delivery in
-  the window (or the newest of a surface) lacks a capture, or a production
-  tag is neither recorded nor excluded; it runs in CI, both release
-  workflows (enforced when publishing) and the hosted deploy.
+  its bundled decoder. `scripts/compat-ledger.mjs` fails when a supported
+  delivery lacks a capture, or a production tag is neither recorded nor
+  excluded; it runs in CI, both release workflows (enforced when
+  publishing) and the hosted deploy, and prints when each older delivery
+  leaves the window.
+- **Support window.** `scripts/compat-window.mjs` decides which deliveries
+  are supported: the newest of each surface, and an older one until 30 days
+  after a newer delivery of its surface first became public. The ledger
+  script and every matrix test use it (`COMPAT_TODAY=YYYY-MM-DD` previews a
+  later date). When a delivery leaves, CI fails on what depended on it so
+  cleanup is a reviewed commit: a reviewed exposure no supported contract
+  produces, a known break naming no supported release, a release hold with
+  no strict client left, and the Download all fallback for hosts before
+  0.3.1 (`compat/window.test.ts`).
   `clients/web/src/compat/captures.ts` loads them for the tests below.
 - `clients/web/src/released-hosts.test.ts` (D1) decodes every captured
   host's hello, views and settings and checks every current field is
@@ -172,8 +182,8 @@ never deleted.
 
 ## Current Release Hold
 
-As of 2026-10-15, `main` carries eight reviewed strict-client exposures (see
-`reviewedStrictClientExposure` in `clients/web/src/api/release-compatibility.json`). Extensions 1.1.3 and 1.1.4
+As of 2026-10-15, `main` carries eight reviewed client exposures (see
+`reviewedClientExposure` in `clients/web/src/api/release-compatibility.json`). Extensions 1.1.3 and 1.1.4
 (built from `5fa018ff`, published) validate strictly. A torrent list
 snapshot from a host built from current `main` includes the new
 `ClientSettings.seed_stop_*` fields, so the companion fails on its first
@@ -187,9 +197,10 @@ sends them only to a client that leases the view, which no released client
 does.
 
 The desktop and Android release workflows enforce this hold:
-`scripts/check-release-compatibility.mjs` fails a publishing run while
-`strictClients.supported` is true, exposures exist, and
-`acceptedBreaks` has no entry for that release tag. Candidate and other
+`scripts/check-release-compatibility.mjs` fails a publishing run while a
+blocking exposure exists and `acceptedBreaks` has no entry for that release
+tag. A `field` blocks while `strictClients.supported` is true; a `value`
+blocks unless it has `requestedBy`. Candidate and other
 non-publishing runs only warn. Lift the hold by setting
 `strictClients.supported` to false once 1.1.5 has had time to replace older
 extensions (Web Store dashboard version counts), or record an accepted break
@@ -202,14 +213,14 @@ Before any host release (desktop, headless, Android):
 1. `npm run test --prefix clients/web` passes, including the compatibility
    tests above.
 2. The release workflow's compatibility check passes, or fails with the
-   exposures to resolve. Each entry in `reviewedStrictClientExposure` is
-   something released
-   strict clients reject. Until the oldest extension still in use is tolerant
-   (1.1.5 or later), a host release that ships any entry breaks the extension
-   companion for users who update the host first. Either wait for the
-   tolerant extension, or accept and record that break for the release. An
-   enum value or non-row variant breaks even tolerant clients; do not ship one
-   without a gate.
+   exposures to resolve. Each entry in `reviewedClientExposure` is
+   something some released clients reject. Until the oldest extension still
+   in use is tolerant (1.1.5 or later), a host release that ships a `field`
+   entry breaks the extension companion for users who update the host
+   first. Either wait for the tolerant extension, or accept and record that
+   break for the release. A `value` (enum value or non-row variant) breaks
+   tolerant clients too; do not ship one unless no released client can
+   receive it.
 3. When a delivery is submitted (desktop, Android, headless, extension),
    add it to `compat/deliveries.json` and run `scripts/compat-capture.mjs`
    for its commit with the roles it plays, then commit both. The ledger

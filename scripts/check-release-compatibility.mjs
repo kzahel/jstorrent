@@ -8,30 +8,39 @@ const policyPath = path.resolve(
 );
 
 /**
- * Whether a host release may ship. While released strict clients (extension
- * 1.1.4 and older) are supported, a host release that sends anything they
- * reject breaks them, unless the maintainer recorded that break for this
- * release. See docs/topics/mixed-version-compatibility.md.
+ * Whether a host release may ship. Each reviewed exposure is something a
+ * host built from main sends that some released clients reject: a `field`
+ * breaks only strict clients (extension 1.1.4 and older), so it blocks only
+ * while they are supported; a `value` (enum value or variant) breaks every
+ * released client, so it blocks until clients tolerate it, unless a host
+ * sends it only after a request no supported released client can make
+ * (`requestedBy`, checked by contract-compatibility.test.ts). The maintainer may record an accepted
+ * break for one release. See docs/topics/mixed-version-compatibility.md.
  */
 export function checkReleaseCompatibility(policy, { surface, release }) {
   const strict = policy.strictClients;
-  const exposures = Object.keys(policy.reviewedStrictClientExposure ?? {});
-  if (!strict.supported || !strict.controlledSurfaces.includes(surface)) {
-    return { ok: true, message: `${release}: no supported strict client controls ${surface}` };
+  if (!strict.controlledSurfaces.includes(surface)) {
+    return { ok: true, message: `${release}: no released extension controls ${surface}` };
   }
-  if (exposures.length === 0) {
-    return { ok: true, message: `${release}: sends nothing released strict clients reject` };
+  const blocking = Object.entries(policy.reviewedClientExposure ?? {})
+    .filter(([, exposure]) =>
+      exposure.kind === "value" ? exposure.requestedBy === undefined : strict.supported,
+    )
+    .map(([path, exposure]) => `${path} (${exposure.kind})`);
+  if (blocking.length === 0) {
+    return { ok: true, message: `${release}: sends nothing a supported released client rejects` };
   }
   const accepted = policy.acceptedBreaks?.[release];
   if (typeof accepted === "string" && accepted.trim() !== "") {
-    return { ok: true, message: `${release}: strict-client break accepted: ${accepted}` };
+    return { ok: true, message: `${release}: client break accepted: ${accepted}` };
   }
   return {
     ok: false,
     message:
-      `${release} would send ${exposures.length} addition(s) that ${strict.description} ` +
-      `reject: ${exposures.join(", ")}. Wait until a tolerant extension has replaced them and set ` +
-      `strictClients.supported to false, or record the accepted break under ` +
+      `${release} would send ${blocking.length} addition(s) that supported released clients ` +
+      `reject: ${blocking.join(", ")}. A field blocks while ${strict.description} are supported ` +
+      "(set strictClients.supported to false once a tolerant extension has replaced them); a " +
+      "value blocks until clients tolerate it. Or record the accepted break under " +
       `acceptedBreaks["${release}"] in clients/web/src/api/release-compatibility.json. ` +
       "See docs/topics/mixed-version-compatibility.md.",
   };

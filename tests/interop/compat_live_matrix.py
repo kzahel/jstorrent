@@ -154,11 +154,14 @@ def happy_path(host: str, client: str) -> dict:
 
 
 def default_pairs() -> list[tuple[str, str]]:
-    ledger = json.loads((REPOSITORY / "compat" / "deliveries.json").read_text())
+    # Supported deliveries only (scripts/compat-window.mjs; COMPAT_TODAY applies).
+    supported = json.loads(
+        subprocess.run(
+            ["node", "scripts/compat-window.mjs"], cwd=REPOSITORY, capture_output=True, text=True, check=True
+        ).stdout
+    )
     hosts, clients = [], []
-    for delivery in ledger["deliveries"]:
-        if delivery["status"] == "withdrawn":
-            continue
+    for delivery in supported:
         if "host" in delivery["roles"] and delivery["commit"] not in hosts:
             hosts.append(delivery["commit"])
         if "client" in delivery["roles"] and delivery["commit"] not in clients:

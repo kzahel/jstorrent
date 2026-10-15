@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import current from "./generated/v1.schema.json";
 import { HOST_CAPABILITY_REGISTRY } from "./generated/v1";
+import { ROW_FIELD_KINDS } from "./generated/v1.validators.js";
 import releaseCompatibility from "./release-compatibility.json";
 import { CLIENT_CAPTURES, HOST_CAPTURES, knownBreaks } from "../compat/captures";
 
@@ -12,17 +13,37 @@ import { CLIENT_CAPTURES, HOST_CAPTURES, knownBreaks } from "../compat/captures"
  * - Nothing released may be removed, renamed or made required.
  * - A new key the client sends must be owned by a host capability, because a
  *   released host rejects it.
- * - A new field, enum value or variant inside a type that released strict
- *   clients validate strictly breaks those clients when a host sends it.
- *   Each one is recorded in release-compatibility.json, which also gates host
- *   releases while strict clients are supported.
+ * - Anything new a host sends that a released client rejects is an
+ *   exposure, recorded in release-compatibility.json, which also gates host
+ *   releases. A `field` exposure (a property of a closed object, or a new
+ *   row field kind) breaks only strict clients; tolerant clients ignore it.
+ *   A `value` exposure (an enum value or tagged variant) breaks every
+ *   released client, tolerant ones included.
  */
-const REVIEWED_STRICT_CLIENT_EXPOSURE: Readonly<Record<string, string>> =
-  releaseCompatibility.reviewedStrictClientExposure;
+const REVIEWED_CLIENT_EXPOSURE: Readonly<Record<string, ReviewedExposure>> =
+  releaseCompatibility.reviewedClientExposure as Record<string, ReviewedExposure>;
+
+interface ReviewedExposure {
+  readonly kind: ExposureKind;
+  readonly reason: string;
+  /**
+   * A host sends it only after a client makes this request, given as the
+   * request's own exposure path (`Definition.oneOf[variant]`). No supported
+   * released client's contract may contain it.
+   */
+  readonly requestedBy?: string;
+}
+
+type ExposureKind = "field" | "value";
+
+interface Exposure {
+  readonly path: string;
+  readonly kind: ExposureKind;
+}
 
 /**
  * Each distinct released contract, labeled with the deliveries that ship it.
- * A contract only tolerant clients ship has no strict-client exposure.
+ * A contract only tolerant clients ship has only `value` exposures.
  */
 const RELEASED = [
   ...HOST_CAPTURES.map((capture) => ({ ...capture, tolerant: false })),
@@ -124,16 +145,82 @@ describe.each(RELEASED)("contract against $tag", ({ schema, commits, tolerantOnl
     expect(problems.sort()).toEqual(knownBreaks(commits, "client-sent"));
   });
 
-  it.skipIf(tolerantOnly)("records every addition released strict clients would reject", () => {
-    const exposures: string[] = [];
-    for (const [name, old] of Object.entries(before)) {
-      const next = after[name];
-      if (next === undefined || name in CLIENT_SENT_PATCHES || name === "Command") continue;
-      exposures.push(...strictClientExposure(name, old, next));
-    }
-    expect(exposures.sort()).toEqual(
-      Object.keys(REVIEWED_STRICT_CLIENT_EXPOSURE).sort(),
+  it(`records every addition ${tolerantOnly ? "tolerant" : "strict"} clients of it would reject`, () => {
+    const unrecorded = rejectedExposures(before, after, tolerantOnly)
+      .filter((exposure) => REVIEWED_CLIENT_EXPOSURE[exposure.path]?.kind !== exposure.kind)
+      .map((exposure) => `${exposure.path} (${exposure.kind})`);
+    expect(unrecorded).toEqual([]);
+  });
+});
+
+describe("reviewed client exposures", () => {
+  it("are each still produced by a released contract", () => {
+    const produced = new Set(
+      RELEASED.flatMap(({ schema, tolerantOnly }) =>
+        rejectedExposures(
+          (schema as { $defs: Definitions }).$defs,
+          (current as { $defs: Definitions }).$defs,
+          tolerantOnly,
+        ).map((exposure) => exposure.path),
+      ),
     );
+    expect(Object.keys(REVIEWED_CLIENT_EXPOSURE).filter((path) => !produced.has(path))).toEqual(
+      [],
+    );
+  });
+
+  it("name requests no supported released client can make", () => {
+    const requestable = Object.entries(REVIEWED_CLIENT_EXPOSURE).flatMap(([path, exposure]) => {
+      if (exposure.requestedBy === undefined) return [];
+      const match = /^([A-Za-z]+)\.oneOf\[([^\]]+)\]$/.exec(exposure.requestedBy);
+      if (match === null) return [`${path}: requestedBy must be Definition.oneOf[variant]`];
+      const [, name, variant] = match;
+      return CLIENT_CAPTURES.filter((capture) =>
+        variants((capture.schema as { $defs: Definitions }).$defs[name!]).includes(variant!),
+      ).map((capture) => `${path}: ${capture.deliveries} can request ${exposure.requestedBy}`);
+    });
+    expect(requestable).toEqual([]);
+  });
+
+  it("classify an enum value as rejected by tolerant clients and a field as not", () => {
+    const released: Definitions = {
+      TorrentView: {
+        type: "object",
+        additionalProperties: false,
+        properties: { state: { enum: ["downloading", "seeding"] } },
+      },
+    };
+    const next: Definitions = {
+      TorrentView: {
+        type: "object",
+        properties: {
+          state: { enum: ["downloading", "seeding", "pending_force_check"] },
+          added: { type: "boolean" },
+        },
+      },
+    };
+    expect(rejectedExposures(released, next, false)).toEqual([
+      { path: 'TorrentView.state.enum["pending_force_check"]', kind: "value" },
+      { path: "TorrentView.added", kind: "field" },
+    ]);
+    expect(rejectedExposures(released, next, true)).toEqual([
+      { path: 'TorrentView.state.enum["pending_force_check"]', kind: "value" },
+    ]);
+  });
+
+  it("classify a new row field kind as a field", () => {
+    const branch = (field: string): Schema => ({
+      type: "object",
+      properties: { field: { const: field }, value: { type: "string" } },
+    });
+    const released: Definitions = { TorrentFieldUpdate: { oneOf: [branch("display_name")] } };
+    const next: Definitions = {
+      TorrentFieldUpdate: { oneOf: [branch("display_name"), branch("added_kind")] },
+    };
+    expect(rejectedExposures(released, next, false)).toEqual([
+      { path: "TorrentFieldUpdate.oneOf[field=added_kind]", kind: "field" },
+    ]);
+    expect(rejectedExposures(released, next, true)).toEqual([]);
   });
 });
 
@@ -201,8 +288,35 @@ function breakingChanges(name: string, old: Schema, next: Schema): string[] {
   return compareSchemas(name, old, next).breaking;
 }
 
-function strictClientExposure(name: string, old: Schema, next: Schema): string[] {
-  return compareSchemas(name, old, next).exposures;
+/**
+ * What a host built from the current contract may send that clients of a
+ * released contract reject: every exposure for strict clients, only
+ * `value` exposures for tolerant ones. Client-sent types are checked by the
+ * capability rules instead.
+ */
+function rejectedExposures(
+  before: Definitions,
+  after: Definitions,
+  tolerantOnly: boolean,
+): Exposure[] {
+  const exposures: Exposure[] = [];
+  for (const [name, old] of Object.entries(before)) {
+    const next = after[name];
+    if (next === undefined || name in CLIENT_SENT_PATCHES || name === "Command") continue;
+    exposures.push(
+      ...compareSchemas(name, old, next).exposures.map((path) => ({
+        path,
+        kind: exposureKind(name, path),
+      })),
+    );
+  }
+  return exposures.filter((exposure) => !tolerantOnly || exposure.kind === "value");
+}
+
+/** Tolerant clients drop unknown row field kinds and ignore unknown keys. */
+function exposureKind(name: string, path: string): ExposureKind {
+  if (name in ROW_FIELD_KINDS && /^[A-Za-z]+\.oneOf\[field=[^\]]+\]$/.test(path)) return "field";
+  return /\.enum\[|\.oneOf\[[^\]]+\]$/.test(path) ? "value" : "field";
 }
 
 /** Keywords whose change alters what a value may be. */

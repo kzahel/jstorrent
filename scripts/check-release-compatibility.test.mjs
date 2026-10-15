@@ -11,7 +11,7 @@ const policy = {
     controlledSurfaces: ["android", "desktop"],
   },
   acceptedBreaks: {},
-  reviewedStrictClientExposure: { "ClientSettings.new_field": "reason" },
+  reviewedClientExposure: { "ClientSettings.new_field": { kind: "field", reason: "reason" } },
 };
 
 test("blocks a strict-client break on a surface strict clients control", () => {
@@ -31,8 +31,33 @@ test("allows a break the maintainer accepted for that release only", () => {
 test("allows releases once strict clients are unsupported or nothing is exposed", () => {
   const retired = { ...policy, strictClients: { ...policy.strictClients, supported: false } };
   assert.equal(checkReleaseCompatibility(retired, { surface: "desktop", release: "desktop-v0.3.2" }).ok, true);
-  const clean = { ...policy, reviewedStrictClientExposure: {} };
+  const clean = { ...policy, reviewedClientExposure: {} };
   assert.equal(checkReleaseCompatibility(clean, { surface: "desktop", release: "desktop-v0.3.2" }).ok, true);
+});
+
+test("blocks a new value even after strict clients are unsupported, unless only requested", () => {
+  const retired = { ...policy.strictClients, supported: false };
+  const value = {
+    ...policy,
+    strictClients: retired,
+    reviewedClientExposure: {
+      'TorrentView.state.enum["pending_force_check"]': { kind: "value", reason: "reason" },
+    },
+  };
+  const result = checkReleaseCompatibility(value, { surface: "desktop", release: "desktop-v0.3.2" });
+  assert.equal(result.ok, false);
+  assert.match(result.message, /pending_force_check.*\(value\)/);
+  const unreachable = {
+    ...value,
+    reviewedClientExposure: {
+      "ViewSnapshot.oneOf[type=new_view]": {
+        kind: "value",
+        reason: "leased only",
+        requestedBy: "ViewSpec.oneOf[type=new_view]",
+      },
+    },
+  };
+  assert.equal(checkReleaseCompatibility(unreachable, { surface: "desktop", release: "desktop-v0.3.2" }).ok, true);
 });
 
 test("ignores surfaces strict clients do not control", () => {
@@ -47,4 +72,9 @@ test("the checked-in policy is well formed", () => {
   assert.ok(Array.isArray(checkedIn.strictClients.controlledSurfaces));
   assert.equal(typeof checkedIn.acceptedBreaks, "object");
   for (const reason of Object.values(checkedIn.acceptedBreaks)) assert.equal(typeof reason, "string");
+  for (const exposure of Object.values(checkedIn.reviewedClientExposure)) {
+    assert.ok(["field", "value"].includes(exposure.kind));
+    assert.equal(typeof exposure.reason, "string");
+    assert.ok(exposure.requestedBy === undefined || typeof exposure.requestedBy === "string");
+  }
 });

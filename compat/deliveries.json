@@ -98,7 +98,8 @@
       "channel": "chrome-web-store",
       "status": "published",
       "submitted": "2026-10-13",
-      "firstPublic": null,
+      "firstPublic": "2026-10-15",
+      "firstPublicBasis": "Latest possible date: the store API reported it published on 2026-10-15; the actual date is unknown.",
       "roles": ["client"]
     },
     {

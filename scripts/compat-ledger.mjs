@@ -3,8 +3,9 @@
 //
 //   node scripts/compat-ledger.mjs [--release <tag being released>] [--today YYYY-MM-DD]
 //
-// - Every delivery inside the support window, and the newest of each
-//   surface, has a capture of its commit with the roles it needs.
+// - Every supported delivery (scripts/compat-window.mjs: the newest of each
+//   surface, and older ones until 30 days after a successor became
+//   public) has a capture of its commit with the roles it needs.
 // - Every production tag is in the ledger or explicitly excluded. The tag
 //   being released may be missing; it is added once submitted.
 // Needs the repository's tags (git fetch --tags).
@@ -13,6 +14,8 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { compatToday, retirementDate, supportedDeliveries } from "./compat-window.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PRODUCTION_TAG = /^(desktop|android|headless|crostini|extension)-v\d+\.\d+\.\d+$/;
 const STATUSES = new Set(["submitted", "published", "rolling-out", "withdrawn"]);
@@ -20,8 +23,6 @@ const ROLE_FILES = {
   host: ["v1.schema.json", "hello.json", "settings.json", "view-set-trace.json"],
   client: ["v1.schema.json", "client-decoder.mjs"],
 };
-const DAY = 24 * 60 * 60 * 1000;
-
 export function checkLedger(ledger, { tags, release = null, today, captureHas }) {
   const problems = [];
   const deliveries = ledger.deliveries ?? [];
@@ -37,19 +38,7 @@ export function checkLedger(ledger, { tags, release = null, today, captureHas })
       problems.push(`${id}: roles must be host and/or client`);
     }
   }
-  const windowStart = new Date(`${today}T00:00:00Z`).getTime() - ledger.windowDays * DAY;
-  const newest = new Map();
-  for (const delivery of deliveries) {
-    const date = delivery.firstPublic ?? delivery.submitted;
-    if (date > (newest.get(delivery.surface)?.date ?? "")) {
-      newest.set(delivery.surface, { date, delivery });
-    }
-  }
-  for (const delivery of deliveries) {
-    if (delivery.status === "withdrawn") continue;
-    const date = delivery.firstPublic ?? delivery.submitted;
-    const inWindow = new Date(`${date}T00:00:00Z`).getTime() >= windowStart;
-    if (!inWindow && newest.get(delivery.surface)?.delivery !== delivery) continue;
+  for (const delivery of supportedDeliveries(ledger, today)) {
     for (const role of delivery.roles ?? []) {
       for (const file of ROLE_FILES[role] ?? []) {
         if (!captureHas(delivery.commit, file)) {
@@ -85,9 +74,18 @@ function main(argv) {
   const problems = checkLedger(ledger, {
     tags,
     release: options.release ?? null,
-    today: options.today ?? new Date().toISOString().slice(0, 10),
+    today: options.today ?? compatToday(),
     captureHas: (commit, file) => existsSync(path.join(root, "compat/captures", commit, file)),
   });
+  const today = options.today ?? compatToday();
+  for (const delivery of ledger.deliveries) {
+    const leaves = retirementDate(ledger, delivery);
+    if (leaves !== null && delivery.status !== "withdrawn") {
+      console.log(
+        `${delivery.surface} ${delivery.version}: ${today < leaves ? "leaves" : "left"} the support window on ${leaves}`,
+      );
+    }
+  }
   if (problems.length > 0) {
     for (const problem of problems) console.log(`::error::${problem}`);
     process.exitCode = 1;

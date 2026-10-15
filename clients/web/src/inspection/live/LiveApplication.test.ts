@@ -23,7 +23,7 @@ import type {
 import type { ApplicationViewClient, MediaOpenTarget } from "../../api/client";
 import { HttpApiError } from "../../api/client";
 import { ApplicationViewError } from "../../api/errors";
-import { HOST_CAPTURES, knownBreaks } from "../../compat/captures";
+import { HOST_CAPTURES, hostCapture, knownBreaks } from "../../compat/captures";
 import type { InspectionCommand, InspectionSnapshot } from "../model";
 import { LiveApplication } from "./LiveApplication";
 import {
@@ -2291,10 +2291,9 @@ async function waitUntil(predicate: () => boolean): Promise<void> {
 
 describe("download all on hosts before 0.3.1", () => {
   // Desktop 0.3.0 and Android 1.0.28: no product in the hello, and no server
-  // clock in view-set batches (decoded as "0").
-  const RELEASED_HELLO = HOST_CAPTURES.find((capture) =>
-    capture.deliveries.includes("desktop 0.3.0"),
-  )!.hello;
+  // clock in view-set batches (decoded as "0"). compat/window.test.ts says
+  // when the fallback may go.
+  const RELEASED_HELLO = hostCapture("ff632f4588a474d7b169de3cea228bd406e6982d").hello;
 
   async function open(serverNowMillis: string, view: TorrentView, hello = RELEASED_HELLO) {
     const client = new FakeLiveClient(view);
