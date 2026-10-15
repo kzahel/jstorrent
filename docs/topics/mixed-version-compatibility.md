@@ -8,8 +8,10 @@ landed. The web client fills fields older hosts omit, hides stop limits on
 hosts that lack them and never sends their settings there, and accepts the
 object fields and row field kinds a newer host adds. CI checks the contract
 against the released `desktop-v0.3.1` host. Extension 1.1.5, the first
-tolerant extension, is packaged but not yet submitted. Host tolerance,
-version observability and automatic updates (Tactical
+tolerant extension, was submitted to the Web Store on 2026-10-15 through the
+tagged release workflow (Tactical
+[361](../tactical/361-extension-store-publishing-setup.md)) and awaits
+review. Host tolerance, version observability and automatic updates (Tactical
 [355](../tactical/355-automatic-updates.md)) remain.
 
 This topic owns how clients and hosts of different versions work together:
@@ -167,13 +169,13 @@ never deleted.
 ## Current Release Hold
 
 As of 2026-10-15, `main` carries five reviewed strict-client exposures (see
-`reviewedStrictClientExposure` in `clients/web/src/api/release-compatibility.json`). Extensions 1.1.3 (published) and 1.1.4
-(in review, built from `5fa018ff`) validate strictly. A torrent list
+`reviewedStrictClientExposure` in `clients/web/src/api/release-compatibility.json`). Extensions 1.1.3 and 1.1.4
+(built from `5fa018ff`, published) validate strictly. A torrent list
 snapshot from a host built from current `main` includes the new
 `ClientSettings.seed_stop_*` fields, so the companion fails on its first
 library view and asks for a reload. **Do not release desktop, headless or
-Android from `main`** until extension 1.1.5 (tolerant; packaged locally from
-this source, submission pending) is published and has had a few days to
+Android from `main`** until extension 1.1.5 (tolerant; `extension-v1.1.5`,
+submitted 2026-10-15, in review) is published and has had a few days to
 auto-update, or the maintainer accepts the companion break for that
 release. All five exposures are kinds 1.1.5 accepts.
 
@@ -204,8 +206,9 @@ Before any host release (desktop, headless, Android):
 3. When a delivery is submitted (desktop, Android, headless, extension),
    add it to `compat/deliveries.json` and run `scripts/compat-capture.mjs`
    for its commit with the roles it plays, then commit both. The ledger
-   check fails CI until this is done for a pushed production tag; extension
-   versions have no tags, so record them when submitting.
+   check fails CI until this is done for a pushed production tag, including
+   `extension-v*`. A client release whose own decoder is tolerant lies at or
+   above `strictClients.tolerantSince` in `release-compatibility.json`.
 
 Before deploying the hosted controller: the same web tests pass. It deploys
 from `main`, so a contract change is live for every connected host as soon
@@ -248,8 +251,9 @@ that it has very few users.
 
 ## Gaps And Next Work
 
-- **Publish extension 1.1.5** through the Web Store dashboard, then lift the
-  release hold once it has had a few days to auto-update.
+- **Extension 1.1.5 review and adoption.** Submitted 2026-10-15 and pending
+  Google review. Lift the release hold once it is published and has had a
+  few days to auto-update (dashboard users by version).
 - **Unknown enum values and frame types.** Still rejected by every client.
   Mapping them to an explicit unknown needs per-type handling in the UI.
 - **Relay authentication leniency** for unknown fields, after a security
@@ -258,7 +262,3 @@ that it has very few users.
 - **Version-population record** from the sources above, and a usage signal
   for the hosted remote controller (see Version Observability).
 - **Automatic updates**, Tactical 355.
-- **Store automation.** `extension-v*` tags test, package and submit the
-  extension through `extension-release.yml` once the one-time Google and
-  GitHub setup in `clients/extension/README.md` exists; until then the
-  `publish` job fails at authentication. Google review still takes days.

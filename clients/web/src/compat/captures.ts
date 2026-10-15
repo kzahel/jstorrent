@@ -7,6 +7,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { ApiHello, ClientSettingsRuntimeView } from "../api";
+import releaseCompatibility from "../api/release-compatibility.json";
 import type currentTrace from "../fixtures/view-set-trace.json";
 
 const compatRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../compat");
@@ -51,18 +52,33 @@ export interface CapturedDecoder {
 }
 
 export interface ClientCapture extends Capture {
+  /** Validates host data strictly (strictClients in release-compatibility.json). */
+  readonly strict: boolean;
   load(): Promise<CapturedDecoder>;
 }
 
-function captured(role: "host" | "client"): [string, string][] {
-  const byCommit = new Map<string, string[]>();
+const tolerantSince: Readonly<Record<string, string>> =
+  releaseCompatibility.strictClients.tolerantSince;
+
+/** A client delivery older than its surface's first tolerant version. */
+function strictDelivery(delivery: Delivery): boolean {
+  const first = tolerantSince[delivery.surface];
+  if (first === undefined) return true;
+  const [a, b] = [delivery.version, first].map((version) => version.split(".").map(Number));
+  const order = a!.map((part, index) => part - b![index]!).find((difference) => difference !== 0);
+  return (order ?? 0) < 0;
+}
+
+function captured(role: "host" | "client"): [string, string, boolean][] {
+  const byCommit = new Map<string, { names: string[]; strict: boolean }>();
   for (const delivery of ledger.deliveries) {
     if (delivery.status === "withdrawn" || !delivery.roles.includes(role)) continue;
-    const names = byCommit.get(delivery.commit) ?? [];
-    names.push(`${delivery.surface} ${delivery.version}`);
-    byCommit.set(delivery.commit, names);
+    const entry = byCommit.get(delivery.commit) ?? { names: [], strict: false };
+    entry.names.push(`${delivery.surface} ${delivery.version}`);
+    entry.strict ||= strictDelivery(delivery);
+    byCommit.set(delivery.commit, entry);
   }
-  return [...byCommit].map(([commit, names]) => [commit, names.join(", ")]);
+  return [...byCommit].map(([commit, { names, strict }]) => [commit, names.join(", "), strict]);
 }
 
 /** Every host delivery in the ledger, one entry per captured commit. */
@@ -77,12 +93,13 @@ export const HOST_CAPTURES: readonly HostCapture[] = captured("host").map(([comm
 
 /** Every client delivery in the ledger, one entry per captured commit. */
 export const CLIENT_CAPTURES: readonly ClientCapture[] = captured("client").map(
-  ([commit, deliveries]) => {
+  ([commit, deliveries, strict]) => {
     const decoder = resolve(compatRoot, "captures", commit, "client-decoder.mjs");
     if (!existsSync(decoder)) throw new Error(`capture ${commit} has no client decoder`);
     return {
       commit,
       deliveries,
+      strict,
       schema: json(commit, "v1.schema.json"),
       load: () =>
         import(/* @vite-ignore */ pathToFileURL(decoder).href) as Promise<CapturedDecoder>,

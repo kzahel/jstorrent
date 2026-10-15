@@ -3,6 +3,9 @@
   "strictClients": {
     "supported": true,
     "description": "JSTorrent extension 1.1.4 and older, which validate host data strictly,",
+    "tolerantSince": {
+      "extension": "1.1.5"
+    },
     "controlledSurfaces": [
       "android",
       "desktop"

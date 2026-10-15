@@ -1,9 +1,8 @@
 # Tactical 361: Extension Store Publishing Setup
 
-Status: Ready, 2026-10-15. Maintainer-authorized one-time setup, to be done
-from the machine that holds the maintainer's personal Google login. The
-repository side is committed (`e37d4146`); nothing in Google Cloud, the
-Chrome Web Store or this repository's GitHub settings has been changed yet.
+Status: Done, 2026-10-15. Setup verified read-only, then extension 1.1.5
+was submitted to the Web Store through `extension-v1.1.5` (pending Google
+review). See Evidence.
 Topics: `mixed-version-compatibility`, `product-surfaces-and-migration`.
 
 ## Goal
@@ -112,4 +111,72 @@ releases are then unblocked (Tactical 354's release hold).
 
 ## Evidence
 
-None yet.
+Done 2026-10-15 from the maintainer's personal machine, with the personal
+Google account (Cloud Shell in the Cloud console, via machine-control) and
+the `kzahel` GitHub account. No work account or local `gcloud` configuration
+was used; this machine has no local `gcloud`.
+
+1. **Publisher.** The dashboard lists the JSTorrent extension (1.1.4,
+   created 2025-12-04) under publisher `kzahel`,
+   `9c2ac068-8b89-4d40-93e6-d646c896c9dd`, the same publisher as Yep
+   Anywhere, whose API access already links the service account. Step 5
+   confirmed the item ID through the API.
+2. **Provider.** Added sibling provider
+   `projects/327008138211/locations/global/workloadIdentityPools/ya-chrome-store/providers/github-jstorrent`;
+   Yep Anywhere's `github-extension` is unchanged. Mapping
+   `google.subject=assertion.sub`; condition:
+
+   ```text
+   assertion.repository_id == '1317190900' && assertion.repository_owner_id == '158352'
+   && assertion.sub == 'repo:kzahel@158352/jstorrent@1317190900:environment:chrome-web-store'
+   && (assertion.ref == 'refs/heads/main' || assertion.ref.startsWith('refs/tags/extension-v'))
+   && assertion.workflow_ref == 'kzahel/jstorrent/.github/workflows/extension-release.yml@' + assertion.ref
+   ```
+
+   Unlike Yep Anywhere, `kzahel/jstorrent` uses GitHub's immutable OIDC
+   subject (`gh api repos/kzahel/jstorrent/actions/oidc/customization/sub`:
+   `use_immutable_subject: true`), so `sub` carries the owner and repository
+   IDs. The first check (run 38712455565) was rejected by a condition that
+   used `repo:kzahel/jstorrent:…`; the condition and binding now use the
+   immutable subject, and the repository setting was left alone.
+3. **Binding.** `roles/iam.workloadIdentityUser` on
+   `yep-chrome-store@yep-dev-3fd5a.iam.gserviceaccount.com` for
+   `principal://iam.googleapis.com/projects/327008138211/locations/global/workloadIdentityPools/ya-chrome-store/subject/repo:kzahel@158352/jstorrent@1317190900:environment:chrome-web-store`
+   only, beside Yep Anywhere's own. No project roles. The Chrome Web Store
+   API was already enabled.
+4. **Environment.** `chrome-web-store` on `kzahel/jstorrent`: custom
+   deployment rules branch `main` and tag `extension-v*`; variables
+   `CWS_WIF_PROVIDER` (the `github-jstorrent` provider),
+   `CWS_SERVICE_ACCOUNT`, `CWS_PUBLISHER_ID` (`9c2ac068-…`). No secrets.
+5. **Read-only check.** Run 38713137992 passed: `{"status":"authenticated",
+   "extensionId":"dbokmlpefliilbjldladbimlcfgbolhk","published":{"state":
+   "PUBLISHED","versions":["1.1.4"]}}`, with the store public key matching
+   the pinned manifest key. 1.1.4 had already been published and nothing was
+   pending. Run 38712710682 between them failed only on IAM propagation of
+   the new binding (`getAccessToken` denied); it passed a few minutes later.
+6. **Release.** `scripts/release-extension.sh 1.1.5` tagged
+   `extension-v1.1.5` at `7e67eed9` (the manifest already carried 1.1.5, so
+   there was no bump commit). Run 38713259358: package, live compatibility
+   matrix and submit all passed, and the GitHub release
+   `extension-v1.1.5` holds the ZIP, checksum, `build.json` and receipt.
+   Package SHA-256
+   `5d1357431da2f737df044a337cd38a0048122a4159178589aa88b72dc89fac6f`,
+   as expected; `sourceDirty: false`. Receipt: `status: submitted`,
+   `state: PENDING_REVIEW`, published still 1.1.4. In the CI matrix every
+   captured host passed with the current client. The current host failed
+   at `connect` with the 1.1.3 and 1.1.4 clients, the strict-client break
+   behind the release hold.
+7. **Delivery.** `compat/deliveries.json` records extension 1.1.5
+   (`7e67eed9`, submitted) and marks 1.1.4 published (store API, 2026-10-15;
+   first public date unknown). `compat-capture.mjs --commit 7e67eed9…
+   --roles client` captured it. The local live matrix `--host current
+   --client 7e67eed9…` passed every step (`connect, set_download_folder,
+   add, download, verify_payload, remove, data_removed`, 50 s). 1.1.5 is
+   the first tolerant captured client, so
+   `release-compatibility.json` names the boundary
+   (`strictClients.tolerantSince.extension: 1.1.5`). The compatibility
+   tests check that its own decoder accepts every current host frame and
+   an unreviewed addition, and skip the strict-exposure ledger for
+   contracts only tolerant clients ship.
+
+Next: watch review and then adoption in the dashboard (After This).

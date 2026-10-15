@@ -127,9 +127,10 @@ const RAW_FAILURES: Readonly<Record<string, readonly string[]>> = {
     "seeding torrent with stop limits",
     "row updates of new kinds",
   ],
+  "extension 1.1.5": [],
 };
 
-describe.each(CLIENT_CAPTURES)("released client $deliveries", ({ deliveries, load }) => {
+describe.each(CLIENT_CAPTURES)("released client $deliveries", ({ deliveries, strict, load }) => {
   it("fails on current host data only through reviewed exposures, under the hold", async () => {
     const decoder = await load();
     const raw = CURRENT_HOST_FRAMES.map((frame) => ({
@@ -157,7 +158,9 @@ describe.each(CLIENT_CAPTURES)("released client $deliveries", ({ deliveries, loa
     expect(failing.map((result) => result.frame)).toEqual(RAW_FAILURES[deliveries]);
   });
 
-  it("rejects an unreviewed addition even after reviewed exposures are removed", async () => {
+  // A tolerant client accepts additions it does not know; a strict one
+  // rejects any that are not reviewed exposures.
+  it(`${strict ? "rejects" : "accepts"} an unreviewed addition after reviewed exposures are removed`, async () => {
     const decoder = await load();
     const frame = CURRENT_HOST_FRAMES[2]!;
     const value = structuredClone(frame.value) as typeof open;
@@ -165,8 +168,8 @@ describe.each(CLIENT_CAPTURES)("released client $deliveries", ({ deliveries, loa
       seeding: Record<string, unknown>;
     };
     torrent.seeding.unreviewed_addition = true;
-    expect(
-      decode(decoder, frame, stripExposures(value, frame.definition, contract, exposures)),
-    ).not.toBeNull();
+    const error = decode(decoder, frame, stripExposures(value, frame.definition, contract, exposures));
+    if (strict) expect(error).not.toBeNull();
+    else expect(error).toBeNull();
   });
 });

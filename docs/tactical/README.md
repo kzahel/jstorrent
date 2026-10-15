@@ -1,8 +1,8 @@
 # Implementation Tactical Docs
 
 - [361 — Extension store publishing setup](361-extension-store-publishing-setup.md):
-  ready; one-time Google and GitHub setup so `extension-v*` tags submit to the
-  Chrome Web Store, then release 1.1.5.
+  done; one-time Google and GitHub setup so `extension-v*` tags submit to the
+  Chrome Web Store, and extension 1.1.5 submitted through it.
 - [360 — Hosted remote controller on its own subdomain](360-remote-controller-subdomain.md):
   proposed for later; serve the remote controller from `remote.jstorrent.com`,
   deployed only from `remote-v*` tags and isolated from the marketing site.

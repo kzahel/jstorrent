@@ -1,5 +1,13 @@
 # Product Surfaces And JSTorrent Migration
 
+Tactical [361](../tactical/361-extension-store-publishing-setup.md) lets an
+`extension-v*` tag test, package and submit the production extension to its
+existing Web Store item without a stored key, through a sibling workload
+identity provider beside Yep Anywhere's on the same publisher. On 2026-10-15
+the store API reported 1.1.4 published, and the workflow submitted 1.1.5
+(the first tolerant companion) for automatic publication after review.
+Listing, permissions and visibility are unchanged.
+
 Tactical [336](../tactical/336-production-desktop-extension-control.md) repairs
 production desktop-extension admission. Released desktop 0.3.0/0.3.1 retain
 a native helper guard allowing only the beta ID, although registration and

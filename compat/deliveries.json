@@ -96,7 +96,7 @@
       "version": "1.1.4",
       "commit": "5fa018ff589f8058f6ed3910f5cea5fcd06410ab",
       "channel": "chrome-web-store",
-      "status": "submitted",
+      "status": "published",
       "submitted": "2026-10-13",
       "firstPublic": null,
       "roles": ["client"]
@@ -111,6 +111,17 @@
       "submitted": "2026-10-13",
       "firstPublic": null,
       "roles": ["host"]
+    },
+    {
+      "surface": "extension",
+      "version": "1.1.5",
+      "tag": "extension-v1.1.5",
+      "commit": "7e67eed958e13e705fc386cfa0721e262937a4dd",
+      "channel": "chrome-web-store",
+      "status": "submitted",
+      "submitted": "2026-10-15",
+      "firstPublic": null,
+      "roles": ["client"]
     }
   ]
 }

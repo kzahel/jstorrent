@@ -20,21 +20,34 @@ import { CLIENT_CAPTURES, HOST_CAPTURES, knownBreaks } from "../compat/captures"
 const REVIEWED_STRICT_CLIENT_EXPOSURE: Readonly<Record<string, string>> =
   releaseCompatibility.reviewedStrictClientExposure;
 
-/** Each distinct released contract, labeled with the deliveries that ship it. */
-const RELEASED = [...HOST_CAPTURES, ...CLIENT_CAPTURES].reduce<
-  { tag: string; schema: unknown; commits: string[] }[]
->((releases, capture) => {
-  const existing = releases.find(
-    (release) => JSON.stringify(release.schema) === JSON.stringify(capture.schema),
-  );
-  if (existing === undefined) {
-    releases.push({ tag: capture.deliveries, schema: capture.schema, commits: [capture.commit] });
-  } else {
-    existing.tag = `${existing.tag}; ${capture.deliveries}`;
-    existing.commits.push(capture.commit);
-  }
-  return releases;
-}, []);
+/**
+ * Each distinct released contract, labeled with the deliveries that ship it.
+ * A contract only tolerant clients ship has no strict-client exposure.
+ */
+const RELEASED = [
+  ...HOST_CAPTURES.map((capture) => ({ ...capture, tolerant: false })),
+  ...CLIENT_CAPTURES.map((capture) => ({ ...capture, tolerant: !capture.strict })),
+].reduce<{ tag: string; schema: unknown; commits: string[]; tolerantOnly: boolean }[]>(
+  (releases, capture) => {
+    const existing = releases.find(
+      (release) => JSON.stringify(release.schema) === JSON.stringify(capture.schema),
+    );
+    if (existing === undefined) {
+      releases.push({
+        tag: capture.deliveries,
+        schema: capture.schema,
+        commits: [capture.commit],
+        tolerantOnly: capture.tolerant,
+      });
+    } else {
+      existing.tag = `${existing.tag}; ${capture.deliveries}`;
+      existing.commits.push(capture.commit);
+      existing.tolerantOnly &&= capture.tolerant;
+    }
+    return releases;
+  },
+  [],
+);
 
 /** Types a client builds and a host parses with unknown keys rejected. */
 const CLIENT_SENT_PATCHES = {
@@ -57,7 +70,7 @@ type Schema = {
 };
 type Definitions = Readonly<Record<string, Schema>>;
 
-describe.each(RELEASED)("contract against $tag", ({ schema, commits }) => {
+describe.each(RELEASED)("contract against $tag", ({ schema, commits, tolerantOnly }) => {
   const before = (schema as { $defs: Definitions }).$defs;
   const after = (current as { $defs: Definitions }).$defs;
 
@@ -111,7 +124,7 @@ describe.each(RELEASED)("contract against $tag", ({ schema, commits }) => {
     expect(problems.sort()).toEqual(knownBreaks(commits, "client-sent"));
   });
 
-  it("records every addition released strict clients would reject", () => {
+  it.skipIf(tolerantOnly)("records every addition released strict clients would reject", () => {
     const exposures: string[] = [];
     for (const [name, old] of Object.entries(before)) {
       const next = after[name];

@@ -124,21 +124,24 @@ forms.
 
 ### One-time setup
 
-Not yet configured for this repository; the step-by-step handoff with the
-known values is [Tactical 361](../../docs/tactical/361-extension-store-publishing-setup.md).
+Done 2026-10-15; values and evidence are in
+[Tactical 361](../../docs/tactical/361-extension-store-publishing-setup.md).
 It mirrors Yep Anywhere's setup:
 
 - A GitHub environment `chrome-web-store` limited to `main` and
   `extension-v*`, with variables `CWS_WIF_PROVIDER`, `CWS_SERVICE_ACCOUNT` and
   `CWS_PUBLISHER_ID`. No private key or refresh token is stored in GitHub.
-- In Google Cloud: the Chrome Web Store API enabled, and a workload identity
-  provider whose condition allows this repository, the `chrome-web-store`
-  environment subject, this workflow's `workflow_ref` and `main` or
-  `extension-v*`. Grant only `roles/iam.workloadIdentityUser` on the service
-  account to that subject.
-- In the Chrome Web Store developer account that owns the JSTorrent item,
-  link the service account's email under API access. Access is
-  publisher-wide; the script pins this item.
+- In Google project `yep-dev-3fd5a`: the Chrome Web Store API enabled, and
+  provider `github-jstorrent` in pool `ya-chrome-store`, whose condition
+  allows this repository's IDs, the `chrome-web-store` environment subject,
+  this workflow's `workflow_ref` and `main` or `extension-v*`. This
+  repository uses GitHub's immutable OIDC subject, so the subject is
+  `repo:kzahel@158352/jstorrent@1317190900:environment:chrome-web-store`.
+  Only that subject has `roles/iam.workloadIdentityUser` on the service
+  account.
+- The JSTorrent item belongs to the same publisher as Yep Anywhere, whose
+  API access links the service account. Access is publisher-wide; the
+  script pins this item.
 
 Verify without changing the store:
 `gh workflow run extension-release.yml --ref main -f mode=check`.
