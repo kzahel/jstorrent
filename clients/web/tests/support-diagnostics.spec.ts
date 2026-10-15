@@ -1,26 +1,34 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-const supportLinks = [
-  ["Known issues", "https://github.com/kzahel/jstorrent/issues"],
-  ["Report a problem", "https://github.com/kzahel/jstorrent/issues/new"],
-  ["Privacy and recovery guidance", "https://github.com/kzahel/jstorrent/blob/main/docs/user-support.md"],
-] as const;
+async function supportLinks(page: Page) {
+  await page.getByRole("button", { name: "Prepare diagnostics" }).click();
+  const report = await page.getByRole("textbox", { name: "Exact report to copy or download" }).inputValue();
+  const body = ["### What happened?", "", "", "### What did you expect?", "", "",
+    "### Steps to reproduce", "", "", "### Diagnostics", "", "```json", report.trimEnd(), "```", ""].join("\n");
+  return [
+    ["Known issues", "https://github.com/kzahel/jstorrent/issues"],
+    ["Report on GitHub", `https://github.com/kzahel/jstorrent/issues/new?${new URLSearchParams({ body })}`],
+    ["Send feedback", "https://jstorrent.com/feedback.html?platform=win&v=0.1.3&build=abcdef1234567890&target=x86_64-pc-windows-msvc&package=msi&connection=desktop"],
+    ["Help", "https://jstorrent.com/support/"],
+  ] as const;
+}
 
 test("desktop support and release links use the injected opener and recover from failure", async ({ page }) => {
   const popups: unknown[] = [];
   page.on("popup", (popup) => popups.push(popup));
   await page.goto("/tests/fixtures/support-harness.html?desktop&rejectOpen&package=msi");
+  const links = await supportLinks(page);
   await page.getByRole("link", { name: "Known issues" }).click();
   await expect(page.getByRole("alert")).toHaveText("Could not open the link. Please try again.");
   await page.getByRole("link", { name: "Known issues" }).press("Enter");
   await expect(page.getByRole("alert")).toHaveCount(0);
-  for (const [name] of supportLinks.slice(1)) await page.getByRole("link", { name }).click();
+  for (const [name] of links.slice(1)) await page.getByRole("link", { name, exact: true }).click();
   await page.getByRole("link", { name: "Open release downloads" }).click({ modifiers: ["ControlOrMeta"] });
   expect(await page.evaluate(() => (window as unknown as { openedUrls: string[] }).openedUrls)).toEqual([
-    supportLinks[0][1], ...supportLinks.map(([, url]) => url),
+    links[0][1], ...links.map(([, url]) => url),
     "https://github.com/kzahel/jstorrent/releases/latest",
   ]);
   expect(popups).toEqual([]);
@@ -34,10 +42,11 @@ test("desktop support and release links use the injected opener and recover from
 
 test("browser support and release links open isolated tabs at their exact URLs", async ({ page, context }) => {
   await context.route("https://github.com/**", (route) => route.fulfill({ contentType: "text/html", body: "<h1>Controlled external destination</h1>" }));
+  await context.route("https://jstorrent.com/**", (route) => route.fulfill({ contentType: "text/html", body: "<h1>Controlled external destination</h1>" }));
   await page.goto("/tests/fixtures/support-harness.html?package=msi");
-  for (const [name, url] of [...supportLinks, ["Open release downloads", "https://github.com/kzahel/jstorrent/releases/latest"]]) {
+  for (const [name, url] of [...await supportLinks(page), ["Open release downloads", "https://github.com/kzahel/jstorrent/releases/latest"]]) {
     const pending = page.waitForEvent("popup");
-    await page.getByRole("link", { name }).click();
+    await page.getByRole("link", { name, exact: true }).click();
     const popup = await pending;
     await expect(popup).toHaveURL(url!);
     expect(await popup.evaluate(() => window.opener)).toBeNull();

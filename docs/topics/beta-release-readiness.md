@@ -1,5 +1,13 @@
 # Beta Release Readiness
 
+Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
+repairs desktop notice generation for npm's SSH spelling of the exact reviewed
+mediabunny Git commit. HTTPS and SSH map to the same public preferred-source
+archive; other origins, revisions and license declarations remain refused. The
+production-lockfile regression, 29 distribution tests and actual macOS notice
+generation (462 Rust / 35 npm packages) pass locally. Hosted package verification
+is tracked by the submitted commit's CI checks.
+
 Tactical [330](../tactical/330-android-1-0-31-production-release.md) submits
 Android 1.0.31/code 31 for production at 100%, automatically publishing after
 approval. Exact tagged signed APK/AAB checks and source Android/SAF integration

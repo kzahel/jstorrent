@@ -1,5 +1,15 @@
 # Client Surfaces
 
+Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
+orders Android pending-selection presentation requests before asynchronous
+service startup dispatch. A delayed initial clear cannot close a newer restored
+file-list subscription, and a dismissed selection cannot reopen. Two controlled
+dispatch-order regressions fail before and pass after the change.
+All 206 JVM cases, lint, the regenerated dual-ABI boundary and the full owned
+API 35 ARM64 SAF selection/restart/recheck/hash/removal profile pass locally.
+Handles peak at 3/40 for selective and 6/40 for Download all; AVD cleanup passes.
+Hosted x86_64 qualification of these edits remains separate.
+
 Tactical [340](../tactical/340-windows-quiet-network-startup.md) extends quiet
 fresh/first-upgrade incoming and UPnP defaults to Windows. Explicit later choices,
 ports, torrent intent/data and shell preferences survive. An isolated native

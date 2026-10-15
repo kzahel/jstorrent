@@ -1347,7 +1347,8 @@ test("color themes follow or override system appearance and persist", async ({
       sessionStorage.getItem("rstorrent.theme-at-first-content"),
     ),
   ).toBe("dark");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  // The URL restores the open Settings dialog across a reload.
+  await expect(dialog).toBeVisible();
   await expect(
     page
       .getByRole("group", { name: "Size units" })

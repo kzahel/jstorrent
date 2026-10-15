@@ -36,13 +36,27 @@ class PlaybackDependencySourceTests(unittest.TestCase):
         package = {'name': 'mediabunny', 'version': '1.38.1', 'license': 'MPL-2.0'}
         locked = {'resolved': 'git+https://github.com/kzahel/mediabunny.git#cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0'}
         self.assertIn('cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0.tar.gz', notices.npm_source(locked, package))
+        ssh = {'resolved': locked['resolved'].replace('git+https://', 'git+ssh://git@')}
+        self.assertEqual(notices.npm_source(locked, package), notices.npm_source(ssh, package))
         for bad in ['git+https://github.com/kzahel/mediabunny.git#integration',
-                    'git+ssh://git@github.com/kzahel/mediabunny.git#cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0',
+                    'git+ssh://git@github.com/kzahel/mediabunny.git#integration',
+                    'git+ssh://git@github.com/other/mediabunny.git#cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0',
                     'git+https://example.com/mediabunny.git#cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0']:
             with self.assertRaisesRegex(ValueError, 'reviewed source integrity'):
                 notices.npm_source({'resolved': bad}, package)
         with self.assertRaises(ValueError):
             notices.npm_source(locked, {**package, 'license': 'unknown'})
+
+    def test_production_lockfile_sources_are_accepted(self):
+        lock = json.loads((notices.ROOT / 'clients/web/package-lock.json').read_text())
+        sources = {}
+        for key, locked in lock['packages'].items():
+            if key and (not locked.get('dev') or key == 'node_modules/ajv'):
+                name = key.rsplit('node_modules/', 1)[-1]
+                sources[name] = notices.npm_source(locked, {**locked, 'name': name})
+        self.assertEqual(sources['mediabunny'],
+                         'https://github.com/kzahel/mediabunny/archive/'
+                         'cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0.tar.gz')
 
 
 class AdvisoryReviewTests(unittest.TestCase):

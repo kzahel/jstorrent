@@ -131,11 +131,14 @@ def npm_source(locked, package):
     if locked.get('integrity'):
         return source
     # Only this reviewed public git dependency may omit npm tarball integrity.
-    reviewed = 'git+https://github.com/kzahel/mediabunny.git#cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0'
-    if (package['name'], package['version'], package.get('license'), source) != (
-            'mediabunny', '1.38.1', 'MPL-2.0', reviewed):
+    revision = 'cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0'
+    # npm can normalize the public HTTPS override to its SSH lockfile form.
+    reviewed = {f'git+https://github.com/kzahel/mediabunny.git#{revision}',
+                f'git+ssh://git@github.com/kzahel/mediabunny.git#{revision}'}
+    if ((package['name'], package['version'], package.get('license')) != (
+            'mediabunny', '1.38.1', 'MPL-2.0') or source not in reviewed):
         raise ValueError('npm dependency has no reviewed source integrity')
-    return 'https://github.com/kzahel/mediabunny/archive/cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0.tar.gz'
+    return f'https://github.com/kzahel/mediabunny/archive/{revision}.tar.gz'
 
 
 def npm_notices():

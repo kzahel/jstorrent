@@ -34,6 +34,31 @@ import org.rstorrent.session.uniffi.ViewUpdate
 
 class AndroidPresentationRepositoryTest {
     @Test
+    fun restoredSelectionSurvivesAnOlderClearResumingAfterStartup() = withFixture { fixture ->
+        val queued = ArrayDeque<(AndroidPresentationRepository) -> Unit>()
+        val presentation = PendingSelectionPresentation { queued.add(it) }
+        presentation.clear()
+        presentation.present("restored", 0U)
+        queued.removeLast()(fixture.repository)
+        queued.removeFirst()(fixture.repository)
+        assertEquals(4, fixture.client.calls)
+        assertFalse(fixture.client.subscriptions.last().closed)
+        assertTrue(fixture.errors.isEmpty())
+    }
+
+    @Test
+    fun dismissedSelectionCannotBeReopenedByAnOlderStartupRequest() = withFixture { fixture ->
+        val queued = ArrayDeque<(AndroidPresentationRepository) -> Unit>()
+        val presentation = PendingSelectionPresentation { queued.add(it) }
+        presentation.present("dismissed", 0U)
+        presentation.clear()
+        queued.removeLast()(fixture.repository)
+        queued.removeFirst()(fixture.repository)
+        assertEquals(3, fixture.client.calls)
+        assertTrue(fixture.errors.isEmpty())
+    }
+
+    @Test
     fun generatedDestroyedClientGuardMatchesProductionException() = withFixture { fixture ->
         val client = AndroidApplicationClient(NoHandle)
         client.close()

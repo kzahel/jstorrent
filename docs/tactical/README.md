@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [372 — CI packaging and presentation regressions](372-ci-packaging-and-presentation-regressions.md):
+  npm Git notice provenance, current support-link/Settings browser assertions
+  and Android pending-selection request order across service startup.
 - [371 — Statistics and compatibility reporting rollout](371-statistics-and-compatibility-rollout.md):
   ready; handoff plan for the update server's opt-out logging and estimate,
   lifting the release hold, the companion header fix, releases, and

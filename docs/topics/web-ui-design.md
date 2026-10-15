@@ -1,5 +1,10 @@
 # Web UI Design
 
+Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
+updates deterministic browser checks for the current diagnostic-prefilled
+GitHub/website support links and URL-restored Settings after reload. All 71
+deterministic browser cases pass locally; the 18 live-only cases stay opt-in.
+
 Tactical [367](../tactical/367-encrypted-short-links.md) adds a remembered,
 initially off **Short link** choice to the web Share panel. It uploads only an
 encrypted copy, expires it after 30 days, and uses the returned link for the

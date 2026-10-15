@@ -152,6 +152,7 @@ class ProductEngineService : Service() {
     private val shutdownComplete = CompletableDeferred<Unit>()
     private val clientReady = CompletableDeferred<Unit>()
     private val presentationReady = CompletableDeferred<Unit>()
+    private val pendingSelectionPresentation = PendingSelectionPresentation(::withPresentation)
     private val mutableState = MutableStateFlow(ProductState())
     val state: StateFlow<ProductState> = mutableState.asStateFlow()
 
@@ -4600,11 +4601,11 @@ class ProductEngineService : Service() {
         torrentId: String,
         offset: UInt,
     ) {
-        withPresentation { it.presentPendingFileSelection(torrentId, offset) }
+        pendingSelectionPresentation.present(torrentId, offset)
     }
 
     fun clearPendingFileSelection() {
-        withPresentation(AndroidPresentationRepository::clearPendingFileSelection)
+        pendingSelectionPresentation.clear()
     }
 
     fun presentGlobal(

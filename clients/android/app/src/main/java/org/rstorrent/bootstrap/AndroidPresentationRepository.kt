@@ -29,6 +29,32 @@ import org.rstorrent.session.uniffi.ViewProjection
 import org.rstorrent.session.uniffi.ViewSelector
 import org.rstorrent.session.uniffi.ViewUpdate
 
+/** Keeps UI request order across the service's asynchronous startup dispatch. */
+internal class PendingSelectionPresentation(
+    private val dispatch: ((AndroidPresentationRepository) -> Unit) -> Unit,
+) {
+    private val ownership = Any()
+    private var latestRequest = 0L
+
+    fun present(torrentId: String, offset: UInt) {
+        submit { it.presentPendingFileSelection(torrentId, offset) }
+    }
+
+    fun clear() {
+        submit(AndroidPresentationRepository::clearPendingFileSelection)
+    }
+
+    private fun submit(action: (AndroidPresentationRepository) -> Unit) {
+        // Reserve order before dispatch or readiness waits can reorder callers.
+        val request = synchronized(ownership) { ++latestRequest }
+        dispatch { repository ->
+            synchronized(ownership) {
+                if (request == latestRequest) action(repository)
+            }
+        }
+    }
+}
+
 /** Owns the bounded set of subscriptions that feed the Android product surface. */
 internal class AndroidPresentationRepository(
     private val scope: CoroutineScope,
