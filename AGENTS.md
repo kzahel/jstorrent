@@ -346,6 +346,9 @@ When a commit materially advances a living topic, append the exact
 
 ## Git And Releases
 
+By default, work and commit directly on `main` in this checkout. Do not
+create worktrees or branches unless the user asks for them.
+
 Do not add a remote, push, publish, tag, or release unless the user explicitly
-requests it. Before any future push, verify `git config user.name` and
+requests it. Before a push, verify `git config user.name` and
 `git config user.email`; stop if they are automation placeholders.
