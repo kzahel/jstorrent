@@ -1,9 +1,10 @@
 # Tactical 359: Mixed-Version Compatibility Matrix
 
-Status: Proposed, 2026-10-15. Maintainer-requested plan; awaiting review and
-approval before implementation. Replaces Tactical
-[354](354-mixed-version-compatibility.md) Slice 4 and generalizes its
-single-release checks.
+Status: In progress, 2026-10-15. Revised after an independent read-only
+review (Yep Anywhere session `01a13e5d-2874-7b43-b9ec-617ed6965210`,
+GPT-6.1-Sol, high effort); maintainer-approved to implement end to end with
+commits. Replaces Tactical
+[354](354-mixed-version-compatibility.md) Slice 4.
 Topics: `mixed-version-compatibility`, `application-view-api`,
 `client-surfaces`.
 
@@ -13,191 +14,131 @@ serves the application API; a **client** connects to a host.
 ## Problem
 
 Clients and hosts update independently (hosted remote controller, extension
-companions, desktop, Android, headless), so every supported pair of
-versions must work in both directions. Today's evidence covers one release
-and parts of the matrix:
-
-| Check | Today |
-| --- | --- |
-| New client receives an old host's data | `desktop-v0.3.1` frames decoded and rendered by the current client (`released-hosts.test.ts`, `App.test.tsx`). |
-| Old client receives new host data | Static only: `contract-compatibility.test.ts` lists schema additions released strict clients would reject. No released client code runs. |
-| New host receives an old client's requests | Not checked. |
-| Old host receives new client requests | Static only: new patch keys and commands must be capability-owned. Nothing checks that gated requests are valid for the old host. |
-| Which releases are covered | Whatever someone copied into fixtures; nothing requires the newest release or every release in the window. |
-
-The maintainer wants a scaffold that proves the 2×2 matrix
-(old/new host × old/new client) for every release inside the support window
-and fails CI when a release is missing from it.
+companions, desktop, Android, headless), so supported pairs of versions must
+work in both directions. Evidence today covers one release and parts of the
+matrix: released `desktop-v0.3.1` frames decode in the current client, and a
+static schema comparison lists what released strict clients would reject. No
+released client code runs, nothing records what the current client actually
+sends to an old host, nothing requires every published release to be
+covered, and the hosted controller deploys without running the compatibility
+tests at all.
 
 ## Decision
 
-For every supported release R and the proposed release P (current `main`),
-prove the four cells with artifacts produced by R's own source, not by
-hand-written approximations:
+For each supported release R and the proposed source P, check the
+off-diagonal cells of old/new host × old/new client in both directions,
+using artifacts produced by R's own source:
 
-|  | Host R | Host P |
+| Check | Direction | Evidence |
 | --- | --- | --- |
-| **Client R** | matched pair (shipped together) | **cell B**: client R accepts host P's data; host P accepts client R's requests |
-| **Client P** | **cell A**: client P accepts host R's data; host R accepts client P's (gated) requests | normal tests |
+| **D1** | Host R data → client P | R's captured frames decode, reduce and render in client P; every field P types as present is filled. |
+| **D2** | Host P data → client R | Host P's corpus runs through client R's own bundled decoder and reducer. Raw results are recorded as they are: a failure is a real incompatibility. Stripping reviewed exposures only *attributes* failures; release permission still comes from the existing hold in `release-compatibility.json` or a per-release accepted break. |
+| **R1** | Client P requests → host R | Client P's real dispatch runs against R's captured hello; the requests it actually emits are recorded and must be valid against R's exact request schema. Actions R lacks must be refused locally and emit nothing. This is a schema check, not a run of R's parser; it is labeled so. |
+| **R2** | Client R requests → host P | Client R's recorded requests parse in host P's real Rust types and pass the gateway's frame checks. |
 
-Each off-diagonal cell has a data direction and a request direction, giving
-four checks per release:
+What this does **not** prove, and needs separate evidence: relay
+authentication and forwarding, binary upload framing, direct-file signaling
+and codecs, native-messaging bootstrap, Tauri IPC (a matched pair, covered by
+adapter tests), shape-preserving semantic changes, and rendering of historical
+UIs.
 
-1. **Host R → client P (data).** Host R's captured frames decode, reduce and
-   render in client P without errors, with every field client P types as
-   present filled.
-2. **Host P → client R (data).** Host P's frame corpus decodes and reduces in
-   client R's own bundled decoder. While R is a strict client, frames may
-   fail only because of reviewed exposures: after stripping exactly the
-   entries in `release-compatibility.json`, every frame must pass.
-3. **Client R → host P (requests).** Every request shape client R can send
-   (generated from R's schema) parses in host P.
-4. **Client P → host R (requests).** Every request shape client P can send,
-   after `supportedPatch` filtering with R's advertised capabilities, is
-   valid against R's exact client-request schema. Anything else must be
-   capability-owned, which the contract test already requires.
+## Review Findings Adopted
 
-## Release Registry And Window
+- **Identity is the source commit, not the schema hash.** `fedbea31` and
+  `9eeb9e61` share a schema hash but have different validators. Captures are
+  keyed by peeled commit and role; identical files may be shared by content
+  digest, and each release keeps its own provenance.
+- **Requests are recorded from real dispatch**, not sampled from schemas.
+  A schema sampler, if added later, supplements recordings and must validate
+  each sample against its own implementation first (for example settings
+  patches require `minProperties: 1`).
+- **Delivery ledger, not tags.** Tags do not prove publication (store review,
+  staged rollout, extension builds). `compat/deliveries.json` is an
+  append-only ledger of published deliveries: surface, version, source
+  commit, package digest where known, channel and first public date, with
+  explicit exclusions for frozen lanes (RSTorrent incubation
+  `desktop-v0.1.x`, `desktop-latest-v*`, `crostini-v0.1.0`,
+  `android-v0.1.0`).
+- **Raw failures stay failures** (D2 above).
+- **Enforcement covers every publication path, including the hosted
+  controller**, bound to the exact source commit, and runs on every push to
+  `main`; a weekly run is only a backstop. Android's release checkout is
+  shallow, so checks that need history fetch it explicitly.
+- **Tactical 354's audits are tightened:** the schema comparison recurses
+  into properties, items and branches and compares types and references; an
+  absent nullable field is not `null` (validation now fills it).
+- **Capture runs once per release outside ordinary CI**, with pinned
+  toolchains, recorded digests, and verification that regenerated contracts
+  match the committed ones.
 
-`compat/releases.json` lists supported releases:
+## Layout
 
-```json
-{
-  "windowDays": 30,
-  "releases": [
-    { "release": "desktop-v0.3.1", "surface": "desktop", "date": "2026-10-13",
-      "commit": "5fa018ff…", "roles": ["host", "client"], "contract": "e3347abdc3be" },
-    { "release": "extension-1.1.4", "surface": "extension", "date": "2026-10-13",
-      "commit": "5fa018ff…", "roles": ["client"], "contract": "e3347abdc3be" }
-  ]
-}
+```text
+compat/
+  deliveries.json              append-only published-delivery ledger
+  captures/<release>/          one per captured release, by source commit
+    provenance.json            release, commit, role, tool versions, digests
+    client-decoder.mjs         client R's bundled decode/reduce (client roles)
+    v1.schema.json             R's generated schema
+    hello.json, settings.json, view-set-trace.json   host R data (host roles)
+    client-requests.json       requests client R emitted (later slice)
 ```
-
-- `contract` is the SHA-256 prefix of R's generated `v1.schema.json`.
-  Captured artifacts live once per contract under
-  `compat/contracts/<contract>/`, so releases sharing a contract share them.
-- Roles: desktop and Android releases are host and client (their own UI);
-  extension releases are clients only; headless and Crostini releases are
-  hosts whose own UI is a matched pair.
-- **Window rule.** Every production release (`desktop-v*`, `android-v*`,
-  `headless-v*`, `crostini-v*`, extension versions) dated within
-  `windowDays` of the proposed release, and the newest release of each
-  surface regardless of age, must be registered and captured. Older entries
-  may be removed in a reviewed commit.
-- **Extension releases** have no tags today. Start tagging them
-  (`extension-v1.1.5`); register past ones by manifest commit.
-- Initial registry (three contracts):
-
-| Contract | Releases |
-| --- | --- |
-| `4845fe5897a7` | desktop 0.3.0; extension 1.1.3 (manifest commit `bff14e72`, build commit to confirm) |
-| `361dc45e157a` | Android 1.0.29 |
-| `e3347abdc3be` | desktop 0.3.1, Android 1.0.30 and 1.0.31, extension 1.1.4 (`5fa018ff`) |
-
-## Capture
-
-`scripts/compat-capture.mjs <release>` runs once per new contract and commits
-its output:
-
-- Creates a temporary `git worktree` at the release commit and removes it
-  afterwards.
-- **Host artifacts:** runs that release's `export_types` for its schema,
-  declarations and traces; runs a temporary example program written into the
-  worktree (never committed there) that prints that release's
-  `ApiHello::default()` and default settings runtime view. These calls exist
-  in every supported release.
-- **Client decoder:** bundles that release's `validation.ts`, generated
-  validators and `view-set-reducer.ts` into one self-contained
-  `client-decoder.mjs` (esbuild) exporting the decode and reduce functions.
-  This is client R's real decoding code, including its hand-written checks.
-- **Request corpus:** `client-requests.json`, generated from R's schema by a
-  deterministic sampler (below).
-- Writes `compat/contracts/<contract>/` with a `provenance.json` recording
-  release, commit and capture tool version.
-
-## Corpora
-
-- **Request sampler.** A deterministic schema walker produces, for each
-  client-sent type (`ApplicationClientFrame`, `Command`, both settings
-  patches): one instance per tagged variant with required fields only, and one
-  per optional field set. Strings use pattern-satisfying fixed values where a
-  pattern exists. Serde only checks structure, so these prove parse
-  compatibility, not semantic validity.
-- **Host P frame corpus.** The current traces cover only the library view.
-  Add a `compat_corpus` generator next to `export_types` that emits, from
-  host P's real types, a hello, a settings runtime view with every optional
-  field populated, and at least one snapshot and one patch for every view
-  type and row field kind. Releases captured after it lands include it in
-  their host artifacts; earlier releases keep their narrower traces, recorded
-  as a known gap.
-
-## Checks And Placement
-
-- Web (`clients/web`, vitest): checks 1 and 2, plus check 4 (Ajv compiled
-  from each captured exact schema). They replace and generalize
-  `released-hosts.test.ts`, `newer-host.test.ts` and the release loop in
-  `contract-compatibility.test.ts`.
-- Rust (`rstorrent-gateway` tests): check 3, deserializing each captured
-  `client-requests.json` into host P's types.
-- **Registry check** (`scripts/compat-registry.mjs`): needs git tags, so it
-  runs in the release workflows (which already fetch history) and in a weekly
-  scheduled workflow; it fails when a release required by the window rule is
-  missing from the registry or its contract directory. Ordinary CI runs the
-  matrix over whatever is registered.
-- The release workflows run the full matrix with P = the release commit
-  before publishing, next to `check-release-compatibility.mjs`.
-
-## Non-Goals
-
-- Running real old binaries end to end (Playwright against an old desktop
-  build, a real old extension against a current host). A later live smoke can
-  add timing and transport evidence; contract breaks are caught here.
-- Android Compose and iOS UIs, which run in process with their host.
-- Relay authentication message compatibility (Tactical 354 Slice 3).
-- Semantic validity of sampled requests beyond parsing.
-
-## Invariants
-
-- Every artifact under `compat/contracts/` is produced by the release's own
-  source at its recorded commit; nothing is hand-edited.
-- A strict client may fail only on reviewed exposures; any other failure fails
-  CI.
-- The window rule fails closed: a missing release blocks publishing.
 
 ## Slices
 
-1. **Registry and capture.** `releases.json`, `compat-capture.mjs` (worktree,
-   `export_types`, temporary example program, decoder bundle), capture the
-   three contracts, provenance.
-2. **Data checks.** Checks 1 and 2 across all registered contracts; migrate
-   the existing released-host and newer-host tests.
-3. **Request checks.** Sampler, check 3 in Rust, check 4 in the web suite.
-4. **Host corpus.** `compat_corpus` generator and check 2 over it.
-5. **Enforcement.** Registry check in release workflows and a weekly job;
-   `extension-v*` tagging; topic runbook update.
+0. **Quick fixes.** The hosted-site deploy runs the web typecheck and tests
+   before deploying. The contract comparison recurses and compares types.
+   Absent nullable fields are filled with `null`, and the generator rejects
+   any omittable field TypeScript types as present.
+1. **First matrix slice (review's recommendation).** Capture extension 1.1.4
+   from `5fa018ff` with `scripts/compat-capture.mjs` (temporary worktree,
+   rolldown bundle of its `validation.ts` and `view-set-reducer.ts`). D2:
+   run its real decoder over the current host's hello, settings and library
+   output, record raw results, attribute failures to reviewed exposures, and
+   require the release hold to be on while any raw failure exists. R1: drive
+   current `LiveApplication.dispatch` against desktop 0.3.1's hello, record
+   emitted requests, validate them against 0.3.1's exact schema, and require
+   capability-owned actions to emit nothing. Negative controls for each.
+2. **Ledger and coverage.** `deliveries.json` for every published delivery
+   since the JSTorrent cutover; move the `desktop-v0.3.1` fixtures into
+   captures; capture desktop 0.3.0 / extension 1.1.3 and Android 1.0.29–1.0.31;
+   the window check on every `main` push and in release workflows (full
+   history fetched).
+3. **Host corpus.** A `compat_corpus` generator next to `export_types`
+   emitting every server frame, view snapshot and patch, row field kind,
+   enum value, error variant and omitted-field case, with coverage
+   accounting; D2 over it. Keep `newer-host.test.ts`'s synthetic additions.
+4. **Old-client requests (R2).** Record client R's emitted requests at
+   capture by running R's own dispatch against a recording client, and
+   parse them in host P's Rust types.
+5. **Stateful and broader checks.** Hello refresh after reconnect, view
+   subscription selection by capability, per-release exposure sets, and
+   historical capability snapshots.
+
+## Invariants
+
+- Every captured artifact is produced by the release's own source at its
+  recorded commit; nothing is hand-edited.
+- A raw incompatibility never turns green by stripping; it is either fixed,
+  held, or accepted for one named release.
+- A delivery missing from the ledger or captures fails closed for
+  publication.
 
 ## Validation
 
-- Each check has a deliberate failing fixture: an old decoder rejecting an
-  unreviewed addition; a host P type rejecting an old request; a gated
-  request invalid for an old schema; a missing registry entry.
-- Capturing the same release twice produces identical artifacts.
-- Web and Rust suites, `actionlint`, and a dry run of the registry check
-  against the current tags.
+Each check has a deliberate failing control: an old decoder rejecting an
+unreviewed addition, a request invalid for an old schema, a gated action that
+emits a request, a missing delivery. Web and Rust suites and `actionlint` run
+for each slice.
 
 ## Stopping Condition
 
-Complete when the three current contracts are captured from their own
-releases, all four checks run for each in CI with negative controls, the
-registry check runs in the release workflows and weekly, and the
-`mixed-version-compatibility` topic describes the matrix and its runbook.
+Complete when every published delivery in the window is in the ledger and
+captured from its own source, D1, D2, R1 and R2 run for each in CI with
+negative controls, publication and hosted deployment are gated on them, and
+the `mixed-version-compatibility` topic describes the matrix, its limits and
+the runbook.
 
-## Open Questions
+## Evidence
 
-- Should the extension's tags be pushed retroactively for 1.1.3 and 1.1.4,
-  once their exact build commits are confirmed?
-- Is a weekly scheduled run enough, or should the registry check also run on
-  every push to `main` with a tag fetch?
-- Should check 2 also render client R's UI (not only decode and reduce)?
-  That needs R's whole web bundle and a DOM; decode and reduce catch contract
-  breaks, rendering catches UI assumptions.
+Recorded per slice below as work lands.
