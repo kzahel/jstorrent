@@ -36,6 +36,9 @@ using artifacts produced by R's own source:
 | **R1** | Client P requests → host R | Client P's real dispatch runs against R's captured hello; the requests it actually emits are recorded and must be valid against R's exact request schema. Actions R lacks must be refused locally and emit nothing. This is a schema check, not a run of R's parser; it is labeled so. |
 | **R2** | Client R requests → host P | Client R's recorded requests parse in host P's real Rust types and pass the gateway's frame checks. |
 
+Slice 6 adds a live happy path over real processes for the same pairs, as
+a sanity check that the captured-data checks reflect working software.
+
 What this does **not** prove, and needs separate evidence: relay
 authentication and forwarding, binary upload framing, direct-file signaling
 and codecs, native-messaging bootstrap, Tauri IPC (a matched pair, covered by
@@ -114,6 +117,10 @@ compat/
 4. **Old-client requests (R2).** Record client R's emitted requests at
    capture by running R's own dispatch against a recording client, and
    parse them in host P's Rust types.
+6. **Live happy path.** Complete; see **Evidence**. A real host built from
+   a commit and a real client version's own `LiveApplication` connect, set
+   the download folder, add a magnet, download and verify it, and remove it
+   with its data. Runs locally and in a manual, tag-push and weekly workflow.
 5. **Stateful and broader checks.** Hello refresh after reconnect, view
    subscription selection by capability, per-release exposure sets, and
    historical capability snapshots.
@@ -245,3 +252,36 @@ Slice 2, 2026-10-15:
   passed); `cargo test -p rstorrent-session -p rstorrent-gateway`; clippy;
   `node --test scripts/compat-ledger.test.mjs`; `actionlint` on the four
   workflows.
+
+Slice 6, 2026-10-15:
+
+- **Driver.** `clients/web/src/compat-live-driver.test.ts`, skipped unless
+  the orchestrator sets its environment, uses only APIs present in every
+  supported release (`WebSocketApplicationViewClient`, `LiveApplication.open`,
+  `subscribe`, `dispatch`, `close`). Steps: connect, set the download folder,
+  add a magnet, wait for progress 1, verify the payload's SHA-1, remove with
+  data, and see the file gone. It writes the outcome to a file.
+- **Orchestrator.** `tests/interop/compat_live_matrix.py` builds
+  `rstorrent-gateway` for a host commit in a temporary worktree (shared
+  `target/compat-capture`, binaries cached in `target/compat-live/hosts`),
+  seeds a fixture from pinned libtorrent on loopback, starts the host with a
+  temporary profile, and runs the driver in the client commit's own
+  checkout (current `node_modules` supply only vitest and `ws`). Default
+  pairs: current × current, every captured host × current client, current
+  host × every captured client. `check: "live"` entries in
+  `compat/known-breaks.json` name the step a pair is expected to fail at;
+  any other outcome fails the run.
+- **Results, first full run.** Current × current: all seven steps (5 s).
+  Desktop 0.3.0, Android 1.0.28, 1.0.29, desktop 0.3.1/Android 1.0.30 and
+  Android 1.0.31 hosts × current client: all seven steps (58–76 s each,
+  including first builds). Current host × extensions 1.1.3 and 1.1.4: fail
+  at connect with `client_settings/configured must NOT have additional
+  properties`, the release-hold break, recorded as expected. Negative
+  control: before recording them, the run reported both as unexpected and
+  exited non-zero.
+- **CI.** `.github/workflows/compat-live.yml`: manual (optional host and
+  client inputs), on `desktop-v*`, `android-v*` and `headless-v*` tag pushes,
+  and weekly; full history for old commits; 90-minute limit. `actionlint`
+  passes. The tests/interop scenario map lists it.
+- **Runs.** `npm run typecheck` and `npm run test` in `clients/web` (742
+  passed; the driver is skipped there).

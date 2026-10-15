@@ -1,0 +1,87 @@
+name: Compatibility live matrix
+
+# Live happy path between released and current hosts and clients
+# (docs/tactical/359-mixed-version-compatibility-matrix.md, Slice 6).
+# Run it before a host or extension release; it also runs on release tags
+# and weekly. Locally:
+#   uv run --project tests/interop --locked python tests/interop/compat_live_matrix.py
+
+on:
+  workflow_dispatch:
+    inputs:
+      host:
+        description: Host version (current or a commit); leave empty for every pair
+        type: string
+        default: ""
+      client:
+        description: Client version (current or a commit); leave empty for every pair
+        type: string
+        default: ""
+  push:
+    tags:
+      - "desktop-v*"
+      - "android-v*"
+      - "headless-v*"
+  schedule:
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compat-live-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  matrix:
+    name: Old and new hosts and clients
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out source with history for old releases
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+
+      - name: Install Node.js 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: clients/web/package-lock.json
+
+      - name: Install Rust 1.97.0
+        uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613 # 1.97.0
+
+      - name: Cache Rust builds
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: compat-live-ubuntu-24.04
+
+      - name: Install uv and locked Python 3.12 environment
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.12.5"
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: tests/interop/uv.lock
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefix clients/web
+          uv sync --project tests/interop --locked --python 3.12
+
+      - name: Run the live matrix
+        env:
+          HOST: ${{ inputs.host }}
+          CLIENT: ${{ inputs.client }}
+        run: |
+          if [ -n "$HOST" ] || [ -n "$CLIENT" ]; then
+            uv run --project tests/interop --locked \
+              python tests/interop/compat_live_matrix.py --host "${HOST:-current}" --client "${CLIENT:-current}"
+          else
+            uv run --project tests/interop --locked python tests/interop/compat_live_matrix.py
+          fi

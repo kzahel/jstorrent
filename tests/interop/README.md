@@ -32,6 +32,7 @@ reports/captures are explicit local artifacts to remove after review.
 
 | Question | Scenario |
 | --- | --- |
+| Do released and current hosts and clients still work together end to end (connect, set the download folder, download, verify, remove with data)? | [compat_live_matrix.py](compat_live_matrix.py); every pair from `compat/deliveries.json` by default, or `--host` and `--client` with `current` or a commit. Old hosts are built once into `target/compat-live/`. Also the `Compatibility live matrix` workflow. |
 | Does ordinary intake, restart, seeding, corruption repair and keep-data removal work? | [application_lifecycle_smoke.py](application_lifecycle_smoke.py); `--extended` adds oversized and folder cases |
 | Is the first verified piece correct under failure and bounded buffers? | [first_verified_piece.py](first_verified_piece.py); `--large-piece` and `--selective-files` exercise storage geometry |
 | Does the finite downloader handle selection, recheck, crash, locks and permissions? | [stateless_foreground_download.py](stateless_foreground_download.py); build release `rstorrent-download` first |

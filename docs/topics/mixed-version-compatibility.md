@@ -150,6 +150,15 @@ never deleted.
   `LiveApplication.test.ts` (R1) record what current dispatch emits against a
   released host's hello and validate it against that host's exact schema with
   every object closed; actions it lacks emit nothing.
+- **Live happy path.** `tests/interop/compat_live_matrix.py` runs a real
+  host built from each captured commit against the current client, and the
+  current host against each captured client's own code: connect, set the
+  download folder, download and verify a torrent from a local libtorrent
+  seed, and remove it with its data. Run it locally with
+  `uv run --project tests/interop --locked python tests/interop/compat_live_matrix.py`
+  (or `--host`/`--client` with `current` or a commit); CI runs it manually,
+  on release tags and weekly (`Compatibility live matrix`). Run it before a
+  host or extension release.
 - **Known breaks.** `compat/known-breaks.json` records incompatibilities the
   matrix found in released combinations, each awaiting a fix-or-accept
   decision. The contract and R1 tests accept exactly those items for those

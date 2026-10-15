@@ -91,9 +91,10 @@ export const CLIENT_CAPTURES: readonly ClientCapture[] = captured("client").map(
 );
 
 interface KnownBreak {
-  readonly captures: readonly string[];
-  readonly check: "contract" | "client-sent" | "requests";
-  readonly items: readonly string[];
+  readonly captures?: readonly string[];
+  /** "live" entries belong to tests/interop/compat_live_matrix.py. */
+  readonly check: "contract" | "client-sent" | "requests" | "live";
+  readonly items?: readonly string[];
 }
 
 const knownBreakList = (
@@ -108,14 +109,14 @@ const knownBreakList = (
  */
 export function knownBreaks(
   commits: readonly string[],
-  check: KnownBreak["check"],
+  check: Exclude<KnownBreak["check"], "live">,
 ): string[] {
   return [
     ...new Set(
       knownBreakList
         .filter((entry) => entry.check === check)
-        .filter((entry) => entry.captures.some((commit) => commits.includes(commit)))
-        .flatMap((entry) => entry.items),
+        .filter((entry) => (entry.captures ?? []).some((commit) => commits.includes(commit)))
+        .flatMap((entry) => entry.items ?? []),
     ),
   ].sort();
 }
