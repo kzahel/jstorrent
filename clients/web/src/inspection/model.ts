@@ -104,6 +104,12 @@ export interface SessionSummary {
    * the application does not report them (the demo); see host-capabilities.
    */
   readonly hostCapabilities?: readonly string[] | null;
+  /**
+   * True when the host predates download_all_pending_add (desktop 0.3.0,
+   * Android 1.0.28): a pending add can download all files only once its
+   * file list loads. Absent means the host has the command.
+   */
+  readonly hostLacksDownloadAll?: boolean;
   readonly downloadRate: number;
   readonly uploadRate: number | null;
   readonly dhtNodes: number | null;

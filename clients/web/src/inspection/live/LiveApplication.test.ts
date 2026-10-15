@@ -58,6 +58,8 @@ class FakeLiveClient implements ApplicationViewClient {
 
   /** A released host's hello, for requests to that host. */
   helloOverride: ApiHello | null = null;
+  /** "0" is what the decoder fills for hosts before 0.3.1, which omit it. */
+  serverNowMillis = "10000";
 
   constructor(private readonly torrentView: TorrentView = torrent()) {}
 
@@ -238,7 +240,7 @@ class FakeLiveClient implements ApplicationViewClient {
     const viewSetId = `vs_${String(this.openCount).padStart(32, "0")}`;
     const initial: UpdateBatch = {
       api_version: 1,
-      server_now_millis: "10000",
+      server_now_millis: this.serverNowMillis,
       view_set_id: viewSetId,
       epoch: String(this.openCount),
       base_cursor: "0",
@@ -2271,6 +2273,14 @@ function peer(generation: number): PeerView {
   };
 }
 
+function currentSnapshot(application: LiveApplication): InspectionSnapshot {
+  let snapshot: InspectionSnapshot | undefined;
+  application.subscribe((update) => {
+    if (update.type === "snapshot") snapshot = update.snapshot;
+  })();
+  return snapshot!;
+}
+
 async function waitUntil(predicate: () => boolean): Promise<void> {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (predicate()) return;
@@ -2278,6 +2288,92 @@ async function waitUntil(predicate: () => boolean): Promise<void> {
   }
   throw new Error("condition was not reached");
 }
+
+describe("download all on hosts before 0.3.1", () => {
+  // Desktop 0.3.0 and Android 1.0.28: no product in the hello, and no server
+  // clock in view-set batches (decoded as "0").
+  const RELEASED_HELLO = HOST_CAPTURES.find((capture) =>
+    capture.deliveries.includes("desktop 0.3.0"),
+  )!.hello;
+
+  async function open(serverNowMillis: string, view: TorrentView, hello = RELEASED_HELLO) {
+    const client = new FakeLiveClient(view);
+    client.helloOverride = hello;
+    client.serverNowMillis = serverNowMillis;
+    const application = await LiveApplication.open(client);
+    await waitUntil(() => currentSnapshot(application).torrents[TORRENT_ID] !== undefined);
+    return { client, application };
+  }
+
+  it("selects every file of the loaded list instead", async () => {
+    const { client, application } = await open("0", { ...torrent(), file_catalog_id: "c1" });
+    expect(currentSnapshot(application).session.hostLacksDownloadAll).toBe(true);
+    await expect(
+      application.dispatch({
+        type: "download_all_pending_add",
+        torrentId: TORRENT_ID,
+        disableFuture: true,
+      }),
+    ).resolves.toMatchObject({ accepted: true });
+    expect(client.requests.map((request) => request.command)).toEqual([
+      {
+        type: "confirm_pending_file_selection",
+        torrent_id: TORRENT_ID,
+        catalog_id: "c1",
+        base: "all",
+        overrides: [],
+        disable_future: true,
+      },
+    ]);
+    await application.close();
+  });
+
+  it("sends nothing before the file list loads", async () => {
+    const { client, application } = await open("0", torrent());
+    await expect(
+      application.dispatch({
+        type: "download_all_pending_add",
+        torrentId: TORRENT_ID,
+        disableFuture: false,
+      }),
+    ).resolves.toMatchObject({ accepted: false });
+    expect(client.requests).toEqual([]);
+    await application.close();
+  });
+
+  it("sends download all to later hosts", async () => {
+    for (const { clock, hello } of [
+      { clock: "10000", hello: RELEASED_HELLO },
+      {
+        clock: "0",
+        hello: {
+          ...RELEASED_HELLO,
+          product: {
+            kind: "desktop" as const,
+            version: "0.3.2",
+            build_id: "development",
+            target: "aarch64-apple-darwin",
+            identifier: "com.jstorrent.desktop",
+            profile_id: "default",
+            profile_location: "/profiles/default",
+          },
+        },
+      },
+    ]) {
+      const { client, application } = await open(clock, torrent(), hello);
+      expect(currentSnapshot(application).session.hostLacksDownloadAll).toBe(false);
+      await application.dispatch({
+        type: "download_all_pending_add",
+        torrentId: TORRENT_ID,
+        disableFuture: false,
+      });
+      expect(client.requests.map((request) => request.command.type)).toEqual([
+        "download_all_pending_add",
+      ]);
+      await application.close();
+    }
+  });
+});
 
 // R1 of the compatibility matrix: requests the current client really emits
 // to a released host, from its real dispatch against that host's hello,
@@ -2291,6 +2387,8 @@ describe("requests to released hosts", () => {
     commit: capture.commit,
     hello: capture.hello,
     schema: capture.schema,
+    // What the decoder makes of this release's view-set batches.
+    serverNowMillis: "server_now_millis" in capture.trace.open.initial ? "10000" : "0",
   }));
   const STORAGE_ROOT = "root_a";
   const COMMANDS: readonly InspectionCommand[] = [
@@ -2349,14 +2447,16 @@ describe("requests to released hosts", () => {
     },
   ];
 
-  describe.each(RELEASED_HOSTS)("$release", ({ commit, hello, schema }) => {
+  describe.each(RELEASED_HOSTS)("$release", ({ commit, hello, schema, serverNowMillis }) => {
     const validate = exactRequestValidator(schema, "RequestEnvelope");
     const validateUpload = exactRequestValidator(schema, "AddTorrentBytesRequest");
 
     it("receives only requests valid against its exact schema", async () => {
-      const client = new FakeLiveClient();
+      const client = new FakeLiveClient({ ...torrent(), file_catalog_id: "c1" });
       client.helloOverride = hello as ApiHello;
+      client.serverNowMillis = serverNowMillis;
       const application = await LiveApplication.open(client);
+      await waitUntil(() => currentSnapshot(application).torrents[TORRENT_ID] !== undefined);
       const problems: string[] = [];
       for (const command of COMMANDS) {
         const before = client.requests.length;

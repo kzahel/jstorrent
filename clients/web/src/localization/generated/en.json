@@ -7037,6 +7037,12 @@
       "value": "Download"
     }
   ],
+  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
+    {
+      "type": 0,
+      "value": "You can download once the file list loads. A newer JSTorrent can start without waiting."
+    }
+  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

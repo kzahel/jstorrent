@@ -248,6 +248,13 @@ Slice 2, 2026-10-15:
     Released hosts advertise no capabilities, so 0.3.0 cannot be told from
     0.3.1 by capability.
   The last two are recorded in `compat/known-breaks.json` for a decision.
+  Decided 2026-10-15: tracker ages and `disable_future` on 1.0.29 are
+  accepted until those releases leave the window. Download all is fixed in
+  the client: a host with no product in its hello whose batches omit
+  `server_now_millis` is 0.3.0 or 1.0.28, and `LiveApplication` sends
+  `confirm_pending_file_selection` with every file selected instead; the
+  pending-add dialog waits for the file list there. R1 serves each release's
+  clock and checks the fallback request.
 - **Runs.** `npm run typecheck` and `npm run test` in `clients/web` (742
   passed); `cargo test -p rstorrent-session -p rstorrent-gateway`; clippy;
   `node --test scripts/compat-ledger.test.mjs`; `actionlint` on the four

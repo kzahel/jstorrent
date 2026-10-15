@@ -97,6 +97,16 @@ describe("pending file selection", () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
+  it("waits for the file list on a host that cannot download all before it", () => {
+    renderDialog({ files: metadataPendingFiles(), waitForFileList: true });
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "You can download once the file list loads",
+    );
+    expect(screen.getByRole("button", { name: "Download" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+  });
+
   it("offers explicit cancellation while metadata is pending", async () => {
     const user = userEvent.setup();
     const onCancel = vi.fn(async () => undefined);

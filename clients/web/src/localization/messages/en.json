@@ -2988,6 +2988,10 @@
     "defaultMessage": "Loading file list…",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
   },
+  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": {
+    "defaultMessage": "You can download once the file list loads. A newer JSTorrent can start without waiting.",
+    "description": "Pending add on a host too old to download all files before the file list loads"
+  },
   "inspection.components.pending.file.selection.dialog.you.can.download.all.files.without.waiting": {
     "defaultMessage": "You can download all files without waiting.",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"

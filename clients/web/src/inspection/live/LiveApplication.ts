@@ -144,6 +144,8 @@ export class LiveApplication implements InspectionApplication {
   } | null = null;
   private mappedPieces: MappedPieceActivity | null = null;
   private hello: ApiHello | null = null;
+  // The latest view-set batch had no server clock; see predatesDownloadAll.
+  private serverClockMissing = false;
   // False after the connection drops, until hello is read again.
   private helloCurrent = false;
   private client: ApplicationViewClient | null;
@@ -273,7 +275,7 @@ export class LiveApplication implements InspectionApplication {
     this.helloCurrent = true;
     markStartup("hello");
     this.ensureOpen();
-    this.snapshot = withHost(this.snapshot, this.hello);
+    this.snapshot = withHost(this.snapshot, this.hello, this.serverClockMissing);
     const opened = { ...this.desired };
     const controller = await ViewController.open(
       client,
@@ -546,6 +548,24 @@ export class LiveApplication implements InspectionApplication {
       };
     }
     if (
+      command.type === "download_all_pending_add" &&
+      predatesDownloadAll(this.hello, this.serverClockMissing)
+    ) {
+      // Selecting every file in the loaded list does the same there.
+      const catalogId = this.snapshot.torrents[command.torrentId]?.fileCatalogId;
+      if (catalogId === null || catalogId === undefined) {
+        return { accepted: false, message: localizedMessage("feedback.file.selection.not.ready") };
+      }
+      return this.dispatch({
+        type: "confirm_pending_file_selection",
+        torrentId: command.torrentId,
+        catalogId,
+        base: "all",
+        overrides: [],
+        disableFuture: command.disableFuture,
+      });
+    }
+    if (
       (command.type === "update_client_settings" ||
         command.type === "update_torrent_settings") &&
       Object.keys(command.patch).length > 0 &&
@@ -815,6 +835,7 @@ export class LiveApplication implements InspectionApplication {
 
   private acceptState(state: ViewSetState): void {
     if (this.closed) return;
+    this.serverClockMissing = state.serverNowMillis === "0";
     if (
       this.trackerClock?.viewSetId !== state.viewSetId ||
       this.trackerClock.epoch !== state.epoch
@@ -847,7 +868,7 @@ export class LiveApplication implements InspectionApplication {
       this.snapshot.clientSettings,
       this.trackerClock.offsetMs,
     );
-    this.snapshot = withHost(this.snapshot, this.hello);
+    this.snapshot = withHost(this.snapshot, this.hello, this.serverClockMissing);
     this.emit({ type: "snapshot", snapshot: this.snapshot });
   }
 
@@ -961,7 +982,7 @@ export class LiveApplication implements InspectionApplication {
     if (this.closed) return;
     const capabilitiesChanged = !sameStrings(this.hello?.capabilities ?? [], hello.capabilities);
     this.hello = hello;
-    this.snapshot = withHost(this.snapshot, hello);
+    this.snapshot = withHost(this.snapshot, hello, this.serverClockMissing);
     this.emit({ type: "snapshot", snapshot: this.snapshot });
     if (capabilitiesChanged) await this.syncViews().catch(() => {});
   }
@@ -1278,16 +1299,36 @@ function magnetExportOptions(options: MagnetShareOptions): MagnetExportOptions {
   };
 }
 
-function withHost(snapshot: InspectionSnapshot, hello: ApiHello | null): InspectionSnapshot {
+function withHost(
+  snapshot: InspectionSnapshot,
+  hello: ApiHello | null,
+  serverClockMissing: boolean,
+): InspectionSnapshot {
   const host = hello?.product ?? null;
   const hostCapabilities = hello?.capabilities ?? null;
+  const hostLacksDownloadAll = predatesDownloadAll(hello, serverClockMissing);
   if (
     (snapshot.session.host ?? null) === host &&
-    (snapshot.session.hostCapabilities ?? null) === hostCapabilities
+    (snapshot.session.hostCapabilities ?? null) === hostCapabilities &&
+    (snapshot.session.hostLacksDownloadAll ?? false) === hostLacksDownloadAll
   ) {
     return snapshot;
   }
-  return { ...snapshot, session: { ...snapshot.session, host, hostCapabilities } };
+  return {
+    ...snapshot,
+    session: { ...snapshot.session, host, hostCapabilities, hostLacksDownloadAll },
+  };
+}
+
+/**
+ * Desktop 0.3.0 and Android 1.0.28 predate download_all_pending_add and
+ * close the connection on it. Their hello is the same as later released
+ * hosts', but they omit UpdateBatch.server_now_millis (decoded as "0"; a
+ * later host's clock is past 0 by the time it serves a view set). Every
+ * host released since reports its product in the hello.
+ */
+function predatesDownloadAll(hello: ApiHello | null, serverClockMissing: boolean): boolean {
+  return hello !== null && (hello.product ?? null) === null && serverClockMissing;
 }
 
 function sameStrings(left: readonly string[], right: readonly string[]): boolean {

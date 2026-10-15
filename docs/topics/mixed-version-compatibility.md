@@ -162,9 +162,13 @@ never deleted.
   on release tags and weekly (`Compatibility live matrix`). Run it before a
   host or extension release.
 - **Known breaks.** `compat/known-breaks.json` records incompatibilities the
-  matrix found in released combinations, each awaiting a fix-or-accept
+  matrix found in released combinations, each with a fix-or-accept
   decision. The contract and R1 tests accept exactly those items for those
-  captures and fail on anything else.
+  captures and fail on anything else. Hosts released before capabilities
+  existed cannot be told apart by their hello; the one fix that needed to
+  (Download all on desktop 0.3.0 and Android 1.0.28) recognizes them by
+  their missing `server_now_millis`. Hosts released since report product
+  and capabilities, so this is not a pattern for new features.
 
 ## Current Release Hold
 
