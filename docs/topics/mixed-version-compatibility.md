@@ -208,8 +208,7 @@ snapshot from a host built from current `main` includes the new
 `ClientSettings.seed_stop_*` fields, so the companion fails on its first
 library view and asks for a reload. **Do not release desktop, headless or
 Android from `main`** until extension 1.1.5 (tolerant; `extension-v1.1.5`,
-submitted 2026-10-15, in review) is published and has had a few days to
-auto-update, or the maintainer accepts the companion break for that
+published 2026-10-15) has had a few days to auto-update, or the maintainer accepts the companion break for that
 release. Five are kinds 1.1.5 accepts. The other three are the
 `library_media` view, snapshot and patch variants (Tactical 363); a host
 sends them only to a client that leases the view, which no released client
@@ -288,9 +287,10 @@ that it has very few users.
 
 ## Gaps And Next Work
 
-- **Extension 1.1.5 review and adoption.** Submitted 2026-10-15 and pending
-  Google review. Lift the release hold once it is published and has had a
-  few days to auto-update (dashboard users by version).
+- **Extension 1.1.5 adoption.** Published 2026-10-15. Lift the release
+  hold (`strictClients.supported: false`) once the Web Store dashboard shows
+  most users on it; CI forces it when 1.1.4 leaves the window on
+  2026-11-14.
 - **Unknown enum values and frame types.** Still rejected by every client.
   Mapping them to an explicit unknown needs per-type handling in the UI.
 - **Relay authentication leniency** for unknown fields, after a security

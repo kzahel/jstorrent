@@ -119,9 +119,10 @@
       "tag": "extension-v1.1.5",
       "commit": "7e67eed958e13e705fc386cfa0721e262937a4dd",
       "channel": "chrome-web-store",
-      "status": "submitted",
+      "status": "published",
       "submitted": "2026-10-15",
-      "firstPublic": null,
+      "firstPublic": "2026-10-15",
+      "firstPublicBasis": "Maintainer report that the store update went live on 2026-10-15.",
       "roles": ["client"]
     }
   ]
