@@ -124,7 +124,9 @@ forms.
 
 ### One-time setup
 
-Not yet configured for this repository. It mirrors Yep Anywhere's setup:
+Not yet configured for this repository; the step-by-step handoff with the
+known values is [Tactical 361](../../docs/tactical/361-extension-store-publishing-setup.md).
+It mirrors Yep Anywhere's setup:
 
 - A GitHub environment `chrome-web-store` limited to `main` and
   `extension-v*`, with variables `CWS_WIF_PROVIDER`, `CWS_SERVICE_ACCOUNT` and
