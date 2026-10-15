@@ -28,6 +28,9 @@ import { trapTab } from "./PeerHintDialog";
 import { useToast } from "./Toast";
 import styles from "./ShareDialogs.module.css";
 
+// Companion pages intentionally permit only their local host connections.
+const supportsShortLinks = import.meta.env.MODE !== "companion";
+
 type ShareState =
   | { readonly status: "loading" }
   | {
@@ -61,7 +64,7 @@ export function SharePanel({
   const [includeAddress, setIncludeAddress] = useState(
     () => loadPeerHintPreference() === "include",
   );
-  const [useShortLink, setUseShortLink] = useState(loadShortLinkPreference);
+  const [useShortLink, setUseShortLink] = useState(() => supportsShortLinks && loadShortLinkPreference());
   const [shortState, setShortState] = useState<{
     source: string;
     result?: ShortLink;
@@ -117,7 +120,7 @@ export function SharePanel({
 
   const fullLink = state.status === "ready" ? state.result.link : "";
   useEffect(() => {
-    if (!useShortLink || fullLink === "") return;
+    if (!supportsShortLinks || !useShortLink || fullLink === "") return;
     let active = true;
     setShortState({ source: fullLink });
     let upload = uploads.current.get(fullLink);
@@ -252,7 +255,7 @@ export function SharePanel({
         <div className={styles.qrFrame}>
           {ready === null || shortening ? null : <ShareQrCode value={link} />}
         </div>
-        <div className={styles.addressOption}>
+        {supportsShortLinks ? <div className={styles.addressOption}>
           <input
             id="share-panel-short"
             type="checkbox"
@@ -266,7 +269,7 @@ export function SharePanel({
           />
           <label htmlFor="share-panel-short">{localizedMessage("share.panel.short.label")}</label>
           <span id="share-panel-short-help">{localizedMessage("share.panel.short.description")}</span>
-        </div>
+        </div> : null}
         {shortened?.result ? (
           <p className={styles.status}>
             {localizedMessage("share.panel.short.expires", { date: new Date(shortened.result.expiresAt) })}

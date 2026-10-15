@@ -169,6 +169,8 @@ allows 1,000 KV writes a day; Workers Paid is $5 a month), and updating
 
 ## Non-Goals
 
+- Extension companion short links: its deliberate local-only network CSP
+  is retained, and its shared panel hides the short-link checkbox.
 - Android short links. The Android share panel keeps the full link; a
   follow-up adds the same opt-in using the shared codec vectors.
 - Revoking a link before expiry (a delete token kept by the sender).
@@ -267,3 +269,9 @@ share page with its content preserved.
 
 Worker version after recipient-page qualification:
 `4958000c-3198-4d9d-8aea-3ca81bd4dbcf`.
+
+Final surface audit: companion builds gate uploads and hide Short link,
+including when the local profile has a saved true choice. Its ARC/native
+network allowlist remains unchanged. `build:companion`, 69 extension tests
+and the extension validator pass; the companion JavaScript contains no
+short-link service URL. Web typecheck and all 832 web tests pass again.
