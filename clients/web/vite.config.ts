@@ -1,5 +1,7 @@
+import { execFile } from "node:child_process";
 import { resolve } from "node:path";
-import { defineConfig, loadEnv, type ProxyOptions } from "vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig, loadEnv, type Plugin, type ProxyOptions } from "vite";
 
 const proxyTarget = process.env.RSTORRENT_WEBUI_PROXY_TARGET;
 const liveReload = process.env.RSTORRENT_WEBUI_RELOAD === "1";
@@ -20,7 +22,38 @@ const proxy: Record<string, string | ProxyOptions> | undefined =
           : {}),
       };
 
-export default defineConfig(({ mode }) => {
+/**
+ * Tactical 365: recompiles the message catalog when its source changes, so a
+ * copy edit reaches the page through the runtime's hot update.
+ */
+function compileLocalizationOnChange(): Plugin {
+  const source = resolve(process.cwd(), "src/localization/messages/en.json");
+  const output = resolve(process.cwd(), "src/localization/generated/en.json");
+  const formatjs = resolve(process.cwd(), "node_modules/.bin/formatjs");
+  return {
+    name: "rstorrent-compile-localization",
+    apply: "serve",
+    configureServer(server) {
+      server.watcher.add(source);
+      server.watcher.on("change", (file) => {
+        if (resolve(file) !== source) return;
+        execFile(
+          formatjs,
+          ["compile", source, "--ast", "--out-file", output],
+          (error, _stdout, stderr) => {
+            if (error !== null) {
+              server.config.logger.error(
+                `message catalog did not compile: ${stderr || error.message}`,
+              );
+            }
+          },
+        );
+      });
+    },
+  };
+}
+
+export default defineConfig(({ command, mode }) => {
   const remote = mode === "remote";
   const companion = mode === "companion";
   if (remote) {
@@ -37,6 +70,9 @@ export default defineConfig(({ mode }) => {
     }
   }
   return {
+    // Fast Refresh keeps page and store state across component edits. Builds
+    // keep Vite's own JSX transform.
+    plugins: command === "serve" ? [react(), compileLocalizationOnChange()] : [],
     build: {
       assetsInlineLimit: 0,
       rolldownOptions: {
@@ -59,9 +95,15 @@ export default defineConfig(({ mode }) => {
     },
     server: { proxy },
     preview: { proxy },
-    // The player loads playsvideo lazily. Discovering it on the first Play
-    // makes the dev server reload the page and drop the open player.
-    optimizeDeps: { include: ["playsvideo"] },
+    optimizeDeps: {
+      // The remote page imports a wasm client that exists only in remote
+      // builds; scanning it fails the startup scan, and late discovery then
+      // reloads the page and can split React across mismatched bundles.
+      entries: ["index.html", "companion.html"],
+      // The player loads playsvideo lazily. Discovering it on the first Play
+      // makes the dev server reload the page and drop the open player.
+      include: ["playsvideo"],
+    },
     ...(companion
       ? {
           base: "./",

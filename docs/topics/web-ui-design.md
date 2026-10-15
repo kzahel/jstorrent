@@ -1,5 +1,18 @@
 # Web UI Design
 
+Tactical [365](../tactical/365-url-navigation-and-hot-reload.md) puts
+navigation in the URL fragment: `#/library[/<category>]` and
+`#/torrents[/<category>]`, with `torrent`, `tab` or `view=files`, `open=1`
+for the narrow detail, and `settings=<category>`. `route-history.ts` is the
+one owner of browser history. Openings (destination, category, a Library
+detail, the narrow detail, Settings) push an entry, refinements replace it,
+and closing goes Back to the entry it opened from. A deep link waits for the
+first library snapshot and drops an unknown torrent. Settings' open category
+is presentation state, and a busy Settings ignores Back. Selections, filters,
+Library search and page, scroll and pane sizes stay out of the URL. The dev
+server adds React Fast Refresh and recompiles the message catalog, which the
+localization runtime swaps in place.
+
 Tactical [364](../tactical/364-library-review-fixes.md) moves the add field
 into the header beside the brand on wide and compact layouts, so torrents can
 be added from every destination; narrow layouts keep it in the Torrents bar.
@@ -630,9 +643,9 @@ Completed Tactical
 [`072`](../tactical/072-derived-media-catalog.md) makes normal Library card
 activation open a responsive read-only torrent detail. Media defaults to
 recognized videos ordered by typed episode values; All files is an explicit
-fallback. Same-document history, Back, Escape, focus return, collection scroll,
-filter/removal repair, and visible-projection-only leasing remain local to the
-Library owner. Wide layout places source summary beside a virtual list;
+fallback. Back, Escape, focus return, collection scroll, filter/removal
+repair, and visible-projection-only leasing remain local to the Library owner;
+Tactical 365 moves its same-document history into the shared route owner. Wide layout places source summary beside a virtual list;
 compact and phone layouts stack and use smaller generated placeholders without
 claiming artwork. Thumbnails, playback, and Library-wide aggregation remain
 separate decisions.
@@ -1608,7 +1621,8 @@ all stages as one slice.
 - the default wide-screen detail position and user-selectable layout modes;
 - inbox, category, label, and queue semantics; archive and removal retention
   semantics are implemented by Tactical `040`;
-- whether later navigation complexity justifies a router or icon dependency;
+- whether later navigation complexity justifies a router library (Tactical
+  365 routes the fragment without one) or an icon dependency;
 - exact columns, row-detail interactions, and further table customization
   outside the non-sortable Logs console;
 - the first supported browser and phone access posture beyond headless and

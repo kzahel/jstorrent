@@ -35,6 +35,7 @@ import {
   loadNavigationPreferences,
   saveNavigationPreferences,
   type NavigationPreferences,
+  type SettingsCategory,
 } from "./navigation";
 import {
   DEFAULT_LIBRARY_BROWSE,
@@ -79,6 +80,10 @@ export interface PresentationState {
     readonly torrentId: string;
   } | null;
   readonly sidebarOpen: boolean;
+  /** The open Settings category, or null when Settings is closed. */
+  readonly settingsCategory: SettingsCategory | null;
+  /** A reset or import is running, so Settings must stay open. */
+  readonly settingsBusy: boolean;
   readonly layout: LayoutMode;
   readonly interfaceSize: InterfaceSize;
   readonly colorTheme: ColorTheme;
@@ -130,6 +135,11 @@ export interface InspectionActions {
   readonly closeDetail: () => void;
   readonly toggleSidebar: () => void;
   readonly closeSidebar: () => void;
+  readonly openSettings: (category: SettingsCategory) => void;
+  readonly selectSettingsCategory: (category: SettingsCategory) => void;
+  /** Does nothing while Settings is busy. */
+  readonly closeSettings: () => void;
+  readonly setSettingsBusy: (busy: boolean) => void;
   readonly setLayout: (layout: PresentationState["layout"]) => void;
   readonly setInterfaceSize: (interfaceSize: InterfaceSize) => void;
   readonly setColorTheme: (colorTheme: ColorTheme) => void;
@@ -226,6 +236,8 @@ const DEFAULT_PRESENTATION: PresentationState = {
   libraryDetailMode: "media",
   detailTarget: null,
   sidebarOpen: false,
+  settingsCategory: null,
+  settingsBusy: false,
   layout: "wide",
   interfaceSize: DEFAULT_INTERFACE_SIZE,
   colorTheme: DEFAULT_COLOR_THEME,
@@ -660,6 +672,35 @@ export function createInspectionStore(
       set((state) => ({
         presentation: { ...state.presentation, sidebarOpen: false },
       }));
+    },
+    openSettings: (settingsCategory) => {
+      set((state) => ({
+        presentation: { ...state.presentation, settingsCategory },
+      }));
+    },
+    selectSettingsCategory: (settingsCategory) => {
+      set((state) =>
+        state.presentation.settingsCategory === null
+          ? state
+          : { presentation: { ...state.presentation, settingsCategory } },
+      );
+    },
+    closeSettings: () => {
+      set((state) =>
+        state.presentation.settingsBusy ||
+        state.presentation.settingsCategory === null
+          ? state
+          : {
+              presentation: { ...state.presentation, settingsCategory: null },
+            },
+      );
+    },
+    setSettingsBusy: (settingsBusy) => {
+      set((state) =>
+        state.presentation.settingsBusy === settingsBusy
+          ? state
+          : { presentation: { ...state.presentation, settingsBusy } },
+      );
     },
     setLayout: (layout) => {
       set((state) => ({

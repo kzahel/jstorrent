@@ -67,7 +67,10 @@ shipping gates are recorded in Tactical 340.
 ```
 
 This starts the shared React UI against the real application service. `--reload`
-uses Vite hot reload; Rust changes still require restart. Without it, the
+uses Vite hot reload: component, CSS and `messages/en.json` edits update the
+open page in place, while store, controller and API edits reload it onto the
+same screen through the URL fragment. Rust changes still require restart.
+Without it, the
 launcher serves a production web build. Omit `--no-open` for manual browser
 inspection. `Ctrl+C` joins the gateway and development server.
 

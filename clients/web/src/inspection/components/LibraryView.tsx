@@ -62,9 +62,6 @@ export function LibraryView() {
   const detailOpen = useInspectionStore(
     (state) => state.presentation.libraryDetailOpen,
   );
-  const detailMode = useInspectionStore(
-    (state) => state.presentation.libraryDetailMode,
-  );
   const layout = useInspectionStore((state) => state.presentation.layout);
   const interfaceSize = useInspectionStore(
     (state) => state.presentation.interfaceSize,
@@ -74,15 +71,6 @@ export function LibraryView() {
   );
   const closeLibraryTorrentDetail = useInspectionStore(
     (state) => state.closeLibraryTorrentDetail,
-  );
-  const selectLibraryDetailMode = useInspectionStore(
-    (state) => state.selectLibraryDetailMode,
-  );
-  const selectDestination = useInspectionStore(
-    (state) => state.selectDestination,
-  );
-  const selectLibraryCategory = useInspectionStore(
-    (state) => state.selectLibraryCategory,
   );
   const materialization = useInspectionStore(
     (state) => state.viewStatus.library,
@@ -121,74 +109,17 @@ export function LibraryView() {
   const [returnFocusId, setReturnFocusId] = useState<string | null>(null);
   const [returnFocusItemId, setReturnFocusItemId] = useState<string | null>(null);
 
+  // The route owner may reopen a detail from history; focus returns there.
   useEffect(() => {
-    const onPopState = (event: PopStateEvent) => {
-      const route = libraryHistoryRoute(event.state);
-      if (route === null) {
-        closeLibraryTorrentDetail();
-        return;
-      }
-      selectDestination("library");
-      selectLibraryCategory(route.category);
-      if (route.torrentId === null || torrents[route.torrentId] === undefined) {
-        closeLibraryTorrentDetail();
-        return;
-      }
-      setReturnFocusId(route.torrentId);
-      openLibraryTorrentDetail(route.torrentId);
-      selectLibraryDetailMode(route.mode);
-    };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, [
-    closeLibraryTorrentDetail,
-    openLibraryTorrentDetail,
-    selectDestination,
-    selectLibraryCategory,
-    selectLibraryDetailMode,
-    torrents,
-  ]);
-
-  useEffect(() => {
-    if (!detailOpen || currentTorrentId === null) return;
-    const route = libraryHistoryRoute(window.history.state);
-    if (route?.torrentId !== currentTorrentId || route.mode === detailMode) return;
-    window.history.replaceState(
-      withLibraryHistory(window.history.state, {
-        torrentId: currentTorrentId,
-        category,
-        mode: detailMode,
-      }),
-      "",
-    );
-  }, [category, currentTorrentId, detailMode, detailOpen]);
+    if (detailOpen && currentTorrentId !== null) setReturnFocusId(currentTorrentId);
+  }, [currentTorrentId, detailOpen]);
 
   const openDetail = (torrentId: string) => {
     setReturnFocusId(torrentId);
-    window.history.replaceState(
-      withLibraryHistory(window.history.state, {
-        torrentId: null,
-        category,
-        mode: "media",
-      }),
-      "",
-    );
-    window.history.pushState(
-      withLibraryHistory(window.history.state, {
-        torrentId,
-        category,
-        mode: "media",
-      }),
-      "",
-    );
     openLibraryTorrentDetail(torrentId);
   };
 
-  const closeDetail = () => {
-    const route = libraryHistoryRoute(window.history.state);
-    if (route?.torrentId === currentTorrentId) window.history.back();
-    else closeLibraryTorrentDetail();
-  };
+  const closeDetail = closeLibraryTorrentDetail;
 
   useEffect(() => {
     if (!detailOpen) return;
@@ -472,45 +403,6 @@ function VirtualLibraryGrid({
         })}
       </div>
     </div>
-  );
-}
-
-interface LibraryHistoryRoute {
-  readonly torrentId: string | null;
-  readonly category: LibraryCategory;
-  readonly mode: "media" | "files";
-}
-
-function libraryHistoryRoute(state: unknown): LibraryHistoryRoute | null {
-  if (typeof state !== "object" || state === null) return null;
-  const value = (state as { rstorrentLibrary?: unknown }).rstorrentLibrary;
-  if (typeof value !== "object" || value === null) return null;
-  const route = value as Partial<LibraryHistoryRoute>;
-  if (
-    (route.torrentId !== null && typeof route.torrentId !== "string") ||
-    !isLibraryCategory(route.category) ||
-    (route.mode !== "media" && route.mode !== "files")
-  ) {
-    return null;
-  }
-  return route as LibraryHistoryRoute;
-}
-
-function withLibraryHistory(
-  state: unknown,
-  route: LibraryHistoryRoute,
-): Record<string, unknown> {
-  return {
-    ...(typeof state === "object" && state !== null
-      ? (state as Record<string, unknown>)
-      : {}),
-    rstorrentLibrary: route,
-  };
-}
-
-function isLibraryCategory(value: unknown): value is LibraryCategory {
-  return ["all", "recent", "available", "downloading", "archived"].includes(
-    String(value),
   );
 }
 

@@ -47,7 +47,6 @@ import { DetailPane } from "./DetailPane";
 import { Icon } from "./Icon";
 import { LibraryView } from "./LibraryView";
 import { ScenarioBar } from "./ScenarioBar";
-import type { SettingsCategory } from "./SettingsDialog";
 import { navigationTitle, Sidebar } from "./Sidebar";
 import { TorrentActions } from "./TorrentActions";
 import { AddTorrentForm, TorrentAddProvider } from "./TorrentAdd";
@@ -242,7 +241,16 @@ function AppContent({
   );
   const setColorTheme = useInspectionStore((state) => state.setColorTheme);
   const setDataUnits = useInspectionStore((state) => state.setDataUnits);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsCategory = useInspectionStore(
+    (state) => state.presentation.settingsCategory,
+  );
+  const settingsOpen = settingsCategory !== null;
+  const openSettings = useInspectionStore((state) => state.openSettings);
+  const selectSettingsCategory = useInspectionStore(
+    (state) => state.selectSettingsCategory,
+  );
+  const closeSettings = useInspectionStore((state) => state.closeSettings);
+  const setSettingsBusy = useInspectionStore((state) => state.setSettingsBusy);
   const waitingForUnmeteredNetwork =
     clientSettings.application_network.requested_prerequisite ===
       "waiting_for_unmetered_network" &&
@@ -262,8 +270,6 @@ function AppContent({
         loadCredentialFreeNoticeDismissed(credentialFreeAccessMode)),
     [credentialFreeAccessMode, dismissedNoticeMode],
   );
-  const [settingsCategory, setSettingsCategory] =
-    useState<SettingsCategory>("appearance");
   const updaterSnapshot = useDesktopUpdater(updater);
   const [resizingDetail, setResizingDetail] = useState(false);
   const [collectionToolbar, setCollectionToolbar] =
@@ -283,10 +289,9 @@ function AppContent({
       updaterSnapshot !== undefined &&
       presentsManualUpdateResult(updaterSnapshot.state)
     ) {
-      setSettingsCategory("about");
-      setSettingsOpen(true);
+      openSettings("about");
     }
-  }, [updaterSnapshot]);
+  }, [openSettings, updaterSnapshot]);
 
   const desiredDocumentTitle = documentTitleForSession(session, dataUnits);
   const showRates =
@@ -443,8 +448,7 @@ function AppContent({
           aria-expanded={settingsOpen}
           title={localizedMessage("inspection.components.app.settings")}
           onClick={() => {
-            setSettingsCategory("appearance");
-            setSettingsOpen(true);
+            openSettings("appearance");
           }}
         >
           <Icon name="settings" />
@@ -572,8 +576,7 @@ function AppContent({
           <button
             type="button"
             onClick={() => {
-              setSettingsCategory("about");
-              setSettingsOpen(true);
+              openSettings("about");
             }}
           >{localizedMessage("inspection.components.app.review.update")}</button>
           <button
@@ -583,7 +586,7 @@ function AppContent({
           >{localizedMessage("inspection.components.app.later")}</button>
         </aside>
       ) : null}
-      {settingsOpen ? (
+      {settingsCategory !== null ? (
         <Suspense fallback={null}>
         <SettingsDialog
           colorTheme={colorTheme}
@@ -605,6 +608,8 @@ function AppContent({
           about={withHostProduct(about ?? (demo === null ? {} : { connection: "demo" }), session.host)}
           productPrivacy={productPrivacy}
           initialCategory={settingsCategory}
+          onCategoryChange={selectSettingsCategory}
+          onBusyChange={setSettingsBusy}
           returnFocus={settingsButtonRef}
           onColorThemeChange={setColorTheme}
           onInterfaceSizeChange={setInterfaceSize}
@@ -731,11 +736,17 @@ function AppContent({
             if (power?.restartApplication !== undefined) {
               await power.restartApplication();
             } else {
+              // Cleared data starts on the default screen, not this Settings.
+              window.history.replaceState(
+                null,
+                "",
+                window.location.pathname + window.location.search,
+              );
               window.location.reload();
             }
           }}
           onWebAuthSignedOut={() => window.location.reload()}
-          onClose={() => setSettingsOpen(false)}
+          onClose={closeSettings}
         />
         </Suspense>
       ) : null}

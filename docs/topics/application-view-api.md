@@ -1765,7 +1765,10 @@ this design.
   initially client-side within a bounded complete torrent list;
 - exact reset granularity when one view snapshot itself exceeds its bound;
 - remote authentication, pairing, TLS, exposure, and deployment posture;
-- browser router and navigation URL details;
+- deep links into the browser UI from outside it (notifications, the
+  extension, share links); Tactical
+  [`365`](../tactical/365-url-navigation-and-hot-reload.md) settles in-app
+  navigation URLs as a client-only fragment with no host contract;
 - the measured threshold for specialized field patches or binary encoding;
   and
 - durable label and queue semantics; archive and bounded removal/deletion are

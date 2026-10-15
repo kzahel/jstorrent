@@ -15,6 +15,7 @@ import type {
   TorrentListImportTarget,
 } from "../../api";
 import type { ColorTheme, DataUnits, InterfaceSize } from "../appearance";
+import type { SettingsCategory } from "../navigation";
 import type { CommandAccepted, DownloadRoot, DownloadStorageSettings } from "../model";
 import { AppearanceSettingsSection } from "./AppearanceSettingsSection";
 import { AboutUpdatesSettingsSection } from "./AboutUpdatesSettingsSection";
@@ -38,17 +39,7 @@ import type { DesktopRemoteAccess } from "../remote-access/types";
 import type { ProductPrivacyController } from "../product-privacy/types";
 import { ProductPrivacySettingsSection } from "./ProductPrivacy";
 
-export type SettingsCategory =
-  | "appearance"
-  | "downloads"
-  | "connection"
-  | "notifications"
-  | "power"
-  | "remote-access"
-  | "web-access"
-  | "privacy"
-  | "data-reset"
-  | "about";
+export type { SettingsCategory } from "../navigation";
 
 export interface SettingsDialogProps {
   readonly colorTheme: ColorTheme;
@@ -69,7 +60,11 @@ export interface SettingsDialogProps {
   readonly updaterSnapshot?: DesktopUpdaterSnapshot | undefined;
   readonly about?: AboutFacts | undefined;
   readonly productPrivacy?: ProductPrivacyController | undefined;
+  /** The shown category; without `onCategoryChange`, only the first one. */
   readonly initialCategory?: SettingsCategory;
+  readonly onCategoryChange?: (category: SettingsCategory) => void;
+  /** Reports a reset or import that must keep Settings open. */
+  readonly onBusyChange?: (busy: boolean) => void;
   readonly returnFocus: RefObject<HTMLButtonElement | null>;
   readonly onColorThemeChange: (colorTheme: ColorTheme) => void;
   readonly onInterfaceSizeChange: (interfaceSize: InterfaceSize) => void;
@@ -116,6 +111,8 @@ export function SettingsDialog({
   about = {},
   productPrivacy,
   initialCategory = "appearance",
+  onCategoryChange,
+  onBusyChange,
   returnFocus,
   onColorThemeChange,
   onInterfaceSizeChange,
@@ -136,11 +133,14 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const [category, setCategory] = useState<SettingsCategory>(initialCategory);
+  const [localCategory, setLocalCategory] = useState<SettingsCategory>(initialCategory);
   const [resetBusy, setResetBusy] = useState(false);
   const [torrentListBusy, setTorrentListBusy] = useState(false);
   // Settings stays open while a reset or an import runs.
   const busy = resetBusy || torrentListBusy;
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
   const categories: readonly {
     readonly id: SettingsCategory;
     readonly label: string;
@@ -171,6 +171,13 @@ export function SettingsDialog({
         : localizedMessage("inspection.components.settings.dialog.about.updates"),
     },
   ];
+  const requestedCategory =
+    onCategoryChange === undefined ? localCategory : initialCategory;
+  // A link may name a category this client does not offer.
+  const category = categories.some((item) => item.id === requestedCategory)
+    ? requestedCategory
+    : "appearance";
+  const setCategory = onCategoryChange ?? setLocalCategory;
 
   useEffect(() => {
     closeRef.current?.focus();

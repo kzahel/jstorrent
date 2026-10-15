@@ -3445,6 +3445,33 @@ describe("inspection application", () => {
     expect(await findToast("Added 2. Already in your list: 0.")).toBeVisible();
   });
 
+  it("keeps the open Settings category in the store", async () => {
+    const user = userEvent.setup();
+    renderApplication(
+      new RecordingLiveApplication({
+        type: "snapshot",
+        snapshot: liveSnapshot({
+          roots: [downloadRoot("root_a", "Downloads")],
+          defaultRoot: "root_a",
+          showAddOptions: false,
+        }),
+      }),
+    );
+    const store = controllers.at(-1)!.store;
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(await screen.findByRole("tab", { name: "Downloads" }));
+    expect(store.getState().presentation.settingsCategory).toBe("downloads");
+
+    // A link may name a category this client lacks; Appearance shows instead.
+    act(() => store.getState().selectSettingsCategory("power"));
+    expect(screen.getByRole("tab", { name: "Appearance" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    act(() => store.getState().closeSettings());
+    expect(screen.queryByRole("dialog", { name: "Settings" })).not.toBeInTheDocument();
+  });
+
   it("shows torrent list export and import only where the client supports them", async () => {
     const user = userEvent.setup();
     const unsupported = new RecordingLiveApplication({

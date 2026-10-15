@@ -1,5 +1,8 @@
 import { createRoot, type Root } from "react-dom/client";
-import { LocalizationProvider } from "../localization/runtime";
+import {
+  LocalizationProvider,
+  onMessageCatalogReplaced,
+} from "../localization/runtime";
 
 import { ExternalUrlProvider, type OpenExternalUrl } from "./external-links";
 import { App, type AppProps } from "./components/App";
@@ -7,6 +10,7 @@ import { WebAuthGate } from "./components/WebAuthGate";
 import { InspectionProvider } from "./context";
 import { InspectionController } from "./controller";
 import { LiveApplication } from "./live/LiveApplication";
+import { installRouteHistory } from "./route-history";
 import type { DemoScenarioId } from "./model";
 import type { DesktopRemoteAccess } from "./remote-access/types";
 import type { ApplicationViewClient } from "../api/client";
@@ -267,14 +271,21 @@ interface InspectionHost extends AppProps {
   readonly openExternalUrl?: OpenExternalUrl | undefined;
 }
 
-/** Renders the application and returns a re-render for later host facts. */
+/**
+ * Renders the application and returns a re-render for later host facts. The
+ * URL fragment and the message catalog stay attached for the page's life.
+ */
 function renderInspection(
   controller: InspectionController,
   root: Root,
   host: InspectionHost,
 ): (host: InspectionHost) => void {
   controller.start();
-  const render = ({ openExternalUrl, ...props }: InspectionHost) =>
+  installRouteHistory(controller.store, window);
+  let latest = host;
+  const render = (next: InspectionHost) => {
+    latest = next;
+    const { openExternalUrl, ...props } = next;
     root.render(
       <LocalizationProvider>
         <ExternalUrlProvider openUrl={openExternalUrl}>
@@ -284,6 +295,9 @@ function renderInspection(
         </ExternalUrlProvider>
       </LocalizationProvider>,
     );
+  };
+  // New elements re-render every component with the replaced catalog.
+  onMessageCatalogReplaced(() => render(latest));
   render(host);
   return render;
 }
