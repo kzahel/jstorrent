@@ -41,7 +41,7 @@ import {
 } from "../../view-connection";
 import type { ViewSetState } from "../../view-set-reducer";
 import type { InspectionApplication } from "../application";
-import { supportedPatch } from "../host-capabilities";
+import { supportedCommand, supportedPatch } from "../host-capabilities";
 import { UNSUPPORTED_CALL_MESSAGE } from "../../api";
 import { ApplicationViewError } from "../../api/errors";
 import type {
@@ -680,7 +680,10 @@ export class LiveApplication implements InspectionApplication {
     };
     let response;
     try {
-      response = await this.controller?.dispatch(request);
+      response = await this.controller?.dispatch({
+        ...request,
+        command: supportedCommand(request.command, this.capabilities()),
+      });
     } catch (error) {
       // A host may refuse one call, for example a command it predates,
       // without closing the connection.

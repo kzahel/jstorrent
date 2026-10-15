@@ -10,7 +10,8 @@ import {
 import { encode } from "uqr";
 
 import { copyText } from "../clipboard";
-import { useInspectionController } from "../context";
+import { useInspectionController, useInspectionStore } from "../context";
+import { hostSupports, MAGNET_EXPORT_OPTIONS } from "../host-capabilities";
 import type { TorrentRow } from "../model";
 import {
   exportShareLink,
@@ -49,7 +50,11 @@ export function SharePanel({
 }) {
   const controller = useInspectionController();
   const toast = useToast();
-  const showAddressOption = torrent.privateTorrent !== true;
+  // An older host cannot add the address to the link.
+  const richShareLinks = useInspectionStore((state) =>
+    hostSupports(state.session, MAGNET_EXPORT_OPTIONS),
+  );
+  const showAddressOption = torrent.privateTorrent !== true && richShareLinks;
   const [includeAddress, setIncludeAddress] = useState(
     () => loadPeerHintPreference() === "include",
   );

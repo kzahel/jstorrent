@@ -1,3 +1,4 @@
+import Ajv2020 from "ajv/dist/2020.js";
 import { describe, expect, it, vi } from "vitest";
 
 import type {
@@ -22,8 +23,11 @@ import type {
 import type { ApplicationViewClient, MediaOpenTarget } from "../../api/client";
 import { HttpApiError } from "../../api/client";
 import { ApplicationViewError } from "../../api/errors";
-import type { InspectionSnapshot } from "../model";
+import released031Hello from "../../fixtures/released/desktop-v0.3.1/api-hello.json";
+import released031Schema from "../../fixtures/released/desktop-v0.3.1/v1.schema.json";
+import type { InspectionCommand, InspectionSnapshot } from "../model";
 import { LiveApplication } from "./LiveApplication";
+import { MAGNET_EXPORT_OPTIONS } from "../host-capabilities";
 import type { ViewSetState } from "../../view-set-reducer";
 import { torrentMatchesCategory } from "../state";
 import {
@@ -48,9 +52,13 @@ class FakeLiveClient implements ApplicationViewClient {
   openCount = 0;
   private rejectPoll: ((error: Error) => void) | null = null;
 
+  /** A released host's hello, for requests to that host. */
+  helloOverride: ApiHello | null = null;
+
   constructor(private readonly torrentView: TorrentView = torrent()) {}
 
   async hello(): Promise<ApiHello> {
+    if (this.helloOverride !== null) return structuredClone(this.helloOverride);
     return {
       api: { current: 1, minimum: 1 },
       encodings: ["json"],
@@ -655,6 +663,8 @@ describe("LiveApplication", () => {
 
   it("maps share options and reported peer hints", async () => {
     const client = new FakeLiveClient();
+    // A host that can add size, file picks and peer hints to a link.
+    client.helloOverride = { ...(await client.hello()), capabilities: [MAGNET_EXPORT_OPTIONS] };
     const application = await LiveApplication.open(client);
 
     const result = await application.dispatch({
@@ -2133,4 +2143,152 @@ async function waitUntil(predicate: () => boolean): Promise<void> {
     await new Promise((resolve) => globalThis.setTimeout(resolve, 1));
   }
   throw new Error("condition was not reached");
+}
+
+// R1 of the compatibility matrix: requests the current client really emits
+// to a released host, from its real dispatch against that host's hello,
+// checked against the host's exact request schema. A field the released
+// schema lacks is a finding even where the host's parser would ignore it:
+// the user's intent would be silently dropped.
+// docs/tactical/359-mixed-version-compatibility-matrix.md
+describe("requests to released hosts", () => {
+  const RELEASED_HOSTS = [
+    { release: "desktop-v0.3.1", hello: released031Hello, schema: released031Schema },
+  ];
+  const STORAGE_ROOT = "root_a";
+  const COMMANDS: readonly InspectionCommand[] = [
+    { type: "add_magnet", magnet: "magnet:?xt=urn:btih:" + "a".repeat(40), storageRoot: STORAGE_ROOT, startContent: true },
+    { type: "set_file_priority", torrentId: TORRENT_ID, fileIndices: [1, 0], priority: "high" },
+    { type: "download_files", torrentId: TORRENT_ID, fileIndices: [0] },
+    { type: "set_default_download_root", rootId: STORAGE_ROOT },
+    { type: "set_show_add_options", show: false },
+    { type: "set_show_file_selection", show: false },
+    {
+      type: "confirm_pending_file_selection",
+      torrentId: TORRENT_ID,
+      catalogId: "c1",
+      base: "all",
+      overrides: [{ start: 0, endExclusive: 1, selected: false }],
+      disableFuture: false,
+    },
+    { type: "download_all_pending_add", torrentId: TORRENT_ID, disableFuture: true },
+    { type: "cancel_pending_add", torrentId: TORRENT_ID },
+    { type: "update_client_settings", patch: { upload_slots: 4, dht_enabled: false } },
+    {
+      type: "update_client_settings",
+      patch: { share_ratio_limit_percent: 150, seed_stop_ratio_percent: { type: "off" } },
+    },
+    { type: "reset_client_settings" },
+    {
+      type: "update_torrent_settings",
+      torrentId: TORRENT_ID,
+      patch: { upload_rate_limit: { type: "limited", bytes_per_second: 32_768 } },
+    },
+    { type: "remove_download_root", rootId: STORAGE_ROOT },
+    { type: "clear_app_data" },
+    { type: "export_magnet", torrentId: TORRENT_ID },
+    {
+      type: "export_magnet",
+      torrentId: TORRENT_ID,
+      options: { includeSize: true, fileIndices: [0], peerHint: true },
+    },
+    { type: "pause", torrentId: TORRENT_ID },
+    { type: "resume", torrentId: TORRENT_ID },
+    { type: "move_download_to_top", torrentId: TORRENT_ID },
+    { type: "move_download_to_bottom", torrentId: TORRENT_ID },
+    { type: "force_recheck", torrentId: TORRENT_ID },
+    { type: "archive", torrentId: TORRENT_ID },
+    { type: "unarchive", torrentId: TORRENT_ID },
+    { type: "remove", torrentId: TORRENT_ID, deleteData: false },
+    { type: "remove", torrentId: TORRENT_ID, deleteData: true },
+  ];
+  /** Actions the released host cannot perform: refused locally, nothing sent. */
+  const GATED: readonly InspectionCommand[] = [
+    { type: "update_client_settings", patch: { seed_stop_time_seconds: { type: "off" } } },
+    {
+      type: "update_torrent_settings",
+      torrentId: TORRENT_ID,
+      patch: { seed_stop_ratio_percent: { type: "use_global" } },
+    },
+  ];
+
+  describe.each(RELEASED_HOSTS)("$release", ({ hello, schema }) => {
+    const validate = exactRequestValidator(schema, "RequestEnvelope");
+    const validateUpload = exactRequestValidator(schema, "AddTorrentBytesRequest");
+
+    it("receives only requests valid against its exact schema", async () => {
+      const client = new FakeLiveClient();
+      client.helloOverride = hello as ApiHello;
+      const application = await LiveApplication.open(client);
+      const problems: string[] = [];
+      for (const command of COMMANDS) {
+        const before = client.requests.length;
+        await application.dispatch(command).catch(() => undefined);
+        for (const request of client.requests.slice(before)) {
+          if (!validate(request)) {
+            problems.push(`${command.type}: ${JSON.stringify(validate.errors?.[0])}`);
+          }
+        }
+      }
+      await application.dispatch({
+        type: "add_torrent_bytes",
+        source: new Uint8Array([1, 2, 3]).buffer,
+        storageRoot: STORAGE_ROOT,
+        startContent: true,
+      });
+      for (const upload of client.uploads) {
+        if (!validateUpload(upload.request)) {
+          problems.push(`add_torrent_bytes: ${JSON.stringify(validateUpload.errors?.[0])}`);
+        }
+      }
+      expect(problems).toEqual([]);
+      await application.close();
+    });
+
+    it("refuses actions it lacks without sending anything", async () => {
+      const client = new FakeLiveClient();
+      client.helloOverride = hello as ApiHello;
+      const application = await LiveApplication.open(client);
+      for (const command of GATED) {
+        await expect(application.dispatch(command)).resolves.toMatchObject({ accepted: false });
+      }
+      expect(client.requests).toEqual([]);
+      await application.close();
+    });
+  });
+
+  it("flags a field the released schema lacks (negative control)", () => {
+    const validate = exactRequestValidator(released031Schema, "RequestEnvelope");
+    expect(
+      validate({
+        version: 1,
+        request_id: "r",
+        command: { type: "pause", torrent_id: TORRENT_ID, future_field: true },
+      }),
+    ).toBe(false);
+  });
+});
+
+/**
+ * A validator for a released request definition in which every object is
+ * closed, so a field that host does not know is reported rather than
+ * silently ignored by its parser.
+ */
+function exactRequestValidator(schema: unknown, definition: string) {
+  const closed = structuredClone(schema) as { $defs: Record<string, unknown> };
+  const close = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(close);
+    } else if (value !== null && typeof value === "object") {
+      const record = value as Record<string, unknown>;
+      if (record.properties !== undefined && record.additionalProperties === undefined) {
+        record.additionalProperties = false;
+      }
+      Object.values(record).forEach(close);
+    }
+  };
+  close(closed);
+  const ajv = new Ajv2020({ strict: false, allErrors: true, validateFormats: false });
+  ajv.addSchema(closed, "released");
+  return ajv.getSchema(`released#/$defs/${definition}`)!;
 }

@@ -10,6 +10,7 @@ use serde::Serialize;
 use ts_rs::TS;
 
 pub const SEED_STOP_LIMITS: &str = "seed_stop_limits";
+pub const MAGNET_EXPORT_OPTIONS: &str = "magnet_export_options";
 
 /// One registered capability and the contract surface it owns.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -22,6 +23,9 @@ pub struct HostCapability {
     /// fallback is removed through the removal review.
     pub lifecycle: HostCapabilityLifecycle,
     pub commands: &'static [&'static str],
+    /// Fields of existing commands, as `command.field`. A released host's
+    /// command parser ignores unknown fields, which would silently drop them.
+    pub command_fields: &'static [&'static str],
     pub client_settings_patch_keys: &'static [&'static str],
     pub torrent_settings_patch_keys: &'static [&'static str],
 }
@@ -33,15 +37,28 @@ pub enum HostCapabilityLifecycle {
     Required,
 }
 
-pub const HOST_CAPABILITIES: &[HostCapability] = &[HostCapability {
-    name: SEED_STOP_LIMITS,
-    id: 1,
-    introduced: "2026-10-14",
-    lifecycle: HostCapabilityLifecycle::Transitional,
-    commands: &[],
-    client_settings_patch_keys: &["seed_stop_ratio_percent", "seed_stop_time_seconds"],
-    torrent_settings_patch_keys: &["seed_stop_ratio_percent", "seed_stop_time_seconds"],
-}];
+pub const HOST_CAPABILITIES: &[HostCapability] = &[
+    HostCapability {
+        name: SEED_STOP_LIMITS,
+        id: 1,
+        introduced: "2026-10-14",
+        lifecycle: HostCapabilityLifecycle::Transitional,
+        commands: &[],
+        command_fields: &[],
+        client_settings_patch_keys: &["seed_stop_ratio_percent", "seed_stop_time_seconds"],
+        torrent_settings_patch_keys: &["seed_stop_ratio_percent", "seed_stop_time_seconds"],
+    },
+    HostCapability {
+        name: MAGNET_EXPORT_OPTIONS,
+        id: 2,
+        introduced: "2026-10-15",
+        lifecycle: HostCapabilityLifecycle::Transitional,
+        commands: &[],
+        command_fields: &["export_magnet.options"],
+        client_settings_patch_keys: &[],
+        torrent_settings_patch_keys: &[],
+    },
+];
 
 /// The registry as exported into the generated client contracts.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, TS)]
@@ -51,6 +68,7 @@ pub struct HostCapabilityDefinition {
     pub introduced: String,
     pub lifecycle: HostCapabilityLifecycle,
     pub commands: Vec<String>,
+    pub command_fields: Vec<String>,
     pub client_settings_patch_keys: Vec<String>,
     pub torrent_settings_patch_keys: Vec<String>,
 }
@@ -65,6 +83,7 @@ pub fn host_capability_definitions() -> Vec<HostCapabilityDefinition> {
             introduced: capability.introduced.to_owned(),
             lifecycle: capability.lifecycle,
             commands: strings(capability.commands),
+            command_fields: strings(capability.command_fields),
             client_settings_patch_keys: strings(capability.client_settings_patch_keys),
             torrent_settings_patch_keys: strings(capability.torrent_settings_patch_keys),
         })
@@ -111,6 +130,39 @@ mod tests {
                     "{}: no torrent settings key {key}",
                     entry.name
                 );
+            }
+        }
+    }
+
+    #[test]
+    fn owned_command_fields_exist_in_their_commands() {
+        let command = serde_json::to_value(schemars::schema_for!(crate::Command)).unwrap();
+        let definitions = command.get("$defs").cloned().unwrap_or_default();
+        let resolve = |schema: &serde_json::Value| -> serde_json::Value {
+            match schema.get("$ref").and_then(|value| value.as_str()) {
+                Some(reference) => definitions
+                    .get(reference.rsplit('/').next().unwrap())
+                    .cloned()
+                    .unwrap_or_default(),
+                None => schema.clone(),
+            }
+        };
+        let variants = resolve(&command)
+            .get("oneOf")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        for entry in HOST_CAPABILITIES {
+            for owned in entry.command_fields {
+                let (name, field) = owned.split_once('.').expect("command.field");
+                let found = variants.iter().any(|variant| {
+                    variant
+                        .pointer("/properties/type/const")
+                        .and_then(|value| value.as_str())
+                        == Some(name)
+                        && variant.pointer(&format!("/properties/{field}")).is_some()
+                });
+                assert!(found, "{}: no command field {owned}", entry.name);
             }
         }
     }

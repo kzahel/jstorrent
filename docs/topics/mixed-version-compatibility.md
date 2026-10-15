@@ -56,6 +56,7 @@ Ask one question: **does this add something the client sends?**
 | Change | What to do |
 | --- | --- |
 | New field a host sends | Give it a serde default or make it `Option`. Generation fails if a field a host may omit is typed as always present. |
+| New field in an existing command | A released host's command parser ignores it, silently dropping the intent. Own it with a capability's `command_fields` (`command.field`); live dispatch strips it for hosts without the capability, and the UI hides what depends on it. CI fails on an unowned field. |
 | New command, settings patch key or torrent settings patch key | Add a capability in `crates/rstorrent-session/src/host_capabilities.rs` that owns it, gate the control with `hostSupports`, and let the live dispatch filter drop it for hosts without it. CI fails on an unowned key. |
 | New row field kind a host sends (a `*FieldUpdate` variant) | Tolerant clients drop unknown kinds. Record it in `reviewedStrictClientExposure` while strict clients (extension 1.1.4 and older) are still supported. |
 | New field inside a type released clients validate strictly (`additionalProperties: false`) | Same as a new row field kind. |
@@ -79,8 +80,9 @@ never deleted.
   application without a list (the demo) as current.
 - **Outgoing filter.** `LiveApplication.dispatch` passes settings patches
   through `supportedPatch`, which drops keys owned by capabilities the host
-  lacks. A patch left empty is refused locally with an update message instead
-  of being sent.
+  lacks, and every command through `supportedCommand`, which drops owned
+  command fields. A patch left empty is refused locally with an update
+  message instead of being sent.
 - **Defaults for omitted fields.** Validators are generated with Ajv
   `useDefaults`, so a field Rust gives a serde default is present after
   validation even when an older host omits it. Ajv cannot fill defaults
@@ -127,8 +129,18 @@ never deleted.
   of the current and released traces and of a released hello, and unknown
   row field kinds to a row update, and requires the same result as without
   them.
-- Rust tests keep registry names and IDs unique, every owned patch key real,
-  and every entry advertised in the hello.
+- Rust tests keep registry names and IDs unique, every owned patch key and
+  command field real, and every entry advertised in the hello.
+- **Matrix ([Tactical 359](../tactical/359-mixed-version-compatibility-matrix.md)).**
+  `scripts/compat-capture.mjs` captures a released client's own decoder from
+  its commit into `compat/captures/<release>/`.
+  `clients/web/src/compat/old-clients.test.ts` (D2) runs each captured
+  decoder over current host frames; raw failures are allowed only under the
+  release hold and must disappear when exactly the reviewed exposures are
+  removed. The "requests to released hosts" tests in
+  `LiveApplication.test.ts` (R1) record what current dispatch emits against a
+  released host's hello and validate it against that host's exact schema with
+  every object closed; actions it lacks emit nothing.
 
 ## Current Release Hold
 

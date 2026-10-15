@@ -68,7 +68,7 @@ pub use file_views::{FileCatalogState, FileSelectionView, FileView};
 pub use have::{HaveError, HaveState};
 pub use host_capabilities::{
     HOST_CAPABILITIES, HostCapability, HostCapabilityDefinition, HostCapabilityLifecycle,
-    SEED_STOP_LIMITS, host_capability_definitions,
+    MAGNET_EXPORT_OPTIONS, SEED_STOP_LIMITS, host_capability_definitions,
 };
 pub use media::{
     MAX_MEDIA_CAPABILITIES, MAX_MEDIA_READ_JOBS, MAX_MEDIA_REQUESTS,

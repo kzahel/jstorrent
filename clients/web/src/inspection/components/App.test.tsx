@@ -4948,6 +4948,34 @@ describe("rich share links", () => {
     expect(writeText.mock.lastCall?.[0]).not.toContain("jst.");
   });
 
+  it("offers no address choice on a released host that cannot add one", async () => {
+    const user = userEvent.setup();
+    clipboard();
+    const { snapshot } = seedingSnapshot();
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...snapshot,
+        session: { ...snapshot.session, hostCapabilities: released031Hello.capabilities },
+      },
+    });
+    shareExports(application, snapshot.torrents);
+    rememberPeerHint("include");
+    renderApplication(application);
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "General" }));
+    await user.click(screen.getByRole("button", { name: "Share" }));
+    const panel = await screen.findByRole("dialog", { name: "Share torrent" });
+    await within(panel).findByRole("textbox", { name: "Share link" });
+    expect(
+      within(panel).queryByRole("checkbox", { name: "Include my address" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows the Share panel's link, QR code and address choice", async () => {
     const user = userEvent.setup();
     const writeText = clipboard();

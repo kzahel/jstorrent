@@ -92,7 +92,8 @@ compat/
    compares types and constraints. The generator rejects any omittable
    field, nullable or not, that TypeScript types as present unless every
    released host already sends it.
-1. **First matrix slice (review's recommendation).** Capture extension 1.1.4
+1. **First matrix slice (review's recommendation).** Complete; see
+   **Evidence**. Capture extension 1.1.4
    from `5fa018ff` with `scripts/compat-capture.mjs` (temporary worktree,
    rolldown bundle of its `validation.ts` and `view-set-reducer.ts`). D2:
    run its real decoder over the current host's hello, settings and library
@@ -167,3 +168,40 @@ Slice 0, 2026-10-15:
   the version-skew case instead.
 - Runs: `npm run typecheck` and `npm run test` in `clients/web` (699
   passed); the generated validators are byte-identical.
+
+Slice 1, 2026-10-15:
+
+- **Capture.** `scripts/compat-capture.mjs --release extension-1.1.4
+  --commit 5fa018ff… --role client` adds a temporary worktree, links the
+  current web package's modules for bundling only, writes a temporary entry
+  re-exporting the release's decode and reduce functions, bundles them with
+  rolldown 1.1.5 (minified, one chunk), and writes `client-decoder.mjs`, its
+  declarations, the release's `v1.schema.json` and `provenance.json` with
+  source and artifact digests. Two captures produce identical digests; the
+  worktree is removed.
+- **D2.** `clients/web/src/compat/old-clients.test.ts` decodes the current
+  hello (`DEFAULT_API_HELLO`, now exported), library open response, a
+  seeding torrent with stop limits and an update with the new row kinds in
+  1.1.4's own decoder. Raw failures today: the library open, the seeding
+  torrent and the row update, recorded as such and allowed only while
+  `strictClients.supported` is true. With exactly the reviewed exposures
+  removed (`src/compat/exposures.ts` walks the current schema to locate
+  them), all four decode. Negative control: an unreviewed addition still
+  fails after stripping.
+- **R1.** `LiveApplication.test.ts` dispatches 26 commands plus a torrent
+  upload against desktop 0.3.1's hello and validates every emitted request
+  against 0.3.1's schema with all objects closed. It found one real defect:
+  `export_magnet` sent the rich-share `options` (Tactical 357), which 0.3.1
+  ignores silently. Fixed with capability `magnet_export_options` (ID 2,
+  owning `export_magnet.options` through the new `command_fields`),
+  `supportedCommand` stripping at dispatch, the Share panel hiding its
+  address choice and share actions copying plain links or refusing a
+  file-subset share on such a host, and a contract-test rule that new
+  fields in existing commands need an owner (negative control: removing the
+  ownership fails it). Seed-stop-only patches to 0.3.1 emit nothing. Negative
+  control: a request with an unknown field fails validation.
+- **Hosted deployment** runs these tests (Slice 0).
+- **Runs.** `cargo fmt --check`; `cargo clippy -p rstorrent-session -p
+  rstorrent-gateway --all-targets -D warnings`; `cargo test -p
+  rstorrent-session --lib` (447 passed); `npm run typecheck` and
+  `npm run test` in `clients/web` (705 passed).

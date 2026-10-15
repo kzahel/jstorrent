@@ -78,6 +78,22 @@ describe.each(RELEASED)("contract against $tag", ({ schema }) => {
         problems.push(`Command ${variant} has no capability`);
       }
     }
+    // A released host's command parser ignores unknown fields, so a new
+    // field in an existing command would be silently dropped there.
+    const commandFields = new Set(
+      HOST_CAPABILITY_REGISTRY.flatMap((capability) => capability.command_fields),
+    );
+    const releasedCommands = new Map(branches(before.Command));
+    for (const [variant, branch] of branches(after.Command)) {
+      const released = releasedCommands.get(variant);
+      if (released === undefined) continue;
+      const command = variant.replace(/^type=/, "");
+      for (const field of addedProperties(released, branch)) {
+        if (!commandFields.has(`${command}.${field}`)) {
+          problems.push(`Command ${command}.${field} has no capability`);
+        }
+      }
+    }
     expect(problems).toEqual([]);
   });
 

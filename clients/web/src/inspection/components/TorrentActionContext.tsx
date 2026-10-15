@@ -16,6 +16,7 @@ import {
   useInspectionStore,
 } from "../context";
 import { copyText } from "../clipboard";
+import { hostSupports, MAGNET_EXPORT_OPTIONS } from "../host-capabilities";
 import type { FileRow, InspectionCommand, TorrentRow } from "../model";
 import {
   exportShareLink,
@@ -150,6 +151,10 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
   const dispatch = useInspectionDispatch();
   const execute = useInspectionCommand();
   const revealTorrent = useInspectionStore((state) => state.revealTorrent);
+  // An older host returns plain magnet links: no size, file picks or address.
+  const richShareLinks = useInspectionStore((state) =>
+    hostSupports(state.session, MAGNET_EXPORT_OPTIONS),
+  );
   const toast = useToast();
   const [batchRunning, setBatchRunning] = useState(false);
   const batchRef = useRef(false);
@@ -558,6 +563,7 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
       files: ShareFiles | undefined,
       origin: TorrentActionOrigin,
     ): Promise<void> => {
+      if (!richShareLinks) return copyShareLinks(targets, undefined, false);
       const decision = peerHintDecision(targets, loadPeerHintPreference());
       if (decision === "ask") {
         peerHintOriginRef.current = origin;
@@ -570,7 +576,7 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
       }
       return copyShareLinks(targets, files, decision);
     },
-    [copyShareLinks],
+    [copyShareLinks, richShareLinks],
   );
 
   const choosePeerHint = useCallback(
@@ -600,6 +606,13 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
         toast.show({ message: localizedMessage("inspection.components.torrent.action.context.another.torrent.action.is.still.in.progress") });
         return;
       }
+      if (!richShareLinks) {
+        toast.show({
+          tone: "error",
+          message: localizedMessage("inspection.live.live.application.request.needs.newer.host"),
+        });
+        return;
+      }
       const single = files.length === 1 ? files[0]! : null;
       void startShare(
         [target],
@@ -612,7 +625,7 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
         origin,
       );
     },
-    [startShare, targetRows, toast],
+    [richShareLinks, startShare, targetRows, toast],
   );
 
   const runAction = useCallback(
