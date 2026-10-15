@@ -8018,6 +8018,8 @@ mod tests {
             .expect("open application without product");
         assert_eq!(application.api_hello().product, None);
         application.shutdown().await.expect("join application");
+        // Shadowing would keep the first service, and its catalog, open.
+        drop(application);
 
         let product = super::ProductIdentity {
             identifier: Some("com.jstorrent.check".to_owned()),
