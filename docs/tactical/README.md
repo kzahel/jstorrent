@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [359 — Mixed-version compatibility matrix](359-mixed-version-compatibility-matrix.md):
+  proposed; proves old/new host × old/new client for every release in the
+  support window from artifacts captured from each release's own source, and
+  fails release workflows when a release is missing.
 - [358 — One durable store and a migration ledger](358-one-durable-store-and-migration-ledger.md):
   desktop shell switches and the network-defaults marker move into SQLite,
   the extension keeps statistics consent, and every migration is ledgered
