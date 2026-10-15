@@ -410,6 +410,63 @@ describe("VirtualTable", () => {
     );
   });
 
+  it("never writes a layout the user has not changed", () => {
+    render(
+      <VirtualTable
+        tableId="untouched-test"
+        label="Untouched layout"
+        rows={[{ id: "one", value: "1" }]}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="empty"
+      />,
+    );
+    expect(storedValues.has("rstorrent.table.untouched-test")).toBe(false);
+  });
+
+  it("reads another version's layout and keeps what it does not know", () => {
+    const newer = JSON.stringify({
+      version: 2,
+      hiddenColumns: ["future"],
+      widths: { value: 200, future: 90 },
+      sort: null,
+      density: "tight",
+    });
+    storedValues.set("rstorrent.table.version-test", newer);
+    render(
+      <VirtualTable
+        tableId="version-test"
+        label="Other version layout"
+        rows={[{ id: "one", value: "1" }]}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="empty"
+      />,
+    );
+    // The known width applies, and nothing is rewritten on load.
+    expect(screen.getByRole("separator", { name: "Resize Value column" })).toHaveAttribute(
+      "aria-valuenow",
+      "200",
+    );
+    expect(storedValues.get("rstorrent.table.version-test")).toBe(newer);
+
+    // A real change is saved without losing the newer version's data.
+    fireEvent.click(screen.getByRole("button", { name: "Columns" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Optional" }));
+    const saved = JSON.parse(storedValues.get("rstorrent.table.version-test")!) as {
+      version: number;
+      hiddenColumns: string[];
+      widths: Record<string, number>;
+      density: string;
+    };
+    expect(saved.version).toBe(2);
+    expect(saved.hiddenColumns).toEqual(["optional", "future"]);
+    expect(saved.widths).toEqual({ value: 200, future: 90 });
+    expect(saved.density).toBe("tight");
+  });
+
   it("updates absolute row geometry with the selected interface size", () => {
     const table = (interfaceSize: "compact" | "spacious") => (
       <VirtualTable

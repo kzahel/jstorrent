@@ -134,6 +134,11 @@ interface HorizontalOverflow {
  */
 export const TableToolbarSlot = createContext<HTMLElement | null>(null);
 
+/**
+ * Stored layouts of any version are read field by field, and a layout is
+ * written only after the user changes it, keeping columns and fields this
+ * version does not know (Tactical 358's preference-store rule).
+ */
 const TABLE_CONFIG_VERSION = 1;
 /** How long rows keep their order after the user last touched the table. */
 const ORDER_HOLD_MS = 2000;
@@ -235,26 +240,37 @@ export function VirtualTable<Row>({
   // identity; otherwise every live update would reload the configuration.
   const initialSortColumnId = initialSort?.columnId;
   const initialSortDirection = initialSort?.direction;
+  // The layout as last loaded or saved; only a different layout is written.
+  const persistedLayoutRef = useRef<string | null>(null);
   useEffect(() => {
     const loaded = loadTableConfig(tableId, columns);
-    setHiddenColumns(loaded?.hiddenColumns ?? defaultHiddenColumns(columns));
-    setColumnWidths(loaded?.widths ?? {});
-    setInternalSort(
-      loaded?.sort ??
+    const layout: PersistedTableConfig = {
+      hiddenColumns: loaded?.hiddenColumns ?? defaultHiddenColumns(columns),
+      widths: loaded?.widths ?? {},
+      sort:
+        loaded?.sort ??
         (initialSortColumnId === undefined || initialSortDirection === undefined
           ? null
           : { columnId: initialSortColumnId, direction: initialSortDirection }),
-    );
+    };
+    persistedLayoutRef.current = layoutKey(tableId, layout);
+    setHiddenColumns(layout.hiddenColumns);
+    setColumnWidths(layout.widths);
+    setInternalSort(layout.sort);
     setHeldOrder(null);
   }, [columns, initialSortColumnId, initialSortDirection, tableId]);
 
   useEffect(() => {
-    saveTableConfig(tableId, {
+    const layout: PersistedTableConfig = {
       hiddenColumns,
       widths: columnWidths,
       sort: internalSort,
-    });
-  }, [columnWidths, hiddenColumns, internalSort, tableId]);
+    };
+    const key = layoutKey(tableId, layout);
+    if (persistedLayoutRef.current === null || key === persistedLayoutRef.current) return;
+    persistedLayoutRef.current = key;
+    saveTableConfig(tableId, columns, layout);
+  }, [columnWidths, columns, hiddenColumns, internalSort, tableId]);
 
   useEffect(() => {
     const element = viewportRef.current;
@@ -1671,8 +1687,9 @@ function loadTableConfig<Row>(
       hiddenColumns?: unknown;
       widths?: unknown;
       sort?: unknown;
-    };
-    if (value.version !== TABLE_CONFIG_VERSION) return null;
+    } | null;
+    // Any version is read field by field; fields that do not fit are skipped.
+    if (typeof value !== "object" || value === null) return null;
     const knownColumns = new Map(columns.map((column) => [column.id, column]));
     let hiddenColumns = Array.isArray(value.hiddenColumns)
       ? new Set(
@@ -1732,14 +1749,61 @@ function loadTableConfig<Row>(
   }
 }
 
-function saveTableConfig(tableId: string, config: PersistedTableConfig): void {
+function layoutKey(tableId: string, config: PersistedTableConfig): string {
+  return JSON.stringify([
+    tableId,
+    [...config.hiddenColumns].sort(),
+    Object.entries(config.widths).sort(([left], [right]) => left.localeCompare(right)),
+    config.sort,
+  ]);
+}
+
+/**
+ * Writes the layout, keeping what this version does not own: hidden state and
+ * widths of unknown columns (a newer version's), other top-level fields, and
+ * a newer version number.
+ */
+function saveTableConfig<Row>(
+  tableId: string,
+  columns: readonly VirtualColumn<Row>[],
+  config: PersistedTableConfig,
+): void {
   try {
+    const key = `rstorrent.table.${tableId}`;
+    let stored: Record<string, unknown> = {};
+    try {
+      const parsed = JSON.parse(globalThis.localStorage?.getItem(key) ?? "null") as unknown;
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        stored = parsed as Record<string, unknown>;
+      }
+    } catch {
+      // An unreadable layout has nothing worth keeping.
+    }
+    const known = new Set(columns.map((column) => column.id));
+    const unknownHidden = Array.isArray(stored.hiddenColumns)
+      ? stored.hiddenColumns.filter(
+          (id): id is string => typeof id === "string" && !known.has(id),
+        )
+      : [];
+    const unknownWidths =
+      typeof stored.widths === "object" && stored.widths !== null
+        ? Object.fromEntries(
+            Object.entries(stored.widths).filter(
+              ([id, width]) => !known.has(id) && typeof width === "number",
+            ),
+          )
+        : {};
+    const storedVersion =
+      typeof stored.version === "number" && Number.isInteger(stored.version)
+        ? stored.version
+        : 0;
     globalThis.localStorage?.setItem(
-      `rstorrent.table.${tableId}`,
+      key,
       JSON.stringify({
-        version: TABLE_CONFIG_VERSION,
-        hiddenColumns: [...config.hiddenColumns],
-        widths: config.widths,
+        ...stored,
+        version: Math.max(storedVersion, TABLE_CONFIG_VERSION),
+        hiddenColumns: [...config.hiddenColumns, ...unknownHidden],
+        widths: { ...unknownWidths, ...config.widths },
         sort: config.sort,
       }),
     );

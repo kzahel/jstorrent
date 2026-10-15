@@ -53,6 +53,7 @@ below to **Retired** with the commit.
 | Desktop shell `desktop-shell.json` | `clients/desktop/src-tauri/src/desktop_lifecycle.rs` | retired format | — | Imported once into `product.db`; never written since Tactical 358 |
 | Torrent list bundle | `crates/rstorrent-session/src/torrent_list.rs` | 1 | 1 | Export format; readers ignore unknown fields and refuse newer versions |
 | Extension `productMetricsV1` | `clients/extension/src/product-metrics.js` | 1 | 1 | Newer states are read only; damaged states keep valid fields |
+| Web table layouts `rstorrent.table.<id>` | `clients/web/src/inspection/components/VirtualTable.tsx` | 1 | 1 | Any version is read field by field; written only after a user change, keeping unknown columns, fields and a newer version number |
 
 ## Active Compatibility Code
 
@@ -74,9 +75,6 @@ below to **Retired** with the commit.
 
 ## Open Follow-Ups
 
-- Web table layouts (`VirtualTable.tsx`) are rewritten on mount after a
-  version mismatch and drop unknown column IDs. Cosmetic; should stop writing
-  until the user changes a layout.
 - The failed-migration recovery screen, including a dry run of a failing
   migration on a temporary profile (next tactical).
 
