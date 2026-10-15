@@ -4,7 +4,14 @@ import { message } from "../../localization/runtime";
 import { startupTimings } from "../../startup-timing";
 import type { SupportFacts } from "../support/about";
 import { buildDiagnostics, DIAGNOSTICS_FILENAME } from "../support/diagnostics";
+import {
+  feedbackPageUrl,
+  GITHUB_ISSUES_URL,
+  githubIssueUrl,
+  SUPPORT_PAGE_URL,
+} from "../support/report-links";
 import { ExternalLink } from "./ExternalLink";
+import { Icon } from "./Icon";
 import { useToast } from "./Toast";
 import styles from "./SettingsDialog.module.css";
 
@@ -14,6 +21,7 @@ export function SupportDiagnostics({ facts }: { readonly facts: SupportFacts }) 
   const toast = useToast();
   const previewRef = useRef<HTMLTextAreaElement>(null);
   const previewGeneration = useRef(0);
+  const reportFacts = { ...facts, startup: startupTimings() };
 
   async function copy() {
     if (preview === undefined) return;
@@ -54,7 +62,7 @@ export function SupportDiagnostics({ facts }: { readonly facts: SupportFacts }) 
       <legend>{message("support.diagnostics.title")}</legend>
       <p className={styles.updatePrivacy}>{message("support.diagnostics.description")}</p>
       <div className={styles.updateActions}>
-        <button type="button" onClick={() => { previewGeneration.current += 1; setPreview(buildDiagnostics({ ...facts, startup: startupTimings() })); setManualCopy(false); }}>
+        <button type="button" onClick={() => { previewGeneration.current += 1; setPreview(buildDiagnostics(reportFacts)); setManualCopy(false); }}>
           {preview === undefined ? message("support.diagnostics.prepare") : message("support.diagnostics.refresh")}
         </button>
       </div>
@@ -71,11 +79,11 @@ export function SupportDiagnostics({ facts }: { readonly facts: SupportFacts }) 
           ) : null}
         </div>
       )}
-      <p className={styles.updatePrivacy}>{message("support.diagnostics.public.report")}</p>
       <div className={styles.updateActions}>
-        <ExternalLink href="https://github.com/kzahel/jstorrent/issues">{message("support.known.issues")}</ExternalLink>
-        <ExternalLink href="https://github.com/kzahel/jstorrent/issues/new">{message("support.report.problem")}</ExternalLink>
-        <ExternalLink href="https://github.com/kzahel/jstorrent/blob/main/docs/user-support.md">{message("support.privacy.recovery")}</ExternalLink>
+        <ExternalLink href={githubIssueUrl(reportFacts)}><Icon name="github" />{message("support.report.github")}</ExternalLink>
+        <ExternalLink href={feedbackPageUrl(reportFacts)}>{message("support.report.feedback")}</ExternalLink>
+        <ExternalLink href={GITHUB_ISSUES_URL}>{message("support.known.issues")}</ExternalLink>
+        <ExternalLink href={SUPPORT_PAGE_URL}>{message("support.help")}</ExternalLink>
       </div>
     </fieldset>
   );

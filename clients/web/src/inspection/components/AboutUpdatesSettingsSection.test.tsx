@@ -35,7 +35,8 @@ describe("About and updates settings", () => {
     expect(screen.queryByRole("button", { name: "Check for updates" })).not.toBeInTheDocument();
     expect(screen.queryByText("Profile")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Prepare diagnostics" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "Report a problem" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Report on GitHub" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Send feedback" })).toBeVisible();
   });
 
   it("shows what a remote host reports about itself and its profile", () => {

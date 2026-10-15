@@ -15,6 +15,10 @@
     sessions: 'Foreground sessions',
     connected: 'Connected',
     downloads: 'Downloads completed',
+    build: 'Build',
+    target: 'Target',
+    package: 'Package',
+    connection: 'Connection',
   }
   const feedback = [
     'platform',
@@ -26,6 +30,10 @@
     'added',
     'completed',
     'sessions',
+    'build',
+    'target',
+    'package',
+    'connection',
   ]
   const uninstall = ['v', 'id', 'days', 'connected', 'downloads', 'added', 'sessions']
   const byteLength = (value) => new TextEncoder().encode(value).length
@@ -37,6 +45,9 @@
       return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(value)
     if (key === 'connected') return value === '0' || value === '1'
     if (key === 'device' || key === 'android') return byteLength(value) <= 512
+    if (key === 'build') return /^[0-9A-Za-z.-]{1,48}$/u.test(value)
+    if (key === 'target') return /^[0-9a-z_-]{1,48}$/u.test(value)
+    if (key === 'package' || key === 'connection') return /^[a-z-]{1,24}$/u.test(value)
     return /^(0|[1-9][0-9]{0,19})$/u.test(value) && BigInt(value) <= maxU64
   }
   function parse(search, kind) {

@@ -200,7 +200,9 @@ export function validateDesktopReleaseConfiguration({
   const approvedUrls = [
     "https://github.com/kzahel/jstorrent/issues",
     "https://github.com/kzahel/jstorrent/issues/new",
-    "https://github.com/kzahel/jstorrent/blob/main/docs/user-support.md",
+    "https://github.com/kzahel/jstorrent/issues/new[?]*",
+    "https://jstorrent.com/feedback.html[?]*",
+    "https://jstorrent.com/support/",
     "https://github.com/kzahel/jstorrent/releases/latest",
     "https://github.com/kzahel/jstorrent/releases/tag/*",
   ];

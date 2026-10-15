@@ -5464,10 +5464,6 @@
     "defaultMessage": "Exact report to copy or download",
     "description": "Local support report and privacy guidance in About settings"
   },
-  "support.diagnostics.public.report": {
-    "defaultMessage": "GitHub reports are public. Review your description and attachments before submitting. Opening the report page sends none of these diagnostics.",
-    "description": "Local support report and privacy guidance in About settings"
-  },
   "support.diagnostics.refresh": {
     "defaultMessage": "Refresh diagnostics",
     "description": "Local support report and privacy guidance in About settings"
@@ -5480,13 +5476,17 @@
     "defaultMessage": "Known issues",
     "description": "Local support report and privacy guidance in About settings"
   },
-  "support.privacy.recovery": {
-    "defaultMessage": "Privacy and recovery guidance",
-    "description": "Local support report and privacy guidance in About settings"
+  "support.help": {
+    "defaultMessage": "Help",
+    "description": "Opens the JSTorrent website support page from About settings"
   },
-  "support.report.problem": {
-    "defaultMessage": "Report a problem",
-    "description": "Local support report and privacy guidance in About settings"
+  "support.report.feedback": {
+    "defaultMessage": "Send feedback",
+    "description": "Opens the JSTorrent website feedback form, prefilled with version details, from About settings"
+  },
+  "support.report.github": {
+    "defaultMessage": "Report on GitHub",
+    "description": "Opens a new GitHub issue prefilled with the diagnostics report from About settings"
   },
   "desktop.companion.title": {"defaultMessage": "JSTorrent Desktop", "description": "Desktop extension connection"},
   "desktop.companion.open-window": {"defaultMessage": "Open desktop window", "description": "Desktop extension connection"},

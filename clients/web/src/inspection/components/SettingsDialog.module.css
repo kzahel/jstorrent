@@ -479,6 +479,7 @@
   min-height: var(--ui-control-height);
   align-items: center;
   justify-content: center;
+  gap: var(--ui-space-xs);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   padding: 0 var(--ui-space-md);

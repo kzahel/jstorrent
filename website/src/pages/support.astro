@@ -1,0 +1,76 @@
+---
+import '../styles/global.css'
+const title = 'JSTorrent — Help and support'
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site)
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="description" content="Report a problem with JSTorrent, update the app, and keep your downloaded files safe." />
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="icon" type="image/png" href="/jstorrent.png" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <main class="support">
+      <a class="support-brand" href="/"><img src="/jstorrent.png" width="48" height="48" alt="" />JSTorrent</a>
+      <header>
+        <h1>Help and support</h1>
+      </header>
+
+      <section aria-labelledby="report">
+        <h2 id="report">Report a problem</h2>
+        <p>In JSTorrent on a computer or in Chrome, open <strong>Settings → About</strong>. Choose <strong>Report on GitHub</strong> to open a new GitHub issue, or <strong>Send feedback</strong> to use the feedback form on this website. Your JSTorrent version and platform are filled in for you. Describe what you did, what you expected and what happened, then submit. Nothing is sent until you submit.</p>
+        <p>In the Android app, open <strong>Settings</strong> and choose <strong>Report Bug / Send Feedback</strong>.</p>
+        <p>GitHub issues are public. Check whether a <a href="https://github.com/kzahel/jstorrent/issues">known issue</a> already describes your problem.</p>
+        <p>If you can’t open the app, <a href="https://github.com/kzahel/jstorrent/issues/new">open an issue</a> or <a href="/feedback.html">send feedback</a> directly and say which version and device you use.</p>
+      </section>
+
+      <section aria-labelledby="updates">
+        <h2 id="updates">Updates</h2>
+        <p>Desktop JSTorrent checks for updates on its own. To check now, open <strong>Settings → About</strong> and choose <strong>Check for updates</strong>, then <strong>Install and restart</strong>. If you installed JSTorrent through a Linux package manager, update it there or <a href="https://github.com/kzahel/jstorrent/releases/latest">download the latest release</a>.</p>
+        <p>The Android app updates through Google Play and needs Android 9 or newer. The Chrome extension updates through the Chrome Web Store. The app and the extension can update on different days. If the extension asks you to update the app, or to pair again, follow its prompt.</p>
+      </section>
+
+      <section aria-labelledby="files">
+        <h2 id="files">Your downloaded files</h2>
+        <p>Removing a torrent keeps its downloaded files on disk. They are deleted only if you tick <strong>Also delete downloaded data</strong>.</p>
+        <p>To resume an old download, add the torrent again and choose the folder that already holds its files. JSTorrent checks the existing data before treating it as complete and downloads only what is missing or damaged.</p>
+        <p>If a download folder becomes unavailable, reconnect the drive or grant access again from the app. Don’t clear the app’s data or delete the folder to fix it.</p>
+      </section>
+
+      <section aria-labelledby="desktop">
+        <h2 id="desktop">Desktop tips</h2>
+        <p>With <strong>Run in Background</strong> turned on in the tray or menu bar menu, closing the window keeps downloads going. To exit completely, choose <strong>Quit JSTorrent</strong> from that menu.</p>
+        <p>On Windows, the firewall may ask whether JSTorrent can accept connections. Choosing <strong>Cancel</strong> is fine; downloads still work, though fewer peers may be able to connect to you. Allow it on private networks you trust if you want more connections.</p>
+      </section>
+
+      <section aria-labelledby="privacy">
+        <h2 id="privacy">Privacy</h2>
+        <p>Like any BitTorrent program, JSTorrent shares your IP address with the peers and trackers you download from. Update checks send your app version and platform to the update service. Your usage statistics setting controls whether they also include a random installation identifier.</p>
+        <p>The details added to a report contain your app version, build and platform. They don’t include torrent names, file paths, logs or other personal information. Review screenshots and attachments before you share them.</p>
+        <p><a href="/privacy.html">Privacy policy</a></p>
+      </section>
+    </main>
+    <footer><p>JSTorrent by Kyle Graehl. Open source under the MIT License.</p></footer>
+  </body>
+</html>
+
+<style>
+  .support { display: block; max-width: 1100px; margin: auto; padding-top: 2rem; }
+  .support-brand { display: inline-flex; align-items: center; gap: .75rem; color: #f6fbfc; font-size: 1.25rem; font-weight: 700; text-decoration: none; }
+  header { margin: 3rem 0 2rem; }
+  h1 { font-size: clamp(2.3rem, 6vw, 3.8rem); letter-spacing: -.04em; line-height: 1.1; }
+  h2 { color: #f6fbfc; font-size: 1.5rem; }
+  section { margin: 2rem 0; padding: 1.5rem; border: 1px solid #334155; border-radius: 1rem; background: #172338; }
+  section p { max-width: 75ch; color: #c1cedb; line-height: 1.75; }
+  strong { color: #f6fbfc; }
+  a { color: #93c5fd; text-underline-offset: .2em; overflow-wrap: anywhere; }
+  a:focus-visible { outline: 3px solid #93c5fd; outline-offset: 4px; }
+  @media (max-width: 760px) { section { padding: 1rem; } }
+</style>

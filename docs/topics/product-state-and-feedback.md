@@ -65,6 +65,15 @@ clipboard-denial fallback and exact download bytes pass browser evidence.
 [User guidance](../user-support.md) explains local reporting versus network
 and updater behavior without claiming the corrected hosted pages are deployed.
 
+On 2026-10-15 the maintainer replaced Tactical 216's no-context report links.
+About's **Report on GitHub** opens a new issue whose body carries the same
+bounded diagnostics report, and **Send feedback** opens `feedback.html` with
+platform, version, build, target, package and connection fields the page
+accepts. The user reviews the prefilled page and submitting it is the
+authorization; nothing is sent before then. **Help** opens the user-facing
+`jstorrent.com/support/` page, and `docs/user-support.md`, still linked by
+released builds, carries the same plain-language guidance.
+
 Status: Direction accepted on 2026-08-03 and the first bounded implementation
 landed on 2026-09-01 through Tactical
 [`208`](../tactical/208-installation-metrics-and-feedback-parity.md).

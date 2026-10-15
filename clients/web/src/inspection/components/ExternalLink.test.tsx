@@ -29,12 +29,12 @@ describe("external links", () => {
       info: { version: "0.3.0", buildId: "development", arch: "aarch64", target: "aarch64-apple-darwin", bundleType: "app" },
       state: { phase: "idle" },
     } }} /></ExternalUrlProvider></ToastProvider>);
-    for (const name of ["Known issues", "Report a problem", "Privacy and recovery guidance"]) {
+    for (const name of ["Report on GitHub", "Send feedback", "Known issues", "Help"]) {
       const link = screen.getByRole("link", { name });
       await user.click(link);
       expect(openUrl).toHaveBeenLastCalledWith(link.getAttribute("href"));
     }
-    expect(openUrl).toHaveBeenCalledTimes(3);
+    expect(openUrl).toHaveBeenCalledTimes(4);
   });
 
   it("routes keyboard, modified and middle clicks once without webview navigation", async () => {

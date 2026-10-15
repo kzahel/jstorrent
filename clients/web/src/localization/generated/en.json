@@ -11837,12 +11837,6 @@
       "value": "Exact report to copy or download"
     }
   ],
-  "support.diagnostics.public.report": [
-    {
-      "type": 0,
-      "value": "GitHub reports are public. Review your description and attachments before submitting. Opening the report page sends none of these diagnostics."
-    }
-  ],
   "support.diagnostics.refresh": [
     {
       "type": 0,
@@ -11855,22 +11849,28 @@
       "value": "Support diagnostics"
     }
   ],
+  "support.help": [
+    {
+      "type": 0,
+      "value": "Help"
+    }
+  ],
   "support.known.issues": [
     {
       "type": 0,
       "value": "Known issues"
     }
   ],
-  "support.privacy.recovery": [
+  "support.report.feedback": [
     {
       "type": 0,
-      "value": "Privacy and recovery guidance"
+      "value": "Send feedback"
     }
   ],
-  "support.report.problem": [
+  "support.report.github": [
     {
       "type": 0,
-      "value": "Report a problem"
+      "value": "Report on GitHub"
     }
   ],
   "toast.dismiss": [
