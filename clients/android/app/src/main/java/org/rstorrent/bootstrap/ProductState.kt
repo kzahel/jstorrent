@@ -3,8 +3,8 @@ package org.rstorrent.bootstrap
 import org.rstorrent.session.uniffi.ActivePiece
 import org.rstorrent.session.uniffi.ActivePieceFieldUpdate
 import org.rstorrent.session.uniffi.ActivePieceUpdate
-import org.rstorrent.session.uniffi.ClientSettingsRuntimeView
 import org.rstorrent.session.uniffi.CatalogPageView
+import org.rstorrent.session.uniffi.ClientSettingsRuntimeView
 import org.rstorrent.session.uniffi.DhtInspectionView
 import org.rstorrent.session.uniffi.DiagnosticEvent
 import org.rstorrent.session.uniffi.DiskPieceView
@@ -14,11 +14,14 @@ import org.rstorrent.session.uniffi.FileFieldUpdate
 import org.rstorrent.session.uniffi.FileRowUpdate
 import org.rstorrent.session.uniffi.FileView
 import org.rstorrent.session.uniffi.IndexRange
+import org.rstorrent.session.uniffi.LibraryFacetsView
+import org.rstorrent.session.uniffi.LibraryGroupView
+import org.rstorrent.session.uniffi.LibraryMediaItemView
 import org.rstorrent.session.uniffi.MediaCatalogState
 import org.rstorrent.session.uniffi.MediaItemView
-import org.rstorrent.session.uniffi.PeerView
 import org.rstorrent.session.uniffi.PeerFieldUpdate
 import org.rstorrent.session.uniffi.PeerRowUpdate
+import org.rstorrent.session.uniffi.PeerView
 import org.rstorrent.session.uniffi.ProductSummary
 import org.rstorrent.session.uniffi.SessionCurrentRatesView
 import org.rstorrent.session.uniffi.SpeedHistoryAppend
@@ -27,13 +30,13 @@ import org.rstorrent.session.uniffi.StorageSettingsSnapshot
 import org.rstorrent.session.uniffi.SwarmCatalogState
 import org.rstorrent.session.uniffi.SwarmCountsView
 import org.rstorrent.session.uniffi.SwarmPeerView
+import org.rstorrent.session.uniffi.TorrentFieldUpdate
+import org.rstorrent.session.uniffi.TorrentPreparationView
+import org.rstorrent.session.uniffi.TorrentRowUpdate
+import org.rstorrent.session.uniffi.TorrentView
+import org.rstorrent.session.uniffi.TorrentViewChange
 import org.rstorrent.session.uniffi.TrackerCatalogState
 import org.rstorrent.session.uniffi.TrackerView
-import org.rstorrent.session.uniffi.TorrentView
-import org.rstorrent.session.uniffi.TorrentFieldUpdate
-import org.rstorrent.session.uniffi.TorrentRowUpdate
-import org.rstorrent.session.uniffi.TorrentPreparationView
-import org.rstorrent.session.uniffi.TorrentViewChange
 import org.rstorrent.session.uniffi.ViewPatch
 import org.rstorrent.session.uniffi.ViewSnapshot
 import org.rstorrent.session.uniffi.ViewUpdate
@@ -63,6 +66,14 @@ data class MediaCatalogViewState(
     val state: MediaCatalogState,
     val totalNonPaddingFiles: UInt,
     val items: Map<String, MediaItemView>,
+)
+
+/** One page of the cross-torrent Library (Tactical 363). */
+data class LibraryMediaViewState(
+    val page: CatalogPageView,
+    val facets: LibraryFacetsView,
+    val items: List<LibraryMediaItemView>,
+    val groups: List<LibraryGroupView>,
 )
 
 data class SwarmViewState(
@@ -208,6 +219,7 @@ data class ProductState(
     val pieces: Map<String, PieceActivityState> = emptyMap(),
     val files: Map<String, FileCatalogViewState> = emptyMap(),
     val media: Map<String, MediaCatalogViewState> = emptyMap(),
+    val libraryMedia: LibraryMediaViewState? = null,
     val trackers: Map<String, TrackerCatalogViewState> = emptyMap(),
     val peers: Map<String, Map<String, PeerView>> = emptyMap(),
     val swarms: Map<String, SwarmViewState> = emptyMap(),
@@ -429,6 +441,16 @@ internal object ProductStateReducer {
                                     )
                             ),
                 )
+            is ViewSnapshot.LibraryMedia ->
+                state.copy(
+                    libraryMedia =
+                        LibraryMediaViewState(
+                            snapshot.page,
+                            snapshot.facets,
+                            snapshot.items,
+                            snapshot.groups,
+                        ),
+                )
             is ViewSnapshot.Diagnostics ->
                 state.copy(
                     diagnostics = snapshot.events.takeLast(512),
@@ -641,6 +663,21 @@ internal object ProductStateReducer {
                 state.copy(
                     trackers = state.trackers + (patch.torrentId to current.copy(trackers = trackers)),
                 )
+            }
+            is ViewPatch.LibraryMedia -> {
+                val current = state.libraryMedia ?: return state
+                // Rows outside the delivered page arrive only through a snapshot.
+                val positions = current.items.withIndex().associate { it.value.itemId to it.index }
+                val items = current.items.toMutableList()
+                patch.upsert.forEach { item ->
+                    val position =
+                        positions[item.itemId]
+                            ?: throw ViewContinuityException(
+                                "library patch refers to an item outside its page",
+                            )
+                    items[position] = item
+                }
+                state.copy(libraryMedia = current.copy(items = items))
             }
             is ViewPatch.Diagnostics -> {
                 val events =

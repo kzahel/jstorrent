@@ -54,6 +54,10 @@ use super::view_set::{
 };
 use super::*;
 
+mod library;
+
+use library::{LibraryChange, LibraryState, library_progress_changed};
+
 static NEXT_EPOCH: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone, Debug)]
@@ -80,6 +84,7 @@ pub(crate) struct HubState {
     next_stream_id: u64,
     pub(crate) view_sets: BTreeMap<String, Arc<ViewSetInner>>,
     pub(crate) view_set_lease: Duration,
+    library: LibraryState,
 }
 
 #[derive(Clone, Debug)]
@@ -162,6 +167,7 @@ impl ViewHub {
                 next_stream_id: 1,
                 view_sets: BTreeMap::new(),
                 view_set_lease,
+                library: LibraryState::default(),
             })),
             speed_interest: Arc::new(Notify::new()),
         })
@@ -186,6 +192,7 @@ impl ViewHub {
             .checked_add(1)
             .ok_or_else(|| SubscriptionError::Internal("stream ID overflow".to_owned()))?;
         let snapshot = hub.snapshot_for(&spec);
+        hub.remember_library_snapshot(&spec, &snapshot);
         let inner = Arc::new(SubscriberInner {
             stream_id,
             epoch: hub.epoch,
@@ -1683,6 +1690,17 @@ impl HubState {
                     },
                 }
             }
+            (ViewSelector::Library { query }, ViewProjection::LibraryMedia) => {
+                self.library.snapshot(
+                    query,
+                    spec.catalog_page
+                        .expect("validated library projection has a catalog page"),
+                    &self.torrents,
+                )
+            }
+            (ViewSelector::Library { .. }, _) | (_, ViewProjection::LibraryMedia) => {
+                unreachable!("invalid projection is rejected before snapshot construction")
+            }
             (selector, ViewProjection::Diagnostics) => {
                 let filter = spec.diagnostics.clone().unwrap_or_default();
                 let torrent_id = selector_torrent_id(selector);
@@ -1782,6 +1800,10 @@ impl HubState {
                     view_set.enqueue_patch(spec.view_id(), patch, revision)?;
                 }
             }
+        }
+        let index_changed = self.sync_library_index();
+        if index_changed || library_progress_changed(previous, &self.torrents) {
+            self.publish_library(LibraryChange::Durable)?;
         }
         Ok(())
     }
@@ -1914,6 +1936,12 @@ impl HubState {
                     view_set.enqueue_patch(spec.view_id(), patch, revision)?;
                 }
             }
+        }
+        if !file_changes.is_empty() {
+            self.publish_library(LibraryChange::Progress {
+                torrent_id,
+                changes: file_changes,
+            })?;
         }
         Ok(())
     }
@@ -2224,7 +2252,8 @@ fn selector_torrent_id(selector: &ViewSelector) -> Option<&str> {
         ViewSelector::TorrentList
         | ViewSelector::SessionDht
         | ViewSelector::SessionCurrentRates { .. }
-        | ViewSelector::SessionSpeedHistory { .. } => None,
+        | ViewSelector::SessionSpeedHistory { .. }
+        | ViewSelector::Library { .. } => None,
         ViewSelector::Torrent { torrent_id } => Some(torrent_id),
     }
 }
@@ -2368,6 +2397,11 @@ impl ViewHub {
             return Err(ViewSetError::ResourceLimit);
         }
         let snapshots = snapshots_for_specs(&hub, &views, queue_bytes);
+        for (spec, update) in views.values().zip(&snapshots) {
+            if let ViewSetUpdate::Snapshot { snapshot, .. } = update {
+                hub.remember_library_snapshot(&spec.subscription_spec(queue_bytes), snapshot);
+            }
+        }
         let id = loop {
             let candidate = generate_view_set_id()?;
             if !hub.view_sets.contains_key(&candidate) {
@@ -2422,9 +2456,12 @@ impl ViewHub {
             .collect::<Vec<_>>();
         for (view_id, spec) in &views {
             if previous.get(view_id) != Some(spec) {
+                let subscription = spec.subscription_spec(queue_bytes);
+                let snapshot = hub.snapshot_for(&subscription);
+                hub.remember_library_snapshot(&subscription, &snapshot);
                 updates.push(ViewSetUpdate::Snapshot {
                     view_id: view_id.clone(),
-                    snapshot: hub.snapshot_for(&spec.subscription_spec(queue_bytes)),
+                    snapshot,
                 });
             }
         }

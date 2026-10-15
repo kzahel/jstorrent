@@ -26,6 +26,11 @@ import { ApplicationViewError } from "../../api/errors";
 import { HOST_CAPTURES, knownBreaks } from "../../compat/captures";
 import type { InspectionCommand, InspectionSnapshot } from "../model";
 import { LiveApplication } from "./LiveApplication";
+import {
+  DEFAULT_LIBRARY_BROWSE,
+  libraryMediaRequest,
+  libraryMediaViewId,
+} from "../library-browse";
 import { MAGNET_EXPORT_OPTIONS } from "../host-capabilities";
 import type { ViewSetState } from "../../view-set-reducer";
 import { torrentMatchesCategory } from "../state";
@@ -1239,6 +1244,89 @@ describe("LiveApplication", () => {
     await application.close();
   });
 
+  it("leases one Library page per request and keeps the last page while the next loads", async () => {
+    const client = new FakeLiveClient();
+    const hello = await client.hello();
+    client.helloOverride = {
+      ...hello,
+      capabilities: [...hello.capabilities, "library_media"],
+    };
+    const request = libraryMediaRequest(DEFAULT_LIBRARY_BROWSE);
+    const application = await LiveApplication.open(client, {
+      initialViews: {
+        library: true,
+        libraryMedia: request,
+        torrentId: null,
+        detail: null,
+        logCapture: null,
+      },
+    });
+    const snapshots: InspectionSnapshot[] = [];
+    application.subscribe((update) => {
+      if (update.type === "snapshot") snapshots.push(update.snapshot);
+    });
+    const spec = client.opens[0]?.views.find((view) => view.type === "library_media");
+    expect(spec).toMatchObject({
+      view_id: libraryMediaViewId(request),
+      query: request.query,
+      page: { offset: 0, limit: 100 },
+    });
+    expect(snapshots.at(-1)?.viewStatus.libraryMedia).toEqual({ status: "ready" });
+    expect(snapshots.at(-1)?.libraryMedia).toMatchObject({
+      request,
+      page: { total: 1, nextOffset: null },
+      items: [
+        {
+          id: `${TORRENT_ID}:0`,
+          title: "Show Name S01E02",
+          seriesTitle: "Show Name",
+          seasonNumber: 1,
+          episodeNumber: 2,
+          albumTitle: null,
+          offline: false,
+        },
+      ],
+    });
+
+    // The fake host never answers the new page, so the old one remains.
+    const next = libraryMediaRequest({ ...DEFAULT_LIBRARY_BROWSE, text: "show" });
+    await application.setViews({
+      library: true,
+      libraryMedia: next,
+      torrentId: null,
+      detail: null,
+      logCapture: null,
+    });
+    expect(snapshots.at(-1)?.viewStatus.libraryMedia).toEqual({ status: "loading" });
+    expect(snapshots.at(-1)?.libraryMedia?.request).toEqual(request);
+    expect(
+      client.updates.at(-1)?.views.find((view) => view.type === "library_media")
+        ?.view_id,
+    ).toBe(libraryMediaViewId(next));
+    await application.close();
+  });
+
+  it("reports the Library unsupported on hosts without the projection", async () => {
+    const client = new FakeLiveClient();
+    const application = await LiveApplication.open(client, {
+      initialViews: {
+        library: true,
+        libraryMedia: libraryMediaRequest(DEFAULT_LIBRARY_BROWSE),
+        torrentId: null,
+        detail: null,
+        logCapture: null,
+      },
+    });
+    const snapshots: InspectionSnapshot[] = [];
+    application.subscribe((update) => {
+      if (update.type === "snapshot") snapshots.push(update.snapshot);
+    });
+    expect(client.opens[0]?.views.map((view) => view.type)).not.toContain("library_media");
+    expect(snapshots.at(-1)?.viewStatus.libraryMedia.status).toBe("unsupported");
+    expect(snapshots.at(-1)?.libraryMedia).toBeNull();
+    await application.close();
+  });
+
   it("subscribes to trackers only while requested and maps retained state", async () => {
     const client = new FakeLiveClient();
     const application = await LiveApplication.open(client, {
@@ -1709,6 +1797,53 @@ function snapshotFor(
               media_availability: "unverified",
             },
           ],
+        },
+      };
+    case "library_media":
+      return {
+        type: "snapshot",
+        view_id: view.view_id,
+        snapshot: {
+          type: "library_media",
+          page: { offset: 0, limit: 100, total: 1, next_offset: null },
+          facets: {
+            items: 1,
+            video: 1,
+            audio: 0,
+            episodes: 1,
+            movies: 0,
+            other_videos: 0,
+            tracks: 0,
+            offline: 0,
+            incomplete: 1,
+            series: 1,
+            albums: 0,
+            torrents: 1,
+            metadata_pending: 0,
+          },
+          items: [
+            {
+              item_id: `${TORRENT_ID}:0`,
+              torrent_id: TORRENT_ID,
+              torrent_name: "Show Name",
+              file_index: 0,
+              file_name: "Show.Name.S01E02.mkv",
+              title: "Show Name S01E02",
+              kind: "video",
+              role: "episode",
+              series_title: "Show Name",
+              series_id: "series:show name",
+              season_number: 1,
+              episode_number: 2,
+              extension: "mkv",
+              length_bytes: "16",
+              verified_bytes: String(generation),
+              offline: false,
+              archived: false,
+              media_availability: "unverified",
+            },
+          ],
+          groups: [],
         },
       };
     case "torrent_media":

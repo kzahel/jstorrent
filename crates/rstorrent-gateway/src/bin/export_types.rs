@@ -28,7 +28,9 @@ use rstorrent_session::{
     FileSelectionOverride, FileSelectionView, FileView, HostCapabilityDefinition,
     HostCapabilityLifecycle, HttpsServerAuthenticationPolicy, IndexRange,
     IntegrityPreparationPhaseView, IntegrityPreparationView, Ipv6PinholeFailureStage,
-    Ipv6PinholeStatus, ListenerBindFailureReason, ListenerPolicy, ListenerStatus,
+    Ipv6PinholeStatus, LibraryArchivedFilter, LibraryAvailabilityFilter, LibraryFacetsView,
+    LibraryGroupView, LibraryGrouping, LibraryMediaItemView, LibraryMediaKind, LibraryMediaQuery,
+    LibraryMediaRole, LibraryMediaSort, ListenerBindFailureReason, ListenerPolicy, ListenerStatus,
     MagnetExportOptions, MagnetExportResult, MagnetExportSource, MagnetPeerHint,
     MagnetPeerHintOmission, MagnetPeerHintScope, MediaCatalogState, MediaFileAvailability,
     MediaItemView, MediaRoleView, MediaUrlOutcome, MediaUrlResponse, MetadataAcquisitionPhaseView,
@@ -287,6 +289,16 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<MediaCatalogState>(&mut declarations)?;
     append::<MediaRoleView>(&mut declarations)?;
     append::<MediaItemView>(&mut declarations)?;
+    append::<LibraryMediaKind>(&mut declarations)?;
+    append::<LibraryMediaRole>(&mut declarations)?;
+    append::<LibraryAvailabilityFilter>(&mut declarations)?;
+    append::<LibraryArchivedFilter>(&mut declarations)?;
+    append::<LibraryGrouping>(&mut declarations)?;
+    append::<LibraryMediaSort>(&mut declarations)?;
+    append::<LibraryMediaQuery>(&mut declarations)?;
+    append::<LibraryMediaItemView>(&mut declarations)?;
+    append::<LibraryGroupView>(&mut declarations)?;
+    append::<LibraryFacetsView>(&mut declarations)?;
     append::<TrackerCatalogState>(&mut declarations)?;
     append::<TrackerTransportView>(&mut declarations)?;
     append::<TrackerSecurityView>(&mut declarations)?;

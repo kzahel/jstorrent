@@ -539,6 +539,7 @@ function snapshot(
     swarmByTorrent: {},
     filesByTorrent: {},
     mediaByTorrent: {},
+    libraryMedia: null,
     trackersByTorrent: {},
     piecesByTorrent: {},
     disk: emptyDiskSet(),
@@ -554,6 +555,7 @@ function snapshot(
     },
     viewStatus: {
       library: { status: "ready" },
+      libraryMedia: { status: "not_requested" },
       torrentSummary: { status: "not_requested" },
       peers: { status: "not_requested" },
       swarm: { status: "not_requested" },

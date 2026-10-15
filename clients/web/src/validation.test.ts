@@ -14,6 +14,7 @@ import {
   decodeUpdateBatch,
 } from "./validation";
 import { clientSettingsRuntimeFixture } from "./test-support/client-settings";
+import { libraryItemView, librarySnapshot } from "./test-support/library-media";
 import { reduceUpdateBatch } from "./view-set-reducer";
 
 const TEST_TORRENT_ID = "t1-00000000000000000000000000000000";
@@ -1505,3 +1506,55 @@ function swarmBatch() {
     ],
   };
 }
+
+describe("Library media validation", () => {
+  const libraryBatch = (snapshot: unknown) => ({
+    api_version: 1,
+    server_now_millis: "0",
+    view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
+    epoch: "1",
+    base_cursor: "0",
+    cursor: "1",
+    durable_revision: "1",
+    updates: [{ type: "snapshot", view_id: "library-media", snapshot }],
+  });
+
+  it("accepts a consistent page of items or groups", () => {
+    expect(() =>
+      decodeUpdateBatch(
+        JSON.stringify(libraryBatch(librarySnapshot([libraryItemView(0)]))),
+      ),
+    ).not.toThrow();
+    const grouped = {
+      ...librarySnapshot([]),
+      page: { offset: 0, limit: 100, total: 1, next_offset: null },
+      groups: [
+        {
+          group_id: "series:north shore stories",
+          title: "North Shore Stories",
+          item_count: 6,
+          offline_count: 2,
+          total_bytes: "6000",
+          season_count: 2,
+          torrent_count: 1,
+        },
+      ],
+    };
+    expect(() => decodeUpdateBatch(JSON.stringify(libraryBatch(grouped)))).not.toThrow();
+  });
+
+  it("rejects contradictory progress, foreign IDs and pages that do not add up", () => {
+    for (const snapshot of [
+      librarySnapshot([libraryItemView(0, { offline: true })]),
+      librarySnapshot([libraryItemView(0, { verified_bytes: "2000" })]),
+      librarySnapshot([libraryItemView(0, { item_id: "t1-ffffffffffffffffffffffffffffffff:0" })]),
+      librarySnapshot([libraryItemView(0, { title: "x".repeat(257) })]),
+      librarySnapshot([libraryItemView(0)], 5),
+      { ...librarySnapshot([libraryItemView(0)]), page: { offset: 0, limit: 129, total: 1, next_offset: null } },
+    ]) {
+      expect(() => decodeUpdateBatch(JSON.stringify(libraryBatch(snapshot)))).toThrow(
+        ContractError,
+      );
+    }
+  });
+});

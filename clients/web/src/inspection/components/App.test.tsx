@@ -43,6 +43,7 @@ import type { InspectionApplication } from "../application";
 import { InspectionProvider } from "../context";
 import { InspectionController } from "../controller";
 import { DemoApplication } from "../demo/DemoApplication";
+import { DEFAULT_LIBRARY_BROWSE, libraryMediaRequest } from "../library-browse";
 import {
   DEMO_PRIMARY_TORRENT_ID,
   buildScenarioSnapshot,
@@ -1618,7 +1619,7 @@ describe("inspection application", () => {
 
   it("keeps rendered rows and cards bounded for large logical collections", async () => {
     const user = userEvent.setup();
-    renderScenario("large-swarm", 0);
+    renderScenario("large-swarm", 0, undefined, undefined, undefined, undefined, false);
     const transferGrid = screen.getByRole("grid", { name: "Torrents" });
     expect(transferGrid).toHaveAttribute("aria-rowcount", "2001");
     expect(within(transferGrid).getAllByRole("row").length).toBeLessThanOrEqual(
@@ -2319,7 +2320,7 @@ describe("inspection application", () => {
 
   it("renders truthful empty states without fabricating media details", async () => {
     const user = userEvent.setup();
-    renderScenario("empty-library", 0);
+    renderScenario("empty-library", 0, undefined, undefined, undefined, undefined, false);
     expect(screen.getByText(/No torrents yet/i)).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Library" }));
     expect(screen.getByText("No content sources yet")).toBeVisible();
@@ -2717,7 +2718,7 @@ describe("inspection application", () => {
 
   it("opens truthful Library details and hands their source to Torrents", async () => {
     const user = userEvent.setup();
-    renderScenario("healthy-download", 42_000);
+    renderScenario("healthy-download", 42_000, undefined, undefined, undefined, undefined, false);
     await user.click(screen.getByRole("button", { name: "Library" }));
     expect(
       screen.queryByRole("button", { name: /^Play / }),
@@ -2756,7 +2757,7 @@ describe("inspection application", () => {
 
   it("orders a TV detail numerically and restores its Library card", async () => {
     const user = userEvent.setup();
-    renderScenario("media-library", 0);
+    renderScenario("media-library", 0, undefined, undefined, undefined, undefined, false);
     await user.click(screen.getByRole("button", { name: "Library" }));
     const trigger = screen.getByRole("button", {
       name: "Open details for North Shore Stories · Seasons 1–2",
@@ -2888,7 +2889,7 @@ describe("inspection application", () => {
 
   it("bounds the mounted media rows for a 4,096-file catalog", async () => {
     const user = userEvent.setup();
-    renderScenario("file-progress", 24_000);
+    renderScenario("file-progress", 24_000, undefined, undefined, undefined, undefined, false);
     await user.click(screen.getByRole("button", { name: "Library" }));
     await user.click(
       screen.getByRole("button", {
@@ -2907,6 +2908,142 @@ describe("inspection application", () => {
     expect(mountedRows).toBeLessThanOrEqual(20);
   });
 
+  it("browses media across torrents by preset, show, search and layout", async () => {
+    const user = userEvent.setup();
+    renderScenario("media-library", 0);
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    expect(screen.getByRole("heading", { name: "All media" })).toBeVisible();
+    // The skipped double episode is not part of the library.
+    const items = () => screen.getByRole("list", { name: "Library items" });
+    expect(within(items()).getAllByRole("listitem")).toHaveLength(5);
+    expect(screen.getByText("5 items")).toBeVisible();
+    expect(within(items()).getAllByText(/^S01 · E01 · North Shore Stories$/)).toHaveLength(1);
+    expect(within(items()).getAllByText(/^Offline · /)).toHaveLength(2);
+
+    const filters = screen.getByRole("navigation", { name: "Library filters" });
+    expect(within(filters).getByRole("button", { name: /^TV shows/ })).toHaveTextContent("1");
+    expect(within(filters).getByRole("button", { name: /^Movies/ })).toHaveTextContent("0");
+    await user.click(within(filters).getByRole("button", { name: /^TV shows/ }));
+    const shows = screen.getByRole("list", { name: "TV shows" });
+    const show = within(shows).getByRole("button", { name: /North Shore Stories/ });
+    expect(show).toHaveTextContent("4 episodes · 2 seasons");
+    expect(show).toHaveTextContent("2 of 4 offline");
+    await user.click(show);
+    expect(screen.getByRole("heading", { name: "North Shore Stories" })).toBeVisible();
+    expect(within(items()).getAllByRole("listitem")).toHaveLength(4);
+    await user.click(screen.getByRole("button", { name: "Back to TV shows" }));
+    expect(screen.getByRole("list", { name: "TV shows" })).toBeVisible();
+
+    await user.click(within(filters).getByRole("button", { name: /^All media/ }));
+    await user.type(
+      screen.getByRole("searchbox", { name: "Search the library" }),
+      "s02",
+    );
+    await waitFor(() =>
+      expect(within(items()).getAllByRole("listitem")).toHaveLength(1),
+    );
+    await user.click(screen.getByRole("button", { name: "List" }));
+    const table = screen.getByRole("table");
+    expect(within(table).getByRole("columnheader", { name: "Show or album" })).toBeVisible();
+    expect(within(table).getAllByRole("row")).toHaveLength(2);
+
+    await user.click(
+      within(table).getByRole("button", { name: /^Show .* in its torrent$/ }),
+    );
+    expect(
+      screen.getByRole("heading", { name: "North Shore Stories · Seasons 1–2" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Back to Library" }));
+    // The search and page return with the Library, and focus with the item.
+    expect(
+      within(screen.getByRole("table")).getByRole("button", {
+        name: /^Show .* in its torrent$/,
+      }),
+    ).toHaveFocus();
+  });
+
+  it("pages the Library through the host query", async () => {
+    const user = userEvent.setup();
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const request = libraryMediaRequest(DEFAULT_LIBRARY_BROWSE);
+    const rows = Array.from({ length: 100 }, (_, index) => ({
+      id: `t1-000102030405060708090a0b0c0d0e0f:${index}`,
+      torrentId: "t1-000102030405060708090a0b0c0d0e0f",
+      torrentName: "Lectures",
+      fileIndex: index,
+      fileName: `${index} Lecture.mp4`,
+      title: `Lecture ${index}`,
+      kind: "video" as const,
+      role: "other" as const,
+      seriesTitle: null,
+      seriesId: null,
+      seasonNumber: null,
+      episodeNumber: null,
+      endingEpisodeNumber: null,
+      albumTitle: null,
+      albumId: null,
+      discNumber: null,
+      trackNumber: null,
+      year: null,
+      extension: "mp4",
+      lengthBytes: "1000",
+      verifiedBytes: "1000",
+      offline: true,
+      archived: false,
+      mediaAvailability: "available" as const,
+    }));
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...base,
+        demo: null,
+        libraryMedia: {
+          request,
+          page: { offset: 0, limit: 100, total: 250, nextOffset: 100 },
+          facets: {
+            items: 250,
+            video: 250,
+            audio: 0,
+            episodes: 0,
+            movies: 0,
+            other_videos: 250,
+            tracks: 0,
+            offline: 250,
+            incomplete: 0,
+            series: 0,
+            albums: 0,
+            torrents: 1,
+            metadata_pending: 2,
+          },
+          items: rows,
+          groups: [],
+        },
+        viewStatus: { ...base.viewStatus, libraryMedia: { status: "ready" } },
+      },
+    });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    const pages = screen.getByRole("navigation", { name: "Library pages" });
+    expect(pages).toHaveTextContent("1–100 of 250");
+    expect(within(pages).getByRole("button", { name: "Previous page" })).toBeDisabled();
+    await user.click(within(pages).getByRole("button", { name: "Next page" }));
+    await waitFor(() =>
+      expect(application.views.at(-1)?.libraryMedia).toEqual({
+        ...request,
+        offset: 100,
+      }),
+    );
+    // A new query returns to the first page and keeps the last page shown.
+    await user.click(screen.getByRole("button", { name: "Offline" }));
+    await waitFor(() =>
+      expect(application.views.at(-1)?.libraryMedia).toMatchObject({
+        offset: 0,
+        query: { availability: "offline" },
+      }),
+    );
+    expect(screen.getAllByText("Lecture 0").length).toBeGreaterThan(0);
+  });
+
   it("leases detail views only while Torrents needs them", async () => {
     const user = userEvent.setup();
     const snapshot = {
@@ -2922,6 +3059,7 @@ describe("inspection application", () => {
     await waitFor(() =>
       expect(application.views.at(-1)).toEqual({
         library: true,
+        libraryMedia: DEFAULT_LIBRARY_REQUEST,
         torrentId: null,
         detail: null,
         logCapture: null,
@@ -2945,6 +3083,7 @@ describe("inspection application", () => {
     await waitFor(() =>
       expect(application.views.at(-1)).toEqual({
         library: true,
+        libraryMedia: DEFAULT_LIBRARY_REQUEST,
         torrentId: null,
         detail: null,
         logCapture: null,
@@ -5153,6 +5292,8 @@ async function findToast(text: string | RegExp): Promise<HTMLElement> {
   });
 }
 
+const DEFAULT_LIBRARY_REQUEST = libraryMediaRequest(DEFAULT_LIBRARY_BROWSE);
+
 function renderScenario(
   scenarioId: ConstructorParameters<typeof DemoApplication>[0]["scenarioId"],
   elapsedMs: number,
@@ -5160,9 +5301,10 @@ function renderScenario(
   updater?: DesktopUpdater,
   notifications?: DesktopNotifications,
   power?: DesktopPower,
+  mediaLibrary?: boolean,
 ) {
   return renderApplication(
-    new DemoApplication({ scenarioId, elapsedMs, running: false }),
+    new DemoApplication({ scenarioId, elapsedMs, running: false, mediaLibrary: mediaLibrary ?? true }),
     appearanceStorage,
     updater,
     undefined,

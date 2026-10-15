@@ -228,6 +228,8 @@ pub(super) fn patch_for(
         (ViewSelector::SessionDht, _) => None,
         (ViewSelector::SessionCurrentRates { .. }, _) => None,
         (ViewSelector::SessionSpeedHistory { .. }, _) => None,
+        // The hub's Library publication owns these views.
+        (ViewSelector::Library { .. }, _) | (_, ViewProjection::LibraryMedia) => None,
     }
 }
 
@@ -1067,6 +1069,22 @@ pub(crate) fn coalesce_patch(current: &mut ViewPatch, next: &ViewPatch) -> bool 
             removed_ids.extend(next_removed.iter().cloned());
             *upsert = values.into_values().collect();
             *removed = removed_ids.into_iter().collect();
+            true
+        }
+        (
+            ViewPatch::LibraryMedia { upsert },
+            ViewPatch::LibraryMedia {
+                upsert: next_upsert,
+            },
+        ) => {
+            let mut values = upsert
+                .drain(..)
+                .map(|item| (item.item_id.clone(), item))
+                .collect::<BTreeMap<_, _>>();
+            for item in next_upsert {
+                values.insert(item.item_id.clone(), item.clone());
+            }
+            *upsert = values.into_values().collect();
             true
         }
         (

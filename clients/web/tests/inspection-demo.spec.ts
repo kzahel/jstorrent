@@ -8,7 +8,7 @@ const screenshotDirectory = process.env.RSTORRENT_SCREENSHOT_DIR;
 
 test("checker progress stays truthful across every shared surface", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/?demo=checking-progress&at=18000&autoplay=0");
+  await page.goto("/?demo=checking-progress&at=18000&autoplay=0&library=cards");
   const primary = page.getByRole("navigation", { name: "Primary" });
   const checkingBar = page.getByRole("progressbar", {
       name: /Big Buck Bunny 1080p surround checking progress: Checked 40.0%/,
@@ -33,7 +33,7 @@ test("checker progress stays truthful across every shared surface", async ({ pag
   await expect(details.getByText("2", { exact: true })).toBeVisible();
   await expect(details.getByText("1", { exact: true })).toBeVisible();
 
-  await page.goto("/?demo=checking-progress&at=36000&autoplay=0");
+  await page.goto("/?demo=checking-progress&at=36000&autoplay=0&library=cards");
   const fencedBar = page.getByRole("progressbar", {
     name: /checking progress: Updating file selection/,
   });
@@ -51,7 +51,7 @@ test("checker progress stays truthful across every shared surface", async ({ pag
 
 test("primary destinations preserve shared source state", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?demo=healthy-download&at=42000&autoplay=0");
+  await page.goto("/?demo=healthy-download&at=42000&autoplay=0&library=cards");
   await expect(page.getByText("JSTorrent", { exact: true })).toBeVisible();
   await expect(page).toHaveTitle(
     /^JSTorrent - ↓[\d.]+ [kKMGT]?B\/s ↑[\d.]+ [kKMGT]?B\/s$/,
@@ -120,7 +120,7 @@ test("Library media detail sorts episodes and adapts to phone", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?demo=media-library&at=0&autoplay=0");
+  await page.goto("/?demo=media-library&at=0&autoplay=0&library=cards");
   const primary = page.getByRole("navigation", { name: "Primary" });
   await primary.getByRole("button", { name: "Library" }).click();
   const card = page.getByRole("button", {
@@ -180,7 +180,7 @@ test("Library media detail sorts episodes and adapts to phone", async ({
   await expect(card).toBeFocused();
 
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?demo=file-progress&at=24000&autoplay=0");
+  await page.goto("/?demo=file-progress&at=24000&autoplay=0&library=cards");
   await page
     .getByRole("navigation", { name: "Primary" })
     .getByRole("button", { name: "Library" })
@@ -214,6 +214,51 @@ test("Library media detail sorts episodes and adapts to phone", async ({
   console.log(
     `media_scale_metrics ${JSON.stringify({ recognizedRows, mountedRows, ...scaleMetrics })}`,
   );
+});
+
+test("media Library browses presets, groups and layouts across widths", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?demo=media-library&at=0&autoplay=0");
+  const primary = page.getByRole("navigation", { name: "Primary" });
+  await primary.getByRole("button", { name: "Library" }).click();
+  await expect(page.getByRole("heading", { name: "All media" })).toBeVisible();
+  const items = page.getByRole("list", { name: "Library items" });
+  await expect(items.getByRole("listitem")).toHaveCount(5);
+  await capture(page, "rstorrent-media-library-wide.png");
+  const filters = page.getByRole("navigation", { name: "Library filters" });
+  await filters.getByRole("button", { name: /^TV shows/ }).click();
+  const show = page
+    .getByRole("list", { name: "TV shows" })
+    .getByRole("button", { name: /North Shore Stories/ });
+  await expect(show).toContainText("4 episodes · 2 seasons");
+  await capture(page, "rstorrent-media-library-shows.png");
+  await show.click();
+  await expect(page.getByRole("heading", { name: "North Shore Stories" })).toBeVisible();
+  await page.getByRole("button", { name: "List" }).click();
+  await expect(page.getByRole("table").getByRole("row")).toHaveCount(5);
+  await capture(page, "rstorrent-media-library-list.png");
+  const violations = (
+    await new AxeBuilder({ page }).analyze()
+  ).violations.filter(
+    (violation) =>
+      violation.impact === "serious" || violation.impact === "critical",
+  );
+  expect(violations).toEqual([]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("heading", { name: "North Shore Stories" })).toBeVisible();
+  await page.getByRole("button", { name: "Cards" }).click();
+  await expect(items.getByRole("listitem")).toHaveCount(4);
+  await capture(page, "rstorrent-media-library-phone.png");
+  const phoneViolations = (
+    await new AxeBuilder({ page }).analyze()
+  ).violations.filter(
+    (violation) =>
+      violation.impact === "serious" || violation.impact === "critical",
+  );
+  expect(phoneViolations).toEqual([]);
 });
 
 test("More copies selected torrents' source-aware magnets", async ({
@@ -478,7 +523,7 @@ test("phone destinations and contextual filters remain reachable", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/?demo=healthy-download&at=42000&autoplay=0");
+  await page.goto("/?demo=healthy-download&at=42000&autoplay=0&library=cards");
   const transferGrid = page.getByRole("grid", { name: "Torrents" });
   await expect(transferGrid).toBeVisible();
   const heldRow = transferGrid.getByRole("row").filter({ hasText: "Sintel" });
@@ -1312,7 +1357,7 @@ test("data units reformat mounted product surfaces without changing raw state", 
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 820 });
-  await openScenario(page, "healthy-download", 42_000);
+  await openScenario(page, "healthy-download", 42_000, false, "cards");
 
   const transfers = page.getByRole("grid", { name: "Torrents" });
   const transferOrder = await transfers
@@ -1928,7 +1973,7 @@ test("large collections retain a bounded virtual DOM", async ({ page }) => {
     }).observe({ type: "longtask", buffered: true });
   });
   const openedAt = performance.now();
-  await openScenario(page, "large-swarm", 0);
+  await openScenario(page, "large-swarm", 0, false, "cards");
   const initialRenderMs = performance.now() - openedAt;
   const torrents = page.getByRole("grid", { name: "Torrents" });
   const peers = page.getByRole("grid", { name: "Active peer connections" });
@@ -2154,8 +2199,11 @@ async function openScenario(
   scenario: string,
   at: number,
   autoplay = false,
+  library: "media" | "cards" = "media",
 ) {
-  await page.goto(`/?demo=${scenario}&at=${at}&autoplay=${autoplay ? 1 : 0}`);
+  await page.goto(
+    `/?demo=${scenario}&at=${at}&autoplay=${autoplay ? 1 : 0}${library === "cards" ? "&library=cards" : ""}`,
+  );
   await expect(
     page.getByRole("button", { name: "Settings", exact: true }),
   ).toBeVisible();

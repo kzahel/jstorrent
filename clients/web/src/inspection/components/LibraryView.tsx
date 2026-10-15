@@ -26,6 +26,7 @@ import type {
 import { seedLimitReached } from "../seed-stop";
 import { torrentMatchesLibraryCategory } from "../state";
 import { LibraryDetailView, waterLevel } from "./LibraryDetailView";
+import { LibraryMediaView } from "./LibraryMediaView";
 import styles from "./LibraryView.module.css";
 
 // Varied, fixed title widths so placeholder cards read as content.
@@ -86,6 +87,10 @@ export function LibraryView() {
   const materialization = useInspectionStore(
     (state) => state.viewStatus.library,
   );
+  // Hosts without the cross-torrent projection keep the torrent cards.
+  const mediaLibrary = useInspectionStore(
+    (state) => state.viewStatus.libraryMedia.status !== "unsupported",
+  );
   const allRows = useMemo(
     () =>
       order
@@ -114,6 +119,7 @@ export function LibraryView() {
   const current = allRows.find((row) => row.id === currentTorrentId);
   const [collectionScrollTop, setCollectionScrollTop] = useState(0);
   const [returnFocusId, setReturnFocusId] = useState<string | null>(null);
+  const [returnFocusItemId, setReturnFocusItemId] = useState<string | null>(null);
 
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
@@ -197,6 +203,17 @@ export function LibraryView() {
 
   if (detailOpen && current !== undefined) {
     return <LibraryDetailView torrent={current} onBack={closeDetail} />;
+  }
+  if (mediaLibrary) {
+    return (
+      <LibraryMediaView
+        returnFocusItemId={returnFocusItemId}
+        onOpenTorrent={(torrentId, itemId) => {
+          setReturnFocusItemId(itemId);
+          openDetail(torrentId);
+        }}
+      />
+    );
   }
 
   return (

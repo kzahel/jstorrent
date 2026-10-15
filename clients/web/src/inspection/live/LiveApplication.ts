@@ -7,6 +7,8 @@ import type {
   CheckingProgressView,
   DiagnosticEvent,
   FileView,
+  LibraryGroupView,
+  LibraryMediaItemView,
   MagnetExportOptions,
   MediaItemView,
   PeerSourceView,
@@ -56,6 +58,10 @@ import type {
   InspectionUpdate,
   FileRow,
   FileSet,
+  LibraryGroupRow,
+  LibraryItemRow,
+  LibraryMediaRequest,
+  LibraryMediaSet,
   MediaRow,
   MediaSet,
   LogRow,
@@ -76,6 +82,7 @@ import type {
   ViewMaterialization,
 } from "../model";
 import { emptyDiskSet } from "../state";
+import { libraryMediaViewId, sameLibraryRequest } from "../library-browse";
 import { DEFAULT_SPEED_METRICS } from "../speed-preferences";
 import { mapPieceActivity, type MappedPieceActivity } from "./pieces";
 
@@ -130,6 +137,10 @@ export class LiveApplication implements InspectionApplication {
   private mappedMedia: {
     readonly source: Extract<ViewSnapshot, { type: "media" }>;
     readonly value: MediaSet;
+  } | null = null;
+  private mappedLibraryMedia: {
+    readonly source: Extract<ViewSnapshot, { type: "library_media" }>;
+    readonly value: LibraryMediaSet;
   } | null = null;
   private mappedPieces: MappedPieceActivity | null = null;
   private hello: ApiHello | null = null;
@@ -821,6 +832,7 @@ export class LiveApplication implements InspectionApplication {
     const mediaSet = this.mapMedia(media);
     const pieces = projection(state, PIECES_VIEW_ID, "piece_activity");
     const pieceSet = this.mapPieces(pieces, state.epoch);
+    const libraryMediaSet = this.mapLibraryMedia(state);
     if (state.views[LIBRARY_VIEW_ID] !== undefined) markStartup("first_library");
     this.snapshot = mapViewState(
       state,
@@ -829,6 +841,7 @@ export class LiveApplication implements InspectionApplication {
       this.connection,
       fileSet,
       mediaSet,
+      libraryMediaSet,
       pieceSet,
       this.snapshot.storage,
       this.snapshot.clientSettings,
@@ -886,6 +899,29 @@ export class LiveApplication implements InspectionApplication {
     return value;
   }
 
+  /**
+   * The page answering the current Library request, or while it loads the
+   * last page shown, so a new search does not blank the Library.
+   */
+  private mapLibraryMedia(state: ViewSetState): LibraryMediaSet | null {
+    const request = this.desired.libraryMedia ?? null;
+    if (request === null) {
+      this.mappedLibraryMedia = null;
+      return null;
+    }
+    const source = projection(state, libraryMediaViewId(request), "library_media");
+    if (source === null) return this.mappedLibraryMedia?.value ?? null;
+    if (
+      this.mappedLibraryMedia?.source === source &&
+      sameLibraryRequest(this.mappedLibraryMedia.value.request, request)
+    ) {
+      return this.mappedLibraryMedia.value;
+    }
+    const value = mapLibraryMedia(source, request);
+    this.mappedLibraryMedia = { source, value };
+    return value;
+  }
+
   private acceptStatus(status: ViewConnectionStatus): void {
     if (this.closed) return;
     if (status.type === "retrying") this.helloCurrent = false;
@@ -936,6 +972,10 @@ export class LiveApplication implements InspectionApplication {
       ...this.snapshot,
       viewStatus: {
         library: staleIfMaterialized(this.snapshot.viewStatus.library, error),
+        libraryMedia: staleIfMaterialized(
+          this.snapshot.viewStatus.libraryMedia,
+          error,
+        ),
         torrentSummary: staleIfMaterialized(
           this.snapshot.viewStatus.torrentSummary,
           error,
@@ -981,6 +1021,15 @@ export class LiveApplication implements InspectionApplication {
         type: "torrent_list",
         view_id: LIBRARY_VIEW_ID,
         delivery: { min_interval_millis: 100 },
+      });
+    }
+    if (views.libraryMedia != null && capabilities.has("library_media")) {
+      specs.push({
+        type: "library_media",
+        view_id: libraryMediaViewId(views.libraryMedia),
+        query: views.libraryMedia.query,
+        page: { offset: views.libraryMedia.offset, limit: views.libraryMedia.limit },
+        delivery: { min_interval_millis: 250 },
       });
     }
     if (views.torrentId !== null && capabilities.has("torrent_summary")) {
@@ -1252,6 +1301,7 @@ function mapViewState(
   connection: SessionConnection,
   fileSet: FileSet | null,
   mediaSet: MediaSet | null,
+  libraryMediaSet: LibraryMediaSet | null,
   pieceSet: PieceMapSet | null,
   previousStorage: DownloadStorageSettings,
   previousClientSettings: ClientSettingsRuntimeView,
@@ -1371,6 +1421,7 @@ function mapViewState(
     swarmByTorrent,
     filesByTorrent,
     mediaByTorrent,
+    libraryMedia: libraryMediaSet,
     trackersByTorrent,
     piecesByTorrent,
     disk: disk === null ? emptyDiskSet() : mapDisk(disk),
@@ -1397,6 +1448,13 @@ function mapViewState(
         capabilities.has("torrent_list"),
         library !== null,
         "Torrent library is unavailable",
+      ),
+      libraryMedia: materialization(
+        desired.libraryMedia != null,
+        capabilities.has("library_media"),
+        libraryMediaSet !== null &&
+          sameLibraryRequest(libraryMediaSet.request, desired.libraryMedia),
+        "The media library is unavailable",
       ),
       torrentSummary: materialization(
         desired.torrentId !== null,
@@ -1540,6 +1598,7 @@ function transitionSnapshot(
     swarmByTorrent: {},
     filesByTorrent: {},
     mediaByTorrent: {},
+    libraryMedia: desired.libraryMedia == null ? null : current.libraryMedia,
     trackersByTorrent: {},
     piecesByTorrent: {},
     disk: current.disk,
@@ -1555,6 +1614,14 @@ function transitionSnapshot(
         desired.library,
         capabilities.has("torrent_list"),
         current.viewStatus.library,
+      ),
+      libraryMedia: transitionStatus(
+        desired.libraryMedia != null,
+        capabilities.has("library_media"),
+        current.libraryMedia !== null &&
+          sameLibraryRequest(current.libraryMedia.request, desired.libraryMedia)
+          ? current.viewStatus.libraryMedia
+          : undefined,
       ),
       torrentSummary: transitionStatus(
         desired.torrentId !== null,
@@ -2288,6 +2355,66 @@ function safeNumber(value: string): number {
   }
 }
 
+function mapLibraryMedia(
+  source: Extract<ViewSnapshot, { type: "library_media" }>,
+  request: LibraryMediaRequest,
+): LibraryMediaSet {
+  return {
+    request,
+    page: {
+      offset: source.page.offset,
+      limit: source.page.limit,
+      total: source.page.total,
+      nextOffset: source.page.next_offset,
+    },
+    facets: source.facets,
+    items: source.items.map(mapLibraryItem),
+    groups: source.groups.map(mapLibraryGroup),
+  };
+}
+
+function mapLibraryItem(item: LibraryMediaItemView): LibraryItemRow {
+  return {
+    id: item.item_id,
+    torrentId: item.torrent_id,
+    torrentName: item.torrent_name,
+    fileIndex: item.file_index,
+    fileName: item.file_name,
+    title: item.title,
+    kind: item.kind,
+    role: item.role,
+    seriesTitle: item.series_title ?? null,
+    seriesId: item.series_id ?? null,
+    seasonNumber: item.season_number ?? null,
+    episodeNumber: item.episode_number ?? null,
+    endingEpisodeNumber: item.ending_episode_number ?? null,
+    albumTitle: item.album_title ?? null,
+    albumId: item.album_id ?? null,
+    discNumber: item.disc_number ?? null,
+    trackNumber: item.track_number ?? null,
+    year: item.year ?? null,
+    extension: item.extension,
+    lengthBytes: item.length_bytes,
+    verifiedBytes: item.verified_bytes,
+    offline: item.offline,
+    archived: item.archived,
+    mediaAvailability: item.media_availability,
+  };
+}
+
+function mapLibraryGroup(group: LibraryGroupView): LibraryGroupRow {
+  return {
+    id: group.group_id,
+    title: group.title,
+    itemCount: group.item_count,
+    offlineCount: group.offline_count,
+    totalBytes: group.total_bytes,
+    seasonCount: group.season_count,
+    torrentCount: group.torrent_count,
+    year: group.year ?? null,
+  };
+}
+
 function emptyLiveSnapshot(
   desired: DesiredInspectionViews,
   connection: SessionConnection,
@@ -2311,6 +2438,7 @@ function emptyLiveSnapshot(
     swarmByTorrent: {},
     filesByTorrent: {},
     mediaByTorrent: {},
+    libraryMedia: null,
     trackersByTorrent: {},
     piecesByTorrent: {},
     disk: emptyDiskSet(),
@@ -2326,6 +2454,8 @@ function emptyLiveSnapshot(
     },
     viewStatus: {
       library: desired.library ? { status: "loading" } : { status: "not_requested" },
+      libraryMedia:
+        desired.libraryMedia == null ? { status: "not_requested" } : { status: "loading" },
       torrentSummary:
         desired.torrentId === null ? { status: "not_requested" } : { status: "loading" },
       peers: desired.detail === "peers" ? { status: "loading" } : { status: "not_requested" },
@@ -2366,6 +2496,7 @@ function sameViews(
 ): boolean {
   return (
     left.library === right.library &&
+    sameLibraryRequest(left.libraryMedia, right.libraryMedia) &&
     left.torrentId === right.torrentId &&
     left.detail === right.detail &&
     left.logCapture?.profile === right.logCapture?.profile &&

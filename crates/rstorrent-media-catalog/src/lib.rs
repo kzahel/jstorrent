@@ -2,6 +2,13 @@ use std::sync::LazyLock;
 
 use regex::{Captures, Regex};
 
+mod library;
+
+pub use library::{
+    LibraryFile, LibraryRole, MediaKind, TrackClassification, album_group_key, classify_library,
+    series_group_key,
+};
+
 pub const CLASSIFIER_VERSION: u16 = 1;
 
 const VIDEO_EXTENSIONS: &[&str] = &[
@@ -58,24 +65,32 @@ pub fn classify_video(path_components: &[String]) -> Option<MediaClassification>
     if !VIDEO_EXTENSIONS.contains(&extension) {
         return None;
     }
+    Some(match episode_parts(stem, path_components) {
+        Some((episode, _)) => MediaClassification::Episode(episode),
+        None => MediaClassification::UnclassifiedVideo,
+    })
+}
 
+/// The episode a video stem names, and the stem text after its episode code.
+fn episode_parts<'stem>(
+    stem: &'stem str,
+    path_components: &[String],
+) -> Option<(EpisodeClassification, &'stem str)> {
     for pattern in NAMED_EPISODE_PATTERNS.iter() {
         if let Some(captures) = pattern.captures(stem)
-            && let Some(episode) = episode_from_captures(stem, &captures, path_components, true)
+            && let Some(parts) = episode_from_captures(stem, &captures, path_components, true)
         {
-            return Some(MediaClassification::Episode(episode));
+            return Some(parts);
         }
     }
-
     for pattern in BARE_EPISODE_PATTERNS.iter() {
         if let Some(captures) = pattern.captures(stem)
-            && let Some(episode) = episode_from_captures(stem, &captures, path_components, false)
+            && let Some(parts) = episode_from_captures(stem, &captures, path_components, false)
         {
-            return Some(MediaClassification::Episode(episode));
+            return Some(parts);
         }
     }
-
-    Some(MediaClassification::UnclassifiedVideo)
+    None
 }
 
 pub fn video_extension(filename: &str) -> Option<&str> {
@@ -96,12 +111,12 @@ fn split_extension(filename: &str) -> Option<(&str, &str)> {
     Some((&filename[..dot], canonical))
 }
 
-fn episode_from_captures(
-    stem: &str,
+fn episode_from_captures<'stem>(
+    stem: &'stem str,
     captures: &Captures<'_>,
     path_components: &[String],
     named: bool,
-) -> Option<EpisodeClassification> {
+) -> Option<(EpisodeClassification, &'stem str)> {
     let complete_match = captures.get(0)?;
     let remainder = stem.get(complete_match.end()..)?;
     if remainder
@@ -123,25 +138,29 @@ fn episode_from_captures(
     } else {
         parent_title(path_components)?
     };
-    let ending_episode_number =
-        ending_episode(remainder).filter(|ending| *ending >= episode_number);
+    let ending = ending_episode(remainder).filter(|(ending, _)| *ending >= episode_number);
+    let after_code = ending.map_or(remainder, |(_, end)| &remainder[end..]);
 
-    Some(EpisodeClassification {
-        series_title_hint,
-        season_number,
-        episode_number,
-        ending_episode_number,
-    })
+    Some((
+        EpisodeClassification {
+            series_title_hint,
+            season_number,
+            episode_number,
+            ending_episode_number: ending.map(|(ending, _)| ending),
+        },
+        after_code,
+    ))
 }
 
 fn capture_number(captures: &Captures<'_>, name: &str) -> Option<u16> {
     captures.name(name)?.as_str().parse().ok()
 }
 
-fn ending_episode(remainder: &str) -> Option<u16> {
+/// The ending episode number and the byte offset just past it.
+fn ending_episode(remainder: &str) -> Option<(u16, usize)> {
     let captures = ENDING_EPISODE_PATTERN.captures(remainder)?;
     if let Some(prefixed) = captures.name("prefixed") {
-        return prefixed.as_str().parse().ok();
+        return Some((prefixed.as_str().parse().ok()?, prefixed.end()));
     }
     let bare = captures.name("bare")?;
     if remainder
@@ -150,7 +169,7 @@ fn ending_episode(remainder: &str) -> Option<u16> {
     {
         return None;
     }
-    bare.as_str().parse().ok()
+    Some((bare.as_str().parse().ok()?, bare.end()))
 }
 
 fn parent_title(path_components: &[String]) -> Option<String> {

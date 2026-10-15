@@ -17,6 +17,9 @@
     "ClientSettings.seed_stop_time_seconds": "seed_stop_limits; hosts may ship it once tolerant clients are out (354 release order)",
     "TorrentSeedingView.stop": "seed_stop_limits; hosts may ship it once tolerant clients are out (354 release order)",
     "TorrentFieldUpdate.oneOf[field=private_torrent]": "row delta for TorrentView.private_torrent; needs tolerant clients before a host release",
-    "TorrentFieldUpdate.oneOf[field=source_size_bytes]": "row delta for the source size; needs tolerant clients before a host release"
+    "TorrentFieldUpdate.oneOf[field=source_size_bytes]": "row delta for the source size; needs tolerant clients before a host release",
+    "ViewPatch.oneOf[type=library_media]": "library_media view (363); sent only to clients that lease it, which no released client does",
+    "ViewSnapshot.oneOf[type=library_media]": "library_media view (363); sent only to clients that lease it, which no released client does",
+    "ViewSpec.oneOf[type=library_media]": "library_media view (363); echoed only to clients that lease it, which no released client does"
   }
 }

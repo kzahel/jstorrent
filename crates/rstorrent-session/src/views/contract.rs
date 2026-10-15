@@ -14,6 +14,10 @@ use ts_rs::TS;
 use crate::control::{RemovalState, StorageState, TorrentProtocolIdentities, TorrentState};
 use crate::diagnostics::{DiagnosticEvent, DiagnosticFilter, DiagnosticRetention};
 use crate::file_views::{FileCatalogState, FileView};
+use crate::library_views::{
+    DEFAULT_LIBRARY_PAGE_ROWS, LibraryFacetsView, LibraryGroupView, LibraryMediaItemView,
+    LibraryMediaQuery,
+};
 use crate::media_catalog_views::{MediaCatalogState, MediaItemView};
 use crate::settings::{
     ClientSettingsRuntimeView, StorageSettingsSnapshot, TorrentSeedStopLimits,
@@ -194,6 +198,7 @@ impl Default for ApiHello {
                 "torrent_files".to_owned(),
                 "torrent_media".to_owned(),
                 "torrent_trackers".to_owned(),
+                "library_media".to_owned(),
                 "session_disk".to_owned(),
                 "session_dht".to_owned(),
                 "session_current_rates".to_owned(),
@@ -322,6 +327,17 @@ pub enum ViewSpec {
         #[serde(default)]
         delivery: ViewDeliveryPolicy,
     },
+    /// Video and audio across the profile's torrents (Tactical 363). A page
+    /// defaults to the first 100 rows.
+    LibraryMedia {
+        view_id: String,
+        #[serde(default)]
+        query: LibraryMediaQuery,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        page: Option<CatalogPageRequest>,
+        #[serde(default)]
+        delivery: ViewDeliveryPolicy,
+    },
     Diagnostics {
         view_id: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -350,6 +366,7 @@ impl ViewSpec {
             | Self::TorrentFiles { view_id, .. }
             | Self::TorrentMedia { view_id, .. }
             | Self::TorrentTrackers { view_id, .. }
+            | Self::LibraryMedia { view_id, .. }
             | Self::Diagnostics { view_id, .. } => view_id,
         }
     }
@@ -369,6 +386,7 @@ impl ViewSpec {
             | Self::TorrentFiles { delivery, .. }
             | Self::TorrentMedia { delivery, .. }
             | Self::TorrentTrackers { delivery, .. }
+            | Self::LibraryMedia { delivery, .. }
             | Self::Diagnostics { delivery, .. } => *delivery,
         }
     }
@@ -469,6 +487,17 @@ impl ViewSpec {
                 ViewProjection::Trackers,
                 None,
                 Some(page.unwrap_or_default()),
+            ),
+            Self::LibraryMedia { query, page, .. } => (
+                ViewSelector::Library {
+                    query: query.clone(),
+                },
+                ViewProjection::LibraryMedia,
+                None,
+                Some(page.unwrap_or(CatalogPageRequest {
+                    offset: 0,
+                    limit: DEFAULT_LIBRARY_PAGE_ROWS,
+                })),
             ),
             Self::Diagnostics {
                 torrent_id, filter, ..
@@ -666,6 +695,9 @@ pub enum ViewSelector {
         range: SpeedRange,
         metrics: Vec<SpeedMetric>,
     },
+    Library {
+        query: LibraryMediaQuery,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
@@ -685,6 +717,7 @@ pub enum ViewProjection {
     Media,
     Trackers,
     Diagnostics,
+    LibraryMedia,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
@@ -1697,6 +1730,13 @@ pub enum ViewSnapshot {
         events: Vec<DiagnosticEvent>,
         retention: DiagnosticRetention,
     },
+    /// Items without grouping, groups with it; the other list is empty.
+    LibraryMedia {
+        page: CatalogPageView,
+        facets: LibraryFacetsView,
+        items: Vec<LibraryMediaItemView>,
+        groups: Vec<LibraryGroupView>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
@@ -1787,6 +1827,11 @@ pub enum ViewPatch {
         events: Vec<DiagnosticEvent>,
         retention: DiagnosticRetention,
     },
+    /// Changed progress of items already on the delivered page. Membership,
+    /// order, totals and facets change only through a snapshot.
+    LibraryMedia {
+        upsert: Vec<LibraryMediaItemView>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
@@ -1833,6 +1878,7 @@ pub enum SubscriptionError {
     InvalidQueueBound { minimum: u32, maximum: u32 },
     InvalidProjection,
     InvalidCatalogPage { maximum: u32 },
+    InvalidQuery(String),
     SnapshotExceedsQueue { snapshot: usize, maximum: u32 },
     Closed,
     Internal(String),
@@ -1861,6 +1907,7 @@ impl fmt::Display for SubscriptionError {
                 formatter,
                 "catalog page limit must be within 1..={maximum} rows"
             ),
+            Self::InvalidQuery(message) => write!(formatter, "invalid query: {message}"),
             Self::SnapshotExceedsQueue { snapshot, maximum } => write!(
                 formatter,
                 "initial snapshot is {snapshot} bytes and exceeds the {maximum}-byte queue"

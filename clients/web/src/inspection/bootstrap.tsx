@@ -30,7 +30,14 @@ export async function startDemoInspection(
     : "healthy-download";
   const elapsedMs = parseElapsed(parameters.get("at"));
   const running = parameters.get("autoplay") !== "0";
-  const application = new DemoApplication({ scenarioId, elapsedMs, running });
+  // `library=cards` shows the torrent cards of hosts without the media library.
+  const mediaLibrary = parameters.get("library") !== "cards";
+  const application = new DemoApplication({
+    scenarioId,
+    elapsedMs,
+    running,
+    mediaLibrary,
+  });
   const controller = new InspectionController(application);
   renderInspection(controller, createRoot(applicationRoot()), {});
 }

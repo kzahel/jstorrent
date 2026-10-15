@@ -38,6 +38,9 @@ const IGNORED_DEFAULTS = new Set([
   "data.delivery",
   "data.disable_future",
   "data.filter",
+  // ViewSpec.library_media echoes its query; every host that knows the view
+  // sends the whole query.
+  "data.query",
   "data.skip_files",
   "data.start_content",
 ]);

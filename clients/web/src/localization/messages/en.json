@@ -2436,6 +2436,254 @@
     "defaultMessage": "Torrent-backed content",
     "description": "Product copy in inspection/components/LibraryView.tsx"
   },
+  "inspection.components.library.media.archived": {
+    "defaultMessage": "Include archived",
+    "description": "Cross-torrent Library: toggle that adds archived torrents' files to the results."
+  },
+  "inspection.components.library.media.availability": {
+    "defaultMessage": "Availability",
+    "description": "Cross-torrent Library: label of the group of availability filters."
+  },
+  "inspection.components.library.media.availability.any": {
+    "defaultMessage": "Everything",
+    "description": "Cross-torrent Library: availability filter that shows every file."
+  },
+  "inspection.components.library.media.availability.offline": {
+    "defaultMessage": "Offline",
+    "description": "Cross-torrent Library: availability filter for files that are completely downloaded and verified."
+  },
+  "inspection.components.library.media.availability.incomplete": {
+    "defaultMessage": "Downloading",
+    "description": "Cross-torrent Library: availability filter for wanted files that are not complete yet."
+  },
+  "inspection.components.library.media.back": {
+    "defaultMessage": "Back to {preset}",
+    "description": "Cross-torrent Library: button that leaves an opened show, album or torrent; preset is the view name, such as TV shows."
+  },
+  "inspection.components.library.media.column.play": {
+    "defaultMessage": "Play",
+    "description": "Cross-torrent Library: hidden header of the list column holding play buttons."
+  },
+  "inspection.components.library.media.column.title": {
+    "defaultMessage": "Title",
+    "description": "Cross-torrent Library: list column header."
+  },
+  "inspection.components.library.media.column.context": {
+    "defaultMessage": "Show or album",
+    "description": "Cross-torrent Library: list column header for the episode's show or the track's album."
+  },
+  "inspection.components.library.media.column.size": {
+    "defaultMessage": "Size",
+    "description": "Cross-torrent Library: list column header."
+  },
+  "inspection.components.library.media.column.status": {
+    "defaultMessage": "Status",
+    "description": "Cross-torrent Library: list column header for download state."
+  },
+  "inspection.components.library.media.column.torrent": {
+    "defaultMessage": "Torrent",
+    "description": "Cross-torrent Library: list column header for the torrent that holds the file."
+  },
+  "inspection.components.library.media.count.items": {
+    "defaultMessage": "{count, plural, one {# item} other {# items}}",
+    "description": "Cross-torrent Library: number of files matching the current view."
+  },
+  "inspection.components.library.media.count.shows": {
+    "defaultMessage": "{count, plural, one {# show} other {# shows}}",
+    "description": "Cross-torrent Library: number of TV shows in the current view."
+  },
+  "inspection.components.library.media.count.albums": {
+    "defaultMessage": "{count, plural, one {# album} other {# albums}}",
+    "description": "Cross-torrent Library: number of albums in the current view."
+  },
+  "inspection.components.library.media.count.torrents": {
+    "defaultMessage": "{count, plural, one {# torrent} other {# torrents}}",
+    "description": "Cross-torrent Library: number of torrents with media in the current view."
+  },
+  "inspection.components.library.media.empty.library": {
+    "defaultMessage": "Your library has no video or music yet",
+    "description": "Cross-torrent Library: empty state when no torrent holds a video or audio file."
+  },
+  "inspection.components.library.media.empty.filters": {
+    "defaultMessage": "Nothing matches this search and these filters",
+    "description": "Cross-torrent Library: empty state when filters or search exclude everything."
+  },
+  "inspection.components.library.media.pending": {
+    "defaultMessage": "{count, plural, one {# torrent is} other {# torrents are}} still getting file details from peers.",
+    "description": "Cross-torrent Library: explains torrents whose file list is not known yet."
+  },
+  "inspection.components.library.media.group.show": {
+    "defaultMessage": "{episodes, plural, one {# episode} other {# episodes}} · {seasons, plural, one {# season} other {# seasons}}",
+    "description": "Cross-torrent Library: facts on a TV show card."
+  },
+  "inspection.components.library.media.group.tracks": {
+    "defaultMessage": "{count, plural, one {# track} other {# tracks}}",
+    "description": "Cross-torrent Library: facts on an album card without a year."
+  },
+  "inspection.components.library.media.group.album": {
+    "defaultMessage": "{count, plural, one {# track} other {# tracks}} · {year}",
+    "description": "Cross-torrent Library: facts on an album card; year is the release year."
+  },
+  "inspection.components.library.media.group.files": {
+    "defaultMessage": "{count, plural, one {# file} other {# files}}",
+    "description": "Cross-torrent Library: facts on a torrent card in the By torrent view."
+  },
+  "inspection.components.library.media.group.offline": {
+    "defaultMessage": "{offline} of {count} offline",
+    "description": "Cross-torrent Library: how many files of a show, album or torrent are completely downloaded."
+  },
+  "inspection.components.library.media.grouping": {
+    "defaultMessage": "Show as",
+    "description": "Cross-torrent Library: label of the choice between groups and their items."
+  },
+  "inspection.components.library.media.grouping.shows": {
+    "defaultMessage": "Shows",
+    "description": "Cross-torrent Library: show TV shows as cards."
+  },
+  "inspection.components.library.media.grouping.episodes": {
+    "defaultMessage": "Episodes",
+    "description": "Cross-torrent Library: list every episode instead of shows."
+  },
+  "inspection.components.library.media.grouping.albums": {
+    "defaultMessage": "Albums",
+    "description": "Cross-torrent Library: show music as album cards."
+  },
+  "inspection.components.library.media.grouping.tracks": {
+    "defaultMessage": "Tracks",
+    "description": "Cross-torrent Library: list every track instead of albums."
+  },
+  "inspection.components.library.media.item.offline": {
+    "defaultMessage": "Offline",
+    "description": "Cross-torrent Library: state of a completely downloaded file."
+  },
+  "inspection.components.library.media.item.offline.archived": {
+    "defaultMessage": "Offline · Archived",
+    "description": "Cross-torrent Library: state of a completely downloaded file in an archived torrent."
+  },
+  "inspection.components.library.media.item.partial": {
+    "defaultMessage": "{percent}% downloaded",
+    "description": "Cross-torrent Library: state of a file that is not completely downloaded; percent is a whole number."
+  },
+  "inspection.components.library.media.item.partial.archived": {
+    "defaultMessage": "{percent}% downloaded · Archived",
+    "description": "Cross-torrent Library: state of an incomplete file in an archived torrent."
+  },
+  "inspection.components.library.media.item.track": {
+    "defaultMessage": "Track {number}",
+    "description": "Cross-torrent Library: track number of a song."
+  },
+  "inspection.components.library.media.item.open": {
+    "defaultMessage": "Show {title} in its torrent",
+    "description": "Cross-torrent Library: accessible name of the button that opens the file's torrent."
+  },
+  "inspection.components.library.media.items": {
+    "defaultMessage": "Library items",
+    "description": "Cross-torrent Library: accessible name of the list of files."
+  },
+  "inspection.components.library.media.layout": {
+    "defaultMessage": "Layout",
+    "description": "Cross-torrent Library: label of the cards or list choice."
+  },
+  "inspection.components.library.media.layout.grid": {
+    "defaultMessage": "Cards",
+    "description": "Cross-torrent Library: layout that shows files as cards."
+  },
+  "inspection.components.library.media.layout.list": {
+    "defaultMessage": "List",
+    "description": "Cross-torrent Library: layout that shows files as a table."
+  },
+  "inspection.components.library.media.loading": {
+    "defaultMessage": "Loading your library",
+    "description": "Cross-torrent Library: shown while the first page arrives."
+  },
+  "inspection.components.library.media.unavailable": {
+    "defaultMessage": "The library is unavailable",
+    "description": "Cross-torrent Library: shown when the host cannot provide the library."
+  },
+  "inspection.components.library.media.pages": {
+    "defaultMessage": "Library pages",
+    "description": "Cross-torrent Library: accessible name of the page navigation."
+  },
+  "inspection.components.library.media.range": {
+    "defaultMessage": "{first}–{last} of {total}",
+    "description": "Cross-torrent Library: position of the current page, such as 1–100 of 250."
+  },
+  "inspection.components.library.media.previous": {
+    "defaultMessage": "Previous page",
+    "description": "Cross-torrent Library: button."
+  },
+  "inspection.components.library.media.next": {
+    "defaultMessage": "Next page",
+    "description": "Cross-torrent Library: button."
+  },
+  "inspection.components.library.media.play": {
+    "defaultMessage": "Play {title}",
+    "description": "Cross-torrent Library: accessible name of a play button."
+  },
+  "inspection.components.library.media.play.demo": {
+    "defaultMessage": "Playback is unavailable in demo scenarios.",
+    "description": "Cross-torrent Library: why a play button is disabled in the demo."
+  },
+  "inspection.components.library.media.play.opening": {
+    "defaultMessage": "Opening this file",
+    "description": "Cross-torrent Library: why a play button is busy."
+  },
+  "inspection.components.library.media.play.busy": {
+    "defaultMessage": "Another file is opening",
+    "description": "Cross-torrent Library: why play buttons wait while one file opens."
+  },
+  "inspection.components.library.media.play.unavailable": {
+    "defaultMessage": "This file is not downloaded and verified yet.",
+    "description": "Cross-torrent Library: why a play button is disabled for an incomplete file."
+  },
+  "inspection.components.library.media.preset.all": {
+    "defaultMessage": "All media",
+    "description": "Cross-torrent Library: Library view of every video and audio file."
+  },
+  "inspection.components.library.media.preset.shows": {
+    "defaultMessage": "TV shows",
+    "description": "Cross-torrent Library: Library view of episodes grouped by show."
+  },
+  "inspection.components.library.media.preset.movies": {
+    "defaultMessage": "Movies",
+    "description": "Cross-torrent Library: Library view of movies."
+  },
+  "inspection.components.library.media.preset.music": {
+    "defaultMessage": "Music",
+    "description": "Cross-torrent Library: Library view of audio grouped by album."
+  },
+  "inspection.components.library.media.preset.torrents": {
+    "defaultMessage": "By torrent",
+    "description": "Cross-torrent Library: Library view of media grouped by torrent."
+  },
+  "inspection.components.library.media.search.label": {
+    "defaultMessage": "Search the library",
+    "description": "Cross-torrent Library: accessible name of the search field."
+  },
+  "inspection.components.library.media.search.placeholder": {
+    "defaultMessage": "Search titles, shows, albums and files",
+    "description": "Cross-torrent Library: placeholder of the search field."
+  },
+  "inspection.components.library.media.sort.label": {
+    "defaultMessage": "Sort by",
+    "description": "Cross-torrent Library: label of the sort menu."
+  },
+  "inspection.components.library.media.sort.title": {
+    "defaultMessage": "Title",
+    "description": "Cross-torrent Library: sort by show, album or title."
+  },
+  "inspection.components.library.media.sort.size": {
+    "defaultMessage": "Size",
+    "description": "Cross-torrent Library: sort by file size."
+  },
+  "inspection.components.library.media.sort.source": {
+    "defaultMessage": "Source torrent",
+    "description": "Cross-torrent Library: sort by torrent name and file order."
+  },
+  "inspection.components.library.media.sort.descending": {
+    "defaultMessage": "Reverse order",
+    "description": "Cross-torrent Library: toggle that reverses the sort order."
+  },
   "inspection.components.log.console.all.torrents": {
     "defaultMessage": "All torrents",
     "description": "Product copy in inspection/components/LogConsole.tsx"

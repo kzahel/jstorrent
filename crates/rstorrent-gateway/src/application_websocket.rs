@@ -844,7 +844,7 @@ async fn serve_application_connection(
     {
         hello
             .capabilities
-            .retain(|capability| capability != "torrent_media");
+            .retain(|capability| capability != "torrent_media" && capability != "library_media");
     }
     if send_control(
         &control,

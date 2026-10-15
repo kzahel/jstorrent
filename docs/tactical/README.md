@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [363 — Library media index](363-library-media-index.md): the host indexes
+  video and audio across torrents in memory and serves `library_media` pages
+  by query; the web Library browses them with search, filters, presets for
+  shows, movies, music and torrents, cards or list, and pages.
 - [362 — Local browser inline video playback](362-local-browser-inline-playback.md):
   complete; browser-hosted Files and Library **Play** completed MP4/M4V/MKV in
   the shared playsvideo dialog, with Open in a new tab as the fallback.

@@ -168,7 +168,7 @@ never deleted.
 
 ## Current Release Hold
 
-As of 2026-10-15, `main` carries five reviewed strict-client exposures (see
+As of 2026-10-15, `main` carries eight reviewed strict-client exposures (see
 `reviewedStrictClientExposure` in `clients/web/src/api/release-compatibility.json`). Extensions 1.1.3 and 1.1.4
 (built from `5fa018ff`, published) validate strictly. A torrent list
 snapshot from a host built from current `main` includes the new
@@ -177,7 +177,10 @@ library view and asks for a reload. **Do not release desktop, headless or
 Android from `main`** until extension 1.1.5 (tolerant; `extension-v1.1.5`,
 submitted 2026-10-15, in review) is published and has had a few days to
 auto-update, or the maintainer accepts the companion break for that
-release. All five exposures are kinds 1.1.5 accepts.
+release. Five are kinds 1.1.5 accepts. The other three are the
+`library_media` view, snapshot and patch variants (Tactical 363); a host
+sends them only to a client that leases the view, which no released client
+does.
 
 The desktop and Android release workflows enforce this hold:
 `scripts/check-release-compatibility.mjs` fails a publishing run while

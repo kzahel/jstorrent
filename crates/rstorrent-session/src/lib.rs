@@ -20,6 +20,7 @@ pub mod foreground_download;
 mod have;
 mod host_capabilities;
 mod incoming_seeding;
+mod library_views;
 mod media;
 mod media_catalog_views;
 mod product_state;
@@ -69,6 +70,11 @@ pub use have::{HaveError, HaveState};
 pub use host_capabilities::{
     HOST_CAPABILITIES, HostCapability, HostCapabilityDefinition, HostCapabilityLifecycle,
     MAGNET_EXPORT_OPTIONS, SEED_STOP_LIMITS, host_capability_definitions,
+};
+pub use library_views::{
+    DEFAULT_LIBRARY_PAGE_ROWS, LibraryArchivedFilter, LibraryAvailabilityFilter, LibraryFacetsView,
+    LibraryGroupView, LibraryGrouping, LibraryMediaItemView, LibraryMediaKind, LibraryMediaQuery,
+    LibraryMediaRole, LibraryMediaSort, MAX_LIBRARY_PAGE_ROWS,
 };
 pub use media::{
     MAX_MEDIA_CAPABILITIES, MAX_MEDIA_READ_JOBS, MAX_MEDIA_REQUESTS,

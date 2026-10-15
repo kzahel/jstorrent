@@ -600,12 +600,9 @@ mod tests {
                 serde_json::from_str(&client.next().await.unwrap().unwrap().into_text().unwrap())
                     .unwrap();
             assert_eq!(refusal["error"]["code"], "invalid_call");
-            assert!(
-                !frame["hello"]["capabilities"]
-                    .as_array()
-                    .unwrap()
-                    .contains(&json!("torrent_media"))
-            );
+            let capabilities = frame["hello"]["capabilities"].as_array().unwrap();
+            assert!(!capabilities.contains(&json!("torrent_media")));
+            assert!(!capabilities.contains(&json!("library_media")));
             client.send(Message::Text(json!({"type":"call", "call_id":"library", "operation":{"type":"open_view_set", "request":{"views":[{"type":"torrent_list", "view_id":"library", "delivery":{"kind":"immediate"}}],"options":{}}}}).to_string().into())).await.unwrap();
             let frame: Value =
                 serde_json::from_str(&client.next().await.unwrap().unwrap().into_text().unwrap())

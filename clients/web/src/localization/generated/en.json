@@ -5771,6 +5771,714 @@
       "value": "verified"
     }
   ],
+  "inspection.components.library.media.archived": [
+    {
+      "type": 0,
+      "value": "Include archived"
+    }
+  ],
+  "inspection.components.library.media.availability": [
+    {
+      "type": 0,
+      "value": "Availability"
+    }
+  ],
+  "inspection.components.library.media.availability.any": [
+    {
+      "type": 0,
+      "value": "Everything"
+    }
+  ],
+  "inspection.components.library.media.availability.incomplete": [
+    {
+      "type": 0,
+      "value": "Downloading"
+    }
+  ],
+  "inspection.components.library.media.availability.offline": [
+    {
+      "type": 0,
+      "value": "Offline"
+    }
+  ],
+  "inspection.components.library.media.back": [
+    {
+      "type": 0,
+      "value": "Back to "
+    },
+    {
+      "type": 1,
+      "value": "preset"
+    }
+  ],
+  "inspection.components.library.media.column.context": [
+    {
+      "type": 0,
+      "value": "Show or album"
+    }
+  ],
+  "inspection.components.library.media.column.play": [
+    {
+      "type": 0,
+      "value": "Play"
+    }
+  ],
+  "inspection.components.library.media.column.size": [
+    {
+      "type": 0,
+      "value": "Size"
+    }
+  ],
+  "inspection.components.library.media.column.status": [
+    {
+      "type": 0,
+      "value": "Status"
+    }
+  ],
+  "inspection.components.library.media.column.title": [
+    {
+      "type": 0,
+      "value": "Title"
+    }
+  ],
+  "inspection.components.library.media.column.torrent": [
+    {
+      "type": 0,
+      "value": "Torrent"
+    }
+  ],
+  "inspection.components.library.media.count.albums": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " album"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " albums"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.library.media.count.items": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " item"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " items"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.library.media.count.shows": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " show"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " shows"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.library.media.count.torrents": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrent"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrents"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.library.media.empty.filters": [
+    {
+      "type": 0,
+      "value": "Nothing matches this search and these filters"
+    }
+  ],
+  "inspection.components.library.media.empty.library": [
+    {
+      "type": 0,
+      "value": "Your library has no video or music yet"
+    }
+  ],
+  "inspection.components.library.media.group.album": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " track"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " tracks"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 1,
+      "value": "year"
+    }
+  ],
+  "inspection.components.library.media.group.files": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " file"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " files"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.library.media.group.offline": [
+    {
+      "type": 1,
+      "value": "offline"
+    },
+    {
+      "type": 0,
+      "value": " of "
+    },
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " offline"
+    }
+  ],
+  "inspection.components.library.media.group.show": [
+    {
+      "type": 6,
+      "value": "episodes",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " episode"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " episodes"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 6,
+      "value": "seasons",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " season"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " seasons"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.library.media.group.tracks": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " track"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " tracks"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.library.media.grouping": [
+    {
+      "type": 0,
+      "value": "Show as"
+    }
+  ],
+  "inspection.components.library.media.grouping.albums": [
+    {
+      "type": 0,
+      "value": "Albums"
+    }
+  ],
+  "inspection.components.library.media.grouping.episodes": [
+    {
+      "type": 0,
+      "value": "Episodes"
+    }
+  ],
+  "inspection.components.library.media.grouping.shows": [
+    {
+      "type": 0,
+      "value": "Shows"
+    }
+  ],
+  "inspection.components.library.media.grouping.tracks": [
+    {
+      "type": 0,
+      "value": "Tracks"
+    }
+  ],
+  "inspection.components.library.media.item.offline": [
+    {
+      "type": 0,
+      "value": "Offline"
+    }
+  ],
+  "inspection.components.library.media.item.offline.archived": [
+    {
+      "type": 0,
+      "value": "Offline · Archived"
+    }
+  ],
+  "inspection.components.library.media.item.open": [
+    {
+      "type": 0,
+      "value": "Show "
+    },
+    {
+      "type": 1,
+      "value": "title"
+    },
+    {
+      "type": 0,
+      "value": " in its torrent"
+    }
+  ],
+  "inspection.components.library.media.item.partial": [
+    {
+      "type": 1,
+      "value": "percent"
+    },
+    {
+      "type": 0,
+      "value": "% downloaded"
+    }
+  ],
+  "inspection.components.library.media.item.partial.archived": [
+    {
+      "type": 1,
+      "value": "percent"
+    },
+    {
+      "type": 0,
+      "value": "% downloaded · Archived"
+    }
+  ],
+  "inspection.components.library.media.item.track": [
+    {
+      "type": 0,
+      "value": "Track "
+    },
+    {
+      "type": 1,
+      "value": "number"
+    }
+  ],
+  "inspection.components.library.media.items": [
+    {
+      "type": 0,
+      "value": "Library items"
+    }
+  ],
+  "inspection.components.library.media.layout": [
+    {
+      "type": 0,
+      "value": "Layout"
+    }
+  ],
+  "inspection.components.library.media.layout.grid": [
+    {
+      "type": 0,
+      "value": "Cards"
+    }
+  ],
+  "inspection.components.library.media.layout.list": [
+    {
+      "type": 0,
+      "value": "List"
+    }
+  ],
+  "inspection.components.library.media.loading": [
+    {
+      "type": 0,
+      "value": "Loading your library"
+    }
+  ],
+  "inspection.components.library.media.next": [
+    {
+      "type": 0,
+      "value": "Next page"
+    }
+  ],
+  "inspection.components.library.media.pages": [
+    {
+      "type": 0,
+      "value": "Library pages"
+    }
+  ],
+  "inspection.components.library.media.pending": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrent is"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrents are"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " still getting file details from peers."
+    }
+  ],
+  "inspection.components.library.media.play": [
+    {
+      "type": 0,
+      "value": "Play "
+    },
+    {
+      "type": 1,
+      "value": "title"
+    }
+  ],
+  "inspection.components.library.media.play.busy": [
+    {
+      "type": 0,
+      "value": "Another file is opening"
+    }
+  ],
+  "inspection.components.library.media.play.demo": [
+    {
+      "type": 0,
+      "value": "Playback is unavailable in demo scenarios."
+    }
+  ],
+  "inspection.components.library.media.play.opening": [
+    {
+      "type": 0,
+      "value": "Opening this file"
+    }
+  ],
+  "inspection.components.library.media.play.unavailable": [
+    {
+      "type": 0,
+      "value": "This file is not downloaded and verified yet."
+    }
+  ],
+  "inspection.components.library.media.preset.all": [
+    {
+      "type": 0,
+      "value": "All media"
+    }
+  ],
+  "inspection.components.library.media.preset.movies": [
+    {
+      "type": 0,
+      "value": "Movies"
+    }
+  ],
+  "inspection.components.library.media.preset.music": [
+    {
+      "type": 0,
+      "value": "Music"
+    }
+  ],
+  "inspection.components.library.media.preset.shows": [
+    {
+      "type": 0,
+      "value": "TV shows"
+    }
+  ],
+  "inspection.components.library.media.preset.torrents": [
+    {
+      "type": 0,
+      "value": "By torrent"
+    }
+  ],
+  "inspection.components.library.media.previous": [
+    {
+      "type": 0,
+      "value": "Previous page"
+    }
+  ],
+  "inspection.components.library.media.range": [
+    {
+      "type": 1,
+      "value": "first"
+    },
+    {
+      "type": 0,
+      "value": "–"
+    },
+    {
+      "type": 1,
+      "value": "last"
+    },
+    {
+      "type": 0,
+      "value": " of "
+    },
+    {
+      "type": 1,
+      "value": "total"
+    }
+  ],
+  "inspection.components.library.media.search.label": [
+    {
+      "type": 0,
+      "value": "Search the library"
+    }
+  ],
+  "inspection.components.library.media.search.placeholder": [
+    {
+      "type": 0,
+      "value": "Search titles, shows, albums and files"
+    }
+  ],
+  "inspection.components.library.media.sort.descending": [
+    {
+      "type": 0,
+      "value": "Reverse order"
+    }
+  ],
+  "inspection.components.library.media.sort.label": [
+    {
+      "type": 0,
+      "value": "Sort by"
+    }
+  ],
+  "inspection.components.library.media.sort.size": [
+    {
+      "type": 0,
+      "value": "Size"
+    }
+  ],
+  "inspection.components.library.media.sort.source": [
+    {
+      "type": 0,
+      "value": "Source torrent"
+    }
+  ],
+  "inspection.components.library.media.sort.title": [
+    {
+      "type": 0,
+      "value": "Title"
+    }
+  ],
+  "inspection.components.library.media.unavailable": [
+    {
+      "type": 0,
+      "value": "The library is unavailable"
+    }
+  ],
   "inspection.components.library.view.all.content": [
     {
       "type": 0,

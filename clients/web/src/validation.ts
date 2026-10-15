@@ -54,6 +54,9 @@ const PEER_FLAGS = [
 const MAX_FILE_CATALOG = 374_998;
 const MAX_TRACKER_CATALOG = 999_994;
 const MAX_CATALOG_PAGE_ROWS = 1_024;
+const MAX_LIBRARY_PAGE_ROWS = 128;
+const MAX_LIBRARY_TEXT_BYTES = 256;
+const MAX_LIBRARY_GROUP_ID_BYTES = 512;
 const MAX_DISK_PIECES = 16_384;
 const MAX_ACTIVE_PIECES = 16_384;
 const DHT_BUCKETS = 160;
@@ -1174,6 +1177,27 @@ function validateViewSnapshot(value: unknown): void {
       validateDiagnosticRetention(snapshot.retention);
       break;
     }
+    case "library_media": {
+      const page = validateCatalogPage(snapshot.page, MAX_U32);
+      if (page.limit > MAX_LIBRARY_PAGE_ROWS) {
+        throw new ContractError("library page exceeds its row bound");
+      }
+      const items = array(snapshot.items, "library items");
+      const groups = array(snapshot.groups, "library groups");
+      if (items.length !== 0 && groups.length !== 0) {
+        throw new ContractError("library page mixes items and groups");
+      }
+      if (
+        items.length + groups.length !==
+        Math.min(page.limit, Math.max(0, page.total - page.offset))
+      ) {
+        throw new ContractError("library page does not match its declared page");
+      }
+      items.forEach(validateLibraryMediaItemView);
+      groups.forEach(validateLibraryGroupView);
+      validateLibraryFacets(snapshot.facets);
+      break;
+    }
     default:
       throw new ContractError("unknown view snapshot type");
   }
@@ -1387,6 +1411,14 @@ function validateViewPatch(value: unknown): void {
       }
       events.forEach(validateDiagnosticEvent);
       validateDiagnosticRetention(patch.retention);
+      break;
+    }
+    case "library_media": {
+      const upserts = array(patch.upsert, "library upserts");
+      if (upserts.length > MAX_LIBRARY_PAGE_ROWS) {
+        throw new ContractError("library patch exceeds its row bound");
+      }
+      upserts.forEach(validateLibraryMediaItemView);
       break;
     }
     default:
@@ -2638,6 +2670,112 @@ function validateMediaItemView(value: unknown): void {
     boundedInteger(role.season_number, "season number", 0, 65_535);
     boundedInteger(role.episode_number, "episode number", 0, 65_535);
     optionalInteger(role.ending_episode_number, "ending episode number", 65_535);
+  }
+}
+
+const MEDIA_AVAILABILITY = [
+  "available",
+  "streamable",
+  "metadata_unavailable",
+  "invalid_file",
+  "padding",
+  "incomplete",
+  "checking",
+  "unverified",
+  "storage_unavailable",
+  "removing",
+  "server_unavailable",
+  "resource_limit",
+] as const;
+
+function validateLibraryMediaItemView(value: unknown): void {
+  const item = asRecord(value, "library item");
+  torrentId(item.torrent_id);
+  const fileIndex = boundedInteger(
+    item.file_index,
+    "library file index",
+    0,
+    MAX_FILE_CATALOG - 1,
+  );
+  if (item.item_id !== `${item.torrent_id}:${fileIndex}`) {
+    throw new ContractError("library item ID does not name its file");
+  }
+  boundedString(item.torrent_name, "library torrent name", MAX_LIBRARY_TEXT_BYTES);
+  boundedString(item.file_name, "library file name", MAX_LIBRARY_TEXT_BYTES);
+  boundedString(item.title, "library title", MAX_LIBRARY_TEXT_BYTES);
+  oneOf(item.kind, "library kind", ["video", "audio"]);
+  oneOf(item.role, "library role", ["episode", "movie", "other", "track"]);
+  optionalString(item.series_title, "series title", MAX_LIBRARY_TEXT_BYTES);
+  optionalString(item.series_id, "series ID", MAX_LIBRARY_GROUP_ID_BYTES);
+  optionalString(item.album_title, "album title", MAX_LIBRARY_TEXT_BYTES);
+  optionalString(item.album_id, "album ID", MAX_LIBRARY_GROUP_ID_BYTES);
+  for (const field of [
+    "season_number",
+    "episode_number",
+    "ending_episode_number",
+    "disc_number",
+    "track_number",
+    "year",
+  ] as const) {
+    optionalInteger(item[field], `library ${field}`, 65_535);
+  }
+  const extension = boundedString(item.extension, "library extension", 16);
+  if (!/^[a-z0-9]+$/.test(extension)) {
+    throw new ContractError("library extension is invalid");
+  }
+  const length = BigInt(decimal(item.length_bytes, "library length"));
+  const verified = BigInt(decimal(item.verified_bytes, "library verified bytes"));
+  if (verified > length) {
+    throw new ContractError("library progress exceeds the file length");
+  }
+  if (boolean(item.offline, "library offline") !== (verified === length)) {
+    throw new ContractError("library offline state contradicts its progress");
+  }
+  boolean(item.archived, "library archived");
+  oneOf(item.media_availability, "media availability", [...MEDIA_AVAILABILITY]);
+}
+
+function validateLibraryGroupView(value: unknown): void {
+  const group = asRecord(value, "library group");
+  const id = boundedString(group.group_id, "library group ID", MAX_LIBRARY_GROUP_ID_BYTES);
+  if (!/^(series|album|torrent):/.test(id)) {
+    throw new ContractError("library group ID is invalid");
+  }
+  boundedString(group.title, "library group title", MAX_LIBRARY_TEXT_BYTES);
+  const items = boundedInteger(group.item_count, "library group items", 1, MAX_U32);
+  const offline = boundedInteger(
+    group.offline_count,
+    "library group offline items",
+    0,
+    MAX_U32,
+  );
+  if (offline > items) {
+    throw new ContractError("library group offline count exceeds its items");
+  }
+  decimal(group.total_bytes, "library group bytes");
+  boundedInteger(group.season_count, "library group seasons", 0, MAX_U32);
+  boundedInteger(group.torrent_count, "library group torrents", 1, MAX_U32);
+  optionalInteger(group.year, "library group year", 65_535);
+}
+
+function validateLibraryFacets(value: unknown): void {
+  const facets = asRecord(value, "library facets");
+  for (const field of [
+    "items",
+    "video",
+    "audio",
+    "episodes",
+    "movies",
+    "other_videos",
+    "tracks",
+    "offline",
+    "incomplete",
+    "series",
+    "albums",
+    "torrents",
+    "metadata_pending",
+  ] as const) {
+    boundedInteger(facets[field], `library facet ${field}`, 0, MAX_U32);
   }
 }
 

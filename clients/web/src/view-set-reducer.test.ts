@@ -7,6 +7,7 @@ import {
   type ViewSetState,
 } from "./view-set-reducer";
 import { clientSettingsRuntimeFixture } from "./test-support/client-settings";
+import { libraryItemView, librarySnapshot } from "./test-support/library-media";
 
 const torrentId = "t1-000102030405060708090a0b0c0d0e0f";
 const v1InfoHash = "000102030405060708090a0b0c0d0e0f10111213";
@@ -713,6 +714,52 @@ describe("view-set reducer", () => {
       total_non_padding_files: 3,
       items: [{ media_id: "0", verified_bytes: "32768" }],
     });
+  });
+
+  it("refreshes Library rows in place and rejects rows outside the page", () => {
+    let state = reduceUpdateBatch(
+      undefined,
+      batch("0", "1", [
+        {
+          type: "snapshot",
+          view_id: "library-media",
+          snapshot: librarySnapshot([libraryItemView(0), libraryItemView(1)]),
+        },
+      ]),
+    );
+    state = reduceUpdateBatch(
+      state,
+      batch("1", "2", [
+        {
+          type: "patch",
+          view_id: "library-media",
+          patch: {
+            type: "library_media",
+            upsert: [libraryItemView(1, { verified_bytes: "500" })],
+          },
+        },
+      ]),
+    );
+    expect(state.views["library-media"]).toMatchObject({
+      type: "library_media",
+      page: { total: 2 },
+      items: [
+        { file_index: 0, verified_bytes: "0" },
+        { file_index: 1, verified_bytes: "500" },
+      ],
+    });
+    expect(() =>
+      reduceUpdateBatch(
+        state,
+        batch("2", "3", [
+          {
+            type: "patch",
+            view_id: "library-media",
+            patch: { type: "library_media", upsert: [libraryItemView(7)] },
+          },
+        ]),
+      ),
+    ).toThrow(ViewSetContinuityError);
   });
 
   it("replaces disk pipeline state and applies keyed piece changes", () => {

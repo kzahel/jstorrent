@@ -9,6 +9,14 @@ Android SharedPreferences `product_share`/`peer_hint_choice`. Unreadable or
 newer values read as `ask` without being rewritten. Only Clear app data
 (web) or Clear all data (Android) removes it.
 
+## Library Browse Preferences
+
+Tactical [363](../tactical/363-library-media-index.md) stores the Library's
+preset, cards or list, sort, direction, archived scope and grouping in web
+local storage `rstorrent.presentation.library`. Each field that is missing
+or unreadable takes its default; writes happen only on a user change and
+keep fields a newer client added. Search text and page are not stored.
+
 ## Supported Catalog Contract
 
 Tactical [345](../tactical/345-supported-catalog-migrations.md) ends the

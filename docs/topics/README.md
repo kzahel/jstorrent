@@ -148,6 +148,10 @@ Topics own the current truth for a continuing concern. Tactical docs under
   accepted Library, Transfers, and Workbench product destinations, contextual
   sidebar and inspector roles, media-library boundaries, and the preserved
   traditional advanced interface.
+- [`media-library.md`](media-library.md): the cross-torrent Library of video
+  and audio files, its host-owned in-memory index and `library_media` query
+  contract, cross-torrent grouping, and where derived, probed and
+  user-authored media data live.
 - [`web-ui-design.md`](web-ui-design.md): fresh React and CSS Modules web
   presentation, JSTorrent-inspired information hierarchy, category layer,
   Zustand state ownership, adaptive master/detail navigation, accessibility,

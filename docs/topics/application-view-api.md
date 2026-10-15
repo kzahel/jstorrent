@@ -1370,6 +1370,29 @@ metadata transition uses the closed typed `TotalSizeBytes` sparse field;
 TypeScript, Android, and Swift reducers apply it exhaustively. Playback itself
 reuses the existing semantic media call and adds no view field or payload byte.
 
+## Library Media Extension
+
+Tactical [`363`](../tactical/363-library-media-index.md) adds
+`library_media`, the first cross-torrent projection. The view hub derives one
+in-memory index from every torrent's resident file catalog and evaluates a
+`LibraryMediaQuery` (words, kinds, roles, availability, archived scope,
+torrent, group, grouping, sort, direction) against current file progress. A
+view carries the query and a catalog page of 1 to 128 rows (default 100); the
+legacy subscription boundary expresses the same view as
+`ViewSelector::Library` with the `library_media` projection and a required
+page, which is how Android consumes it.
+
+The snapshot holds the page, facets over the text, archived and torrent scope,
+and either item rows or group rows. The only patch is an `upsert` of items
+already on the delivered page. The hub keeps the last result of each live
+`(query, page)`: progress that leaves every item's offline state unchanged
+patches memoized rows without re-evaluating, and any change to the page,
+order, totals, facets or groups replaces the view with a snapshot. Clients use
+one view ID per request, so a page answering an earlier query is never taken
+for the current one. Companion connections do not advertise the projection,
+as with `torrent_media`. [`media-library`](media-library.md) owns the item
+model and its rules.
+
 ## Live Trackers Extension
 
 Tactical `043` implements `torrent_trackers` as complete keyed rows derived

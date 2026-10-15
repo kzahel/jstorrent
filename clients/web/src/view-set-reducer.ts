@@ -193,6 +193,13 @@ function cloneSnapshot(snapshot: ViewSnapshot): ViewSnapshot {
         events: [...snapshot.events],
         retention: { ...snapshot.retention },
       };
+    case "library_media":
+      return {
+        ...snapshot,
+        facets: { ...snapshot.facets },
+        items: [...snapshot.items],
+        groups: [...snapshot.groups],
+      };
   }
 }
 
@@ -398,6 +405,25 @@ function applyPatch(snapshot: ViewSnapshot, patch: ViewPatch): ViewSnapshot {
         total_non_padding_files: snapshot.total_non_padding_files,
         items: [...items.values()],
       };
+    }
+    case "library_media": {
+      if (snapshot.type !== "library_media") throw new Error("unreachable");
+      // A patch only refreshes rows already on the delivered page; anything
+      // that changes membership or order arrives as a snapshot.
+      const positions = new Map(
+        snapshot.items.map((item, position) => [item.item_id, position]),
+      );
+      const items = [...snapshot.items];
+      for (const item of patch.upsert) {
+        const position = positions.get(item.item_id);
+        if (position === undefined) {
+          throw new ViewSetContinuityError(
+            "library patch refers to an item outside its page",
+          );
+        }
+        items[position] = item;
+      }
+      return { ...snapshot, items };
     }
     case "trackers": {
       if (snapshot.type !== "trackers") throw new Error("unreachable");

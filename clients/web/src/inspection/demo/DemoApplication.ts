@@ -31,6 +31,8 @@ import type {
   TrackerRow,
 } from "../model";
 import { emptyDiskSet, emptyPieceMapSet } from "../state";
+import { sameLibraryRequest } from "../library-browse";
+import { demoLibraryMedia } from "./library-media";
 import {
   buildScenarioSnapshot,
   DEMO_BASE_TIME_MS,
@@ -43,6 +45,8 @@ export interface DemoApplicationOptions {
   readonly elapsedMs?: number;
   readonly running?: boolean;
   readonly tickMs?: number;
+  /** False presents the demo as a host without the Library projection. */
+  readonly mediaLibrary?: boolean;
 }
 
 export class DemoApplication implements InspectionApplication {
@@ -53,6 +57,7 @@ export class DemoApplication implements InspectionApplication {
   private elapsedMs: number;
   private running: boolean;
   private readonly tickMs: number;
+  private readonly mediaLibrary: boolean;
   private revision = 1;
   private readonly listeners = new Set<(update: InspectionUpdate) => void>();
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -79,6 +84,7 @@ export class DemoApplication implements InspectionApplication {
     this.elapsedMs = clamp(options.elapsedMs ?? 0, 0, scenario.durationMs);
     this.running = options.running ?? scenario.autoplay;
     this.tickMs = clamp(options.tickMs ?? 1_000, 250, 60_000);
+    this.mediaLibrary = options.mediaLibrary ?? true;
     this.snapshot = this.buildSnapshot();
   }
 
@@ -328,6 +334,7 @@ export class DemoApplication implements InspectionApplication {
         this.clientSettings,
       ),
       this.desiredViews,
+      this.mediaLibrary,
     );
   }
 
@@ -389,6 +396,7 @@ function sameDesiredViews(
 ): boolean {
   return (
     left.library === right.library &&
+    sameLibraryRequest(left.libraryMedia, right.libraryMedia) &&
     left.torrentId === right.torrentId &&
     left.detail === right.detail &&
     left.logCapture?.profile === right.logCapture?.profile &&
@@ -401,6 +409,7 @@ function sameDesiredViews(
 function materializeDemoViews(
   source: InspectionSnapshot,
   desired: DesiredInspectionViews,
+  mediaLibrary: boolean,
 ): InspectionSnapshot {
   const selected =
     desired.torrentId === null ? undefined : source.torrents[desired.torrentId];
@@ -493,6 +502,10 @@ function materializeDemoViews(
     swarmByTorrent,
     filesByTorrent,
     mediaByTorrent,
+    libraryMedia:
+      desired.libraryMedia == null || !mediaLibrary
+        ? null
+        : demoLibraryMedia(source, desired.libraryMedia),
     trackersByTorrent,
     piecesByTorrent,
     disk: desired.detail === "disk" ? source.disk : emptyDiskSet(),
@@ -516,6 +529,11 @@ function materializeDemoViews(
       library: desired.library
         ? { status: "ready" }
         : { status: "not_requested" },
+      libraryMedia: !mediaLibrary
+        ? source.viewStatus.libraryMedia
+        : desired.libraryMedia == null
+          ? { status: "not_requested" }
+          : { status: "ready" },
       torrentSummary:
         desired.torrentId === null
           ? { status: "not_requested" }
@@ -1090,6 +1108,9 @@ function diffSnapshots(
       ? { pieces: next.piecesByTorrent }
       : {}),
     ...(!sameDisk(previous.disk, next.disk) ? { disk: next.disk } : {}),
+    ...(JSON.stringify(previous.libraryMedia) === JSON.stringify(next.libraryMedia)
+      ? {}
+      : { libraryMedia: next.libraryMedia }),
     ...(appendedLogs.length === 0
       ? {}
       : {

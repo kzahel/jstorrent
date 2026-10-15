@@ -4506,6 +4506,426 @@
         }
       ]
     },
+    "LibraryArchivedFilter": {
+      "enum": [
+        "exclude",
+        "include",
+        "only"
+      ],
+      "type": "string"
+    },
+    "LibraryAvailabilityFilter": {
+      "oneOf": [
+        {
+          "enum": [
+            "any"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "offline",
+          "description": "Every byte verified.",
+          "type": "string"
+        },
+        {
+          "const": "incomplete",
+          "description": "Wanted but not yet verified completely.",
+          "type": "string"
+        }
+      ]
+    },
+    "LibraryFacetsView": {
+      "description": "Counts over the items selected by text, archived scope and torrent,\nbefore the kind, role, availability and group filters.",
+      "properties": {
+        "albums": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "audio": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "episodes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "incomplete": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "items": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "metadata_pending": {
+          "description": "Torrents in scope whose metadata is not verified yet.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "movies": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "offline": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "other_videos": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "series": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "torrents": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tracks": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "video": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "video",
+        "audio",
+        "episodes",
+        "movies",
+        "other_videos",
+        "tracks",
+        "offline",
+        "incomplete",
+        "series",
+        "albums",
+        "torrents",
+        "metadata_pending"
+      ],
+      "type": "object"
+    },
+    "LibraryGroupView": {
+      "properties": {
+        "group_id": {
+          "description": "`series:`, `album:` or `torrent:` followed by the group key.",
+          "type": "string"
+        },
+        "item_count": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "offline_count": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "season_count": {
+          "description": "Distinct seasons of a series; zero for other groups.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        },
+        "torrent_count": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "total_bytes": {
+          "type": "string"
+        },
+        "year": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "group_id",
+        "title",
+        "item_count",
+        "offline_count",
+        "total_bytes",
+        "season_count",
+        "torrent_count"
+      ],
+      "type": "object"
+    },
+    "LibraryGrouping": {
+      "enum": [
+        "none",
+        "series",
+        "album",
+        "torrent"
+      ],
+      "type": "string"
+    },
+    "LibraryMediaItemView": {
+      "properties": {
+        "album_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "album_title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "archived": {
+          "type": "boolean"
+        },
+        "disc_number": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "ending_episode_number": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "episode_number": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "extension": {
+          "type": "string"
+        },
+        "file_index": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "file_name": {
+          "type": "string"
+        },
+        "item_id": {
+          "description": "`<torrent_id>:<file_index>`.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/LibraryMediaKind"
+        },
+        "length_bytes": {
+          "type": "string"
+        },
+        "media_availability": {
+          "$ref": "#/$defs/MediaFileAvailability"
+        },
+        "offline": {
+          "description": "Every byte of the file is verified.",
+          "type": "boolean"
+        },
+        "role": {
+          "$ref": "#/$defs/LibraryMediaRole"
+        },
+        "season_number": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "series_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "series_title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "torrent_id": {
+          "pattern": "^t1-[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "torrent_name": {
+          "type": "string"
+        },
+        "track_number": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "verified_bytes": {
+          "type": "string"
+        },
+        "year": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "item_id",
+        "torrent_id",
+        "torrent_name",
+        "file_index",
+        "file_name",
+        "title",
+        "kind",
+        "role",
+        "extension",
+        "length_bytes",
+        "verified_bytes",
+        "offline",
+        "archived",
+        "media_availability"
+      ],
+      "type": "object"
+    },
+    "LibraryMediaKind": {
+      "enum": [
+        "video",
+        "audio"
+      ],
+      "type": "string"
+    },
+    "LibraryMediaQuery": {
+      "description": "One Library query. Every field defaults, so a client sends only what it\nnarrows. Empty `kinds` and `roles` select the original video and audio\nsets; a host never returns a kind or role a client did not ask for.",
+      "properties": {
+        "archived": {
+          "$ref": "#/$defs/LibraryArchivedFilter",
+          "default": "exclude",
+          "description": "Ignored when `torrent_id` selects one torrent."
+        },
+        "availability": {
+          "$ref": "#/$defs/LibraryAvailabilityFilter",
+          "default": "any"
+        },
+        "descending": {
+          "default": false,
+          "type": "boolean"
+        },
+        "group_id": {
+          "description": "A `group_id` from a grouped result.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "grouping": {
+          "$ref": "#/$defs/LibraryGrouping",
+          "default": "none"
+        },
+        "kinds": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LibraryMediaKind"
+          },
+          "type": "array"
+        },
+        "roles": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LibraryMediaRole"
+          },
+          "type": "array"
+        },
+        "sort": {
+          "$ref": "#/$defs/LibraryMediaSort",
+          "default": "title"
+        },
+        "text": {
+          "default": "",
+          "description": "Words that must all appear in the file path, title, series, album or\nsource torrent name, ignoring case and separators.",
+          "type": "string"
+        },
+        "torrent_id": {
+          "pattern": "^t1-[0-9a-f]{32}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "LibraryMediaRole": {
+      "enum": [
+        "episode",
+        "movie",
+        "other",
+        "track"
+      ],
+      "type": "string"
+    },
+    "LibraryMediaSort": {
+      "oneOf": [
+        {
+          "enum": [
+            "size"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "title",
+          "description": "Series, season and episode; album, disc and track; or title.",
+          "type": "string"
+        },
+        {
+          "const": "source",
+          "description": "Source torrent name, then the torrent's file order.",
+          "type": "string"
+        }
+      ]
+    },
     "ListenerBindFailureReason": {
       "enum": [
         "address_in_use",
@@ -9633,6 +10053,26 @@
             "retention"
           ],
           "type": "object"
+        },
+        {
+          "description": "Changed progress of items already on the delivered page. Membership,\norder, totals and facets change only through a snapshot.",
+          "properties": {
+            "type": {
+              "const": "library_media",
+              "type": "string"
+            },
+            "upsert": {
+              "items": {
+                "$ref": "#/$defs/LibraryMediaItemView"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "type",
+            "upsert"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -10240,6 +10680,41 @@
             "retention"
           ],
           "type": "object"
+        },
+        {
+          "description": "Items without grouping, groups with it; the other list is empty.",
+          "properties": {
+            "facets": {
+              "$ref": "#/$defs/LibraryFacetsView"
+            },
+            "groups": {
+              "items": {
+                "$ref": "#/$defs/LibraryGroupView"
+              },
+              "type": "array"
+            },
+            "items": {
+              "items": {
+                "$ref": "#/$defs/LibraryMediaItemView"
+              },
+              "type": "array"
+            },
+            "page": {
+              "$ref": "#/$defs/CatalogPageView"
+            },
+            "type": {
+              "const": "library_media",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "page",
+            "facets",
+            "items",
+            "groups"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -10606,6 +11081,52 @@
             "type",
             "view_id",
             "torrent_id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Video and audio across the profile's torrents (Tactical 363). A page\ndefaults to the first 100 rows.",
+          "properties": {
+            "delivery": {
+              "$ref": "#/$defs/ViewDeliveryPolicy",
+              "default": {
+                "min_interval_millis": 0
+              }
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CatalogPageRequest"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "query": {
+              "$ref": "#/$defs/LibraryMediaQuery",
+              "default": {
+                "archived": "exclude",
+                "availability": "any",
+                "descending": false,
+                "grouping": "none",
+                "kinds": [],
+                "roles": [],
+                "sort": "title",
+                "text": ""
+              }
+            },
+            "type": {
+              "const": "library_media",
+              "type": "string"
+            },
+            "view_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "view_id"
           ],
           "type": "object"
         },

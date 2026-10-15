@@ -68,6 +68,16 @@ struct FileCatalog {
     media_availability: MediaFileAvailability,
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct FileCatalogIdentity(Arc<FileCatalog>);
+
+impl FileCatalogIdentity {
+    /// Whether `files` still uses this catalog.
+    pub(crate) fn is_catalog_of(&self, files: &FileProgressModel) -> bool {
+        Arc::ptr_eq(&self.0, &files.catalog)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct FileCounters {
     done: u64,
@@ -325,21 +335,74 @@ impl FileProgressModel {
             padding: file.padding,
             done_bytes: counters.done.to_string(),
             verified_bytes: counters.verified.to_string(),
-            media_availability: match self.catalog.media_availability {
-                _ if file.padding => MediaFileAvailability::Padding,
-                MediaFileAvailability::Streamable
-                    if file.length != 0 && self.catalog.selection.is_wanted(index) =>
-                {
-                    MediaFileAvailability::Streamable
-                }
-                MediaFileAvailability::Streamable => MediaFileAvailability::Unverified,
-                MediaFileAvailability::Available if counters.verified == file.length => {
-                    MediaFileAvailability::Available
-                }
-                MediaFileAvailability::Available => MediaFileAvailability::Unverified,
-                availability => availability,
-            },
+            media_availability: self.availability_with_counters(index, counters),
         }
+    }
+
+    fn availability_with_counters(
+        &self,
+        index: usize,
+        counters: FileCounters,
+    ) -> MediaFileAvailability {
+        let file = &self.catalog.layout.files()[index];
+        match self.catalog.media_availability {
+            _ if file.padding => MediaFileAvailability::Padding,
+            MediaFileAvailability::Streamable
+                if file.length != 0 && self.catalog.selection.is_wanted(index) =>
+            {
+                MediaFileAvailability::Streamable
+            }
+            MediaFileAvailability::Streamable => MediaFileAvailability::Unverified,
+            MediaFileAvailability::Available if counters.verified == file.length => {
+                MediaFileAvailability::Available
+            }
+            MediaFileAvailability::Available => MediaFileAvailability::Unverified,
+            availability => availability,
+        }
+    }
+
+    /// Identity of the immutable catalog: equal identities share one layout,
+    /// selection and availability. Holding it keeps the catalog alive, so a
+    /// pointer cannot be reused while it is compared.
+    pub(crate) fn catalog_identity(&self) -> FileCatalogIdentity {
+        FileCatalogIdentity(Arc::clone(&self.catalog))
+    }
+
+    /// Non-padding files as `(file index, path, length, wanted)`.
+    pub(crate) fn library_files(&self) -> impl Iterator<Item = (usize, &[String], u64, bool)> {
+        self.catalog
+            .layout
+            .files()
+            .iter()
+            .enumerate()
+            .filter(|(_, file)| !file.padding)
+            .map(|(index, file)| {
+                (
+                    index,
+                    file.path.as_slice(),
+                    file.length,
+                    self.catalog.selection.is_wanted(index),
+                )
+            })
+    }
+
+    /// Verified bytes and media availability of one file without building
+    /// its row.
+    pub(crate) fn file_progress(&self, index: usize) -> Option<(u64, MediaFileAvailability)> {
+        let counters = *self.counters.get(index)?;
+        Some((
+            counters.verified,
+            self.availability_with_counters(index, counters),
+        ))
+    }
+
+    pub(crate) fn file_name(&self, index: usize) -> Option<&str> {
+        self.catalog
+            .layout
+            .files()
+            .get(index)
+            .and_then(|file| file.path.last())
+            .map(String::as_str)
     }
 
     pub(crate) fn stored_block(

@@ -37,6 +37,12 @@ import {
   type NavigationPreferences,
 } from "./navigation";
 import {
+  DEFAULT_LIBRARY_BROWSE,
+  loadLibraryBrowse,
+  saveLibraryBrowse,
+  type LibraryBrowseState,
+} from "./library-browse";
+import {
   DEFAULT_SPEED_METRICS,
   DEFAULT_SPEED_RANGE,
   loadSpeedPreferences,
@@ -54,6 +60,8 @@ import { isSessionTab } from "./tabs";
 export interface PresentationState {
   readonly destination: ApplicationDestination;
   readonly libraryCategory: LibraryCategory;
+  /** The cross-torrent Library's preset, filters and page (Tactical 363). */
+  readonly libraryBrowse: LibraryBrowseState;
   readonly transfersCategory: TorrentCategory;
   readonly workbenchCategory: TorrentCategory;
   readonly currentTorrentId: string | null;
@@ -97,6 +105,8 @@ export interface InspectionActions {
   readonly applyUpdate: (update: InspectionUpdate) => void;
   readonly selectDestination: (destination: ApplicationDestination) => void;
   readonly selectLibraryCategory: (category: LibraryCategory) => void;
+  /** Changes Library filters; any change but a page change returns to page 1. */
+  readonly updateLibraryBrowse: (change: Partial<LibraryBrowseState>) => void;
   readonly selectTorrentCategory: (category: TorrentCategory) => void;
   readonly setTorrentSelection: (
     torrentIds: readonly string[],
@@ -167,6 +177,7 @@ const EMPTY_SNAPSHOT: InspectionSnapshot = {
   swarmByTorrent: {},
   filesByTorrent: {},
   mediaByTorrent: {},
+  libraryMedia: null,
   trackersByTorrent: {},
   piecesByTorrent: {},
   disk: emptyDiskSet(),
@@ -182,6 +193,7 @@ const EMPTY_SNAPSHOT: InspectionSnapshot = {
   },
   viewStatus: {
     library: { status: "not_requested" },
+    libraryMedia: { status: "not_requested" },
     torrentSummary: { status: "not_requested" },
     peers: { status: "not_requested" },
     swarm: { status: "not_requested" },
@@ -199,6 +211,7 @@ const EMPTY_SNAPSHOT: InspectionSnapshot = {
 const DEFAULT_PRESENTATION: PresentationState = {
   destination: "workbench",
   libraryCategory: "all",
+  libraryBrowse: DEFAULT_LIBRARY_BROWSE,
   transfersCategory: "all",
   workbenchCategory: "all",
   currentTorrentId: null,
@@ -250,8 +263,13 @@ export function createInspectionStore(
     appearanceStorage === undefined
       ? loadDhtVisualizationMode()
       : loadDhtVisualizationMode(appearanceStorage);
+  const libraryBrowse =
+    appearanceStorage === undefined
+      ? loadLibraryBrowse()
+      : loadLibraryBrowse(appearanceStorage);
   const initialPresentation = {
     ...DEFAULT_PRESENTATION,
+    libraryBrowse,
     ...navigation,
     ...appearance,
     speedRange: speedPreferences.range,
@@ -299,6 +317,24 @@ export function createInspectionStore(
         };
         persistNavigation(navigationPreferencesFor(presentation));
         return { presentation };
+      });
+    },
+    updateLibraryBrowse: (change) => {
+      set((state) => {
+        const libraryBrowse = {
+          ...state.presentation.libraryBrowse,
+          page: 0,
+          ...change,
+        };
+        if (appearanceStorage === undefined) saveLibraryBrowse(libraryBrowse);
+        else saveLibraryBrowse(libraryBrowse, appearanceStorage);
+        return {
+          presentation: {
+            ...state.presentation,
+            libraryBrowse,
+            libraryDetailOpen: false,
+          },
+        };
       });
     },
     selectTorrentCategory: (category) => {
@@ -979,6 +1015,8 @@ export function reduceInspectionUpdate(
     swarmByTorrent,
     filesByTorrent,
     mediaByTorrent,
+    libraryMedia:
+      update.libraryMedia === undefined ? state.libraryMedia : update.libraryMedia,
     trackersByTorrent,
     piecesByTorrent,
     disk,

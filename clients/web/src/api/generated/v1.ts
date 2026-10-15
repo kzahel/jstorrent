@@ -133,7 +133,7 @@ export type HostCapabilityLifecycle = "transitional" | "required";
 
 export type HostCapabilityDefinition = { name: string, id: number, introduced: string, lifecycle: HostCapabilityLifecycle, commands: Array<string>, command_fields: Array<string>, client_settings_patch_keys: Array<string>, torrent_settings_patch_keys: Array<string>, };
 
-export const DEFAULT_API_HELLO: ApiHello = {"api":{"current":1,"minimum":1},"encodings":["json"],"deliveries":["poll","long_poll"],"capabilities":["torrent_list","torrent_summary","torrent_preparation","torrent_peers","torrent_swarm","torrent_files","torrent_media","torrent_trackers","session_disk","session_dht","session_current_rates","session_speed_history","piece_activity","diagnostics","seed_stop_limits","magnet_export_options"],"limits":{"max_view_sets_per_owner":8,"max_views_per_set":16,"max_view_id_bytes":64,"min_queue_bytes":16384,"default_queue_bytes":262144,"max_queue_bytes":524288,"max_snapshot_bytes":16777216,"max_wait_millis":20000,"lease_millis":"300000"}};
+export const DEFAULT_API_HELLO: ApiHello = {"api":{"current":1,"minimum":1},"encodings":["json"],"deliveries":["poll","long_poll"],"capabilities":["torrent_list","torrent_summary","torrent_preparation","torrent_peers","torrent_swarm","torrent_files","torrent_media","torrent_trackers","library_media","session_disk","session_dht","session_current_rates","session_speed_history","piece_activity","diagnostics","seed_stop_limits","magnet_export_options"],"limits":{"max_view_sets_per_owner":8,"max_views_per_set":16,"max_view_id_bytes":64,"min_queue_bytes":16384,"default_queue_bytes":262144,"max_queue_bytes":524288,"max_snapshot_bytes":16777216,"max_wait_millis":20000,"lease_millis":"300000"}};
 
 export const UNSUPPORTED_CALL_MESSAGE: string = "this JSTorrent version does not support this request; update it to use this feature";
 
@@ -214,9 +214,9 @@ export type StorageSettingsSnapshot = { roots: Array<StorageRootSnapshot>, defau
 
 export type ServiceSnapshot = { profile_id: string, revision: string, storage: StorageSettingsSnapshot, client_settings: ClientSettings, torrents: Array<TorrentSnapshot>, };
 
-export type ViewSelector = { "type": "torrent_list" } | { "type": "session_dht" } | { "type": "torrent", torrent_id: string, } | { "type": "session_current_rates", metrics: Array<SpeedMetric>, } | { "type": "session_speed_history", range: SpeedRange, metrics: Array<SpeedMetric>, };
+export type ViewSelector = { "type": "torrent_list" } | { "type": "session_dht" } | { "type": "torrent", torrent_id: string, } | { "type": "session_current_rates", metrics: Array<SpeedMetric>, } | { "type": "session_speed_history", range: SpeedRange, metrics: Array<SpeedMetric>, } | { "type": "library", query: LibraryMediaQuery, };
 
-export type ViewProjection = "summary" | "preparation" | "piece_activity" | "disk" | "dht" | "current_rates" | "speed_history" | "peers" | "swarm" | "files" | "media" | "trackers" | "diagnostics";
+export type ViewProjection = "summary" | "preparation" | "piece_activity" | "disk" | "dht" | "current_rates" | "speed_history" | "peers" | "swarm" | "files" | "media" | "trackers" | "diagnostics" | "library_media";
 
 export type DeliveryPolicy = { min_interval_millis: number, max_queue_bytes: number, };
 
@@ -415,6 +415,59 @@ export type MediaRoleView = { "type": "episode", series_title_hint: string, seas
 
 export type MediaItemView = { media_id: string, file_index: number, path: Array<string>, extension: string, length_bytes: string, selection: FileSelectionView, done_bytes: string, verified_bytes: string, media_availability: MediaFileAvailability, role: MediaRoleView, };
 
+export type LibraryMediaKind = "video" | "audio";
+
+export type LibraryMediaRole = "episode" | "movie" | "other" | "track";
+
+export type LibraryAvailabilityFilter = "any" | "offline" | "incomplete";
+
+export type LibraryArchivedFilter = "exclude" | "include" | "only";
+
+export type LibraryGrouping = "none" | "series" | "album" | "torrent";
+
+export type LibraryMediaSort = "title" | "size" | "source";
+
+export type LibraryMediaQuery = {
+/**
+ * Words that must all appear in the file path, title, series, album or
+ * source torrent name, ignoring case and separators.
+ */
+text: string, kinds: Array<LibraryMediaKind>, roles: Array<LibraryMediaRole>, availability: LibraryAvailabilityFilter,
+/**
+ * Ignored when `torrent_id` selects one torrent.
+ */
+archived: LibraryArchivedFilter, torrent_id?: string | null,
+/**
+ * A `group_id` from a grouped result.
+ */
+group_id?: string | null, grouping: LibraryGrouping, sort: LibraryMediaSort, descending: boolean, };
+
+export type LibraryMediaItemView = {
+/**
+ * `<torrent_id>:<file_index>`.
+ */
+item_id: string, torrent_id: string, torrent_name: string, file_index: number, file_name: string, title: string, kind: LibraryMediaKind, role: LibraryMediaRole, series_title?: string | null, series_id?: string | null, season_number?: number | null, episode_number?: number | null, ending_episode_number?: number | null, album_title?: string | null, album_id?: string | null, disc_number?: number | null, track_number?: number | null, year?: number | null, extension: string, length_bytes: string, verified_bytes: string,
+/**
+ * Every byte of the file is verified.
+ */
+offline: boolean, archived: boolean, media_availability: MediaFileAvailability, };
+
+export type LibraryGroupView = {
+/**
+ * `series:`, `album:` or `torrent:` followed by the group key.
+ */
+group_id: string, title: string, item_count: number, offline_count: number, total_bytes: string,
+/**
+ * Distinct seasons of a series; zero for other groups.
+ */
+season_count: number, torrent_count: number, year?: number | null, };
+
+export type LibraryFacetsView = { items: number, video: number, audio: number, episodes: number, movies: number, other_videos: number, tracks: number, offline: number, incomplete: number, series: number, albums: number, torrents: number,
+/**
+ * Torrents in scope whose metadata is not verified yet.
+ */
+metadata_pending: number, };
+
 export type TrackerCatalogState = "available" | "torrent_missing";
 
 export type TrackerTransportView = "udp" | "http" | "https";
@@ -446,9 +499,9 @@ last_success_at_millis: string | null,
  */
 last_failure_at_millis: string | null, last_error: string | null, };
 
-export type ViewSnapshot = { "type": "torrent_list", torrents: Array<TorrentView>, storage: StorageSettingsSnapshot, client_settings: ClientSettingsRuntimeView, } | { "type": "torrent", torrent: TorrentView | null, } | { "type": "torrent_preparation", torrent_id: string, preparation: TorrentPreparationView | null, } | { "type": "piece_activity", torrent_id: string, piece_count: number, verified: Array<IndexRange>, active: Array<ActivePiece>, } | { "type": "session_disk", pipeline: DiskPipelineView, pieces: Array<DiskPieceView>, } | { "type": "session_dht", inspection: DhtInspectionView, } | { "type": "session_current_rates", rates: SessionCurrentRatesView, } | { "type": "session_speed_history", history: SpeedHistoryView, } | { "type": "peers", torrent_id: string, peers: Array<PeerView>, } | { "type": "swarm", torrent_id: string, state: SwarmCatalogState, captured_millis: string, maximum_records: number, counts: SwarmCountsView, peers: Array<SwarmPeerView>, } | { "type": "files", torrent_id: string, state: FileCatalogState, filesystem_content_base: string | null, page: CatalogPageView, files: Array<FileView>, } | { "type": "media", torrent_id: string, state: MediaCatalogState, total_non_padding_files: number, items: Array<MediaItemView>, } | { "type": "trackers", torrent_id: string, state: TrackerCatalogState, page: CatalogPageView, trackers: Array<TrackerView>, } | { "type": "diagnostics", events: Array<DiagnosticEvent>, retention: DiagnosticRetention, };
+export type ViewSnapshot = { "type": "torrent_list", torrents: Array<TorrentView>, storage: StorageSettingsSnapshot, client_settings: ClientSettingsRuntimeView, } | { "type": "torrent", torrent: TorrentView | null, } | { "type": "torrent_preparation", torrent_id: string, preparation: TorrentPreparationView | null, } | { "type": "piece_activity", torrent_id: string, piece_count: number, verified: Array<IndexRange>, active: Array<ActivePiece>, } | { "type": "session_disk", pipeline: DiskPipelineView, pieces: Array<DiskPieceView>, } | { "type": "session_dht", inspection: DhtInspectionView, } | { "type": "session_current_rates", rates: SessionCurrentRatesView, } | { "type": "session_speed_history", history: SpeedHistoryView, } | { "type": "peers", torrent_id: string, peers: Array<PeerView>, } | { "type": "swarm", torrent_id: string, state: SwarmCatalogState, captured_millis: string, maximum_records: number, counts: SwarmCountsView, peers: Array<SwarmPeerView>, } | { "type": "files", torrent_id: string, state: FileCatalogState, filesystem_content_base: string | null, page: CatalogPageView, files: Array<FileView>, } | { "type": "media", torrent_id: string, state: MediaCatalogState, total_non_padding_files: number, items: Array<MediaItemView>, } | { "type": "trackers", torrent_id: string, state: TrackerCatalogState, page: CatalogPageView, trackers: Array<TrackerView>, } | { "type": "diagnostics", events: Array<DiagnosticEvent>, retention: DiagnosticRetention, } | { "type": "library_media", page: CatalogPageView, facets: LibraryFacetsView, items: Array<LibraryMediaItemView>, groups: Array<LibraryGroupView>, };
 
-export type ViewPatch = { "type": "torrent_list", upsert: Array<TorrentView>, updates: Array<TorrentRowUpdate>, removed: Array<string>, storage?: StorageSettingsSnapshot | null, client_settings?: ClientSettingsRuntimeView | null, } | { "type": "torrent", change: TorrentViewChange, } | { "type": "torrent_preparation", torrent_id: string, preparation: TorrentPreparationView | null, } | { "type": "piece_activity", torrent_id: string, piece_count: number, verified: Array<IndexRange>, cleared: Array<IndexRange>, active_upsert: Array<ActivePiece>, active_updates: Array<ActivePieceUpdate>, active_removed: Array<string>, } | { "type": "session_disk", pipeline: DiskPipelineView, upsert: Array<DiskPieceView>, removed: Array<string>, } | { "type": "session_dht", inspection: DhtInspectionView, } | { "type": "session_current_rates", rates: SessionCurrentRatesView, } | { "type": "session_speed_history", append: SpeedHistoryAppend, } | { "type": "peers", torrent_id: string, upsert: Array<PeerView>, updates: Array<PeerRowUpdate>, removed: Array<string>, } | { "type": "swarm", torrent_id: string, state: SwarmCatalogState, captured_millis: string, maximum_records: number, counts: SwarmCountsView, upsert: Array<SwarmPeerView>, removed: Array<string>, } | { "type": "files", torrent_id: string, upsert: Array<FileView>, updates: Array<FileRowUpdate>, removed: Array<string>, } | { "type": "media", torrent_id: string, upsert: Array<MediaItemView>, removed: Array<string>, } | { "type": "trackers", torrent_id: string, upsert: Array<TrackerView>, removed: Array<string>, } | { "type": "diagnostics", events: Array<DiagnosticEvent>, retention: DiagnosticRetention, };
+export type ViewPatch = { "type": "torrent_list", upsert: Array<TorrentView>, updates: Array<TorrentRowUpdate>, removed: Array<string>, storage?: StorageSettingsSnapshot | null, client_settings?: ClientSettingsRuntimeView | null, } | { "type": "torrent", change: TorrentViewChange, } | { "type": "torrent_preparation", torrent_id: string, preparation: TorrentPreparationView | null, } | { "type": "piece_activity", torrent_id: string, piece_count: number, verified: Array<IndexRange>, cleared: Array<IndexRange>, active_upsert: Array<ActivePiece>, active_updates: Array<ActivePieceUpdate>, active_removed: Array<string>, } | { "type": "session_disk", pipeline: DiskPipelineView, upsert: Array<DiskPieceView>, removed: Array<string>, } | { "type": "session_dht", inspection: DhtInspectionView, } | { "type": "session_current_rates", rates: SessionCurrentRatesView, } | { "type": "session_speed_history", append: SpeedHistoryAppend, } | { "type": "peers", torrent_id: string, upsert: Array<PeerView>, updates: Array<PeerRowUpdate>, removed: Array<string>, } | { "type": "swarm", torrent_id: string, state: SwarmCatalogState, captured_millis: string, maximum_records: number, counts: SwarmCountsView, upsert: Array<SwarmPeerView>, removed: Array<string>, } | { "type": "files", torrent_id: string, upsert: Array<FileView>, updates: Array<FileRowUpdate>, removed: Array<string>, } | { "type": "media", torrent_id: string, upsert: Array<MediaItemView>, removed: Array<string>, } | { "type": "trackers", torrent_id: string, upsert: Array<TrackerView>, removed: Array<string>, } | { "type": "diagnostics", events: Array<DiagnosticEvent>, retention: DiagnosticRetention, } | { "type": "library_media", upsert: Array<LibraryMediaItemView>, };
 
 export type ResetReason = "queue_overflow" | "cursor_mismatch" | "cursor_expired";
 
@@ -506,7 +559,7 @@ export type ApiHello = { api: ApiVersion, encodings: Array<ApiEncoding>, deliver
 
 export type ViewDeliveryPolicy = { min_interval_millis: number, };
 
-export type ViewSpec = { "type": "torrent_list", view_id: string, delivery: ViewDeliveryPolicy, } | { "type": "torrent_summary", view_id: string, torrent_id: string, delivery: ViewDeliveryPolicy, } | { "type": "torrent_preparation", view_id: string, torrent_id: string, delivery: ViewDeliveryPolicy, } | { "type": "piece_activity", view_id: string, torrent_id: string, delivery: ViewDeliveryPolicy, } | { "type": "session_disk", view_id: string, delivery: ViewDeliveryPolicy, } | { "type": "session_dht", view_id: string, delivery: ViewDeliveryPolicy, } | { "type": "session_current_rates", view_id: string, metrics: Array<SpeedMetric>, delivery: ViewDeliveryPolicy, } | { "type": "session_speed_history", view_id: string, range: SpeedRange, metrics: Array<SpeedMetric>, delivery: ViewDeliveryPolicy, } | { "type": "torrent_peers", view_id: string, torrent_id: string, delivery: ViewDeliveryPolicy, } | { "type": "torrent_swarm", view_id: string, torrent_id: string, delivery: ViewDeliveryPolicy, } | { "type": "torrent_files", view_id: string, torrent_id: string, page?: CatalogPageRequest | null, delivery: ViewDeliveryPolicy, } | { "type": "torrent_media", view_id: string, torrent_id: string, delivery: ViewDeliveryPolicy, } | { "type": "torrent_trackers", view_id: string, torrent_id: string, page?: CatalogPageRequest | null, delivery: ViewDeliveryPolicy, } | { "type": "diagnostics", view_id: string, torrent_id?: string | null, filter: DiagnosticFilter, delivery: ViewDeliveryPolicy, };
+export type ViewSpec = { "type": "torrent_list", view_id: string, delivery: ViewDeliveryPolicy, } | { "type": "torrent_summary", view_id: string, torrent_id: string, delivery: ViewDeliveryPolicy, } | { "type": "torrent_preparation", view_id: string, torrent_id: string, delivery: ViewDeliveryPolicy, } | { "type": "piece_activity", view_id: string, torrent_id: string, delivery: ViewDeliveryPolicy, } | { "type": "session_disk", view_id: string, delivery: ViewDeliveryPolicy, } | { "type": "session_dht", view_id: string, delivery: ViewDeliveryPolicy, } | { "type": "session_current_rates", view_id: string, metrics: Array<SpeedMetric>, delivery: ViewDeliveryPolicy, } | { "type": "session_speed_history", view_id: string, range: SpeedRange, metrics: Array<SpeedMetric>, delivery: ViewDeliveryPolicy, } | { "type": "torrent_peers", view_id: string, torrent_id: string, delivery: ViewDeliveryPolicy, } | { "type": "torrent_swarm", view_id: string, torrent_id: string, delivery: ViewDeliveryPolicy, } | { "type": "torrent_files", view_id: string, torrent_id: string, page?: CatalogPageRequest | null, delivery: ViewDeliveryPolicy, } | { "type": "torrent_media", view_id: string, torrent_id: string, delivery: ViewDeliveryPolicy, } | { "type": "torrent_trackers", view_id: string, torrent_id: string, page?: CatalogPageRequest | null, delivery: ViewDeliveryPolicy, } | { "type": "library_media", view_id: string, query: LibraryMediaQuery, page?: CatalogPageRequest | null, delivery: ViewDeliveryPolicy, } | { "type": "diagnostics", view_id: string, torrent_id?: string | null, filter: DiagnosticFilter, delivery: ViewDeliveryPolicy, };
 
 export type OpenViewSetOptions = { requested_queue_bytes?: number | null, };
 

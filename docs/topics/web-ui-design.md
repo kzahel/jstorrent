@@ -1,5 +1,19 @@
 # Web UI Design
 
+Tactical [363](../tactical/363-library-media-index.md) gives the Library a
+`LibraryMediaView` over the host's `library_media` pages when the host offers
+them. The sidebar lists the All media, TV shows, Movies, Music and By torrent
+presets with facet counts; the toolbar holds a debounced search, Shows or
+Episodes (Albums or Tracks), Everything, Offline or Downloading, a sort menu
+with Reverse order, and Include archived; the heading switches Cards and
+List. Groups open in place with a Back button; an item's Play reuses the
+detail's playback through the shared `useMediaPlayback` hook, and its title
+opens the source torrent's Library detail. Pages hold 100 rows with Previous
+and Next. Preset, layout, sort, direction, archived scope and grouping are
+browser-local preferences; search and page are not. A page answering an
+earlier query stays dimmed until the new one arrives. Hosts without the
+projection, and the demo with `mediaLibrary: false`, keep the torrent cards.
+
 Tactical [357](../tactical/357-rich-share-links.md) turns the General link
 icon into a **Share** panel (link, Copy, Share… where `navigator.share`
 exists, QR code, Include my address). Files gains **Share file(s)**, menu

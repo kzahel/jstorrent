@@ -6,6 +6,10 @@ import type {
   DiagnosticField,
   DiagnosticSubject,
   DhtInspectionView,
+  LibraryFacetsView,
+  LibraryMediaKind,
+  LibraryMediaQuery,
+  LibraryMediaRole,
   MediaFileAvailability,
   PeerDisconnectReason,
   PeerFlagView,
@@ -130,6 +134,8 @@ export type ViewMaterialization =
 
 export interface InspectionViewStatus {
   readonly library: ViewMaterialization;
+  /** The cross-torrent Library page (Tactical 363). */
+  readonly libraryMedia: ViewMaterialization;
   readonly torrentSummary: ViewMaterialization;
   readonly peers: ViewMaterialization;
   readonly swarm: ViewMaterialization;
@@ -143,8 +149,16 @@ export interface InspectionViewStatus {
   readonly logs: ViewMaterialization;
 }
 
+/** One page of a Library query, as leased from the host. */
+export interface LibraryMediaRequest {
+  readonly query: LibraryMediaQuery;
+  readonly offset: number;
+  readonly limit: number;
+}
+
 export interface DesiredInspectionViews {
   readonly library: boolean;
+  readonly libraryMedia?: LibraryMediaRequest | null;
   readonly torrentId: string | null;
   readonly detail:
     | "general"
@@ -439,6 +453,53 @@ export interface MediaSet {
   readonly rows: Readonly<Record<string, MediaRow>>;
 }
 
+export interface LibraryItemRow {
+  readonly id: string;
+  readonly torrentId: string;
+  readonly torrentName: string;
+  readonly fileIndex: number;
+  readonly fileName: string;
+  readonly title: string;
+  readonly kind: LibraryMediaKind;
+  readonly role: LibraryMediaRole;
+  readonly seriesTitle: string | null;
+  readonly seriesId: string | null;
+  readonly seasonNumber: number | null;
+  readonly episodeNumber: number | null;
+  readonly endingEpisodeNumber: number | null;
+  readonly albumTitle: string | null;
+  readonly albumId: string | null;
+  readonly discNumber: number | null;
+  readonly trackNumber: number | null;
+  readonly year: number | null;
+  readonly extension: string;
+  readonly lengthBytes: string;
+  readonly verifiedBytes: string;
+  readonly offline: boolean;
+  readonly archived: boolean;
+  readonly mediaAvailability: MediaFileAvailability;
+}
+
+export interface LibraryGroupRow {
+  readonly id: string;
+  readonly title: string;
+  readonly itemCount: number;
+  readonly offlineCount: number;
+  readonly totalBytes: string;
+  readonly seasonCount: number;
+  readonly torrentCount: number;
+  readonly year: number | null;
+}
+
+export interface LibraryMediaSet {
+  /** The request this page answers. */
+  readonly request: LibraryMediaRequest;
+  readonly page: CatalogPage;
+  readonly facets: LibraryFacetsView;
+  readonly items: readonly LibraryItemRow[];
+  readonly groups: readonly LibraryGroupRow[];
+}
+
 export interface TrackerRow {
   readonly id: string;
   readonly torrentId: string;
@@ -622,6 +683,7 @@ export interface InspectionSnapshot {
   readonly swarmByTorrent: Readonly<Record<string, SwarmSet>>;
   readonly filesByTorrent: Readonly<Record<string, FileSet>>;
   readonly mediaByTorrent: Readonly<Record<string, MediaSet>>;
+  readonly libraryMedia: LibraryMediaSet | null;
   readonly trackersByTorrent: Readonly<Record<string, TrackerSet>>;
   readonly piecesByTorrent: Readonly<Record<string, PieceMapSet>>;
   readonly disk: DiskSet;
@@ -679,6 +741,7 @@ export type InspectionUpdate =
         readonly state?: TrackerSet["state"];
         readonly order?: readonly string[];
       })[];
+      readonly libraryMedia?: LibraryMediaSet | null;
       readonly pieces?: Readonly<Record<string, PieceMapSet>>;
       readonly disk?: DiskSet;
       readonly speed?: SpeedInspectionView;

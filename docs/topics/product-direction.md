@@ -2,6 +2,26 @@
 
 Topic: `product-direction`
 
+## Consumer scale envelope, accepted 2026-10-15
+
+JSTorrent is a consumer client. A host keeps the verified metadata and file
+list of every torrent in its profile resident, archived ones included, as
+qBittorrent and Transmission do: the view hub builds each torrent's
+`ContentLayout` and derived media catalog when the profile opens. The design
+target is the heaviest consumer users, long-time seeders and seedbox owners
+with several thousand torrents and a few hundred thousand files, where the
+resident model costs tens of megabytes. Libraries far beyond that, such as
+seeding a large share of all public torrents from unlimited storage, are a
+non-goal: they belong to a sharded service, not a single in-process host.
+
+Derived indexes over that resident state, such as the Library media index of
+[`media-library`](media-library.md), are therefore built in memory and are not
+persisted. Their contracts must not assume residency, though: clients query
+with a window and receive a page with totals, so a later host could keep cold
+torrents' file lists on disk and answer from a persisted index without a
+contract change. Revisit this decision with measured high-water marks, not
+before.
+
 ## JSTorrent-only releases, accepted 2026-10-11
 
 JSTorrent is the sole active product and release identity. The RSTorrent
