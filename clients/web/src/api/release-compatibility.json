@@ -1,0 +1,19 @@
+{
+  "$comment": "Read by contract-compatibility.test.ts and scripts/check-release-compatibility.mjs. See docs/topics/mixed-version-compatibility.md.",
+  "strictClients": {
+    "supported": true,
+    "description": "JSTorrent extension 1.1.4 and older, which validate host data strictly,",
+    "controlledSurfaces": [
+      "android",
+      "desktop"
+    ]
+  },
+  "acceptedBreaks": {},
+  "reviewedStrictClientExposure": {
+    "ClientSettings.seed_stop_ratio_percent": "seed_stop_limits; hosts may ship it once tolerant clients are out (354 release order)",
+    "ClientSettings.seed_stop_time_seconds": "seed_stop_limits; hosts may ship it once tolerant clients are out (354 release order)",
+    "TorrentSeedingView.stop": "seed_stop_limits; hosts may ship it once tolerant clients are out (354 release order)",
+    "TorrentFieldUpdate.oneOf[field=private_torrent]": "row delta for TorrentView.private_torrent; needs tolerant clients before a host release",
+    "TorrentFieldUpdate.oneOf[field=source_size_bytes]": "row delta for the source size; needs tolerant clients before a host release"
+  }
+}

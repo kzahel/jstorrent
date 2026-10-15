@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import current from "./generated/v1.schema.json";
 import { HOST_CAPABILITY_REGISTRY } from "./generated/v1";
+import releaseCompatibility from "./release-compatibility.json";
 import released031 from "../fixtures/released/desktop-v0.3.1/v1.schema.json";
 
 /**
@@ -11,22 +12,13 @@ import released031 from "../fixtures/released/desktop-v0.3.1/v1.schema.json";
  * - Nothing released may be removed, renamed or made required.
  * - A new key the client sends must be owned by a host capability, because a
  *   released host rejects it.
- * - A new field, enum value or variant inside a type that released clients
- *   validate strictly breaks those clients when a host sends it. Each one is
- *   recorded here with how it is made safe before a host release ships it.
+ * - A new field, enum value or variant inside a type that released strict
+ *   clients validate strictly breaks those clients when a host sends it.
+ *   Each one is recorded in release-compatibility.json, which also gates host
+ *   releases while strict clients are supported.
  */
-const REVIEWED_STRICT_CLIENT_EXPOSURE: Readonly<Record<string, string>> = {
-  "ClientSettings.seed_stop_ratio_percent":
-    "seed_stop_limits; hosts may ship it once tolerant clients are out (354 release order)",
-  "ClientSettings.seed_stop_time_seconds":
-    "seed_stop_limits; hosts may ship it once tolerant clients are out (354 release order)",
-  "TorrentSeedingView.stop":
-    "seed_stop_limits; hosts may ship it once tolerant clients are out (354 release order)",
-  "TorrentFieldUpdate.oneOf[field=private_torrent]":
-    "row delta for TorrentView.private_torrent; needs tolerant clients before a host release",
-  "TorrentFieldUpdate.oneOf[field=source_size_bytes]":
-    "row delta for the source size; needs tolerant clients before a host release",
-};
+const REVIEWED_STRICT_CLIENT_EXPOSURE: Readonly<Record<string, string>> =
+  releaseCompatibility.reviewedStrictClientExposure;
 
 const RELEASED = [{ tag: "desktop-v0.3.1", schema: released031 }];
 

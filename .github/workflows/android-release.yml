@@ -36,6 +36,12 @@ jobs:
             scripts/release-android.sh --check > "$RUNNER_TEMP/release-notes.md"
           fi
 
+      - name: Keep released extension companions working
+        env:
+          RELEASE: ${{ github.ref_name }}
+          ENFORCE: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/android-v') }}
+        run: node scripts/check-release-compatibility.mjs --surface android --release "$RELEASE" --enforce "$ENFORCE"
+
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin

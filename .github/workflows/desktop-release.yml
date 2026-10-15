@@ -61,6 +61,11 @@ jobs:
           INPUT_RELEASE_VERSION: ${{ inputs.release_version }}
           INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
         run: node scripts/desktop-release-input.mjs
+      - name: Keep released extension companions working
+        env:
+          RELEASE: desktop-v${{ steps.identity.outputs.version }}
+          ENFORCE: ${{ steps.identity.outputs.publish == 'true' || steps.identity.outputs.productionPublication == 'true' }}
+        run: node scripts/check-release-compatibility.mjs --surface desktop --release "$RELEASE" --enforce "$ENFORCE"
       - name: Refuse to overwrite a published release
         if: steps.identity.outputs.publish == 'true'
         env:

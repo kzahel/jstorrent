@@ -55,9 +55,9 @@ Ask one question: **does this add something the client sends?**
 | --- | --- |
 | New field a host sends | Give it a serde default or make it `Option`. Generation fails if a field a host may omit is typed as always present. |
 | New command, settings patch key or torrent settings patch key | Add a capability in `crates/rstorrent-session/src/host_capabilities.rs` that owns it, gate the control with `hostSupports`, and let the live dispatch filter drop it for hosts without it. CI fails on an unowned key. |
-| New row field kind a host sends (a `*FieldUpdate` variant) | Tolerant clients drop unknown kinds. Record it in `REVIEWED_STRICT_CLIENT_EXPOSURE` while strict clients (extension 1.1.4 and older) are still supported. |
+| New row field kind a host sends (a `*FieldUpdate` variant) | Tolerant clients drop unknown kinds. Record it in `reviewedStrictClientExposure` while strict clients (extension 1.1.4 and older) are still supported. |
 | New field inside a type released clients validate strictly (`additionalProperties: false`) | Same as a new row field kind. |
-| New enum value or other tagged variant a host sends | Every client still rejects it, tolerant ones included. Treat it as breaking: add a new optional field instead, or make clients tolerate that type first. Record any that ships in `REVIEWED_STRICT_CLIENT_EXPOSURE`. |
+| New enum value or other tagged variant a host sends | Every client still rejects it, tolerant ones included. Treat it as breaking: add a new optional field instead, or make clients tolerate that type first. Record any that ships in `reviewedStrictClientExposure`. |
 | Remove, rename, retype or newly require anything released | Not allowed in v1. Add a new field or capability instead. |
 | Change the meaning of a released field or capability | Not allowed. New semantics take a new name. |
 
@@ -122,7 +122,7 @@ never deleted.
 ## Current Release Hold
 
 As of 2026-10-15, `main` carries five reviewed strict-client exposures (see
-`REVIEWED_STRICT_CLIENT_EXPOSURE`). Extensions 1.1.3 (published) and 1.1.4
+`reviewedStrictClientExposure` in `clients/web/src/api/release-compatibility.json`). Extensions 1.1.3 (published) and 1.1.4
 (in review, built from `5fa018ff`) validate strictly. A torrent list
 snapshot from a host built from current `main` includes the new
 `ClientSettings.seed_stop_*` fields, so the companion fails on its first
@@ -132,13 +132,24 @@ this source, submission pending) is published and has had a few days to
 auto-update, or the maintainer accepts the companion break for that
 release. All five exposures are kinds 1.1.5 accepts.
 
+The desktop and Android release workflows enforce this hold:
+`scripts/check-release-compatibility.mjs` fails a publishing run while
+`strictClients.supported` is true, exposures exist, and
+`acceptedBreaks` has no entry for that release tag. Candidate and other
+non-publishing runs only warn. Lift the hold by setting
+`strictClients.supported` to false once 1.1.5 has had time to replace older
+extensions (Web Store dashboard version counts), or record an accepted break
+for one release.
+
 ## Release Runbook
 
 Before any host release (desktop, headless, Android):
 
 1. `npm run test --prefix clients/web` passes, including the compatibility
    tests above.
-2. Check `REVIEWED_STRICT_CLIENT_EXPOSURE`. Each entry is something released
+2. The release workflow's compatibility check passes, or fails with the
+   exposures to resolve. Each entry in `reviewedStrictClientExposure` is
+   something released
    strict clients reject. Until the oldest extension still in use is tolerant
    (1.1.5 or later), a host release that ships any entry breaks the extension
    companion for users who update the host first. Either wait for the
