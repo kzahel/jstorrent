@@ -930,11 +930,20 @@ test("live Library media detail follows metadata through completion", async ({
     .filter({ hasText: "North.Shore.Stories.S01E10.1080p.WEB-DL.mkv" });
   const play = availableRow.getByRole("button", { name: /^Play / });
   await expect(play).toBeEnabled();
-  const popupPromise = page.context().waitForEvent("page");
+  // Completed MKV plays in the in-page dialog; its fixture bytes are not a
+  // real video, so the dialog's new-tab Open proves the media route.
   await play.click();
+  const player = page.getByRole("dialog", {
+    name: "Play North.Shore.Stories.S01E10.1080p.WEB-DL.mkv",
+  });
+  await expect(player).toBeVisible();
+  const popupPromise = page.context().waitForEvent("page");
+  await player.getByRole("button", { name: "Open in new tab" }).click();
   const popup = await popupPromise;
   await expect.poll(() => popup.url()).toContain("/media/");
   await popup.close();
+  await player.getByRole("button", { name: "Close video player" }).click();
+  await expect(player).toBeHidden();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await settings.getByRole("tab", { name: "Connection & seeding" }).click();
   await settings

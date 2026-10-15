@@ -27,8 +27,9 @@ an MP4 and an MKV file.
   presentation deadlines. Play is offered only for typed `available` files.
 - Audio transcoding (AC-3, DTS and others stay rejected), WebM, AVI, TS,
   subtitles, audio-track choice, resume position, playlists, thumbnails.
-- Any host change. The page uses the existing `create_media_url` command and
-  media route, so no host capability, contract field or migration is added.
+- Any shipped host change. The page uses the existing `create_media_url`
+  command and media route, so no host capability, contract field or migration
+  is added. Only the development gateway's media origin changes.
 - Remote eligibility. Remote Play stays MP4/M4V as qualified by 313.
 
 ## Design
@@ -43,10 +44,14 @@ range interface with one `fetch` per read: it sends a single `Range`, requires
 more bytes than requested. The 313 source admits at most one read at a time,
 within the host's four-requests-per-capability limit.
 
-The media URL is same-origin when the gateway serves the page, which is the
-shipped browser product and `./scripts/webui`. A cross-origin page, such as
-the Vite reload profile, fails the fetch; the dialog then reports the error and
-offers Open in a new tab.
+The media URL must be on the page's origin; the media route deliberately sends
+no CORS headers. That holds when the gateway serves the page, as in the shipped
+browser product and `./scripts/webui`. Development gateways
+(`unauthenticated_loopback_development`) now mint media URLs on their
+configured visible origin instead of their own listener, and Vite proxies
+`/media` with the visible Host in both the reload and preview profiles, as
+Tactical [226](226-live-webui-hot-reload.md) intended. Vite pre-bundles
+playsvideo at startup so the first Play does not reload the dev page.
 
 `patch-playsvideo.mjs` widens the demuxer from `[MP4]` to `[MP4, MATROSKA]`
 and makes the transcoding rejection message product-neutral. Duration,
@@ -104,6 +109,19 @@ the gateway log had none. Fixtures, profile and the generated torrent were
 deleted afterwards. This is one local sample on one browser; it does not claim
 other browsers, cross-origin pages, high-bitrate files or AC-3/DTS audio,
 which playsvideo rejects without transcoding.
+
+The first commit was qualified only against a same-origin built UI. In the
+maintainer's `./scripts/webui --reload` session, Play failed: the page on the
+Vite origin fetched the gateway's private port and was blocked by CORS, and the
+first Play also triggered Vite's dependency re-optimization, which reloaded the
+page. After the follow-up, the same Chromium drive ran against an isolated
+`./scripts/webui --reload` (port 4391, fresh data root, cold Vite start). MKV
+from Files reached a frame in 325 ms with 61–75 ms seeks, MP4 from Library in
+134 ms with 46–51 ms seeks. All 173 media requests used the visible Vite
+origin, the new-tab Open returned 200 through the proxy, and the Vite log
+showed no playsvideo re-optimization. The opt-in live Library spec now opens
+the dialog and uses its new-tab Open. A gateway unit test covers the
+development media origin and its Host check.
 
 Deterministic coverage: `http-range-reader.test.ts` (exact `206`, rejected
 `200`, mismatched or resized `Content-Range`, expired link, long and short

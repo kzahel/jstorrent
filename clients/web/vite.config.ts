@@ -12,11 +12,11 @@ const proxy: Record<string, string | ProxyOptions> | undefined =
           changeOrigin: !liveReload,
           ws: true,
         },
+        // Development gateways mint media URLs on this visible origin and
+        // check the visible Host, so media keeps it.
+        "/media": { target: proxyTarget, changeOrigin: false },
         ...(liveReload
-          ? {
-              "/healthz": { target: proxyTarget, changeOrigin: false },
-              "/media": { target: proxyTarget, changeOrigin: false },
-            }
+          ? { "/healthz": { target: proxyTarget, changeOrigin: false } }
           : {}),
       };
 
@@ -59,6 +59,9 @@ export default defineConfig(({ mode }) => {
     },
     server: { proxy },
     preview: { proxy },
+    // The player loads playsvideo lazily. Discovering it on the first Play
+    // makes the dev server reload the page and drop the open player.
+    optimizeDeps: { include: ["playsvideo"] },
     ...(companion
       ? {
           base: "./",

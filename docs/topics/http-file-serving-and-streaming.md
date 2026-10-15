@@ -9,7 +9,8 @@ Completed Tactical [362](../tactical/362-local-browser-inline-playback.md)
 adds in-page Play for completed MP4/M4V/MKV in the browser-hosted UI: the page
 reads the same file-scoped capability URL with same-origin byte ranges and
 feeds the 313 playsvideo source. The route, capability and limits are
-unchanged.
+unchanged; development gateways mint media URLs on their visible origin so the
+Vite proxy carries them.
 
 Topic: `http-file-serving-and-streaming`
 
