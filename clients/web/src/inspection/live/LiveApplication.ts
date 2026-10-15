@@ -44,7 +44,8 @@ import {
 import type { ViewSetState } from "../../view-set-reducer";
 import type { InspectionApplication } from "../application";
 import { supportedCommand, supportedPatch } from "../host-capabilities";
-import { UNSUPPORTED_CALL_MESSAGE } from "../../api";
+import { UNSUPPORTED_CALL_MESSAGE, type Command } from "../../api";
+import type { CompatibilityObservation } from "../../compatibility-observations";
 import { ApplicationViewError } from "../../api/errors";
 import type {
   CommandResult,
@@ -552,6 +553,7 @@ export class LiveApplication implements InspectionApplication {
       predatesDownloadAll(this.hello, this.serverClockMissing)
     ) {
       // Selecting every file in the loaded list does the same there.
+      this.client?.compatibility?.degradedAction("download_all_pending_add");
       const catalogId = this.snapshot.torrents[command.torrentId]?.fileCatalogId;
       if (catalogId === null || catalogId === undefined) {
         return { accepted: false, message: localizedMessage("feedback.file.selection.not.ready") };
@@ -579,6 +581,7 @@ export class LiveApplication implements InspectionApplication {
         ),
       ).length === 0
     ) {
+      this.client?.compatibility?.degradedAction(command.type);
       return {
         accepted: false,
         message: localizedMessage("inspection.live.live.application.setting.needs.newer.host"),
@@ -709,12 +712,11 @@ export class LiveApplication implements InspectionApplication {
                       torrent_id: command.torrentId,
                     },
     };
+    const outgoing = supportedCommand(request.command, this.capabilities());
+    this.observeStripped(command, request.command, outgoing);
     let response;
     try {
-      response = await this.controller?.dispatch({
-        ...request,
-        command: supportedCommand(request.command, this.capabilities()),
-      });
+      response = await this.controller?.dispatch({ ...request, command: outgoing });
     } catch (error) {
       // A host may refuse one call, for example a command it predates,
       // without closing the connection.
@@ -854,7 +856,10 @@ export class LiveApplication implements InspectionApplication {
     const pieces = projection(state, PIECES_VIEW_ID, "piece_activity");
     const pieceSet = this.mapPieces(pieces, state.epoch);
     const libraryMediaSet = this.mapLibraryMedia(state);
-    if (state.views[LIBRARY_VIEW_ID] !== undefined) markStartup("first_library");
+    if (state.views[LIBRARY_VIEW_ID] !== undefined) {
+      markStartup("first_library");
+      this.client?.compatibility?.libraryAttached();
+    }
     this.snapshot = mapViewState(
       state,
       this.desired,
@@ -1027,6 +1032,28 @@ export class LiveApplication implements InspectionApplication {
       throw new Error(localizedMessage("inspection.live.live.application.live.controller.is.unavailable"));
     }
     return client;
+  }
+
+  /** What this application saw from each host version (Tactical 370). */
+  compatibilityObservations(): readonly CompatibilityObservation[] {
+    return this.client?.compatibility?.snapshot() ?? [];
+  }
+
+  /** Records command fields and settings keys dropped for this host. */
+  private observeStripped(command: InspectionCommand, built: Command, sent: Command): void {
+    const observations = this.client?.compatibility;
+    if (observations === undefined) return;
+    for (const key of Object.keys(built)) {
+      if (!(key in sent)) observations.strippedField(`${built.type}.${key}`);
+    }
+    if (
+      (command.type === "update_client_settings" || command.type === "update_torrent_settings") &&
+      "patch" in built
+    ) {
+      for (const key of Object.keys(command.patch)) {
+        if (!(key in built.patch)) observations.strippedField(`${command.type}.${key}`);
+      }
+    }
   }
 
   private capabilities(): ReadonlySet<string> {

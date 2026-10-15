@@ -25,6 +25,7 @@ import { HttpApiError } from "../../api/client";
 import { ApplicationViewError } from "../../api/errors";
 import { HOST_CAPTURES, hostCapture, knownBreaks } from "../../compat/captures";
 import type { InspectionCommand, InspectionSnapshot } from "../model";
+import { CompatibilityObservations } from "../../compatibility-observations";
 import { LiveApplication } from "./LiveApplication";
 import {
   DEFAULT_LIBRARY_BROWSE,
@@ -43,6 +44,7 @@ const TORRENT_ID = "t1-000102030405060708090a0b0c0d0e0f";
 const V1_INFO_HASH = "000102030405060708090a0b0c0d0e0f10111213";
 
 class FakeLiveClient implements ApplicationViewClient {
+  readonly compatibility = new CompatibilityObservations();
   readonly updates: UpdateViewSetRequest[] = [];
   readonly opens: OpenViewSetRequest[] = [];
   readonly requests: RequestEnvelope[] = [];
@@ -2480,6 +2482,16 @@ describe("requests to released hosts", () => {
       // Commands this host rejects, recorded in compat/known-breaks.json.
       expect([...new Set(problems.map((problem) => problem.split(":")[0]!))].sort()).toEqual(
         knownBreaks([commit], "requests"),
+      );
+      // What was dropped or substituted for this host is observed.
+      const [observed] = application.compatibilityObservations();
+      expect(observed?.libraryAttached).toBe(true);
+      expect(Object.keys(observed?.strippedFields ?? {}).sort()).toEqual([
+        "export_magnet.options",
+        "update_client_settings.seed_stop_ratio_percent",
+      ]);
+      expect(observed?.degradedActions.download_all_pending_add ?? 0).toBe(
+        serverNowMillis === "0" ? 1 : 0,
       );
       await application.close();
     });

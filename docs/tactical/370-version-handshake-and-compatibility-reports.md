@@ -1,11 +1,11 @@
 # Tactical 370: Version Handshake And Compatibility Reports
 
-Status: In progress, 2026-10-15. Revised after an independent review (see
-**Review**). Slices 1–3 are authorized and under implementation; slice 4
-needs maintainer decisions on consent and an endpoint; slice 5 moves to its
-own tactical. Maintainer-directed: a two-way version handshake, opt-in
-mismatch reporting that either end can send, and a graceful path with
-cleanup for changes such as a new torrent state.
+Status: Slices 1–3 complete, 2026-10-15 (see **Evidence**). Slice 4 waits
+for maintainer decisions on consent and an endpoint; slice 5 moves to its
+own tactical. Revised after an independent review (see **Review**).
+Maintainer-directed: a two-way version handshake, opt-in mismatch
+reporting that either end can send, and a graceful path with cleanup for
+changes such as a new torrent state.
 Topics: `mixed-version-compatibility`, `product-state-and-feedback`.
 
 ## Problem
@@ -192,6 +192,28 @@ report budget and retention requirements; the late-reply bug in
 client reachability (over-reporting an unreachable definition costs one
 reviewed entry). The reviewer also confirmed the classification against
 1.1.5's generated validators.
+
+## Evidence
+
+- **Slice 1** (`93f41741`). Exposures are classified; a scratch negative
+  control (an enum value added to the current schema) was reported for all
+  four supported contracts including extension 1.1.5, and a `requestedBy`
+  naming a request released clients can make was reported for 1.1.3 and
+  1.1.4. `COMPAT_TODAY=2026-11-20` fails naming the known breaks and the
+  Download all fallback to remove. Retirement dates today: desktop 0.3.0,
+  Android 1.0.28 and 1.0.29 on 2026-11-12, extension 1.1.3 on 2026-11-14;
+  extension 1.1.4 stays until 1.1.5 is public.
+- **Slice 2** (`cf3d05dc`). Rust tests cover no, valid, extra-field and
+  seven malformed identities, the bridge round trip and the 32-identity
+  bound; the desktop control test connects two identified, one
+  malformed-identity and one anonymous extension client and checks the
+  per-identity connection and sentinel-refusal counts. The contract test
+  checks every supported host capture parses `connect` openly.
+- **Slice 3.** Observation unit tests (attribution, bounds, operation
+  names); WebSocket tests for a late refusal of an aborted call (fails
+  without the fix), sentinel refusals by operation and decode failures;
+  the released-host request test checks stripped fields, the Download all
+  substitution and library attachment for every captured host.
 
 ## Stopping Condition
 

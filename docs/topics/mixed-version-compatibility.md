@@ -121,6 +121,15 @@ never deleted.
   identity is dropped, never fatal. Hosts count connections and refused
   calls per `kind version` in their connection metrics (32 identities, then
   `other`), advertise `client_identity`, and never decide features from it.
+- **Mismatch observations.** The WebSocket client keeps a bounded
+  `CompatibilityObservations` per host version (`unreported` for hosts
+  without `product`): decode failures by stage, calls refused with the
+  sentinel by operation, and, from `LiveApplication`, command fields and
+  settings keys stripped for the host, actions refused or substituted
+  locally, and whether the library attached. They stay in memory
+  (`LiveApplication.compatibilityObservations()`); nothing is transmitted.
+  A late reply to an aborted call is ignored rather than failing the
+  connection.
 - Android Compose and iOS run the engine in process and need no gates; the
   Kotlin and Swift exports of the registry are deferred until a native client
   controls another host.
@@ -262,7 +271,7 @@ telemetry:
 
 | Surface | Source | State |
 | --- | --- | --- |
-| Desktop | Update checks request `updates.jstorrent.com/tauri/{target}/{arch}/{current_version}` | Unconfirmed whether that endpoint keeps request logs |
+| Desktop | Update checks request `updates.jstorrent.com/tauri/{target}/{arch}/{current_version}` | Available: the update server keeps request stats (`projects/jstorrent/update-stats.sh` in the maintainer's dotfiles) |
 | Android | Play Console installs by version | Available |
 | Extension | Web Store dashboard users by version | Available |
 | Headless, Crostini | None | Gap |
@@ -288,5 +297,11 @@ that it has very few users.
   review against `remote-access-authentication`.
 - **Out-of-date notice and update screen**, with Tactical 343's About work.
 - **Version-population record** from the sources above, and a usage signal
-  for the hosted remote controller (see Version Observability).
+  for the hosted remote controller (see Version Observability). The desktop
+  update server already reports desktop version counts
+  (`runbooks/update-server-analytics.md` in the maintainer's dotfiles).
+- **Compatibility reports** (Tactical 370 slice 4): opt-in transmission of
+  the observations above from hosts and clients. Needs fresh consent (a new
+  disclosure version or a separate choice), an endpoint with stated
+  retention, and a consent owner for the hosted page.
 - **Automatic updates**, Tactical 355.
