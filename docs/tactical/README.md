@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [370 — Version handshake and compatibility reports](370-version-handshake-and-compatibility-reports.md):
+  slices 1–3 complete; value exposures checked for tolerant clients, a
+  computed support window that forces cleanup, client identity in `connect`
+  and in-memory mismatch observations. Reports wait on consent decisions.
 - [369 — Recovery screen when the torrent catalog will not open](369-catalog-recovery-screen.md):
   desktop, Android and headless offer updates, a read-only torrent list export
   and bug-report details instead of crashing or a generic error.
