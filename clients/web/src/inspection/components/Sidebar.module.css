@@ -68,6 +68,44 @@
   color: inherit;
 }
 
+/* Destinations: one full-width segmented switch, like the settings choices. */
+.sidebar .destinations {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  margin: 0 0.5rem;
+  border-radius: var(--radius-md);
+  padding: 2px;
+  background: var(--surface-tertiary);
+}
+
+.sidebar .destinations button {
+  display: flex;
+  min-height: calc(var(--ui-control-height) - 4px);
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--ui-space-xs) var(--ui-space-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.sidebar .destinations button:hover {
+  background: transparent;
+}
+
+.sidebar .destinations button[aria-current="page"] {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--surface-primary);
+}
+
+.sidebar .destinations svg {
+  flex: 0 0 auto;
+  width: var(--ui-icon-size);
+  height: var(--ui-icon-size);
+}
+
 .symbol {
   display: grid;
   place-items: center;

@@ -965,7 +965,12 @@ Tactical [`351`](../tactical/351-narrow-web-lists-and-flat-chrome.md) makes
 repeated by stylesheets) for the store's `phone` layout, the drawer, the
 detail app bar and list rendering. The sidebar owns navigation at every
 width: Library and Torrents, then the current destination's categories, and
-in the narrow drawer the session views. The narrow header is one row (menu,
+in the narrow drawer the session views. Library and Torrents form a
+full-width segmented switch, styled like the Settings choices, so they read
+as a view toggle rather than as peers of the categories below. Switching
+destination keeps the drawer open because the categories it reveals are
+usually the next choice; choosing a category or session view closes it. The
+narrow header is one row (menu,
 logo, current place, Settings). A narrow torrent or Library detail replaces
 it with an app bar: back arrow, name, Pause or Start, and a ⋮ menu of the
 remaining torrent actions. Narrow torrent details show torrent tabs only;

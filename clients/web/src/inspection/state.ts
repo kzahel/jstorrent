@@ -281,7 +281,8 @@ export function createInspectionStore(
             destination === "library"
               ? state.presentation.libraryDetailOpen
               : false,
-          sidebarOpen: false,
+          // The drawer stays open: switching destination changes the
+          // categories it shows, which are usually the next choice.
           detailTarget: null,
         };
         persistNavigation(navigationPreferencesFor(presentation));

@@ -254,6 +254,17 @@ describe("inspection store", () => {
     });
   });
 
+  it("keeps the drawer open across destinations and closes it on a category", () => {
+    const store = createInspectionStore(null);
+    store.getState().toggleSidebar();
+
+    store.getState().selectDestination("library");
+    expect(store.getState().presentation.sidebarOpen).toBe(true);
+
+    store.getState().selectLibraryCategory("recent");
+    expect(store.getState().presentation.sidebarOpen).toBe(false);
+  });
+
   it("keeps destination filters independent and persists navigation", () => {
     const values = new Map<string, string>();
     const storage = {

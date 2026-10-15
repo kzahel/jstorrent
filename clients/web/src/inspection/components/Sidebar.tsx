@@ -78,18 +78,22 @@ export function Sidebar() {
   );
   return (
     <div className={styles.sidebar}>
-      <nav aria-label={localizedMessage("inspection.components.app.primary")}>
-        <ul>
-          {DESTINATIONS.map((item) => (
-            <NavigationButton
-              key={item.id}
-              active={destination === item.id}
-              label={destinationLabel(item.id)}
-              symbol={<Icon name={item.icon} />}
-              onSelect={() => selectDestination(item.id)}
-            />
-          ))}
-        </ul>
+      {/* A view switch drawn as segments, so it reads apart from the categories it controls. */}
+      <nav
+        className={styles.destinations}
+        aria-label={localizedMessage("inspection.components.app.primary")}
+      >
+        {DESTINATIONS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-current={destination === item.id ? "page" : undefined}
+            onClick={() => selectDestination(item.id)}
+          >
+            <Icon name={item.icon} />
+            <span>{destinationLabel(item.id)}</span>
+          </button>
+        ))}
       </nav>
       <Categories />
       {!narrow ? null : (
