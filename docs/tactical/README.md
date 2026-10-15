@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [362 — Local browser inline video playback](362-local-browser-inline-playback.md):
+  complete; browser-hosted Files and Library **Play** completed MP4/M4V/MKV in
+  the shared playsvideo dialog, with Open in a new tab as the fallback.
 - [361 — Extension store publishing setup](361-extension-store-publishing-setup.md):
   done; one-time Google and GitHub setup so `extension-v*` tags submit to the
   Chrome Web Store, and extension 1.1.5 submitted through it.

@@ -146,7 +146,11 @@ and localized connection/buffering/error status. Files exposes **Play** for
 completed MP4/M4V files; Library uses the same dialog. Existing local Open is
 unchanged. Real Chromium decoded-frame/seek and visual capture evidence are
 recorded in the tactical; this does not claim other containers or general
-remote file opening.
+remote file opening. Tactical
+[362](../tactical/362-local-browser-inline-playback.md) reuses the dialog for
+local completed MP4/M4V/MKV in the browser-hosted UI. Files lists **Play**
+before **Open**, Open keeps its new-tab icon, and the dialog header offers
+Open in new tab as the fallback.
 
 Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
 reduces the shared first-use statistics dialog to a short explanation, plain

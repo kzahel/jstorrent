@@ -1,10 +1,11 @@
-import { PlaysVideoEngine } from "playsvideo";
+import type { PlaysVideoEngine } from "playsvideo";
 import { openDirectFileConnection } from "./direct-file-connection";
 import { negotiateRangeStream } from "./direct-file-range-stream";
 import {
   DirectFilePlaybackSource,
   type PlaybackReadStats,
 } from "./direct-file-playback-source";
+import { resetVideo, startPlaysVideo } from "./media-url-playback";
 import type { RemoteApplicationWebSocket } from "./remote-application-websocket";
 import type { RemoteCompletedFilePlaybackRequest } from "./inspection/remote-access/types";
 
@@ -36,9 +37,7 @@ export async function playDirectFile(
       lifetime.abort();
       source?._dispose();
       engine?.destroy();
-      request.video.pause();
-      request.video.removeAttribute("src");
-      request.video.load();
+      resetVideo(request.video);
       await connection.close();
     }));
   const abort = () => {
@@ -70,21 +69,16 @@ export async function playDirectFile(
       ranges.close();
       void close();
     });
-    engine = new PlaysVideoEngine(request.video, {
-      embeddedSubtitlePolicy: "off",
-      transcodeWorkers: 0,
-    });
-    engine.addEventListener("error", (event) => {
-      request.onError?.(
-        (event as CustomEvent<{ message: string }>).detail.message,
-      );
-      void cleanup();
-    });
-    engine.addEventListener("ready", () => request.onReady?.());
     signal.addEventListener("abort", abort, { once: true });
     connection.channel.addEventListener("close", failed);
     signal.throwIfAborted();
-    engine.loadSource(source, { targetSegmentDuration: 4 });
+    engine = startPlaysVideo(request.video, source, {
+      onReady: request.onReady,
+      onError: (message) => {
+        request.onError?.(message);
+        void cleanup();
+      },
+    });
     return { stats: source.stats, close: cleanup };
   } catch (error) {
     await cleanup();

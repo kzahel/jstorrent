@@ -29,6 +29,7 @@
   margin-bottom: 0.75rem;
 }
 .dialog h2 {
+  flex: 1 1 auto;
   margin: 0;
   overflow-wrap: anywhere;
   font-size: var(--ui-font-heading);
@@ -44,6 +45,19 @@
   font-size: var(--ui-font-small);
   font-weight: var(--weight-medium);
   cursor: pointer;
+}
+.dialog .openExternally {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--ui-space-xs);
+}
+.dialog .openExternally svg {
+  color: var(--text-muted);
+}
+.dialog header [role="alert"] {
+  color: var(--danger);
+  font-size: var(--ui-font-small);
 }
 .dialog button:hover {
   background: var(--surface-hover);

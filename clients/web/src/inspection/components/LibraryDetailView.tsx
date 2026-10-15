@@ -1,4 +1,4 @@
-import { useRemotePlayback, canPlayRemoteFile } from "./RemoteVideoPlayer";
+import { usePlayback } from "./VideoPlayer";
 import { message as localizedMessage } from "../../localization/runtime";
 import {
   useEffect,
@@ -28,7 +28,7 @@ export function LibraryDetailView({
   readonly torrent: TorrentRow;
   readonly onBack: () => void;
 }) {
-  const playback = useRemotePlayback();
+  const playback = usePlayback();
   const visibleProgress = torrentVisibleProgress(torrent);
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
   const layout = useInspectionStore((state) => state.presentation.layout);
@@ -96,11 +96,12 @@ export function LibraryDetailView({
     ) {
       return;
     }
-    if (playback.remote) {
-      if (!canPlayRemoteFile(row.name, row.mediaAvailability)) return;
+    if (playback.canPlay(row.name, row.mediaAvailability)) {
       playback.play({ torrentId: torrent.id, fileIndex: row.fileIndex, fileName: row.name, lengthBytes: row.lengthBytes });
       return;
     }
+    // Remote sessions have no new-tab Open to fall back to.
+    if (playback.remote) return;
     const request = playbackRequest.current + 1;
     playbackRequest.current = request;
     setPlaybackPendingFile(row.fileIndex);
@@ -410,13 +411,13 @@ function CatalogRowView({
       : row.doneBytes === "0"
         ? "Not downloaded"
         : "Partially downloaded";
-  const playback = useRemotePlayback();
+  const playback = usePlayback();
   const playbackReason =
     entry.kind === "media"
       ? playbackDisabledReason(
           entry.row,
           playbackPendingFile,
-          playback.remote && !canPlayRemoteFile(row.name, row.mediaAvailability)
+          playback.remote && !playback.canPlay(row.name, row.mediaAvailability)
             ? localizedMessage("remote.video.completed.mp4") : playbackUnavailableReason,
         )
       : undefined;

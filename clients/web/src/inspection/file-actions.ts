@@ -2,6 +2,7 @@ import { message as localizedMessage } from "../localization/runtime";
 import type { MediaFileAvailability } from "../api";
 
 export type FileActionId =
+  | "play"
   | "open"
   | "download_now"
   | "high"
@@ -14,7 +15,15 @@ interface OpenFileActionDefinition {
   readonly label: string;
   readonly group: "open";
   /** The file opens outside this window, such as in a new browser tab. */
-  readonly external: boolean;
+  readonly external: true;
+}
+
+/** Plays the file in the in-app video player. */
+interface PlayFileActionDefinition {
+  readonly id: "play";
+  readonly label: string;
+  readonly group: "open";
+  readonly external: false;
 }
 
 interface DownloadFileActionDefinition {
@@ -37,6 +46,7 @@ interface ShareFileActionDefinition {
 }
 
 export type FileActionDefinition =
+  | PlayFileActionDefinition
   | OpenFileActionDefinition
   | DownloadFileActionDefinition
   | PriorityFileActionDefinition

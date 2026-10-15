@@ -7,10 +7,12 @@ import type {
   RemoteCompletedFilePlaybackRequest,
 } from "../remote-access/types";
 import {
+  canPlayLocalFile,
   canPlayRemoteFile,
-  RemotePlaybackProvider,
-  useRemotePlayback,
-} from "./RemoteVideoPlayer";
+  type LocalVideoPlayback,
+  type VideoPlaybackRequest,
+} from "../video-playback";
+import { PlaybackProvider, usePlayback } from "./VideoPlayer";
 
 afterEach(cleanup);
 const file = {
@@ -20,10 +22,10 @@ const file = {
   lengthBytes: "64657027",
 };
 function Trigger() {
-  const playback = useRemotePlayback();
+  const playback = usePlayback();
   return <button onClick={() => playback.play(file)}>Play movie</button>;
 }
-describe("remote video player", () => {
+describe("video player", () => {
   it("closes and aborts a pending connection, then disposes its late result", async () => {
     let request!: RemoteCompletedFilePlaybackRequest;
     let connected!: (result: { close(): Promise<void> }) => void;
@@ -41,9 +43,9 @@ describe("remote video player", () => {
       playCompletedFile,
     } as unknown as DesktopRemoteAccess;
     render(
-      <RemotePlaybackProvider remoteAccess={remoteAccess}>
+      <PlaybackProvider remoteAccess={remoteAccess}>
         <Trigger />
-      </RemotePlaybackProvider>,
+      </PlaybackProvider>,
     );
     const user = userEvent.setup();
     await user.click(screen.getByText("Play movie"));
@@ -74,9 +76,9 @@ describe("remote video player", () => {
       },
     } as unknown as DesktopRemoteAccess;
     const view = render(
-      <RemotePlaybackProvider remoteAccess={remoteAccess}>
+      <PlaybackProvider remoteAccess={remoteAccess}>
         <Trigger />
-      </RemotePlaybackProvider>,
+      </PlaybackProvider>,
     );
     await userEvent.click(screen.getByText("Play movie"));
     expect(
@@ -97,9 +99,9 @@ describe("remote video player", () => {
       },
     } as unknown as DesktopRemoteAccess;
     render(
-      <RemotePlaybackProvider remoteAccess={remoteAccess}>
+      <PlaybackProvider remoteAccess={remoteAccess}>
         <Trigger />
-      </RemotePlaybackProvider>,
+      </PlaybackProvider>,
     );
     await userEvent.click(screen.getByText("Play movie"));
     await act(async () => { request.video.dispatchEvent(new Event("error")); });
@@ -115,13 +117,95 @@ describe("remote video player", () => {
       playCompletedFile,
     } as unknown as DesktopRemoteAccess;
     render(
-      <RemotePlaybackProvider remoteAccess={remoteAccess}>
+      <PlaybackProvider remoteAccess={remoteAccess}>
         <Trigger />
-      </RemotePlaybackProvider>,
+      </PlaybackProvider>,
     );
     await userEvent.click(screen.getByText("Play movie"));
     expect(screen.getByRole("status").textContent).toContain("does not support");
     expect(playCompletedFile).not.toHaveBeenCalled();
+  });
+  it("plays local files in the dialog and offers Open in a new tab", async () => {
+    let request!: VideoPlaybackRequest;
+    const close = vi.fn(async () => {});
+    const localPlayback: LocalVideoPlayback = {
+      play: vi.fn(async (value: VideoPlaybackRequest) => {
+        request = value;
+        return { close };
+      }),
+      openExternally: vi.fn(async () => {}),
+    };
+    render(
+      <PlaybackProvider localPlayback={localPlayback}>
+        <Trigger />
+      </PlaybackProvider>,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByText("Play movie"));
+    await waitFor(() => expect(localPlayback.play).toHaveBeenCalledOnce());
+    expect(request).toMatchObject(file);
+    expect(request.video).toBeInstanceOf(HTMLVideoElement);
+    expect(screen.getByRole("status").textContent).toBe("Loading video…");
+    await user.click(screen.getByRole("button", { name: "Open in new tab" }));
+    expect(localPlayback.openExternally).toHaveBeenCalledWith(file);
+    await user.click(
+      screen.getByRole("button", { name: "Close video player" }),
+    );
+    expect(request.signal!.aborted).toBe(true);
+    expect(close).toHaveBeenCalledOnce();
+  });
+  it("shows a failed new-tab Open inside the dialog", async () => {
+    const localPlayback: LocalVideoPlayback = {
+      play: async () => ({ close: async () => {} }),
+      openExternally: async () => {
+        throw new Error("Allow pop-ups to open this file in a new tab");
+      },
+    };
+    render(
+      <PlaybackProvider localPlayback={localPlayback}>
+        <Trigger />
+      </PlaybackProvider>,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByText("Play movie"));
+    await user.click(screen.getByRole("button", { name: "Open in new tab" }));
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Allow pop-ups",
+    );
+  });
+  it("prefers the remote player and has no new-tab Open remotely", async () => {
+    const play = vi.fn();
+    const remoteAccess = {
+      scope: "remote",
+      directFileSupported: () => true,
+      playCompletedFile: async () => ({ close: async () => {} }),
+    } as unknown as DesktopRemoteAccess;
+    render(
+      <PlaybackProvider
+        remoteAccess={remoteAccess}
+        localPlayback={{ play, openExternally: vi.fn() }}
+      >
+        <Trigger />
+      </PlaybackProvider>,
+    );
+    await userEvent.click(screen.getByText("Play movie"));
+    expect(screen.queryByRole("button", { name: "Open in new tab" })).toBeNull();
+    expect(play).not.toHaveBeenCalled();
+  });
+  it("opens no dialog without a playback source", async () => {
+    render(
+      <PlaybackProvider>
+        <Trigger />
+      </PlaybackProvider>,
+    );
+    await userEvent.click(screen.getByText("Play movie"));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+  it("limits local eligibility to completed MP4/M4V/MKV files", () => {
+    expect(canPlayLocalFile("movie.MKV", "available")).toBe(true);
+    expect(canPlayLocalFile("movie.mp4", "available")).toBe(true);
+    expect(canPlayLocalFile("movie.mkv", "streamable")).toBe(false);
+    expect(canPlayLocalFile("movie.avi", "available")).toBe(false);
   });
   it("limits remote eligibility to completed MP4/M4V files", () => {
     expect(canPlayRemoteFile("BUNNY.MP4", "available")).toBe(true);

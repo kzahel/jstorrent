@@ -1,4 +1,4 @@
-import { RemotePlaybackProvider } from "./RemoteVideoPlayer";
+import { PlaybackProvider } from "./VideoPlayer";
 import jstorrentIcon from "../../assets/jstorrent.png";
 import { message as localizedMessage } from "../../localization/runtime";
 import { markStartup } from "../../startup-timing";
@@ -62,6 +62,7 @@ import { DesktopExternalIntakeProvider } from "../desktop-external-intake-contex
 import type { DesktopNotifications } from "../desktop-notifications/types";
 import type { DesktopPower } from "../desktop-power/types";
 import type { DesktopRemoteAccess } from "../remote-access/types";
+import type { LocalVideoPlayback } from "../video-playback";
 import type {
   HostedAccessMode,
   HostedProduct,
@@ -109,6 +110,7 @@ export interface AppProps {
   readonly notifications?: DesktopNotifications | undefined;
   readonly power?: DesktopPower | undefined;
   readonly remoteAccess?: DesktopRemoteAccess | undefined;
+  readonly localPlayback?: LocalVideoPlayback | undefined;
   readonly accessMode?: HostedAccessMode | undefined;
   readonly hostedProduct?: HostedProduct | undefined;
   readonly productPrivacy?: ProductPrivacyController | undefined;
@@ -132,6 +134,7 @@ export function App({
   notifications,
   power,
   remoteAccess,
+  localPlayback,
   accessMode,
   hostedProduct,
   productPrivacy,
@@ -145,7 +148,7 @@ export function App({
   return (
     <ToastProvider>
       <DesktopExternalIntakeProvider intake={externalIntake}>
-        <RemotePlaybackProvider remoteAccess={remoteAccess}>
+        <PlaybackProvider remoteAccess={remoteAccess} localPlayback={localPlayback}>
           <TorrentActionProvider>
             <AppContent
               interrupted={interrupted}
@@ -169,7 +172,7 @@ export function App({
               />
             ) : null}
           </TorrentActionProvider>
-        </RemotePlaybackProvider>
+        </PlaybackProvider>
       </DesktopExternalIntakeProvider>
     </ToastProvider>
   );

@@ -5396,6 +5396,14 @@
     "defaultMessage": "The browser could not play this video. Its codecs may not be supported.",
     "description": "Remote completed-file video player: decode.error."
   },
+  "video.loading": {
+    "defaultMessage": "Loading video…",
+    "description": "In-app video player: status while the local file opens."
+  },
+  "video.open.new.tab": {
+    "defaultMessage": "Open in new tab",
+    "description": "In-app video player: button that opens the file in a new browser tab instead."
+  },
   "remote.video.completed.mp4": {
     "defaultMessage": "Remote playback supports completed MP4 files.",
     "description": "Remote completed-file video player: completed.mp4."

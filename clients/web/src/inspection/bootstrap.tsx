@@ -11,6 +11,7 @@ import type { DemoScenarioId } from "./model";
 import type { DesktopRemoteAccess } from "./remote-access/types";
 import type { ApplicationViewClient } from "../api/client";
 import { WebAuthClient } from "../web-auth-client";
+import { createBrowserVideoPlayback } from "../browser-video-playback";
 import { createHostedHostIntegration } from "../headless-updater";
 import { markStartup } from "../startup-timing";
 import "./global.css";
@@ -119,8 +120,10 @@ async function openLiveInspection(
     { ...(waitMillis === undefined ? {} : { waitMillis }) },
   );
   application.installBrowserWakeHints(window, document);
+  const localPlayback = createBrowserVideoPlayback(application);
   const update = renderInspection(new InspectionController(application), root, {
     webAuth,
+    localPlayback,
     about: { connection: "server" },
   });
   const hosted = await createHostedHostIntegration(baseUrl).catch(
@@ -132,6 +135,7 @@ async function openLiveInspection(
   if (hosted === undefined) return;
   update({
     webAuth,
+    localPlayback,
     updater: hosted.updater,
     accessMode: hosted.accessMode,
     hostedProduct: hosted.product,

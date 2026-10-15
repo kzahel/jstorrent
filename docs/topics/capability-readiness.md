@@ -125,6 +125,10 @@ buffers have separate bounds; new Rust/web/localization/source-notice gates
 pass. Chrome/Edge are the intended scope; other browsers, WAN, high-bitrate
 movies, generic Open and progressive remote playback remain unqualified.
 Android hosting and native storage semantics are unchanged/inapplicable.
+Tactical [362](../tactical/362-local-browser-inline-playback.md) adds local
+browser-hosted Play for completed MP4/M4V/MKV through the same consumer over
+same-origin capability ranges; one Chromium MKV/MP4 decoded-frame and seek
+sample passes. Desktop, incomplete files and transcoding stay deferred.
 
 Completed local Tactical [312](../tactical/312-reliable-credit-range-streams.md)
 adds reliable ordered v2 byte ranges, cumulative consumption credit, shared

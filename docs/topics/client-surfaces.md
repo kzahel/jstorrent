@@ -1409,8 +1409,9 @@ with exact SAF cleanup.
 - The React Library now has a rebuildable media-first torrent detail, but its
   top level remains torrent-backed. Library-wide item aggregation, durable
   media identity/organization, thumbnails or provider artwork, watched state,
-  and embedded in-application playback remain separate product capabilities.
-  Browser-native playback handoff exists for eligible Media rows, and Android
+  and embedded desktop playback remain separate product capabilities.
+  The browser-hosted UI plays completed MP4/M4V/MKV in an in-page dialog
+  (Tactical 362) and keeps the new-tab handoff for other files, and Android
   has native progressive playback from the Files surface. iOS has no
   corresponding progressive derived-media presentation.
 

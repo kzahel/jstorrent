@@ -11182,5 +11182,17 @@
       "type": 0,
       "value": "Copy update command"
     }
+  ],
+  "video.loading": [
+    {
+      "type": 0,
+      "value": "Loading video…"
+    }
+  ],
+  "video.open.new.tab": [
+    {
+      "type": 0,
+      "value": "Open in new tab"
+    }
   ]
 }

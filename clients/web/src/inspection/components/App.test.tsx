@@ -68,6 +68,7 @@ import type {
   DesktopPowerSettings,
 } from "../desktop-power/types";
 import type { DesktopRemoteAccess, RemoteCompletedFileSaveRequest } from "../remote-access/types";
+import type { LocalVideoPlayback } from "../video-playback";
 import { HOST_CAPTURES } from "../../compat/captures";
 import { decodeOpenViewSetResponse } from "../../validation";
 import { App } from "./App";
@@ -1785,6 +1786,71 @@ describe("inspection application", () => {
     // The Priority column shows the change; nothing is added above the table.
     expect(screen.queryByRole("region", { name: "Notification" })).not.toBeInTheDocument();
     expect(screen.queryByText(/set to normal/i)).not.toBeInTheDocument();
+  });
+
+  it("offers in-app Play before new-tab Open for a completed local video", async () => {
+    const user = userEvent.setup();
+    const base = buildScenarioSnapshot("file-progress", 24_000, false, 1);
+    const fileSet = base.filesByTorrent[DEMO_PRIMARY_TORRENT_ID]!;
+    const file = fileSet.order
+      .map((id) => fileSet.rows[id])
+      .find((candidate) => candidate?.padding === false)!;
+    const snapshot = {
+      ...base,
+      demo: null,
+      filesByTorrent: {
+        ...base.filesByTorrent,
+        [DEMO_PRIMARY_TORRENT_ID]: {
+          ...fileSet,
+          rows: {
+            ...fileSet.rows,
+            [file.id]: {
+              ...file,
+              name: "movie.mkv",
+              mediaAvailability: "available" as const,
+            },
+          },
+        },
+      },
+    };
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot,
+    });
+    const localPlayback: LocalVideoPlayback = {
+      play: vi.fn(async () => ({ close: async () => {} })),
+      openExternally: vi.fn(async () => {}),
+    };
+    renderApplication(
+      application, undefined, undefined, undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined, localPlayback,
+    );
+
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "Files" }));
+    const files = screen.getByRole("grid", { name: "Torrent files" });
+    await user.click(within(files).getByText("movie.mkv"));
+    await user.click(screen.getByRole("button", { name: "More file actions" }));
+    const items = screen.getAllByRole("menuitem").map((item) => item.textContent);
+    expect(items.slice(0, 2)).toEqual(["Play", "Open"]);
+    const play = screen.getByRole("menuitem", { name: "Play" });
+    expect(play.querySelector("svg")).toBeNull();
+    await user.click(play);
+
+    await waitFor(() => expect(localPlayback.play).toHaveBeenCalledOnce());
+    expect(localPlayback.play).toHaveBeenCalledWith(
+      expect.objectContaining({
+        torrentId: DEMO_PRIMARY_TORRENT_ID,
+        fileIndex: file.index,
+        fileName: "movie.mkv",
+      }),
+    );
+    expect(screen.getByRole("dialog", { name: "Play movie.mkv" })).toBeTruthy();
+    expect(application.commands.some((command) => command.type === "open_file")).toBe(false);
   });
 
   it("shows Open only for a single verified available file", async () => {
@@ -5116,6 +5182,7 @@ function renderApplication(
   hostedProduct?: HostedProduct,
   oneCurrentRoot?: boolean,
   remoteAccess?: DesktopRemoteAccess,
+  localPlayback?: LocalVideoPlayback,
 ) {
   const controller = new InspectionController(application, appearanceStorage);
   controllers.push(controller);
@@ -5131,6 +5198,7 @@ function renderApplication(
         hostedProduct={hostedProduct}
         oneCurrentRoot={oneCurrentRoot}
         remoteAccess={remoteAccess}
+        localPlayback={localPlayback}
       />
     </InspectionProvider>,
   );

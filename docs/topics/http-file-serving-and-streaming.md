@@ -5,6 +5,11 @@ DataChannel consumer in [313](../tactical/313-completed-remote-video-playback.md
 not this loopback HTTP listener. Its browser Source performs byte-range reads,
 and playsvideo remuxes to HLS/MSE. Local Open, Android playback and progressive
 HTTP authority remain unchanged; general remote Open is still unavailable.
+Completed Tactical [362](../tactical/362-local-browser-inline-playback.md)
+adds in-page Play for completed MP4/M4V/MKV in the browser-hosted UI: the page
+reads the same file-scoped capability URL with same-origin byte ranges and
+feeds the 313 playsvideo source. The route, capability and limits are
+unchanged.
 
 Topic: `http-file-serving-and-streaming`
 
@@ -417,6 +422,9 @@ and deliberate deferrals.
 
 Stable sharing, remote exposure, embedded desktop playback, iOS progressive
 presentation, subtitles, and transcoding remain independent product decisions.
+After 362, the browser player's next steps are desktop (Tauri CSP and
+`tauri://` mixed content), incomplete-file playback with presentation
+deadlines through the demand seam, and audio transcoding.
 The direct remote path
 and its browser presentation investigation now live in
 [`direct-remote-file-streaming.md`](direct-remote-file-streaming.md). A future

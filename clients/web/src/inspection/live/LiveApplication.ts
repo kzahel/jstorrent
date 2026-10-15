@@ -737,6 +737,31 @@ export class LiveApplication implements InspectionApplication {
     };
   }
 
+  /** Resolves a file-scoped media URL for in-page playback. */
+  async createMediaUrl(
+    torrentId: string,
+    fileIndex: number,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    this.ensureOpen();
+    if (this.controller === null) await this.attached;
+    const client = this.client;
+    const createMediaUrl = client?.createMediaUrl?.bind(client);
+    if (createMediaUrl === undefined) {
+      throw new Error(localizedMessage("inspection.live.live.application.opening.files.is.unavailable.on.this.connection"));
+    }
+    const response = await createMediaUrl(
+      { torrent_id: torrentId, file_index: fileIndex },
+      signal === undefined
+        ? this.lifetime.signal
+        : AbortSignal.any([signal, this.lifetime.signal]),
+    );
+    if (response.outcome.type === "unavailable") {
+      throw new Error(mediaUnavailableMessage(response.outcome.reason));
+    }
+    return response.outcome.url;
+  }
+
   requestImmediatePoll(): void {
     if (this.closed) return;
     this.attachWake?.abort("immediate attach requested");

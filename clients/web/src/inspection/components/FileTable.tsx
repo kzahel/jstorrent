@@ -1,4 +1,4 @@
-import { useRemotePlayback, canPlayRemoteFile } from "./RemoteVideoPlayer";
+import { usePlayback } from "./VideoPlayer";
 import { message as localizedMessage } from "../../localization/runtime";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -178,7 +178,7 @@ export function FileTable({
   readonly torrentId: string;
   readonly remoteAccess?: DesktopRemoteAccess | undefined;
 }) {
-  const playback = useRemotePlayback();
+  const playback = usePlayback();
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
   const displayColumns = useMemo(() => columns(dataUnits), [dataUnits]);
   const [currentFileId, setCurrentFileId] = useState<string | null>(null);
@@ -321,20 +321,28 @@ export function FileTable({
     actions: ReturnType<typeof resolveFileActions>,
     targets: readonly FileRow[],
   ) {
-    if (!playback.remote) return actions;
+    const playable = targets.length === 1 &&
+      playback.canPlay(targets[0]!.name, targets[0]!.mediaAvailability);
+    if (!playback.remote) {
+      // Local files keep Open in a new tab beside the in-app Play.
+      return actions.flatMap(action =>
+        action.id === "open" && playable
+          ? [{ ...action, id: "play" as const, label: localizedMessage("remote.video.play"), external: false as const }, action]
+          : [action]);
+    }
     const availability = resolveDirectSave(
       remoteAccess, targets, fileActionPending, directFileEnabled, unavailableReason,
     );
     return actions
-      .filter(action => action.id !== "open" ||
-        (targets.length === 1 && canPlayRemoteFile(targets[0]!.name, targets[0]!.mediaAvailability)))
+      .filter(action => action.id !== "open" || playable)
       .map(action => {
         if (action.id !== "open") return action;
         const reason = action.disabledReason ?? availability?.disabledReason;
         return {
           ...action,
+          id: "play" as const,
           label: localizedMessage("remote.video.play"),
-          external: false,
+          external: false as const,
           disabled: action.disabled || availability?.disabled !== false || remoteAccess?.playCompletedFile === undefined,
           ...(reason === undefined ? {} : { disabledReason: reason }),
         };
@@ -377,7 +385,7 @@ export function FileTable({
       });
       return;
     }
-    if (action.id === "open" && playback.remote) {
+    if (action.id === "play") {
       const row = targetRows[0]!;
       playback.play({ torrentId, fileIndex: row.index, fileName: row.name, lengthBytes: row.lengthBytes });
       return;
