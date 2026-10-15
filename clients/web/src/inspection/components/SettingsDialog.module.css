@@ -643,6 +643,16 @@
   gap: var(--ui-space-sm);
 }
 
+/* Torrent list import options: indented under Import, part of its row. */
+.rows > .importOptions {
+  display: grid;
+  gap: var(--ui-space-xs);
+  margin: 0 var(--ui-space-md) var(--ui-space-sm) var(--ui-space-lg);
+  padding: 0 0 0 var(--ui-space-md);
+  border-top: 0;
+  border-left: 2px solid var(--border-soft);
+}
+
 /* Torrent list import result: a summary, then each torrent not added. */
 .importReport {
   display: grid;

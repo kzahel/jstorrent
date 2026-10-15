@@ -5607,9 +5607,9 @@
     "defaultMessage": "{count, plural, =0 {Password changed.} one {Password changed and # browser authorization was revoked.} other {Password changed and # browser authorizations were revoked.}}",
     "description": "Notification after changing the remote access password"
   },
-  "inspection.components.torrent.list.title": {
-    "defaultMessage": "Torrent list",
-    "description": "Settings > Data & reset: title of the torrent list export and import rows"
+  "inspection.components.torrent.list.export.title": {
+    "defaultMessage": "Export",
+    "description": "Settings > Data & reset: title of the row that saves the torrent list to a file"
   },
   "inspection.components.torrent.list.description": {
     "defaultMessage": "Save every torrent to one file to keep as a backup or to open on another device.",
@@ -5631,17 +5631,25 @@
     "defaultMessage": "Couldn't export the torrent list. {error}",
     "description": "Settings > Data & reset: export failure; error is a short technical detail"
   },
-  "inspection.components.torrent.list.save.to": {
-    "defaultMessage": "Save to",
-    "description": "Settings > Data & reset: label of the download folder imported torrents go to"
+  "inspection.components.torrent.list.import.into": {
+    "defaultMessage": "Import into",
+    "description": "Settings > Data & reset: label of the download folder imported torrents are saved in; shown only when there is more than one"
   },
   "inspection.components.torrent.list.no.folders": {
-    "defaultMessage": "Add a download folder first.",
-    "description": "Settings > Data & reset: shown under Save to when there is no download folder to import into"
+    "defaultMessage": "Add a download folder before importing.",
+    "description": "Settings > Data & reset: shown under Import when there is no download folder to import into"
   },
   "inspection.components.torrent.list.keep.locations": {
-    "defaultMessage": "Use a download folder with the same name when there is one",
-    "description": "Settings > Data & reset: switch; an imported torrent goes to the download folder named as on the exporting device, if one exists"
+    "defaultMessage": "Match folders by name",
+    "description": "Settings > Data & reset: switch under Import into; an imported torrent goes to the download folder named as on the exporting device, if one exists"
+  },
+  "inspection.components.torrent.list.keep.locations.description": {
+    "defaultMessage": "A torrent whose folder on the exporting device has the same name as one of yours is saved there instead.",
+    "description": "Settings > Data & reset: explains the Match folders by name switch"
+  },
+  "inspection.components.torrent.list.import.title": {
+    "defaultMessage": "Import",
+    "description": "Settings > Data & reset: title of the row that adds the torrents from an exported file"
   },
   "inspection.components.torrent.list.import.description": {
     "defaultMessage": "Add the torrents from an exported file. Torrents already in your list are skipped, and files already downloaded are checked instead of downloaded again.",

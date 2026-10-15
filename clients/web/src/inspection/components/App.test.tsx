@@ -3315,7 +3315,7 @@ describe("inspection application", () => {
     await user.click(screen.getByRole("button", { name: "Export torrent list" }));
     expect(exportTorrentList).toHaveBeenCalledOnce();
     expect(await findToast("Torrent list saved.")).toBeVisible();
-    expect(screen.getByRole("combobox", { name: "Save to" })).toHaveValue("root_b");
+    expect(screen.getByRole("combobox", { name: "Import into" })).toHaveValue("root_b");
   });
 
   it("retains only the File while options are chosen and applies them after read", async () => {

@@ -48,6 +48,8 @@ export function TorrentListSettingsSection({
     availableRoots.find((root) => root.id === defaultRoot)?.id ??
     availableRoots[0]?.id ??
     null;
+  // With one folder there is nothing to choose: every torrent goes there.
+  const chooseRoot = availableRoots.length > 1;
   const [keepLocations, setKeepLocations] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -120,7 +122,7 @@ export function TorrentListSettingsSection({
     setOutcome(null);
     try {
       const report = await onImport(
-        { storage_root: storageRoot, keep_matching_locations: keepLocations },
+        { storage_root: storageRoot, keep_matching_locations: chooseRoot && keepLocations },
         async () => {
           const bytes = await chooseFile();
           if (bytes !== null && run === importRunRef.current) {
@@ -148,58 +150,31 @@ export function TorrentListSettingsSection({
     }
   };
 
-  const saveToId = "torrent-list-save-to";
+  const importIntoId = "torrent-list-import-into";
   return (
     <div className={styles.rows}>
-      <section>
-        <h4>{localizedMessage("inspection.components.torrent.list.title")}</h4>
-        <p>{localizedMessage("inspection.components.torrent.list.description")}</p>
-        {onExport === undefined ? null : (
+      {onExport === undefined ? null : (
+        <section>
+          <h4>{localizedMessage("inspection.components.torrent.list.export.title")}</h4>
+          <p>{localizedMessage("inspection.components.torrent.list.description")}</p>
           <button type="button" disabled={exporting} aria-busy={exporting} onClick={() => void runExport()}>
             {exporting
               ? localizedMessage("inspection.components.torrent.list.exporting")
               : localizedMessage("inspection.components.torrent.list.export")}
           </button>
-        )}
-      </section>
+        </section>
+      )}
       {exportError === null ? null : (
         <p role="alert" className={styles.errorStatus}>{exportError}</p>
       )}
       {onImport === undefined ? null : (
         <>
-          <div className={pickerStyles.field}>
-            <label htmlFor={saveToId}>
-              <strong>{localizedMessage("inspection.components.torrent.list.save.to")}</strong>
-              {storageRoot === null ? (
-                <small>{localizedMessage("inspection.components.torrent.list.no.folders")}</small>
-              ) : null}
-            </label>
-            <div className={pickerStyles.controls}>
-              <select
-                id={saveToId}
-                value={storageRoot ?? ""}
-                disabled={importing || storageRoot === null}
-                onChange={(event) => setChosenRoot(event.currentTarget.value)}
-              >
-                {availableRoots.map((root) => (
-                  <option key={root.id} value={root.id}>{root.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <label className={styles.preference}>
-            <input
-              type="checkbox"
-              checked={keepLocations}
-              disabled={importing}
-              onChange={(event) => setKeepLocations(event.currentTarget.checked)}
-            />
-            <span>
-              <strong>{localizedMessage("inspection.components.torrent.list.keep.locations")}</strong>
-            </span>
-          </label>
           <section>
+            <h4>{localizedMessage("inspection.components.torrent.list.import.title")}</h4>
             <p>{localizedMessage("inspection.components.torrent.list.import.description")}</p>
+            {storageRoot === null ? (
+              <p>{localizedMessage("inspection.components.torrent.list.no.folders")}</p>
+            ) : null}
             <button
               type="button"
               disabled={importing || storageRoot === null}
@@ -218,6 +193,41 @@ export function TorrentListSettingsSection({
               onChange={(event) => chooserRef.current?.(event.currentTarget.files?.[0] ?? null)}
             />
           </section>
+          {chooseRoot ? (
+            <div className={styles.importOptions}>
+              <div className={pickerStyles.field}>
+                <label htmlFor={importIntoId}>
+                  <strong>{localizedMessage("inspection.components.torrent.list.import.into")}</strong>
+                </label>
+                <div className={pickerStyles.controls}>
+                  <select
+                    id={importIntoId}
+                    value={storageRoot ?? ""}
+                    disabled={importing}
+                    onChange={(event) => setChosenRoot(event.currentTarget.value)}
+                  >
+                    {availableRoots.map((root) => (
+                      <option key={root.id} value={root.id}>{root.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <label className={styles.preference}>
+                <input
+                  type="checkbox"
+                  checked={keepLocations}
+                  disabled={importing}
+                  onChange={(event) => setKeepLocations(event.currentTarget.checked)}
+                />
+                <span>
+                  <strong>{localizedMessage("inspection.components.torrent.list.keep.locations")}</strong>
+                  <small>
+                    {localizedMessage("inspection.components.torrent.list.keep.locations.description")}
+                  </small>
+                </span>
+              </label>
+            </div>
+          ) : null}
           {outcome === null ? null : outcome.type === "error" ? (
             <p role="alert" className={styles.errorStatus}>{outcome.message}</p>
           ) : (

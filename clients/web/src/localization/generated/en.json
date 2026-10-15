@@ -8081,6 +8081,12 @@
       "value": "error"
     }
   ],
+  "inspection.components.torrent.list.export.title": [
+    {
+      "type": 0,
+      "value": "Export"
+    }
+  ],
   "inspection.components.torrent.list.exported": [
     {
       "type": 0,
@@ -8150,6 +8156,18 @@
       "value": "error"
     }
   ],
+  "inspection.components.torrent.list.import.into": [
+    {
+      "type": 0,
+      "value": "Import into"
+    }
+  ],
+  "inspection.components.torrent.list.import.title": [
+    {
+      "type": 0,
+      "value": "Import"
+    }
+  ],
   "inspection.components.torrent.list.importing": [
     {
       "type": 0,
@@ -8159,25 +8177,19 @@
   "inspection.components.torrent.list.keep.locations": [
     {
       "type": 0,
-      "value": "Use a download folder with the same name when there is one"
+      "value": "Match folders by name"
+    }
+  ],
+  "inspection.components.torrent.list.keep.locations.description": [
+    {
+      "type": 0,
+      "value": "A torrent whose folder on the exporting device has the same name as one of yours is saved there instead."
     }
   ],
   "inspection.components.torrent.list.no.folders": [
     {
       "type": 0,
-      "value": "Add a download folder first."
-    }
-  ],
-  "inspection.components.torrent.list.save.to": [
-    {
-      "type": 0,
-      "value": "Save to"
-    }
-  ],
-  "inspection.components.torrent.list.title": [
-    {
-      "type": 0,
-      "value": "Torrent list"
+      "value": "Add a download folder before importing."
     }
   ],
   "inspection.components.torrent.settings.dialog.cancel": [
