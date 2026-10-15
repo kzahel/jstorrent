@@ -45,12 +45,15 @@ test("requires captures for deliveries in the window and the newest per surface"
 
 test("requires every production tag to be recorded or excluded", () => {
   const problems = checkLedger(ledger([recent]), {
-    tags: ["desktop-v0.3.0", "desktop-v0.1.4", "android-v1.0.29", "extension-notes", "android-v1.0.30"],
+    tags: ["desktop-v0.3.0", "desktop-v0.1.4", "android-v1.0.29", "extension-notes", "android-v1.0.30", "extension-v1.1.5"],
     release: "android-v1.0.30",
     today: "2026-10-15",
     captureHas: all,
   });
-  assert.deepEqual(problems, ["android-v1.0.29: production tag missing from compat/deliveries.json"]);
+  assert.deepEqual(problems, [
+    "android-v1.0.29: production tag missing from compat/deliveries.json",
+    "extension-v1.1.5: production tag missing from compat/deliveries.json",
+  ]);
 });
 
 test("rejects malformed entries", () => {

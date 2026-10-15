@@ -258,5 +258,7 @@ that it has very few users.
 - **Version-population record** from the sources above, and a usage signal
   for the hosted remote controller (see Version Observability).
 - **Automatic updates**, Tactical 355.
-- **Store automation.** Extension upload and submission are manual through
-  the dashboard; Google review still takes days.
+- **Store automation.** `extension-v*` tags test, package and submit the
+  extension through `extension-release.yml` once the one-time Google and
+  GitHub setup in `clients/extension/README.md` exists; until then the
+  `publish` job fails at authentication. Google review still takes days.

@@ -1,9 +1,11 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   chmodSync,
   copyFileSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   writeFileSync,
   rmSync,
   utimesSync,
@@ -15,6 +17,7 @@ import {
   companionPackagedFiles,
   extensionRoot,
   packagedFiles,
+  productionExtensionId,
   validateArchive,
   validateCompanionBuild,
   validateSource,
@@ -56,6 +59,23 @@ try {
     stdio: "inherit",
   });
   validateArchive(outputPath, production);
+  if (production) {
+    // The record scripts/publish-store.mjs verifies before any store upload.
+    const git = (...args) =>
+      execFileSync("git", args, { cwd: extensionRoot, encoding: "utf8" }).trim();
+    const filename = path.basename(outputPath);
+    const sha256 = createHash("sha256").update(readFileSync(outputPath)).digest("hex");
+    const build = {
+      version: manifest.version,
+      filename,
+      sha256,
+      extensionId: productionExtensionId,
+      revision: git("rev-parse", "HEAD"),
+      sourceDirty: git("status", "--porcelain") !== "",
+    };
+    writeFileSync(path.join(outputDirectory, "build.json"), `${JSON.stringify(build, null, 2)}\n`);
+    writeFileSync(`${outputPath}.sha256`, `${sha256}  ${filename}\n`);
+  }
   console.log(outputPath);
 } finally {
   rmSync(staging, { recursive: true, force: true });

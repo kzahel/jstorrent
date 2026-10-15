@@ -17,6 +17,14 @@ on:
         description: Client version (current or a commit); leave empty for every pair
         type: string
         default: ""
+  workflow_call:
+    inputs:
+      host:
+        type: string
+        default: ""
+      client:
+        type: string
+        default: ""
   push:
     tags:
       - "desktop-v*"

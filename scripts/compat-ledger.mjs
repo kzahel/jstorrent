@@ -14,7 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const PRODUCTION_TAG = /^(desktop|android|headless|crostini)-v\d+\.\d+\.\d+$/;
+const PRODUCTION_TAG = /^(desktop|android|headless|crostini|extension)-v\d+\.\d+\.\d+$/;
 const STATUSES = new Set(["submitted", "published", "rolling-out", "withdrawn"]);
 const ROLE_FILES = {
   host: ["v1.schema.json", "hello.json", "settings.json", "view-set-trace.json"],
