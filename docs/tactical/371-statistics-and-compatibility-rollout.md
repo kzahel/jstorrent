@@ -1,9 +1,8 @@
 # Tactical 371: Statistics And Compatibility Reporting Rollout
 
-Status: Ready, 2026-10-15. Handoff plan for a machine with access to the
-update server (the Pi, SSH host `pi`) and the maintainer's dotfiles. The
-repository side of each step is already on `main` unless the step says
-otherwise.
+Status: Steps 1–3 complete, 2026-10-15. Steps 4–8 remain unstarted by this
+rollout; continue only on maintainer request. The update-server change is
+deployed on the Pi; the maintainer's dotfiles contain the reporting change.
 Topics: `product-state-and-feedback`, `mixed-version-compatibility`.
 
 ## Context
@@ -93,6 +92,49 @@ Topics: `product-state-and-feedback`, `mixed-version-compatibility`.
 
 Steps 1–3 need the Pi or the dotfiles; 4–8 can run anywhere, with 6 and 8
 needing release or deployment authority.
+
+## Steps 1–3 Evidence, 2026-10-15
+
+- **Server:** `kzahel/simple-app-update-server` commit
+  `24f04c863d6caf9ea5dedb8827a703669e51841d` adds optional
+  `statistics: on|off|unreviewed` to all three logged update-check routes.
+  Absent, empty, uppercase, malformed, combined and oversized invalid
+  values omit the field. No identifier is added. `npm run check` passed
+  lint, typechecking and all 122 tests, including 27 new route/log cases;
+  `npm run build` passed locally and on the Pi. The commit was pushed to
+  `main`, fast-forwarded on the Pi, rebuilt and deployed by restarting the
+  existing user unit. The local and Pi server checkouts match this commit;
+  the Pi's untracked `products.d/` deployment configuration was preserved.
+- **Production smoke:** both JSTorrent and 200 OK health endpoints returned
+  `{"ok":true}`. A request to
+  `/tauri/darwin/aarch64/0.3.1` with `X-Statistics: off` returned 204.
+  The NDJSON entry at `2026-10-15T19:57:24.621Z` contains
+  `statistics: "off"`, an empty `cfuId`, and
+  `checkReason: "tactical-371-verification"`. This marked diagnostic entry
+  remains in the source log; the updated stats parser excludes that marker
+  from every view so it does not bias the estimate. Other log consumers
+  must apply the same filter if they need to exclude it.
+- **Reporting:** the dotfiles parser and analytics runbook now report each
+  text window's on/off/unreviewed/missing checks, all unique nonempty
+  `cfuId`s, the unique explicitly-on sample, and
+  `unique_on_ids × (on + off) / on`. Daily output uses each day's own
+  sample. The equal-check-frequency assumption is printed; older/missing
+  and unreviewed checks are excluded from the estimate. No identified on
+  sample produces unavailable/N/A. Six Python regression tests passed via
+  `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s projects/jstorrent -p 'test_update_stats.py'`.
+  Live JSTorrent summary and daily commands and the shared 200 OK recent
+  command passed. Production has no unmarked header-reporting sample yet,
+  so the live estimate correctly remains unavailable pending step 6.
+- **Website:** the
+  [Website run for `f940f487`](https://github.com/kzahel/jstorrent/actions/runs/38794521430)
+  completed successfully, including deployment to Cloudflare Pages and its
+  deployed-client check. A fresh `curl --location` request confirmed
+  [privacy.html](https://jstorrent.com/privacy.html) redirects to `/privacy`
+  and serves both "Updated October 15, 2026" and the "Remote access"
+  heading. The live `.well-known/jstorrent-website.json` identifies
+  `kzahel/jstorrent` at `f940f487509e2802808e964affa56e9b173cc664`.
+- **Boundary:** no release-hold edit, companion-header change, application
+  release, compatibility reporting or relay deployment was performed.
 
 ## Non-Goals
 

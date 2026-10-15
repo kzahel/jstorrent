@@ -17,7 +17,13 @@ best-effort trustworthiness, not a consent-tracking system.
 - **Opt-outs are counted.** Desktop update checks send `X-Statistics: on`,
   `off` or `unreviewed` with no identifier, so the opted-in sample (unique
   `X-CFU-Id` values) can be scaled to an estimated population. The update
-  server must log the header for this to be readable.
+  server logs the allowlisted header values after Tactical
+  [371](../tactical/371-statistics-and-compatibility-rollout.md)'s steps 1–3
+  deployed on 2026-10-15. The maintainer's reporting script separates
+  choices and estimates the active header-reporting population using the
+  unique explicitly-on sample and on/off check ratio. It states the
+  equal-check-frequency assumption and reports unavailable until an
+  identified on sample exists; desktop release delivery remains separate.
 - **Compatibility reports** (Tactical
   [370](../tactical/370-version-handshake-and-compatibility-reports.md)):
   with statistics on, hosts and clients may send coarse version and

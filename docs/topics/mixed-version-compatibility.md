@@ -277,6 +277,16 @@ telemetry:
 
 A periodic version-population record belongs here once these are read.
 
+Tactical [371](../tactical/371-statistics-and-compatibility-rollout.md)
+steps 1–3 deployed statistics-choice logging on 2026-10-15 and added
+on/off/unreviewed/missing counts and an installation estimate to the
+maintainer's update-stats script. The estimate uses unique explicitly-on
+IDs and the on/off check ratio within each window, assuming equal check
+frequency. Missing and unreviewed checks are excluded. Existing production
+checks lack the new header, so the estimate remains unavailable until a
+desktop release supplies an identified on sample. This changes neither
+the release hold nor the missing hosted-controller usage signal below.
+
 **Hosted remote controller usage is unknown.** Nothing records whether
 anyone uses `jstorrent.com/remote/` or which host versions it connects to.
 The relay could count authenticated circuits by host build (it sees
