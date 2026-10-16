@@ -697,7 +697,7 @@ async fn ordinary_offline_checker_reuses_good_bytes_and_rejects_corruption() {
         let bytes = vec![42u8; 16384];
         let piece = <sha1::Sha1 as sha1::Digest>::digest(&bytes);
         let mut info =
-            b"d6:lengthi16384e4:name10:shared.bin12:piece lengthi16384e6:pieces20:".to_vec();
+            b"d6:lengthi16384e4:name10:shared.exe12:piece lengthi16384e6:pieces20:".to_vec();
         info.extend_from_slice(&piece);
         info.push(b'e');
         let hash = <sha1::Sha1 as sha1::Digest>::digest(&info)
@@ -712,7 +712,7 @@ async fn ordinary_offline_checker_reuses_good_bytes_and_rejects_corruption() {
         if corrupt {
             payload[0] ^= 1;
         }
-        fs::write(profile.download_roots[0].path.join("shared.bin"), &payload).unwrap();
+        fs::write(profile.download_roots[0].path.join("shared.exe"), &payload).unwrap();
         let database = fixture.database("alpha");
         database.execute_batch("DELETE FROM kv").unwrap();
         for (key, value) in [
@@ -723,6 +723,13 @@ async fn ordinary_offline_checker_reuses_good_bytes_and_rejects_corruption() {
         drop(database);
         fixture.migrate();
         let mut store = fixture.open();
+        let torrent_id = store.snapshot().unwrap().torrents[0].torrent_id.clone();
+        let imported = store.load_resume(&torrent_id).unwrap();
+        assert!(
+            imported.safety_policy.extensions.is_empty(),
+            "legacy import must retain executable-file intent"
+        );
+        assert!(imported.skip_files.is_empty());
         let transaction = store.connection.transaction().unwrap();
         replace_client_settings(
             &transaction,
@@ -774,7 +781,7 @@ async fn ordinary_offline_checker_reuses_good_bytes_and_rejects_corruption() {
         );
         service.shutdown().await.unwrap();
         assert_eq!(
-            fs::read(profile.download_roots[0].path.join("shared.bin")).unwrap(),
+            fs::read(profile.download_roots[0].path.join("shared.exe")).unwrap(),
             payload
         );
     }

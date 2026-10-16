@@ -1,5 +1,7 @@
 # Topics
 
+- [Download safety](download-safety.md): captured skip rules, overrides, bitmap storage and OS origin labels.
+
 For running and debugging the current product, start with the
 [development map](../../DEVELOPMENT.md). Legacy replacement and cutover
 concerns are indexed separately in the [migration stream](../migration/README.md).

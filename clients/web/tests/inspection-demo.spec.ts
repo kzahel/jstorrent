@@ -1024,15 +1024,17 @@ test("seeding priority settings stay truthful across responsive layouts", async 
   await expect(goalTime.locator("option:checked")).toHaveText("1 day");
   await stop.getByRole("combobox", { name: "Share ratio" }).selectOption({ label: "Custom…" });
   await stop.getByRole("combobox", { name: "Seeding time" }).selectOption({ label: "Custom…" });
-  // Every select and number field in the form shares one right edge and
+  // Mounted inactive settings panels have hidden controls with zero boxes.
+  // Every visible select and number field shares one right edge and
   // width. A custom time splits its row between a number and a unit choice.
   const boxes = await dialog
-    .locator('form select, form input[type="number"]')
+    .locator('form select:visible, form input[type="number"]:visible')
     .evaluateAll((elements) =>
       elements.map((element) => {
         const field = element.closest('[class*="unitInput"]') ?? element;
         const box = field.getBoundingClientRect();
         return {
+          id: element.id,
           right: Math.round(box.right),
           width: Math.round(box.width),
           shared: field.parentElement?.className.includes("custom") === true,
@@ -1043,6 +1045,7 @@ test("seeding priority settings stay truthful across responsive layouts", async 
   expect(boxes.filter((box) => !box.shared).length).toBeGreaterThan(8);
   expect(
     new Set(boxes.filter((box) => !box.shared || box.last).map((box) => box.right)).size,
+    JSON.stringify(boxes),
   ).toBe(1);
   expect(
     new Set(boxes.filter((box) => !box.shared).map((box) => box.width)).size,

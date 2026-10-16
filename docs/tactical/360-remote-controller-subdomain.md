@@ -1,8 +1,9 @@
 # Tactical 360: Hosted Remote Controller On Its Own Subdomain
 
-Status: Active, 2026-10-16. Maintainer authorized end-to-end implementation,
-production cutover and incremental commits. Scope and access investigation
-are complete; execution evidence follows as each gate passes.
+Status: Complete, 2026-10-16. Remote controller 0.3.2 is published at its
+independent origin; marketing redirects, retained assets, canary, rollback and
+monitoring acceptance pass. The bounded legacy bridge remains intentionally
+active until its reviewed retirement window.
 Topics: `mixed-version-compatibility`, `remote-access-authentication`,
 `client-surfaces`.
 
@@ -148,11 +149,11 @@ existing source-root override or correct that private default deliberately.
 - Keep the exact old `/remote/assets/` hashed files available for at least
   the 30-day compatibility window after cutover. Open tabs can load player
   chunks later. Recommended implementation: pin a verified manifest and
-  frozen asset archive from the last combined deployment, and include only
+  frozen assets from the last combined deployment, and include only
   that compatibility asset set in marketing assembly until its recorded
   retirement date. Never rebuild the controller there or fetch its latest
   release on each marketing deploy. Bound files and total bytes from the
-  captured manifest, verify every digest, and fail closed on archive drift.
+  captured manifest, verify every digest, and fail closed on source drift.
 - Browser authorization and host pins are origin-scoped. Explain the one-time
   password sign-in and browser approval; do not copy credentials or pins
   across origins. Host registrations, passwords and local torrent data remain
@@ -273,3 +274,135 @@ without it, and the owning topics describe the new release path.
   `cargo fmt --all` applied. Private deployer local syntax checks pass.
 - Automatic combined Website deployment is temporarily disabled while the
   release lanes are split; the existing public artifact keeps serving.
+
+### Independent artifact and workflow implementation
+
+- Controller assembly now owns the root document, complete security policy,
+  no-store manifest, hashed assets and explicit 404 (no implicit SPA/service
+  worker fallback). The local product verifier uses the same root layout.
+- Marketing deploys independently from main, with no Rust/Wasm/client build.
+  A pinned manifest retrieves only the last combined deployment's 41 exact
+  hashed assets (about 3.5 MB) with four bounded workers and per-file digest/
+  length verification. This replaces the proposed archive with independently
+  verifiable files from the immutable deployment; no new source is imported.
+  These are retained first-party build outputs with the same bundled dependency
+  provenance/notices as the original release. Retirement is reviewed no earlier
+  than 2026-11-16; files are not silently dropped on that date.
+- Captured the last combined controller's actual decoder/schema at bdc58e4a
+  and added it as the legacy remote client delivery. Remote tags now participate
+  in the compatibility ledger. Tagged builds report their independent version.
+- The new controller workflow builds on main/PR, deploys only remote-v tags,
+  verifies tag ancestry, gates deployment on the reusable live compatibility
+  workflow, retains the exact tested artifact, explicitly selects the Pages
+  production branch, and verifies its immutable URL plus custom domain.
+- Local web typecheck and all 843 unit cases pass (three opt-in tests skipped).
+  Fourteen assembly/legacy integrity/ledger tests pass; workflow lint passes.
+  Production remote build, root Chromium/React/Wasm smoke, website tests,
+  website check/build and complete frozen-asset assembly pass.
+- The exact transition relay at 4dd1890c is deployed using the private
+  candidate/rollback runner; TLS/operator smoke, authority-preserving switch,
+  public health/WSS and backup pass. The separate Pages project and its custom
+  domain are provisioned; public controller cutover remains pending.
+
+- After adding the actually deployed remote client to the ledger, the matrix
+  caught an overly broad requestedBy assertion. It now forbids reachable
+  output only for clients that reject it, with a negative control for a client
+  that can request a feature but cannot decode the response. All 849 web cases
+  pass; the legacy controller's raw failures are explicitly empty. The host
+  release hold and rejected enum policy remain intact.
+- The root-layout local product verifier passes private/shared login, reload,
+  browser and relay restart, phone viewport, package rollback, rendered audit,
+  1-MiB exact direct save, revoke, changed-host rejection, 256 invalid circuits,
+  zero service workers and joined cleanup.
+
+- Follow-up workflow validation caught an unused retry counter in shell lint;
+  the propagation retry now reports its attempt. Tagged rollback archives are
+  deterministic, and rerunning deployment refuses to overwrite changed release
+  bytes. The controller manifest also records its independent release version.
+
+- Complete local Rust baseline passes: `cargo fmt --all -- --check`,
+  `cargo clippy --workspace -- -D warnings`, and `cargo test --workspace`
+  (1,720 passed, 20 ignored). The first remote tag is 0.3.2 at 859f00de.
+  Its exact decoder is captured and delivery recorded as submitted while the
+  live compatibility/publication gate runs; first-public date remains unset.
+  A concurrent main build correctly refused the newly pushed tag until this
+  delivery entry landed. This is not an ignored compatibility failure.
+
+### Tagged publication and public canary
+
+- Remote Controller run 38905389697 passes build, live compatibility and
+  production deployment. The existing CI Pages credential deploys the separate
+  project successfully. The independent controller is remote-v0.3.2 at
+  859f00de; all 42 public manifest digests and required security/cache/MIME
+  headers pass. The release retains a deterministic rollback archive and is
+  marked prerelease, preserving the existing canary support scope. GitHub's
+  latest normal release remains desktop-v0.3.1.
+- The live matrix passes all ten expected outcomes: current/current and five
+  captured old hosts complete connect, root setup, add, download, independent
+  verification, remove and payload deletion. Tolerant extension 1.1.5 and the
+  legacy hosted controller complete the reverse direction. Strict extensions
+  1.1.3/1.1.4 retain exactly their two recorded expected connect failures; the
+  host-release hold is not lifted.
+- The actual new HTTPS origin passes the disposable public-host canary:
+  private login, reload/browser-restart resume, exact revoke, shared login and
+  shared restart requiring a password. No third-party requests or page errors
+  occur. Signed route release precedes profile/process cleanup.
+- The wider main CI's one seeding-settings alignment failure is independently
+  reproduced on pre-cutover bdc58e4a. Its exact assertion and open gap are
+  recorded in web-ui-design; no unrelated form-layout change is included here.
+- Marketing deployment is re-enabled and explicitly dispatched after canary
+  acceptance. Cached-tab/redirect and rollback acceptance follows below.
+
+### Cutover, rollback and terminal checkpoint
+
+- Website run 38907777906 deploys the marketing-only source 6bd3df88. It no
+  longer compiles the client or Wasm. The controller stays at version 0.3.2,
+  source 859f00de, before and after that deployment.
+- A tab opened on the old site before cutover retrieves all 28 old JavaScript
+  chunks afterwards. All 41 retained assets independently match their pinned
+  SHA-256, length and immutable cache policy on the canonical marketing origin.
+  Actual browser navigation from apex, www and the former product domain
+  preserves query strings and fragments at the new root.
+- Rerunning only controller deployment passes and refuses mutated release
+  archives. A same-version production-pointer rollback to its first independent
+  deployment and restoration to its second pass all 42 live digest/header
+  checks. This proves deployment rollback mechanics, not an earlier independent
+  controller version (none exists yet).
+- Marketing's real rollback restores the last combined bdc58e4a artifact and
+  old controller document, then returns to the split artifact and redirects.
+  An immediate first probe still saw the previous edge receipt, and the exit
+  trap restored production. The bounded convergence check then passes rollback
+  in 12,848 ms and restoration in 4,309 ms. The independent controller remains
+  on 859f00de throughout. Future rollback verification must wait for actual
+  edge source/document convergence, not just a successful control-plane call.
+- Existing monitoring link/probe now targets the independent origin, preserving
+  its source/history IDs. Private service/Pages targets and rollout receipts
+  are recorded in the infrastructure runbook. No native host release or wider
+  remote-access support claim follows.
+- Public first-public date is October 16. Legacy remote 0.3.1 leaves its
+  compatibility window on November 15; retain both exact origins and frozen
+  assets until reviewed retirement no earlier than November 16. Document
+  redirects remain after retirement. Do not erase or copy browser trust.
+- Concurrent Android edits prevented a safe merge in the original checkout;
+  implementation used an isolated checkout based on current public main.
+  Changes were committed incrementally and pushed to canonical main, without
+  modifying that concurrent Android work.
+
+The remaining strict-client host-release hold, independent-network/mobile
+remote-access qualification and the reproduced pre-existing seeding-settings
+layout failure are separate concerns. None is marked passed by this cutover.
+
+Final handoff checks pass the 58 affected compatibility/ledger cases after
+recording publication, changed-document link checks and `git diff --check`.
+The relay is accepting with zero active circuits, pumps and waiting hosts,
+and its registration count returns to the pre-canary baseline. The current
+system service is running; no duplicate user service is loaded. Temporary
+canary profiles, browsers, baseline worktrees, logs and downloaded artifacts
+are removed; normal build caches and the isolated implementation checkout
+remain. Final publication metadata/docs do not change the tested runtime
+artifact. Existing native CI qualification is allowed to finish independently.
+
+Subsequent Tactical [375](375-ci-reconciliation-and-ui-regressions.md)
+reproduces and repairs the separate seeding-settings assertion: its second
+geometry came from an inactive panel’s hidden select. All 72 deterministic
+browser cases pass locally after restricting the check to visible controls.

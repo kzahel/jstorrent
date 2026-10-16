@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [375 — CI reconciliation and UI regressions](375-ci-reconciliation-and-ui-regressions.md):
+  merge concurrent contracts, repair Rust test lints, and scope browser/iOS
+  assertions to displayed or scrolled settings controls.
 - [372 — CI packaging and presentation regressions](372-ci-packaging-and-presentation-regressions.md):
   npm Git notice provenance, current support-link/Settings browser assertions
   and Android pending-selection request order across service startup.

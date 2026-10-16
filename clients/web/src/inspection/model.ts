@@ -297,6 +297,7 @@ export interface TorrentRow {
   readonly awaitingFileSelection?: boolean;
   readonly pendingFileSelectionPosition?: number | null;
   readonly fileCatalogId?: string | null;
+  readonly safetySummary?: import("../api").FileSafetySummary | null;
   readonly selectableFileCount?: number;
   readonly selectedFileCount?: number;
   readonly selectableFileBytes?: string;
@@ -399,6 +400,7 @@ export interface SwarmSet {
 }
 
 export interface FileRow {
+  readonly safety?: import("../api").FileSafetyView | null;
   readonly id: string;
   readonly torrentId: string;
   readonly index: number;
@@ -782,6 +784,8 @@ export type InspectionCommand =
       readonly startContent: boolean;
       readonly awaitFileSelection?: boolean;
     }
+  | { readonly type: "update_file_safety_settings"; readonly settings: import("../api").FileSafetySettings }
+  | { readonly type: "set_file_safety_override"; readonly torrentId: string; readonly fileIndices: readonly number[]; readonly allowed: boolean }
   | {
       readonly type: "set_file_priority";
       readonly torrentId: string;

@@ -28,8 +28,8 @@ interface ReviewedExposure {
   readonly reason: string;
   /**
    * A host sends it only after a client makes this request, given as the
-   * request's own exposure path (`Definition.oneOf[variant]`). No supported
-   * released client's contract may contain it.
+   * request's own exposure path (`Definition.oneOf[variant]`). A supported
+   * client that rejects the output must not be able to make that request.
    */
   readonly requestedBy?: string;
 }
@@ -181,17 +181,30 @@ describe("reviewed client exposures", () => {
     );
   });
 
-  it("name requests no supported released client can make", () => {
+  it("name requests no supported rejecting client can make", () => {
     const requestable = Object.entries(REVIEWED_CLIENT_EXPOSURE).flatMap(([path, exposure]) => {
       if (exposure.requestedBy === undefined) return [];
       const match = /^([A-Za-z]+)\.oneOf\[([^\]]+)\]$/.exec(exposure.requestedBy);
       if (match === null) return [`${path}: requestedBy must be Definition.oneOf[variant]`];
       const [, name, variant] = match;
-      return CLIENT_CAPTURES.filter((capture) =>
-        variants((capture.schema as { $defs: Definitions }).$defs[name!]).includes(variant!),
-      ).map((capture) => `${path}: ${capture.deliveries} can request ${exposure.requestedBy}`);
+      return CLIENT_CAPTURES.filter((capture) => requestReachesRejectedExposure(
+        (capture.schema as { $defs: Definitions }).$defs,
+        (current as { $defs: Definitions }).$defs,
+        !capture.strict, path, name!, variant!,
+      )).map((capture) => `${path}: ${capture.deliveries} can request ${exposure.requestedBy}`);
     });
     expect(requestable).toEqual([]);
+  });
+
+  it("allows a request once that client understands its output, while rejecting an unsafe reachable output", () => {
+    const branch = { type: "object", properties: { type: { const: "media" } } };
+    const after: Definitions = { ViewSpec: { oneOf: [branch] }, ViewPatch: { oneOf: [branch] } };
+    const old: Definitions = { ViewSpec: { oneOf: [] }, ViewPatch: { oneOf: [] } };
+    const path = "ViewPatch.oneOf[type=media]";
+    expect(requestReachesRejectedExposure(old, after, true, path, "ViewSpec", "type=media")).toBe(false);
+    expect(requestReachesRejectedExposure({ ...old, ViewSpec: after.ViewSpec! }, after, true,
+      path, "ViewSpec", "type=media")).toBe(true);
+    expect(requestReachesRejectedExposure(after, after, true, path, "ViewSpec", "type=media")).toBe(false);
   });
 
   it("classify an enum value as rejected by tolerant clients and a field as not", () => {
@@ -306,6 +319,14 @@ function breakingChanges(name: string, old: Schema, next: Schema): string[] {
  * `value` exposures for tolerant ones. Client-sent types are checked by the
  * capability rules instead.
  */
+function requestReachesRejectedExposure(
+  before: Definitions, after: Definitions, tolerantOnly: boolean,
+  exposure: string, request: string, variant: string,
+): boolean {
+  return variants(before[request]).includes(variant) &&
+    rejectedExposures(before, after, tolerantOnly).some(({ path }) => path === exposure);
+}
+
 function rejectedExposures(
   before: Definitions,
   after: Definitions,

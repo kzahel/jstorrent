@@ -1947,6 +1947,7 @@ class ProductEngineService : Service() {
                 dispatchAwait(
                     Command.UpdateClientSettings(
                         ClientSettings(
+                            fileSafety = org.rstorrent.session.uniffi.FileSafetySettings(true, org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, emptyList(), true),
                             listener = ListenerPolicy.Disabled,
                             preferredListenPort = 6_881U.toUShort(),
                             portMapping = PortMappingPolicy.DISABLED,
@@ -2014,6 +2015,7 @@ class ProductEngineService : Service() {
                 dispatchAwait(
                     Command.UpdateClientSettings(
                         ClientSettings(
+                            fileSafety = org.rstorrent.session.uniffi.FileSafetySettings(true, org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, emptyList(), true),
                             listener = ListenerPolicy.Disabled,
                             preferredListenPort = 6_881U.toUShort(),
                             portMapping = PortMappingPolicy.DISABLED,
@@ -3437,6 +3439,23 @@ class ProductEngineService : Service() {
 
     fun cancelPendingAdd(torrentId: String) {
         dispatch(Command.CancelPendingAdd(torrentId))
+    }
+
+    fun setFileSafetyOverride(torrentId: String, files: List<UInt>, allowed: Boolean) {
+        if (files.isEmpty()) return
+        dispatchTorrentCommands(listOf(Command.SetFileSafetyOverride(torrentId, files, allowed)))
+    }
+
+    fun updateFileSafety(settings: org.rstorrent.session.uniffi.FileSafetySettings, expected: org.rstorrent.session.uniffi.FileSafetySettings) {
+        if (rejectMutationDuringDataReset()) return
+        scope.launch {
+            try {
+                clientReady.await()
+                val current = mutableState.value
+                check(current.clientSettings?.configured?.fileSafety == expected) { getString(R.string.safety_conflict) }
+                dispatchForResponse(Command.UpdateFileSafetySettings(settings), current.latestDurableRevision())
+            } catch (error: Throwable) { reportError(error) }
+        }
     }
 
     fun setFilePriority(

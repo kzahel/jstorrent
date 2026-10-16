@@ -38,6 +38,8 @@ pub enum FileCatalogState {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct FileView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub safety: Option<crate::FileSafetyView>,
     pub file_id: String,
     pub file_index: u32,
     pub path: Vec<String>,
@@ -60,6 +62,8 @@ pub(crate) struct FileViewChange {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct FileCatalog {
+    safety_policy: crate::file_safety::FileSafetyPolicy,
+    safety_allowed: crate::file_bitmap::FileBitmap,
     layout: ContentLayout,
     /// The folder a multi-file torrent's paths are relative to.
     content_root: Option<String>,
@@ -206,6 +210,8 @@ impl FileProgressModel {
         u32::try_from(file_count).map_err(|_| FileProgressError::FileIndexOverflow)?;
         let mut model = Self {
             catalog: Arc::new(FileCatalog {
+                safety_policy: Default::default(),
+                safety_allowed: Default::default(),
                 layout,
                 content_root,
                 media,
@@ -220,6 +226,17 @@ impl FileProgressModel {
         };
         model.reconcile_verified(verified_pieces)?;
         Ok(model)
+    }
+
+    pub(crate) fn with_safety(
+        mut self,
+        policy: crate::file_safety::FileSafetyPolicy,
+        allowed: crate::file_bitmap::FileBitmap,
+    ) -> Self {
+        let catalog = Arc::make_mut(&mut self.catalog);
+        catalog.safety_policy = policy;
+        catalog.safety_allowed = allowed;
+        self
     }
 
     pub(crate) fn filesystem_content_base(&self) -> Option<&str> {
@@ -324,6 +341,22 @@ impl FileProgressModel {
             )
         };
         FileView {
+            safety: if file.padding {
+                None
+            } else {
+                self.catalog
+                    .safety_policy
+                    .match_file(self.catalog.content_root.as_deref(), &file.path)
+                    .map(|matched_extension| {
+                        let overridden = self.catalog.safety_allowed.contains(index as u32);
+                        crate::FileSafetyView {
+                            matched_extension,
+                            preset: self.catalog.safety_policy.preset,
+                            overridden,
+                            blocked: !overridden,
+                        }
+                    })
+            },
             file_id: index.to_string(),
             file_index: u32::try_from(index).expect("file index was validated at construction"),
             path: file.path.clone(),

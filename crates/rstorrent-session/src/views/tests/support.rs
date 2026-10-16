@@ -36,6 +36,7 @@ pub(super) fn snapshot(revision: u64, piece_count: u32) -> ServiceSnapshot {
         storage: Default::default(),
         client_settings: Default::default(),
         torrents: vec![TorrentSnapshot {
+            safety_summary: None,
             torrent_id: "t1-000102030405060708090a0b0c0d0e0f".to_owned(),
             protocol_identities: crate::TorrentProtocolIdentities {
                 v1: Some("000102030405060708090a0b0c0d0e0f10111213".to_owned()),

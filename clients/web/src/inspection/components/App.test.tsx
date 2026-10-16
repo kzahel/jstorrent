@@ -1,3 +1,4 @@
+import { DEFAULT_CLIENT_SETTINGS as FILE_SAFETY_DEFAULTS } from "../../api";
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
@@ -2139,6 +2140,27 @@ describe("inspection application", () => {
         priority: "normal",
       }),
     );
+  });
+
+  it("explains a safety skip and sends explicit per-file allowance without Download now", async () => {
+    const user = userEvent.setup();
+    const base = { ...buildScenarioSnapshot("file-progress", 24_000, false, 1), demo: null };
+    const files = base.filesByTorrent[DEMO_PRIMARY_TORRENT_ID]!;
+    const first = files.order.map(id => files.rows[id]!).find(row => !row.padding)!;
+    const blocked: FileRow = { ...first, name: "movie.mkv.exe", path: ["movie.mkv.exe"], selection: "skipped", safety: { matched_extension: ".exe", preset: "recommended", overridden: false, blocked: true } };
+    const snapshot = { ...base, filesByTorrent: { ...base.filesByTorrent, [DEMO_PRIMARY_TORRENT_ID]: { ...files, rows: { ...files.rows, [blocked.id]: blocked } } } };
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+    renderApplication(application);
+    await user.click(within(screen.getByRole("navigation", { name: "Primary" })).getByRole("button", { name: "Torrents" }));
+    await user.click(screen.getByRole("tab", { name: "Files" }));
+    expect(screen.getByText(/Skipped by safety settings.*.exe/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Download anyway movie.mkv.exe" }));
+    await waitFor(() => expect(application.commands.at(-1)).toEqual({ type: "set_file_safety_override", torrentId: DEMO_PRIMARY_TORRENT_ID, fileIndices: [blocked.index], allowed: true }));
+    expect(application.commands.some(command => command.type === "download_files" || command.type === "resume")).toBe(false);
+    application.emitUpdate({ type: "snapshot", snapshot: { ...snapshot, filesByTorrent: { ...snapshot.filesByTorrent, [DEMO_PRIMARY_TORRENT_ID]: { ...files, rows: { ...files.rows, [blocked.id]: { ...blocked, selection: "normal", safety: { ...blocked.safety!, overridden: true, blocked: false } } } } } } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Undo safety override movie.mkv.exe" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Undo safety override movie.mkv.exe" }));
+    await waitFor(() => expect(application.commands.at(-1)).toMatchObject({ type: "set_file_safety_override", allowed: false }));
   });
 
   it("materializes the global disk pipeline only on the Disk tab", async () => {
@@ -4411,6 +4433,7 @@ describe("inspection application", () => {
   it("reports a recoverable listener bind failure without hiding settings", async () => {
     const user = userEvent.setup();
     const active = {
+      file_safety: FILE_SAFETY_DEFAULTS.file_safety,
       listener: { type: "fixed_loopback" as const, port: 51_413 },
       preferred_listen_port: 6_881,
       port_mapping: "disabled" as const,

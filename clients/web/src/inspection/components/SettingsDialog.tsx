@@ -20,6 +20,7 @@ import type { CommandAccepted, DownloadRoot, DownloadStorageSettings } from "../
 import { AppearanceSettingsSection } from "./AppearanceSettingsSection";
 import { AboutUpdatesSettingsSection } from "./AboutUpdatesSettingsSection";
 import { ConnectionSeedingSettingsSection } from "./ConnectionSeedingSettingsSection";
+import { FileSafetySettingsSection } from "./FileSafetySettingsSection";
 import { DownloadSettingsSection } from "./DownloadSettingsSection";
 import { DataResetSettingsSection } from "./DataResetSettingsSection";
 import { Icon } from "./Icon";
@@ -322,6 +323,7 @@ export function SettingsDialog({
                 onShowFileSelectionChange={onShowFileSelectionChange}
                 onRemoveRoot={onRemoveRoot}
               />
+              <FileSafetySettingsSection settings={clientSettings.configured.file_safety} manageable={clientSettingsManageable && !clientSettingsLoading} />
             </div>
             <div
               id="settings-panel-connection"

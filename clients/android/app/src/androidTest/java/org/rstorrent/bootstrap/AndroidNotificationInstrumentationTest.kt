@@ -348,6 +348,7 @@ class AndroidNotificationInstrumentationTest {
         received: ULong,
     ) =
         TorrentView(
+            safetySummary = null,
             torrentId = id,
             protocolIdentities = TorrentProtocolIdentities(v1 = null, v2 = null),
             displayName = "Fixture torrent",
@@ -407,6 +408,7 @@ class AndroidNotificationInstrumentationTest {
     private fun clientSettings(): ClientSettingsRuntimeView {
         val configured =
             ClientSettings(
+                            fileSafety = org.rstorrent.session.uniffi.FileSafetySettings(true, org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, emptyList(), true),
                 listener = ListenerPolicy.Disabled,
                 preferredListenPort = 6_881U.toUShort(),
                 portMapping = PortMappingPolicy.DISABLED,

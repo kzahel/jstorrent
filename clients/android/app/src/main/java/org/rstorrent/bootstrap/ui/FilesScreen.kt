@@ -48,6 +48,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -101,6 +102,7 @@ internal fun FilesScreen(
     archived: Boolean = false,
     selection: Set<String> = emptySet(),
     onSelectionChange: (Set<String>) -> Unit = {},
+    onSafetyOverride: (FileView, Boolean) -> Unit = { _, _ -> },
     onSetPriority: (List<FileView>, FilePriority) -> Unit,
     onDownloadNow: (List<FileView>) -> Unit,
     onShare: (List<FileView>) -> Unit = {},
@@ -162,6 +164,7 @@ internal fun FilesScreen(
             archived = archived,
             mediaLaunchPending = mediaLaunchPending,
             onDismiss = { sheetFileId = null },
+            onSafetyOverride = { onSafetyOverride(file, it) },
             onSetPriority = { onSetPriority(listOf(file), it) },
             onDownloadNow = {
                 sheetFileId = null
@@ -324,6 +327,9 @@ private fun FileRow(
 
 @Composable
 private fun FileStatusLine(file: FileView) {
+    file.safety?.takeIf { it.blocked }?.let { safety ->
+        Text(stringResource(R.string.safety_skip_detail, safety.matchedExtension, safetyPresetLabel(safety.preset)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -370,6 +376,7 @@ private fun FileActionsSheet(
     archived: Boolean,
     mediaLaunchPending: Boolean,
     onDismiss: () -> Unit,
+    onSafetyOverride: (Boolean) -> Unit,
     onSetPriority: (FilePriority) -> Unit,
     onDownloadNow: () -> Unit,
     shareEnabled: Boolean,
@@ -387,6 +394,12 @@ private fun FileActionsSheet(
                     style = MaterialTheme.typography.titleMedium,
                 )
                 FileStatusLine(file)
+                file.safety?.let { safety ->
+                    Text(stringResource(if (safety.overridden) R.string.safety_override_detail else R.string.safety_skip_detail, safety.matchedExtension, safetyPresetLabel(safety.preset)), style = MaterialTheme.typography.bodyMedium)
+                    TextButton(onClick = { onSafetyOverride(!safety.overridden) }) {
+                        Text(stringResource(if (safety.overridden) R.string.safety_undo else R.string.safety_download_anyway))
+                    }
+                }
                 Spacer(Modifier.height(20.dp))
                 Text(
                     stringResource(R.string.file_priority_title),

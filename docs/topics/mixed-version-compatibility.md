@@ -1,6 +1,12 @@
 # Mixed-Version Compatibility
 
-Tactical [355](../tactical/355-automatic-updates.md) registers capability 4,
+Tactical [375](../tactical/375-ci-reconciliation-and-ui-regressions.md)
+reconciles the concurrent updater/safety contracts. Safety and bitmap capability
+IDs remain 4 and 5; the unpublished desktop updater uses 6. Both generated
+contracts and client-first exposure records are retained. No released ID,
+command, setting or compatibility horizon changes.
+
+Tactical [355](../tactical/355-automatic-updates.md) registers capability 6,
 `desktop_auto_updates`, for the `product_update` application call and its
 status/check/install/channel/preference/activity/snooze requests. Only desktop
 hosts with a native updater owner advertise it. Fresh hellos rebind the web
@@ -9,6 +15,16 @@ surface and never receive the new call. Connected clients that cannot report
 activity conservatively block unattended restart. This does not change the
 30-day horizon or authorize removal of the existing fallback.
 
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+adds `file_safety` (settings/explicit override commands) and
+`file_selection_bitmaps` (larger stored selection sets). Missing capabilities
+hide safety controls and retain the older host's changed-file draft limit.
+Released priority values remain unchanged. File safety and safety-summary row
+fields are optional; strict-client exposure is reviewed under the existing
+client-first hold. Legacy full-response decoding uses the gateway's existing
+16-MiB ceiling so large metadata-bounded arrays do not retain a hidden 512-KiB
+client limit. The normal 30-day compatibility/release rules still apply.
+
 Tactical [367](../tactical/367-encrypted-short-links.md) is client-only:
 short links wrap the existing host-exported fragment and add no host command,
 field or capability. Menu copies remain full links. Its separately deployed
@@ -16,6 +32,12 @@ service keeps the v1 decryptor through the 30-day record lifetime; older web
 clients can drop the optional remembered choice safely back to off.
 
 Topic: `mixed-version-compatibility`
+
+Tactical [360](../tactical/360-remote-controller-subdomain.md) publishes the
+independent hosted controller at remote.jstorrent.com, starting with 0.3.2 on
+2026-10-16. Tagged releases pass the live compatibility gate; marketing no
+longer advances the client. Both old/new controller decoders are captured.
+The legacy origin and asset bridge have a reviewed retirement window below.
 
 Status: Active, started 2026-10-14 by Tactical
 [354](../tactical/354-mixed-version-compatibility.md). Slices 1 and 2 have
@@ -41,7 +63,7 @@ the [glossary](../glossary.md).
 
 | Client | Host | Why they differ |
 | --- | --- | --- |
-| Hosted controller, `jstorrent.com/remote/` | Desktop or headless over the relay; Android later | The site redeploys from every push to `main` that touches `clients/web` or the remote crates. Hosts update on their own schedule. |
+| Hosted controller, `remote.jstorrent.com` | Desktop or headless over the relay; Android later | The controller deploys only from `remote-v*` tags after its compatibility gate. Hosts update on their own schedule. |
 | Extension companion pages | Android over ARC; desktop over native messaging | The extension updates through Web Store review and auto-update, independently of Play and the desktop updater. |
 
 The desktop webview, gateway-served UI (headless, Crostini), Android Compose
@@ -49,8 +71,8 @@ and iOS ship or serve their own UI and always match their host.
 
 Both directions occur:
 
-- **New client, old host.** The hosted controller is always newest. The
-  extension is often newer than an Android host still in Play rollout.
+- **New client, old host.** The hosted controller may release before a host update. The extension is
+  often newer than an Android host still in Play rollout.
 - **Old client, new host.** An extension waiting on Web Store review is older
   than a freshly released host.
 
@@ -77,7 +99,7 @@ Ask one question: **does this add something the client sends?**
 | New command, settings patch key or torrent settings patch key | Add a capability in `crates/rstorrent-session/src/host_capabilities.rs` that owns it, gate the control with `hostSupports`, and let the live dispatch filter drop it for hosts without it. CI fails on an unowned key. |
 | New row field kind a host sends (a `*FieldUpdate` variant) | Tolerant clients drop unknown kinds. Record it in `reviewedClientExposure` as a `field`; it blocks host releases only while strict clients (extension 1.1.4 and older) are supported. |
 | New field inside a type released clients validate strictly (`additionalProperties: false`) | Same as a new row field kind. |
-| New enum value or other tagged variant a host sends | Every released client rejects it, tolerant ones included, and CI checks every contract in the window for it. Add a new optional field instead, or make clients tolerate that type first. It is a `value` in `reviewedClientExposure` and blocks host releases unless a host sends it only after a request no supported released client can make (`requestedBy`, checked in CI). |
+| New enum value or other tagged variant a host sends | Every released client rejects it, tolerant ones included, and CI checks every contract in the window for it. Add a new optional field instead, or make clients tolerate that type first. It is a `value` in `reviewedClientExposure` and blocks host releases unless a host sends it only after a request no supported client that rejects the value can make (`requestedBy`, checked in CI). |
 | Remove, rename, retype or newly require anything released | Not allowed in v1. Add a new field or capability instead. |
 | Change the meaning of a released field or capability | Not allowed. New semantics take a new name. |
 
@@ -254,16 +276,33 @@ Before any host release (desktop, headless, Android):
    break for the release. A `value` (enum value or non-row variant) breaks
    tolerant clients too; do not ship one unless no released client can
    receive it.
-3. When a delivery is submitted (desktop, Android, headless, extension),
+3. When a delivery is submitted (desktop, Android, headless, extension, remote),
    add it to `compat/deliveries.json` and run `scripts/compat-capture.mjs`
    for its commit with the roles it plays, then commit both. The ledger
    check fails CI until this is done for a pushed production tag, including
-   `extension-v*`. A client release whose own decoder is tolerant lies at or
+   `extension-v*` and `remote-v*`. A client release whose own decoder is tolerant lies at or
    above `strictClients.tolerantSince` in `release-compatibility.json`.
 
-Before deploying the hosted controller: the same web tests pass. It deploys
-from `main`, so a contract change is live for every connected host as soon
-as it is pushed.
+Before deploying the hosted controller:
+
+1. Commit the candidate source on main and run web/compatibility validation.
+2. Capture that exact commit with role `client`. In a following metadata
+   commit, record the delivery as submitted with no first-public date and its
+   explicit raw-decoder outcomes. The source commit remains the release input.
+3. Create `remote-vMAJOR.MINOR.PATCH` at the candidate commit. Push the metadata
+   main update and candidate tag together with `git push --atomic` so ordinary
+   main CI never sees an unrecorded tag. The tag must be reachable from main.
+4. Remote Controller gates deployment on the live old/new matrix, tested root
+   artifact/browser smoke and Pages header/digest verification. It deploys the
+   exact retained artifact, not a new build made in the deploy job.
+5. Run the explicit public canary with signed route cleanup, then mark the
+   delivery published with its verified first-public date. Retain the immutable
+   rollback artifact. Main and marketing deployment do not advance the client.
+
+The first independent release is remote-v0.3.2 at 859f00de (2026-10-16).
+The legacy remote 0.3.1/bdc58e4a delivery leaves its window on November 15;
+old-origin admission and frozen lazy assets remain until reviewed retirement
+no earlier than November 16. Old document redirects remain afterwards.
 
 ## Removing A Fallback
 
@@ -303,7 +342,7 @@ desktop release supplies an identified on sample. This changes neither
 the release hold nor the missing hosted-controller usage signal below.
 
 **Hosted remote controller usage is unknown.** Nothing records whether
-anyone uses `jstorrent.com/remote/` or which host versions it connects to.
+anyone uses `remote.jstorrent.com` or which host versions it connects to.
 The relay could count authenticated circuits by host build (it sees
 `host_build` only inside the encrypted channel today, so this needs a
 privacy-reviewed, coarse signal), and the site could count page loads. Until
@@ -312,12 +351,12 @@ that it has very few users.
 
 ## Gaps And Next Work
 
-- **Independent controller releases.** Tactical
-  [360](../tactical/360-remote-controller-subdomain.md) is scoped as of
-  2026-10-16: root-hosted `remote.jstorrent.com`, tag-only controller
-  deployment, client delivery captures, and a bounded legacy-origin/asset
-  bridge. Access investigation found no known missing credential; first
-  deployment to the new project remains unexercised. Production is unchanged.
+- **Legacy controller retirement.** Tactical
+  [360](../tactical/360-remote-controller-subdomain.md) deploys the independent
+  controller lane. Remove the old exact origin and frozen asset bridge only
+  after its recorded window and a reviewed retirement change; the old document
+  URLs keep redirecting. Initial new-project CI credential acceptance, canary
+  and query/fragment/cached-tab checks pass.
 - **Extension 1.1.5 adoption.** Published 2026-10-15. Lift the release
   hold (`strictClients.supported: false`) once the Web Store dashboard shows
   most users on it; CI forces it when 1.1.4 leaves the window on
@@ -337,3 +376,18 @@ that it has very few users.
   opt-out policy in `product-state-and-feedback`. Needs changes to the
   update server and relay and their deployment.
 - **Automatic updates**, Tactical 355.
+
+### Controller release lane (Tactical 360)
+
+The controller has a separate `remote-vMAJOR.MINOR.PATCH` release lane. Main
+and PR builds test the root-hosted artifact without publishing it. A tagged
+release must be reachable from main and passes the live old/new compatibility
+workflow before the tested Pages artifact is deployed. Add its exact source
+capture and public delivery date after verification; preserve the last combined
+controller (remote 0.3.1 at bdc58e4a) as the pre-cutover baseline. Its decoder
+already has field tolerance; this does not lift the extension host-release hold.
+
+For `requestedBy` exemptions, a supported client may ask for a feature whose
+response it already understands. The prohibited case is a client that both
+can ask for the feature and rejects its output. A synthetic negative control
+covers that case, alongside each actual supported capture.

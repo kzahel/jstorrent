@@ -366,6 +366,17 @@ impl SessionStore {
                 .1
             };
             let id = decode_torrent_id(&result.torrent_id).expect("intake returns typed ID");
+            if matches!(result.disposition, AddTorrentDisposition::Added) {
+                // Migration retains the legacy user's selection. It is not a
+                // new download subject to newly introduced default filters.
+                transaction.execute(
+                    "DELETE FROM torrent_file_safety WHERE torrent_id = ?1",
+                    [id.as_bytes()],
+                )?;
+                file_state::write_mask(&transaction, &id, "blocked", &[])?;
+                transaction.execute("UPDATE file_state SET blocked_count = 0, blocked_bytes = '0' WHERE torrent_id = ?1", [id.as_bytes()])?;
+            }
+
             let running = record.running
                 && !record.awaiting_selection
                 && !(plan.report.settings_need_attention && !existing);

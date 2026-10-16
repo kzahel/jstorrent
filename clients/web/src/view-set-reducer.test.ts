@@ -1,3 +1,4 @@
+import { DEFAULT_CLIENT_SETTINGS as FILE_SAFETY_DEFAULTS } from "./api";
 import { describe, expect, it } from "vitest";
 
 import type { DhtInspectionView, TorrentView, UpdateBatch } from "./api";
@@ -505,6 +506,7 @@ describe("view-set reducer", () => {
       ]),
     );
     const configured = {
+      file_safety: FILE_SAFETY_DEFAULTS.file_safety,
       listener: { type: "automatic_loopback" as const },
       preferred_listen_port: 6_881,
       port_mapping: "disabled" as const,

@@ -278,7 +278,7 @@ export function decodeApplicationServerFrame(
 export function decodeResponseEnvelope(source: string): ResponseEnvelope {
   const value = generated<ResponseEnvelope>(
     "ResponseEnvelope",
-    parseBoundedJson(source, MAX_FRAME_BYTES, "command response"),
+    parseBoundedJson(source, MAX_HTTP_RESPONSE_BYTES, "command response"),
   );
   validateResponse(value);
   return value;
@@ -598,12 +598,13 @@ function validateServiceSnapshot(value: unknown): void {
       0,
       MAX_U32,
     );
-    array(torrent.skip_files, "skipped files").forEach((index) =>
+    array(torrent.skip_files, "skipped files", 374_998).forEach((index) =>
       boundedInteger(index, "file index", 0, MAX_U32),
     );
-    array(torrent.high_priority_files, "high-priority files").forEach((index) =>
+    array(torrent.high_priority_files, "high-priority files", 374_998).forEach((index) =>
       boundedInteger(index, "file priority index", 0, MAX_U32),
     );
+    array(torrent.selection_exceptions ?? [], "selection exceptions", 374_998);
     optionalString(torrent.error, "torrent error", 1_024);
   }
 }
@@ -3406,8 +3407,8 @@ function asRecord(
   return value as Record<string, unknown>;
 }
 
-function array(value: unknown, label: string): unknown[] {
-  if (!Array.isArray(value) || value.length > MAX_COLLECTION) {
+function array(value: unknown, label: string, maximum = MAX_COLLECTION): unknown[] {
+  if (!Array.isArray(value) || value.length > maximum) {
     throw new ContractError(`${label} must be a bounded array`);
   }
   return value;

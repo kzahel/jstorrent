@@ -206,7 +206,7 @@ export function RemoteAccessGate({
         return activeTransport;
       },
       undefined,
-      { client: clientIdentity("remote", { buildId: clientBuild }) },
+      { client: clientIdentity("remote", { buildId: clientBuild, version: import.meta.env.VITE_RSTORRENT_REMOTE_VERSION }) },
     );
     const currentClientId = currentClientIdentifier(initialAuthentication);
     const remoteAccess = createRemoteSecurityClient({

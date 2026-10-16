@@ -1,5 +1,12 @@
 # Localization
 
+Tactical [375](../tactical/375-ci-reconciliation-and-ui-regressions.md)
+updates iOS pseudo-locale reachability checks to scroll through the expanded
+Settings Form to the actual hittable background-notification switch, while
+retaining the runtime-row existence assertion. New safety settings can move
+these lazy rows below the fold. Existing localization and
+mirrored-toolbar assertions remain; shipping locale policy is unchanged.
+
 Tactical [367](../tactical/367-encrypted-short-links.md) adds four web
 messages for encrypted short links, disclosure, expiry and fallback, and
 renames the Share panel checkbox to **Include my IP address**. The separate

@@ -781,6 +781,7 @@ internal object ProductStateReducer {
         val next = current.copy()
         update.fields.forEach { field ->
             when (field) {
+                is TorrentFieldUpdate.SafetySummary -> next.safetySummary = field.value
                 is TorrentFieldUpdate.ProtocolIdentities -> next.protocolIdentities = field.value
                 is TorrentFieldUpdate.DisplayName -> next.displayName = field.value
                 is TorrentFieldUpdate.SourceDisplayName -> next.sourceDisplayName = field.value
@@ -841,6 +842,7 @@ internal object ProductStateReducer {
         val next = current.copy()
         update.fields.forEach { field ->
             when (field) {
+                is FileFieldUpdate.Safety -> next.safety = field.value
                 is FileFieldUpdate.Selection -> next.selection = field.value
                 is FileFieldUpdate.DoneBytes -> next.doneBytes = field.value
                 is FileFieldUpdate.VerifiedBytes -> next.verifiedBytes = field.value

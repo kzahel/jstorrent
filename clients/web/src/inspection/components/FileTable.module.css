@@ -87,3 +87,7 @@
     display: none;
   }
 }
+
+.safety { display: flex; align-items: center; gap: 0.5rem; min-width: 0; width: 100%; }
+.safety > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
+.safety > button { flex: none; font: inherit; color: var(--accent-strong); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); background: var(--surface-primary); }

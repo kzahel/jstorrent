@@ -951,6 +951,8 @@ impl ApplicationService {
         let storage_file_pool =
             StorageFilePool::new(config.storage_file_limit, config.platform_storage_client)
                 .map_err(|error| ApplicationError::Configuration(error.to_owned()))?;
+        storage_file_pool
+            .set_mark_internet_origin(active_client_settings.file_safety.mark_internet_origin);
         storage_file_pool.set_platform_health_wake(admission_wake.clone());
         let initial_network_prerequisite = network_prerequisite.load();
         let session_network_config = SessionNetworkConfig {
@@ -1863,7 +1865,7 @@ impl ApplicationService {
                     })
                 })
                 .unwrap_or(true),
-            Command::SetFilePriorityRanges { .. } => true,
+            Command::SetFilePriorityRanges { .. } | Command::SetFileSafetyOverride { .. } => true,
             Command::DownloadFiles {
                 torrent_id,
                 file_indices,
@@ -2183,7 +2185,8 @@ impl ApplicationService {
                 self.start_recheck_if_possible(&torrent_id).await?;
             }
             Command::SetFilePriority { torrent_id, .. }
-            | Command::SetFilePriorityRanges { torrent_id, .. } => {
+            | Command::SetFilePriorityRanges { torrent_id, .. }
+            | Command::SetFileSafetyOverride { torrent_id, .. } => {
                 let torrent_id = torrent_id.to_ascii_lowercase();
                 self.views.record_diagnostic(
                     DiagnosticSeverity::Info,
@@ -2404,8 +2407,12 @@ impl ApplicationService {
             | Command::SetShowAddOptions { .. }
             | Command::SetShowFileSelection { .. } => {}
             Command::MoveDownloadToTop { .. } | Command::MoveDownloadToBottom { .. } => {}
-            Command::UpdateClientSettings { .. } | Command::ResetClientSettings => {
+            Command::UpdateClientSettings { .. }
+            | Command::UpdateFileSafetySettings { .. }
+            | Command::ResetClientSettings => {
                 let settings = self.store_mut()?.snapshot()?.client_settings;
+                self.storage_file_pool
+                    .set_mark_internet_origin(settings.file_safety.mark_internet_origin);
                 self.session_network_config.settings = settings.clone();
                 if let Some(session_network) = self.session_network.as_mut() {
                     session_network.submit_settings(settings)?;
@@ -2703,6 +2710,9 @@ impl ApplicationService {
     }
 
     async fn reconcile_platform_root_failures(&mut self) -> Result<(), ApplicationError> {
+        if self.storage_file_pool.take_origin_marking_failures() != 0 {
+            self.views.record_diagnostic(DiagnosticSeverity::Warning, category::STORAGE_IO, "internet_origin_marking_failed", None, "OS internet-origin marking failed; the destination may not support download labels", &[])?;
+        }
         let failures = self.storage_file_pool.take_platform_root_failures();
         if failures.is_empty() {
             return Ok(());
@@ -4548,6 +4558,13 @@ impl ApplicationService {
             }
         };
         let platform_root = matches!(root, StorageRootLocation::PlatformCapability);
+        let root_path = match &root {
+            StorageRootLocation::Path(root) => root.clone(),
+            StorageRootLocation::PlatformCapability => PathBuf::new(),
+        };
+        // Platform storage needs a resolved content manifest before opening
+        // descriptors. Direct paths retain their metadata peer and reload the
+        // same selection through the checkpoint before any payload is opened.
         if platform_root && resume.raw_info.is_none() {
             let identity = magnet_runtime_identity(identity, &resume.magnet)?;
             let checkpoints = Arc::new(StoreCheckpointSink {
@@ -4603,6 +4620,9 @@ impl ApplicationService {
                     let resume = store
                         .load_resume(&checkpoints.torrent_id)
                         .map_err(|error| DownloadError::Checkpoint(error.to_string()))?;
+                    if !resume.desired_running || resume.state == TorrentState::Paused {
+                        return Ok(ApplicationTaskReport::Metadata);
+                    }
                     let skip_files = resume
                         .skip_files
                         .into_iter()
@@ -4634,19 +4654,21 @@ impl ApplicationService {
                         parse_peer_metainfo(&raw_info).map_err(DownloadError::Metainfo)?,
                     )
                 };
-                task_control.set_platform_storage(PlatformStorageSpec {
-                    pool: storage_pool,
-                    root_id,
-                    storage_id,
-                    content_shape: ContentShape::from_content(&content),
-                    content_name: content.name().to_owned(),
-                    storage_generation: 0,
-                });
+                if platform_root {
+                    task_control.set_platform_storage(PlatformStorageSpec {
+                        pool: storage_pool,
+                        root_id,
+                        storage_id,
+                        content_shape: ContentShape::from_content(&content),
+                        content_name: content.name().to_owned(),
+                        storage_generation: 0,
+                    });
+                }
                 resume_magnet_with_control(
                     ResumableMagnetDownloadConfig {
                         identity,
                         magnet,
-                        storage_root: PathBuf::new(),
+                        storage_root: root_path,
                         network,
                         peer_budget,
                         mse_dh,
@@ -4680,10 +4702,6 @@ impl ApplicationService {
             )?;
             return Ok(());
         }
-        let root_path = match &root {
-            StorageRootLocation::Path(root) => root.clone(),
-            StorageRootLocation::PlatformCapability => PathBuf::new(),
-        };
         if resume.raw_info.is_none() && !resume.desired_running {
             let checkpoints = Arc::new(StoreCheckpointSink {
                 store: self.store.clone(),
@@ -6300,6 +6318,26 @@ impl DownloadCheckpointSink for StoreCheckpointSink {
             .map_err(|error| error.to_string())
     }
 
+    fn metadata_file_selection(&self) -> Result<Option<FileSelectionUpdate>, String> {
+        let store = self.store()?;
+        let resume = store
+            .load_resume(&self.torrent_id)
+            .map_err(|error| error.to_string())?;
+        Ok(Some(FileSelectionUpdate {
+            revision: store.revision().map_err(|error| error.to_string())?,
+            skip_files: resume
+                .skip_files
+                .into_iter()
+                .map(|index| index as usize)
+                .collect(),
+            high_priority_files: resume
+                .high_priority_files
+                .into_iter()
+                .map(|index| index as usize)
+                .collect(),
+        }))
+    }
+
     fn storage_prepared(&self, storage: ResumedStorage) -> Result<(), String> {
         let storage_kind = match storage {
             ResumedStorage::Created => "created",
@@ -7537,6 +7575,9 @@ fn durable_view_state(
                 media_catalog_availability(torrent, &resume, storage_roots),
             )
             .ok()
+            .map(|files| {
+                files.with_safety(resume.safety_policy.clone(), resume.safety_allowed.clone())
+            })
         } else {
             None
         };

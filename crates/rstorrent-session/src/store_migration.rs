@@ -26,7 +26,7 @@ pub(crate) type MigrationStep = fn(&Transaction<'_>) -> Result<(), StoreError>;
 
 /// `MIGRATION_STEPS[i]` migrates `BASELINE_SCHEMA_VERSION + i` to the next
 /// version. Append only; a step that has shipped is never edited.
-const MIGRATION_STEPS: &[MigrationStep] = &[migrate_26_to_27, migrate_27_to_28];
+const MIGRATION_STEPS: &[MigrationStep] = &[migrate_26_to_27, migrate_27_to_28, migrate_28_to_29];
 
 const _: () = assert!(
     BASELINE_SCHEMA_VERSION + MIGRATION_STEPS.len() as i64 == SCHEMA_VERSION,
@@ -63,6 +63,11 @@ fn migrate_27_to_28(transaction: &Transaction<'_>) -> Result<(), StoreError> {
     Ok(())
 }
 
+fn migrate_28_to_29(transaction: &Transaction<'_>) -> Result<(), StoreError> {
+    crate::store::file_state::migrate(transaction)?;
+    crate::store::safety::migrate(transaction)
+}
+
 const NETWORK_DEFAULTS_COLUMN_28: &str = "ALTER TABLE client_settings
      ADD COLUMN network_defaults_version INTEGER NOT NULL DEFAULT 0
      CHECK (network_defaults_version >= 0);";
@@ -87,6 +92,9 @@ pub(crate) fn upgrade_client_settings_for_test(transaction: &Transaction<'_>) {
     transaction
         .execute_batch(NETWORK_DEFAULTS_COLUMN_28)
         .expect("schema 28 client settings column");
+    transaction
+        .execute_batch(crate::store::safety::SETTINGS_SQL)
+        .expect("schema 29 safety settings");
 }
 
 /// Brings a freshly created baseline catalog to the current version within
@@ -310,6 +318,39 @@ mod tests {
             assert_eq!(
                 store.snapshot().expect("snapshot").torrents.len(),
                 original_rows["torrents"].len()
+            );
+            for (table, column) in [
+                ("file_selection", "exceptions"),
+                ("file_priorities", "high"),
+            ] {
+                let mut rows = store
+                    .connection()
+                    .prepare(&format!("SELECT torrent_id, {column} FROM file_state"))
+                    .unwrap();
+                let masks = rows
+                    .query_map([], |row| {
+                        Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, Vec<u8>>(1)?))
+                    })
+                    .unwrap();
+                for row in masks {
+                    let (id, bytes) = row.unwrap();
+                    let original = store.connection().prepare(&format!("SELECT file_index FROM {table} WHERE torrent_id = ?1 ORDER BY file_index")).unwrap().query_map([id], |row| row.get::<_, u32>(0)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+                    assert_eq!(
+                        crate::file_bitmap::FileBitmap::decode(bytes)
+                            .unwrap()
+                            .indices(),
+                        original
+                    );
+                }
+            }
+            assert_eq!(
+                store
+                    .connection()
+                    .query_row("SELECT count(*) FROM torrent_file_safety", [], |row| row
+                        .get::<_, i64>(0))
+                    .unwrap(),
+                0,
+                "migration never applies new rules to existing torrents or magnets"
             );
             drop(store);
             assert_eq!(

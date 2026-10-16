@@ -153,6 +153,15 @@ pub enum Command {
         #[schemars(regex(pattern = "^t1-[0-9a-f]{32}$"))]
         torrent_id: String,
     },
+    UpdateFileSafetySettings {
+        settings: crate::FileSafetySettings,
+    },
+    SetFileSafetyOverride {
+        #[schemars(regex(pattern = "^t1-[0-9a-f]{32}$"))]
+        torrent_id: String,
+        file_indices: Vec<u32>,
+        allowed: bool,
+    },
     UpdateClientSettings {
         patch: ClientSettingsPatch,
     },
@@ -209,6 +218,8 @@ impl Command {
         matches!(
             self,
             Self::AddMagnet { .. }
+                | Self::UpdateFileSafetySettings { .. }
+                | Self::SetFileSafetyOverride { .. }
                 | Self::SetDefaultStorageRoot { .. }
                 | Self::SetShowAddOptions { .. }
                 | Self::SetShowFileSelection { .. }
@@ -564,6 +575,8 @@ pub struct ServiceSnapshot {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct TorrentSnapshot {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub safety_summary: Option<crate::FileSafetySummary>,
     #[schemars(regex(pattern = "^t1-[0-9a-f]{32}$"))]
     pub torrent_id: String,
     pub protocol_identities: TorrentProtocolIdentities,
@@ -655,6 +668,29 @@ pub(crate) fn validate_request(request: &RequestEnvelope) -> Result<(), (ErrorCo
         parse_revision(revision)?;
     }
     match &request.command {
+        Command::UpdateFileSafetySettings { settings } => {
+            settings
+                .validate()
+                .map_err(|message| (ErrorCode::InvalidRequest, message.into()))?;
+        }
+        Command::SetFileSafetyOverride {
+            torrent_id,
+            file_indices,
+            ..
+        } => {
+            validate_torrent_id(torrent_id)?;
+            if file_indices.is_empty()
+                || file_indices.len() > MAX_FILE_SELECTION_ENTRIES
+                || file_indices
+                    .iter()
+                    .any(|index| *index as usize >= MAX_FILE_INDEX)
+            {
+                return Err((
+                    ErrorCode::InvalidRequest,
+                    "invalid safety override file indices".into(),
+                ));
+            }
+        }
         Command::AddMagnet {
             magnet,
             storage_root,

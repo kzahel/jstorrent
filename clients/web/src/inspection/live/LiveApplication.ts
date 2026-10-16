@@ -524,6 +524,8 @@ export class LiveApplication implements InspectionApplication {
     }
     if (
       command.type !== "add_magnet" &&
+      command.type !== "update_file_safety_settings" &&
+      command.type !== "set_file_safety_override" &&
       command.type !== "set_file_priority" &&
       command.type !== "download_files" &&
       command.type !== "set_default_download_root" &&
@@ -591,15 +593,20 @@ export class LiveApplication implements InspectionApplication {
         message: localizedMessage("inspection.live.live.application.setting.needs.newer.host"),
       };
     }
+    if ((command.type === "update_file_safety_settings" || command.type === "set_file_safety_override") && !this.capabilities().has("file_safety")) {
+      return { accepted: false, message: localizedMessage("inspection.live.live.application.setting.needs.newer.host") };
+    }
     const request: RequestEnvelope = {
       version: 1,
       request_id: `web-${this.requestInstanceId}-${this.requestSequence++}`,
-      ...(command.type === "update_client_settings" ||
+      ...(command.type === "update_client_settings" || command.type === "update_file_safety_settings" ||
       command.type === "update_torrent_settings"
         ? { expected_revision: this.snapshot.durableRevision }
         : {}),
       command:
-        command.type === "add_magnet"
+        command.type === "update_file_safety_settings" ? { type: "update_file_safety_settings", settings: command.settings }
+        : command.type === "set_file_safety_override" ? { type: "set_file_safety_override", torrent_id: command.torrentId, file_indices: [...command.fileIndices], allowed: command.allowed }
+        : command.type === "add_magnet"
           ? {
               type: "add_magnet",
               magnet: command.magnet,
@@ -749,7 +756,7 @@ export class LiveApplication implements InspectionApplication {
       return magnetCommandResult(response);
     }
     if (
-      command.type === "update_client_settings" ||
+      command.type === "update_client_settings" || command.type === "update_file_safety_settings" ||
       command.type === "update_torrent_settings"
     ) {
       this.controller?.requestImmediatePoll();
@@ -764,7 +771,7 @@ export class LiveApplication implements InspectionApplication {
     }
     return {
       accepted: true,
-      ...(command.type === "update_client_settings" ||
+      ...(command.type === "update_client_settings" || command.type === "update_file_safety_settings" ||
       command.type === "update_torrent_settings"
         ? {
             requestId: response.request_id,
@@ -1841,6 +1848,7 @@ function mapTorrent(torrent: TorrentView): TorrentRow {
     pendingFileSelectionPosition:
       torrent.pending_file_selection_position ?? null,
     fileCatalogId: torrent.file_catalog_id ?? null,
+    safetySummary: torrent.safety_summary ?? null,
     selectableFileCount: torrent.selectable_file_count,
     selectedFileCount: torrent.selected_file_count,
     selectableFileBytes: torrent.selectable_file_bytes,
@@ -2215,6 +2223,7 @@ function mapFile(
     firstPiece: file.first_piece,
     lastPiece: file.last_piece,
     selection: file.selection,
+    safety: file.safety ?? null,
     padding: file.padding,
     doneBytes: file.done_bytes,
     verifiedBytes: file.verified_bytes,

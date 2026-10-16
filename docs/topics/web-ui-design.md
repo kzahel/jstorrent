@@ -1,9 +1,24 @@
 # Web UI Design
 
+Tactical [375](../tactical/375-ci-reconciliation-and-ui-regressions.md)
+repairs the seeding-settings browser alignment check: inactive Settings panels
+remain mounted, so geometry assertions now measure visible controls only.
+All displayed fields already share their intended edge and width; no layout
+change is required. The full deterministic suite passes 72 cases locally,
+including phone overflow and pseudo-localization; 19 live-only cases stay opt-in.
+
 Tactical [373](../tactical/373-library-empty-state-icons.md) replaces the
 Library's oversized diamond text glyphs with the shared Library navigation
 icon at 2rem, using the same muted color in media, torrent-card and detail
 empty or status messages.
+
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+adds Downloads → File safety: enabled/preset/custom rules and the independent
+origin-label toggle, using the existing revision-aware draft owner. The Files
+Safety column explains skipped rules with explicit Download anyway/Undo actions;
+ordinary priority remains separate. Pending All keeps blocked rows unchecked,
+and totals reflect safety. Selection drafts use two bitmaps while retaining
+bounded cached pages and at most 4,096 normalized command ranges.
 
 Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
 updates deterministic browser checks for the current diagnostic-prefilled
@@ -1716,3 +1731,14 @@ shared support/download navigation and the matching exact Tauri opener scopes
 to `kzahel/jstorrent`. Browser behavior and native opener ownership are retained.
 Headless release hints accept only the exact current/former Rust repository
 URLs for the same version, allowing already-installed hosts during cutover.
+
+## Seeding settings layout baseline, 2026-10-16
+
+During Tactical 360 qualification, CI run 38905842707 passes 71 deterministic
+browser cases and fails `seeding priority settings stay truthful across
+responsive layouts` at `inspection-demo.spec.ts:1046`: the form has two right
+edges where the test requires one. An isolated checkout of pre-cutover source
+bdc58e4a reproduces the identical assertion with bundled headless Chromium.
+This is a known presentation baseline gap, not a remote-origin regression;
+it remains open for a bounded settings-layout repair. The temporary baseline
+checkout, browser and server were removed after reproduction.

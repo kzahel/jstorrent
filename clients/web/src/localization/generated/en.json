@@ -11681,6 +11681,216 @@
       "value": "This remote host does not support video playback."
     }
   ],
+  "safety.files.allowed": [
+    {
+      "type": 0,
+      "value": "Safety override · "
+    },
+    {
+      "type": 1,
+      "value": "extension"
+    }
+  ],
+  "safety.files.blocked": [
+    {
+      "type": 0,
+      "value": "Skipped by safety settings · "
+    },
+    {
+      "type": 1,
+      "value": "extension"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 1,
+      "value": "preset"
+    }
+  ],
+  "safety.files.column": [
+    {
+      "type": 0,
+      "value": "Safety"
+    }
+  ],
+  "safety.files.download": [
+    {
+      "type": 0,
+      "value": "Download anyway"
+    }
+  ],
+  "safety.files.none.selected": [
+    {
+      "type": 0,
+      "value": "No files selected"
+    }
+  ],
+  "safety.files.selection.note": [
+    {
+      "type": 0,
+      "value": "Download all remains subject to safety settings. Files shows why a file was skipped and lets you override it."
+    }
+  ],
+  "safety.files.total": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " file skipped by safety settings"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " files skipped by safety settings"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "safety.files.undo": [
+    {
+      "type": 0,
+      "value": "Undo safety override"
+    }
+  ],
+  "safety.files.use.override": [
+    {
+      "type": 0,
+      "value": "Use Download anyway to override the safety rule for this file."
+    }
+  ],
+  "safety.preset.archives": [
+    {
+      "type": 0,
+      "value": "Applications, installers, scripts & archives"
+    }
+  ],
+  "safety.preset.custom": [
+    {
+      "type": 0,
+      "value": "Custom…"
+    }
+  ],
+  "safety.preset.recommended": [
+    {
+      "type": 0,
+      "value": "Applications, installers & scripts (recommended)"
+    }
+  ],
+  "safety.selection.fragmented": [
+    {
+      "type": 0,
+      "value": "This selection exceeds 4,096 separate ranges. Use All or None to simplify it."
+    }
+  ],
+  "safety.selection.older.host": [
+    {
+      "type": 0,
+      "value": "This host supports up to 4,096 file changes. Use All or None, or update the host for larger selections."
+    }
+  ],
+  "safety.settings.conflict": [
+    {
+      "type": 0,
+      "value": "These settings changed in another client. Discard changes to reload the current values."
+    }
+  ],
+  "safety.settings.discard": [
+    {
+      "type": 0,
+      "value": "Discard changes"
+    }
+  ],
+  "safety.settings.enabled": [
+    {
+      "type": 0,
+      "value": "Automatically skip potentially dangerous files"
+    }
+  ],
+  "safety.settings.extension.help": [
+    {
+      "type": 0,
+      "value": "Separate extensions with spaces or commas, for example .exe, .dmg, .tar.gz. Matching is case-insensitive; .app also matches application folders."
+    }
+  ],
+  "safety.settings.extensions": [
+    {
+      "type": 0,
+      "value": "File extensions"
+    }
+  ],
+  "safety.settings.failed": [
+    {
+      "type": 0,
+      "value": "File safety settings could not be saved."
+    }
+  ],
+  "safety.settings.future": [
+    {
+      "type": 0,
+      "value": "Applies to newly added torrents. Download all respects these rules. Existing torrents and individual overrides stay unchanged. Files explains each safety skip. This does not scan for malware or inspect archives."
+    }
+  ],
+  "safety.settings.invalid": [
+    {
+      "type": 0,
+      "value": "Use at most 128 extensions, each starting with a dot and containing up to 31 letters, digits or dots."
+    }
+  ],
+  "safety.settings.origin": [
+    {
+      "type": 0,
+      "value": "Mark downloaded files as coming from the internet"
+    }
+  ],
+  "safety.settings.origin.help": [
+    {
+      "type": 0,
+      "value": "Windows and macOS only, where supported by the destination filesystem. Applies when downloaded files are opened for writing. Download anyway keeps these protections; turning this off never removes existing labels."
+    }
+  ],
+  "safety.settings.preset": [
+    {
+      "type": 0,
+      "value": "Files to skip"
+    }
+  ],
+  "safety.settings.preset.help": [
+    {
+      "type": 0,
+      "value": "The recommended preset skips applications, installers, scripts and shortcuts. ZIP and other archives, and ISO images, remain allowed unless you choose otherwise."
+    }
+  ],
+  "safety.settings.save": [
+    {
+      "type": 0,
+      "value": "Save file safety settings"
+    }
+  ],
+  "safety.settings.title": [
+    {
+      "type": 0,
+      "value": "File safety"
+    }
+  ],
   "share.panel.address.included": [
     {
       "type": 5,

@@ -1,5 +1,14 @@
 # Application Control
 
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+adds capability-owned UpdateFileSafetySettings (one complete bounded settings
+domain) and SetFileSafetyOverride (up to 4,096 explicit file indices). Expected
+revision and durable receipt replay apply as usual. Ordinary selection and
+Download all preserve the captured safety mask; Download now refuses a blocked
+file with the existing InvalidRequest code. An explicit allowance selects while
+preserving High/paused intent, and queues part-file promotion across restart.
+See [download safety](download-safety.md).
+
 Tactical [344](../tactical/344-seeding-stop-limits.md) adds the first
 application-initiated durable pause: a reached seeding stop limit commits
 paused intent with `seed_limit_stopped`, which only Resume (meaning keep

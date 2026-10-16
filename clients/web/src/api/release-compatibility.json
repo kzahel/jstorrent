@@ -4,7 +4,8 @@
     "supported": true,
     "description": "JSTorrent extension 1.1.4 and older, which validate host data strictly,",
     "tolerantSince": {
-      "extension": "1.1.5"
+      "extension": "1.1.5",
+      "remote": "0.3.1"
     },
     "controlledSurfaces": [
       "android",
@@ -56,6 +57,18 @@
       "kind": "value",
       "reason": "Desktop updater (355); a new call sent only after desktop_auto_updates is advertised; no released client sends it.",
       "requestedBy": "ApplicationCall.oneOf[type=product_update]"
+    },
+    "ClientSettings.file_safety": {
+      "kind": "field",
+      "reason": "373 download safety; release tolerant clients before hosts"
+    },
+    "FileFieldUpdate.oneOf[field=safety]": {
+      "kind": "field",
+      "reason": "373 file safety delta; release tolerant clients before hosts"
+    },
+    "TorrentFieldUpdate.oneOf[field=safety_summary]": {
+      "kind": "field",
+      "reason": "373 safety-aware All selection totals; release tolerant clients before hosts"
     }
   },
   "acceptedBreaks": {}

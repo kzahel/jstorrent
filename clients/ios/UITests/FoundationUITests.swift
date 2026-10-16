@@ -113,8 +113,12 @@ final class LocalizationUITests: XCTestCase {
         XCTAssertTrue(
             app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5)
         )
-        XCTAssertTrue(app.switches["background-notifications"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["storage-root-ios-documents"].exists)
+        scrollToSettingsElement(
+            app.descendants(matching: .any)["storage-root-ios-documents"].firstMatch,
+            in: app,
+            requireHittable: false
+        )
+        scrollToSettingsElement(app.switches["background-notifications"], in: app)
     }
 
     func testMirroredPseudoLocaleMirrorsTopBarWithoutRawKeys() {
@@ -134,7 +138,28 @@ final class LocalizationUITests: XCTestCase {
         XCTAssertFalse(app.textFields["magnet-input"].placeholderValue?.contains("dialog_") ?? true)
         app.navigationBars.buttons.firstMatch.tap()
         settings.tap()
-        XCTAssertTrue(app.switches["background-notifications"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5)
+        )
+        scrollToSettingsElement(app.switches["background-notifications"], in: app)
+    }
+
+    private func scrollToSettingsElement(
+        _ element: XCUIElement,
+        in app: XCUIApplication,
+        requireHittable: Bool = true,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        // SwiftUI Form materializes lower rows as they scroll into view.
+        // Added sections and expanded text can move these below the fold.
+        for _ in 0..<12 {
+            if element.exists && (!requireHittable || element.isHittable) { return }
+            app.swipeUp()
+        }
+        XCTAssertTrue(
+            element.exists && (!requireHittable || element.isHittable), file: file, line: line
+        )
     }
 
     private func launchExpandedPseudoLocale() -> XCUIApplication {

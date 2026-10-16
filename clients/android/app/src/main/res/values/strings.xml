@@ -266,7 +266,7 @@
     <string name="file_selection_fetching">Loading file list…</string>
     <string name="file_selection_download_blocked">You can download all files without waiting.</string>
     <string name="file_selection_summary">%1$d of %2$d selected · %3$s</string>
-    <string name="file_selection_override_limit">Too many files to change one by one. Use All or None first.</string>
+    <string name="file_selection_override_limit">This selection exceeds 4,096 separate ranges. Use All or None to simplify it.</string>
     <string name="file_selection_disable_future">Don’t show file selection again</string>
     <string name="file_selection_repair_before_confirm">Repair the download folder before confirming.</string>
 
@@ -723,4 +723,21 @@
     <string name="catalog_recovery_exported">Torrent list saved.</string>
     <string name="catalog_recovery_export_failed">Couldn’t export the torrent list.</string>
     <string name="catalog_recovery_store_unavailable">Couldn’t open the app store.</string>
+    <string name="safety_title">File safety</string>
+    <string name="safety_enabled">Automatically skip potentially dangerous files</string>
+    <string name="safety_recommended">Applications, installers &amp; scripts (recommended)</string>
+    <string name="safety_archives">Applications, installers, scripts &amp; archives</string>
+    <string name="safety_custom">Custom</string>
+    <string name="safety_extensions">File extensions</string>
+    <string name="safety_extensions_help">Separate extensions with spaces or commas, for example .exe, .dmg, .tar.gz. Up to 128 extensions, at most 32 characters each.</string>
+    <string name="safety_invalid">Use extensions starting with a dot and containing only letters, digits or dots.</string>
+    <string name="safety_future">Applies to newly added torrents. Existing torrents and individual overrides stay unchanged. This does not scan for malware or inspect archives.</string>
+    <string name="safety_skip_detail">Skipped by safety settings · %1$s · %2$s</string>
+    <string name="safety_override_detail">Safety override · %1$s · %2$s</string>
+    <string name="safety_download_anyway">Download anyway</string>
+    <string name="safety_undo">Undo safety override</string>
+    <string name="safety_selection_note">Download all respects safety settings. Files explains safety skips and lets you override them.</string>
+    <string name="safety_save">Save file safety settings</string>
+    <string name="safety_discard">Discard changes</string>
+    <string name="safety_conflict">These settings changed in another client. Discard changes to reload.</string>
 </resources>

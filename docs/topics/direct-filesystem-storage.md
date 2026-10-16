@@ -1,5 +1,14 @@
 # Direct Filesystem Storage
 
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+adds default-on optional Windows/macOS internet-origin labels at writable
+payload-handle acquisition, plus macOS bundle labels bounded by the content
+root. It preserves existing labels, skips part files and read-only verification,
+and records marking failure separately from download integrity. Both path and
+platform magnets reload resolved safety/selection after durable metadata before
+payload admission. Explicit allowances queue verified part-file promotion even
+when paused. See [download safety](download-safety.md) for limits/evidence.
+
 Topic: `direct-filesystem-storage`
 
 Tactical 253 bounds completed-seed structural observations to four

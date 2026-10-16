@@ -2,47 +2,10 @@ name: Website
 
 on:
   pull_request:
-    paths:
-      - ".github/workflows/deploy-website.yml"
-      - ".github/workflows/deploy-production-website.yml"
-      - "Cargo.lock"
-      - "Cargo.toml"
-      - "clients/web/**"
-      - "services/link/src/codec.ts"
-      - "crates/rstorrent-remote-access/**"
-      - "crates/rstorrent-remote-crypto/**"
-      - "crates/rstorrent-remote-host/**"
-      - "crates/rstorrent-remote-relay/**"
-      - "crates/rstorrent-remote-wasm/**"
-      - "rust-toolchain.toml"
-      - "scripts/*website*.mjs"
-      - "scripts/hosted-context.test.mjs"
-      - "scripts/assemble-pages-site.mjs"
-      - "scripts/assemble-pages-site.test.mjs"
-      - "scripts/verify-remote-deployment.mjs"
-      - "website/**"
+    paths: ["website/**", "scripts/*website*.mjs", "scripts/hosted-context.test.mjs", "scripts/assemble-pages-site*", "scripts/preserve-legacy-remote-assets.mjs", "compat/legacy-remote-assets.json", ".github/workflows/deploy-website.yml"]
   push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/deploy-website.yml"
-      - ".github/workflows/deploy-production-website.yml"
-      - "Cargo.lock"
-      - "Cargo.toml"
-      - "clients/web/**"
-      - "services/link/src/codec.ts"
-      - "crates/rstorrent-remote-access/**"
-      - "crates/rstorrent-remote-crypto/**"
-      - "crates/rstorrent-remote-host/**"
-      - "crates/rstorrent-remote-relay/**"
-      - "crates/rstorrent-remote-wasm/**"
-      - "rust-toolchain.toml"
-      - "scripts/*website*.mjs"
-      - "scripts/hosted-context.test.mjs"
-      - "scripts/assemble-pages-site.mjs"
-      - "scripts/assemble-pages-site.test.mjs"
-      - "scripts/verify-remote-deployment.mjs"
-      - "website/**"
+    branches: [main]
+    paths: ["website/**", "scripts/*website*.mjs", "scripts/hosted-context.test.mjs", "scripts/assemble-pages-site*", "scripts/preserve-legacy-remote-assets.mjs", "compat/legacy-remote-assets.json", ".github/workflows/deploy-website.yml"]
   workflow_dispatch:
 
 permissions:
@@ -50,92 +13,29 @@ permissions:
   deployments: write
 
 concurrency:
-  group: website-${{ github.ref }}
-  cancel-in-progress: true
+  group: website-production
+  cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   build-and-deploy:
-    name: Build${{ github.event_name == 'pull_request' && '' || ' and deploy' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-
+    timeout-minutes: 15
     steps:
-      - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-
-      - name: Install Node.js 24
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: |
-            clients/web/package-lock.json
-            website/package-lock.json
-
-      - name: Test Pages assembly guards
-        run: node --test scripts/assemble-pages-site.test.mjs
-
-      - name: Install Rust 1.97.0 and WebAssembly target
-        uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613 # 1.97.0
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Cache remote WebAssembly builds
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          shared-key: website-remote-ubuntu-24.04
-
-      - name: Install pinned wasm-bindgen CLI
-        run: cargo install wasm-bindgen-cli --version 0.2.127 --locked
-
-      - name: Install remote client dependencies
-        working-directory: clients/web
-        run: npm ci
-
-      - name: Install website dependencies
-        working-directory: website
-        run: npm ci
-
-      - name: Test website inventory, context and security guards
-        working-directory: website
-        run: npm test
-
-      - name: Check website
-        working-directory: website
-        run: npm run check
-
-      - name: Type-check remote client
-        working-directory: clients/web
-        run: npm run typecheck
-
-      # The remote client controls hosts of other versions; its compatibility
-      # and released-host tests must pass before it is deployed.
-      - name: Test remote client
-        working-directory: clients/web
-        run: npm run test
-
-      - name: Require captures for every supported delivery
-        run: |
-          git fetch --force --tags --depth=1 origin
-          node scripts/compat-ledger.mjs
-
-      - name: Build remote client
-        working-directory: clients/web
-        env:
-          VITE_RSTORRENT_REMOTE_BUILD_ID: ${{ github.sha }}
-          VITE_RSTORRENT_REMOTE_RELAY_URL: wss://relay.rstorrent.com/client
-        run: npm run build:remote
-
-      - name: Build website
-        working-directory: website
-        run: npm run build
-
-      - name: Assemble immutable Pages artifact
-        run: node scripts/assemble-pages-site.mjs "$GITHUB_SHA"
-
+          cache-dependency-path: website/package-lock.json
+      - run: node --test scripts/assemble-pages-site.test.mjs
+      - run: npm ci --prefix website
+      - run: npm test --prefix website
+      - run: npm run check --prefix website
+      - run: npm run build --prefix website
+      - run: node scripts/assemble-pages-site.mjs
       - name: Record canonical website source provenance
         env:
           SOURCE_REPOSITORY: ${{ github.repository }}
@@ -158,9 +58,3 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy website/dist --project-name=rstorrent-site
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Verify deployed remote client
-        if: github.event_name != 'pull_request'
-        env:
-          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
-        run: node scripts/verify-remote-deployment.mjs "$DEPLOYMENT_URL" "$GITHUB_SHA"

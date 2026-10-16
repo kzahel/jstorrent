@@ -4,6 +4,7 @@ import XCTest
 final class GeneratedSeedingContractTests: XCTestCase {
     func testCompleteClientSettingsRoundTripIncludesSeedingPolicy() throws {
         let settings = ClientSettings(
+            fileSafety: FileSafetySettings(enabled: true, preset: .recommended, customExtensions: [], markInternetOrigin: true),
             listener: .automaticLocalNetwork,
             preferredListenPort: 6_881,
             portMapping: .upnp,

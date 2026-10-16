@@ -1,5 +1,13 @@
 # Application View API
 
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+adds optional FileView.safety and TorrentView.safety_summary, with corresponding
+field updates. A row independently explains rule source, suffix, allowance and
+blocked state; safety never adds a priority enum value. All-selection previews
+subtract blocked file counts/bytes. Files stays paged. New commands are gated
+by file_safety; strict released field-delta exposure stays under the existing
+client-first release hold. See [download safety](download-safety.md).
+
 Tactical [357](../tactical/357-rich-share-links.md) gives `export_magnet`
 optional `options` (`include_size`, `file_indices`, `peer_hint`) and adds
 `peer_hints` and `peer_hint_omission` to its result. Without options the

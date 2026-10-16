@@ -476,6 +476,8 @@ impl EffectiveListenerSettings {
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(deny_unknown_fields)]
 pub struct ClientSettings {
+    #[serde(default)]
+    pub file_safety: crate::FileSafetySettings,
     pub listener: ListenerPolicy,
     #[schemars(range(min = 1_024))]
     pub preferred_listen_port: u16,
@@ -520,6 +522,7 @@ pub struct ClientSettings {
 impl Default for ClientSettings {
     fn default() -> Self {
         Self {
+            file_safety: crate::FileSafetySettings::default(),
             listener: ListenerPolicy::Disabled,
             preferred_listen_port: DEFAULT_PREFERRED_LISTEN_PORT,
             port_mapping: PortMappingPolicy::Disabled,
@@ -562,6 +565,9 @@ impl ClientSettings {
     }
 
     pub fn validate(&self) -> Result<(), ClientSettingsError> {
+        self.file_safety
+            .validate()
+            .map_err(|message| ClientSettingsError::FileSafety { message })?;
         if self.preferred_listen_port < MIN_PREFERRED_LISTEN_PORT {
             return Err(ClientSettingsError::PreferredListenerPort {
                 port: self.preferred_listen_port,
@@ -784,6 +790,7 @@ impl ClientSettingsPatch {
         current: &ClientSettings,
     ) -> Result<ClientSettings, ClientSettingsError> {
         let candidate = ClientSettings {
+            file_safety: current.file_safety.clone(),
             listener: self.listener.unwrap_or(current.listener),
             preferred_listen_port: self
                 .preferred_listen_port
@@ -887,6 +894,7 @@ const fn default_finished_time_limit_seconds() -> u32 {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ClientSettingsError {
+    FileSafety { message: &'static str },
     PreferredListenerPort { port: u16 },
     FixedListenerPort { port: u16 },
     PeerConnectionLimit { value: u32 },
@@ -901,6 +909,7 @@ pub enum ClientSettingsError {
 impl fmt::Display for ClientSettingsError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::FileSafety { message } => formatter.write_str(message),
             Self::PreferredListenerPort { .. } => write!(
                 formatter,
                 "preferred listener port must be {MIN_PREFERRED_LISTEN_PORT}..=65535"

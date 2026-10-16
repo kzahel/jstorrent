@@ -10,6 +10,15 @@ the first-enabled-release explanation once per target. Missing or unavailable
 storage defaults to an unseen notice;
 it never changes updater policy or substitutes for the durable outcome.
 
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+adds schema 29: canonical bounded packed exception/High/allowance/match masks,
+per-torrent captured safety rules, and durable global safety/origin settings.
+Migration preserves existing torrents and pending magnets; legacy imports keep
+prior selections. Only bitmaps are authoritative after migration. The former
+4,096 persisted-exception ceiling is gone; incoming command targets/ranges stay
+bounded. [Download safety](download-safety.md) owns the policy and override
+semantics; the migration ledger owns retirement.
+
 Tactical [367](../tactical/367-encrypted-short-links.md) adds optional
 `shortLink: boolean` to the existing version-1 web share record. Missing,
 unreadable or newer values read as off without a write. A user change saves
@@ -1032,9 +1041,9 @@ owned queue or payload artifact.
 Tactical `176` composes a second bounded sparse set beside those rows. One
 transaction validates the complete file target, makes High/Normal wanted,
 removes High when Normal or Skip is selected, and advances the revision only
-when the semantic result changes. Both sparse sets retain the existing 4,096-
-entry ceiling; malformed, padding, out-of-range, duplicate, and oversized
-commands fail before mutation.
+when the semantic result changes. Tactical 373 replaces the historical persisted 4,096-entry ceiling with
+bitmaps; request target/range counts stay bounded. Malformed, padding, out-of-range, duplicate, and oversized
+commands still fail before mutation.
 
 Tactical
 [`100`](../tactical/100-bep53-select-only-and-duplicate-add-feedback.md)

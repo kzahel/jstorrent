@@ -168,14 +168,22 @@ final class AppModel: ObservableObject {
         engineStatus = .stopped
     }
 
+    func updateFileSafety(_ settings: FileSafetySettings, expected: FileSafetySettings) async throws {
+        let current = try await dispatch(.snapshot)
+        guard case .success(let snapshot) = current.outcome, snapshot.clientSettings.fileSafety == expected else {
+            throw AppModelError.command(String(localized: "safety_conflict"))
+        }
+        _ = try await dispatch(.updateFileSafetySettings(settings: settings), expectedRevision: current.revision)
+    }
+
     @discardableResult
-    func dispatch(_ command: Command) async throws -> ResponseEnvelope {
+    func dispatch(_ command: Command, expectedRevision: String? = nil) async throws -> ResponseEnvelope {
         guard let client else { throw AppModelError.notReady }
         let response = try await client.dispatch(
             request: RequestEnvelope(
                 version: 1,
                 requestId: "ios-\(UUID().uuidString.lowercased())",
-                expectedRevision: nil,
+                expectedRevision: expectedRevision,
                 command: command
             )
         )
