@@ -38,6 +38,17 @@ import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.rstorrent.bootstrap.ui.ProductApp
+import org.rstorrent.bootstrap.ui.LibraryBrowseState
+import org.rstorrent.bootstrap.ui.LibraryGroupSelection
+import org.rstorrent.bootstrap.ui.LibraryPreset
+import org.rstorrent.bootstrap.ui.PrimaryDestination
+import org.rstorrent.bootstrap.ui.libraryMediaRequest
+import org.rstorrent.session.uniffi.LibraryFacetsView
+import org.rstorrent.session.uniffi.LibraryGroupView
+import org.rstorrent.session.uniffi.LibraryMediaItemView
+import org.rstorrent.session.uniffi.LibraryMediaKind
+import org.rstorrent.session.uniffi.LibraryMediaRole
+import androidx.compose.ui.test.performTextInput
 import org.rstorrent.bootstrap.ui.PendingFileSelectionDialog
 import org.rstorrent.bootstrap.ui.ProductThemeMode
 import org.rstorrent.bootstrap.ui.FileSelectionBottomBar
@@ -1635,7 +1646,7 @@ class ProductNavigationTest {
     fun archiveOnlyLibraryDoesNotOfferAnEmptyAllView() {
         showNarrowLibrary(listOf(torrent().copy(archived = true, operationalState = TorrentOperationalState.PAUSED)))
         compose.onNodeWithText("Active").performScrollTo().performClick()
-        compose.onNodeWithText("Try another library filter.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Try another filter.").performScrollTo().assertIsDisplayed()
         compose.onAllNodesWithText("View all torrents").assertCountEquals(0)
         compose.onNodeWithText("Archived").performScrollTo().performClick()
         compose.onNodeWithText("Fixture torrent").performScrollTo().assertIsDisplayed()
@@ -1718,6 +1729,337 @@ class ProductNavigationTest {
             assertEquals(if (repair && !chooseFromMenu) listOf("retained") else emptyList<String>(), repairs)
         }
     }
+
+    @Test
+    fun primaryNavigationSwitchesDestinationsAndHidesDuringSelection() {
+        val torrent = torrent()
+        val destinations = mutableListOf<PrimaryDestination>()
+        compose.setContent {
+            ProductApp(
+                service = null,
+                onSelectStorage = {},
+                onBrowseTorrent = {},
+                notificationsGranted = true,
+                onRequestNotifications = {},
+                onOpenNotificationSettings = {},
+                themeMode = ProductThemeMode.LIGHT,
+                dynamicColor = false,
+                onThemeMode = {},
+                onDynamicColor = {},
+                stateOverride =
+                    libraryState(torrent).copy(
+                        libraryMedia = libraryPage(LibraryBrowseState(), listOf(libraryItem(0U))),
+                    ),
+                onPrimaryDestination = { destinations += it },
+            )
+        }
+
+        awaitDisplayed("Fixture torrent")
+        compose.onNodeWithText("Library").performSemanticsAction(SemanticsActions.OnClick)
+        awaitDisplayed("Episode 1")
+        compose.onNodeWithContentDescription("Add torrent").assertIsDisplayed()
+        compose.onNodeWithText("Torrents").performSemanticsAction(SemanticsActions.OnClick)
+        awaitDisplayed("Fixture torrent")
+
+        // The selection bar replaces the primary navigation while it is shown.
+        compose.onNodeWithText("Fixture torrent").performSemanticsAction(SemanticsActions.OnLongClick)
+        compose.onNodeWithText("1 selected").assertIsDisplayed()
+        compose.onAllNodesWithText("Library").assertCountEquals(0)
+        compose.onNodeWithContentDescription("Clear selection")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Library").assertIsDisplayed()
+        compose.runOnIdle {
+            assertEquals(
+                listOf(
+                    PrimaryDestination.TORRENTS,
+                    PrimaryDestination.LIBRARY,
+                    PrimaryDestination.TORRENTS,
+                ),
+                destinations,
+            )
+        }
+    }
+
+    @Test
+    fun libraryOpensShowsInPlaceAndReachesTheSourceTorrent() {
+        val torrent = torrent()
+        val episodes = listOf(libraryItem(0U), libraryItem(1U))
+        var state by mutableStateOf(
+            libraryState(torrent).copy(libraryMedia = libraryPage(LibraryBrowseState(), episodes)),
+        )
+        compose.setContent {
+            ProductApp(
+                service = null,
+                onSelectStorage = {},
+                onBrowseTorrent = {},
+                notificationsGranted = true,
+                onRequestNotifications = {},
+                onOpenNotificationSettings = {},
+                themeMode = ProductThemeMode.LIGHT,
+                dynamicColor = false,
+                onThemeMode = {},
+                onDynamicColor = {},
+                stateOverride = state,
+                startDestination = PrimaryDestination.LIBRARY,
+            )
+        }
+
+        awaitDisplayed("Episode 1")
+        compose.onNodeWithText("S01E02 · Show Name · 0.0% downloaded · 1.0 KB").assertIsDisplayed()
+
+        // A page answering another request is never shown as the current one.
+        compose.onNodeWithText("TV shows").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithTag("library-loading").assertIsDisplayed()
+        compose.onAllNodesWithText("Episode 1").assertCountEquals(0)
+        val shows = LibraryBrowseState(preset = LibraryPreset.SHOWS)
+        val show = LibraryGroupView("series:show name", "Show Name", 2U, 0U, "2048", 1U, 1U, null)
+        compose.runOnIdle {
+            state = state.copy(libraryMedia = libraryPage(shows, groups = listOf(show)))
+        }
+        awaitDisplayed("2 episodes · 1 season · 2.0 KB")
+        compose.onNodeWithText("Shows").assertIsDisplayed()
+        compose.onNodeWithText("Episodes").assertIsDisplayed()
+
+        val opened = shows.copy(group = LibraryGroupSelection(show.groupId, show.title))
+        compose.onNodeWithTag("library-group-series:show name")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        compose.runOnIdle { state = state.copy(libraryMedia = libraryPage(opened, episodes)) }
+        awaitDisplayed("Episode 2")
+        compose.onAllNodesWithText("TV shows").assertCountEquals(0)
+
+        // Back closes the show in place.
+        compose.onNodeWithContentDescription("Back").performSemanticsAction(SemanticsActions.OnClick)
+        compose.runOnIdle {
+            state = state.copy(libraryMedia = libraryPage(shows, groups = listOf(show)))
+        }
+        awaitDisplayed("2 episodes · 1 season · 2.0 KB")
+
+        // An item opens its source torrent, and Back returns to the open show.
+        compose.onNodeWithTag("library-group-series:show name")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        compose.runOnIdle { state = state.copy(libraryMedia = libraryPage(opened, episodes)) }
+        awaitDisplayed("Episode 1")
+        compose.onNodeWithText("Episode 1").performSemanticsAction(SemanticsActions.OnClick)
+        awaitDisplayed("Fixture torrent")
+        compose.onAllNodesWithText("Library").assertCountEquals(0)
+        compose.onNodeWithContentDescription("Back").performSemanticsAction(SemanticsActions.OnClick)
+        awaitDisplayed("Episode 2")
+        compose.onNodeWithText("Library").assertIsDisplayed()
+    }
+
+    @Test
+    fun libraryOffersPlayPagesSearchAndEmptyStates() {
+        val streamable = libraryItem(0U, availability = MediaFileAvailability.STREAMABLE)
+        val incomplete = libraryItem(1U, availability = MediaFileAvailability.INCOMPLETE)
+        val track =
+            libraryItem(2U, availability = MediaFileAvailability.AVAILABLE).copy(
+                title = "Opening Theme",
+                fileName = "01 Opening Theme.flac",
+                extension = "flac",
+                kind = LibraryMediaKind.AUDIO,
+                role = LibraryMediaRole.TRACK,
+                albumTitle = "Soundtrack",
+                trackNumber = 1U.toUShort(),
+                verifiedBytes = "1024",
+                offline = true,
+            )
+        var state by mutableStateOf(
+            libraryState(torrent()).copy(
+                libraryMedia =
+                    libraryPage(
+                        LibraryBrowseState(),
+                        listOf(streamable, incomplete, track),
+                        total = 250U,
+                        nextOffset = 100U,
+                    ),
+            ),
+        )
+        compose.setContent {
+            ProductApp(
+                service = null,
+                onSelectStorage = {},
+                onBrowseTorrent = {},
+                notificationsGranted = true,
+                onRequestNotifications = {},
+                onOpenNotificationSettings = {},
+                themeMode = ProductThemeMode.LIGHT,
+                dynamicColor = false,
+                onThemeMode = {},
+                onDynamicColor = {},
+                stateOverride = state,
+                startDestination = PrimaryDestination.LIBRARY,
+            )
+        }
+
+        awaitDisplayed("Opening Theme")
+        compose.onNodeWithText("Soundtrack · Track 1 · 1.0 KB").assertIsDisplayed()
+        // Video rows offer Play when the file can stream; audio has no player yet.
+        val play = compose.onAllNodesWithContentDescription("Play")
+        play.assertCountEquals(2)
+        play[0].assertIsEnabled()
+        play[1].assertIsNotEnabled()
+
+        compose.onNodeWithText("1–100").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Next").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithTag("library-loading").assertIsDisplayed()
+        compose.runOnIdle {
+            state =
+                state.copy(
+                    libraryMedia =
+                        libraryPage(
+                            LibraryBrowseState(page = 1),
+                            listOf(libraryItem(3U)),
+                            offset = 100U,
+                            total = 250U,
+                            nextOffset = 200U,
+                        ),
+                )
+        }
+        awaitDisplayed("Episode 4")
+
+        // Search is debounced into the request and starts at the first page.
+        compose.onNodeWithContentDescription("Search library")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithTag("library-search").performTextInput("nothing")
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("library-loading").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.runOnIdle {
+            state =
+                state.copy(
+                    libraryMedia =
+                        libraryPage(
+                            LibraryBrowseState(text = "nothing"),
+                            emptyList(),
+                            facets = libraryFacets(items = 1U, pending = 0U),
+                        ),
+                )
+        }
+        awaitDisplayed("Nothing matches this search and these filters")
+        compose.onNodeWithText("Show all media").performSemanticsAction(SemanticsActions.OnClick)
+        compose.runOnIdle {
+            state =
+                state.copy(
+                    libraryMedia =
+                        libraryPage(
+                            LibraryBrowseState(),
+                            emptyList(),
+                            facets = libraryFacets(items = 0U, pending = 1U),
+                        ),
+                )
+        }
+        awaitDisplayed("Your library has no video or music yet")
+        compose.onNodeWithText("1 torrent is still getting file details from peers.")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun externalIntakeLandsOnTorrentsFromTheLibrary() {
+        val destinations = mutableListOf<PrimaryDestination>()
+        compose.setContent {
+            ProductApp(
+                service = null,
+                onSelectStorage = {},
+                onBrowseTorrent = {},
+                notificationsGranted = true,
+                onRequestNotifications = {},
+                onOpenNotificationSettings = {},
+                themeMode = ProductThemeMode.LIGHT,
+                dynamicColor = false,
+                onThemeMode = {},
+                onDynamicColor = {},
+                stateOverride =
+                    libraryState(torrent()).copy(
+                        externalIntake =
+                            ExternalIntakePresentation(
+                                42,
+                                ExternalIntakeKind.MAGNET,
+                                ExternalIntakePhase.PRESENTED,
+                                null,
+                                true,
+                            ),
+                    ),
+                startDestination = PrimaryDestination.LIBRARY,
+                onPrimaryDestination = { destinations += it },
+            )
+        }
+
+        compose.onNodeWithText("Add torrent").assertIsDisplayed()
+        compose.waitUntil(5_000) { destinations.lastOrNull() == PrimaryDestination.TORRENTS }
+    }
+
+    private fun libraryState(torrent: TorrentView) =
+        ProductState(
+            ready = true,
+            storageRootReady = true,
+            storageRootChecking = false,
+            torrents = mapOf(torrent.torrentId to torrent),
+        )
+
+    private fun libraryPage(
+        browse: LibraryBrowseState,
+        items: List<LibraryMediaItemView> = emptyList(),
+        groups: List<LibraryGroupView> = emptyList(),
+        offset: UInt = 0U,
+        total: UInt = (items.size + groups.size).toUInt(),
+        nextOffset: UInt? = null,
+        facets: LibraryFacetsView = libraryFacets(items = total, pending = 0U),
+    ) = LibraryMediaViewState(
+        CatalogPageView(offset, 100U, total, nextOffset),
+        facets,
+        items,
+        groups,
+        libraryMediaRequest(browse),
+    )
+
+    private fun libraryFacets(
+        items: UInt,
+        pending: UInt,
+    ) = LibraryFacetsView(
+        items = items,
+        video = items,
+        audio = 0U,
+        episodes = items,
+        movies = 0U,
+        otherVideos = 0U,
+        tracks = 0U,
+        offline = 0U,
+        incomplete = items,
+        series = 1U,
+        albums = 0U,
+        torrents = 1U,
+        metadataPending = pending,
+    )
+
+    private fun libraryItem(
+        index: UInt,
+        availability: MediaFileAvailability = MediaFileAvailability.UNVERIFIED,
+    ) = LibraryMediaItemView(
+        itemId = "t1-0123456789abcdef0123456789abcdef:$index",
+        torrentId = "t1-0123456789abcdef0123456789abcdef",
+        torrentName = "Show Name",
+        fileIndex = index,
+        fileName = "Show.Name.S01E0${index + 1U}.mkv",
+        title = "Episode ${index + 1U}",
+        kind = LibraryMediaKind.VIDEO,
+        role = LibraryMediaRole.EPISODE,
+        seriesTitle = "Show Name",
+        seriesId = "series:show name",
+        seasonNumber = 1U.toUShort(),
+        episodeNumber = (index + 1U).toUShort(),
+        endingEpisodeNumber = null,
+        albumTitle = null,
+        albumId = null,
+        discNumber = null,
+        trackNumber = null,
+        year = null,
+        extension = "mkv",
+        lengthBytes = "1024",
+        verifiedBytes = "0",
+        offline = false,
+        archived = false,
+        mediaAvailability = availability,
+    )
 
     private fun torrent(): TorrentView =
         TorrentView(

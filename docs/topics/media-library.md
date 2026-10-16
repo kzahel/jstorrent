@@ -9,6 +9,8 @@ host-owned cross-torrent media index for video and audio, the
 and a web Library built on it. 100,000 files index in about 17 MB and
 120 ms, and a page query takes 2–5 ms once its sort exists. Probing,
 artwork, watched state, an added-at time and folder indexing remain open.
+Tactical [376](../tactical/376-android-media-library.md) adds the Android
+Library on the same projection.
 
 ## Scope
 
@@ -17,8 +19,9 @@ The Library is the content-centric destination described by
 topic owns what the Library lists and how it is computed: the media item
 model, cross-torrent grouping, the query contract, where derived and
 user-authored data live, and the slices that remain. The web presentation
-belongs to [`web-ui-design`](web-ui-design.md); the leased-view mechanics
-belong to [`application-view-api`](application-view-api.md).
+belongs to [`web-ui-design`](web-ui-design.md) and the Android presentation
+to [`client-surfaces`](client-surfaces.md); the leased-view mechanics belong
+to [`application-view-api`](application-view-api.md).
 
 ## Decisions
 
@@ -119,8 +122,11 @@ not reach clients that do not know it.
 - Search folds case and separators, not diacritics.
 - No probing, artwork, thumbnails, duration, watched state or saved views.
 - No user correction of a wrong series, album or movie classification.
-- The Android Compose app has no Library presentation; the projection is
-  available through its generated boundary.
+- Android lists rows only, plays video only (audio needs a player with
+  background playback), and keeps the preset and filters for the session
+  rather than across launches (Tactical
+  [376](../tactical/376-android-media-library.md)).
+- iOS has no Library presentation.
 - Indexing a download folder outside the profile's torrents is not planned.
 
 ## Recommended Next Work

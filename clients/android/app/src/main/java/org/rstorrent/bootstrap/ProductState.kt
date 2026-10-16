@@ -18,6 +18,7 @@ import org.rstorrent.session.uniffi.IndexRange
 import org.rstorrent.session.uniffi.LibraryFacetsView
 import org.rstorrent.session.uniffi.LibraryGroupView
 import org.rstorrent.session.uniffi.LibraryMediaItemView
+import org.rstorrent.session.uniffi.LibraryMediaQuery
 import org.rstorrent.session.uniffi.MediaCatalogState
 import org.rstorrent.session.uniffi.MediaItemView
 import org.rstorrent.session.uniffi.PeerFieldUpdate
@@ -69,12 +70,21 @@ data class MediaCatalogViewState(
     val items: Map<String, MediaItemView>,
 )
 
+/** One Library query and page, leased as `library_media` (Tactical 376). */
+data class LibraryMediaRequest(
+    val query: LibraryMediaQuery,
+    val offset: UInt,
+    val limit: UInt,
+)
+
 /** One page of the cross-torrent Library (Tactical 363). */
 data class LibraryMediaViewState(
     val page: CatalogPageView,
     val facets: LibraryFacetsView,
     val items: List<LibraryMediaItemView>,
     val groups: List<LibraryGroupView>,
+    /** The request this page answers; null until its lease stamps it. */
+    val request: LibraryMediaRequest? = null,
 )
 
 data class SwarmViewState(

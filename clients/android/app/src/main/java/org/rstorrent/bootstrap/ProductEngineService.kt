@@ -98,6 +98,7 @@ import org.rstorrent.session.uniffi.FileView
 import org.rstorrent.session.uniffi.HttpsServerAuthenticationPolicy
 import org.rstorrent.session.uniffi.ListenerPolicy
 import org.rstorrent.session.uniffi.ListenerStatus
+import org.rstorrent.session.uniffi.LibraryMediaItemView
 import org.rstorrent.session.uniffi.MediaUrlOutcome
 import org.rstorrent.session.uniffi.PortMappingPolicy
 import org.rstorrent.session.uniffi.RequestEnvelope
@@ -153,6 +154,7 @@ class ProductEngineService : Service() {
     private val clientReady = CompletableDeferred<Unit>()
     private val presentationReady = CompletableDeferred<Unit>()
     private val pendingSelectionPresentation = PendingSelectionPresentation(::withPresentation)
+    private val libraryPresentation = LatestPresentationRequest(::withPresentation)
     private val mutableState = MutableStateFlow(ProductState())
     val state: StateFlow<ProductState> = mutableState.asStateFlow()
 
@@ -3536,6 +3538,17 @@ class ProductEngineService : Service() {
         )
     }
 
+    fun playLibraryMedia(item: LibraryMediaItemView) {
+        if (rejectMutationDuringDataReset()) return
+        if (!AndroidMediaPlaybackPolicy.isLibraryPlayActionEnabled(item, launchPending = false)) {
+            mutableState.update {
+                it.copy(error = ProductError.MediaUnavailable(item.mediaAvailability))
+            }
+            return
+        }
+        startMediaPlayback(item.torrentId, item.fileIndex, item.title)
+    }
+
     private fun startMediaPlayback(
         torrentId: String,
         fileIndex: UInt,
@@ -4632,6 +4645,10 @@ class ProductEngineService : Service() {
         speedRange: SpeedRange = SpeedRange.MINUTES2,
     ) {
         withPresentation { it.presentGlobal(presentation, speedRange) }
+    }
+
+    fun presentLibrary(request: LibraryMediaRequest?) {
+        libraryPresentation.submit { it.presentLibrary(request) }
     }
 
     fun configureDiagnostics(

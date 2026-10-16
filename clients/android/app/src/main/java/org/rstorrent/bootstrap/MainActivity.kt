@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.rstorrent.bootstrap.ui.CatalogRecoveryScreen
 import org.rstorrent.bootstrap.ui.ChromeExtensionSetupDialog
+import org.rstorrent.bootstrap.ui.PrimaryDestination
 import org.rstorrent.bootstrap.ui.ProductApp
 import org.rstorrent.bootstrap.ui.ProductThemeMode
 import org.rstorrent.bootstrap.ui.RstorrentTheme
@@ -47,6 +48,7 @@ class MainActivity : ComponentActivity() {
     private val catalogRecovery: CatalogRecoveryModel by viewModels()
     private val themeMode = mutableStateOf(ProductThemeMode.SYSTEM)
     private val dynamicColor = mutableStateOf(true)
+    private var startDestination = PrimaryDestination.TORRENTS
     private val chromeExtensionSetupVisible = mutableStateOf(false)
     private val chromeExtensionSetupBusy = mutableStateOf(false)
     private val chromeExtensionSetupFailed = mutableStateOf(false)
@@ -448,6 +450,11 @@ class MainActivity : ComponentActivity() {
                 )
             }.getOrDefault(ProductThemeMode.SYSTEM)
         dynamicColor.value = preferences.getBoolean(PREFERENCE_DYNAMIC_COLOR, true)
+        startDestination =
+            PrimaryDestination.fromPreference(
+                runCatching { preferences.getString(PREFERENCE_PRIMARY_DESTINATION, null) }
+                    .getOrNull(),
+            )
         pendingProductTorrentUri = savedInstanceState?.getString(STATE_PENDING_TORRENT_URI)
         pendingProductTorrentUris =
             savedInstanceState?.getStringArrayList(STATE_PENDING_TORRENT_URIS)
@@ -800,6 +807,8 @@ class MainActivity : ComponentActivity() {
                         dynamicColor = dynamicColor.value,
                         onThemeMode = ::setThemeMode,
                         onDynamicColor = ::setDynamicColor,
+                        startDestination = startDestination,
+                        onPrimaryDestination = ::setPrimaryDestination,
                     )
                     if (chromeExtensionSetupVisible.value) {
                         val notifications = productService.value?.state
@@ -1435,6 +1444,13 @@ class MainActivity : ComponentActivity() {
             .apply()
     }
 
+    private fun setPrimaryDestination(destination: PrimaryDestination) {
+        val preferences = getSharedPreferences(PRODUCT_PREFERENCES, Context.MODE_PRIVATE)
+        val stored = runCatching { preferences.getString(PREFERENCE_PRIMARY_DESTINATION, null) }
+        if (stored.getOrNull() == destination.name) return
+        preferences.edit().putString(PREFERENCE_PRIMARY_DESTINATION, destination.name).apply()
+    }
+
     private fun setDynamicColor(enabled: Boolean) {
         dynamicColor.value = enabled
         getSharedPreferences(PRODUCT_PREFERENCES, Context.MODE_PRIVATE)
@@ -1510,6 +1526,7 @@ class MainActivity : ComponentActivity() {
         private const val PRODUCT_PREFERENCES = "product_ui"
         private const val PREFERENCE_THEME_MODE = "theme_mode"
         private const val PREFERENCE_DYNAMIC_COLOR = "dynamic_color"
+        private const val PREFERENCE_PRIMARY_DESTINATION = "primary_destination"
         private const val STATE_PENDING_TORRENT_URI = "pending_torrent_uri"
         private const val STATE_PENDING_TORRENT_URIS = "pending_torrent_uris"
         private const val STATE_PENDING_TORRENT_LIST_EXPORT = "pending_torrent_list_export"

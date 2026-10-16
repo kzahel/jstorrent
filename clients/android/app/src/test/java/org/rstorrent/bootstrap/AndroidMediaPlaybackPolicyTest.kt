@@ -7,6 +7,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.rstorrent.session.uniffi.LibraryMediaKind
+import org.rstorrent.session.uniffi.LibraryMediaRole
 import org.rstorrent.session.uniffi.MediaFileAvailability
 
 class AndroidMediaPlaybackPolicyTest {
@@ -44,6 +46,56 @@ class AndroidMediaPlaybackPolicyTest {
         listOf("mp3", "flac", "vtt", "txt", "", "mp4.exe").forEach { extension ->
             assertFalse(AndroidMediaPlaybackPolicy.isRecognizedVideo(listOf("clip.$extension")))
         }
+    }
+
+    @Test
+    fun libraryPlayUsesTheHostExtensionAndPlayableAvailabilityOnly() {
+        // A cut file name keeps its host-classified extension.
+        val cut = libraryMediaItem(fileName = "A very long episode name, cut", extension = "mkv")
+        assertTrue(
+            AndroidMediaPlaybackPolicy.isLibraryPlayActionEnabled(
+                cut.copy(mediaAvailability = MediaFileAvailability.STREAMABLE),
+                launchPending = false,
+            ),
+        )
+        assertTrue(
+            AndroidMediaPlaybackPolicy.isLibraryPlayActionEnabled(
+                libraryMediaItem(verifiedBytes = "1024", availability = MediaFileAvailability.AVAILABLE),
+                launchPending = false,
+            ),
+        )
+        assertFalse(
+            AndroidMediaPlaybackPolicy.isLibraryPlayActionEnabled(
+                libraryMediaItem(availability = MediaFileAvailability.AVAILABLE),
+                launchPending = true,
+            ),
+        )
+        listOf(
+            MediaFileAvailability.INCOMPLETE,
+            MediaFileAvailability.UNVERIFIED,
+            MediaFileAvailability.STORAGE_UNAVAILABLE,
+        ).forEach { availability ->
+            assertFalse(
+                availability.name,
+                AndroidMediaPlaybackPolicy.isLibraryPlayActionEnabled(
+                    libraryMediaItem(availability = availability),
+                    launchPending = false,
+                ),
+            )
+        }
+        // Audio has no Android player yet.
+        assertFalse(
+            AndroidMediaPlaybackPolicy.isLibraryPlayActionEnabled(
+                libraryMediaItem(
+                    fileName = "01 Track.flac",
+                    extension = "flac",
+                    kind = LibraryMediaKind.AUDIO,
+                    role = LibraryMediaRole.TRACK,
+                    availability = MediaFileAvailability.AVAILABLE,
+                ),
+                launchPending = false,
+            ),
+        )
     }
 
     @Test

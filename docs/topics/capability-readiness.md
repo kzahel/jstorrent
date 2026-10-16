@@ -10,6 +10,12 @@ shipping activation remains gated while the full signed
 platform/transfer/recovery matrix is incomplete. The mixed-version horizon
 remains 30 days. Android/headless update ownership is unchanged.
 
+Tactical [376](../tactical/376-android-media-library.md) brings the media
+Library to Android over the existing `library_media` projection, with Library
+and Torrents as primary destinations (bar on phones, rail from 600 dp). No
+Rust or contract change; controlled Compose, JVM and live seeded-AVD evidence
+pass. Audio playback and iOS remain open.
+
 Android status presentation is repaired in Tactical
 [374](../tactical/374-android-transfer-status-presentation.md): completed-card
 seeding metrics and metadata/starting/checking/seeding notifications pass

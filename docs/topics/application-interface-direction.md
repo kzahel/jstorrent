@@ -232,8 +232,12 @@ the return-to-list control available at every width where Workbench detail
 replaces the torrent list.
 
 This direction applies to the shared desktop/browser presentation. It does not
-require the Android Compose client to adopt the same primary navigation,
-Library cards, or Workbench density.
+require the Android Compose client to adopt the same Library cards or
+Workbench density. Tactical
+[376](../tactical/376-android-media-library.md) adopts the same two primary
+destinations, Library and Torrents, on Android: a navigation bar at compact
+widths and a rail from 600 dp, hidden while torrent selection owns the bottom
+bar. Global screens stay in the overflow menu; Android has no drawer.
 
 ## Local Mockup Record
 

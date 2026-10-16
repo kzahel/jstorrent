@@ -78,6 +78,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -112,7 +113,7 @@ import org.rstorrent.session.uniffi.TorrentView
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-internal fun LibraryScreen(
+internal fun TorrentsScreen(
     state: ProductState,
     notificationsGranted: Boolean,
     onEnableBackgroundDownloads: () -> Unit,
@@ -140,33 +141,35 @@ internal fun LibraryScreen(
     onLogs: () -> Unit,
     onSettings: () -> Unit,
     onShutdown: () -> Unit,
+    onSelectionModeChange: (Boolean) -> Unit = {},
 ) {
-    var filterName by rememberSaveable { mutableStateOf(LibraryFilter.ALL.name) }
-    var sortName by rememberSaveable { mutableStateOf(LibrarySort.STABLE.name) }
+    var filterName by rememberSaveable { mutableStateOf(TorrentFilter.ALL.name) }
+    var sortName by rememberSaveable { mutableStateOf(TorrentSort.STABLE.name) }
     var addOpen by rememberSaveable { mutableStateOf(false) }
     var sortOpen by remember { mutableStateOf(false) }
     var overflowOpen by remember { mutableStateOf(false) }
     var selection by rememberSaveable { mutableStateOf(emptySet<String>()) }
     var backgroundOfferDismissed by rememberSaveable { mutableStateOf(false) }
     var migrationGuidanceDismissed by rememberSaveable { mutableStateOf(false) }
-    val filter = LibraryFilter.valueOf(filterName)
-    val sort = LibrarySort.valueOf(sortName)
+    val filter = TorrentFilter.valueOf(filterName)
+    val sort = TorrentSort.valueOf(sortName)
     val torrents = filteredAndSortedTorrents(state.torrents.values, filter, sort)
     // Selection follows the visible tab: rows that leave it (for example after
     // archiving) drop out, and the selected rows keep their list order.
     val selectedTorrents = torrents.filter { it.torrentId in selection }
     LaunchedEffect(selectedTorrents.size, selection.size, state.ready) {
-        // Skip while the library is not loaded so a reconnect keeps the selection.
+        // Skip while the torrent list is not loaded so a reconnect keeps the selection.
         if (state.ready && selectedTorrents.size != selection.size) {
             selection = selectedTorrents.mapTo(mutableSetOf(), TorrentView::torrentId)
         }
     }
     BackHandler(enabled = selection.isNotEmpty()) { selection = emptySet() }
+    // The selection bar replaces the primary navigation while it is shown.
+    val selectionMode = selection.isNotEmpty()
+    LaunchedEffect(selectionMode) { onSelectionModeChange(selectionMode) }
+    DisposableEffect(Unit) { onDispose { onSelectionModeChange(false) } }
     val networkRuntime = state.clientSettings?.applicationNetwork
-    val waitingForUnmeteredNetwork =
-        networkRuntime?.requestedPrerequisite ==
-            ApplicationNetworkPrerequisiteView.WAITING_FOR_UNMETERED_NETWORK &&
-            networkRuntime.state != ApplicationNetworkRuntimeState.ALLOWED
+    val waitingForUnmeteredNetwork = state.waitingForUnmeteredNetwork
     val stateError = state.error?.let { productErrorText(it) }
     val sortDescription = stringResource(R.string.a11y_sort_torrents)
     val moreDescription = stringResource(R.string.a11y_more_options)
@@ -185,20 +188,7 @@ internal fun LibraryScreen(
                 )
             } else {
                 TopAppBar(
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RstorrentLogo(Modifier.size(40.dp))
-                            Spacer(Modifier.size(10.dp))
-                            Column {
-                                Text(stringResource(R.string.app_name), fontWeight = FontWeight.SemiBold)
-                                LibraryStatusLine(
-                                    state = state,
-                                    waitingForUnmeteredNetwork = waitingForUnmeteredNetwork,
-                                    onSpeed = onSpeed,
-                                )
-                            }
-                        }
-                    },
+                    title = { PrimaryTitle(state, onSpeed) },
                     actions = {
                         Box {
                             IconButton(
@@ -209,7 +199,7 @@ internal fun LibraryScreen(
                                 Icon(Icons.AutoMirrored.Outlined.Sort, contentDescription = null)
                             }
                             DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
-                                LibrarySort.entries.forEach { candidate ->
+                                TorrentSort.entries.forEach { candidate ->
                                     DropdownMenuItem(
                                         text = { Text(stringResource(candidate.labelRes)) },
                                         onClick = {
@@ -233,7 +223,7 @@ internal fun LibraryScreen(
                             ) {
                                 Icon(Icons.Outlined.MoreVert, contentDescription = null)
                             }
-                            LibraryOverflowMenu(
+                            PrimaryOverflowMenu(
                                 expanded = overflowOpen,
                                 onDismiss = { overflowOpen = false },
                                 onPauseAll = {
@@ -274,7 +264,7 @@ internal fun LibraryScreen(
             if (selection.isNotEmpty()) {
                 SelectionBottomBar(
                     selected = selectedTorrents,
-                    archivedTab = filter == LibraryFilter.ARCHIVED,
+                    archivedTab = filter == TorrentFilter.ARCHIVED,
                     onResume = { it.forEach(onResume) },
                     onPause = { it.forEach(onPause) },
                     onArchive = {
@@ -299,7 +289,7 @@ internal fun LibraryScreen(
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             ScrollableTabRow(selectedTabIndex = filter.ordinal, edgePadding = 12.dp) {
-                LibraryFilter.entries.forEach { candidate ->
+                TorrentFilter.entries.forEach { candidate ->
                     Tab(
                         selected = candidate == filter,
                         onClick = {
@@ -430,13 +420,13 @@ internal fun LibraryScreen(
                 }
                 if (torrents.isEmpty() && !state.checkingStorage) {
                     item("empty") {
-                        EmptyLibrary(
+                        EmptyTorrents(
                             filter = filter,
-                            libraryEmpty = state.torrents.isEmpty(),
-                            canViewAll = filter != LibraryFilter.ALL &&
-                                state.torrents.values.any(LibraryFilter.ALL::matches),
+                            noTorrents = state.torrents.isEmpty(),
+                            canViewAll = filter != TorrentFilter.ALL &&
+                                state.torrents.values.any(TorrentFilter.ALL::matches),
                             onViewAll = {
-                                filterName = LibraryFilter.ALL.name
+                                filterName = TorrentFilter.ALL.name
                                 selection = emptySet()
                             },
                         )
@@ -481,7 +471,7 @@ internal fun LibraryScreen(
 }
 
 @Composable
-private fun LibraryOverflowMenu(
+internal fun PrimaryOverflowMenu(
     expanded: Boolean,
     onDismiss: () -> Unit,
     onPauseAll: () -> Unit,
@@ -559,9 +549,9 @@ private fun SetupCard(
 }
 
 @Composable
-private fun EmptyLibrary(
-    filter: LibraryFilter,
-    libraryEmpty: Boolean,
+private fun EmptyTorrents(
+    filter: TorrentFilter,
+    noTorrents: Boolean,
     canViewAll: Boolean,
     onViewAll: () -> Unit,
 ) {
@@ -577,7 +567,7 @@ private fun EmptyLibrary(
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            if (libraryEmpty || filter == LibraryFilter.ALL) {
+            if (noTorrents || filter == TorrentFilter.ALL) {
                 stringResource(R.string.library_empty)
             } else {
                 stringResource(
@@ -594,7 +584,7 @@ private fun EmptyLibrary(
         } else {
             Text(
                 stringResource(
-                    if (libraryEmpty || filter == LibraryFilter.ALL) {
+                    if (noTorrents || filter == TorrentFilter.ALL) {
                         R.string.library_empty_hint
                     } else {
                         R.string.library_empty_filtered_hint
@@ -733,12 +723,40 @@ private fun TorrentCard(
     }
 }
 
+/** The app name and status line shared by the Library and Torrents bars. */
+@Composable
+internal fun PrimaryTitle(
+    state: ProductState,
+    onSpeed: () -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        RstorrentLogo(Modifier.size(40.dp))
+        Spacer(Modifier.size(10.dp))
+        Column {
+            Text(stringResource(R.string.app_name), fontWeight = FontWeight.SemiBold)
+            ProductStatusLine(
+                state = state,
+                waitingForUnmeteredNetwork = state.waitingForUnmeteredNetwork,
+                onSpeed = onSpeed,
+            )
+        }
+    }
+}
+
+internal val ProductState.waitingForUnmeteredNetwork: Boolean
+    get() {
+        val runtime = clientSettings?.applicationNetwork ?: return false
+        return runtime.requestedPrerequisite ==
+            ApplicationNetworkPrerequisiteView.WAITING_FOR_UNMETERED_NETWORK &&
+            runtime.state != ApplicationNetworkRuntimeState.ALLOWED
+    }
+
 /**
  * One line under the app name: startup and blocking states first, otherwise
  * the session payload rates. Tapping the rates opens the Speed screen.
  */
 @Composable
-private fun LibraryStatusLine(
+private fun ProductStatusLine(
     state: ProductState,
     waitingForUnmeteredNetwork: Boolean,
     onSpeed: () -> Unit,

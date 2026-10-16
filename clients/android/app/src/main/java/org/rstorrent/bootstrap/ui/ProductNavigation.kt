@@ -8,7 +8,8 @@ import org.rstorrent.session.uniffi.TorrentState
 import org.rstorrent.session.uniffi.TorrentView
 
 internal object ProductRoutes {
-    const val LIBRARY = "torrent_list"
+    const val TORRENTS = "torrent_list"
+    const val MEDIA_LIBRARY = "media_library"
     const val DETAIL = "torrent_detail/{torrentId}"
     const val SPEED = "speed_history"
     const val DHT = "dht_info"
@@ -24,7 +25,7 @@ internal object ProductRoutes {
     fun detail(torrentId: String): String = "torrent_detail/$torrentId"
 }
 
-enum class LibraryFilter(
+enum class TorrentFilter(
     @StringRes val labelRes: Int,
 ) {
     ALL(R.string.library_filter_all),
@@ -58,7 +59,7 @@ enum class LibraryFilter(
         }
 }
 
-enum class LibrarySort(
+enum class TorrentSort(
     @StringRes val labelRes: Int,
 ) {
     STABLE(R.string.library_sort_stable),
@@ -68,19 +69,19 @@ enum class LibrarySort(
 
 internal fun filteredAndSortedTorrents(
     torrents: Collection<TorrentView>,
-    filter: LibraryFilter,
-    sort: LibrarySort,
+    filter: TorrentFilter,
+    sort: TorrentSort,
 ): List<TorrentView> {
     val comparator =
         when (sort) {
-            LibrarySort.STABLE ->
+            TorrentSort.STABLE ->
                 compareBy<TorrentView> { it.downloadQueuePosition ?: UInt.MAX_VALUE }
                     .thenBy(TorrentView::torrentId)
-            LibrarySort.NAME ->
+            TorrentSort.NAME ->
                 compareBy<TorrentView> {
                     torrentPresentationName(it).lowercase(Locale.ROOT)
                 }.thenBy(TorrentView::torrentId)
-            LibrarySort.DOWNLOAD_SPEED ->
+            TorrentSort.DOWNLOAD_SPEED ->
                 compareByDescending<TorrentView> {
                     it.payloadDownloadRateBytes.toULongOrNull() ?: 0UL
                 }.thenBy(::torrentPresentationName)

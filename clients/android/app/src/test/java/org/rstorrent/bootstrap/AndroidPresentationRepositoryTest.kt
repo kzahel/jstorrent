@@ -12,13 +12,14 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -27,10 +28,23 @@ import org.rstorrent.bootstrap.uniffi.AndroidApplicationClient
 import org.rstorrent.bootstrap.uniffi.AndroidClientException
 import org.rstorrent.bootstrap.uniffi.AndroidViewSubscription
 import org.rstorrent.bootstrap.uniffi.NoHandle
+import org.rstorrent.session.uniffi.CatalogPageRequest
+import org.rstorrent.session.uniffi.CatalogPageView
 import org.rstorrent.session.uniffi.DiagnosticProfile
 import org.rstorrent.session.uniffi.DiagnosticSeverity
+import org.rstorrent.session.uniffi.LibraryArchivedFilter
+import org.rstorrent.session.uniffi.LibraryAvailabilityFilter
+import org.rstorrent.session.uniffi.LibraryFacetsView
+import org.rstorrent.session.uniffi.LibraryGrouping
+import org.rstorrent.session.uniffi.LibraryMediaItemView
+import org.rstorrent.session.uniffi.LibraryMediaQuery
+import org.rstorrent.session.uniffi.LibraryMediaSort
 import org.rstorrent.session.uniffi.SubscriptionSpec
+import org.rstorrent.session.uniffi.ViewProjection
+import org.rstorrent.session.uniffi.ViewSelector
+import org.rstorrent.session.uniffi.ViewSnapshot
 import org.rstorrent.session.uniffi.ViewUpdate
+import org.rstorrent.session.uniffi.ViewUpdatePayload
 
 class AndroidPresentationRepositoryTest {
     @Test
@@ -88,6 +102,7 @@ class AndroidPresentationRepositoryTest {
         fixture.repository.presentPendingFileSelection("torrent", 0U)
         fixture.repository.clearPendingFileSelection()
         fixture.repository.presentGlobal(GlobalPresentation.SPEED)
+        fixture.repository.presentLibrary(libraryRequest("show"))
         fixture.repository.configureDiagnostics(
             DiagnosticProfile.NORMAL, DiagnosticSeverity.INFO, emptyList(), true,
         )
@@ -199,6 +214,64 @@ class AndroidPresentationRepositoryTest {
     }
 
     @Test
+    fun libraryLeaseStampsItsPagesAndClearsThemOnReplacement() = withFixture { fixture ->
+        val first = libraryRequest("show")
+        fixture.repository.presentLibrary(first)
+        val spec = fixture.client.specs.last()
+        assertEquals(ViewSelector.Library(first.query), spec.selector)
+        assertEquals(ViewProjection.LIBRARY_MEDIA, spec.projection)
+        assertEquals(CatalogPageRequest(0U, 100U), spec.catalogPage)
+        val firstLease = fixture.client.subscriptions.last()
+        firstLease.updates.trySend(libraryPage("stream-a", libraryMediaItem(0U)))
+        assertEquals(first, fixture.state.value.libraryMedia?.request)
+        assertEquals(1, fixture.state.value.libraryMedia?.items?.size)
+
+        // The previous page never answers the new request.
+        val second = libraryRequest("movie")
+        fixture.repository.presentLibrary(second)
+        assertTrue(firstLease.closed)
+        assertNull(fixture.state.value.libraryMedia)
+        fixture.client.subscriptions.last().updates.trySend(
+            libraryPage("stream-b", libraryMediaItem(0U), libraryMediaItem(1U)),
+        )
+        assertEquals(second, fixture.state.value.libraryMedia?.request)
+        assertEquals(2, fixture.state.value.libraryMedia?.items?.size)
+
+        val calls = fixture.client.calls
+        fixture.repository.presentLibrary(null)
+        assertTrue(fixture.client.subscriptions.last().closed)
+        assertNull(fixture.state.value.libraryMedia)
+        assertEquals(calls, fixture.client.calls)
+        assertTrue(fixture.errors.isEmpty())
+        assertTrue(fixture.uncaught.isEmpty())
+    }
+
+    @Test
+    fun closeReleasesTheLibraryLease() = withFixture { fixture ->
+        fixture.repository.presentLibrary(libraryRequest("show"))
+        val lease = fixture.client.subscriptions.last()
+        fixture.closeRepository()
+        assertTrue(lease.closed)
+        assertTrue(fixture.uncaught.isEmpty())
+    }
+
+    @Test
+    fun latestLibraryRequestWinsAcrossDelayedDispatch() = withFixture { fixture ->
+        val queued = ArrayDeque<(AndroidPresentationRepository) -> Unit>()
+        val presentation = LatestPresentationRequest { queued.add(it) }
+        presentation.submit { it.presentLibrary(libraryRequest("first")) }
+        presentation.submit { it.presentLibrary(libraryRequest("second")) }
+        queued.removeLast()(fixture.repository)
+        queued.removeFirst()(fixture.repository)
+        assertEquals(4, fixture.client.calls)
+        assertEquals(
+            ViewSelector.Library(libraryRequest("second").query),
+            fixture.client.specs.last().selector,
+        )
+        assertFalse(fixture.client.subscriptions.last().closed)
+    }
+
+    @Test
     fun closeWaitsForAcquisitionThenReleasesItsOwner() = withFixture { fixture ->
         val started = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
@@ -218,6 +291,49 @@ class AndroidPresentationRepositoryTest {
         assertTrue(fixture.client.subscriptions.all { it.closed })
         assertTrue(fixture.uncaught.isEmpty())
     }
+
+    private fun libraryRequest(text: String) =
+        LibraryMediaRequest(
+            LibraryMediaQuery(
+                text = text,
+                kinds = emptyList(),
+                roles = emptyList(),
+                availability = LibraryAvailabilityFilter.ANY,
+                archived = LibraryArchivedFilter.EXCLUDE,
+                torrentId = null,
+                groupId = null,
+                grouping = LibraryGrouping.UNGROUPED,
+                sort = LibraryMediaSort.TITLE,
+                descending = false,
+            ),
+            0U,
+            100U,
+        )
+
+    private fun libraryPage(
+        stream: String,
+        vararg items: LibraryMediaItemView,
+    ) = ViewUpdate(
+        2U.toUShort(),
+        stream,
+        "epoch-1",
+        "1",
+        "0",
+        "1",
+        ViewUpdatePayload.Snapshot(
+            ViewSnapshot.LibraryMedia(
+                CatalogPageView(0U, 100U, items.size.toUInt(), null),
+                LibraryFacetsView(
+                    items = items.size.toUInt(), video = items.size.toUInt(), audio = 0U,
+                    episodes = items.size.toUInt(), movies = 0U, otherVideos = 0U, tracks = 0U,
+                    offline = 0U, incomplete = items.size.toUInt(), series = 1U, albums = 0U,
+                    torrents = 1U, metadataPending = 0U,
+                ),
+                items.toList(),
+                emptyList(),
+            ),
+        ),
+    )
 
     private fun withFixture(
         dispatcher: CoroutineDispatcher = Dispatchers.Unconfined,
@@ -242,8 +358,9 @@ class AndroidPresentationRepositoryTest {
             SupervisorJob() + dispatcher + CoroutineExceptionHandler { _, error -> uncaught += error },
         )
         val client = FakeClient()
+        val state = MutableStateFlow(ProductState())
         val repository = AndroidPresentationRepository(
-            scope, MutableStateFlow(ProductState()), stopped,
+            scope, state, stopped,
             onUpdate = { _, _, _ -> }, onError = { errors += it },
         )
 
@@ -287,8 +404,9 @@ class AndroidPresentationRepositoryTest {
 
     private class FakeSubscription : AndroidViewSubscription(NoHandle) {
         var closed = false
+        val updates = Channel<ViewUpdate>(Channel.UNLIMITED)
 
-        override suspend fun nextUpdate(): ViewUpdate? = awaitCancellation()
+        override suspend fun nextUpdate(): ViewUpdate? = updates.receive()
 
         override fun close() {
             closed = true

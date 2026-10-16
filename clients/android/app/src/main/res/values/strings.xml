@@ -155,8 +155,63 @@
     <string name="library_empty">No torrents yet</string>
     <string name="library_empty_filtered">No %1$s torrents</string>
     <string name="library_empty_hint">Tap Add to paste a magnet or choose a .torrent file.</string>
-    <string name="library_empty_filtered_hint">Try another library filter.</string>
+    <string name="library_empty_filtered_hint">Try another filter.</string>
     <string name="library_view_all">View all torrents</string>
+    <!-- Tactical 376: the primary destinations and the media Library. -->
+    <string name="nav_library">Library</string>
+    <string name="nav_torrents">Torrents</string>
+    <string name="media_library_preset_all">All media</string>
+    <string name="media_library_preset_shows">TV shows</string>
+    <string name="media_library_preset_movies">Movies</string>
+    <string name="media_library_preset_music">Music</string>
+    <string name="media_library_preset_torrents">By torrent</string>
+    <string name="media_library_shows">Shows</string>
+    <string name="media_library_episodes">Episodes</string>
+    <string name="media_library_albums">Albums</string>
+    <string name="media_library_tracks">Tracks</string>
+    <string name="media_library_search">Search the library</string>
+    <string name="a11y_search_library">Search library</string>
+    <string name="a11y_close_search">Close search</string>
+    <string name="a11y_clear_search">Clear search</string>
+    <string name="a11y_library_options">Sort and filter</string>
+    <string name="a11y_torrent_details">Torrent details</string>
+    <string name="media_library_section_sort">Sort by</string>
+    <string name="media_library_sort_title">Title</string>
+    <string name="media_library_sort_size">Size</string>
+    <string name="media_library_sort_source">Source torrent</string>
+    <string name="media_library_sort_reverse">Reverse order</string>
+    <string name="media_library_section_show">Show</string>
+    <string name="media_library_availability_any">All</string>
+    <string name="media_library_availability_offline">Complete</string>
+    <string name="media_library_availability_incomplete">Incomplete</string>
+    <string name="media_library_include_archived">Include archived</string>
+    <string name="media_library_empty">Your library has no video or music yet</string>
+    <string name="media_library_empty_hint">Video and audio from your torrents appear here.</string>
+    <string name="media_library_no_matches">Nothing matches this search and these filters</string>
+    <string name="media_library_show_all">Show all media</string>
+    <string name="media_library_separator" translatable="false">" · "</string>
+    <string name="media_library_detail_pair">%1$s · %2$s</string>
+    <string name="media_library_progress">%1$s downloaded</string>
+    <string name="media_library_episode_code">S%1$02dE%2$02d</string>
+    <string name="media_library_episode_range">S%1$02dE%2$02d–E%3$02d</string>
+    <string name="media_library_episode_number">Episode %1$d</string>
+    <string name="media_library_track">Track %1$d</string>
+    <plurals name="media_library_metadata_pending">
+        <item quantity="one">%1$d torrent is still getting file details from peers.</item>
+        <item quantity="other">%1$d torrents are still getting file details from peers.</item>
+    </plurals>
+    <plurals name="media_library_episode_count">
+        <item quantity="one">%1$d episode</item>
+        <item quantity="other">%1$d episodes</item>
+    </plurals>
+    <plurals name="media_library_season_count">
+        <item quantity="one">%1$d season</item>
+        <item quantity="other">%1$d seasons</item>
+    </plurals>
+    <plurals name="media_library_track_count">
+        <item quantity="one">%1$d track</item>
+        <item quantity="other">%1$d tracks</item>
+    </plurals>
     <plurals name="library_selected_count">
         <item quantity="one">%1$d selected</item>
         <item quantity="other">%1$d selected</item>

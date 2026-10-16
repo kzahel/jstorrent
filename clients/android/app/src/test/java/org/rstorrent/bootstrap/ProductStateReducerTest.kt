@@ -94,8 +94,8 @@ import org.rstorrent.session.uniffi.ViewSelector
 import org.rstorrent.session.uniffi.ViewSnapshot
 import org.rstorrent.session.uniffi.ViewUpdate
 import org.rstorrent.session.uniffi.ViewUpdatePayload
-import org.rstorrent.bootstrap.ui.LibraryFilter
-import org.rstorrent.bootstrap.ui.LibrarySort
+import org.rstorrent.bootstrap.ui.TorrentFilter
+import org.rstorrent.bootstrap.ui.TorrentSort
 import org.rstorrent.bootstrap.ui.filteredAndSortedTorrents
 import org.rstorrent.bootstrap.ui.parseRateLimit
 import org.rstorrent.bootstrap.ui.RATE_LIMIT_PRESETS
@@ -1147,16 +1147,16 @@ class ProductStateReducerTest {
             listOf("active"),
             filteredAndSortedTorrents(
                 listOf(queued, active, finished),
-                LibraryFilter.ACTIVE,
-                LibrarySort.STABLE,
+                TorrentFilter.ACTIVE,
+                TorrentSort.STABLE,
             ).map(TorrentView::torrentId),
         )
         assertEquals(
             listOf("active", "finished", "queued"),
             filteredAndSortedTorrents(
                 listOf(queued, active, finished),
-                LibraryFilter.ALL,
-                LibrarySort.NAME,
+                TorrentFilter.ALL,
+                TorrentSort.NAME,
             ).map(TorrentView::torrentId),
         )
     }
@@ -1173,7 +1173,7 @@ class ProductStateReducerTest {
             }
 
         val sorted =
-            filteredAndSortedTorrents(torrents, LibraryFilter.ALL, LibrarySort.STABLE)
+            filteredAndSortedTorrents(torrents, TorrentFilter.ALL, TorrentSort.STABLE)
 
         assertEquals(500, sorted.size)
         assertEquals("torrent-000", sorted.first().torrentId)

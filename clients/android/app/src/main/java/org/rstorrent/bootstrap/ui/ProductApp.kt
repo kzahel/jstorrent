@@ -101,6 +101,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
@@ -178,6 +179,8 @@ fun ProductApp(
     onRetryDataReset: (() -> Unit)? = null,
     onFinishDataResetKeepingFiles: (() -> Unit)? = null,
     onDismissCompletedDataReset: (() -> Unit)? = null,
+    startDestination: PrimaryDestination = PrimaryDestination.TORRENTS,
+    onPrimaryDestination: (PrimaryDestination) -> Unit = {},
 ) {
     RstorrentTheme(mode = themeMode, dynamicColor = dynamicColor) {
         val state =
@@ -279,9 +282,23 @@ fun ProductApp(
                 )
             }
         }
-        Box(modifier = Modifier.fillMaxSize()) {
+        val navController = rememberNavController()
+        // Fixed for this navigation graph; a newer preference applies next launch.
+        val startRoute = rememberSaveable { startDestination.route }
+        val entry by navController.currentBackStackEntryAsState()
+        val primary = PrimaryDestination.forRoute(entry?.destination?.route)
+        LaunchedEffect(primary) { primary?.let(onPrimaryDestination) }
+        var torrentSelectionMode by remember { mutableStateOf(false) }
+        val navigation =
+            primary?.takeUnless {
+                it == PrimaryDestination.TORRENTS && torrentSelectionMode
+            }
+        PrimaryNavigationScaffold(navigation, onSelect = { navController.showPrimary(it) }) {
             Surface(modifier = Modifier.fillMaxSize()) {
                 ProductNavHost(
+                    navController = navController,
+                    startRoute = startRoute,
+                    onTorrentSelectionMode = { torrentSelectionMode = it },
                     onShutdown = onShutdown,
                     state = state,
                     service = service,
@@ -800,6 +817,9 @@ private fun externalIntakeNoticeText(kind: ExternalIntakeNoticeKind): String =
 
 @Composable
 private fun ProductNavHost(
+    navController: NavHostController,
+    startRoute: String,
+    onTorrentSelectionMode: (Boolean) -> Unit,
     onShutdown: () -> Unit,
     state: ProductState,
     service: ProductEngineService?,
@@ -835,7 +855,6 @@ private fun ProductNavHost(
     onResetClientSettings: () -> Unit,
     onClearAllData: (Boolean) -> Unit,
 ) {
-    val navController = rememberNavController()
     val resources = LocalContext.current.resources
     val undoLabel = stringResource(R.string.action_undo)
     val privateMagnetCopied = stringResource(R.string.copied_private_magnet)
@@ -892,9 +911,7 @@ private fun ProductNavHost(
                         launchSingleTop = true
                     }
                 } else {
-                    if (!navController.popBackStack(ProductRoutes.LIBRARY, inclusive = false)) {
-                        navController.navigate(ProductRoutes.LIBRARY) { launchSingleTop = true }
-                    }
+                    navController.showPrimary(PrimaryDestination.TORRENTS, restoreState = false)
                     onNotificationNavigationFallback(torrentMissingMessage)
                 }
             }
@@ -912,14 +929,82 @@ private fun ProductNavHost(
     }
     LaunchedEffect(state.externalIntake?.intakeId) {
         if (state.externalIntake != null) {
-            if (!navController.popBackStack(ProductRoutes.LIBRARY, inclusive = false)) {
-                navController.navigate(ProductRoutes.LIBRARY) { launchSingleTop = true }
-            }
+            navController.showPrimary(PrimaryDestination.TORRENTS, restoreState = false)
         }
     }
-    NavHost(navController = navController, startDestination = ProductRoutes.LIBRARY) {
-        composable(ProductRoutes.LIBRARY) {
-            LibraryScreen(
+    val addMagnet: (String, Boolean) -> Unit = { text, chooseFiles ->
+        val magnets = splitMagnetLinks(text)
+        if (magnets.size <= 1) {
+            service?.addMagnet(
+                text,
+                startContent = true,
+                awaitFileSelection = chooseFiles,
+                downloadAll = !chooseFiles,
+            )
+        } else {
+            service?.addMagnets(
+                magnets,
+                startContent = true,
+                awaitFileSelection = chooseFiles,
+                downloadAll = !chooseFiles,
+                summarize = true,
+            )
+        }
+    }
+    val browseTorrent = { onBrowseTorrent(state.storage?.showFileSelection ?: true) }
+    val addTestTorrents: ((List<TestTorrent>) -> Unit)? =
+        if (BuildConfig.DEBUG) {
+            { torrents ->
+                // Follow the file selection setting like any other add.
+                val chooseFiles = state.storage?.showFileSelection ?: true
+                service?.addMagnets(
+                    torrents.map { it.magnet },
+                    awaitFileSelection = chooseFiles,
+                    downloadAll = !chooseFiles,
+                )
+            }
+        } else {
+            null
+        }
+    NavHost(navController = navController, startDestination = startRoute) {
+        composable(ProductRoutes.MEDIA_LIBRARY) {
+            val currentService by rememberUpdatedState(service)
+            DisposableEffect(Unit) { onDispose { currentService?.presentLibrary(null) } }
+            var addOpen by rememberSaveable { mutableStateOf(false) }
+            MediaLibraryScreen(
+                state = state,
+                presentationOwner = service,
+                onPresent = { service?.presentLibrary(it) },
+                onOpenTorrent = { navController.navigate(ProductRoutes.detail(it)) },
+                onPlay = { service?.playLibraryMedia(it) },
+                onAdd = { addOpen = true },
+                onPause = { service?.pause(it) },
+                onResume = { service?.resume(it) },
+                onSelectStorage = onSelectStorage,
+                onAddTestTorrents = addTestTorrents,
+                onSpeed = { navController.navigate(ProductRoutes.SPEED) },
+                onDht = { navController.navigate(ProductRoutes.DHT) },
+                onLogs = { navController.navigate(ProductRoutes.LOGS) },
+                onSettings = { navController.navigate(ProductRoutes.SETTINGS) },
+                onShutdown = onShutdown,
+            )
+            if (addOpen) {
+                AddTorrentDialog(
+                    enabled = state.ready,
+                    onDismiss = { addOpen = false },
+                    onAddMagnet = { magnet, chooseFiles ->
+                        addMagnet(magnet, chooseFiles)
+                        addOpen = false
+                    },
+                    onBrowse = {
+                        addOpen = false
+                        browseTorrent()
+                    },
+                )
+            }
+        }
+        composable(ProductRoutes.TORRENTS) {
+            TorrentsScreen(
                 state = state,
                 notificationsGranted =
                     notificationsGranted &&
@@ -930,43 +1015,9 @@ private fun ProductNavHost(
                 onSelectStorage = onSelectStorage,
                 onRepairStorage = onRepairStorage,
                 onOpenTorrent = { navController.navigate(ProductRoutes.detail(it)) },
-                onAddMagnet = { text, chooseFiles ->
-                    val magnets = splitMagnetLinks(text)
-                    if (magnets.size <= 1) {
-                        service?.addMagnet(
-                            text,
-                            startContent = true,
-                            awaitFileSelection = chooseFiles,
-                            downloadAll = !chooseFiles,
-                        )
-                    } else {
-                        service?.addMagnets(
-                            magnets,
-                            startContent = true,
-                            awaitFileSelection = chooseFiles,
-                            downloadAll = !chooseFiles,
-                            summarize = true,
-                        )
-                    }
-                },
-                onBrowseTorrent = {
-                    onBrowseTorrent(state.storage?.showFileSelection ?: true)
-                },
-                onAddTestTorrents =
-                    if (BuildConfig.DEBUG) {
-                        { torrents ->
-                            // Follow the file selection setting like any other add.
-                            val chooseFiles = state.storage?.showFileSelection ?: true
-                            service?.addMagnets(
-                                torrents.map { it.magnet },
-                                awaitFileSelection = chooseFiles,
-                                downloadAll = !chooseFiles,
-                            )
-                            Unit
-                        }
-                    } else {
-                        null
-                    },
+                onAddMagnet = addMagnet,
+                onBrowseTorrent = browseTorrent,
+                onAddTestTorrents = addTestTorrents,
                 onPause = { service?.pause(it) },
                 onResume = { service?.resume(it) },
                 onMoveTop = { service?.moveDownloadsToTop(it) },
@@ -1000,6 +1051,7 @@ private fun ProductNavHost(
                 onLogs = { navController.navigate(ProductRoutes.LOGS) },
                 onSettings = { navController.navigate(ProductRoutes.SETTINGS) },
                 onShutdown = onShutdown,
+                onSelectionModeChange = onTorrentSelectionMode,
             )
         }
         composable(ProductRoutes.DETAIL) { entry ->
@@ -1911,7 +1963,7 @@ private fun TorrentDetailScreen(
     val pager = rememberPagerState(pageCount = { TorrentDetailTab.entries.size })
     val scope = rememberCoroutineScope()
     // File selection lives here so its bars can replace this screen's app bar,
-    // with the same mechanics as the Library selection.
+    // with the same mechanics as the Torrents selection.
     var fileSelection by rememberSaveable { mutableStateOf(emptySet<String>()) }
     val fileCatalog = torrent?.let { state.files[it.torrentId] }
     val files = remember(fileCatalog?.files) { presentedFiles(fileCatalog) }
