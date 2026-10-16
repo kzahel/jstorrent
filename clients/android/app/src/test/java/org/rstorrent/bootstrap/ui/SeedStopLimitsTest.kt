@@ -322,6 +322,7 @@ class SeedStopLimitsTest {
         time: SeedStopLimit,
     ): ClientSettings =
         ClientSettings(
+                            fileSafety = org.rstorrent.session.uniffi.FileSafetySettings(true, org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, emptyList(), true),
             listener = ListenerPolicy.Disabled,
             preferredListenPort = 6_881U.toUShort(),
             portMapping = PortMappingPolicy.DISABLED,
@@ -348,6 +349,7 @@ class SeedStopLimitsTest {
         operational: TorrentOperationalState,
     ): TorrentView =
         TorrentView(
+            safetySummary = null,
             torrentId = id,
             protocolIdentities = TorrentProtocolIdentities(v1 = null, v2 = null),
             displayName = id,

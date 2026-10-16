@@ -212,6 +212,8 @@ export class DemoApplication implements InspectionApplication {
           command.options,
         );
       }
+      case "update_file_safety_settings":
+      case "set_file_safety_override":
       case "set_file_priority":
       case "download_files":
         return rejected("File actions are unavailable in demo scenarios");

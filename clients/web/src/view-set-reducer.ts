@@ -491,6 +491,7 @@ function applyTorrentUpdate(
       case "awaiting_file_selection": next.awaiting_file_selection = field.value; break;
       case "pending_file_selection_position": next.pending_file_selection_position = field.value; break;
       case "file_catalog_id": next.file_catalog_id = field.value; break;
+      case "safety_summary": next.safety_summary = field.value; break;
       case "selectable_file_count": next.selectable_file_count = field.value; break;
       case "selected_file_count": next.selected_file_count = field.value; break;
       case "selectable_file_bytes": next.selectable_file_bytes = field.value; break;
@@ -533,6 +534,7 @@ function applyFileUpdate(file: FileView, update: FileRowUpdate): FileView {
   for (const field of update.fields) {
     switch (field.field) {
       case "selection": next.selection = field.value; break;
+      case "safety": next.safety = field.value; break;
       case "done_bytes": next.done_bytes = field.value; break;
       case "verified_bytes": next.verified_bytes = field.value; break;
       case "media_availability": next.media_availability = field.value; break;

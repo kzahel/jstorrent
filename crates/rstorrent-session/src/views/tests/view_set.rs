@@ -92,6 +92,7 @@ fn protocol_identities() -> crate::TorrentProtocolIdentities {
 
 fn torrent_view(id: &str, verified: u32) -> TorrentView {
     TorrentView {
+        safety_summary: None,
         torrent_id: id.to_owned(),
         protocol_identities: protocol_identities(),
         display_name: Some("Fixture torrent".to_owned()),
@@ -156,6 +157,7 @@ fn service_snapshot(revision: u64, verified: u32) -> ServiceSnapshot {
         storage: Default::default(),
         client_settings: Default::default(),
         torrents: vec![TorrentSnapshot {
+            safety_summary: None,
             torrent_id: TORRENT_ID.to_owned(),
             protocol_identities: protocol_identities(),
             storage_root: "downloads".to_owned(),
@@ -348,6 +350,7 @@ fn maximum_file_page_is_separate_from_steady_queue_pressure() {
     let now = Instant::now();
     let files = (0..1_024_u32)
         .map(|index| FileView {
+            safety: None,
             file_id: index.to_string(),
             file_index: index,
             path: vec![format!("directory-{index:04}"), "x".repeat(128)],
@@ -408,6 +411,7 @@ fn maximum_file_page_is_separate_from_steady_queue_pressure() {
             ViewPatch::Files {
                 torrent_id: TORRENT_ID.to_owned(),
                 upsert: vec![FileView {
+                    safety: None,
                     file_id: "0".to_owned(),
                     file_index: 0,
                     path: vec!["updated".to_owned()],

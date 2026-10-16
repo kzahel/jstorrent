@@ -25,8 +25,9 @@ use rstorrent_session::{
     DiagnosticSubject, DiagnosticValue, DiskCheckpointStageView, DiskPieceStageView, DiskPieceView,
     DiskPipelineView, DiskPressureView, EffectiveListenerSettings, EncryptionPolicy, ErrorCode,
     ErrorResponse, FileCatalogState, FileFieldUpdate, FileIndexRange, FilePriority, FileRowUpdate,
-    FileSelectionIntent, FileSelectionOverride, FileSelectionView, FileView,
-    HostCapabilityDefinition, HostCapabilityLifecycle, HttpsServerAuthenticationPolicy, IndexRange,
+    FileSafetyPreset, FileSafetySettings, FileSafetySummary, FileSafetyView, FileSelectionIntent,
+    FileSelectionOverride, FileSelectionView, FileView, HostCapabilityDefinition,
+    HostCapabilityLifecycle, HttpsServerAuthenticationPolicy, IndexRange,
     IntegrityPreparationPhaseView, IntegrityPreparationView, Ipv6PinholeFailureStage,
     Ipv6PinholeStatus, LibraryArchivedFilter, LibraryAvailabilityFilter, LibraryFacetsView,
     LibraryGroupView, LibraryGrouping, LibraryMediaItemView, LibraryMediaKind, LibraryMediaQuery,
@@ -286,6 +287,10 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<FileSelectionView>(&mut declarations)?;
     append::<FileCatalogState>(&mut declarations)?;
     append::<FileView>(&mut declarations)?;
+    append::<FileSafetyPreset>(&mut declarations)?;
+    append::<FileSafetySettings>(&mut declarations)?;
+    append::<FileSafetyView>(&mut declarations)?;
+    append::<FileSafetySummary>(&mut declarations)?;
     append::<FileFieldUpdate>(&mut declarations)?;
     append::<FileRowUpdate>(&mut declarations)?;
     append::<MediaCatalogState>(&mut declarations)?;
@@ -598,6 +603,7 @@ fn write_view_set_fixture(output: PathBuf) -> Result<(), Box<dyn Error>> {
 
 fn fixture_torrent(torrent_id: &str, verified: u32) -> TorrentView {
     TorrentView {
+        safety_summary: None,
         torrent_id: torrent_id.to_owned(),
         protocol_identities: rstorrent_session::TorrentProtocolIdentities {
             v1: Some("000102030405060708090a0b0c0d0e0f10111213".to_owned()),

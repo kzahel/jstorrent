@@ -1526,7 +1526,8 @@ impl SelectiveStorage {
                     0,
                     StorageFileRole::Payload(file_index),
                     path,
-                ),
+                )
+                .with_origin_boundary(&content_root),
                 file_index,
                 metainfo_file.length,
             )));
@@ -2050,7 +2051,8 @@ impl SelectiveStorage {
                             storage_generation,
                             StorageFileRole::Payload(file_index),
                             path,
-                        ),
+                        )
+                        .with_origin_boundary(&content_root),
                         file_index,
                         expected_length: metainfo_file.length,
                     };
@@ -2078,7 +2080,8 @@ impl SelectiveStorage {
                             storage_generation,
                             StorageFileRole::Payload(file_index),
                             path,
-                        ),
+                        )
+                        .with_origin_boundary(&content_root),
                         file_index,
                         metainfo_file.length,
                     )));
@@ -3357,7 +3360,8 @@ impl SelectiveStorage {
                                     storage_generation,
                                     StorageFileRole::Payload(file_index),
                                     path,
-                                ),
+                                )
+                                .with_origin_boundary(content_root),
                                 file_index,
                                 expected_length: metainfo_file.length,
                             }

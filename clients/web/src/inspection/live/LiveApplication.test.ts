@@ -761,6 +761,16 @@ describe("LiveApplication", () => {
     await application.close();
   });
 
+  it("never sends safety settings or an override to an older host", async () => {
+    const client = new FakeLiveClient();
+    const application = await LiveApplication.open(client);
+    const settings = { enabled: true, preset: "recommended" as const, custom_extensions: [], mark_internet_origin: true };
+    await expect(application.dispatch({ type: "update_file_safety_settings", settings })).resolves.toMatchObject({ accepted: false });
+    await expect(application.dispatch({ type: "set_file_safety_override", torrentId: torrent().torrent_id, fileIndices: [0], allowed: true })).resolves.toMatchObject({ accepted: false });
+    expect(client.requests).toHaveLength(0);
+    await application.close();
+  });
+
   it("never sends a setting the host does not advertise", async () => {
     // The fake host's hello predates seed_stop_limits, like a released host.
     const client = new FakeLiveClient();

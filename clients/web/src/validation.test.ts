@@ -20,6 +20,20 @@ import { reduceUpdateBatch } from "./view-set-reducer";
 const TEST_TORRENT_ID = "t1-00000000000000000000000000000000";
 const OTHER_TORRENT_ID = "t1-11111111111111111111111111111111";
 
+describe("large file selection response", () => {
+  it("accepts metadata-bounded legacy arrays above the former 512-KiB response ceiling", () => {
+    const indices = Array.from({ length: 120_000 }, (_, index) => index);
+    const snapshot = { profile_id: "default", revision: "1", storage: { roots: [], show_add_options: true, show_file_selection: true }, torrents: [{
+      torrent_id: TEST_TORRENT_ID, protocol_identities: { v1: "0".repeat(40) }, storage_root: "downloads", state: "paused", storage_state: "available", metadata_available: true,
+      selectable_file_count: 120000, selected_file_count: 0, selectable_file_bytes: "120000", selected_file_bytes: "0", piece_count: 1, verified_piece_count: 0, skip_files: indices, high_priority_files: [], selection_exceptions: indices,
+    }] };
+    const encoded = JSON.stringify({ version: 1, request_id: "large-selection", revision: "1", status: "success", snapshot });
+    expect(encoded.length).toBeGreaterThan(512 * 1024);
+    const response = decodeResponseEnvelope(encoded);
+    expect(response.status === "success" && response.snapshot.torrents[0]?.skip_files.length).toBe(120_000);
+  });
+});
+
 describe("API hello product validation", () => {
   const base = {
     api: { current: 1, minimum: 1 },
@@ -229,6 +243,7 @@ describe("client settings validation", () => {
     expect(response.status).toBe("success");
     if (response.status === "success") {
       expect(response.snapshot.client_settings).toEqual({
+        file_safety: { enabled: true, preset: "recommended", custom_extensions: [], mark_internet_origin: true },
         listener: { type: "automatic_local_network" },
         preferred_listen_port: 6_881,
         port_mapping: "upnp",

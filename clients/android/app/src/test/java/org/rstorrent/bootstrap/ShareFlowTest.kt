@@ -164,6 +164,7 @@ class ShareFlowTest {
         length: String = "1024",
     ): FileView =
         FileView(
+            safety = null,
             fileId = "f$index",
             fileIndex = index,
             path = path,

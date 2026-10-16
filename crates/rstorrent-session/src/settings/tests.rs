@@ -307,6 +307,7 @@ fn listener_json_is_closed_and_tagged() {
 #[test]
 fn runtime_view_distinguishes_configured_effective_domains_and_observed_facts() {
     let configured = ClientSettings {
+        file_safety: Default::default(),
         listener: ListenerPolicy::AutomaticLoopback,
         preferred_listen_port: 42_000,
         port_mapping: PortMappingPolicy::Disabled,
@@ -453,6 +454,7 @@ fn typed_persistence_round_trips_one_atomic_group() {
         ClientSettings::default()
     );
     let configured = ClientSettings {
+        file_safety: Default::default(),
         listener: ListenerPolicy::FixedLocalNetwork { port: 42_000 },
         preferred_listen_port: 41_000,
         port_mapping: PortMappingPolicy::Upnp,

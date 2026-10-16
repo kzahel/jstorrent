@@ -448,8 +448,9 @@ fn terminal_outcome(
         .find(|torrent| torrent.torrent_id == torrent_id)
         .ok_or_else(|| CliError::runtime("torrent disappeared before completion"))?;
     let zero_selection = torrent.metadata_available
-        && torrent.selection_default == FilePriority::Skip
-        && torrent.selection_exceptions.is_empty();
+        && (torrent.selection_default == FilePriority::Skip
+            && torrent.selection_exceptions.is_empty()
+            || torrent.desired_running && torrent.state == TorrentState::Paused);
     let completion = || CompletionSummary {
         output_root: output_root.to_path_buf(),
         name: view

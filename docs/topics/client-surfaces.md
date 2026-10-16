@@ -1,5 +1,12 @@
 # Client Surfaces
 
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+implements download-safety settings, Files reasons and explicit overrides in
+React, Compose and SwiftUI, backed by the common Rust policy/storage. Web and
+Compose All previews respect safety. Android/iOS omit the Windows/macOS label
+switch. Native builds and remaining runtime/platform qualification are recorded
+in 373; no unsupported-platform label support or release follows.
+
 Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
 orders Android pending-selection presentation requests before asynchronous
 service startup dispatch. A delayed initial clear cannot close a newer restored

@@ -12,6 +12,20 @@ import { PendingFileSelectionDialog } from "./PendingFileSelectionDialog";
 afterEach(cleanup);
 
 describe("pending file selection", () => {
+  it("keeps safety skips unchecked under All and shows safety-aware totals", async () => {
+    const user = userEvent.setup();
+    const blocked = { ...file(1, "movie.mkv.exe", "200"), selection: "skipped" as const, safety: { matched_extension: ".exe", preset: "recommended" as const, overridden: false, blocked: true } };
+    const safe = file(0, "movie.mkv", "1000");
+    const confirm = vi.fn(async () => {});
+    renderDialog({ torrent: { ...torrent(), selectedFileCount: 1, selectedFileBytes: "1000", safetySummary: { blocked_file_count: 1, blocked_file_bytes: "200" } }, files: filePage(0, 2, null, [safe, blocked]), onConfirm: confirm });
+    await user.click(screen.getByRole("button", { name: /^All$/ }));
+    const unsafe = screen.getByRole("checkbox", { name: /movie.mkv.exe/ });
+    expect(unsafe).not.toBeChecked(); expect(unsafe).toBeDisabled();
+    expect(unsafe).toHaveAccessibleDescription(/Skipped by safety settings.*.exe/);
+    await user.click(screen.getByRole("button", { name: /^Download$/ }));
+    expect(confirm).toHaveBeenCalledWith("all", [], false);
+  });
+
   it("uses normal-or-skip checkboxes and sends compact ranges", async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn(async () => undefined);

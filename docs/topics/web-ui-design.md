@@ -1,5 +1,13 @@
 # Web UI Design
 
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+adds Downloads → File safety: enabled/preset/custom rules and the independent
+origin-label toggle, using the existing revision-aware draft owner. The Files
+Safety column explains skipped rules with explicit Download anyway/Undo actions;
+ordinary priority remains separate. Pending All keeps blocked rows unchecked,
+and totals reflect safety. Selection drafts use two bitmaps while retaining
+bounded cached pages and at most 4,096 normalized command ranges.
+
 Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
 updates deterministic browser checks for the current diagnostic-prefilled
 GitHub/website support links and URL-restored Settings after reload. All 71

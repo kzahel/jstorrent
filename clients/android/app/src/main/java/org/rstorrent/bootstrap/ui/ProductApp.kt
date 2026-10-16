@@ -1056,6 +1056,7 @@ private fun ProductNavHost(
                 onLogs = { navController.navigate(ProductRoutes.LOGS) },
                 onSettings = { navController.navigate(ProductRoutes.SETTINGS) },
                 onPresent = { service?.presentTorrent(torrentId, it) },
+                onFileSafetyOverride = { file, allowed -> service?.setFileSafetyOverride(torrentId, listOf(file.fileIndex), allowed) },
                 onSetFilePriority = { files, priority ->
                     service?.setFilePriority(torrentId, files.map { it.fileIndex }, priority)
                 },
@@ -1146,6 +1147,9 @@ private fun ProductNavHost(
                     checked = state.storage?.showFileSelection ?: true,
                     onChecked = { service?.setShowFileSelection(it) },
                 )
+                state.clientSettings?.configured?.fileSafety?.let { safety ->
+                    DownloadSafetySettings(safety) { changed -> service?.updateFileSafety(changed, safety) }
+                }
                 if (onExportTorrentList != null || onImportTorrentList != null) {
                     val idle = service != null && state.torrentListActivity == null
                     SettingsSection(stringResource(R.string.settings_section_torrent_list))
@@ -1895,6 +1899,7 @@ private fun TorrentDetailScreen(
     onLogs: () -> Unit,
     onSettings: () -> Unit,
     onPresent: (TorrentPresentation) -> Unit,
+    onFileSafetyOverride: (org.rstorrent.session.uniffi.FileView, Boolean) -> Unit,
     onSetFilePriority: (List<org.rstorrent.session.uniffi.FileView>, FilePriority) -> Unit,
     onDownloadFile: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
     onPlayFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
@@ -2024,7 +2029,7 @@ private fun TorrentDetailScreen(
                 FileSelectionBottomBar(
                     selected = selectedFiles,
                     archived = torrent?.archived == true,
-                    onSetPriority = onSetFilePriority,
+                onSetPriority = onSetFilePriority,
                     onDownloadNow = onDownloadFile,
                     onShare = onShareFiles,
                 )
@@ -2056,6 +2061,7 @@ private fun TorrentDetailScreen(
                     state,
                     fileSelection,
                     { fileSelection = it },
+                    onFileSafetyOverride,
                     onSetFilePriority,
                     onDownloadFile,
                     onShareFiles,
@@ -2077,6 +2083,7 @@ private fun DetailTabContent(
     state: ProductState,
     fileSelection: Set<String>,
     onFileSelectionChange: (Set<String>) -> Unit,
+    onFileSafetyOverride: (org.rstorrent.session.uniffi.FileView, Boolean) -> Unit,
     onSetFilePriority: (List<org.rstorrent.session.uniffi.FileView>, FilePriority) -> Unit,
     onDownloadFile: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
     onShareFiles: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
@@ -2159,6 +2166,7 @@ private fun DetailTabContent(
                 archived = torrent.archived,
                 selection = fileSelection,
                 onSelectionChange = onFileSelectionChange,
+                onSafetyOverride = onFileSafetyOverride,
                 onSetPriority = onSetFilePriority,
                 onDownloadNow = onDownloadFile,
                 onShare = onShareFiles,
@@ -2495,7 +2503,7 @@ private fun ReadOnlySetting(
 }
 
 @Composable
-private fun NotificationToggleSetting(
+internal fun NotificationToggleSetting(
     title: String,
     detail: String?,
     checked: Boolean,

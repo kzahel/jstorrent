@@ -267,6 +267,7 @@ class ProductStateReducerTest {
     fun clientSettingsRemainTypedAcrossTheKotlinContract() {
         val settings =
             ClientSettings(
+                            fileSafety = org.rstorrent.session.uniffi.FileSafetySettings(true, org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, emptyList(), true),
                 listener = ListenerPolicy.FixedLoopback(65_535U.toUShort()),
                 preferredListenPort = 6_881U.toUShort(),
                 portMapping = PortMappingPolicy.UPNP,
@@ -995,13 +996,26 @@ class ProductStateReducerTest {
 
     @Test
     fun pendingFileSelectionDraftRejectsAnExtraSparseOverride() {
-        val full =
-            (0 until MAX_PENDING_FILE_SELECTION_OVERRIDES).associate { index ->
-                index.toUInt() to PendingFileOverride(false, true, BigInteger.ONE)
-            }
-        val draft = PendingFileSelectionDraft(overrides = full)
+        var draft = PendingFileSelectionDraft()
+        repeat(MAX_PENDING_FILE_SELECTION_OVERRIDES) { index ->
+            draft = requireNotNull(draft.toggle(file("sparse", (index * 2).toUInt())))
+        }
+        assertNull(draft.toggle(file("overflow", (MAX_PENDING_FILE_SELECTION_OVERRIDES * 2).toUInt())))
+    }
 
-        assertNull(draft.toggle(file("overflow", MAX_PENDING_FILE_SELECTION_OVERRIDES.toUInt())))
+    @Test
+    fun pendingFileSelectionDraftSupportsThousandsOfContiguousFilesAndSafety() {
+        var draft = PendingFileSelectionDraft()
+        repeat(10_000) { index -> draft = requireNotNull(draft.toggle(file("large", index.toUInt()))) }
+        assertEquals(FileIndexRange(0U, 10_000U), draft.compactOverrides().single().range)
+        val blocked = file("installer", 10_000U).copy(safety = org.rstorrent.session.uniffi.FileSafetyView(".exe", org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, false, true))
+        assertEquals(false, draft.selectAll().selected(blocked))
+        assertEquals(draft, draft.toggle(blocked))
+        val pending = torrent("pending", TorrentState.PAUSED).apply {
+            selectableFileCount = 2U; selectableFileBytes = "100"
+            safetySummary = org.rstorrent.session.uniffi.FileSafetySummary(1U, "20")
+        }
+        assertEquals(PendingFileSelectionSummary(1, BigInteger("80")), draft.selectAll().summary(pending))
     }
 
     @Test
@@ -1174,6 +1188,7 @@ class ProductStateReducerTest {
         index: UInt,
     ): FileView =
         FileView(
+            safety = null,
             fileId = id,
             fileIndex = index,
             path = listOf("file-$index.bin"),
@@ -1262,6 +1277,7 @@ class ProductStateReducerTest {
     private fun clientSettings(
         configured: ClientSettings =
             ClientSettings(
+                            fileSafety = org.rstorrent.session.uniffi.FileSafetySettings(true, org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, emptyList(), true),
                 listener = ListenerPolicy.Disabled,
                 preferredListenPort = 6_881U.toUShort(),
                 portMapping = PortMappingPolicy.DISABLED,
@@ -1403,6 +1419,7 @@ class ProductStateReducerTest {
         state: TorrentState,
     ): TorrentView =
         TorrentView(
+            safetySummary = null,
             torrentId = id,
             protocolIdentities =
                 TorrentProtocolIdentities(

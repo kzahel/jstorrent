@@ -1,5 +1,15 @@
 # Mixed-Version Compatibility
 
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+adds `file_safety` (settings/explicit override commands) and
+`file_selection_bitmaps` (larger stored selection sets). Missing capabilities
+hide safety controls and retain the older host's changed-file draft limit.
+Released priority values remain unchanged. File safety and safety-summary row
+fields are optional; strict-client exposure is reviewed under the existing
+client-first hold. Legacy full-response decoding uses the gateway's existing
+16-MiB ceiling so large metadata-bounded arrays do not retain a hidden 512-KiB
+client limit. The normal 30-day compatibility/release rules still apply.
+
 Tactical [367](../tactical/367-encrypted-short-links.md) is client-only:
 short links wrap the existing host-exported fragment and add no host command,
 field or capability. Menu copies remain full links. Its separately deployed

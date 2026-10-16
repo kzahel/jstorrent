@@ -1838,6 +1838,15 @@
         "encryption": {
           "$ref": "#/$defs/EncryptionPolicy"
         },
+        "file_safety": {
+          "$ref": "#/$defs/FileSafetySettings",
+          "default": {
+            "custom_extensions": [],
+            "enabled": true,
+            "mark_internet_origin": true,
+            "preset": "recommended"
+          }
+        },
         "finished_download_ratio_limit_percent": {
           "default": 700,
           "format": "uint32",
@@ -2555,6 +2564,52 @@
           "required": [
             "type",
             "torrent_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "settings": {
+              "$ref": "#/$defs/FileSafetySettings"
+            },
+            "type": {
+              "const": "update_file_safety_settings",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "settings"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "allowed": {
+              "type": "boolean"
+            },
+            "file_indices": {
+              "items": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "torrent_id": {
+              "pattern": "^t1-[0-9a-f]{32}$",
+              "type": "string"
+            },
+            "type": {
+              "const": "set_file_safety_override",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "torrent_id",
+            "file_indices",
+            "allowed"
           ],
           "type": "object"
         },
@@ -3967,6 +4022,28 @@
         {
           "properties": {
             "field": {
+              "const": "safety",
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FileSafetyView"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "field"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "field": {
               "const": "done_bytes",
               "type": "string"
             },
@@ -4056,6 +4133,82 @@
       "required": [
         "file_id",
         "fields"
+      ],
+      "type": "object"
+    },
+    "FileSafetyPreset": {
+      "enum": [
+        "recommended",
+        "archives",
+        "custom"
+      ],
+      "type": "string"
+    },
+    "FileSafetySettings": {
+      "additionalProperties": false,
+      "properties": {
+        "custom_extensions": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 128,
+          "type": "array"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "mark_internet_origin": {
+          "type": "boolean"
+        },
+        "preset": {
+          "$ref": "#/$defs/FileSafetyPreset"
+        }
+      },
+      "required": [
+        "enabled",
+        "preset",
+        "custom_extensions",
+        "mark_internet_origin"
+      ],
+      "type": "object"
+    },
+    "FileSafetySummary": {
+      "properties": {
+        "blocked_file_bytes": {
+          "type": "string"
+        },
+        "blocked_file_count": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "blocked_file_count",
+        "blocked_file_bytes"
+      ],
+      "type": "object"
+    },
+    "FileSafetyView": {
+      "properties": {
+        "blocked": {
+          "type": "boolean"
+        },
+        "matched_extension": {
+          "type": "string"
+        },
+        "overridden": {
+          "type": "boolean"
+        },
+        "preset": {
+          "$ref": "#/$defs/FileSafetyPreset"
+        }
+      },
+      "required": [
+        "matched_extension",
+        "preset",
+        "overridden",
+        "blocked"
       ],
       "type": "object"
     },
@@ -4172,6 +4325,16 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "safety": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FileSafetyView"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "selection": {
           "anyOf": [
@@ -7204,6 +7367,12 @@
               "type": "unlimited"
             },
             "encryption": "allow",
+            "file_safety": {
+              "custom_extensions": [],
+              "enabled": true,
+              "mark_internet_origin": true,
+              "preset": "recommended"
+            },
             "finished_download_ratio_limit_percent": 700,
             "finished_time_limit_seconds": 86400,
             "ipv6_enabled": true,
@@ -8111,6 +8280,28 @@
         {
           "properties": {
             "field": {
+              "const": "safety_summary",
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FileSafetySummary"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "field"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "field": {
               "const": "selectable_file_count",
               "type": "string"
             },
@@ -8873,6 +9064,16 @@
             }
           ]
         },
+        "safety_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FileSafetySummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "seed_limit_stopped": {
           "default": false,
           "description": "Paused because a seeding stop limit was reached, not by the user.",
@@ -9141,6 +9342,16 @@
           "type": [
             "string",
             "null"
+          ]
+        },
+        "safety_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FileSafetySummary"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "seeding": {
@@ -10249,6 +10460,12 @@
                     "type": "unlimited"
                   },
                   "encryption": "allow",
+                  "file_safety": {
+                    "custom_extensions": [],
+                    "enabled": true,
+                    "mark_internet_origin": true,
+                    "preset": "recommended"
+                  },
                   "finished_download_ratio_limit_percent": 700,
                   "finished_time_limit_seconds": 86400,
                   "ipv6_enabled": true,

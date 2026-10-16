@@ -9,6 +9,8 @@
 use serde::Serialize;
 use ts_rs::TS;
 
+pub const FILE_SAFETY: &str = "file_safety";
+pub const FILE_SELECTION_BITMAPS: &str = "file_selection_bitmaps";
 pub const SEED_STOP_LIMITS: &str = "seed_stop_limits";
 pub const MAGNET_EXPORT_OPTIONS: &str = "magnet_export_options";
 /// The host reads the client identity in `Connect` (Tactical 370). It owns
@@ -66,6 +68,26 @@ pub const HOST_CAPABILITIES: &[HostCapability] = &[
         name: CLIENT_IDENTITY,
         id: 3,
         introduced: "2026-10-15",
+        lifecycle: HostCapabilityLifecycle::Transitional,
+        commands: &[],
+        command_fields: &[],
+        client_settings_patch_keys: &[],
+        torrent_settings_patch_keys: &[],
+    },
+    HostCapability {
+        name: FILE_SAFETY,
+        id: 4,
+        introduced: "2026-10-16",
+        lifecycle: HostCapabilityLifecycle::Transitional,
+        commands: &["update_file_safety_settings", "set_file_safety_override"],
+        command_fields: &[],
+        client_settings_patch_keys: &[],
+        torrent_settings_patch_keys: &[],
+    },
+    HostCapability {
+        name: FILE_SELECTION_BITMAPS,
+        id: 5,
+        introduced: "2026-10-16",
         lifecycle: HostCapabilityLifecycle::Transitional,
         commands: &[],
         command_fields: &[],

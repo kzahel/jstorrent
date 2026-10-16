@@ -756,6 +756,7 @@ impl TorrentModel {
         let progress_inputs = ProgressInputs::default();
         Self {
             view: TorrentView {
+                safety_summary: snapshot.safety_summary.clone(),
                 torrent_id: snapshot.torrent_id.clone(),
                 protocol_identities: snapshot.protocol_identities.clone(),
                 display_name: None,

@@ -36,8 +36,9 @@ TRANSITION_SECONDS = 30
 
 
 class Application:
-    def __init__(self, binary: Path, profile: Path, storage: Path):
-        self.process, self.address = start_gateway(binary, profile, storage)
+    def __init__(self, binary: Path, profile: Path, storage: Path, origin: str = ORIGIN):
+        self.origin = origin
+        self.process, self.address = start_gateway(binary, profile, storage, origin=origin)
         self.sequence = 0
         self.instance = uuid.uuid4().hex
 
@@ -47,7 +48,7 @@ class Application:
             "version": 1,
             "request_id": f"{self.instance}-{self.sequence}",
             "command": {"type": kind, **fields},
-        })
+        }, origin=self.origin)
         if response.get("status") != "success":
             raise ScenarioFailure(f"application rejected {kind}: {response}")
         return response

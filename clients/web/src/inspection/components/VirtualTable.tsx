@@ -70,6 +70,8 @@ export interface VirtualTableProps<Row> {
   readonly columns: readonly VirtualColumn<Row>[];
   readonly interfaceSize: InterfaceSize;
   readonly overscan?: number;
+  /** Reserve fixed virtual-row space when a column renders multiple list lines. */
+  readonly additionalListLines?: number;
   readonly currentRowId?: string | null;
   readonly selection?: VirtualTableSelection<Row>;
   readonly contextMenu?: VirtualTableContextMenu<Row>;
@@ -151,6 +153,7 @@ export function VirtualTable<Row>({
   columns,
   interfaceSize,
   overscan = 8,
+  additionalListLines = 0,
   currentRowId = null,
   selection,
   contextMenu,
@@ -170,7 +173,7 @@ export function VirtualTable<Row>({
   // A list has no header row, and each item stacks its lines in one row.
   const tableHeaderHeight = list ? 0 : metrics.tableHeaderHeight;
   const tableRowHeight = list
-    ? listRowHeight(listLayout, metrics.tableRowHeight)
+    ? listRowHeight(listLayout, metrics.tableRowHeight, additionalListLines)
     : metrics.tableRowHeight;
   const tableStyle = {
     "--ui-table-header-height": `${tableHeaderHeight}px`,
@@ -1347,13 +1350,14 @@ function listLayoutFor<Row>(
 function listRowHeight<Row>(
   layout: ListLayout<Row>,
   tableRowHeight: number,
+  additionalLines: number,
 ): number {
   const line = Math.round(tableRowHeight * 0.56);
   const lines =
     1 +
     (layout.subtitle.length > 0 || layout.wide.length > 0 ? 1 : 0) +
     (layout.detail.length > 0 ? 1 : 0);
-  return lines * line + Math.round(tableRowHeight * 0.5);
+  return (lines + additionalLines) * line + Math.round(tableRowHeight * 0.5);
 }
 
 function ListItem<Row>({

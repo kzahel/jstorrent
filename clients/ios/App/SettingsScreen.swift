@@ -50,6 +50,10 @@ struct SettingsScreen: View {
                 }
             }
 
+            if let settings = presentation.fileSafetySettings {
+                DownloadSafetySection(settings: settings, appModel: appModel)
+            }
+
             Section(String(localized: "ios_runtime_section_title")) {
                 LabeledContent(
                     String(localized: "ios_runtime_status_label"),

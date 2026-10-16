@@ -1369,6 +1369,8 @@ pub struct DiskPieceView {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct TorrentView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub safety_summary: Option<crate::FileSafetySummary>,
     #[schemars(regex(pattern = "^t1-[0-9a-f]{32}$"))]
     pub torrent_id: String,
     pub protocol_identities: TorrentProtocolIdentities,

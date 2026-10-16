@@ -48,7 +48,7 @@ below to **Retired** with the commit.
 
 | Format | Owner | Current | Floor | Notes |
 | --- | --- | --- | --- | --- |
-| Session catalog `session.db` | `crates/rstorrent-session/src/store*.rs` | 28 | 26 | Baseline 26 is every public release since `android-v0.1.0` / `desktop-v0.1.4`; fixture `tests/fixtures/catalog/v26.sqlite` |
+| Session catalog `session.db` | `crates/rstorrent-session/src/store*.rs` | 29 | 26 | Baseline 26 is every public release since `android-v0.1.0` / `desktop-v0.1.4`; fixture `tests/fixtures/catalog/v26.sqlite` |
 | Product state `product.db` | `crates/rstorrent-session/src/product_state.rs` | 3 | 2 | Baseline 2 is every public release; fixture `tests/fixtures/product/v2.sqlite` |
 | Speed history `metrics.db` | `crates/rstorrent-session/src/speed.rs` | 1 | 1 | No migrations; an unknown version runs without saved history and is not deleted |
 | Desktop shell `desktop-shell.json` | `clients/desktop/src-tauri/src/desktop_lifecycle.rs` | retired format | — | Imported once into `product.db`; never written since Tactical 358 |
@@ -62,6 +62,8 @@ below to **Retired** with the commit.
 | --- | --- | --- | --- | --- |
 | Step 26 → 27: seeding stop limits | `session.db` | Tactical 344 (`1c4391e7`) | migration step | Floor reaches 27 |
 | Step 27 → 28: network defaults marker | `session.db` | Tactical 358 | migration step | Floor reaches 28 |
+| Step 28 → 29: file-selection bitmaps and download safety | `session.db` | Tactical 373 | migration step | Floor reaches 29 |
+| Sparse file-selection/High tables retained inert after bitmap conversion; schema <29 read-only recovery reader | `session.db` | Tactical 373 | legacy reader / retained migration inputs | Floor reaches 29; remove reader and old tables only through the floor-raise process |
 | Pre-baseline refusal (schemas 1–25) | `session.db` | Tactical 345 (`75e95083`) | classification | Keep; it is the fail-closed answer for old incubation catalogs |
 | Reset report reading (`profile_reset_report`, startup announcement) | `session.db` | Tactical 179, reset removed by 345 | legacy reader | No new reports since 345; remove the reader (and later drop the table by a step) at the next floor raise |
 | Step 2 → 3: desktop shell switches | `product.db` | Tactical 358 | migration step | Floor reaches 3 |

@@ -46,6 +46,18 @@
       "kind": "value",
       "reason": "library_media view (363); echoed only to clients that lease it, which no released client does",
       "requestedBy": "ViewSpec.oneOf[type=library_media]"
+    },
+    "ClientSettings.file_safety": {
+      "kind": "field",
+      "reason": "373 download safety; release tolerant clients before hosts"
+    },
+    "FileFieldUpdate.oneOf[field=safety]": {
+      "kind": "field",
+      "reason": "373 file safety delta; release tolerant clients before hosts"
+    },
+    "TorrentFieldUpdate.oneOf[field=safety_summary]": {
+      "kind": "field",
+      "reason": "373 safety-aware All selection totals; release tolerant clients before hosts"
     }
   },
   "acceptedBreaks": {}

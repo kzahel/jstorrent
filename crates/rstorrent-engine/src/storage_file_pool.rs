@@ -4,7 +4,7 @@ use std::fmt;
 use std::fs::OpenOptions;
 use std::io;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use std::time::Duration;
 
@@ -155,6 +155,7 @@ pub struct PlatformStorageTarget {
 
 #[derive(Clone, Debug)]
 pub struct StorageFileReference {
+    origin_boundary_depth: Option<usize>,
     pool: StorageFilePool,
     key: StorageFileKey,
     locator: StorageFileLocator,
@@ -162,7 +163,17 @@ pub struct StorageFileReference {
 
 impl StorageFileReference {
     pub fn new(pool: StorageFilePool, key: StorageFileKey, locator: StorageFileLocator) -> Self {
-        Self { pool, key, locator }
+        Self {
+            origin_boundary_depth: None,
+            pool,
+            key,
+            locator,
+        }
+    }
+
+    pub(crate) fn with_origin_boundary(mut self, boundary: &std::path::Path) -> Self {
+        self.origin_boundary_depth = Some(boundary.components().count());
+        self
     }
 
     pub fn key(&self) -> &StorageFileKey {
@@ -957,6 +968,8 @@ impl Default for PoolMetrics {
 
 #[derive(Debug)]
 struct StorageFilePoolInner {
+    mark_internet_origin: AtomicBool,
+    origin_marking_failures: Arc<AtomicU64>,
     limit: usize,
     permits: Arc<Semaphore>,
     state: Mutex<PoolState>,
@@ -979,6 +992,8 @@ impl StorageFilePool {
         }
         Ok(Self {
             inner: Arc::new(StorageFilePoolInner {
+                mark_internet_origin: AtomicBool::new(false),
+                origin_marking_failures: Arc::new(AtomicU64::new(0)),
                 limit,
                 permits: Arc::new(Semaphore::new(limit)),
                 state: Mutex::new(PoolState::default()),
@@ -1032,7 +1047,15 @@ impl StorageFilePool {
         let storage_version = self.storage_version(&reference.key.storage_id)?;
 
         let permit = self.acquire_permit().await?;
-        let acquired = match self.acquire_file(&reference.locator, access).await {
+        let acquired = match self
+            .acquire_file(
+                &reference.locator,
+                access,
+                matches!(reference.key.role, StorageFileRole::Payload(_)),
+                reference.origin_boundary_depth,
+            )
+            .await
+        {
             Ok(file) => file,
             Err(first) if is_descriptor_exhaustion(&first) => {
                 self.inner
@@ -1040,7 +1063,13 @@ impl StorageFilePool {
                     .resource_retries
                     .fetch_add(1, Ordering::Relaxed);
                 self.evict_one();
-                self.acquire_file(&reference.locator, access).await?
+                self.acquire_file(
+                    &reference.locator,
+                    access,
+                    matches!(reference.key.role, StorageFileRole::Payload(_)),
+                    reference.origin_boundary_depth,
+                )
+                .await?
             }
             Err(error) => {
                 self.inner
@@ -1106,6 +1135,16 @@ impl StorageFilePool {
             return Err(StorageFilePoolError::Invalidated);
         }
         Ok(observation)
+    }
+
+    pub fn set_mark_internet_origin(&self, enabled: bool) {
+        self.inner
+            .mark_internet_origin
+            .store(enabled, Ordering::Release);
+    }
+
+    pub fn take_origin_marking_failures(&self) -> u64 {
+        self.inner.origin_marking_failures.swap(0, Ordering::AcqRel)
     }
 
     pub fn snapshot(&self) -> StorageFilePoolSnapshot {
@@ -1324,16 +1363,22 @@ impl StorageFilePool {
         &self,
         locator: &StorageFileLocator,
         access: StorageFileAccess,
+        payload: bool,
+        origin_boundary_depth: Option<usize>,
     ) -> Result<AcquiredStorageFile, StorageFilePoolError> {
         match locator {
-            StorageFileLocator::Path(path) => {
-                open_path(path.clone(), access)
-                    .await
-                    .map(|file| AcquiredStorageFile {
-                        file,
-                        release: None,
-                    })
-            }
+            StorageFileLocator::Path(path) => open_path(
+                path.clone(),
+                access,
+                origin_boundary_depth,
+                payload && self.inner.mark_internet_origin.load(Ordering::Acquire),
+                self.inner.origin_marking_failures.clone(),
+            )
+            .await
+            .map(|file| AcquiredStorageFile {
+                file,
+                release: None,
+            }),
             StorageFileLocator::Platform(target) => {
                 let platform = self
                     .inner
@@ -1364,6 +1409,9 @@ impl StorageFilePool {
 async fn open_path(
     path: PathBuf,
     access: StorageFileAccess,
+    origin_boundary_depth: Option<usize>,
+    mark_origin: bool,
+    marking_failures: Arc<AtomicU64>,
 ) -> Result<std::fs::File, StorageFilePoolError> {
     tokio::task::spawn_blocking(move || {
         if access.creates() {
@@ -1378,12 +1426,23 @@ async fn open_path(
         if access.creates() {
             options.create(true);
         }
-        options
+        let file = options
             .open(&path)
             .map_err(|source| StorageFilePoolError::Io {
                 operation: "open storage file",
                 source,
-            })
+            })?;
+        // Check/recheck uses read-only handles and does not relabel existing
+        // data on upgrade. A writable payload open may receive internet bytes.
+        if mark_origin
+            && access.writable()
+            && crate::origin_marking::mark(&file, &path)
+                .and_then(|()| crate::origin_marking::mark_containers(&path, origin_boundary_depth))
+                .is_err()
+        {
+            marking_failures.fetch_add(1, Ordering::Relaxed);
+        }
+        Ok(file)
     })
     .await
     .map_err(|source| StorageFilePoolError::Io {

@@ -236,6 +236,7 @@ class ProductOngoingNotificationTest {
 
     private fun torrent(id: String) =
         TorrentView(
+            safetySummary = null,
             torrentId = id,
             protocolIdentities = TorrentProtocolIdentities(v1 = null, v2 = null),
             displayName = "Secret name",

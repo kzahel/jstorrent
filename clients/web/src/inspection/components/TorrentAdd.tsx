@@ -1,3 +1,4 @@
+import { hostSupports } from "../host-capabilities";
 import { formatList, message as localizedMessage } from "../../localization/runtime";
 import {
   createContext,
@@ -118,6 +119,7 @@ export function TorrentAddProvider({
   const controller = useInspectionController();
   const revealTorrent = useInspectionStore((state) => state.revealTorrent);
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
+  const supportsFileSelectionBitmaps = useInspectionStore(state => hostSupports(state.session, "file_selection_bitmaps"));
   const hostLacksDownloadAll = useInspectionStore(
     (state) => state.session.hostLacksDownloadAll === true,
   );
@@ -656,6 +658,7 @@ export function TorrentAddProvider({
       )}
       {pendingSelectionTorrent === undefined ? null : (
         <PendingFileSelectionDialog
+          supportsFileSelectionBitmaps={supportsFileSelectionBitmaps}
           torrent={pendingSelectionTorrent}
           files={pendingSelectionFiles}
           rootLabel={

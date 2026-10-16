@@ -1663,6 +1663,7 @@ class ProductNavigationTest {
 
     private fun torrent(): TorrentView =
         TorrentView(
+            safetySummary = null,
             torrentId = "t1-0123456789abcdef0123456789abcdef",
             protocolIdentities =
                 TorrentProtocolIdentities(
@@ -1726,6 +1727,7 @@ class ProductNavigationTest {
         verifiedBytes: String,
     ): FileView =
         FileView(
+            safety = null,
             fileId = "media-file",
             fileIndex = 0U,
             path = listOf("Fixture", "clip.mp4"),
@@ -1774,6 +1776,7 @@ class ProductNavigationTest {
     private fun clientSettings(): ClientSettingsRuntimeView {
         val configured =
             ClientSettings(
+                            fileSafety = org.rstorrent.session.uniffi.FileSafetySettings(true, org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, emptyList(), true),
                 listener = ListenerPolicy.Disabled,
                 preferredListenPort = 6_881U.toUShort(),
                 portMapping = PortMappingPolicy.DISABLED,

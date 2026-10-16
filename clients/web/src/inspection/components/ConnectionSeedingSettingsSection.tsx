@@ -1,3 +1,4 @@
+import { DEFAULT_CLIENT_SETTINGS as FILE_SAFETY_DEFAULTS } from "../../api";
 import {
   formatNumber,
   message as localizedMessage,
@@ -1376,6 +1377,7 @@ function validateDraft(
     : { type: "fixed_local_network", port: port as number };
   return {
     settings: {
+      file_safety: FILE_SAFETY_DEFAULTS.file_safety,
       listener,
       preferred_listen_port: preferred as number,
       port_mapping: listenerMode === "off" ? "disabled" : portMapping,
