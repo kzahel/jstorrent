@@ -313,3 +313,8 @@ without it, and the owning topics describe the new release path.
   browser and relay restart, phone viewport, package rollback, rendered audit,
   1-MiB exact direct save, revoke, changed-host rejection, 256 invalid circuits,
   zero service workers and joined cleanup.
+
+- Follow-up workflow validation caught an unused retry counter in shell lint;
+  the propagation retry now reports its attempt. Tagged rollback archives are
+  deterministic, and rerunning deployment refuses to overwrite changed release
+  bytes. The controller manifest also records its independent release version.

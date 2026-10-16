@@ -10,6 +10,8 @@ const repositoryRoot = resolve(scriptDirectory, "..");
 const sourceRoot = join(repositoryRoot, "clients/web/dist/remote");
 const targetRoot = sourceRoot;
 const buildId = process.argv[2];
+const version = process.argv[3] ?? "development";
+if (!/^(?:development|\d+\.\d+\.\d+)$/.test(version)) throw new Error("Invalid remote release version");
 const relayUrl = "wss://relay.rstorrent.com/client";
 
 if (buildId === undefined || buildId.length < 1 || buildId.length > 160) {
@@ -72,6 +74,7 @@ await writeFile(
     {
       schema_version: 1,
       build_id: buildId,
+      version,
       relay_url: relayUrl,
       files,
     },

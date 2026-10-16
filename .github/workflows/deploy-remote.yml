@@ -85,7 +85,7 @@ jobs:
           VITE_RSTORRENT_REMOTE_BUILD_ID: ${{ github.sha }}
           VITE_RSTORRENT_REMOTE_RELAY_URL: wss://relay.rstorrent.com/client
         run: npm run build:remote --prefix clients/web
-      - run: node scripts/assemble-remote-site.mjs "$GITHUB_SHA"
+      - run: node scripts/assemble-remote-site.mjs "$GITHUB_SHA" "$REMOTE_VERSION"
       - run: npx playwright install --with-deps chromium
         working-directory: clients/web
       - run: node scripts/remote-site-smoke.mjs
@@ -129,6 +129,7 @@ jobs:
           node scripts/verify-remote-deployment.mjs "$DEPLOYMENT_URL/" "$GITHUB_SHA"
           for attempt in {1..12}; do
             if node scripts/verify-remote-deployment.mjs https://remote.jstorrent.com/ "$GITHUB_SHA"; then exit 0; fi
+            echo "Waiting for custom domain propagation ($attempt/12)"
             sleep 10
           done
           exit 1
@@ -137,6 +138,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          tar -czf controller.tar.gz -C controller .
+          tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -czf controller.tar.gz -C controller .
           printf 'Independent hosted controller release. Requires fresh browser sign-in at https://remote.jstorrent.com/. Remote access retains its existing canary support scope.\n' > release-notes.txt
-          gh release create "$RELEASE_TAG" controller.tar.gz --verify-tag --prerelease --title "Remote controller ${RELEASE_TAG#remote-v}" --notes-file release-notes.txt
+          if gh release view "$RELEASE_TAG" --json tagName > /dev/null 2>&1; then
+            mkdir retained
+            gh release download "$RELEASE_TAG" --pattern controller.tar.gz --dir retained
+            cmp controller.tar.gz retained/controller.tar.gz
+          else
+            gh release create "$RELEASE_TAG" controller.tar.gz --verify-tag --prerelease --title "Remote controller ${RELEASE_TAG#remote-v}" --notes-file release-notes.txt
+          fi

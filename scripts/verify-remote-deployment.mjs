@@ -118,6 +118,7 @@ function fetchCold(url) {
       pragma: "no-cache",
     },
     redirect: "follow",
+    signal: AbortSignal.timeout(15_000),
   });
 }
 
