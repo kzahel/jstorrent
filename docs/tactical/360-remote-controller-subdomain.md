@@ -1,7 +1,8 @@
 # Tactical 360: Hosted Remote Controller On Its Own Subdomain
 
-Status: Proposed, 2026-10-15. Maintainer direction to do this later; not
-started.
+Status: Active, 2026-10-16. Maintainer authorized end-to-end implementation,
+production cutover and incremental commits. Scope and access investigation
+are complete; execution evidence follows as each gate passes.
 Topics: `mixed-version-compatibility`, `remote-access-authentication`,
 `client-surfaces`.
 
@@ -52,7 +53,8 @@ or `marketing-v*` tags, decided when this starts).
 4. **Workflows.** A `remote-v*`-triggered workflow builds, runs the web
    typecheck, tests and compatibility matrix, and deploys to the new project.
    The marketing workflow stops bundling the remote controller.
-   `main` pushes build and test only. The desktop-release website promotion
+   `main` pushes build and test the controller only; marketing may still deploy.
+   The desktop-release website promotion
    keeps updating the marketing site's download inventory.
 5. **Docs.** `mixed-version-compatibility` (release runbook: the remote
    controller ships by tag), `remote-access-authentication`, the glossary's
@@ -63,6 +65,178 @@ or `marketing-v*` tags, decided when this starts).
 Need the maintainer or explicit authorization: create the Cloudflare Pages
 project and the `remote.jstorrent.com` custom domain and DNS record, confirm
 the CI token can deploy to it, and redeploy the production relay.
+
+## Scoped Implementation, 2026-10-16
+
+Keep the marketing site deploying from `main`. Only the controller becomes
+tag-released. Use the existing account, static Pages hosting, relay, Wasm
+client and signing/authentication model; this slice needs no new package,
+paid service, application permission or host release.
+
+### 1. Build and artifact ownership
+
+- `clients/web/vite.config.ts` and
+  `clients/web/scripts/finalize-remote-dist.mjs` currently require
+  `/remote/assets/`. Serve the independent build from `/assets/` at `/`.
+- Split `scripts/assemble-pages-site.mjs` into independently usable marketing
+  and controller assembly. Controller assembly owns its own `_headers`,
+  manifest, exact build/relay identity and content-hashed asset checks.
+  Preserve the existing strict CSP, no-store HTML/manifest, immutable assets,
+  no analytics, no service workers and Wasm content type.
+- Update `scripts/verify-remote-deployment.mjs` and
+  `scripts/verify-remote-product.mjs` to accept an explicit controller entry
+  URL rather than appending `/remote/`. Local product verification must use
+  the same root layout as production.
+- Give tagged controller builds their release version as well as the exact
+  commit in client identity and diagnostics. The web package version alone
+  cannot identify independent controller releases. Use existing identity
+  fields; no application-contract change is needed.
+
+### 2. Relay origin transition
+
+`ProductRelayOptions`, `ProductRelay` and `validate_origin` in
+`crates/rstorrent-remote-relay/src/production.rs` currently model one origin.
+The binary additionally requires the old exact origin in trusted-proxy mode.
+Both checks must change together.
+
+Use an explicitly bounded allowlist: at most two exact production origins
+during transition, then only `https://remote.jstorrent.com`. Do not admit
+wildcards, arbitrary subdomains, www aliases or Pages preview origins. Keep
+loopback validation separately available for the existing harnesses. CLI,
+production construction, unit tests and runtime origin rejection all need
+coverage. The relay owns this configuration; no new background task or
+persistent state is required.
+
+The private deployer has the old origin in its candidate launch and WSS
+probe, and its service unit selects it too. Update those together, preserve
+the current relay authority and backups, and leave Caddy/TLS endpoints intact.
+The deployer also defaults to the former checkout directory name; use its
+existing source-root override or correct that private default deliberately.
+
+### 3. Release and compatibility gates
+
+- Add a controller workflow for `remote-vMAJOR.MINOR.PATCH`; PR and main
+  builds test without deploying. A controller tag must be reachable from
+  reviewed `main`, and production deploys must serialize without cancelling
+  an in-progress deployment.
+- Run web typecheck/tests, the released-contract ledger, the live
+  compatibility matrix, production remote build, CSP/assembly guards and
+  an artifact browser smoke before deployment. The live workflow already
+  supports `workflow_call`, so reuse it as a dependency rather than merely
+  launching an independent workflow that cannot gate publication.
+- Explicitly set the Pages production branch on deployment; a Git tag must
+  not accidentally create only a preview deployment.
+- Add the controller as a client delivery in `compat/deliveries.json`,
+  extend the production-tag matcher in `scripts/compat-ledger.mjs` (which
+  currently omits `remote-v*`), and capture its decoder. Record the first
+  public date only after public verification. Capture the last combined
+  deployment too, so pre-cutover open controllers have an explicit baseline.
+  Check rollback versions
+  against the same supported hosts.
+- Remove remote/Wasm build and remote-source deployment triggers from the
+  marketing workflow while retaining their build/test signal elsewhere.
+  Keep the existing desktop-release promotion dispatch working for marketing.
+  Do not turn this controller-only release into a host release or bypass the
+  separate strict-client host-release hold.
+
+### 4. Navigation and retained browser state
+
+- Redirect `/remote`, `/remote/`, and the legacy document entry points to
+  the new root. Preserve query and fragment in real-browser tests, including
+  www and the former product domain. Redirect only document entry points;
+  do not blindly redirect `/remote/*`, which includes old assets.
+- Keep the exact old `/remote/assets/` hashed files available for at least
+  the 30-day compatibility window after cutover. Open tabs can load player
+  chunks later. Recommended implementation: pin a verified manifest and
+  frozen asset archive from the last combined deployment, and include only
+  that compatibility asset set in marketing assembly until its recorded
+  retirement date. Never rebuild the controller there or fetch its latest
+  release on each marketing deploy. Bound files and total bytes from the
+  captured manifest, verify every digest, and fail closed on archive drift.
+- Browser authorization and host pins are origin-scoped. Explain the one-time
+  password sign-in and browser approval; do not copy credentials or pins
+  across origins. Host registrations, passwords and local torrent data remain
+  owned by their existing hosts.
+- Keep both exact relay origins for at least the same window so already-open
+  old clients can reconnect. Remove the old origin and compatibility assets
+  only after the recorded window and a reviewed retirement change. List this
+  temporary asset bridge and its retirement condition in the mixed-version
+  topic and release runbook; no durable format is being migrated.
+
+### 5. Deployment sequence and rollback
+
+1. Finish local implementation, tests, immutable candidate artifacts and
+   private deployment changes before any production action.
+2. Create the separate Pages project and bind the new custom domain. Attach
+   it through the Pages domain API before installing/verifying its CNAME;
+   DNS alone is insufficient. Wait for domain and certificate activation.
+3. Deploy and verify the exact dual-origin relay, retaining a compatible
+   rollback binary/unit and preserving forward authority state.
+4. Publish the first tagged controller artifact, verify every manifest digest
+   and security header at its deployment URL and custom domain, and run an
+   isolated browser/host canary with owned cleanup.
+5. Only then deploy marketing without the controller document/build and with
+   the verified redirects plus frozen legacy asset bridge. Prove a marketing
+   deploy does not advance the controller build ID.
+6. Rehearse rollback: restore the prior combined marketing artifact and
+   redirects while the relay still admits the old origin. Keep new-origin
+   admission if any new client has been served; never roll back authority
+   state. Independently roll back the new controller to a compatible artifact.
+7. Record both deployment identities, release/capture dates and the earliest
+   legacy-origin/asset retirement date in the owning topics and private
+   runbook. Any canary route must be signed-released before its host profile
+   is deleted.
+
+## Access Investigation, 2026-10-16
+
+Read-only checks found no missing account login, signing key or credential
+provisioning prerequisite. Concrete account identifiers, machine targets and
+credential locations remain in the private infrastructure runbook.
+
+| Requirement | Evidence | Remaining proof |
+| --- | --- | --- |
+| Repository/Actions access | Authenticated GitHub account has repository admin/push access; existing Pages token and account-ID secret names are present. | Push/tag/publication are separate actions, not performed during scoping. |
+| Pages provisioning | Existing local Wrangler OAuth login refreshes successfully, has `pages:write`, and reads the existing Pages project/account. | Create the new project and domain only during cutover. |
+| CI deployment | Existing Pages-only credential deployed the combined site successfully on October 16. | Its first deployment to the new project has not been exercised; reuse is expected, not yet demonstrated. |
+| DNS | Existing token is active, reads the active product zone, and the zone response grants DNS-record edit/read. The new hostname has no existing record. | Create/bind the exact new record during cutover. |
+| Relay operations | SSH and noninteractive sudo work; system relay is active, user relay absent, operator status and protected-file metadata are readable; current backups exist. | Build and qualify the changed relay/deployer; no restart occurred. |
+
+Live WSS preflight returns `101` for the current origin and `404` for the new
+and unrelated origins, confirming the deployed admission boundary. The current
+marketing and 42-file controller manifest both report source
+`bdc58e4ac7f7811eb07101b92a6385d11ea80e1a`. The private deployer's
+`--local-check` passes. A generic Python HTTP request received `403` from the
+public site; Node fetch subsequently reads both HTML and manifest with `200`.
+Treat that client-specific failure as a verifier input to investigate if it
+recurs, not as evidence of a site outage.
+
+No project, domain, DNS record, CI secret, relay service, tag or public release
+was changed during investigation. The remaining access uncertainty is the
+first CI deploy to the newly created project, not a known missing credential.
+
+### Required validation
+
+- Relay allowlist/CLI and hostile-origin tests, including old/new exact
+  origins, duplicates/bounds, lookalike hosts and denied preview origins.
+- Web typecheck/tests, website tests/check/build, assembly/redirect/security
+  tests, workflow lint, compatibility ledger and live matrix.
+- Real separately identified test-browser checks of root asset loading,
+  fragment/query redirects, lazy chunks from an old open tab, login/resume,
+  revoke, and cleanup. No primary-browser temporary profile is needed.
+- Exact deployed header/digest verification, CI credential acceptance,
+  domain/certificate activation, controller rollback and a marketing-only
+  deployment that leaves the controller build unchanged.
+- Browser-only presentation and relay admission change: Android/iOS in-process
+  networking, storage and generated application boundaries are unchanged.
+  No Android/iOS host support or native release is added by this slice.
+
+### Sources checked
+
+- [Cloudflare Pages project creation](https://developers.cloudflare.com/api/resources/pages/subresources/projects/methods/create/)
+  and [custom-domain attachment](https://developers.cloudflare.com/api/resources/pages/subresources/projects/subresources/domains/methods/create/)
+  both accept Pages Write.
+- [Cloudflare Pages custom domains](https://developers.cloudflare.com/pages/configuration/custom-domains/)
+  requires domain association as well as DNS; a CNAME alone is insufficient.
 
 ## Costs And Risks
 

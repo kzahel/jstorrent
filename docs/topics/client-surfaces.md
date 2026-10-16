@@ -1,5 +1,12 @@
 # Client Surfaces
 
+Tactical [360](../tactical/360-remote-controller-subdomain.md) scopes independent
+tagged controller releases at `remote.jstorrent.com`. The October 16 access
+investigation finds the required accounts and credentials available, with
+first CI deployment to the new project still unproven. The current combined
+marketing/controller deployment remains unchanged; native clients and remote
+host support do not expand.
+
 Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
 orders Android pending-selection presentation requests before asynchronous
 service startup dispatch. A delayed initial clear cannot close a newer restored
