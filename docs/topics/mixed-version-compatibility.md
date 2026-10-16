@@ -313,6 +313,12 @@ that it has very few users.
 
 ## Gaps And Next Work
 
+- **Independent controller releases.** Tactical
+  [360](../tactical/360-remote-controller-subdomain.md) is scoped as of
+  2026-10-16: root-hosted `remote.jstorrent.com`, tag-only controller
+  deployment, client delivery captures, and a bounded legacy-origin/asset
+  bridge. Access investigation found no known missing credential; first
+  deployment to the new project remains unexercised. Production is unchanged.
 - **Extension 1.1.5 adoption.** Published 2026-10-15. Lift the release
   hold (`strictClients.supported: false`) once the Web Store dashboard shows
   most users on it; CI forces it when 1.1.4 leaves the window on

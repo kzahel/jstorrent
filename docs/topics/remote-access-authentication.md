@@ -2,6 +2,13 @@
 
 Topic: `remote-access-authentication`
 
+Tactical [360](../tactical/360-remote-controller-subdomain.md) scopes a separate
+`remote.jstorrent.com` controller origin and tagged release lane (2026-10-16).
+Production still admits only `https://jstorrent.com`. The planned cutover keeps
+both exact origins during a bounded compatibility window, requires fresh
+browser approval at the new origin, and preserves host/relay authority. Access
+checks pass; implementation and deployment have not started.
+
 Tactical [303](../tactical/303-canonical-remote-origin.md) deploys the accepted
 canonical controller at jstorrent.com/remote/. Production relay admission selects
 only the exact jstorrent.com origin; the relay hostname, host authority and
