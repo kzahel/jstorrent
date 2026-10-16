@@ -129,6 +129,7 @@ const RAW_FAILURES: Readonly<Record<string, readonly string[]>> = {
   ],
   "extension 1.1.5": [],
   "remote 0.3.1": [],
+  "remote 0.3.2": [],
 };
 
 describe.each(CLIENT_CAPTURES)("released client $deliveries", ({ deliveries, strict, load }) => {

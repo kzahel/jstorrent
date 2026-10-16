@@ -318,3 +318,11 @@ without it, and the owning topics describe the new release path.
   the propagation retry now reports its attempt. Tagged rollback archives are
   deterministic, and rerunning deployment refuses to overwrite changed release
   bytes. The controller manifest also records its independent release version.
+
+- Complete local Rust baseline passes: `cargo fmt --all -- --check`,
+  `cargo clippy --workspace -- -D warnings`, and `cargo test --workspace`
+  (1,720 passed, 20 ignored). The first remote tag is 0.3.2 at 859f00de.
+  Its exact decoder is captured and delivery recorded as submitted while the
+  live compatibility/publication gate runs; first-public date remains unset.
+  A concurrent main build correctly refused the newly pushed tag until this
+  delivery entry landed. This is not an ignored compatibility failure.
