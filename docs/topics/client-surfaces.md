@@ -1,5 +1,15 @@
 # Client Surfaces
 
+Tactical [374](../tactical/374-android-transfer-status-presentation.md) repairs
+Android transfer presentation: completed cards show uploaded totals and ratio,
+metadata acquisition is named explicitly, and only queued rows show queue
+positions. The idle-rate header and ongoing notification describe metadata,
+starting, checking and seeding work through the existing lifetime classifier.
+No engine or generated contract changes are included. Pixel Sintel diagnosis
+finds peer-metadata waiting and tracker timeouts; the debug sample's valid
+`xs` metainfo URL and `ws` webseed are not consumed by the current magnet parser.
+Validation and data-preserving development delivery are recorded in 374.
+
 Tactical [360](../tactical/360-remote-controller-subdomain.md) scopes independent
 tagged controller releases at `remote.jstorrent.com`. The October 16 access
 investigation finds the required accounts and credentials available, with

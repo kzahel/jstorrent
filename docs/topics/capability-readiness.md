@@ -1,5 +1,12 @@
 # Capability Readiness
 
+Android status presentation is repaired in Tactical
+[374](../tactical/374-android-transfer-status-presentation.md): completed-card
+seeding metrics and metadata/starting/checking/seeding notifications pass
+controlled Compose/JVM validation and are installed on the maintainer's Pixel
+with all five torrents retained. Physical post-update visual evidence is
+limited. This adds no magnet HTTP metadata or webseed support claim.
+
 Tactical [367](../tactical/367-encrypted-short-links.md) implements the web
 Share panel's remembered encrypted-short-link opt-in and deploys its separate
 Cloudflare service at `link.jstorrent.com`. Records expire after 30 days;

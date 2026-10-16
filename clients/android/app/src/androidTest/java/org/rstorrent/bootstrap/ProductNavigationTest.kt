@@ -95,6 +95,64 @@ class ProductNavigationTest {
     @get:Rule val compose = createComposeRule()
 
     @Test
+    fun libraryCompletedSeedAndMetadataRowsShowRelevantProgress() {
+        val seed = torrent().copy(
+            displayName = "Completed seed",
+            state = TorrentState.COMPLETE,
+            operationalState = TorrentOperationalState.SEEDING,
+            downloadQueuePosition = null,
+            remainingPayloadBytes = "0",
+            verifiedPieceCount = 4U,
+            lifetime = torrent().lifetime.copy(uploadedPayloadBytes = "2048", shareRatioHundredths = "150"),
+        )
+        var state by mutableStateOf(ProductState(
+            ready = true,
+            storageRootReady = true,
+            storageRootChecking = false,
+            torrents = mapOf(seed.torrentId to seed),
+        ))
+        compose.setContent {
+            ProductApp(
+                service = null,
+                onSelectStorage = {},
+                onBrowseTorrent = {},
+                notificationsGranted = true,
+                onRequestNotifications = {},
+                onOpenNotificationSettings = {},
+                themeMode = ProductThemeMode.LIGHT,
+                dynamicColor = false,
+                onThemeMode = {},
+                onDynamicColor = {},
+                stateOverride = state,
+            )
+        }
+        compose.onNodeWithText("Uploaded 2.0 KB").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Ratio 1.50").assertIsDisplayed()
+        compose.onAllNodesWithText("ETA", substring = true).assertCountEquals(0)
+        compose.onAllNodesWithText("↓", substring = true).assertCountEquals(0)
+        compose.onNodeWithText("Seeding 1 torrent").assertIsDisplayed()
+        compose.runOnIdle {
+            val metadata = torrent().copy(
+                displayName = "Pending metadata",
+                state = TorrentState.AWAITING_METADATA,
+                operationalState = TorrentOperationalState.STARTING,
+                metadataAvailable = false,
+                progress = ProgressAssessment(
+                    ProgressDisposition.ACTIVE,
+                    ProgressPhase.METADATA,
+                    ProgressReason.ACQUIRING_METADATA,
+                    emptyList(),
+                ),
+            )
+            state = state.copy(torrents = mapOf(metadata.torrentId to metadata))
+        }
+        compose.onAllNodesWithText("Getting torrent info").assertCountEquals(2)
+        compose.onAllNodesWithText("Queue 1", substring = true).assertCountEquals(0)
+        compose.onNodeWithText("↓ 4.0 KB/s").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("ETA 12 s").assertIsDisplayed()
+    }
+
+    @Test
     fun libraryReachesSettingsHierarchyAndAddIntake() {
         compose.setContent {
             ProductApp(

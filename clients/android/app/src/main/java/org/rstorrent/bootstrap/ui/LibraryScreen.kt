@@ -90,6 +90,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -100,6 +101,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.rstorrent.bootstrap.ProductState
 import org.rstorrent.bootstrap.R
+import org.rstorrent.bootstrap.classifyProductLifetimeTorrentViews
+import org.rstorrent.bootstrap.productOngoingNotificationText
 import org.rstorrent.session.uniffi.ApplicationNetworkPrerequisiteView
 import org.rstorrent.session.uniffi.ApplicationNetworkRuntimeState
 import org.rstorrent.session.uniffi.RemovalState
@@ -675,7 +678,8 @@ private fun TorrentCard(
                     Text(
                         torrent.downloadQueuePosition
                             ?.takeUnless {
-                                torrent.archived || torrent.removalState != null ||
+                                torrent.operationalState != TorrentOperationalState.QUEUED ||
+                                    torrent.archived || torrent.removalState != null ||
                                     torrent.waitingForStorage()
                             }
                             ?.let {
@@ -684,7 +688,14 @@ private fun TorrentCard(
                                     operationalLabel(torrent.operationalState),
                                     it.toInt(),
                                 )
-                            } ?: torrentStatusLabel(torrent),
+                            } ?: if (torrent.operationalState == TorrentOperationalState.STARTING &&
+                                !torrent.archived && torrent.removalState == null &&
+                                !torrent.waitingForStorage()
+                            ) {
+                                torrentActivityLabel(torrent)
+                            } else {
+                                torrentStatusLabel(torrent)
+                            },
                         style = MaterialTheme.typography.bodySmall,
                         color =
                             if (torrent.removalState == RemovalState.FAILED) {
@@ -709,8 +720,13 @@ private fun TorrentCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(stringResource(R.string.library_download_rate, formatRate(torrent.payloadDownloadRateBytes)))
-                    Text(stringResource(R.string.library_eta, torrentEta(torrent)))
+                    if (torrent.metadataAvailable && torrent.remainingPayloadBytes == "0") {
+                        Text(stringResource(R.string.library_uploaded, formatBytes(torrent.lifetime.uploadedPayloadBytes)))
+                        Text(stringResource(R.string.library_ratio, formatShareRatio(torrent.lifetime.shareRatioHundredths)))
+                    } else {
+                        Text(stringResource(R.string.library_download_rate, formatRate(torrent.payloadDownloadRateBytes)))
+                        Text(stringResource(R.string.library_eta, torrentEta(torrent)))
+                    }
                 }
             }
         }
@@ -746,7 +762,9 @@ private fun LibraryStatusLine(
     val idle = (download?.toULongOrNull() ?: 0UL) == 0UL && (upload?.toULongOrNull() ?: 0UL) == 0UL
     val speedLabel = stringResource(R.string.library_menu_speed)
     val label =
-        if (idle) stringResource(R.string.status_idle)
+        if (idle && !classifyProductLifetimeTorrentViews(state.torrents.values).isEmpty) {
+            LocalContext.current.productOngoingNotificationText(state)
+        } else if (idle) stringResource(R.string.status_idle)
         else stringResource(R.string.status_rates, formatRate(download), formatRate(upload))
     val description =
         if (idle) label

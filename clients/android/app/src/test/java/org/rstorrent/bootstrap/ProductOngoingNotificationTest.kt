@@ -24,6 +24,58 @@ import org.rstorrent.session.uniffi.TransferRateLimit
 
 class ProductOngoingNotificationTest {
     @Test
+    fun metadataAcquisitionWithCompletedSeedsIsNotReady() {
+        val metadata = torrent("metadata").copy(
+            state = TorrentState.AWAITING_METADATA,
+            operationalState = TorrentOperationalState.STARTING,
+            metadataAvailable = false,
+            progress = ProgressAssessment(
+                ProgressDisposition.ACTIVE,
+                ProgressPhase.METADATA,
+                ProgressReason.ACQUIRING_METADATA,
+                emptyList(),
+            ),
+        )
+        val seed = torrent("seed").copy(
+            state = TorrentState.COMPLETE,
+            operationalState = TorrentOperationalState.SEEDING,
+        )
+        val product = ProductState(ready = true, torrents = mapOf("metadata" to metadata, "seed" to seed))
+        assertEquals(
+            ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.GETTING_METADATA),
+            productOngoingNotificationMessage(product),
+        )
+        assertEquals(
+            ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.SEEDING, 1),
+            productOngoingNotificationMessage(product.copy(torrents = mapOf("seed" to seed))),
+        )
+        assertEquals(
+            ProductOngoingNotificationRates(0UL, 0UL),
+            productOngoingNotificationContent(product.copy(torrents = mapOf("seed" to seed))).rates,
+        )
+    }
+
+    @Test
+    fun operationalStartingAndCheckingAreNotIdleAndArchivedWorkIsExcluded() {
+        listOf(
+            TorrentOperationalState.STARTING to ProductOngoingNotificationMessage.Kind.STARTING,
+            TorrentOperationalState.CHECKING to ProductOngoingNotificationMessage.Kind.CHECKING,
+        ).forEach { (state, kind) ->
+            val active = torrent("one").copy(operationalState = state)
+            assertEquals(
+                ProductOngoingNotificationMessage(kind),
+                productOngoingNotificationMessage(ProductState(ready = true, torrents = mapOf("one" to active))),
+            )
+            assertEquals(
+                ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.READY),
+                productOngoingNotificationMessage(
+                    ProductState(ready = true, torrents = mapOf("one" to active.copy(archived = true))),
+                ),
+            )
+        }
+    }
+
+    @Test
     fun ongoingTextIsGenericAndCountBased() {
         assertEquals(
             ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.OPENING_PROFILE),

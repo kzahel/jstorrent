@@ -194,6 +194,8 @@
     <string name="file_restore_to_download">Restore this torrent to download files.</string>
     <string name="library_queue_position">%1$s · Queue %2$d</string>
     <string name="library_download_rate">↓ %1$s</string>
+    <string name="library_uploaded">Uploaded %1$s</string>
+    <string name="library_ratio">Ratio %1$s</string>
     <string name="library_eta">ETA %1$s</string>
     <string name="library_waiting_unmetered">Waiting for Wi-Fi</string>
     <string name="library_waiting_unmetered_degraded">Waiting for Wi-Fi. JSTorrent will retry when the network changes.</string>
@@ -403,6 +405,10 @@
     <string name="notification_opening_profile">Opening profile</string>
     <string name="notification_needs_attention">JSTorrent needs attention</string>
     <string name="notification_seeding_background">Seeding in background</string>
+    <plurals name="notification_seeding_torrents">
+        <item quantity="one">Seeding %1$d torrent</item>
+        <item quantity="other">Seeding %1$d torrents</item>
+    </plurals>
     <string name="notification_chrome_connected">ChromeOS client connected</string>
     <string name="notification_chrome_reconnect">Waiting for ChromeOS to reconnect</string>
     <string name="notification_waiting_unmetered">Waiting for Wi-Fi</string>
