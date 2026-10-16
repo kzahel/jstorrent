@@ -1,8 +1,9 @@
 # Tactical 360: Hosted Remote Controller On Its Own Subdomain
 
-Status: Active, 2026-10-16. Maintainer authorized end-to-end implementation,
-production cutover and incremental commits. Scope and access investigation
-are complete; execution evidence follows as each gate passes.
+Status: Complete, 2026-10-16. Remote controller 0.3.2 is published at its
+independent origin; marketing redirects, retained assets, canary, rollback and
+monitoring acceptance pass. The bounded legacy bridge remains intentionally
+active until its reviewed retirement window.
 Topics: `mixed-version-compatibility`, `remote-access-authentication`,
 `client-surfaces`.
 
@@ -326,3 +327,77 @@ without it, and the owning topics describe the new release path.
   live compatibility/publication gate runs; first-public date remains unset.
   A concurrent main build correctly refused the newly pushed tag until this
   delivery entry landed. This is not an ignored compatibility failure.
+
+### Tagged publication and public canary
+
+- Remote Controller run 38905389697 passes build, live compatibility and
+  production deployment. The existing CI Pages credential deploys the separate
+  project successfully. The independent controller is remote-v0.3.2 at
+  859f00de; all 42 public manifest digests and required security/cache/MIME
+  headers pass. The release retains a deterministic rollback archive and is
+  marked prerelease, preserving the existing canary support scope. GitHub's
+  latest normal release remains desktop-v0.3.1.
+- The live matrix passes all ten expected outcomes: current/current and five
+  captured old hosts complete connect, root setup, add, download, independent
+  verification, remove and payload deletion. Tolerant extension 1.1.5 and the
+  legacy hosted controller complete the reverse direction. Strict extensions
+  1.1.3/1.1.4 retain exactly their two recorded expected connect failures; the
+  host-release hold is not lifted.
+- The actual new HTTPS origin passes the disposable public-host canary:
+  private login, reload/browser-restart resume, exact revoke, shared login and
+  shared restart requiring a password. No third-party requests or page errors
+  occur. Signed route release precedes profile/process cleanup.
+- The wider main CI's one seeding-settings alignment failure is independently
+  reproduced on pre-cutover bdc58e4a. Its exact assertion and open gap are
+  recorded in web-ui-design; no unrelated form-layout change is included here.
+- Marketing deployment is re-enabled and explicitly dispatched after canary
+  acceptance. Cached-tab/redirect and rollback acceptance follows below.
+
+### Cutover, rollback and terminal checkpoint
+
+- Website run 38907777906 deploys the marketing-only source 6bd3df88. It no
+  longer compiles the client or Wasm. The controller stays at version 0.3.2,
+  source 859f00de, before and after that deployment.
+- A tab opened on the old site before cutover retrieves all 28 old JavaScript
+  chunks afterwards. All 41 retained assets independently match their pinned
+  SHA-256, length and immutable cache policy on the canonical marketing origin.
+  Actual browser navigation from apex, www and the former product domain
+  preserves query strings and fragments at the new root.
+- Rerunning only controller deployment passes and refuses mutated release
+  archives. A same-version production-pointer rollback to its first independent
+  deployment and restoration to its second pass all 42 live digest/header
+  checks. This proves deployment rollback mechanics, not an earlier independent
+  controller version (none exists yet).
+- Marketing's real rollback restores the last combined bdc58e4a artifact and
+  old controller document, then returns to the split artifact and redirects.
+  An immediate first probe still saw the previous edge receipt, and the exit
+  trap restored production. The bounded convergence check then passes rollback
+  in 12,848 ms and restoration in 4,309 ms. The independent controller remains
+  on 859f00de throughout. Future rollback verification must wait for actual
+  edge source/document convergence, not just a successful control-plane call.
+- Existing monitoring link/probe now targets the independent origin, preserving
+  its source/history IDs. Private service/Pages targets and rollout receipts
+  are recorded in the infrastructure runbook. No native host release or wider
+  remote-access support claim follows.
+- Public first-public date is October 16. Legacy remote 0.3.1 leaves its
+  compatibility window on November 15; retain both exact origins and frozen
+  assets until reviewed retirement no earlier than November 16. Document
+  redirects remain after retirement. Do not erase or copy browser trust.
+- Concurrent Android edits prevented a safe merge in the original checkout;
+  implementation used an isolated checkout based on current public main.
+  Changes were committed incrementally and pushed to canonical main, without
+  modifying that concurrent Android work.
+
+The remaining strict-client host-release hold, independent-network/mobile
+remote-access qualification and the reproduced pre-existing seeding-settings
+layout failure are separate concerns. None is marked passed by this cutover.
+
+Final handoff checks pass the 58 affected compatibility/ledger cases after
+recording publication, changed-document link checks and `git diff --check`.
+The relay is accepting with zero active circuits, pumps and waiting hosts,
+and its registration count returns to the pre-canary baseline. The current
+system service is running; no duplicate user service is loaded. Temporary
+canary profiles, browsers, baseline worktrees, logs and downloaded artifacts
+are removed; normal build caches and the isolated implementation checkout
+remain. Final publication metadata/docs do not change the tested runtime
+artifact. Existing native CI qualification is allowed to finish independently.

@@ -1719,3 +1719,14 @@ shared support/download navigation and the matching exact Tauri opener scopes
 to `kzahel/jstorrent`. Browser behavior and native opener ownership are retained.
 Headless release hints accept only the exact current/former Rust repository
 URLs for the same version, allowing already-installed hosts during cutover.
+
+## Seeding settings layout baseline, 2026-10-16
+
+During Tactical 360 qualification, CI run 38905842707 passes 71 deterministic
+browser cases and fails `seeding priority settings stay truthful across
+responsive layouts` at `inspection-demo.spec.ts:1046`: the form has two right
+edges where the test requires one. An isolated checkout of pre-cutover source
+bdc58e4a reproduces the identical assertion with bundled headless Chromium.
+This is a known presentation baseline gap, not a remote-origin regression;
+it remains open for a bounded settings-layout repair. The temporary baseline
+checkout, browser and server were removed after reproduction.

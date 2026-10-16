@@ -1,5 +1,12 @@
 # Capability Readiness
 
+Tactical [360](../tactical/360-remote-controller-subdomain.md) deploys the
+independently tagged controller at `remote.jstorrent.com` with live compatibility
+and browser gates. Marketing stays independent; old documents redirect and
+frozen assets retain already-open tabs through the bounded transition. The
+public login/resume/revoke canary and exact deployed digests pass. Existing
+remote-access canary/support limits remain unchanged.
+
 Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
 implements captured download safety, durable per-file allowance independent of
 priority, bitmap file sets, and optional native origin marking. Controlled

@@ -53,7 +53,7 @@ their names.
 | **Call** | One correlated request and response, such as a command or opening a view set. |
 | **View set** | The leased per-client projection state a host keeps for one UI. Not an engine or login session. |
 | **Gateway** | The part of a host that serves the application API over HTTP and WebSocket (`rstorrent-gateway`), and for headless and Crostini also serves the web UI. |
-| **Hosted remote controller** | The web UI build at `jstorrent.com/remote/`, which reaches a host through the relay. |
+| **Hosted remote controller** | The independently tagged web UI build at `remote.jstorrent.com`, which reaches a host through the relay. |
 | **Companion** | Extension pages that control the Android app (ChromeOS) or the desktop app. |
 | **Relay** | The service that forwards encrypted circuits between remote clients and hosts (`rstorrent-remote-relay`). It sees neither side's plaintext. |
 | **Remote host** | The component inside a host that keeps the host reachable through the relay (`rstorrent-remote-host`). Despite the name it is part of a host, not a separate host. |

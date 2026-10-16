@@ -7,12 +7,14 @@ Compose All previews respect safety. Android/iOS omit the Windows/macOS label
 switch. Native builds and remaining runtime/platform qualification are recorded
 in 373; no unsupported-platform label support or release follows.
 
-Tactical [360](../tactical/360-remote-controller-subdomain.md) scopes independent
-tagged controller releases at `remote.jstorrent.com`. The October 16 access
-investigation finds the required accounts and credentials available, with
-first CI deployment to the new project still unproven. The current combined
-marketing/controller deployment remains unchanged; native clients and remote
-host support do not expand.
+Tactical [360](../tactical/360-remote-controller-subdomain.md) deploys the
+hosted controller independently at `remote.jstorrent.com`, starting with
+remote-v0.3.2. Main/PR builds test it; tagged releases gate production on the
+live compatibility matrix and an immutable root-hosted browser artifact.
+Marketing stays on main and old controller documents redirect with query and
+fragment continuity. Frozen old assets retain already-open tabs through the
+compatibility window. Fresh browser approval is required at the new origin;
+native clients and remote host support do not expand.
 
 Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
 orders Android pending-selection presentation requests before asynchronous

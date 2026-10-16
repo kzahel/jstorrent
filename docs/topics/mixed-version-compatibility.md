@@ -18,6 +18,12 @@ clients can drop the optional remembered choice safely back to off.
 
 Topic: `mixed-version-compatibility`
 
+Tactical [360](../tactical/360-remote-controller-subdomain.md) publishes the
+independent hosted controller at remote.jstorrent.com, starting with 0.3.2 on
+2026-10-16. Tagged releases pass the live compatibility gate; marketing no
+longer advances the client. Both old/new controller decoders are captured.
+The legacy origin and asset bridge have a reviewed retirement window below.
+
 Status: Active, started 2026-10-14 by Tactical
 [354](../tactical/354-mixed-version-compatibility.md). Slices 1 and 2 have
 landed. The web client fills fields older hosts omit, hides stop limits on
@@ -42,7 +48,7 @@ the [glossary](../glossary.md).
 
 | Client | Host | Why they differ |
 | --- | --- | --- |
-| Hosted controller, `jstorrent.com/remote/` | Desktop or headless over the relay; Android later | The site redeploys from every push to `main` that touches `clients/web` or the remote crates. Hosts update on their own schedule. |
+| Hosted controller, `remote.jstorrent.com` | Desktop or headless over the relay; Android later | The controller deploys only from `remote-v*` tags after its compatibility gate. Hosts update on their own schedule. |
 | Extension companion pages | Android over ARC; desktop over native messaging | The extension updates through Web Store review and auto-update, independently of Play and the desktop updater. |
 
 The desktop webview, gateway-served UI (headless, Crostini), Android Compose
@@ -50,8 +56,8 @@ and iOS ship or serve their own UI and always match their host.
 
 Both directions occur:
 
-- **New client, old host.** The hosted controller is always newest. The
-  extension is often newer than an Android host still in Play rollout.
+- **New client, old host.** The hosted controller may release before a host update. The extension is
+  often newer than an Android host still in Play rollout.
 - **Old client, new host.** An extension waiting on Web Store review is older
   than a freshly released host.
 
@@ -255,16 +261,33 @@ Before any host release (desktop, headless, Android):
    break for the release. A `value` (enum value or non-row variant) breaks
    tolerant clients too; do not ship one unless no released client can
    receive it.
-3. When a delivery is submitted (desktop, Android, headless, extension),
+3. When a delivery is submitted (desktop, Android, headless, extension, remote),
    add it to `compat/deliveries.json` and run `scripts/compat-capture.mjs`
    for its commit with the roles it plays, then commit both. The ledger
    check fails CI until this is done for a pushed production tag, including
-   `extension-v*`. A client release whose own decoder is tolerant lies at or
+   `extension-v*` and `remote-v*`. A client release whose own decoder is tolerant lies at or
    above `strictClients.tolerantSince` in `release-compatibility.json`.
 
-Before deploying the hosted controller: the same web tests pass. It deploys
-from `main`, so a contract change is live for every connected host as soon
-as it is pushed.
+Before deploying the hosted controller:
+
+1. Commit the candidate source on main and run web/compatibility validation.
+2. Capture that exact commit with role `client`. In a following metadata
+   commit, record the delivery as submitted with no first-public date and its
+   explicit raw-decoder outcomes. The source commit remains the release input.
+3. Create `remote-vMAJOR.MINOR.PATCH` at the candidate commit. Push the metadata
+   main update and candidate tag together with `git push --atomic` so ordinary
+   main CI never sees an unrecorded tag. The tag must be reachable from main.
+4. Remote Controller gates deployment on the live old/new matrix, tested root
+   artifact/browser smoke and Pages header/digest verification. It deploys the
+   exact retained artifact, not a new build made in the deploy job.
+5. Run the explicit public canary with signed route cleanup, then mark the
+   delivery published with its verified first-public date. Retain the immutable
+   rollback artifact. Main and marketing deployment do not advance the client.
+
+The first independent release is remote-v0.3.2 at 859f00de (2026-10-16).
+The legacy remote 0.3.1/bdc58e4a delivery leaves its window on November 15;
+old-origin admission and frozen lazy assets remain until reviewed retirement
+no earlier than November 16. Old document redirects remain afterwards.
 
 ## Removing A Fallback
 
@@ -304,7 +327,7 @@ desktop release supplies an identified on sample. This changes neither
 the release hold nor the missing hosted-controller usage signal below.
 
 **Hosted remote controller usage is unknown.** Nothing records whether
-anyone uses `jstorrent.com/remote/` or which host versions it connects to.
+anyone uses `remote.jstorrent.com` or which host versions it connects to.
 The relay could count authenticated circuits by host build (it sees
 `host_build` only inside the encrypted channel today, so this needs a
 privacy-reviewed, coarse signal), and the site could count page loads. Until
@@ -313,12 +336,12 @@ that it has very few users.
 
 ## Gaps And Next Work
 
-- **Independent controller releases.** Tactical
-  [360](../tactical/360-remote-controller-subdomain.md) is scoped as of
-  2026-10-16: root-hosted `remote.jstorrent.com`, tag-only controller
-  deployment, client delivery captures, and a bounded legacy-origin/asset
-  bridge. Access investigation found no known missing credential; first
-  deployment to the new project remains unexercised. Production is unchanged.
+- **Legacy controller retirement.** Tactical
+  [360](../tactical/360-remote-controller-subdomain.md) deploys the independent
+  controller lane. Remove the old exact origin and frozen asset bridge only
+  after its recorded window and a reviewed retirement change; the old document
+  URLs keep redirecting. Initial new-project CI credential acceptance, canary
+  and query/fragment/cached-tab checks pass.
 - **Extension 1.1.5 adoption.** Published 2026-10-15. Lift the release
   hold (`strictClients.supported: false`) once the Web Store dashboard shows
   most users on it; CI forces it when 1.1.4 leaves the window on

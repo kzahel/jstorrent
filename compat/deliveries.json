@@ -141,9 +141,9 @@
       "tag": "remote-v0.3.2",
       "commit": "859f00de949fc1616fb1f537fd15b9f55498e09d",
       "channel": "remote-pages",
-      "status": "submitted",
+      "status": "published",
       "submitted": "2026-10-16",
-      "firstPublic": null,
+      "firstPublic": "2026-10-16",
       "roles": ["client"]
     }
   ]
