@@ -444,7 +444,7 @@ function playbackDisabledReason(
 function CatalogMessage({ message }: { readonly message: string }) {
   return (
     <div className={styles.message} role="status">
-      <span aria-hidden="true">◇</span>
+      <Icon name="library" />
       <strong>{message}</strong>
     </div>
   );

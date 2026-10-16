@@ -385,8 +385,9 @@
   text-align: center;
 }
 
-.message > span {
-  font-size: calc(var(--ui-font-display) * 1.6);
+.message > svg {
+  width: 2rem;
+  height: 2rem;
 }
 
 .message strong {

@@ -1,5 +1,10 @@
 # Web UI Design
 
+Tactical [373](../tactical/373-library-empty-state-icons.md) replaces the
+Library's oversized diamond text glyphs with the shared Library navigation
+icon at 2rem, using the same muted color in media, torrent-card and detail
+empty or status messages.
+
 Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
 updates deterministic browser checks for the current diagnostic-prefilled
 GitHub/website support links and URL-restored Settings after reload. All 71

@@ -205,7 +205,7 @@
   gap: var(--ui-space-sm);
   color: var(--text-muted);
 }
-.message > span { font-size: calc(var(--ui-font-display) * 1.4); }
+.message > svg { width: 2rem; height: 2rem; }
 .message strong { color: var(--text-primary); }
 
 @media (max-width: 900px) {

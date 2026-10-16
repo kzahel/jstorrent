@@ -25,6 +25,7 @@ import type {
 } from "../model";
 import { seedLimitReached } from "../seed-stop";
 import { torrentMatchesLibraryCategory } from "../state";
+import { Icon } from "./Icon";
 import { LibraryDetailView, waterLevel } from "./LibraryDetailView";
 import { LibraryMediaView } from "./LibraryMediaView";
 import styles from "./LibraryView.module.css";
@@ -409,7 +410,7 @@ function VirtualLibraryGrid({
 function LibraryEmpty({ message }: { readonly message: string }) {
   return (
     <div className={styles.empty}>
-      <span aria-hidden="true">◇</span>
+      <Icon name="library" />
       <strong>{message}</strong>
     </div>
   );

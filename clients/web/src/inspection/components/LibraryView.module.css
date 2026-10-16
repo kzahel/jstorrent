@@ -230,8 +230,9 @@
   text-align: center;
 }
 
-.empty > span {
-  font-size: calc(var(--ui-font-display) * 1.6);
+.empty > svg {
+  width: 2rem;
+  height: 2rem;
 }
 
 .empty strong {

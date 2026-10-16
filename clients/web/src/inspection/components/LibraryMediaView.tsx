@@ -586,7 +586,7 @@ function LibraryMessage({
 }) {
   return (
     <div className={styles.message} role="status">
-      <span aria-hidden="true">◇</span>
+      <Icon name="library" />
       <strong>{message}</strong>
       {detail === undefined ? null : <p>{detail}</p>}
     </div>
