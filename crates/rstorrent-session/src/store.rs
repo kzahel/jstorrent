@@ -754,6 +754,14 @@ impl SessionStore {
         })
     }
 
+    pub(crate) fn has_pending_file_selection(&self) -> Result<bool, StoreError> {
+        Ok(self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM torrents WHERE awaiting_file_selection = 1)",
+            [],
+            |row| row.get(0),
+        )?)
+    }
+
     pub fn snapshot(&self) -> Result<ServiceSnapshot, StoreError> {
         read_snapshot(&self.connection, &self.profile_id)
     }

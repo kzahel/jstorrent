@@ -14,6 +14,9 @@ use crate::{
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ApplicationCall {
+    ProductUpdate {
+        request: crate::HostUpdateRequest,
+    },
     Dispatch {
         request: Box<RequestEnvelope>,
     },
@@ -37,11 +40,20 @@ pub enum ApplicationCall {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ApplicationCallResult {
-    CommandResponse { response: Box<ResponseEnvelope> },
-    ViewSetOpened { response: Box<OpenViewSetResponse> },
+    ProductUpdate {
+        snapshot: Box<crate::HostUpdateSnapshot>,
+    },
+    CommandResponse {
+        response: Box<ResponseEnvelope>,
+    },
+    ViewSetOpened {
+        response: Box<OpenViewSetResponse>,
+    },
     ViewSetUpdated,
     ViewSetClosed,
-    MediaUrl { response: crate::MediaUrlResponse },
+    MediaUrl {
+        response: crate::MediaUrlResponse,
+    },
 }
 
 #[derive(Debug)]
@@ -87,6 +99,17 @@ impl ApplicationService {
         call: ApplicationCall,
     ) -> Result<ApplicationCallResult, ApplicationCallError> {
         match call {
+            ApplicationCall::ProductUpdate { request } => {
+                let updates = self.host_updates.as_ref().ok_or_else(|| {
+                    ApplicationError::Configuration("Host updates are unavailable".into())
+                })?;
+                let snapshot = updates
+                    .request(owner.as_str(), request)
+                    .map_err(ApplicationError::Configuration)?;
+                Ok(ApplicationCallResult::ProductUpdate {
+                    snapshot: Box::new(snapshot),
+                })
+            }
             ApplicationCall::Dispatch { request } => {
                 let request_id = request.request_id.clone();
                 let response = match self.dispatch(*request).await {

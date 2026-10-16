@@ -654,6 +654,10 @@ pub struct OpenViewSetResponse {
 pub struct ViewSetOwner(Arc<str>);
 
 impl ViewSetOwner {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
     pub fn trusted(value: impl Into<Arc<str>>) -> Self {
         Self(value.into())
     }

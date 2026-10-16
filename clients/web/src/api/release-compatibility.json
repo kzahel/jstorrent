@@ -46,6 +46,16 @@
       "kind": "value",
       "reason": "library_media view (363); echoed only to clients that lease it, which no released client does",
       "requestedBy": "ViewSpec.oneOf[type=library_media]"
+    },
+    "ApplicationCallResult.oneOf[type=product_update]": {
+      "kind": "value",
+      "reason": "Desktop updater (355); emitted only in response to the capability-gated product_update call.",
+      "requestedBy": "ApplicationCall.oneOf[type=product_update]"
+    },
+    "ApplicationCall.oneOf[type=product_update]": {
+      "kind": "value",
+      "reason": "Desktop updater (355); a new call sent only after desktop_auto_updates is advertised; no released client sends it.",
+      "requestedBy": "ApplicationCall.oneOf[type=product_update]"
     }
   },
   "acceptedBreaks": {}

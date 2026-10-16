@@ -1,5 +1,19 @@
 # Beta Release Readiness
 
+Tactical [355](../tactical/355-automatic-updates.md) narrows the automatic
+update plan to desktop app/NSIS/AppImage. The accepted goal is unattended
+restart after 15 minutes without interaction, with transfer intent and user
+data preserved. Native scheduling, verified staging and joined shutdown are implemented;
+production activation awaits signed qualification on every enabled target.
+The required gate is a repeatable synthetic signed A-to-B VM update through
+Machine Control, checking real executable replacement, preserved transfer/data
+intent and no foreground activation during background use. macOS ARM64 passes repeated presentation matrices, real 900/60-second
+hidden and unfocused intervals, five feed/download failures, and controlled
+download/seeding resumption. Windows/Linux ARM64 synthetic presentation matrices also pass. See 355 for
+exact source receipts and the remaining shipping qualification gates.
+Android in-app updates and the self-updating Linux CLI are separate follow-ups;
+no new unattended-update readiness is claimed.
+
 Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
 repairs desktop notice generation for npm's SSH spelling of the exact reviewed
 mediabunny Git commit. HTTPS and SSH map to the same public preferred-source

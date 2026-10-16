@@ -777,3 +777,39 @@ owned x64 runtime build and object/archive relink prototype uses fixed1.3.2-r1,
 passes independently hashed exports/version/help and complete cleanup/off/claim
 release, but does not replace the original signed runtime or deliver a source
 or relink offer. R-05 and independent WebKit/OpenSSL/ABI holds remain open.
+
+## Unattended Desktop Updating
+
+Tactical [355](tactical/355-automatic-updates.md) inspects the locked
+`tauri-plugin-updater` 2.10.1 `src/updater.rs` download/signature, NSIS arguments
+and exit paths, `tauri-utils` 2.9.3 `src/config.rs::ToTokens for WindowsConfig`
+(which deliberately omits NSIS packaging options), and `tauri-build` 2.6.3's
+merged configuration input. These MIT/Apache-2.0 framework sources are read
+for integration semantics, not imported as an installer implementation.
+Synthetic payloads, signer vectors and native focus/input observers are
+independently authored. Disposable signing keys never enter the repository;
+only the public signature verification fixture is retained.
+
+Microsoft’s [application manifest documentation](https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests)
+and [ordinary-privilege execution guidance](https://learn.microsoft.com/en-us/windows/win32/secbp/running-with-administrator-privileges)
+explain explicit `asInvoker` execution and installer-detection heuristics. The
+qualification VM returned Win32 error 740 for the copied helper without that
+declaration; the executable now declares ordinary privileges explicitly.
+
+Windows visibility qualification also inspects locked Tao 0.35.3
+`platform_impl/windows/event_loop.rs::create_event_target_window` and
+`tauri-plugin-single-instance` 2.4.3 `platform_impl/windows.rs` message targets.
+Their non-presenting layered helper windows deliberately carry `WS_VISIBLE`;
+observer exclusions require exact classes and their complete extended styles.
+
+The [locked CLI 2.11.4 bundler](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.11.4/crates/tauri-bundler/src/bundle.rs)
+patches one `UNK` package marker to `NSS` for NSIS, then restores the unsigned
+build-cache executable. The Windows synthetic hash oracle applies exactly
+that one verified marker transformation in memory and compares every byte;
+it does not accept a version string or ignore arbitrary binary differences.
+
+Microsoft’s [ShowWindow](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow)
+and [ShowWindowAsync](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindowasync)
+contracts define minimized non-activation and asynchronous GUI delivery. The
+Windows minimized fixture verifies actual visible/iconic A/B windows and
+unchanged foreground, rather than accepting a successfully posted request.

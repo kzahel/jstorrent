@@ -1,5 +1,25 @@
 # Client Surfaces
 
+Tactical [355](../tactical/355-automatic-updates.md) now implements unattended
+desktop updates through one native host owner, including with the window
+closed. Maintainer direction accepts restarting after 15 minutes without
+interaction, briefly interrupting and resuming downloads/seeding. Native,
+extension and remote interaction plus unfinished flows/playback gate restart.
+Relaunch preserves foreground versus non-foreground intent without restoring
+exact window stacking order; minimized and closed/hidden windows stay that
+way. Explicit Quit and newer focus choices take precedence. No notice,
+installer or startup window may interrupt another application.
+Qualification requires synthetic A-to-B signed updates in Machine Control
+VMs, with guest-native focus/visibility observation and keyboard input into
+an independent editor throughout background updates. Exact window ordering
+is outside the assertions. The native owner, shared activity/control UI and
+native synthetic runners are implemented. macOS ARM64 passes repeated window
+matrices, full idle intervals and controlled transfer resumption; Windows and
+Linux ARM64 synthetic presentation matrices also pass.
+Default-on for qualified targets, a 60-second notice and one-hour snooze are
+accepted. Production activation remains gated pending the full signed package,
+window/transfer and failure matrix in 355.
+
 Tactical [374](../tactical/374-android-transfer-status-presentation.md) repairs
 Android transfer presentation: completed cards show uploaded totals and ratio,
 metadata acquisition is named explicitly, and only queued rows show queue

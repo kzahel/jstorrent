@@ -261,6 +261,14 @@ export class WebSocketApplicationViewClient
     return response.result.response;
   }
 
+  public async productUpdate(request: import("./api").HostUpdateRequest): Promise<import("./api").HostUpdateSnapshot> {
+    await this.ensureConnected();
+    if (!this.connectedHello?.capabilities.includes("desktop_auto_updates")) throw new ApplicationViewError("unsupported_capability", "Host automatic updates are unavailable");
+    const result = await this.call({ type: "product_update", request });
+    if (result.type !== "product_update") throw new ContractError("update returned the wrong result type");
+    return result.snapshot;
+  }
+
   public async chooseDownloadRoot(
     request: ChooseDownloadRootRequest,
     signal?: AbortSignal,

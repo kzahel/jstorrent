@@ -6202,5 +6202,13 @@
   "share.panel.short.failed": {
     "defaultMessage": "Could not create a short link. You can still use the full link.",
     "description": "Share panel encrypted short link failed"
-  }
+  },
+  "updates.automatic-install": {"defaultMessage": "Automatically install updates when I'm away", "description": "Desktop update setting allowing unattended install after inactivity"},
+  "updates.restart-countdown": {"defaultMessage": "Restarting in {seconds} seconds to install the update", "description": "Nonmodal countdown before an unattended desktop update restart"},
+  "updates.automatic-install-off": {"defaultMessage": "Automatic installation is off", "description": "Update status when the user has opted out of unattended desktop installation"},
+  "updates.automatic-awaiting-qualification": {"defaultMessage":"Automatic installation is unavailable for this build. You can still install updates here.", "description":"Desktop unattended installation is gated until signed package tests qualify this target"},
+  "updates.updated-version": {"defaultMessage":"Updated to {version}","description":"In-app success notice shown only when the user next interacts with the updated application"},
+  "updates.last-outcome": {"defaultMessage":"Last update: {message}","description":"Durable result of the previous desktop update attempt, separate from current check/download status"},
+  "updates.automatic-introduction": {"defaultMessage": "JSTorrent can update after 15 minutes without interaction and resume your transfers. Turn this off in Settings.", "description": "One-time foreground introduction when desktop automatic installation first becomes available and enabled."},
+  "updates.automatic-introduction-updated": {"defaultMessage": "Updated to {version}. Future updates can restart JSTorrent after 15 minutes without interaction and resume your transfers. Turn this off in Settings.", "description": "Combined installation outcome and first introduction, using the single in-app toast slot."}
 }

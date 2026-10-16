@@ -1,5 +1,15 @@
 # Capability Readiness
 
+Tactical [355](../tactical/355-automatic-updates.md) is a desktop-only
+unattended-update implementation in progress as of October 16. The maintainer accepts a restart
+after 15 minutes without interaction, including brief download/seeding
+interruption and resume. Native ownership, activity/blocker reporting and verified staging are
+implemented. macOS ARM64 synthetic installed updates pass repeated window matrices, full
+900/60-second hidden/unfocused timing and controlled transfer resumption;
+shipping activation remains gated while the full signed
+platform/transfer/recovery matrix is incomplete. The mixed-version horizon
+remains 30 days. Android/headless update ownership is unchanged.
+
 Android status presentation is repaired in Tactical
 [374](../tactical/374-android-transfer-status-presentation.md): completed-card
 seeding metrics and metadata/starting/checking/seeding notifications pass
@@ -1538,6 +1548,14 @@ hosted repeats.
 
 ### Active
 
+- **Unattended desktop updates: Tactical `355`** implements the native owner,
+  15-minute quiet policy, bounded signed staging, joined replacement and coarse
+  foreground preservation. macOS ARM64 passes repeated window matrices, full
+  timing, failure and controlled transfer runs; native Windows/Linux ARM64
+  presentation matrices also pass. Shipping activation remains disabled pending
+  the signed platform matrix and recovery gates. See the tactical's exact
+  source receipts and next executable actions.
+
 - **Finish-line Android shutdown containment: Tactical `260`** is active under
   `259`. The second physical cohort exposes a generated native cleanup failure
   escaping service shutdown. Preserve the uncertain lease error and release
@@ -1838,6 +1856,7 @@ this slice.
 
 | Capability | State | Evidence | Highest-risk limit | Owner |
 | --- | --- | --- | --- | --- |
+| Unattended desktop updating | Implemented; shipping activation gated | deterministic, persistence, web, native ARM64 synthetic packages | Tactical `355` owns 15-minute quiet admission, bounded signature-verified staging, joined replacement and coarse foreground restoration. macOS passes repeated presentation, real timing, failure and controlled transfer runs; Windows/Linux ARM64 presentation matrices also pass. Shipping signatures, other architectures and installer recovery remain open. | [`355`](../tactical/355-automatic-updates.md), [`beta-release-readiness`](beta-release-readiness.md), [`client-surfaces`](client-surfaces.md) |
 | Durable semantic application control | Implemented | deterministic, persistence, runtime, interop, web, Tauri, Android build, physical | Archive, fenced keep/delete removal, metadata-only add, atomic v1 torrent-byte add, serialized live High/Normal/Skip file priority, retained checker pause/resume, atomic `Download now`, queue movement, automatic concurrent admission, and exact-or-synthesized magnet export are implemented. Tactical `203` adds schema-24 pending add-time selection with metadata-only acquisition, compact catalog-fenced confirm, validated cancel, restart/FIFO, and controlled browser/API-35/physical ChromeOS evidence. Stable public compatibility remains absent. | [`application-control`](application-control.md), [`203`](../tactical/203-jstorrent-shaped-add-time-file-selection.md) |
 | Installation metrics and feedback context | Implemented; richer feedback/uninstall queries release-gated | deterministic persistence/runtime/web/extension, desktop and Android build; public hosted, physical ChromeOS, and Apple compile qualification open | Tactical `208` adds one native `product.db`, a 1,024-row crash-safe semantic outbox, exact additions/completions, intentional foreground sessions, previewed feedback statistics, disclosed disable/reset controls, adopted desktop updater identity, and an extension-local bounded uninstall URL. Sibling hosted source is truthful, but no deployment occurred; UUID/age/counter feedback and uninstall query fields therefore remain fail-closed. The separately disclosed updater ID follows the acknowledged preference and retains only the valid legacy pre-acknowledgement exception. Tactical `206`'s Android environment URL remains the feedback baseline. Continuous analytics, torrent/peer/path data, Chrome sync, and a generic event API remain excluded. | [`product-state-and-feedback`](product-state-and-feedback.md), [`208`](../tactical/208-installation-metrics-and-feedback-parity.md), [`206`](../tactical/206-android-jstorrent-feedback-handoff.md) |
 | Ephemeral application state | Implemented | deterministic, runtime | Private bounded session and metrics SQLite stores preserve receipts, exact source, metadata, settings, views, DHT and speed state for one joined service lifetime, then disappear without profile files. One maximum source plus info fits the 256-MiB session cap and a second maximum import rolls back with a typed resource limit; payload storage remains external. | [`client-persistence`](client-persistence.md), [`application-control`](application-control.md) |

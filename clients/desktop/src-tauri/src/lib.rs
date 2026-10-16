@@ -41,6 +41,7 @@ use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use zeroize::Zeroizing;
 
+mod automatic_updates;
 mod desktop_lifecycle;
 mod desktop_localization;
 mod desktop_notifications;
@@ -50,6 +51,8 @@ mod external_intake;
 mod linux_single_instance;
 mod native_host_registration;
 mod update_channels;
+mod update_install;
+mod update_policy;
 mod updater;
 mod view_delivery;
 
@@ -127,7 +130,11 @@ struct DesktopState {
     shutdown_status: watch::Sender<ShutdownPhase>,
     shutdown_error: StdMutex<Option<String>>,
     restart_after_shutdown: AtomicBool,
+    terminal_quit: AtomicBool,
+    update_install: StdMutex<Option<update_install::PreparedInstall>>,
+    update_relaunch_cancel: StdMutex<Option<PathBuf>>,
     foreground_visible: AtomicBool,
+    window_hidden: AtomicBool,
     update_check_generation: AtomicU64,
     external_activations: StdMutex<DesktopActivationState>,
 }
@@ -538,6 +545,7 @@ fn enter_visible_foreground_epoch(foreground_visible: &AtomicBool) -> bool {
 }
 
 fn mark_desktop_background(state: &DesktopState) {
+    state.window_hidden.store(true, Ordering::Release);
     state.foreground_visible.store(false, Ordering::Release);
 }
 
@@ -1068,6 +1076,17 @@ struct DesktopRecovery {
 /// Debug builds only: `RSTORRENT_DESKTOP_DATA_ROOT` keeps config and data
 /// under one folder so recovery dry runs never touch a real profile.
 fn debug_data_root_override() -> Option<PathBuf> {
+    // NSIS can relaunch through Explorer, which does not inherit the fixture's
+    // process environment. This switch is absent from shipping builds.
+    #[cfg(feature = "update-qualification")]
+    if let Some(root) = std::env::args_os().find_map(|argument| {
+        argument
+            .to_str()?
+            .strip_prefix("--qualification-data-root=")
+            .map(PathBuf::from)
+    }) {
+        return Some(root);
+    }
     if cfg!(debug_assertions) {
         std::env::var_os("RSTORRENT_DESKTOP_DATA_ROOT").map(PathBuf::from)
     } else {
@@ -1673,6 +1692,36 @@ async fn application_restart(app: AppHandle) -> Result<(), String> {
     wait_for_application_shutdown(&state).await
 }
 
+fn request_update_shutdown(app: &AppHandle, prepared: update_install::PreparedInstall) -> bool {
+    let Some(state) = app.try_state::<DesktopState>() else {
+        return false;
+    };
+    let Ok(picker_permit) = state.download_picker.acquire() else {
+        return false;
+    };
+    let activations = state.external_activations.lock().unwrap();
+    if activations.has_pending() || !state.shutdown.try_start() {
+        return false;
+    }
+    // Holding the same permit as picker/import/export admission closes its
+    // final race. Cancel future admission before releasing the permit to join.
+    state.download_picker.begin_shutdown();
+    drop(picker_permit);
+    let cancel = prepared.cancel_file();
+    *state.update_relaunch_cancel.lock().unwrap() = Some(cancel.clone());
+    if state.terminal_quit.load(Ordering::Acquire) {
+        let _ = std::fs::write(&cancel, b"quit");
+    }
+    *state.update_install.lock().unwrap() = Some(prepared);
+    state.restart_after_shutdown.store(false, Ordering::Release);
+    state.shutdown_status.send_replace(ShutdownPhase::Stopping);
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        perform_application_shutdown(app).await;
+    });
+    true
+}
+
 fn request_application_shutdown(app: &AppHandle, restart_after_shutdown: bool) -> bool {
     // In recovery (Tactical 369) nothing is running: quit exits, and the
     // restart after installing an update restarts directly.
@@ -1683,6 +1732,16 @@ fn request_application_shutdown(app: &AppHandle, restart_after_shutdown: bool) -
         app.exit(0);
         return true;
     };
+    if !restart_after_shutdown {
+        // Explicit Quit/OS shutdown remains terminal even if an update won
+        // admission immediately before the request reached the main loop.
+        state.terminal_quit.store(true, Ordering::Release);
+        if let Some(cancel) = state.update_relaunch_cancel.lock().unwrap().as_ref()
+            && let Err(error) = std::fs::write(cancel, b"quit")
+        {
+            eprintln!("could not persist update relaunch cancellation: {error}");
+        }
+    }
     if !state.shutdown.try_start() {
         return false;
     }
@@ -1723,6 +1782,9 @@ async fn wait_for_application_shutdown(state: &DesktopState) -> Result<(), Strin
 
 async fn perform_application_shutdown(app: AppHandle) {
     let state = app.state::<DesktopState>();
+    if let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>() {
+        updates.stop().await;
+    }
     state.download_picker.shutdown().await;
     let control_result = match state.desktop_control.lock().await.take() {
         Some(owner) => owner.shutdown().await,
@@ -1790,7 +1852,47 @@ async fn perform_application_shutdown(app: AppHandle) {
             let restart = state.restart_after_shutdown.load(Ordering::Acquire);
             state.shutdown.complete();
             state.shutdown_status.send_replace(ShutdownPhase::FinalExit);
-            if restart {
+            let prepared = state.update_install.lock().unwrap().take();
+            if state.terminal_quit.load(Ordering::Acquire) {
+                if let Some(prepared) = prepared {
+                    let _ = std::fs::remove_file(prepared.cancel_file());
+                    let _ = state.product_state.cancel_desktop_update_attempt();
+                }
+                app.exit(0);
+            } else if let Some(prepared) = prepared {
+                let presentation = prepared.presentation;
+                let version = prepared.version.clone();
+                let cutoff = prepared.focus_cutoff;
+                let cache = prepared.cache.clone();
+                let cancel = prepared.cancel_file();
+                if let Err(error) = update_install::install(&app, prepared) {
+                    eprintln!("desktop update installation failed: {error}");
+                    let _ = state.product_state.record_desktop_update_attempt(
+                        &rstorrent_session::DesktopUpdateAttempt {
+                            version,
+                            succeeded: false,
+                            message: bounded_diagnostic(error),
+                        },
+                    );
+                    // The engine has joined. Resume the installed application,
+                    // retaining background intent and the durable failed-attempt
+                    // marker, rather than leave a stopped host behind.
+                    if let Err(recovery) = update_install::relaunch_installed(
+                        &app,
+                        &cache,
+                        presentation,
+                        cutoff,
+                        &cancel,
+                    ) {
+                        eprintln!("desktop update recovery failed: {recovery}");
+                        if presentation.should_focus()
+                            && update_install::Presentation::capture(&app).should_focus()
+                        {
+                            show_shutdown_failure(&app);
+                        }
+                    }
+                }
+            } else if restart {
                 app.request_restart();
             } else {
                 app.exit(0);
@@ -1805,7 +1907,28 @@ async fn perform_application_shutdown(app: AppHandle) {
             state.shutdown.fail();
             state.shutdown_status.send_replace(ShutdownPhase::Failed);
             eprintln!("desktop shutdown failed: {error}");
-            show_shutdown_failure(&app);
+            let prepared = state.update_install.lock().unwrap().take();
+            if let Some(prepared) = prepared {
+                if let Ok(stored) = state.product_state.desktop_update_state()
+                    && let Some(mut attempt) = stored.attempt
+                {
+                    attempt.message =
+                        "Update was not installed because shutdown could not finish".into();
+                    let _ = state.product_state.record_desktop_update_attempt(&attempt);
+                }
+                if let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>() {
+                    updates.installation_failed(
+                        "Shutdown could not finish; the update was not installed",
+                    );
+                }
+                if prepared.presentation.should_focus()
+                    && update_install::Presentation::capture(&app).should_focus()
+                {
+                    show_shutdown_failure(&app);
+                }
+            } else {
+                show_shutdown_failure(&app);
+            }
         }
     }
 }
@@ -1874,7 +1997,19 @@ fn observe_window_destruction(
     let label = window.label().to_owned();
     let app = window.app_handle().clone();
     window.on_window_event(move |event| match event {
+        WindowEvent::Focused(true) => {
+            app.state::<DesktopState>()
+                .window_hidden
+                .store(false, Ordering::Release);
+            if let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>() {
+                rstorrent_session::HostUpdateControl::connected(updates.inner().as_ref(), &label);
+                rstorrent_session::HostUpdateControl::interacted(updates.inner().as_ref());
+            }
+        }
         WindowEvent::CloseRequested { api, .. } => {
+            if let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>() {
+                rstorrent_session::HostUpdateControl::interacted(updates.inner().as_ref());
+            }
             let state = app.state::<DesktopState>();
             let run_in_background = state
                 .shell_settings
@@ -1900,6 +2035,12 @@ fn observe_window_destruction(
             }
         }
         WindowEvent::Destroyed => {
+            if let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>() {
+                rstorrent_session::HostUpdateControl::disconnected(
+                    updates.inner().as_ref(),
+                    &label,
+                );
+            }
             mark_desktop_background(&app.state::<DesktopState>());
             let service = service.clone();
             let subscriptions = subscriptions.clone();
@@ -1917,6 +2058,13 @@ fn observe_window_destruction(
 }
 
 fn restore_main_window(app: &AppHandle) -> Result<(), String> {
+    restore_main_window_with_presentation(app, update_install::Presentation::Foreground)
+}
+
+fn restore_main_window_with_presentation(
+    app: &AppHandle,
+    presentation: update_install::Presentation,
+) -> Result<(), String> {
     if let Some(state) = app.try_state::<DesktopState>()
         && matches!(
             state.shutdown.phase(),
@@ -1942,6 +2090,8 @@ fn restore_main_window(app: &AppHandle) -> Result<(), String> {
         let window_generation = state.window_generation.fetch_add(1, Ordering::AcqRel) + 1;
         let window = WebviewWindowBuilder::from_config(app, &config)
             .map_err(|error| format!("configure main webview window: {error}"))?
+            .focused(presentation.should_focus())
+            .visible(false)
             .build()
             .map_err(|error| format!("recreate main webview window: {error}"))?;
         observe_window_destruction(
@@ -1953,15 +2103,56 @@ fn restore_main_window(app: &AppHandle) -> Result<(), String> {
         );
         window
     };
+    if matches!(
+        presentation,
+        update_install::Presentation::Foreground | update_install::Presentation::Unfocused
+    ) && let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>()
+    {
+        rstorrent_session::HostUpdateControl::connected(
+            updates.inner().as_ref(),
+            MAIN_WINDOW_LABEL,
+        );
+    }
+    if let Some(state) = app.try_state::<DesktopState>() {
+        state.window_hidden.store(false, Ordering::Release);
+    }
     apply_platform_window_icon(&window)?;
-    window
-        .unminimize()
-        .map_err(|error| format!("restore main webview window: {error}"))?;
+    #[cfg(target_os = "linux")]
+    {
+        use glib::prelude::ObjectExt;
+        // GTK's accept-focus guard is restored on the first draw, which can
+        // precede Wayland mapping. Keep mapping itself non-activating too.
+        window
+            .gtk_window()
+            .map_err(|error| error.to_string())?
+            .set_property("focus-on-map", presentation.should_focus());
+    }
+    if presentation == update_install::Presentation::Minimized {
+        #[cfg(windows)]
+        update_install::show_minimized(&window)?;
+        #[cfg(not(windows))]
+        window.minimize().map_err(|error| error.to_string())?;
+        // Showing again restores the window, so retain native minimization.
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        return Ok(());
+    }
+    if presentation != update_install::Presentation::Minimized
+        && window.is_minimized().map_err(|error| error.to_string())?
+    {
+        // GTK deiconify can activate even a never-minimized hidden window.
+        // Only undo a real minimized state during an explicit restoration.
+        window
+            .unminimize()
+            .map_err(|error| format!("restore main webview window: {error}"))?;
+    }
     window
         .show()
         .map_err(|error| format!("show main webview window: {error}"))?;
     if let Some(state) = app.try_state::<DesktopState>() {
         record_desktop_foreground_if_new(&state);
+    }
+    if !presentation.should_focus() {
+        return Ok(());
     }
     window
         .set_focus()
@@ -2152,6 +2343,13 @@ fn show_settings_failure(app: &AppHandle) {
 }
 
 fn request_manual_update_check(app: &AppHandle) {
+    if let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>() {
+        let _ = rstorrent_session::HostUpdateControl::request(
+            updates.inner().as_ref(),
+            "native-menu",
+            rstorrent_session::HostUpdateRequest::Check,
+        );
+    }
     if let Err(error) = restore_main_window(app) {
         eprintln!("failed to restore desktop window for update check: {error}");
         return;
@@ -2184,11 +2382,28 @@ where
     let Some(state) = app.try_state::<DesktopState>() else {
         return;
     };
+    if let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>() {
+        rstorrent_session::HostUpdateControl::interacted(updates.inner().as_ref());
+    }
+    let values: Vec<String> = values
+        .into_iter()
+        .map(|value| value.as_ref().to_owned())
+        .collect();
     let (admission, generation) = {
         let mut activations = state
             .external_activations
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if state.shutdown.phase() != ShutdownPhase::Running {
+            let recognized: Vec<_> = values
+                .into_iter()
+                .filter(|value| external_intake::recognized_external_activation(value))
+                .collect();
+            if let Err(error) = state.product_state.defer_desktop_update_intake(&recognized) {
+                eprintln!("could not retain update-handoff intake: {error}");
+            }
+            return;
+        }
         let admission = activations.admit_strings(values);
         (admission, activations.generation())
     };
@@ -2355,6 +2570,9 @@ pub fn run() {
     // Native tray/accessibility names must not fall back to the executable name.
     #[cfg(target_os = "linux")]
     glib::set_application_name("JSTorrent");
+    if update_install::run_relaunch_helper() {
+        return;
+    }
     if download_picker::run_helper_if_requested() {
         return;
     }
@@ -2373,13 +2591,17 @@ pub fn run() {
                     .app_config_dir()
                     .map_err(|error| format!("resolve desktop config directory: {error}"))?,
             };
+            if update_install::cancelled_startup(&config_dir) {
+                app.handle().exit(0);
+                return Ok(());
+            }
             #[cfg(target_os = "linux")]
             let appimage = app.env().appimage.map(PathBuf::from);
             #[cfg(not(target_os = "linux"))]
             let appimage: Option<PathBuf> = None;
             let production_replacement = app.config().identifier == rstorrent_native_host::legacy::PRODUCTION_IDENTIFIER;
             let registration = (|| {
-                if data_root_override.is_some() {
+                if data_root_override.is_some() || (cfg!(feature = "update-qualification") && app.config().identifier.starts_with("com.jstorrent.qualification.")) {
                     // A dry run never touches the real Chrome registration.
                     return Err("skipped for a debug data root".to_owned());
                 }
@@ -2479,6 +2701,9 @@ pub fn run() {
             }
             let service = Arc::new(Mutex::new(service));
             tauri::async_runtime::block_on(ApplicationService::ensure_maintenance_owner(&service));
+            let update_owner = automatic_updates::AutomaticUpdates::open(app.handle().clone(), product_state.clone(), &config_dir)?;
+            tauri::async_runtime::block_on(service.lock()).set_host_update_control(update_owner.clone());
+            app.manage(update_owner.clone());
             let remote_runtime = tauri::async_runtime::block_on(open_desktop_remote_runtime(
                 &app_data,
                 service.clone(),
@@ -2513,6 +2738,7 @@ pub fn run() {
                 Ok(None) => {}
                 Err(_) => eprintln!("desktop startup deep-link state could not be read"),
             }
+            startup_activations.extend(product_state.take_desktop_update_intake()?);
             external_activations.admit_strings(&startup_activations);
             let (power_preference, power_preference_rx) = watch::channel(
                 shell_settings
@@ -2547,19 +2773,22 @@ pub fn run() {
                 shutdown_status: watch::channel(ShutdownPhase::Running).0,
                 shutdown_error: StdMutex::new(None),
                 restart_after_shutdown: AtomicBool::new(false),
+                terminal_quit: AtomicBool::new(false),
+                update_install: StdMutex::new(None),
+                update_relaunch_cancel: StdMutex::new(None),
                 foreground_visible: AtomicBool::new(false),
+                window_hidden: AtomicBool::new(true),
                 update_check_generation: AtomicU64::new(0),
                 external_activations: StdMutex::new(external_activations),
             };
             app.manage(state);
             #[cfg(target_os = "macos")]
             install_macos_application_menu(app)?;
-            if !desktop_control::background_launch(
-                std::env::args()
-                    .collect::<Vec<_>>()
-                    .iter()
-                    .map(String::as_str),
-            ) {
+            if let Some(presentation) = update_install::Presentation::startup() {
+                if presentation != update_install::Presentation::Hidden {
+                    restore_main_window_with_presentation(app.handle(), presentation)?;
+                }
+            } else if !desktop_control::background_launch(std::env::args().collect::<Vec<_>>().iter().map(String::as_str)) {
                 restore_main_window(app.handle())?;
             }
             // On macOS plugin callbacks run under Tauri's plugin-store lock.
@@ -2599,6 +2828,7 @@ pub fn run() {
             let power_owner = start_power_owner(power_subscription, power_preference_rx);
             *tauri::async_runtime::block_on(app.state::<DesktopState>().power_owner.lock()) =
                 Some(power_owner);
+            update_owner.start();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -2651,6 +2881,7 @@ pub fn run() {
             desktop_check_update,
             desktop_clear_update_candidate,
             desktop_install_update,
+            automatic_updates::desktop_update_request,
             desktop_release_info,
             desktop_product_summary,
             desktop_product_clear_app_data,

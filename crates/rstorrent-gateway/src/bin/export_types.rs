@@ -19,24 +19,26 @@ use rstorrent_session::{
     CatalogRecoveryStatus, CheckingPhaseView, CheckingProgressView, ClientSettings,
     ClientSettingsApplicationState, ClientSettingsDegradedReason, ClientSettingsPatch,
     ClientSettingsRuntimeView, Command, CommandResult, DeliveryMode, DeliveryPolicy,
-    DhtAddressFamilyView, DhtBucketView, DhtFamilyInspectionView, DhtInspectionView,
-    DhtLifecycleView, DhtLookupView, DhtNetworkPolicyView, DiagnosticCategory, DiagnosticEvent,
-    DiagnosticField, DiagnosticFilter, DiagnosticProfile, DiagnosticRetention, DiagnosticSeverity,
-    DiagnosticSubject, DiagnosticValue, DiskCheckpointStageView, DiskPieceStageView, DiskPieceView,
-    DiskPipelineView, DiskPressureView, EffectiveListenerSettings, EncryptionPolicy, ErrorCode,
-    ErrorResponse, FileCatalogState, FileFieldUpdate, FileIndexRange, FilePriority, FileRowUpdate,
-    FileSelectionIntent, FileSelectionOverride, FileSelectionView, FileView,
-    HostCapabilityDefinition, HostCapabilityLifecycle, HttpsServerAuthenticationPolicy, IndexRange,
-    IntegrityPreparationPhaseView, IntegrityPreparationView, Ipv6PinholeFailureStage,
-    Ipv6PinholeStatus, LibraryArchivedFilter, LibraryAvailabilityFilter, LibraryFacetsView,
-    LibraryGroupView, LibraryGrouping, LibraryMediaItemView, LibraryMediaKind, LibraryMediaQuery,
-    LibraryMediaRole, LibraryMediaSort, ListenerBindFailureReason, ListenerPolicy, ListenerStatus,
-    MagnetExportOptions, MagnetExportResult, MagnetExportSource, MagnetPeerHint,
-    MagnetPeerHintOmission, MagnetPeerHintScope, MediaCatalogState, MediaFileAvailability,
-    MediaItemView, MediaRoleView, MediaUrlOutcome, MediaUrlResponse, MetadataAcquisitionPhaseView,
-    MetadataAcquisitionView, OpenViewSetOptions, OpenViewSetRequest, OpenViewSetResponse,
-    PeerDirection, PeerDisconnectReason, PeerFieldCapabilities, PeerFieldUpdate, PeerFlagView,
-    PeerLifecycle, PeerMseMethodView, PeerRequestPhase, PeerRole, PeerRowUpdate, PeerSourceView,
+    DesktopUpdateAttempt, DhtAddressFamilyView, DhtBucketView, DhtFamilyInspectionView,
+    DhtInspectionView, DhtLifecycleView, DhtLookupView, DhtNetworkPolicyView, DiagnosticCategory,
+    DiagnosticEvent, DiagnosticField, DiagnosticFilter, DiagnosticProfile, DiagnosticRetention,
+    DiagnosticSeverity, DiagnosticSubject, DiagnosticValue, DiskCheckpointStageView,
+    DiskPieceStageView, DiskPieceView, DiskPipelineView, DiskPressureView,
+    EffectiveListenerSettings, EncryptionPolicy, ErrorCode, ErrorResponse, FileCatalogState,
+    FileFieldUpdate, FileIndexRange, FilePriority, FileRowUpdate, FileSelectionIntent,
+    FileSelectionOverride, FileSelectionView, FileView, HostCapabilityDefinition,
+    HostCapabilityLifecycle, HostUpdateRequest, HostUpdateSnapshot,
+    HttpsServerAuthenticationPolicy, IndexRange, IntegrityPreparationPhaseView,
+    IntegrityPreparationView, Ipv6PinholeFailureStage, Ipv6PinholeStatus, LibraryArchivedFilter,
+    LibraryAvailabilityFilter, LibraryFacetsView, LibraryGroupView, LibraryGrouping,
+    LibraryMediaItemView, LibraryMediaKind, LibraryMediaQuery, LibraryMediaRole, LibraryMediaSort,
+    ListenerBindFailureReason, ListenerPolicy, ListenerStatus, MagnetExportOptions,
+    MagnetExportResult, MagnetExportSource, MagnetPeerHint, MagnetPeerHintOmission,
+    MagnetPeerHintScope, MediaCatalogState, MediaFileAvailability, MediaItemView, MediaRoleView,
+    MediaUrlOutcome, MediaUrlResponse, MetadataAcquisitionPhaseView, MetadataAcquisitionView,
+    OpenViewSetOptions, OpenViewSetRequest, OpenViewSetResponse, PeerDirection,
+    PeerDisconnectReason, PeerFieldCapabilities, PeerFieldUpdate, PeerFlagView, PeerLifecycle,
+    PeerMseMethodView, PeerRequestPhase, PeerRole, PeerRowUpdate, PeerSourceView,
     PeerTransportKind, PeerView, PendingFileSelectionBase, PortMappingFailureStage,
     PortMappingMechanism, PortMappingPolicy, PortMappingStatus, ProgressAction, ProgressAssessment,
     ProgressDisposition, ProgressPhase, ProgressReason, RemovalDataPolicy, RemovalState,
@@ -340,6 +342,9 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<ViewSetUpdate>(&mut declarations)?;
     append::<UpdateBatch>(&mut declarations)?;
     append::<OpenViewSetResponse>(&mut declarations)?;
+    append::<DesktopUpdateAttempt>(&mut declarations)?;
+    append::<HostUpdateRequest>(&mut declarations)?;
+    append::<HostUpdateSnapshot>(&mut declarations)?;
     append::<ApplicationCall>(&mut declarations)?;
     append::<ApplicationCallResult>(&mut declarations)?;
     append::<ApplicationConnectionErrorCode>(&mut declarations)?;

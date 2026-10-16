@@ -84,6 +84,9 @@ pub(crate) struct DesktopActivationState {
 }
 
 impl DesktopActivationState {
+    pub(crate) fn has_pending(&self) -> bool {
+        !self.pending.is_empty()
+    }
     pub(crate) fn admit_strings<I, S>(&mut self, values: I) -> ActivationAdmission
     where
         I: IntoIterator<Item = S>,
@@ -200,6 +203,13 @@ impl DesktopActivationState {
     fn advance_generation(&mut self) {
         self.generation = self.generation.wrapping_add(1);
     }
+}
+
+pub(crate) fn recognized_external_activation(value: &str) -> bool {
+    matches!(
+        classify_external_activation(value),
+        ClassifiedActivation::Accepted(_)
+    )
 }
 
 enum ClassifiedActivation {

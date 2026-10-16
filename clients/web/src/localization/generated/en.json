@@ -12088,6 +12088,44 @@
       "value": "Notification"
     }
   ],
+  "updates.automatic-awaiting-qualification": [
+    {
+      "type": 0,
+      "value": "Automatic installation is unavailable for this build. You can still install updates here."
+    }
+  ],
+  "updates.automatic-install": [
+    {
+      "type": 0,
+      "value": "Automatically install updates when I'm away"
+    }
+  ],
+  "updates.automatic-install-off": [
+    {
+      "type": 0,
+      "value": "Automatic installation is off"
+    }
+  ],
+  "updates.automatic-introduction": [
+    {
+      "type": 0,
+      "value": "JSTorrent can update after 15 minutes without interaction and resume your transfers. Turn this off in Settings."
+    }
+  ],
+  "updates.automatic-introduction-updated": [
+    {
+      "type": 0,
+      "value": "Updated to "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": ". Future updates can restart JSTorrent after 15 minutes without interaction and resume your transfers. Turn this off in Settings."
+    }
+  ],
   "updates.command-copied": [
     {
       "type": 0,
@@ -12104,6 +12142,40 @@
     {
       "type": 0,
       "value": "Copy update command"
+    }
+  ],
+  "updates.last-outcome": [
+    {
+      "type": 0,
+      "value": "Last update: "
+    },
+    {
+      "type": 1,
+      "value": "message"
+    }
+  ],
+  "updates.restart-countdown": [
+    {
+      "type": 0,
+      "value": "Restarting in "
+    },
+    {
+      "type": 1,
+      "value": "seconds"
+    },
+    {
+      "type": 0,
+      "value": " seconds to install the update"
+    }
+  ],
+  "updates.updated-version": [
+    {
+      "type": 0,
+      "value": "Updated to "
+    },
+    {
+      "type": 1,
+      "value": "version"
     }
   ],
   "video.loading": [

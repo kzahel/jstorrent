@@ -1,5 +1,14 @@
 # Mixed-Version Compatibility
 
+Tactical [355](../tactical/355-automatic-updates.md) registers capability 4,
+`desktop_auto_updates`, for the `product_update` application call and its
+status/check/install/channel/preference/activity/snooze requests. Only desktop
+hosts with a native updater owner advertise it. Fresh hellos rebind the web
+updater and activity reporter; hosts without it retain the existing manual
+surface and never receive the new call. Connected clients that cannot report
+activity conservatively block unattended restart. This does not change the
+30-day horizon or authorize removal of the existing fallback.
+
 Tactical [367](../tactical/367-encrypted-short-links.md) is client-only:
 short links wrap the existing host-exported fragment and add no host command,
 field or capability. Menu copies remain full links. Its separately deployed

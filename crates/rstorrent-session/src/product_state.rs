@@ -1,3 +1,6 @@
+mod desktop_updates;
+pub use desktop_updates::{DesktopUpdateAttempt, DesktopUpdateState};
+
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -13,13 +16,14 @@ const PRODUCT_DATABASE_FILENAME: &str = "product.db";
 /// versions append a step to `PRODUCT_MIGRATION_STEPS` (Tactical 358), as the
 /// session catalog does. The ledger in `durable-data-migrations` lists them.
 const PRODUCT_BASELINE_SCHEMA_VERSION: i64 = 2;
-const PRODUCT_SCHEMA_VERSION: i64 = 3;
+const PRODUCT_SCHEMA_VERSION: i64 = 4;
 
 type ProductMigrationStep = fn(&rusqlite::Transaction<'_>) -> Result<(), ProductStateError>;
 
 /// `PRODUCT_MIGRATION_STEPS[i]` migrates baseline + i to the next version.
 /// Append only; a shipped step is never edited.
-const PRODUCT_MIGRATION_STEPS: &[ProductMigrationStep] = &[migrate_product_2_to_3];
+const PRODUCT_MIGRATION_STEPS: &[ProductMigrationStep] =
+    &[migrate_product_2_to_3, migrate_product_3_to_4];
 
 const _: () = assert!(
     PRODUCT_BASELINE_SCHEMA_VERSION + PRODUCT_MIGRATION_STEPS.len() as i64
@@ -1046,6 +1050,20 @@ fn migrate_product_2_to_3(
     Ok(())
 }
 
+/// Product schema 4 (Tactical 355): one desktop update preference and attempt.
+fn migrate_product_3_to_4(transaction: &Transaction<'_>) -> Result<(), ProductStateError> {
+    transaction.execute_batch(
+        "CREATE TABLE desktop_update_state (
+            singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+            automatic_install INTEGER NOT NULL DEFAULT 1 CHECK (automatic_install IN (0, 1)),
+            attempt TEXT CHECK (attempt IS NULL OR length(attempt) BETWEEN 1 AND 8192),
+            deferred_intake TEXT NOT NULL DEFAULT '[]' CHECK (length(deferred_intake) <= 524288)
+         );
+         INSERT INTO desktop_update_state(singleton) VALUES (1);",
+    )?;
+    Ok(())
+}
+
 fn create_schema(
     connection: &mut Connection,
     current_version: &str,
@@ -1659,7 +1677,8 @@ mod tests {
         store
             .connection
             .execute_batch(
-                "DROP TABLE desktop_shell_settings;
+                "DROP TABLE desktop_update_state;
+                 DROP TABLE desktop_shell_settings;
                  ALTER TABLE product_state DROP COLUMN legacy_updater_id_permitted;
                  PRAGMA user_version = 1;",
             )

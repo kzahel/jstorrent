@@ -1,5 +1,14 @@
 # Product Surfaces And JSTorrent Migration
 
+Tactical [355](../tactical/355-automatic-updates.md) implements fully unattended
+updates for JSTorrent macOS app, Windows NSIS and Linux AppImage. Maintainer
+direction on October 16 permits a brief transfer interruption and restart
+after 15 minutes without interaction. Existing identities, signing roots,
+channels, durable data and package ownership remain constraints; default-on
+activation awaits shipping-package qualification. Android, store-managed extension
+updates and the future Linux CLI retain their separate distribution owners.
+This implementation does not change production routes or the 30-day compatibility policy.
+
 Tactical [361](../tactical/361-extension-store-publishing-setup.md) lets an
 `extension-v*` tag test, package and submit the production extension to its
 existing Web Store item without a stored key, through a sibling workload

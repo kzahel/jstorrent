@@ -1,5 +1,15 @@
 # Client Persistence And Session Boundary
 
+Tactical [355](../tactical/355-automatic-updates.md) appends product schema 4
+for the desktop's automatic-install preference, last attempt and bounded
+handoff intake. These are host-owned durable state, independent of an open
+client. The web client's `rstorrent.notice.updated-version.v1` local-storage
+field only suppresses a repeated foreground success toast for the same
+target/version. `rstorrent.notice.automatic-updates.v1` similarly suppresses
+the first-enabled-release explanation once per target. Missing or unavailable
+storage defaults to an unseen notice;
+it never changes updater policy or substitutes for the durable outcome.
+
 Tactical [367](../tactical/367-encrypted-short-links.md) adds optional
 `shortLink: boolean` to the existing version-1 web share record. Missing,
 unreadable or newer values read as off without a write. A user change saves

@@ -1,3 +1,5 @@
+import { HostOwnedUpdater, reportUpdateActivity } from "./inspection/updater/host-owned";
+import type { HostUpdateSnapshot } from "./api";
 import { getBundleType } from "@tauri-apps/api/app";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -39,6 +41,30 @@ interface NativeProgress {
 }
 
 export async function createTauriDesktopUpdater(): Promise<DesktopUpdater> {
+  try {
+    await invoke<HostUpdateSnapshot>("desktop_update_request", { request: { action: "status" } });
+  } catch {
+    // The catalog recovery screen has no running host, and uses its existing
+    // explicit update path. It must not start unattended updates.
+    return createLegacyTauriDesktopUpdater();
+  }
+  const [info, bundle] = await Promise.all([
+    invoke<NativeDesktopReleaseInfo>("desktop_release_info"), getBundleType().catch(() => null),
+  ]);
+  let unlisten: (() => void) | undefined;
+  const stopActivity = reportUpdateActivity(request => invoke("desktop_update_request", { request }));
+  const updater = new HostOwnedUpdater(request => invoke("desktop_update_request", { request }), {
+    ...info, bundleType: normalizeBundleType(bundle), checkPrivacy: "preference-controlled",
+  }, () => { unlisten?.(); stopActivity(); });
+  const handleCheck = createNativeUpdateCheckHandler(() => void updater.check("manual"));
+  try {
+    unlisten = await listen<unknown>(UPDATE_CHECK_EVENT, event => handleCheck(event.payload));
+    handleCheck(await invoke<unknown>("desktop_update_check_generation"));
+  } catch (error) { updater.close(); throw error; }
+  return updater;
+}
+
+async function createLegacyTauriDesktopUpdater(): Promise<DesktopUpdater> {
   const [nativeInfo, bundleType, channel] = await Promise.all([
     invoke<NativeDesktopReleaseInfo>("desktop_release_info"),
     getBundleType().catch(() => null),
@@ -60,7 +86,9 @@ export async function createTauriDesktopUpdater(): Promise<DesktopUpdater> {
         : new TauriUpdateCandidate(result.generation, result.version, result.notes);
     },
     selectChannel: (selected) => invoke("desktop_select_update_channel", { channel: selected }),
-    relaunch: () => invoke("application_restart"),
+    // The native apply path owns the one-shot relaunch after installation.
+    // A second renderer restart could launch the old executable or duplicate B.
+    relaunch: async () => {},
   };
   const controller = new DesktopUpdaterController(backend, info, globalThis, channel);
   const handleUpdateCheck = createNativeUpdateCheckHandler(() => {

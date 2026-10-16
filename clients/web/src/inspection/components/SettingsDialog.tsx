@@ -244,6 +244,7 @@ export function SettingsDialog({
         ref={dialogRef}
         className={styles.sheet}
         role="dialog"
+        data-update-safe={category === "about" ? "true" : undefined}
         aria-modal="true"
         aria-labelledby="settings-title"
         onKeyDown={handleKeyDown}

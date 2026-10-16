@@ -9,6 +9,8 @@
 use serde::Serialize;
 use ts_rs::TS;
 
+pub const DESKTOP_AUTO_UPDATES: &str = "desktop_auto_updates";
+
 pub const SEED_STOP_LIMITS: &str = "seed_stop_limits";
 pub const MAGNET_EXPORT_OPTIONS: &str = "magnet_export_options";
 /// The host reads the client identity in `Connect` (Tactical 370). It owns
@@ -42,6 +44,16 @@ pub enum HostCapabilityLifecycle {
 }
 
 pub const HOST_CAPABILITIES: &[HostCapability] = &[
+    HostCapability {
+        name: DESKTOP_AUTO_UPDATES,
+        id: 4,
+        introduced: "2026-10-16",
+        lifecycle: HostCapabilityLifecycle::Transitional,
+        commands: &[],
+        command_fields: &[],
+        client_settings_patch_keys: &[],
+        torrent_settings_patch_keys: &[],
+    },
     HostCapability {
         name: SEED_STOP_LIMITS,
         id: 1,

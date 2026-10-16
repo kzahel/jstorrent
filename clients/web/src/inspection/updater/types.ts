@@ -56,6 +56,11 @@ export type UpdaterState =
     };
 
 export interface DesktopUpdaterSnapshot {
+  readonly automaticUpdates?: boolean | undefined;
+  readonly automaticAvailable?: boolean | undefined;
+  readonly updateMessage?: string | undefined;
+  readonly lastOutcome?: import("../../api").DesktopUpdateAttempt | undefined;
+  readonly restartInSeconds?: number | undefined;
   readonly info: DesktopReleaseInfo;
   readonly state: UpdaterState;
   readonly channel?: UpdateChannel;
@@ -68,6 +73,7 @@ export interface DesktopUpdater {
   check(reason?: CheckReason): Promise<void>;
   install(): Promise<void>;
   dismiss(): void;
+  setAutomaticUpdates?(enabled: boolean): Promise<void>;
   selectChannel?(channel: UpdateChannel): Promise<void>;
   close(): void;
 }

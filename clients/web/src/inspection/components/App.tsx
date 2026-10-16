@@ -51,6 +51,7 @@ import { navigationTitle, Sidebar } from "./Sidebar";
 import { TorrentActions } from "./TorrentActions";
 import { AddTorrentForm, TorrentAddProvider } from "./TorrentAdd";
 import { TorrentActionProvider } from "./TorrentActionContext";
+import { UpdateOutcomeNotice } from "./UpdateOutcomeNotice";
 import { ToastProvider } from "./Toast";
 import { TorrentTable } from "./TorrentTable";
 import { TransfersView } from "./TransfersView";
@@ -182,7 +183,7 @@ function AppContent({
   interrupted,
   oneCurrentRoot,
   webAuth,
-  updater,
+  updater: suppliedUpdater,
   notifications,
   power,
   remoteAccess,
@@ -204,6 +205,7 @@ function AppContent({
   }, [libraryLoading]);
   const execute = useInspectionCommand();
   const controller = useInspectionController();
+  const updater = suppliedUpdater ?? controller.application.updater;
   const destination = useInspectionStore(
     (state) => state.presentation.destination,
   );
@@ -567,12 +569,16 @@ function AppContent({
           )}
         </main>
       </div>
+      <UpdateOutcomeNotice snapshot={updaterSnapshot} />
       {updater !== undefined && updaterSnapshot?.state.phase === "available" ? (
         <aside className={styles.updateNotice} role="status">
           <div>
             <strong>{localizedMessage("inspection.components.app.rstorrent")}{" "}{updaterSnapshot.state.version}{" "}{localizedMessage("inspection.components.app.is.available")}</strong>
-            <span>{localizedMessage("inspection.components.app.review.the.update.when.you.are.ready")}</span>
+            <span>{updaterSnapshot.restartInSeconds === undefined ? (updaterSnapshot.updateMessage ?? localizedMessage("inspection.components.app.review.the.update.when.you.are.ready")) : localizedMessage("updates.restart-countdown", { seconds: updaterSnapshot.restartInSeconds })}</span>
           </div>
+          {updaterSnapshot.restartInSeconds === undefined ? null : (
+            <button type="button" onClick={() => void updater.install()}>{localizedMessage("inspection.components.about.updates.settings.section.install.and.restart")}</button>
+          )}
           <button
             type="button"
             onClick={() => {

@@ -878,6 +878,22 @@
         {
           "properties": {
             "request": {
+              "$ref": "#/$defs/HostUpdateRequest"
+            },
+            "type": {
+              "const": "product_update",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "request"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "request": {
               "$ref": "#/$defs/RequestEnvelope"
             },
             "type": {
@@ -970,6 +986,22 @@
     },
     "ApplicationCallResult": {
       "oneOf": [
+        {
+          "properties": {
+            "snapshot": {
+              "$ref": "#/$defs/HostUpdateSnapshot"
+            },
+            "type": {
+              "const": "product_update",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "snapshot"
+          ],
+          "type": "object"
+        },
         {
           "properties": {
             "response": {
@@ -2857,6 +2889,25 @@
       ],
       "type": "string"
     },
+    "DesktopUpdateAttempt": {
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "succeeded": {
+          "type": "boolean"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "succeeded",
+        "message"
+      ],
+      "type": "object"
+    },
     "DhtAddressFamilyView": {
       "enum": [
         "ipv4",
@@ -4200,6 +4251,192 @@
         "done_bytes",
         "verified_bytes",
         "media_availability"
+      ],
+      "type": "object"
+    },
+    "HostUpdateRequest": {
+      "oneOf": [
+        {
+          "properties": {
+            "action": {
+              "const": "status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "action": {
+              "const": "check",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "action": {
+              "const": "install",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "action": {
+              "const": "select_channel",
+              "type": "string"
+            },
+            "channel": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "channel"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "action": {
+              "const": "set_automatic",
+              "type": "string"
+            },
+            "enabled": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "action",
+            "enabled"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "action": {
+              "const": "activity",
+              "type": "string"
+            },
+            "blocked": {
+              "type": "boolean"
+            },
+            "interacted": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "action",
+            "interacted",
+            "blocked"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "action": {
+              "const": "snooze",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "HostUpdateSnapshot": {
+      "properties": {
+        "automaticAvailable": {
+          "default": false,
+          "type": "boolean"
+        },
+        "automaticInstall": {
+          "type": "boolean"
+        },
+        "canInstall": {
+          "type": "boolean"
+        },
+        "channel": {
+          "type": "string"
+        },
+        "downloadedBytes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lastOutcome": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DesktopUpdateAttempt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "package": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "restartInSeconds": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "totalBytes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "phase",
+        "downloadedBytes",
+        "automaticInstall",
+        "channel",
+        "canInstall",
+        "package"
       ],
       "type": "object"
     },

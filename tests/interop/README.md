@@ -1,5 +1,41 @@
 # Controlled engine and application scenarios
 
+Desktop unattended-update qualification uses
+[`prepare-desktop-update-fixture.py`](../../scripts/prepare-desktop-update-fixture.py)
+on the target build OS to create private, disposable signed A/B packages.
+[`verify-desktop-unattended-update.py`](../../scripts/verify-desktop-unattended-update.py),
+[`verify-desktop-update-windows.py`](../../scripts/verify-desktop-update-windows.py)
+and [`verify-desktop-update-linux.py`](../../scripts/verify-desktop-update-linux.py)
+exercise actual installation/restart through claimed Machine Control targets.
+They use isolated data, a loopback HTTPS feed with build-scoped test trust,
+native focus/window observers and independent keyboard editors. The macOS
+[`transfer runner`](../../scripts/verify-desktop-update-transfers.py) adds pinned
+libtorrent on the private VM network to check downloading, seeding and paused
+intent across replacement. Use each runner's `--help`; retain its claim until
+cleanup passes, then restore the target's initial power state and release it.
+An accelerated fixture is not evidence of the production 15-minute delay;
+leave `--quiet-seconds` at its default 900 for that acceptance run.
+
+Install the native checkout’s dependencies with `npm ci --prefix clients/web`
+to supply the OS-specific Tauri CLI; do not copy `node_modules` across OSes.
+Build web assets from the same source checkout with `npm run build --prefix
+clients/web`. Pass their copied directory as `--frontend-dist` when the guest
+cannot run the frontend toolchain. Build the fixture natively on its target OS;
+`--cargo-target` and `--source-workspace` may reuse owned caches, while each
+`--output` is fresh. Source the normal toolchain environment first.
+
+Windows requires `--input-manifest`: generate it on the controller or through
+WSL (all Windows Git operations stay in WSL), then transfer the source files,
+manifest and frontend assets through Machine Control's common CLI. Its format
+is `{ "sourceCommit": "<git rev-parse HEAD>", "files": { "relative/path":
+"<SHA-256 of file bytes>" } }`. Inventory `git ls-files --cached --others
+--exclude-standard -z`, omitting `reference/` and `.git/`; use forward slashes
+and include every source file. The builder independently verifies every input
+hash before copying. Keep manifests/output outside the source checkout and
+never transfer or retain the disposable updater private key. A failed retained
+Windows run (`--retain-failed`) requires explicit cleanup under its held claim
+before another run; the ordinary runners clean in `finally`.
+
 These harnesses use independent fixtures and pinned Python libtorrent as a
 peer. They exercise real sockets, storage and process lifetimes beyond unit
 tests. Use the map to select a failure or contract; it is not a list to run in

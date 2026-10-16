@@ -882,6 +882,11 @@ async fn serve_application_connection(
         state.http_owner_namespace
     );
     let owner = ViewSetOwner::trusted(owner_key.clone());
+    state
+        .service
+        .lock()
+        .await
+        .host_update_client_connected(&owner);
     let connection_generation = state.connection_registry.generation();
     let takeover = state
         .connection_registry
@@ -2181,7 +2186,9 @@ fn valid_application_call(call: &ApplicationCall) -> bool {
             torrent_id,
             file_index: _,
         } => valid_torrent_id(torrent_id),
-        ApplicationCall::Dispatch { .. } | ApplicationCall::OpenViewSet { .. } => true,
+        ApplicationCall::ProductUpdate { .. }
+        | ApplicationCall::Dispatch { .. }
+        | ApplicationCall::OpenViewSet { .. } => true,
     }
 }
 

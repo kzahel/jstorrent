@@ -142,9 +142,16 @@ function UpdatesFieldset({
             : localizedMessage("inspection.components.about.updates.settings.section.stable.description")}</p>
         </div>
       ) : null}
+      {updater.setAutomaticUpdates !== undefined && policy.canInstallInApp ? (
+        <label><input type="checkbox" checked={snapshot.automaticUpdates ?? false}
+          onChange={event => void updater.setAutomaticUpdates?.(event.target.checked)} />
+          {localizedMessage("updates.automatic-install")}
+        </label>
+      ) : null}
       <div className={styles.updateStatus} aria-live="polite">
-        <strong>{statusTitle(state)}</strong>
-        <span>{statusDetail(state, info.version)}</span>
+        <strong>{state.phase === "idle" && snapshot.automaticAvailable === false ? localizedMessage("updates.automatic-awaiting-qualification") : state.phase === "idle" && snapshot.automaticUpdates === false ? localizedMessage("updates.automatic-install-off") : statusTitle(state)}</strong>
+        <span>{snapshot.updateMessage ?? statusDetail(state, info.version)}</span>
+        {snapshot.lastOutcome === undefined ? null : <span>{localizedMessage("updates.last-outcome", { message: snapshot.lastOutcome.message })}</span>}
       </div>
       {state.phase === "downloading" ? (
         <progress

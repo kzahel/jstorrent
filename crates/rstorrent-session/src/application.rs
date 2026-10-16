@@ -603,6 +603,7 @@ pub struct CompletedMediaCapability {
 
 #[derive(Debug)]
 pub struct ApplicationService {
+    pub(crate) host_updates: Option<Arc<dyn crate::HostUpdateControl>>,
     reset_config: ApplicationConfig,
     reset_incomplete: bool,
     store: Arc<Mutex<SessionStore>>,
@@ -1052,6 +1053,7 @@ impl ApplicationService {
             .clone()
             .map(|owner| ProductMilestoneDrain::start(store.clone(), owner, views.clone()));
         let mut service = Self {
+            host_updates: None,
             reset_config,
             reset_incomplete: false,
             store,
@@ -1766,6 +1768,19 @@ impl ApplicationService {
         &mut self,
         request: RequestEnvelope,
     ) -> Result<ResponseEnvelope, ApplicationError> {
+        if let Some(updates) = &self.host_updates {
+            if updates.committed() {
+                return Ok(ResponseEnvelope::error(
+                    request.request_id,
+                    self.revision().unwrap_or_default(),
+                    ErrorCode::InvalidRequest,
+                    "JSTorrent is restarting for an update; retry after reconnecting",
+                ));
+            }
+            if !matches!(&request.command, Command::Snapshot) {
+                updates.interacted();
+            }
+        }
         self.reap_finished().await?;
         if self.reset_incomplete && !matches!(&request.command, Command::ClearAppData) {
             return Ok(ResponseEnvelope::error(
@@ -2436,6 +2451,17 @@ impl ApplicationService {
         request: AddTorrentBytesRequest,
         source: Vec<u8>,
     ) -> Result<ResponseEnvelope, ApplicationError> {
+        if let Some(updates) = &self.host_updates {
+            if updates.committed() {
+                return Ok(ResponseEnvelope::error(
+                    request.request_id,
+                    self.revision().unwrap_or_default(),
+                    ErrorCode::InvalidRequest,
+                    "JSTorrent is restarting for an update; retry after reconnecting",
+                ));
+            }
+            updates.interacted();
+        }
         if self.reset_incomplete {
             return Err(ApplicationError::Configuration(
                 "app data clear is incomplete; retry the clear action".to_owned(),
@@ -3439,8 +3465,32 @@ impl ApplicationService {
         }))
     }
 
+    pub fn set_host_update_control(&mut self, updates: Arc<dyn crate::HostUpdateControl>) {
+        self.host_updates = Some(updates);
+    }
+
+    pub fn host_update_client_connected(&self, owner: &ViewSetOwner) {
+        if let Some(updates) = &self.host_updates {
+            updates.connected(owner.as_str());
+        }
+    }
+
+    pub fn automatic_update_blocked(&self) -> bool {
+        let media = self.media_resource_snapshot();
+        media.active_bodies != 0
+            || media.active_streaming_leases != 0
+            || self.store.lock().map_or(true, |store| {
+                store.has_pending_file_selection().unwrap_or(true)
+            })
+    }
+
     pub fn api_hello(&self) -> crate::ApiHello {
         let mut hello = crate::ApiHello::default();
+        if self.host_updates.is_none() {
+            hello
+                .capabilities
+                .retain(|capability| capability != crate::host_capabilities::DESKTOP_AUTO_UPDATES);
+        }
         hello.limits.lease_millis = self.views.view_set_lease().as_millis().to_string();
         hello.product = self
             .reset_config
@@ -3503,6 +3553,9 @@ impl ApplicationService {
     }
 
     pub fn close_owner_view_sets(&self, owner: &ViewSetOwner) {
+        if let Some(updates) = &self.host_updates {
+            updates.disconnected(owner.as_str());
+        }
         self.views.close_owner_view_sets(owner);
     }
 

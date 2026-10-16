@@ -49,7 +49,7 @@ below to **Retired** with the commit.
 | Format | Owner | Current | Floor | Notes |
 | --- | --- | --- | --- | --- |
 | Session catalog `session.db` | `crates/rstorrent-session/src/store*.rs` | 28 | 26 | Baseline 26 is every public release since `android-v0.1.0` / `desktop-v0.1.4`; fixture `tests/fixtures/catalog/v26.sqlite` |
-| Product state `product.db` | `crates/rstorrent-session/src/product_state.rs` | 3 | 2 | Baseline 2 is every public release; fixture `tests/fixtures/product/v2.sqlite` |
+| Product state `product.db` | `crates/rstorrent-session/src/product_state.rs` | 4 | 2 | Baseline 2 is every public release; fixture `tests/fixtures/product/v2.sqlite` |
 | Speed history `metrics.db` | `crates/rstorrent-session/src/speed.rs` | 1 | 1 | No migrations; an unknown version runs without saved history and is not deleted |
 | Desktop shell `desktop-shell.json` | `clients/desktop/src-tauri/src/desktop_lifecycle.rs` | retired format | — | Imported once into `product.db`; never written since Tactical 358 |
 | Torrent list bundle | `crates/rstorrent-session/src/torrent_list.rs` | 1 | 1 | Export format; readers ignore unknown fields and refuse newer versions |
@@ -64,6 +64,7 @@ below to **Retired** with the commit.
 | Step 27 → 28: network defaults marker | `session.db` | Tactical 358 | migration step | Floor reaches 28 |
 | Pre-baseline refusal (schemas 1–25) | `session.db` | Tactical 345 (`75e95083`) | classification | Keep; it is the fail-closed answer for old incubation catalogs |
 | Reset report reading (`profile_reset_report`, startup announcement) | `session.db` | Tactical 179, reset removed by 345 | legacy reader | No new reports since 345; remove the reader (and later drop the table by a step) at the next floor raise |
+| Step 3 → 4: desktop update preference, attempt and handoff intake | `product.db` | Tactical 355 | migration step | Floor reaches 4 |
 | Step 2 → 3: desktop shell switches | `product.db` | Tactical 358 | migration step | Floor reaches 3 |
 | Schema 1 → 2 reader (`migrate_schema_1`) | `product.db` | Tactical 208 | migration step | **Ready now**: schema 1 never shipped in a public release |
 | `desktop-shell.json` one-time import (versions 3 and 4) | desktop | Tactical 358 | one-time import | Floor rule for desktop: every allowed desktop version includes Tactical 358; then also delete the leftover file in that commit |

@@ -1,3 +1,4 @@
+import { HostOwnedUpdater, reportUpdateActivity } from "../updater/host-owned";
 import { message as localizedMessage } from "../../localization/runtime";
 import { markStartup } from "../../startup-timing";
 import type {
@@ -145,6 +146,8 @@ export class LiveApplication implements InspectionApplication {
   } | null = null;
   private mappedPieces: MappedPieceActivity | null = null;
   private hello: ApiHello | null = null;
+  updater: HostOwnedUpdater | undefined;
+  private stopUpdateActivity: ReturnType<typeof reportUpdateActivity> | undefined;
   // The latest view-set batch had no server clock; see predatesDownloadAll.
   private serverClockMissing = false;
   // False after the connection drops, until hello is read again.
@@ -274,6 +277,7 @@ export class LiveApplication implements InspectionApplication {
     this.ensureOpen();
     this.hello = await client.hello(this.lifetime.signal);
     this.helloCurrent = true;
+    this.configureHostUpdates(client, this.hello);
     markStartup("hello");
     this.ensureOpen();
     this.snapshot = withHost(this.snapshot, this.hello, this.serverClockMissing);
@@ -825,6 +829,8 @@ export class LiveApplication implements InspectionApplication {
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
+    this.stopUpdateActivity?.();
+    this.updater?.close();
     this.lifetime.abort("live application closed");
     this.removeWakeHints?.();
     this.removeWakeHints = null;
@@ -972,6 +978,23 @@ export class LiveApplication implements InspectionApplication {
     this.emit({ type: "snapshot", snapshot: this.snapshot });
   }
 
+  private configureHostUpdates(client: ApplicationViewClient, hello: ApiHello): void {
+    if (client.productUpdate && !client.nativeUpdateUi && hello.capabilities.includes("desktop_auto_updates")) {
+      const request = client.productUpdate.bind(client);
+      if (!this.stopUpdateActivity) this.stopUpdateActivity = reportUpdateActivity(request);
+      else this.stopUpdateActivity.refresh();
+      const product = hello.product;
+      const info = { version: product?.version ?? "Not reported", buildId: product?.build_id ?? "unknown",
+        target: product?.target ?? "unknown", arch: "unknown", bundleType: "unknown" as const,
+        checkPrivacy: "preference-controlled" as const };
+      if (this.updater) this.updater.setInfo(info);
+      else this.updater = new HostOwnedUpdater(request, info);
+    } else {
+      this.stopUpdateActivity?.(); this.stopUpdateActivity = undefined;
+      this.updater?.close(); this.updater = undefined;
+    }
+  }
+
   private async refreshHello(): Promise<void> {
     const client = this.client;
     if (client === null) return;
@@ -987,6 +1010,7 @@ export class LiveApplication implements InspectionApplication {
     if (this.closed) return;
     const capabilitiesChanged = !sameStrings(this.hello?.capabilities ?? [], hello.capabilities);
     this.hello = hello;
+    this.configureHostUpdates(client, hello);
     this.snapshot = withHost(this.snapshot, hello, this.serverClockMissing);
     this.emit({ type: "snapshot", snapshot: this.snapshot });
     if (capabilitiesChanged) await this.syncViews().catch(() => {});
