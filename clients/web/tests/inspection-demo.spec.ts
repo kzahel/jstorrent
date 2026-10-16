@@ -1629,7 +1629,9 @@ test("speed history stays exact, selectable, and accessible", async ({
   await openPhoneSessionView(page, "Speed");
   await expect(chart).toBeVisible();
   await capture(page, "rstorrent-speed-phone.png");
+});
 
+test("stale speed history stays frozen", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 820 });
   await openScenario(page, "speed-stale", 42_000);
   await page.getByRole("tab", { name: "Speed" }).click();

@@ -131,3 +131,23 @@ three assertions repaired here (theme reload and both support-link cases).
 Fast CI 38802110400 passes. The full run's four desktop package jobs fail notice
 generation; Rust, Android, iOS, extension and workflow tools pass. These runs
 contain none of this tactical's changes and are not verification of them.
+
+## Hosted follow-up, 2026-10-16
+
+Commit 9fd5e3a7 is submitted to main. Full run
+[38826889399](https://github.com/kzahel/jstorrent/actions/runs/38826889399)
+passes the repaired theme and support assertions, but exposes another browser
+test race. The speed test opens phone detail (`open=1`), resizes to desktop and
+immediately navigates to the independent stale-speed fixture. Its retained trace
+shows the old page's asynchronous history Back removing `open=1` and aborting
+the new fixture navigation with `net::ERR_ABORTED`.
+
+Move the stale-speed assertion to its own test/page. This retains every speed,
+responsive and accessibility assertion while removing shared navigation state
+between two independent fixtures. No production behavior, retry or timeout is
+changed. The final submitted commit's Actions checks own hosted qualification.
+
+The focused `npm run test:e2e --prefix clients/web --
+tests/inspection-demo.spec.ts --grep 'speed history' --repeat-each=10` passes
+all 20 executions. Web typecheck and all 832 unit cases also pass after the
+split. `git diff --check` passes.
