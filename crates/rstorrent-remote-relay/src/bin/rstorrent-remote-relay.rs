@@ -14,7 +14,7 @@ use serde::Serialize;
 const USAGE: &str = "Usage: rstorrent-remote-relay \\
   --root ABSOLUTE_PATH \\
   --listen LOOPBACK_IP:PORT \\
-  --client-origin HTTPS_ORIGIN \\
+  --client-origin HTTPS_ORIGIN [--client-origin HTTPS_ORIGIN] \\
   --certificate-der ABSOLUTE_PATH \\
   --private-key-der ABSOLUTE_PATH \
   [--trusted-proxy LOOPBACK_IP \
@@ -24,7 +24,7 @@ const USAGE: &str = "Usage: rstorrent-remote-relay \\
 struct Arguments {
     root: PathBuf,
     listen: SocketAddr,
-    client_origin: String,
+    client_origins: Vec<String>,
     certificate_der: PathBuf,
     private_key_der: PathBuf,
     trusted_proxy: Option<IpAddr>,
@@ -35,7 +35,7 @@ impl Arguments {
     fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Self, ArgumentError> {
         let mut root = None;
         let mut listen = None;
-        let mut client_origin = None;
+        let mut client_origins = Vec::new();
         let mut certificate_der = None;
         let mut private_key_der = None;
         let mut trusted_proxy = None;
@@ -54,8 +54,8 @@ impl Arguments {
                             .map_err(|_| ArgumentError::Usage)?,
                     );
                 }
-                Some("--client-origin") if client_origin.is_none() => {
-                    client_origin = Some(value.into_string().map_err(|_| ArgumentError::Usage)?);
+                Some("--client-origin") if client_origins.len() < 2 => {
+                    client_origins.push(value.into_string().map_err(|_| ArgumentError::Usage)?);
                 }
                 Some("--certificate-der") if certificate_der.is_none() => {
                     certificate_der = Some(PathBuf::from(value));
@@ -81,7 +81,7 @@ impl Arguments {
         let arguments = Self {
             root: root.ok_or(ArgumentError::Usage)?,
             listen: listen.ok_or(ArgumentError::Usage)?,
-            client_origin: client_origin.ok_or(ArgumentError::Usage)?,
+            client_origins,
             certificate_der: certificate_der.ok_or(ArgumentError::Usage)?,
             private_key_der: private_key_der.ok_or(ArgumentError::Usage)?,
             trusted_proxy,
@@ -99,8 +99,17 @@ impl Arguments {
                 .as_ref()
                 .is_some_and(|path| !path.is_absolute())
             || arguments.trusted_proxy.is_some() != arguments.operator_token_file.is_some()
+            || arguments.client_origins.is_empty()
+            || (arguments.client_origins.len() == 2
+                && arguments.client_origins[0] == arguments.client_origins[1])
+            || (arguments.trusted_proxy.is_none() && arguments.client_origins.len() != 1)
             || (arguments.trusted_proxy.is_some()
-                && arguments.client_origin != "https://jstorrent.com")
+                && arguments.client_origins.iter().any(|origin| {
+                    !matches!(
+                        origin.as_str(),
+                        "https://jstorrent.com" | "https://remote.jstorrent.com"
+                    )
+                }))
         {
             return Err(ArgumentError::Usage);
         }
@@ -146,7 +155,11 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             TlsProductRelayServer::bind_with_options(
                 arguments.listen,
                 arguments.root,
-                ProductRelayOptions::production(trusted_proxy, operator_token)?,
+                ProductRelayOptions::production_with_origins(
+                    trusted_proxy,
+                    operator_token,
+                    arguments.client_origins,
+                )?,
                 arguments.certificate_der,
                 arguments.private_key_der,
             )
@@ -156,7 +169,11 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             TlsProductRelayServer::bind(
                 arguments.listen,
                 arguments.root,
-                arguments.client_origin,
+                arguments
+                    .client_origins
+                    .into_iter()
+                    .next()
+                    .ok_or(ArgumentError::Usage)?,
                 arguments.certificate_der,
                 arguments.private_key_der,
             )
@@ -317,6 +334,29 @@ mod tests {
         .unwrap();
         assert_eq!(parsed.trusted_proxy, Some("127.0.0.1".parse().unwrap()));
         assert_eq!(parsed.operator_token_file, Some(token));
+        for extra in [
+            vec!["--client-origin", "https://remote.jstorrent.com"],
+            vec!["--client-origin", "https://jstorrent.com"],
+            vec![
+                "--client-origin",
+                "https://remote.jstorrent.com",
+                "--client-origin",
+                "https://jstorrent.com",
+            ],
+        ] {
+            let should_accept = extra.len() == 2 && extra[1] == "https://remote.jstorrent.com";
+            let values = common
+                .clone()
+                .into_iter()
+                .chain([
+                    OsString::from("--trusted-proxy"),
+                    OsString::from("127.0.0.1"),
+                    OsString::from("--operator-token-file"),
+                    env::temp_dir().join("token").into_os_string(),
+                ])
+                .chain(extra.into_iter().map(OsString::from));
+            assert_eq!(Arguments::parse(values).is_ok(), should_accept);
+        }
         let ready = serde_json::to_value(Ready {
             event: "ready",
             address: parsed.listen.to_string(),
