@@ -258,3 +258,18 @@ Complete when `remote.jstorrent.com` serves the remote controller from a
 `remote-v*` release with the compatibility tests gating it, the relay
 accepts the new origin, the old path redirects, the marketing site deploys
 without it, and the owning topics describe the new release path.
+
+## Execution Evidence
+
+### Relay transition
+
+- Added an explicit production allowlist of one or two exact origins, retaining
+  the old-origin constructor for existing callers. Repeated CLI origin options
+  are bounded and duplicates rejected. Browser upgrades reject duplicate Origin
+  headers before admission.
+- `cargo test -p rstorrent-remote-relay`: 27 tests pass, including real old/new
+  origin upgrades, hostile origins, duplicate headers and joined shutdown.
+  `cargo clippy -p rstorrent-remote-relay --all-targets -- -D warnings` passes;
+  `cargo fmt --all` applied. Private deployer local syntax checks pass.
+- Automatic combined Website deployment is temporarily disabled while the
+  release lanes are split; the existing public artifact keeps serving.
