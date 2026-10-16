@@ -8,7 +8,7 @@ if (base === undefined || expectedBuild === undefined) {
   throw new Error("usage: verify-remote-deployment.mjs BASE_URL BUILD_ID");
 }
 
-const remoteUrl = new URL("/remote/", requireHttpsDeployment(base));
+const remoteUrl = requireHttpsDeployment(base);
 const htmlResponse = await fetchCold(remoteUrl);
 assertStatus(htmlResponse, 200, "remote HTML");
 assertHeader(htmlResponse, "cache-control", "no-store");
@@ -39,7 +39,7 @@ const references = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(
 );
 if (
   references.length === 0 ||
-  references.some((reference) => !reference.startsWith("/remote/assets/"))
+  references.some((reference) => !reference.startsWith("/assets/"))
 ) {
   throw new Error("remote HTML references an unexpected asset origin");
 }
@@ -95,7 +95,7 @@ for (const file of manifest.files) {
   }
 }
 for (const reference of references) {
-  const path = reference.slice("/remote/".length);
+  const path = reference.slice(1);
   if (!manifested.has(path)) {
     throw new Error(`HTML reference is absent from manifest: ${reference}`);
   }

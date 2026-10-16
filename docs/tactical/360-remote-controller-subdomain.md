@@ -148,11 +148,11 @@ existing source-root override or correct that private default deliberately.
 - Keep the exact old `/remote/assets/` hashed files available for at least
   the 30-day compatibility window after cutover. Open tabs can load player
   chunks later. Recommended implementation: pin a verified manifest and
-  frozen asset archive from the last combined deployment, and include only
+  frozen assets from the last combined deployment, and include only
   that compatibility asset set in marketing assembly until its recorded
   retirement date. Never rebuild the controller there or fetch its latest
   release on each marketing deploy. Bound files and total bytes from the
-  captured manifest, verify every digest, and fail closed on archive drift.
+  captured manifest, verify every digest, and fail closed on source drift.
 - Browser authorization and host pins are origin-scoped. Explain the one-time
   password sign-in and browser approval; do not copy credentials or pins
   across origins. Host registrations, passwords and local torrent data remain
@@ -273,3 +273,43 @@ without it, and the owning topics describe the new release path.
   `cargo fmt --all` applied. Private deployer local syntax checks pass.
 - Automatic combined Website deployment is temporarily disabled while the
   release lanes are split; the existing public artifact keeps serving.
+
+### Independent artifact and workflow implementation
+
+- Controller assembly now owns the root document, complete security policy,
+  no-store manifest, hashed assets and explicit 404 (no implicit SPA/service
+  worker fallback). The local product verifier uses the same root layout.
+- Marketing deploys independently from main, with no Rust/Wasm/client build.
+  A pinned manifest retrieves only the last combined deployment's 41 exact
+  hashed assets (about 3.5 MB) with four bounded workers and per-file digest/
+  length verification. This replaces the proposed archive with independently
+  verifiable files from the immutable deployment; no new source is imported.
+  These are retained first-party build outputs with the same bundled dependency
+  provenance/notices as the original release. Retirement is reviewed no earlier
+  than 2026-11-16; files are not silently dropped on that date.
+- Captured the last combined controller's actual decoder/schema at bdc58e4a
+  and added it as the legacy remote client delivery. Remote tags now participate
+  in the compatibility ledger. Tagged builds report their independent version.
+- The new controller workflow builds on main/PR, deploys only remote-v tags,
+  verifies tag ancestry, gates deployment on the reusable live compatibility
+  workflow, retains the exact tested artifact, explicitly selects the Pages
+  production branch, and verifies its immutable URL plus custom domain.
+- Local web typecheck and all 843 unit cases pass (three opt-in tests skipped).
+  Fourteen assembly/legacy integrity/ledger tests pass; workflow lint passes.
+  Production remote build, root Chromium/React/Wasm smoke, website tests,
+  website check/build and complete frozen-asset assembly pass.
+- The exact transition relay at 4dd1890c is deployed using the private
+  candidate/rollback runner; TLS/operator smoke, authority-preserving switch,
+  public health/WSS and backup pass. The separate Pages project and its custom
+  domain are provisioned; public controller cutover remains pending.
+
+- After adding the actually deployed remote client to the ledger, the matrix
+  caught an overly broad requestedBy assertion. It now forbids reachable
+  output only for clients that reject it, with a negative control for a client
+  that can request a feature but cannot decode the response. All 849 web cases
+  pass; the legacy controller's raw failures are explicitly empty. The host
+  release hold and rejected enum policy remain intact.
+- The root-layout local product verifier passes private/shared login, reload,
+  browser and relay restart, phone viewport, package rollback, rendered audit,
+  1-MiB exact direct save, revoke, changed-host rejection, 256 invalid circuits,
+  zero service workers and joined cleanup.

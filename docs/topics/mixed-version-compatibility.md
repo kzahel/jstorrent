@@ -78,7 +78,7 @@ Ask one question: **does this add something the client sends?**
 | New command, settings patch key or torrent settings patch key | Add a capability in `crates/rstorrent-session/src/host_capabilities.rs` that owns it, gate the control with `hostSupports`, and let the live dispatch filter drop it for hosts without it. CI fails on an unowned key. |
 | New row field kind a host sends (a `*FieldUpdate` variant) | Tolerant clients drop unknown kinds. Record it in `reviewedClientExposure` as a `field`; it blocks host releases only while strict clients (extension 1.1.4 and older) are supported. |
 | New field inside a type released clients validate strictly (`additionalProperties: false`) | Same as a new row field kind. |
-| New enum value or other tagged variant a host sends | Every released client rejects it, tolerant ones included, and CI checks every contract in the window for it. Add a new optional field instead, or make clients tolerate that type first. It is a `value` in `reviewedClientExposure` and blocks host releases unless a host sends it only after a request no supported released client can make (`requestedBy`, checked in CI). |
+| New enum value or other tagged variant a host sends | Every released client rejects it, tolerant ones included, and CI checks every contract in the window for it. Add a new optional field instead, or make clients tolerate that type first. It is a `value` in `reviewedClientExposure` and blocks host releases unless a host sends it only after a request no supported client that rejects the value can make (`requestedBy`, checked in CI). |
 | Remove, rename, retype or newly require anything released | Not allowed in v1. Add a new field or capability instead. |
 | Change the meaning of a released field or capability | Not allowed. New semantics take a new name. |
 
@@ -338,3 +338,18 @@ that it has very few users.
   opt-out policy in `product-state-and-feedback`. Needs changes to the
   update server and relay and their deployment.
 - **Automatic updates**, Tactical 355.
+
+### Controller release lane (Tactical 360)
+
+The controller has a separate `remote-vMAJOR.MINOR.PATCH` release lane. Main
+and PR builds test the root-hosted artifact without publishing it. A tagged
+release must be reachable from main and passes the live old/new compatibility
+workflow before the tested Pages artifact is deployed. Add its exact source
+capture and public delivery date after verification; preserve the last combined
+controller (remote 0.3.1 at bdc58e4a) as the pre-cutover baseline. Its decoder
+already has field tolerance; this does not lift the extension host-release hold.
+
+For `requestedBy` exemptions, a supported client may ask for a feature whose
+response it already understands. The prohibited case is a client that both
+can ask for the feature and rejects its output. A synthetic negative control
+covers that case, alongside each actual supported capture.

@@ -1,0 +1,142 @@
+name: Remote Controller
+
+on:
+  push:
+    branches: [main]
+    tags: ["remote-v*"]
+    paths:
+      - "clients/web/**"
+      - "services/link/src/codec.ts"
+      - "crates/rstorrent-remote-*/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "rust-toolchain.toml"
+      - "compat/**"
+      - "scripts/*remote*.mjs"
+      - "scripts/compat-*.mjs"
+      - ".github/workflows/deploy-remote.yml"
+  pull_request:
+    paths:
+      - "clients/web/**"
+      - "services/link/src/codec.ts"
+      - "crates/rstorrent-remote-*/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "rust-toolchain.toml"
+      - "compat/**"
+      - "scripts/*remote*.mjs"
+      - "scripts/compat-*.mjs"
+      - ".github/workflows/deploy-remote.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: remote-${{ startsWith(github.ref, 'refs/tags/') && 'production' || github.ref }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  compatibility:
+    if: startsWith(github.ref, 'refs/tags/remote-v')
+    uses: ./.github/workflows/compat-live.yml
+
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: clients/web/package-lock.json
+      - name: Validate release source and version
+        env:
+          RELEASE_REF: ${{ github.ref }}
+        run: |
+          if [[ "$RELEASE_REF" == refs/tags/* ]]; then
+            [[ "$RELEASE_REF" =~ ^refs/tags/remote-v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+            echo "REMOTE_VERSION=${GITHUB_REF_NAME#remote-v}" >> "$GITHUB_ENV"
+          else
+            echo 'REMOTE_VERSION=development' >> "$GITHUB_ENV"
+          fi
+      - uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          shared-key: website-remote-ubuntu-24.04
+      - run: cargo install wasm-bindgen-cli --version 0.2.127 --locked
+      - run: npm ci --prefix clients/web
+      - run: npm run typecheck --prefix clients/web
+      - run: npm run test --prefix clients/web
+      - run: node scripts/compat-ledger.mjs --release "$GITHUB_REF_NAME"
+      - run: node --test scripts/assemble-remote-site.test.mjs scripts/compat-ledger.test.mjs
+      - name: Build independently versioned controller
+        env:
+          VITE_RSTORRENT_REMOTE_VERSION: ${{ env.REMOTE_VERSION }}
+          VITE_RSTORRENT_REMOTE_BUILD_ID: ${{ github.sha }}
+          VITE_RSTORRENT_REMOTE_RELAY_URL: wss://relay.rstorrent.com/client
+        run: npm run build:remote --prefix clients/web
+      - run: node scripts/assemble-remote-site.mjs "$GITHUB_SHA"
+      - run: npx playwright install --with-deps chromium
+        working-directory: clients/web
+      - run: node scripts/remote-site-smoke.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: controller
+          path: clients/web/dist/remote
+          include-hidden-files: true
+          retention-days: 90
+
+  deploy:
+    if: startsWith(github.ref, 'refs/tags/remote-v')
+    needs: [build, compatibility]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      deployments: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: controller
+          path: controller
+      - name: Deploy exact tested artifact
+        id: deploy
+        uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.149.0"
+          command: pages deploy controller --project-name=jstorrent-remote --branch=production --commit-hash=${{ github.sha }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify deployment and custom domain
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          node scripts/verify-remote-deployment.mjs "$DEPLOYMENT_URL/" "$GITHUB_SHA"
+          for attempt in {1..12}; do
+            if node scripts/verify-remote-deployment.mjs https://remote.jstorrent.com/ "$GITHUB_SHA"; then exit 0; fi
+            sleep 10
+          done
+          exit 1
+      - name: Retain immutable rollback artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          tar -czf controller.tar.gz -C controller .
+          printf 'Independent hosted controller release. Requires fresh browser sign-in at https://remote.jstorrent.com/. Remote access retains its existing canary support scope.\n' > release-notes.txt
+          gh release create "$RELEASE_TAG" controller.tar.gz --verify-tag --prerelease --title "Remote controller ${RELEASE_TAG#remote-v}" --notes-file release-notes.txt

@@ -13,9 +13,9 @@ const references = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(
 );
 if (
   references.length === 0 ||
-  references.some((reference) => !reference.startsWith("/remote/assets/"))
+  references.some((reference) => !reference.startsWith("/assets/"))
 ) {
-  throw new Error("remote HTML must reference only /remote/assets/ build output");
+  throw new Error("remote HTML must reference only /assets/ build output");
 }
 await rejectServiceWorkers(remoteRoot);
 await rename(sourceHtml, targetHtml);

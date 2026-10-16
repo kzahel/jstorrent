@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import { compatToday, retirementDate, supportedDeliveries } from "./compat-window.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const PRODUCTION_TAG = /^(desktop|android|headless|crostini|extension)-v\d+\.\d+\.\d+$/;
+const PRODUCTION_TAG = /^(desktop|android|headless|crostini|extension|remote)-v\d+\.\d+\.\d+$/;
 const STATUSES = new Set(["submitted", "published", "rolling-out", "withdrawn"]);
 const ROLE_FILES = {
   host: ["v1.schema.json", "hello.json", "settings.json", "view-set-trace.json"],

@@ -129,7 +129,7 @@ export default defineConfig(({ command, mode }) => {
       : {}),
     ...(remote
       ? {
-          base: "/remote/",
+          base: "/",
           publicDir: false,
           resolve: {
             alias: {

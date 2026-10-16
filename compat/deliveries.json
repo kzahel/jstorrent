@@ -124,6 +124,16 @@
       "firstPublic": "2026-10-15",
       "firstPublicBasis": "Maintainer report that the store update went live on 2026-10-15.",
       "roles": ["client"]
+    },
+    {
+      "surface": "remote",
+      "version": "0.3.1",
+      "commit": "bdc58e4ac7f7811eb07101b92a6385d11ea80e1a",
+      "channel": "legacy-combined-pages",
+      "status": "published",
+      "submitted": "2026-10-16",
+      "firstPublic": "2026-10-16",
+      "roles": ["client"]
     }
   ]
 }
