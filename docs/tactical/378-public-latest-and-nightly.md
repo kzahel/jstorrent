@@ -69,3 +69,12 @@ metadata and delivery-ledger checks pass; web typecheck passes and 863 web
 tests pass with three pre-existing skips. No Rust runtime or schema changes.
 Next: commit/push, wait for exact-source full CI, dispatch the Latest publisher
 and verify public offers without changing Stable.
+
+Full CI 39036770272 and Fast CI 39036770375 pass at e633f322. Initial
+publication dispatch 39040106459 correctly selects 0.3.2 and passes the
+Latest-only policy, then stops before building or creating any release: the
+existing train audit combines `gh api --slurp` with `--jq`, which the hosted
+CLI rejects. Remove the redundant identity jq filter, exercise the actual
+publication CLI with a flag-validating fake API, and run the real read-only
+public release/database-history audit before retrying. Signing and version
+guards are unchanged.

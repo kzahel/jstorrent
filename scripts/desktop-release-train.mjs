@@ -39,7 +39,7 @@ export function assertNewDesktopVersion(version, releases) {
   }
 }
 function releases(repo) {
-  return JSON.parse(execFileSync('gh',['api','--paginate','--slurp',`repos/${repo}/releases?per_page=100`,'--jq','.'],{encoding:'utf8',maxBuffer:32*1024*1024})).flat();
+  return JSON.parse(execFileSync('gh',['api','--paginate','--slurp',`repos/${repo}/releases?per_page=100`],{encoding:'utf8',maxBuffer:32*1024*1024})).flat();
 }
 let isMain = false;
 try { isMain = realpathSync(process.argv[1] ?? "") === fileURLToPath(import.meta.url); } catch {}

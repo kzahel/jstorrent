@@ -12,6 +12,20 @@ test('one numeric train spans both channels and ignores frozen identities',()=>{
  assert.equal(nextDesktopVersion('0.3.65535',[]),'0.4.0');
  assert.throws(()=>nextDesktopVersion('255.255.65535',[]),/bounds/);
 });
+test('publication CLI reads paginated JSON without incompatible GitHub CLI flags',async()=>{
+ const {mkdtempSync,writeFileSync,rmSync}=await import('node:fs');
+ const {tmpdir}=await import('node:os');const {join,delimiter}=await import('node:path');
+ const {execFileSync}=await import('node:child_process');
+ const temp=mkdtempSync(join(tmpdir(),'jstorrent-release-api-'));
+ try {
+  writeFileSync(join(temp,'gh'), '#!/usr/bin/env node\nconst args=process.argv.slice(2);\nif(args.includes("--slurp") && args.includes("--jq")) throw new Error("slurp does not support jq");\nif(!args.includes("--paginate") || !args.includes("--slurp")) throw new Error("all pages required");\nprocess.stdout.write("[[],[]]");\n', {mode:0o755});
+  execFileSync(process.execPath,['scripts/desktop-release-train.mjs','--verify'],{
+   cwd:new URL('..',import.meta.url).pathname,
+   env:{...process.env,PATH:temp+delimiter+process.env.PATH,RELEASE_VERSION:'0.3.2',GITHUB_REPOSITORY:'kzahel/jstorrent'},
+   stdio:'pipe',timeout:10000,
+  });
+ } finally {rmSync(temp,{recursive:true,force:true});}
+});
 test('released migration prefixes cannot be dropped or rewritten',()=>{
  const old=databaseCompatibility(new URL('..',import.meta.url).pathname);
  const next=structuredClone(old); next.stores.session.target++;next.stores.session.lineage[next.stores.session.target]='a'.repeat(64);
