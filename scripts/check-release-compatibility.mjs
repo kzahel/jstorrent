@@ -57,7 +57,7 @@ function main(argv) {
     throw new Error("usage: check-release-compatibility.mjs --surface <surface> --release <tag> [--enforce true|false]");
   }
   const result = checkReleaseCompatibility(
-    JSON.parse(readFileSync(policyPath, "utf8")),
+    JSON.parse(readFileSync(options.policy ?? policyPath, "utf8")),
     { surface, release },
   );
   if (result.ok) {

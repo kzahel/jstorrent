@@ -3,7 +3,7 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-let watched = "com.jstorrent.qualification.update"
+let watched = ProcessInfo.processInfo.environment["JSTORRENT_UPDATE_TEST_IDENTIFIER"] ?? "com.jstorrent.qualification.update"
 let deadline = Double(CommandLine.arguments.dropFirst().first ?? "1200") ?? 1200
 let criticalMarker = CommandLine.arguments.count > 2 ? CommandLine.arguments[2] : nil
 func write(_ record: [String: Any]) {

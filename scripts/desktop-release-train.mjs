@@ -34,7 +34,7 @@ export function assertNewDesktopVersion(version, releases) {
   }
 }
 function releases(repo) {
-  return JSON.parse(execFileSync('gh',['api','--paginate',`repos/${repo}/releases?per_page=100`,'--jq','.'],{encoding:'utf8',maxBuffer:32*1024*1024}).replace(/\]\s*\[/g, ','));
+  return JSON.parse(execFileSync('gh',['api','--paginate','--slurp',`repos/${repo}/releases?per_page=100`,'--jq','.'],{encoding:'utf8',maxBuffer:32*1024*1024})).flat();
 }
 if (fileURLToPath(import.meta.url) === process.argv[1]) {
   const root=resolve(import.meta.dirname,'..');

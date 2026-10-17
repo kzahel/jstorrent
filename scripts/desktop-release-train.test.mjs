@@ -20,3 +20,28 @@ test('released migration prefixes cannot be dropped or rewritten',()=>{
  next.stores.product.lineage[2]='b'.repeat(64);
  assert.throws(()=>assertForwardCompatibility(old,next),/changed/);
 });
+
+test('migration fingerprints cover later SQL statements without freezing unrelated readers',async()=>{
+ const {mkdtempSync,mkdirSync,copyFileSync,readFileSync,writeFileSync,rmSync}=await import('node:fs');
+ const {tmpdir}=await import('node:os');const {join,dirname}=await import('node:path');
+ const temp=mkdtempSync(join(tmpdir(),'jstorrent-compatibility-source-'));
+ const root=new URL('..',import.meta.url).pathname;
+ const files=['store_migration.rs','store_schema.rs','product_state.rs','speed.rs','store/file_state.rs','store/safety.rs'];
+ try {
+  for(const file of files){const name='crates/rstorrent-session/src/'+file;mkdirSync(dirname(join(temp,name)),{recursive:true});copyFileSync(join(root,name),join(temp,name));}
+  for(const name of ['catalog/v26.sqlite','product/v2.sqlite']){const file='crates/rstorrent-session/tests/fixtures/'+name;mkdirSync(dirname(join(temp,file)),{recursive:true});copyFileSync(join(root,file),join(temp,file));}
+  const old=databaseCompatibility(temp);
+  for(const file of files){const path=join(temp,'crates/rstorrent-session/src',file);writeFileSync(path,readFileSync(path,'utf8').replace(/\n/g,'\r\n'));}
+  assert.deepEqual(databaseCompatibility(temp),old,'Windows checkouts must produce the same fingerprints');
+  for(const file of files){const path=join(temp,'crates/rstorrent-session/src',file);writeFileSync(path,readFileSync(path,'utf8').replace(/\r\n/g,'\n'));}
+  const migration=join(temp,'crates/rstorrent-session/src/store_migration.rs');
+  writeFileSync(migration,readFileSync(migration,'utf8').replace('ADD COLUMN seed_stop_time_seconds INTEGER CHECK (','ADD COLUMN seed_stop_time_seconds INTEGER CHECK ( /* changed second statement */'));
+  const changed=databaseCompatibility(temp);
+  assert.equal(changed.stores.session.lineage[26],old.stores.session.lineage[26]);
+  assert.notEqual(changed.stores.session.lineage[27],old.stores.session.lineage[27]);
+  const bitmap=join(temp,'crates/rstorrent-session/src/store/file_state.rs');
+  const before=databaseCompatibility(temp);
+  writeFileSync(bitmap,readFileSync(bitmap,'utf8').replace('pub(super) fn read_mask(','// unrelated reader change\npub(super) fn read_mask('));
+  assert.deepEqual(databaseCompatibility(temp),before);
+ } finally {rmSync(temp,{recursive:true,force:true});}
+});

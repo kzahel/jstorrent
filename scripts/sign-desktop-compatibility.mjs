@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { compatibilityForSigning } from './desktop-promotion.mjs';
 import { databaseCompatibility } from './desktop-compatibility.mjs';
 import { verifySignature, updaterPublicKey } from './verify-desktop-signatures.mjs';
 const root = resolve(import.meta.dirname, '..');
@@ -12,8 +13,17 @@ const latest = JSON.parse(readFileSync(latestPath, 'utf8'));
 const work = mkdtempSync(join(tmpdir(), 'desktop-compatibility-'));
 try {
   const file = join(work, 'compatibility.json');
+  let previous;
+  if (process.argv.includes('--promote')) {
+    if (!latest.compatibility) throw new Error('Promotion requires authenticated original facts');
+    const original = Buffer.from(latest.compatibility.data, 'base64');
+    const originalFile = join(work, 'original.json');writeFileSync(originalFile, original);
+    verifySignature(originalFile, latest.compatibility.signature, updaterPublicKey('JSTorrent'));
+    previous = JSON.parse(original.toString());
+  }
+  const databases = compatibilityForSigning(latest, databaseCompatibility(root), previous);
   const bytes = Buffer.from(JSON.stringify({schemaVersion:1, version:latest.version,
-    identifier:'com.jstorrent.desktop', databases:databaseCompatibility(root), platforms:latest.platforms}));
+    identifier:'com.jstorrent.desktop', databases, platforms:latest.platforms}));
   writeFileSync(file, bytes);
   execFileSync(join(root, 'clients/web/node_modules/.bin/tauri'), ['signer', 'sign', file], {stdio:'pipe'});
   const signature = readFileSync(file + '.sig', 'utf8').trim();

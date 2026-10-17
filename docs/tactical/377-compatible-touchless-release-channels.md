@@ -143,3 +143,41 @@ Next: finish immutable promotion tooling, complete full checks, obtain signed
 candidates, run real installed updates and schema/channel/failure matrices,
 and record final Stable activation evidence. VM/deployment operational facts
 and claims remain private in dotfiles and the Machine Control usage journal.
+
+### Promotion follow-through
+
+Added explicit dry-run-first Stable promotion tooling: verify every public
+Latest asset digest and updater signature, preserve its native packages,
+source archive and written database facts, rebind updater URLs, authenticate
+Stable metadata and regenerate checksums. The manual promotion workflow
+requires an explicit `publish` input and checks the candidate source's own
+companion-compatibility policy before any GitHub write. Three deterministic
+promotion cases and existing compatibility-policy tests pass; no Stable
+promotion has been dispatched. Added a shipping-identity VM observer that uses
+only the actual authenticated app API and normal feed/timers, plus an
+independent native focus observer parameter for the production identity.
+
+### Portable fingerprint correction before public qualification
+
+The first hosted Windows build correctly failed closed: its CRLF checkout
+could not satisfy the original source extraction. Normalize source line endings
+and compare parsed generated facts. A regression also changes the second SQL
+statement of a multi-statement constant, requiring its migration fingerprint
+to change; extraction now covers the entire string. Schema-29 hashing names
+migration entry points, SQL and conversion helpers instead of unrelated
+readers. No migration or database version changes. Six train/promotion tests
+and the focused native/domain tests pass against the corrected facts.
+Canceled preliminary private run 39010031773 before package qualification;
+future installed acceptance must use a rebuilt candidate. No public metadata
+prefix or shipping package has been issued by this task.
+
+The real notarized Stable 0.3.1 ARM bundle is downloaded inside the claimed
+macOS VM and independently matches GitHub SHA-256
+`6de700144b5a4ea2bd55fd6a110b05d4d2515643efe75823c89814ad04dadba7`.
+Strict code-seal verification and Gatekeeper report Notarized Developer ID.
+An owned copy of the released populated schema-26/product-2 fixtures, prepared
+paused with public discovery disabled and pending/removal flows settled before
+launch, opens in that actual Stable app. All seven torrent identities and the
+installation identity survive, with schema 26/product 2/metrics 1 recorded.
+This establishes the old installed endpoint; upgrade acceptance is still open.
+Full local workspace tests passed 1,743 tests (20 ignored) across 73 suites.

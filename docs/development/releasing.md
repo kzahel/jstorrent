@@ -120,3 +120,12 @@ checks common version ordering and preservation of released migrations.
 A later Stable promotion must retain the tested version and package bytes;
 newer Latest users wait, and equal-version users need no reinstall. Stable
 publication remains explicit and separate from qualification.
+
+`Promote JSTorrent Latest to Stable` defaults to preparing a private, reviewable
+promotion artifact. It downloads and verifies a public Latest release, copies
+all native packages/signatures and source materials unchanged, preserves the
+candidate's database facts, and re-signs only the URL-bound updater metadata
+for Stable. It never rebuilds a native package. An explicit `publish=true`
+dispatch is required to publish; it also enforces the candidate source's own
+companion-compatibility guard. This task has not authorized or dispatched
+Stable publication.
