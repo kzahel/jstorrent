@@ -71,5 +71,19 @@
       "reason": "373 safety-aware All selection totals; release tolerant clients before hosts"
     }
   },
-  "acceptedBreaks": {}
+  "acceptedBreaks": {},
+  "acceptedLatestDesktopFields": {
+    "minimumExtension": "1.1.5",
+    "reason": "Maintainer authorized public Latest and nightly publication on 2026-10-17 after disclosure of older-extension failures. Stable and Android remain guarded; only these reviewed fields are accepted.",
+    "fields": [
+      "ClientSettings.seed_stop_ratio_percent",
+      "ClientSettings.seed_stop_time_seconds",
+      "TorrentSeedingView.stop",
+      "TorrentFieldUpdate.oneOf[field=private_torrent]",
+      "TorrentFieldUpdate.oneOf[field=source_size_bytes]",
+      "ClientSettings.file_safety",
+      "FileFieldUpdate.oneOf[field=safety]",
+      "TorrentFieldUpdate.oneOf[field=safety_summary]"
+    ]
+  }
 }

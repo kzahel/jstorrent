@@ -78,12 +78,12 @@ jobs:
         run: node scripts/desktop-release-input.mjs
       - name: Keep released extension companions working
         env:
-          RELEASE: desktop-v${{ steps.identity.outputs.version }}
+          RELEASE: ${{ steps.identity.outputs.tag || format('desktop-v{0}', steps.identity.outputs.version) }}
           ENFORCE: ${{ steps.identity.outputs.publish == 'true' || steps.identity.outputs.productionPublication == 'true' }}
         run: node scripts/check-release-compatibility.mjs --surface desktop --release "$RELEASE" --enforce "$ENFORCE"
       - name: Require captures for every supported delivery
         env:
-          RELEASE: desktop-v${{ steps.identity.outputs.version }}
+          RELEASE: ${{ steps.identity.outputs.tag || format('desktop-v{0}', steps.identity.outputs.version) }}
           ENFORCE: ${{ steps.identity.outputs.publish == 'true' || steps.identity.outputs.productionPublication == 'true' }}
         run: |
           git fetch --force --tags --depth=1 origin
@@ -181,6 +181,8 @@ jobs:
             .github/scripts/validate-desktop-release.test.mjs \
             .github/scripts/write-release-checksums.test.mjs \
             scripts/nightly-desktop-release.test.mjs \
+            scripts/latest-desktop-release.test.mjs \
+            scripts/check-release-compatibility.test.mjs \
             scripts/desktop-release-input.test.mjs \
             scripts/apply-desktop-nightly-version.test.mjs
 
@@ -901,7 +903,7 @@ jobs:
         shell: bash
         run: |
           if [ "$RELEASE_CHANNEL" = latest ]; then
-            CHANGELOG="Signed Latest build from verified main source."
+            CHANGELOG="Signed Latest build from verified main source. Browser integration requires JSTorrent extension 1.1.5 or newer; older extensions may fail to display the library."
           else
             CHANGELOG=$(awk "/^## \[$RELEASE_VERSION\]/{found=1; next} /^## \[/{found=0} found" CHANGELOG.md)
           fi

@@ -11,8 +11,11 @@ explicit relaunch. Exact package/source and sanitized result receipts are in
 [377 evidence](../tactical/evidence/377-compatible-updates.json). Intel macOS under Rosetta also passes the full real-idle late-focus test and
 manual compatible Stable catch-up. Both channels now permit unattended install
 on macOS ARM/x64, Windows x64 and Linux x64. Linux ARM remains manual; no
-physical Intel claim is inferred. Public publication retains the strict-companion
-hold; service permission alone publishes no package.
+physical Intel claim is inferred. Public Stable retains the strict-companion
+hold; service permission alone publishes no package. Tactical
+[378](../tactical/378-public-latest-and-nightly.md) authorizes Latest publication
+and a daily changed-main release, accepting only the eight current field
+exposures with extension 1.1.5 or newer required. Stable is not authorized.
 
 Tactical [355](../tactical/355-automatic-updates.md) narrows the automatic
 update plan to desktop app/NSIS/AppImage. The accepted goal is unattended

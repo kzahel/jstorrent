@@ -1,5 +1,7 @@
 name: JSTorrent Latest Desktop
 on:
+  schedule:
+    - cron: '17 3 * * *'
   workflow_dispatch:
 permissions:
   actions: read
@@ -11,27 +13,29 @@ jobs:
   select:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
     outputs:
-      sha: ${{ github.sha }}
+      build: ${{ steps.select.outputs.build }}
+      sha: ${{ steps.select.outputs.sha }}
       version: ${{ steps.select.outputs.version }}
       tag: ${{ steps.select.outputs.tag }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
-      - name: Require successful main CI for this exact source
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh run list --workflow ci.yml --commit "$GITHUB_SHA" --branch main --json conclusion,status > "$RUNNER_TEMP/ci.json"
-          jq -e 'length > 0 and .[0].status == "completed" and .[0].conclusion == "success"' "$RUNNER_TEMP/ci.json"
       - id: select
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/desktop-release-train.mjs
+        run: node scripts/latest-desktop-release.mjs
   release:
     needs: select
+    if: needs.select.outputs.build == 'true'
     uses: ./.github/workflows/desktop-release.yml
     with:
       source_sha: ${{ needs.select.outputs.sha }}

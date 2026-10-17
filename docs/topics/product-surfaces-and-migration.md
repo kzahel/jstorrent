@@ -7,7 +7,11 @@ Stable predecessor, Latest source and every asset digest before publication.
 Signed macOS ARM, Windows x64 and Linux x64 real-idle updates, schema refusal,
 compatible Stable catch-up and retained-data checks pass. The shared service
 controls automatic permission by channel and exact native target. Ordinary
-Stable bodies remain unchanged; no public release bypasses the companion hold.
+Stable bodies remain unchanged. Tactical
+[378](../tactical/378-public-latest-and-nightly.md) authorizes public Latest
+and a daily changed-main publisher, with a bounded eight-field exception
+requiring extension 1.1.5 or newer. Stable and Android keep their existing
+companion guard, including when promoting Latest packages to Stable.
 Intel macOS under Rosetta also passes the real-idle late-focus test and manual
 Stable catch-up. Both channels permit exactly the four tested updater targets;
 Linux ARM stays manual. Physical Intel coverage is not inferred.

@@ -104,9 +104,12 @@ They do not authorize re-enabling a frozen release lane.
 ## Stable and Latest with database admission
 
 Tactical [377](../tactical/377-compatible-touchless-release-channels.md)
-owns initial installed acceptance. `JSTorrent Latest Desktop` is an explicit
-manual workflow for signed prereleases from an exact successful main CI
-commit. It allocates the next numeric version across both JSTorrent channels
+owns initial installed acceptance. `JSTorrent Latest Desktop` runs daily at
+03:17 UTC and supports manual dispatch for signed prereleases from the exact
+main head after successful full push CI. It skips source already published to
+Latest; scheduled runs also skip a main head whose CI is not yet green. Any
+new commit qualifies, including documentation-only changes. It allocates the
+next numeric version across both JSTorrent channels
 and invokes the existing five-target signing/collection pipeline. The old
 incubation nightly remains disabled. Both channels use the original app ID,
 updater key and installers. New metadata-required releases carry authenticated
@@ -120,6 +123,18 @@ checks common version ordering and preservation of released migrations.
 A later Stable promotion must retain the tested version and package bytes;
 newer Latest users wait, and equal-version users need no reinstall. Stable
 publication remains explicit and separate from qualification.
+
+Dispatch the same public Latest publisher manually with:
+
+```bash
+gh workflow run latest-desktop.yml --repo kzahel/jstorrent --ref main
+```
+
+Tactical [378](../tactical/378-public-latest-and-nightly.md) authorizes Latest
+to require extension 1.1.5 or newer for the eight specifically accepted field
+exposures in `acceptedLatestDesktopFields`. New incompatibilities still block;
+Stable and Android do not inherit the exception. Release notes disclose the
+companion requirement. The nightly does not publish Stable or move its offer.
 
 `Promote JSTorrent Latest to Stable` defaults to preparing a private, reviewable
 promotion artifact. It downloads and verifies a public Latest release, copies

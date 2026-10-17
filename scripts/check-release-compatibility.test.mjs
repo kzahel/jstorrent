@@ -72,9 +72,34 @@ test("the checked-in policy is well formed", () => {
   assert.ok(Array.isArray(checkedIn.strictClients.controlledSurfaces));
   assert.equal(typeof checkedIn.acceptedBreaks, "object");
   for (const reason of Object.values(checkedIn.acceptedBreaks)) assert.equal(typeof reason, "string");
+  const latest = checkedIn.acceptedLatestDesktopFields;
+  assert.equal(latest.minimumExtension, checkedIn.strictClients.tolerantSince.extension);
+  assert.ok(latest.reason.trim());
+  assert.equal(new Set(latest.fields).size, latest.fields.length);
+  for (const field of latest.fields) assert.equal(checkedIn.reviewedClientExposure[field]?.kind, "field");
   for (const exposure of Object.values(checkedIn.reviewedClientExposure)) {
     assert.ok(["field", "value"].includes(exposure.kind));
     assert.equal(typeof exposure.reason, "string");
     assert.ok(exposure.requestedBy === undefined || typeof exposure.requestedBy === "string");
   }
+});
+
+test("Latest accepts only the exact authorized fields, keeping other releases and new breaks guarded", () => {
+  const latest = { ...policy, strictClients: { ...policy.strictClients, tolerantSince: { extension: '1.1.5' } },
+    acceptedLatestDesktopFields: { minimumExtension: '1.1.5', reason: 'maintainer authorized Latest', fields: ['ClientSettings.new_field'] } };
+  assert.equal(checkReleaseCompatibility(latest, { surface: 'desktop', release: 'desktop-latest-v0.3.2' }).ok, true);
+  for (const [surface, release] of [['desktop', 'desktop-v0.3.2'], ['android', 'android-v1.0.32'],
+    ['desktop', 'desktop-latest-vanything'], ['desktop', 'desktop-latest-v0.3.2-extra']]) {
+    assert.equal(checkReleaseCompatibility(latest, { surface, release }).ok, false);
+  }
+  for (const kind of ['field', 'value']) {
+    const added = { ...latest, reviewedClientExposure: { ...latest.reviewedClientExposure, extra: { kind, reason: 'new break' } } };
+    assert.equal(checkReleaseCompatibility(added, { surface: 'desktop', release: 'desktop-latest-v0.3.3' }).ok, false);
+  }
+  for (const change of [{ minimumExtension: '1.1.4' }, { reason: ' ' }, { fields: [] }]) {
+    const invalid = { ...latest, acceptedLatestDesktopFields: { ...latest.acceptedLatestDesktopFields, ...change } };
+    assert.equal(checkReleaseCompatibility(invalid, { surface: 'desktop', release: 'desktop-latest-v0.3.2' }).ok, false);
+  }
+  const samePathValue = { ...latest, reviewedClientExposure: { 'ClientSettings.new_field': { kind: 'value', reason: 'changed kind' } } };
+  assert.equal(checkReleaseCompatibility(samePathValue, { surface: 'desktop', release: 'desktop-latest-v0.3.3' }).ok, false);
 });

@@ -175,6 +175,7 @@ jobs:
             .github/scripts/validate-desktop-release.test.mjs \
             .github/scripts/write-release-checksums.test.mjs \
             scripts/nightly-desktop-release.test.mjs \
+            scripts/latest-desktop-release.test.mjs \
             scripts/desktop-release-input.test.mjs \
             scripts/desktop-release-train.test.mjs \
             scripts/desktop-release-metadata.test.mjs \

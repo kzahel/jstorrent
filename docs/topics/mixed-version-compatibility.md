@@ -10,6 +10,16 @@ qualification passes independently of the pending publication-policy choice.
 The adoption dashboard required Google reauthentication on October 17, so no
 new adoption count or permission to lift the hold is inferred.
 
+Tactical [378](../tactical/378-public-latest-and-nightly.md) records subsequent
+maintainer authorization to publish public Latest and schedule daily releases.
+Latest requires extension 1.1.5 or newer for exactly the eight accepted field
+exposures. `acceptedLatestDesktopFields` is limited to numeric
+`desktop-latest-v*` releases on desktop; new fields and unrequested variants
+still block. Stable, Android and Stable promotion retain the original guard.
+This is an accepted Latest exception, not an adoption finding or retirement of
+strict clients. The daily selector requires green full push CI for exact main
+head and skips source already released to Latest.
+
 Tactical [375](../tactical/375-ci-reconciliation-and-ui-regressions.md)
 reconciles the concurrent updater/safety contracts. Safety and bitmap capability
 IDs remain 4 and 5; the unpublished desktop updater uses 6. Both generated
@@ -253,8 +263,8 @@ As of 2026-10-17, `main` carries thirteen reviewed client exposures (see
 (built from `5fa018ff`, published) validate strictly. A torrent list
 snapshot from a host built from current `main` includes the new
 `ClientSettings.seed_stop_*` fields, so the companion fails on its first
-library view and asks for a reload. **Do not release desktop, headless or
-Android from `main`** until extension 1.1.5 (tolerant; `extension-v1.1.5`,
+library view and asks for a reload. **Stable desktop and Android publication
+remain held** until extension 1.1.5 (tolerant; `extension-v1.1.5`,
 published 2026-10-15) has had a few days to auto-update, or the maintainer accepts the companion break for that
 release. Eight are fields 1.1.5 tolerates, including the three download-safety
 fields added by 373. The other five are the `library_media` view/snapshot/patch
@@ -262,6 +272,11 @@ variants (363) and `product_update` call/result variants (355); each is sent
 only after a request no released client makes. The publishing guard currently
 refuses all eight field additions; none of the five request-gated variants
 requires a break exception.
+
+The maintainer subsequently authorized public Latest on October 17. Its
+explicit eight-field exception and extension requirement are recorded above;
+the same check receives the actual Latest tag, never a fabricated Stable tag.
+The exception does not authorize Stable promotion of those bytes.
 
 The desktop and Android release workflows enforce this hold:
 `scripts/check-release-compatibility.mjs` fails a publishing run while a

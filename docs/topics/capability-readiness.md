@@ -12,7 +12,10 @@ package hashes and source runs. Rosetta Intel real-idle/late-focus and manual
 Stable catch-up also pass. Both channels are armed for those four tested
 updater targets; production Linux ARM stays manual. Physical Intel and
 production Linux ARM installed coverage are not inferred.
-Public releases retain the existing strict-companion hold.
+Public Stable retains the existing strict-companion hold. Tactical
+[378](../tactical/378-public-latest-and-nightly.md) authorizes public Latest
+with extension 1.1.5 or newer for exactly the reviewed eight field additions,
+and daily publication of changed main after exact-source full CI succeeds.
 
 Tactical [355](../tactical/355-automatic-updates.md) is a desktop-only
 unattended-update implementation in progress as of October 16. The maintainer accepts a restart

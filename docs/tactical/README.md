@@ -1,5 +1,10 @@
 # Implementation Tactical Docs
 
+- [378 — Public Latest and nightly publication](378-public-latest-and-nightly.md):
+  active; publish qualified JSTorrent Latest and schedule unchanged-source-aware
+  daily releases with a bounded Latest-only companion compatibility exception.
+- [377 — Compatible touchless release channels](377-compatible-touchless-release-channels.md):
+  qualified signed installed updates, database admission and immutable promotion.
 - [376 — Android media Library](376-android-media-library.md): complete;
   Torrents | Library primary navigation (bar, or rail from 600 dp) and a
   Compose Library over `library_media` with presets, search, filters, shows

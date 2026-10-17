@@ -134,7 +134,7 @@ export async function stageDesktopReleaseLeg({ root, lane, sourceSha, runId, att
 
 function releaseNotes({ root, channel, version, publish, product }) {
   if (!publish) return `Signed ${product === "RSTorrent" ? "JSTorrent Preview" : product} desktop release rehearsal.`;
-  if (channel === "latest") return "Signed Latest build from verified main source.";
+  if (channel === "latest") return "Signed Latest build from verified main source. Browser integration requires JSTorrent extension 1.1.5 or newer; older extensions may fail to display the library.";
   const changelog = readFileSync(join(root, "CHANGELOG.md"), "utf8");
   const marker = `## [${version}]`;
   const start = changelog.indexOf(marker);

@@ -15,19 +15,28 @@ const policyPath = path.resolve(
  * released client, so it blocks until clients tolerate it, unless a host
  * sends it only after a request no supported released client can make
  * (`requestedBy`, checked by contract-compatibility.test.ts). The maintainer may record an accepted
- * break for one release. See docs/topics/mixed-version-compatibility.md.
+ * break for one release, or exact reviewed fields on desktop Latest only.
+ * See docs/topics/mixed-version-compatibility.md.
  */
 export function checkReleaseCompatibility(policy, { surface, release }) {
   const strict = policy.strictClients;
   if (!strict.controlledSurfaces.includes(surface)) {
     return { ok: true, message: `${release}: no released extension controls ${surface}` };
   }
+  const latest = policy.acceptedLatestDesktopFields;
+  const acceptedLatest = surface === "desktop" && /^desktop-latest-v\d+\.\d+\.\d+$/.test(release) &&
+    typeof latest?.reason === "string" && latest.reason.trim() !== "" &&
+    latest.minimumExtension === strict.tolerantSince?.extension &&
+    typeof latest.minimumExtension === "string" && Array.isArray(latest.fields);
   const blocking = Object.entries(policy.reviewedClientExposure ?? {})
     .filter(([, exposure]) =>
       exposure.kind === "value" ? exposure.requestedBy === undefined : strict.supported,
     )
+    .filter(([path, exposure]) => !(acceptedLatest && exposure.kind === "field" && latest.fields.includes(path)))
     .map(([path, exposure]) => `${path} (${exposure.kind})`);
   if (blocking.length === 0) {
+    if (acceptedLatest && strict.supported) return { ok: true,
+      message: `${release}: Latest-only field break accepted; requires extension ${latest.minimumExtension} or newer: ${latest.reason}` };
     return { ok: true, message: `${release}: sends nothing a supported released client rejects` };
   }
   const accepted = policy.acceptedBreaks?.[release];

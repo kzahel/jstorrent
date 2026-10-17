@@ -15,11 +15,15 @@ export function compare(a,b) {
   for (let i=0;i<3;i++) if(left[i]!==right[i])return left[i]-right[i];
   return 0;
 }
+export function isPublishedDesktopRelease(release) {
+  return !release.draft && /^desktop-(?:latest-)?v\d+\.\d+\.\d+$/.test(release.tag_name) &&
+    release.assets?.some(asset => asset.name === 'JSTorrent_x64.app.tar.gz');
+}
 export function nextDesktopVersion(base, releases) {
   let maximum = base;
   numericVersion(base);
   for (const release of releases) {
-    if (release.draft || !release.assets?.some(asset => asset.name === 'JSTorrent_x64.app.tar.gz')) continue;
+    if (!isPublishedDesktopRelease(release)) continue;
     const match = /^desktop-(?:latest-)?v(\d+\.\d+\.\d+)$/.exec(release.tag_name);
     if (match && compare(match[1], maximum) > 0) maximum = match[1];
   }
@@ -29,7 +33,7 @@ export function nextDesktopVersion(base, releases) {
 }
 export function assertNewDesktopVersion(version, releases) {
   for (const release of releases) {
-    if (release.draft || !release.assets?.some(asset => asset.name === 'JSTorrent_x64.app.tar.gz')) continue;
+    if (!isPublishedDesktopRelease(release)) continue;
     const match = /^desktop-(?:latest-)?v(\d+\.\d+\.\d+)$/.exec(release.tag_name);
     if(match && compare(version, match[1])<=0) throw new Error('New desktop builds must advance both release channels');
   }
