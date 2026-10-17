@@ -194,7 +194,8 @@ jobs:
           node scripts/compat-ledger.mjs
 
       - name: Verify dependency and distribution review tools
-        run: python3 -m unittest discover -s scripts -p test_distribution_review.py
+        run: |
+          python3 -m unittest discover -s scripts -p test_distribution_review.py
           python3 -m unittest discover -s scripts -p test_current_appimage_sources.py
 
       - name: Validate Crostini bootstrap release tools

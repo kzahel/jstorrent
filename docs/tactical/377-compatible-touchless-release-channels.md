@@ -336,3 +336,14 @@ new libxml2 descriptor/files. Archive SHA-256 is
 1,128,509,255 bytes. This qualifies source preparation for B's exact bytes,
 not B startup. Rebuild corrected candidates with new reserved versions before
 resuming installed acceptance.
+
+The startup correction is committed as 954bca0a. All 32 legacy-import tests,
+11 startup-filtered tests, workspace Clippy and full workspace tests pass.
+Corrected nonpublishing candidates B2/C2/D2/E2 reserve 0.3.60004–60007 at
+that exact source (29/30/29/30). Add installed API transfer preparation and
+a bounded Linux migration-crash observer: it matches the owned profile,
+new process, exact AppImage path/hash, old visible schema and a WAL spill
+before killing only that process. Recovery remains an explicit driver relaunch.
+CI also caught a folded YAML test command; split the two invocations into
+a literal script. Both source/distribution suites (33 cases) and actionlint
+pass with that correction.
