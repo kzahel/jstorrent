@@ -102,8 +102,8 @@ every accepted on-device root capability-qualified on physical hardware.
 This topic owns why the RSTorrent implementation exists, what initially
 distinguishes it from the current JSTorrent implementation, the engine
 constraints, the first platform posture, and the decisions that remain
-deliberately open. The likely long-term product succession is recorded in
-[`../vision.md`](../vision.md).
+deliberately open. The completed JSTorrent succession is recorded in
+[`../project-history.md`](../project-history.md).
 
 It does not prescribe the internal crate graph, select a UI toolkit, enumerate
 the final BitTorrent feature set, or serve as an implementation tactical.

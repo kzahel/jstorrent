@@ -1108,8 +1108,8 @@ current JSTorrent installations.
 
 It complements:
 
-- [`../vision.md`](../vision.md), which owns the long-term JSTorrent succession
-  thesis and graduation evidence;
+- [`../project-history.md`](../project-history.md), which records the
+  JSTorrent succession and its graduation evidence;
 - [`product-direction.md`](product-direction.md), which owns engine and
   platform constraints;
 - [`client-surfaces.md`](client-surfaces.md), which owns the currently
