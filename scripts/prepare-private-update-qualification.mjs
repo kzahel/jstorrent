@@ -17,11 +17,10 @@ export function qualificationSources(migration,schema,generator,automatic) {
   migration+=`
 // Private Tactical 377 probe; never part of shipping schema history.
 fn migrate_29_to_30(transaction: &Transaction<'_>) -> Result<(), StoreError> {
-    let populated: bool = transaction.query_row(
-        "SELECT EXISTS(SELECT 1 FROM torrents)",
-        [],
-        |row| row.get(0),
-    )?;
+    let populated: bool =
+        transaction.query_row("SELECT EXISTS(SELECT 1 FROM torrents)", [], |row| {
+            row.get(0)
+        })?;
     if populated {
         std::thread::sleep(std::time::Duration::from_secs(10));
     }

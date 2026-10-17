@@ -5,6 +5,7 @@ import { createReadStream, mkdirSync, readFileSync, statSync, writeFileSync } fr
 import { join, resolve } from 'node:path';
 import { planDesktopPromotion, promotedManifest } from './desktop-promotion.mjs';
 import { assertForwardCompatibility } from './desktop-compatibility.mjs';
+import { readReleaseMetadata } from './desktop-release-metadata.mjs';
 import { compare } from './desktop-release-train.mjs';
 import { verifySignature, updaterPublicKey } from './verify-desktop-signatures.mjs';
 const root=resolve(import.meta.dirname,'..');
@@ -38,8 +39,8 @@ const facts=JSON.parse(original.toString());
 assert.equal(facts.identifier,'com.jstorrent.desktop');assert.equal(facts.version,latest.version);assert.deepEqual(facts.platforms,latest.platforms,'signed payload inventory differs');
 const stableManifestAsset=stable.assets.find(asset=>asset.name==='latest.json');assert(stableManifestAsset);
 const stableResponse=await fetch(stableManifestAsset.browser_download_url,{signal:AbortSignal.timeout(15000)});assert(stableResponse.ok,'cannot verify existing Stable facts');
-const stableBytes=Buffer.from(await stableResponse.arrayBuffer());assert(stableBytes.length<=65536,'oversized Stable metadata');
-const stableManifest=JSON.parse(stableBytes.toString());
+const stableManifest=await readReleaseMetadata(stableResponse);
+if(compare(previousStableVersion,'0.3.2')>=0)assert(stableManifest.compatibility,'existing Stable is missing database facts');
 if(stableManifest.compatibility){
  const stableFacts=Buffer.from(stableManifest.compatibility.data,'base64');assert(stableFacts.length<=48*1024);
  const stableFactsPath=join(directory,'previous-stable-compatibility.json');writeFileSync(stableFactsPath,stableFacts);
@@ -54,7 +55,7 @@ const release={tagName:plan.tag,isDraft:true,isPrerelease:false,assets:plan.asse
 writeFileSync(join(directory,'release.json'),JSON.stringify(release,null,2)+'\n');
 execFileSync(process.execPath,[join(root,'scripts/sign-desktop-compatibility.mjs'),directory,'--promote'],{stdio:'inherit'});
 const inventory=[];
-for(const asset of release.assets){if(asset.name==='SHA256SUMS')continue;Object.assign(asset,await digest(join(assets,asset.name),512*1024*1024));if(!asset.name.endsWith('.sig'))inventory.push(`${asset.digest.slice(7)}  ${asset.name}`);}
+for(const asset of release.assets){if(asset.name==='SHA256SUMS')continue;const maximum=asset.name.endsWith('_AppImage-sources-final.tar.gz')?2*1024*1024*1024:512*1024*1024;Object.assign(asset,await digest(join(assets,asset.name),maximum));if(!asset.name.endsWith('.sig'))inventory.push(`${asset.digest.slice(7)}  ${asset.name}`);}
 writeFileSync(join(assets,'SHA256SUMS'),inventory.sort().join('\n')+'\n');
 Object.assign(release.assets.find(a=>a.name==='SHA256SUMS'),await digest(join(assets,'SHA256SUMS'),65536));
 writeFileSync(join(directory,'release.json'),JSON.stringify(release,null,2)+'\n');

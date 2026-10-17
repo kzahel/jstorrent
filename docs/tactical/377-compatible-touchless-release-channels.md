@@ -226,3 +226,24 @@ Latest-only until installed evidence lands; the private probe enables Stable
 only for that controlled rehearsal. Server 2c2e767 is deployed with 132 passing
 tests; all five Stable response bodies remain identical, Stable permission is
 false, and healthy empty Latest discovery now returns 204.
+
+### Installed campaign preparation follow-through
+
+The Linux x86_64 VM also runs the independently digest-verified public Stable
+0.3.1 AppImage against the released populated fixture: session 26/product 2/
+metrics 1 and all seven torrent identities survive. Preserve the target's
+pre-existing production profile offline and restore it after the owned run.
+A generic guest helper refuses existing profiles unless explicitly preserved,
+and refuses input replacement and over-limit/download-digest mismatches.
+
+Release-history downloads now enforce a streamed 64 KiB limit and require
+facts for post-boundary releases. Promotion retains the established 2 GiB
+source-carrier limit separately from the 512 MiB native payload limit; the
+actual previous source carrier is about 926 MB. Ten focused release/helper
+cases pass. An explicit rustfmt check caught formatting in the private probe
+before its pending build began; correct it and rebuild that private candidate.
+
+The existing public publisher's final verifier is Stable-specific and does not
+yet automate the separately prepared corresponding-source carrier from prior
+releases. Reconcile both before any public Latest publication; do not publish
+an incomplete source inventory or claim the current pipeline is fully ready.

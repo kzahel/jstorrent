@@ -14,7 +14,8 @@ export function planDesktopPromotion(release, currentStableVersion, repository) 
   for (const asset of release.assets) {
     assert(/^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/.test(asset.name) && !names.has(asset.name), 'invalid or duplicate release asset');
     names.add(asset.name);
-    assert(Number.isSafeInteger(asset.size) && asset.size > 0 && asset.size <= 512*1024*1024, 'invalid asset size');
+    const maximum = asset.name === `JSTorrent_${version}_AppImage-sources-final.tar.gz` ? 2*1024*1024*1024 : 512*1024*1024;
+    assert(Number.isSafeInteger(asset.size) && asset.size > 0 && asset.size <= maximum, 'invalid asset size');
     assert(/^sha256:[a-f0-9]{64}$/.test(asset.digest), 'missing asset digest');
     assert.equal(asset.browser_download_url, `https://github.com/${repository}/releases/download/${release.tag_name}/${asset.name}`, 'foreign release asset');
   }

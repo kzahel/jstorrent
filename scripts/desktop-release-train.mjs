@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readReleaseMetadata } from './desktop-release-metadata.mjs';
 import { assertForwardCompatibility, databaseCompatibility } from './desktop-compatibility.mjs';
 export function numericVersion(version) {
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version)) throw new Error('Numeric desktop version required');
@@ -51,8 +52,8 @@ if (isMain) {
       const asset=release.assets.find(a=>a.name==='latest.json'); if(!asset)continue;
       const response=await fetch(asset.browser_download_url,{signal:AbortSignal.timeout(15000)});
       if(!response.ok)throw new Error('Cannot audit previous release compatibility');
-      const text=await response.text(); if(text.length>65536)throw new Error('Oversized previous manifest');
-      const latest=JSON.parse(text);
+      const latest=await readReleaseMetadata(response);
+      if(compare(latest.version,'0.3.2')>=0 && !latest.compatibility)throw new Error('Published release is missing required database facts');
       if(latest.compatibility)assertForwardCompatibility(JSON.parse(Buffer.from(latest.compatibility.data,'base64').toString()).databases,current);
     }
   } else {

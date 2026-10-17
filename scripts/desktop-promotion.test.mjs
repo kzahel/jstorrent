@@ -28,3 +28,10 @@ test('promotion preserves tested database facts even when main has advanced',asy
  assert.throws(()=>compatibilityForSigning({...latest,version:'0.3.9'},{},previous));
  assert.throws(()=>compatibilityForSigning({...latest,platforms:{target:{signature:'different'}}},{},previous));
 });
+
+test('source carriers retain their established two GiB bound independently of payloads',()=>{
+ const withSize=(index,size)=>({...release,assets:release.assets.map((a,i)=>i===index?{...a,size}:a)});
+ assert.doesNotThrow(()=>planDesktopPromotion(withSize(4,925938523),'0.3.1',repo));
+ assert.throws(()=>planDesktopPromotion(withSize(4,2*1024**3+1),'0.3.1',repo));
+ assert.throws(()=>planDesktopPromotion(withSize(2,512*1024**2+1),'0.3.1',repo));
+});
