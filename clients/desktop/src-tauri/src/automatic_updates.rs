@@ -802,19 +802,10 @@ fn jittered_delay(seconds: u64) -> Duration {
     Duration::from_secs(seconds.saturating_sub(spread).saturating_add(jitter))
 }
 
-/// Latest is the opted-in production qualification lane. Stable activation
-/// follows the installed acceptance record in Tactical 377.
+/// The service owns channel/target rollout. Discovery and the pre-shutdown
+/// recheck both require explicit permission; local opt-out remains authoritative.
 fn automatic_available(app: &tauri::AppHandle) -> bool {
-    if qualification_available(app) {
-        return true;
-    }
-    app.config().identifier == "com.jstorrent.desktop"
-        && app
-            .state::<Mutex<ChannelUpdates>>()
-            .lock()
-            .unwrap()
-            .selected
-            == ChannelId::Latest
+    qualification_available(app) || app.config().identifier == "com.jstorrent.desktop"
 }
 
 fn qualification_available(app: &tauri::AppHandle) -> bool {

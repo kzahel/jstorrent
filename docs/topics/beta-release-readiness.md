@@ -1,5 +1,13 @@
 # Beta Release Readiness
 
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md) adds
+authenticated database admission, a shared increasing release train, complete
+source-bearing Latest publication and immutable Stable promotion. The deployed
+service controls unattended rollout by channel and exact updater target, with
+local opt-out and a pre-shutdown recheck. Public Stable remains manual while
+production-signed owned-VM acceptance is in progress. No new public release or
+installed qualification is inferred from the source implementation.
+
 Tactical [355](../tactical/355-automatic-updates.md) narrows the automatic
 update plan to desktop app/NSIS/AppImage. The accepted goal is unattended
 restart after 15 minutes without interaction, with transfer intent and user

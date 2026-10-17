@@ -188,8 +188,8 @@ Use the existing pinned installation-cohort and local asset delivery facilities
 from Tactical 252 for owned VM profiles. Public Stable/Latest selectors remain
 unchanged. Add private-candidate-only numeric version overrides (0.3.60000+
 for this task) and an optional source-overlay qualification mode: append a
-synthetic schema-30 probe migration and enable Stable policy only in the owned
-CI working copy. Record the exact overlay and source digests. Never commit the
+synthetic schema-30 probe migration only in the owned CI working copy. The
+ordinary service policy controls Stable permission for those owned cohorts. Record the exact overlay and source digests. Never commit the
 probe migration to shipping schema history, publish such a package, or run it
 against an unowned profile. All private profiles must be removed at cleanup;
 they cannot return to lower public application/database versions.
@@ -265,3 +265,46 @@ Both initially-off local targets are confirmed off and their claims released;
 no credential replay, outer input or provider-guard bypass. Continue installed
 acceptance on the ready macOS ARM, Windows x86_64 and Linux x86_64 targets and
 retain the architecture gaps explicitly.
+
+### Public Latest source-carrier completion scope
+
+Close the existing publisher gap without changing license policy: prepare the
+versioned corresponding-source carrier from the exact selected application
+source and ordinary version-stamping script, current locked Cargo vendor inputs,
+and the independently hash-bound prior public carrier. Reuse its reviewed
+native/runtime/web sources only where exact identities still match. New web
+inputs need explicit distribution/preferred-source integrity pins; missing
+native source/version pairs or changed outer runtimes must fail closed. Keep
+original notices, source terms and rebuild/relink instructions. Validate the
+carrier independently and bind it into the final 17-asset private draft before
+public publication. Latest and Stable must share this gate; promotion retains
+all source/native bytes. No public publication bypasses companion policy.
+
+
+### Strong migration-crash probe and ordinary rollout gate
+
+Before any C/D/E offer or installation, strengthen the private populated-store
+probe: create its table and write an 8 MiB bounded blob inside the transaction,
+then pause ten seconds. This makes the application-crash window follow actual
+uncommitted writes/cache spill. Empty profiles use a zero-length blob and no
+delay. Rebuild the unoffered preliminary C/D/E candidates; none has entered an
+installed profile or a public release, and no published migration prefix changes.
+
+The compiled production identity gate now supports both channels; the ordinary
+service permission remains mandatory on discovery and before shutdown. Public
+Stable permission remains false. This replaces the earlier extra compile-time
+Latest switch, so qualified native bytes can be promoted unchanged, while the
+server's target allowlist keeps unqualified targets manual. Private probes no
+longer need a different availability implementation. The focused 78 native
+tests and desktop Clippy pass; source/collector tests and workflow lint pass.
+Full source-carrier preparation against actual B AppImages is running.
+
+The first actual source-carrier run passes both empty-Cargo-home metadata
+checks and fails closed on a newly updated libxml2 source/version pair. Pin its
+exact primary Ubuntu descriptor and every descriptor-checksummed source file,
+retaining original package terms/notices. Both new preferred web archives have
+their original MIT license files. Full archive verification remains in flight.
+B's complete signed workflow 39013645870 passes all platform legs and collection;
+all six updater signatures and five cohort payload digests verify independently.
+Only its owned installation IDs are offered B; ordinary Stable bodies remain
+byte-identical across all five targets.

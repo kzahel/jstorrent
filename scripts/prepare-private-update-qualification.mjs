@@ -21,22 +21,23 @@ fn migrate_29_to_30(transaction: &Transaction<'_>) -> Result<(), StoreError> {
         transaction.query_row("SELECT EXISTS(SELECT 1 FROM torrents)", [], |row| {
             row.get(0)
         })?;
+    transaction.execute_batch(
+        "CREATE TABLE qualification_update_probe (singleton INTEGER PRIMARY KEY CHECK(singleton = 1), marker TEXT NOT NULL, payload BLOB NOT NULL);",
+    )?;
+    transaction.execute(
+        "INSERT INTO qualification_update_probe VALUES (1, 'tactical-377', zeroblob(?1))",
+        [if populated { 8 * 1024 * 1024_i64 } else { 0 }],
+    )?;
     if populated {
         std::thread::sleep(std::time::Duration::from_secs(10));
     }
-    transaction.execute_batch(
-        "CREATE TABLE qualification_update_probe (singleton INTEGER PRIMARY KEY CHECK(singleton = 1), marker TEXT NOT NULL); INSERT INTO qualification_update_probe VALUES (1, 'tactical-377');",
-    )?;
     Ok(())
 }
 `;
   schema=replace(schema,'const SCHEMA_VERSION: i64 = 29;','const SCHEMA_VERSION: i64 = 30;');
   generator=replace(generator,"    ]),\n    product: store", "      [30, item(session, 'migrate_29_to_30')],\n    ]),\n    product: store");
-  const owner=automatic.indexOf('fn automatic_available(');
-  const admission=automatic.indexOf('    app.config().identifier == "com.jstorrent.desktop"',owner);
-  const end=automatic.indexOf('\n}',admission);
-  if(owner<0||admission<0||end<0)throw new Error('Review private Stable activation overlay');
-  automatic=automatic.slice(0,admission)+'    app.config().identifier == "com.jstorrent.desktop"'+automatic.slice(end);
+  // Production candidates already use the ordinary server rollout gate.
+  if(!automatic.includes('qualification_available(app) || app.config().identifier == "com.jstorrent.desktop"'))throw new Error('Review private qualification rollout policy');
   return {migration,schema,generator,automatic};
 }
 let isMain = false;

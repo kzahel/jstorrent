@@ -268,11 +268,11 @@ export function verifyUploadedAssets(local, remote) {
 }
 
 export async function verifyProductionFinalDraft({ local, remote, checksumPath, sourcePath }) {
-  const match = /^desktop-v(\d+\.\d+\.\d+)$/.exec(local.tagName ?? "");
-  if (!match || local.isPrerelease !== false || local.isDraft !== true) {
-    fail("final production draft requires a Stable candidate");
+  const match = /^desktop-(latest-)?v(\d+\.\d+\.\d+)$/.exec(local.tagName ?? "");
+  if (!match || local.isPrerelease !== Boolean(match[1]) || local.isDraft !== true) {
+    fail("final production draft requires a matching Stable or Latest candidate");
   }
-  const expected = RELEASE_LANES.flatMap(lane => laneFiles(lane, match[1], "JSTorrent").map(asset => asset.name));
+  const expected = RELEASE_LANES.flatMap(lane => laneFiles(lane, match[2], "JSTorrent").map(asset => asset.name));
   expected.push("latest.json");
   if (!Array.isArray(local.assets) ||
       JSON.stringify(local.assets.map(asset => asset.name).sort()) !== JSON.stringify(expected.sort())) {
@@ -282,7 +282,7 @@ export async function verifyProductionFinalDraft({ local, remote, checksumPath, 
     digest: `sha256:${await digestFile(checksumPath)}` };
   const extra = [];
   if (sourcePath !== undefined) {
-    const name = `JSTorrent_${match[1]}_AppImage-sources-final.tar.gz`;
+    const name = `JSTorrent_${match[2]}_AppImage-sources-final.tar.gz`;
     if (basename(sourcePath) !== name) fail("production source asset version/name mismatch");
     extra.push({ name, size: checkedFile(sourcePath, 2 * 1024 * 1024 * 1024),
       digest: `sha256:${await digestFile(sourcePath)}` });

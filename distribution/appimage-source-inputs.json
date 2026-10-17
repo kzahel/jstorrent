@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "prior": {
+    "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.1/JSTorrent_0.3.1_AppImage-sources-final.tar.gz",
+    "sha256": "3c24ec87f3bb5532b425467c06a849610bef2eff9f34161a08db3dfd2a3953cb",
+    "bytes": 925938523
+  },
+  "additionalWebSources": {
+    "uqr@0.1.3": {
+      "distribution": "https://registry.npmjs.org/uqr/-/uqr-0.1.3.tgz",
+      "integrity": "sha512-0rjE8iEJe4YmT9TOhwsZtqCMRLc5DXZUI2UEYUUg63ikBkqqE5EYWaI0etFe/5KUcmcYwLih2RND1kq+hrUJXA==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/unjs/uqr/tar.gz/23ac4e3c7a172da8f5f9e619ba6fa07394d9fd52",
+        "commit": "23ac4e3c7a172da8f5f9e619ba6fa07394d9fd52",
+        "sha256": "684d034377f9f7aae6be7eceb7041188186e0dbb0b886272eae405e98dfe41f0"
+      }
+    },
+    "@vitejs/plugin-react@6.1.2": {
+      "distribution": "https://registry.npmjs.org/@vitejs/plugin-react/-/plugin-react-6.1.2.tgz",
+      "integrity": "sha512-fhJNGUdscQa4HkI0xFxwonWyhnVReCPDbXI7FH7jmzpnVCrFQI7PRrhWecO263610vOrs9tr2Y4xcf8uAdFxbw==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/vitejs/vite-plugin-react/tar.gz/ac47648e17674299accb51816e9e33b8a7b07b05",
+        "commit": "ac47648e17674299accb51816e9e33b8a7b07b05",
+        "sha256": "a74080a30c72c776c2b2b34e8cd367d37afec79ee418d607fbc16fabac465dd5"
+      }
+    }
+  },
+  "additionalNativeSources": {
+    "libxml2@2.9.14+dfsg-1.3ubuntu3.10": {
+      "sourcePackage": "libxml2",
+      "sourceVersion": "2.9.14+dfsg-1.3ubuntu3.10",
+      "authentication": "Primary HTTPS and exact descriptor identity; original OpenPGP retained, not independently verified",
+      "files": [
+        {
+          "filename": "libxml2_2.9.14+dfsg-1.3ubuntu3.10.dsc",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libxml2/2.9.14+dfsg-1.3ubuntu3.10/libxml2_2.9.14+dfsg-1.3ubuntu3.10.dsc",
+          "sha256": "1e2a56b4ae292abd2715b1f411cfa30f1b31ef9013c60d2f906d4a68b165cd4c",
+          "bytes": 3083
+        },
+        {
+          "filename": "libxml2_2.9.14+dfsg.orig.tar.xz",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libxml2/2.9.14+dfsg-1.3ubuntu3.10/libxml2_2.9.14+dfsg.orig.tar.xz",
+          "sha256": "4fe913dec8b1ab89d13b489b419a8203176ea39e931eaa0d25b17eafb9c279e9",
+          "bytes": 2351200
+        },
+        {
+          "filename": "libxml2_2.9.14+dfsg-1.3ubuntu3.10.debian.tar.xz",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libxml2/2.9.14+dfsg-1.3ubuntu3.10/libxml2_2.9.14+dfsg-1.3ubuntu3.10.debian.tar.xz",
+          "sha256": "d2d821830eb60edbcfcbe30e2827420e9e439e98c85c812352969cdda764d60b",
+          "bytes": 61552
+        }
+      ]
+    }
+  }
+}

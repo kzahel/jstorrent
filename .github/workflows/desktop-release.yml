@@ -15,7 +15,7 @@ on:
         type: string
         default: ''
       qualification_schema_bump:
-        description: Private source-overlay schema-30 probe and Stable activation; never publish
+        description: Private source-overlay schema-30 crash probe; never publish
         type: boolean
         default: false
       production_publication:
@@ -855,6 +855,34 @@ jobs:
             "$RELEASE_DIR/uploaded-release.json" "$RELEASE_DIR/SHA256SUMS"
           gh release upload "$RELEASE_TAG" "$RELEASE_DIR/SHA256SUMS" --clobber
 
+      - name: Install pinned Rust for corresponding-source preparation
+        if: needs.release-input.outputs.production_publication == 'true'
+        uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613 # 1.97.0
+
+      - name: Bind corresponding AppImage sources before public publication
+        if: needs.release-input.outputs.production_publication == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y 7zip
+          RELEASE_DIR=artifacts/desktop-release-output
+          SOURCE_ARCHIVE="$RUNNER_TEMP/JSTorrent_${RELEASE_VERSION}_AppImage-sources-final.tar.gz"
+          python3 scripts/package-current-appimage-sources.py \
+            --source-sha "$SOURCE_SHA" --release-dir "$RELEASE_DIR" \
+            --cache "$RUNNER_TEMP/source-inputs" --output "$SOURCE_ARCHIVE"
+          python3 - "$RELEASE_DIR" "$SOURCE_ARCHIVE" <<'PY'
+          import hashlib,json,pathlib,sys
+          root,source=map(pathlib.Path,sys.argv[1:])
+          core=json.loads((root/'release.json').read_text())['assets']
+          digest=hashlib.file_digest(source.open('rb'),'sha256').hexdigest()
+          rows=[f"{a['digest'][7:]}  {a['name']}" for a in core if not a['name'].endswith('.sig')]
+          rows.append(digest+'  '+source.name)
+          (root/'SHA256SUMS').write_text('\n'.join(sorted(rows))+'\n')
+          PY
+          gh release upload "$RELEASE_TAG" "$SOURCE_ARCHIVE"
+          gh release upload "$RELEASE_TAG" "$RELEASE_DIR/SHA256SUMS" --clobber
+
       - name: Remove redundant detached signatures
         if: needs.release-input.outputs.publish == 'true' && needs.release-input.outputs.production != 'true' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
         env:
@@ -908,7 +936,8 @@ jobs:
           node .github/scripts/desktop-release-artifacts.mjs verify-production-draft \
             --local "$RELEASE_DIR/release.json" \
             --remote "$RELEASE_DIR/final-production-draft.json" \
-            --checksums "$RELEASE_DIR/SHA256SUMS"
+            --checksums "$RELEASE_DIR/SHA256SUMS" \
+            --sources "$RUNNER_TEMP/JSTorrent_${RELEASE_VERSION}_AppImage-sources-final.tar.gz"
           node .github/scripts/validate-desktop-release.mjs \
             --release "$RELEASE_DIR/final-production-draft.json" \
             --latest "$RELEASE_DIR/assets/latest.json" \

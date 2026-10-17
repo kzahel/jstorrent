@@ -61,3 +61,22 @@ source only; its executable is never part of the AppImage.
 
 Original signed packages remain unchanged historical evidence. A rebuilt
 AppImage requires a new signed candidate and package/runtime qualification.
+
+## Current release source carriers
+
+`package-current-appimage-sources.py` binds the selected commit and ordinary
+version overlay to both exact collected AppImages. It vendors current locked
+Cargo sources and verifies empty-Cargo-home offline metadata for both targets.
+It retains the independently hash-verified prior public carrier for unchanged
+native source/version pairs, original runtime inputs and preferred web sources.
+Changed native pairs or outer runtimes block publication pending review.
+
+`distribution/appimage-source-inputs.json` records additional exact web
+source inputs. The current additions are uqr 0.1.3 (unjs/uqr's v0.1.3 commit)
+and @vitejs/plugin-react 6.1.2 (its npm gitHead). Both upstream distributions
+and preferred archives declare MIT and retain their original LICENSE files;
+reuse supplies complete source/attribution without importing their code into
+first-party source. Distribution bytes must match package-lock SHA-512, and
+preferred archives must match their recorded immutable Git commit and SHA-256.
+The archive keeps original component terms and source/relink instructions.
+It does not promise a sealed offline web build or binary reproducibility.

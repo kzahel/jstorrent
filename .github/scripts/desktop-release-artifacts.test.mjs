@@ -271,6 +271,9 @@ test("source-bearing promotion binds an exact versioned archive and checksum inv
       digest:`sha256:${createHash("sha256").update(inventory).digest("hex")}` };
     const remote = { ...structuredClone(release), assets:[...release.assets,source,checksum] };
     await verifyProductionFinalDraft({ local:release,remote,checksumPath,sourcePath });
+    const latest = { ...release, tagName:`desktop-latest-v${version}`, isPrerelease:true };
+    await verifyProductionFinalDraft({ local:latest, remote:{...remote, tagName:latest.tagName, isPrerelease:true}, checksumPath, sourcePath });
+    await assert.rejects(verifyProductionFinalDraft({ local:{...latest,isPrerelease:false}, remote, checksumPath, sourcePath }), /matching Stable or Latest/u);
     for (const mutate of [
       value => value.assets.splice(value.assets.findIndex(asset => asset.name === source.name),1),
       value => value.assets.push(source),

@@ -95,7 +95,7 @@ def tick(_window, _message, _timer, _time):
                 # message targets with WS_VISIBLE only to receive WM_PAINT.
                 # Require their exact class AND all four non-presenting styles.
                 infrastructure = native_class.value in (
-                    "Tao Thread Event Target", "com.jstorrent.qualification.update-sic")
+                    "Tao Thread Event Target", "com.jstorrent.qualification.update-sic", "com.jstorrent.desktop-sic")
                 utility_styles = 0x08000000 | 0x00080000 | 0x20 | 0x80
                 styles = user.GetWindowLongPtrW(hwnd, -20)
                 if infrastructure and styles & utility_styles == utility_styles:
