@@ -247,3 +247,21 @@ The existing public publisher's final verifier is Stable-specific and does not
 yet automate the separately prepared corresponding-source carrier from prior
 releases. Reconcile both before any public Latest publication; do not publish
 an incomplete source inventory or claim the current pipeline is fully ready.
+
+Private nonpublishing builds now use per-run concurrency; actual publication
+and Stable promotion retain the shared publisher lock. This permits the B/C/D/E
+matrix to build in parallel without queue replacement, while existing exact
+source/run/attempt and nonpublication guards still apply. Seventeen focused
+input/collector/publication tests and actionlint pass. The private transfer peer
+can stay bounded and deliberately slow through a real idle interval, then
+unthrottle for post-restart verification. Reuse the existing scoped Windows
+registry preservation in the production rehearsal; all five existing platform
+pin tests pass after extracting that owner into a shared test helper.
+
+Windows x86_64's inner routes are ready after stored-credential login. The
+local Windows ARM login route failed before a confirmed session, and the local
+Linux ARM start was refused by Machine Control's documented UTM health guard.
+Both initially-off local targets are confirmed off and their claims released;
+no credential replay, outer input or provider-guard bypass. Continue installed
+acceptance on the ready macOS ARM, Windows x86_64 and Linux x86_64 targets and
+retain the architecture gaps explicitly.

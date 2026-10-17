@@ -11,7 +11,11 @@ import libtorrent as lt
 parser = argparse.ArgumentParser()
 parser.add_argument("--root", type=Path, required=True)
 parser.add_argument("--bind", required=True)
+parser.add_argument("--upload-rate", type=int, default=128 * 1024)
+parser.add_argument("--duration", type=int, default=1200)
 args = parser.parse_args()
+if not 1024 <= args.upload_rate <= 1024 * 1024 or not 120 <= args.duration <= 7200:
+    raise ValueError("Use bounded transfer rate and duration")
 if lt.version != "2.0.13.0" or not ipaddress.ip_address(args.bind).is_private:
     raise ValueError("Use the pinned peer on the private VM network")
 root = args.root.resolve()
@@ -21,7 +25,7 @@ seed.mkdir()
 settings = {"listen_interfaces": args.bind + ":0", "enable_dht": False, "enable_lsd": False,
             "enable_upnp": False, "enable_natpmp": False, "enable_incoming_utp": False,
             "enable_outgoing_utp": False, "connections_limit": 8, "alert_queue_size": 512,
-            "ignore_limits_on_local_network": False, "upload_rate_limit": 128 * 1024}
+            "ignore_limits_on_local_network": False, "upload_rate_limit": args.upload_rate}
 session = lt.session(settings)
 sessions = [session]
 items = []
@@ -50,8 +54,12 @@ try:
         time.sleep(.05)
     (root / "ready.json").write_text(json.dumps({"peerHost": args.bind, "peerPort": session.listen_port(), "items": items, "libtorrent": lt.version}))
     leech = None
-    deadline = time.monotonic() + 1200
+    unthrottled = False
+    deadline = time.monotonic() + args.duration
     while time.monotonic() < deadline and not (root / "stop").exists():
+        if not unthrottled and (root / "unthrottle").exists():
+            session.apply_settings({"upload_rate_limit": 128 * 1024})
+            unthrottled = True
         if leech is None and (root / "leech-request.json").exists():
             request = json.loads((root / "leech-request.json").read_text())
             if not ipaddress.ip_address(request["address"]).is_private: raise ValueError("Non-private guest listener")

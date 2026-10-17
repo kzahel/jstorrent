@@ -41,7 +41,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: desktop-release-publisher
+  group: ${{ github.event_name == 'workflow_dispatch' && inputs.production_candidate && !inputs.production_publication && format('desktop-private-{0}', github.run_id) || 'desktop-release-publisher' }}
   cancel-in-progress: false
 
 env:
