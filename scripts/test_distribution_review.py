@@ -86,6 +86,20 @@ class AdvisoryReviewTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'inventory changed'):
             audit.review(changed, self.npm, self.website_npm, self.policy, date(2026, 9, 12))
 
+    def test_conditional_rand_warning_requires_feature_proof_and_blocks_logger_activation(self):
+        item = {'advisory': {'id': 'RUSTSEC-2026-0097'},
+                'package': {'name': 'rand', 'version': '0.7.3'}}
+        self.cargo['warnings'] = {'unsound': [item]}
+        self.policy['warnings'] = [{'kind': 'unsound', 'advisory': item['advisory']['id'],
+                                   'package': 'rand', 'version': '0.7.3'}]
+        with self.assertRaisesRegex(ValueError, 'log feature'):
+            audit.review(self.cargo, self.npm, self.website_npm, self.policy, date(2026, 9, 12))
+        self.cargo['rstorrent_reviewed_features'] = {'rand@0.7.3': ['std', 'small_rng']}
+        audit.review(self.cargo, self.npm, self.website_npm, self.policy, date(2026, 9, 12))
+        self.cargo['rstorrent_reviewed_features']['rand@0.7.3'].append('log')
+        with self.assertRaisesRegex(ValueError, 'log feature'):
+            audit.review(self.cargo, self.npm, self.website_npm, self.policy, date(2026, 9, 12))
+
     def test_expired_review_stale_database_and_vulnerabilities_fail(self):
         with self.assertRaisesRegex(ValueError, '30 days'):
             audit.review(self.cargo, self.npm, self.website_npm, self.policy, date(2026, 10, 13))

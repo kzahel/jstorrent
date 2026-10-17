@@ -279,7 +279,10 @@ pub(crate) fn read_bundle(bytes: &[u8]) -> Result<Vec<ImportedTorrent>, BundleEr
         let mut entry = archive
             .by_index(index)
             .map_err(|error| BundleError::NotAZip(error.to_string()))?;
-        let name = entry.name().to_owned();
+        let name = entry
+            .name()
+            .map_err(|error| BundleError::NotAZip(error.to_string()))?
+            .into_owned();
         let is_manifest = name == MANIFEST_NAME;
         if !is_manifest && !is_torrent_entry_name(&name) {
             return Err(BundleError::UnsafeEntry(bounded_name(&name)));
@@ -463,6 +466,33 @@ mod tests {
                   "future_field":{{"anything":true}}}}]}}"#
         )
         .into_bytes()
+    }
+
+    #[test]
+    fn reads_version_one_bundle_produced_by_zip_four() {
+        let imported = read_bundle(include_bytes!("../tests/fixtures/torrent-list/v1-zip4.zip"))
+            .expect("read the pre-upgrade ZIP 4 fixture");
+        assert_eq!(imported.len(), 2);
+        assert_eq!(
+            imported[0].manifest.name.as_deref(),
+            Some("ZIP compatibility fixture")
+        );
+        assert!(imported[0].manifest.running);
+        assert_eq!(imported[0].manifest.selection.exceptions, vec![2]);
+        assert_eq!(imported[0].manifest.high_priority_files, vec![0]);
+        assert_eq!(
+            imported[0].manifest.limits.upload_bytes_per_second,
+            Some(65_536)
+        );
+        assert_eq!(
+            imported[0].metainfo.as_deref(),
+            Some(b"d4:infod1:xi1eee".as_slice())
+        );
+        assert!(!imported[1].manifest.running);
+        assert!(
+            matches!(&imported[1].manifest.source, ManifestSource::Magnet { magnet }
+            if magnet == "magnet:?xt=urn:btih:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+        );
     }
 
     #[test]

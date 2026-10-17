@@ -1,5 +1,12 @@
 # Beta Release Readiness
 
+Tactical [379](../tactical/379-release-security-dependencies.md) repairs the
+fresh-audit blocker found during 378 publication: rustls 0.23.46 and ZIP 9.0.4,
+with optional ZIP extraction disabled on the unchanged updater 2.10.1. Raw
+Windows installers/Linux AppImages and unconditional macOS tar.gz remain.
+No vulnerability is waived. Five source-reviewed warning additions retain the
+existing November 12 expiry; native/source qualification is pending.
+
 Tactical [377](../tactical/377-compatible-touchless-release-channels.md) adds
 authenticated database admission, one increasing Stable/Latest release train,
 source-bearing Latest publication and immutable Stable promotion. Actual signed

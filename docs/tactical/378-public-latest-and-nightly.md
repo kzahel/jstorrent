@@ -78,3 +78,9 @@ CLI rejects. Remove the redundant identity jq filter, exercise the actual
 publication CLI with a flag-validating fake API, and run the real read-only
 public release/database-history audit before retrying. Signing and version
 guards are unchanged.
+
+Full CI 39040311337 and Fast CI 39040311268 pass at 3f88d8ea. Retry
+39043432128 passes real version/history admission and production signing-key
+proof, then stops before package builds on fresh Cargo advisories. Tactical
+[379](379-release-security-dependencies.md) owns the bounded security repair;
+no draft or public release is created and no advisory gate is waived.

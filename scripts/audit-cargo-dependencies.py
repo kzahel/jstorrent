@@ -21,6 +21,15 @@ def collect(root=glib_backport.ROOT):
         raise ValueError('Cargo advisory collection failed or exceeded bounds')
     report = json.loads(run.stdout)
     report['rstorrent_source_review'] = provenance
+    metadata = json.loads(subprocess.check_output(
+        ['cargo', 'metadata', '--locked', '--all-features', '--format-version', '1'],
+        cwd=root, timeout=120))
+    packages = {p['id']: p for p in metadata['packages']}
+    report['rstorrent_reviewed_features'] = {
+        'rand@0.7.3': sorted(node['features'])
+        for node in metadata['resolve']['nodes']
+        if (packages[node['id']]['name'], packages[node['id']]['version']) == ('rand', '0.7.3')
+    }
     return report
 
 

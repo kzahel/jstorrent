@@ -19,6 +19,7 @@ SAFE_FAILURES = {
     'dependency warning inventory changed; review additions and removals',
     'reviewed backports require exact independently verified source',
     'Cargo report must audit the exact original backport registry identity',
+    'reviewed rand warning requires the log feature to remain disabled',
 }
 
 
@@ -44,6 +45,10 @@ def review(cargo, npm, website_npm, policy, today, backports=()):
                         entry['package']['name'], entry['package']['version']))
     if actual != expected:
         raise ValueError('dependency warning inventory changed; review additions and removals')
+    if ('unsound', 'RUSTSEC-2026-0097', 'rand', '0.7.3') in expected:
+        features = cargo.get('rstorrent_reviewed_features', {}).get('rand@0.7.3')
+        if not isinstance(features, list) or 'log' in features:
+            raise ValueError('reviewed rand warning requires the log feature to remain disabled')
     identity = ('package', 'version', 'advisory', 'source_manifest_sha256')
     expected_backports = {tuple(p[k] for k in identity) for p in policy.get('backports', [])}
     actual_backports = {tuple(p[k] for k in identity) for p in backports
@@ -59,6 +64,7 @@ def review(cargo, npm, website_npm, policy, today, backports=()):
         'npm_vulnerabilities': 0,
         'website_npm_vulnerabilities': 0,
         'reviewed_warnings': sorted([list(r) for r in actual]),
+        'reviewed_features': cargo.get('rstorrent_reviewed_features', {}),
         'source_verified_backports': list(backports),
         'release_blockers': policy['release_blockers'],
         'release_ready': not policy['release_blockers'],

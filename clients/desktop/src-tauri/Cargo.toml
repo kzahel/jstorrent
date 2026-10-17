@@ -49,7 +49,9 @@ tauri-plugin-deep-link = "=2.4.9"
 tauri-plugin-dialog = "=2.7.2"
 tauri-plugin-notification = "=2.3.3"
 tauri-plugin-single-instance = { version = "=2.4.3", features = ["deep-link"] }
-tauri-plugin-updater = { version = "=2.10.1", default-features = false, features = ["native-tls", "zip"] }
+# Native updates are raw NSIS/MSI and AppImages; macOS tar.gz is unconditional.
+# Do not enable the plugin's unused ZIP extraction dependency.
+tauri-plugin-updater = { version = "=2.10.1", default-features = false, features = ["native-tls"] }
 tempfile = "3.27.0"
 tokio = { workspace = true, features = ["net", "rt", "sync", "process", "io-util", "time"] }
 tokio-util = { workspace = true }

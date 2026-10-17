@@ -813,3 +813,22 @@ and [ShowWindowAsync](https://learn.microsoft.com/en-us/windows/win32/api/winuse
 contracts define minimized non-activation and asynchronous GUI delivery. The
 Windows minimized fixture verifies actual visible/iconic A/B windows and
 unchanged foreground, rather than accepting a successfully posted request.
+
+## Release security dependencies (Tactical 379)
+
+The workspace locks registry rustls 0.23.46 and ZIP 9.0.4; Cargo.lock owns
+checksums. ZIP and its typed-path 0.12.3 dependency retain permissive registry
+licenses; cargo-about generates exact-target notices. No upstream source or
+fixture is copied into first-party code. The ZIP-4 compatibility fixture is
+independently authored data with its own provenance README.
+
+Security behavior is checked against upstream rustls pull requests
+[3299](https://github.com/rustls/rustls/pull/3299),
+[3300](https://github.com/rustls/rustls/pull/3300),
+[3297](https://github.com/rustls/rustls/pull/3297) and
+[3355](https://github.com/rustls/rustls/pull/3355), and ZIP advisories
+[privileged mode bits](https://github.com/zip-rs/zip2/security/advisories/GHSA-vv5m-jxxh-4627),
+[symlink targets](https://github.com/zip-rs/zip2/security/advisories/GHSA-4v9h-p7m9-rh26)
+and [symlink permissions](https://github.com/zip-rs/zip2/security/advisories/GHSA-4684-h2q9-2vcp).
+The tauri-plugin-updater 2.10.1 source paths in Tactical 379 prove removing its
+optional ZIP feature preserves the shipped raw installers and macOS tar.gz.

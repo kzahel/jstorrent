@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "status": "Local repair checked; complete workspace and hosted native qualification pending",
+  "advisoryRevision": "e6e9dd63d3a520c35a3b4695f612018d78f61b72",
+  "vulnerabilities": {
+    "cargo": 0,
+    "web": 0,
+    "website": 0
+  },
+  "packages": [
+    {
+      "name": "rustls",
+      "version": "0.23.46",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
+    },
+    {
+      "name": "typed-path",
+      "version": "0.12.3",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "8e28f89b80c87b8fb0cf04ab448d5dd0dd0ade2f8891bae878de66a75a28600e"
+    },
+    {
+      "name": "zip",
+      "version": "9.0.4",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "a954114b47a54df49f83d2722814e86b23d4bb1b54a1b90fb7d92b41619ddc22"
+    }
+  ],
+  "lockfiles": {
+    "Cargo.lock": "8278cac412e0e50a0732f624d1f7d43baf3d680505ea4a6900a2b380fe41e62c",
+    "clients/web/package-lock.json": "f7e92d9b98993be37a07d0e5da3bc0da60b9b5901be6ce6df387809a2eb13368",
+    "website/package-lock.json": "3157dda6cf5dd0ed4c714df286b4400510c35950aedcf53193aa28aae7122390"
+  },
+  "reviewedWarnings": [
+    [
+      "unmaintained",
+      "RUSTSEC-2024-0370",
+      "proc-macro-error",
+      "1.0.4"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0057",
+      "fxhash",
+      "0.2.1"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0075",
+      "unic-char-range",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0080",
+      "unic-common",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0081",
+      "unic-char-property",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0098",
+      "unic-ucd-version",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0100",
+      "unic-ucd-ident",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2026-0370",
+      "zvariant",
+      "5.15.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2026-0371",
+      "zbus_names",
+      "4.3.4"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2026-0372",
+      "zvariant_derive",
+      "5.15.0"
+    ],
+    [
+      "unsound",
+      "RUSTSEC-2024-0429",
+      "glib",
+      "0.18.5"
+    ],
+    [
+      "unsound",
+      "RUSTSEC-2026-0097",
+      "rand",
+      "0.7.3"
+    ]
+  ],
+  "reviewExpires": "2026-11-12",
+  "reviewedFeatures": {
+    "rand@0.7.3": [
+      "alloc",
+      "default",
+      "getrandom",
+      "getrandom_package",
+      "libc",
+      "rand_pcg",
+      "small_rng",
+      "std"
+    ]
+  },
+  "zip4FixtureSha256": "54c5eb1ca98036c0924259dd4f2b51d1493c1603c016d2a312a7615b18ab1030",
+  "localValidation": {
+    "workspaceClippy": true,
+    "bundleTestsPassed": 8,
+    "distributionReviewTestsPassed": 30,
+    "versionOneZipCompatibility": true,
+    "zip4ReadsZip9StoredOutput": true,
+    "updaterVersionRetained": "2.10.1",
+    "updaterZipFeatureEnabled": false
+  }
+}

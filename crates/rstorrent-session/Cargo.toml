@@ -27,8 +27,8 @@ ts-rs = { workspace = true }
 uniffi = { version = "=0.31.0", default-features = false, optional = true }
 url = { workspace = true }
 uuid = { workspace = true }
-# Torrent list bundles (Tactical 348); the version the desktop updater locks.
-zip = { version = "=4.6.1", default-features = false, features = ["deflate-flate2"] }
+# Portable torrent list bundles; kept independent of native update extraction.
+zip = { version = "=9.0.4", default-features = false, features = ["deflate-flate2"] }
 tempfile = { workspace = true }
 
 [dev-dependencies]

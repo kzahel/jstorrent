@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [379 — Release security dependency repair](379-release-security-dependencies.md):
+  active; patch rustls and ZIP and remove unused ZIP updater support before
+  public Latest, retaining the qualified native updater implementation.
 - [378 — Public Latest and nightly publication](378-public-latest-and-nightly.md):
   active; publish qualified JSTorrent Latest and schedule unchanged-source-aware
   daily releases with a bounded Latest-only companion compatibility exception.

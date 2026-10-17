@@ -108,6 +108,11 @@ portable torrent list bundle: a zip with a versioned `manifest.json` and one
 magnet). Readers ignore unknown fields and refuse newer versions. Import adds
 torrents through the ordinary add path and never trusts saved progress.
 
+Tactical [379](../tactical/379-release-security-dependencies.md) upgrades ZIP
+to 9.0.4 without changing this version-1 format or extraction-free bounded
+reader. A frozen ZIP-4-produced fixture preserves selections, intent and
+metainfo through the dependency upgrade; schemas and migrations are unchanged.
+
 Tactical [308](../tactical/308-android-optional-add-selection.md) reuses the
 current schema for explicit Download all on pending adds. Normal default,
 cleared source/selection exceptions, running intent and queue admission commit

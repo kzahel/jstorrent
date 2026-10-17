@@ -1,5 +1,10 @@
 # Product Surfaces And JSTorrent Migration
 
+Tactical [379](../tactical/379-release-security-dependencies.md) removes fresh
+dependency-audit blockers before 378's public Latest. It preserves the native
+updater version, product identity, store migrations and package formats while
+patching TLS and torrent-list ZIP handling. No Stable publication is implied.
+
 Tactical [377](../tactical/377-compatible-touchless-release-channels.md) supplies
 the compatible Stable/Latest train and production-signed private update
 rehearsals. Promotion preserves tested native/source bytes and rechecks its

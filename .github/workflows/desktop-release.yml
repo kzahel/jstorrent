@@ -218,6 +218,15 @@ jobs:
       - name: Provide the Tauri compile-time asset directory
         run: mkdir -p clients/web/dist
 
+      - name: Retain bounded dependency review evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-dependency-review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dependency-review.json
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
 
