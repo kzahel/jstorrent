@@ -286,8 +286,16 @@ fun ProductApp(
             }
         }
         val navController = rememberNavController()
-        // Fixed for this navigation graph; a newer preference applies next launch.
-        val startRoute = rememberSaveable { startDestination.route }
+        // Torrents is always the graph's start; a remembered Library opens
+        // once at launch, not again when the activity is recreated.
+        var initialDestinationShown by rememberSaveable { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            if (initialDestinationShown) return@LaunchedEffect
+            initialDestinationShown = true
+            if (startDestination != PrimaryDestination.TORRENTS) {
+                navController.showPrimary(startDestination)
+            }
+        }
         val entry by navController.currentBackStackEntryAsState()
         val primary = PrimaryDestination.forRoute(entry?.destination?.route)
         LaunchedEffect(primary) { primary?.let(onPrimaryDestination) }
@@ -300,7 +308,6 @@ fun ProductApp(
             Surface(modifier = Modifier.fillMaxSize()) {
                 ProductNavHost(
                     navController = navController,
-                    startRoute = startRoute,
                     onTorrentSelectionMode = { torrentSelectionMode = it },
                     onShutdown = onShutdown,
                     state = state,
@@ -821,7 +828,6 @@ private fun externalIntakeNoticeText(kind: ExternalIntakeNoticeKind): String =
 @Composable
 private fun ProductNavHost(
     navController: NavHostController,
-    startRoute: String,
     onTorrentSelectionMode: (Boolean) -> Unit,
     onShutdown: () -> Unit,
     state: ProductState,
@@ -969,7 +975,7 @@ private fun ProductNavHost(
         } else {
             null
         }
-    NavHost(navController = navController, startDestination = startRoute) {
+    NavHost(navController = navController, startDestination = ProductRoutes.TORRENTS) {
         composable(ProductRoutes.MEDIA_LIBRARY) {
             val currentService by rememberUpdatedState(service)
             DisposableEffect(Unit) { onDispose { currentService?.presentLibrary(null) } }

@@ -79,9 +79,10 @@ pads, so the screens' own scaffolds do not pad them a second time.
 
 Switching destinations uses the standard pattern: pop to the graph's start
 destination saving state, launch single-top and restore state, so each
-destination keeps its scroll position and filters. The start destination is
-the remembered one. Back from the other primary destination returns to the
-start destination, then leaves the app.
+destination keeps its scroll position and filters. Torrents is the graph's
+start, and a remembered Library opens once at launch (originally the
+remembered destination was the start; see the Pixel defect below). Back from
+the Library returns to Torrents, then leaves the app.
 
 Opening a show, album or torrent group is Library screen state with a Back
 arrow and a `BackHandler`, not a navigation route. Group IDs are host strings
@@ -323,6 +324,36 @@ Group rows (shows, albums, torrents) still open in place and have no ⋮.
 
   The scenario dismisses the system's one-time "Viewing full screen" notice
   that the external video app raised on the tablet.
+
+### Pixel defect: Library would not open, 2026-10-17
+
+On the Pixel 9, tapping Library left Torrents on screen, and Back then
+revealed the Library underneath.
+
+**Cause.** The app had reopened on the remembered Library, which this
+slice made the navigation graph's start. A magnet from Chrome then landed
+on Torrents with a non-saving pop. The next Library tap ran Navigation's
+standard pattern: pop to the start with saveState, then navigate to the
+start with restoreState. Navigation files a non-inclusive saved pop under
+the destination popped to, so the Torrents stack was saved under the
+Library start, and the restore put Torrents back on top.
+
+The earlier tests always started on Torrents, or switched tabs before the
+external add, so they never hit this ordering.
+
+**Fix.**
+- Torrents is now always the graph's start. A remembered Library is opened
+  once at launch, guarded by saved state across activity recreation.
+- Switching to Torrents pops to it instead of navigating with restoreState.
+- A forced landing that doesn't restore state first clears the target's
+  stale saved stack.
+
+**Regression test.**
+`rememberedLibraryOpensAgainAfterAnExternalAddLandsOnTorrents` replays the
+sequence: reopen on Library, a magnet lands on Torrents, then switch three
+times. It failed on the previous code and passes with the fix.
+`libraryOpensAgainAfterAnExternalAddReturnsToTorrents` covers the same
+landing after earlier switches.
 
 ### Deferred
 

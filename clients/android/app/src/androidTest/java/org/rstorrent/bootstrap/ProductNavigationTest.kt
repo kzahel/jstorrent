@@ -2020,6 +2020,120 @@ class ProductNavigationTest {
         compose.waitUntil(5_000) { destinations.lastOrNull() == PrimaryDestination.TORRENTS }
     }
 
+    @Test
+    fun libraryOpensAgainAfterAnExternalAddReturnsToTorrents() {
+        val torrent = torrent()
+        val base =
+            libraryState(torrent).copy(
+                libraryMedia = libraryPage(LibraryBrowseState(), listOf(libraryItem(0U))),
+            )
+        var state by mutableStateOf(base)
+        compose.setContent {
+            ProductApp(
+                service = null,
+                onSelectStorage = {},
+                onBrowseTorrent = {},
+                notificationsGranted = true,
+                onRequestNotifications = {},
+                onOpenNotificationSettings = {},
+                themeMode = ProductThemeMode.LIGHT,
+                dynamicColor = false,
+                onThemeMode = {},
+                onDynamicColor = {},
+                stateOverride = state,
+            )
+        }
+
+        awaitDisplayed("Fixture torrent")
+        // Switch back and forth first so each destination has saved state.
+        compose.onNodeWithText("Library").performSemanticsAction(SemanticsActions.OnClick)
+        awaitDisplayed("Episode 1")
+        compose.onNodeWithText("Torrents").performSemanticsAction(SemanticsActions.OnClick)
+        awaitDisplayed("Fixture torrent")
+        compose.onNodeWithText("Library").performSemanticsAction(SemanticsActions.OnClick)
+        awaitDisplayed("Episode 1")
+
+        // A magnet from another app lands on Torrents.
+        compose.runOnIdle {
+            state =
+                base.copy(
+                    externalIntake =
+                        ExternalIntakePresentation(
+                            43,
+                            ExternalIntakeKind.MAGNET,
+                            ExternalIntakePhase.PRESENTED,
+                            null,
+                            true,
+                        ),
+                )
+        }
+        compose.onNodeWithText("Add torrent").assertIsDisplayed()
+        compose.runOnIdle { state = base }
+        awaitDisplayed("Fixture torrent")
+
+        compose.onNodeWithText("Library").performSemanticsAction(SemanticsActions.OnClick)
+        awaitDisplayed("Episode 1")
+        compose.onNodeWithText("Torrents").performSemanticsAction(SemanticsActions.OnClick)
+        awaitDisplayed("Fixture torrent")
+        compose.onNodeWithText("Library").performSemanticsAction(SemanticsActions.OnClick)
+        awaitDisplayed("Episode 1")
+    }
+
+    @Test
+    fun rememberedLibraryOpensAgainAfterAnExternalAddLandsOnTorrents() {
+        val torrent = torrent()
+        val base =
+            libraryState(torrent).copy(
+                libraryMedia = libraryPage(LibraryBrowseState(), listOf(libraryItem(0U))),
+            )
+        var state by mutableStateOf(base)
+        compose.setContent {
+            ProductApp(
+                service = null,
+                onSelectStorage = {},
+                onBrowseTorrent = {},
+                notificationsGranted = true,
+                onRequestNotifications = {},
+                onOpenNotificationSettings = {},
+                themeMode = ProductThemeMode.LIGHT,
+                dynamicColor = false,
+                onThemeMode = {},
+                onDynamicColor = {},
+                stateOverride = state,
+                startDestination = PrimaryDestination.LIBRARY,
+            )
+        }
+
+        // The app reopens on the remembered Library, then a magnet from
+        // another app lands on Torrents before any tab switch.
+        awaitDisplayed("Episode 1")
+        compose.runOnIdle {
+            state =
+                base.copy(
+                    externalIntake =
+                        ExternalIntakePresentation(
+                            44,
+                            ExternalIntakeKind.MAGNET,
+                            ExternalIntakePhase.PRESENTED,
+                            null,
+                            true,
+                        ),
+                )
+        }
+        compose.onNodeWithText("Add torrent").assertIsDisplayed()
+        compose.runOnIdle { state = base }
+        awaitDisplayed("Fixture torrent")
+
+        repeat(3) {
+            compose.onNodeWithText("Library").performSemanticsAction(SemanticsActions.OnClick)
+            awaitDisplayed("Episode 1")
+            compose.onAllNodesWithText("Fixture torrent").assertCountEquals(0)
+            compose.onNodeWithText("Torrents").performSemanticsAction(SemanticsActions.OnClick)
+            awaitDisplayed("Fixture torrent")
+            compose.onAllNodesWithText("Episode 1").assertCountEquals(0)
+        }
+    }
+
     private fun libraryState(torrent: TorrentView) =
         ProductState(
             ready = true,

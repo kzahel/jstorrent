@@ -71,11 +71,21 @@ private const val NAVIGATION_RAIL_MIN_WIDTH_DP = 600
  * Switches primary destination with saved per-destination state. With
  * [restoreState] false it lands on the destination's list itself, for
  * flows such as an external add that must show the torrent list.
+ *
+ * Torrents is the graph's start and is reached by popping. Navigating to the
+ * start with restoreState can restore a stack that a non-inclusive pop filed
+ * under the start, putting the other destination back on top (Tactical 376).
  */
 internal fun NavController.showPrimary(
     destination: PrimaryDestination,
     restoreState: Boolean = true,
 ) {
+    if (destination == PrimaryDestination.TORRENTS) {
+        popBackStack(destination.route, inclusive = false, saveState = restoreState)
+        return
+    }
+    // A forced landing must not resurrect an older saved stack later.
+    if (!restoreState) clearBackStack(destination.route)
     navigate(destination.route) {
         popUpTo(graph.findStartDestination().id) { saveState = restoreState }
         launchSingleTop = true
