@@ -646,7 +646,7 @@ Sources: [qbittorrent/qBittorrent](https://github.com/qbittorrent/qBittorrent)
 and [transmission/transmission](https://github.com/transmission/transmission)
 
 Managed source checkouts: `reference/qbittorrent`, pinned to `release-5.2.4`,
-and `reference/transmission`, pinned to `4.1.3`. Both are optional entries in
+and `reference/transmission`, pinned to `4.1.3`. Both are required entries in
 `reference/pins.toml`.
 
 These mature clients are application-policy references, not protocol oracles.

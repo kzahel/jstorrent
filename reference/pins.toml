@@ -46,7 +46,7 @@ path = "reference/qbittorrent"
 repository = "https://github.com/qbittorrent/qBittorrent.git"
 revision = "a1e4649cb8ae581925acc161dbab5cbc6584c542"
 purpose = "Mature libtorrent-based client for application policy such as share limits, queueing, and per-torrent overrides"
-required = false
+required = true
 
 [[checkout]]
 name = "transmission"
@@ -54,7 +54,7 @@ path = "reference/transmission"
 repository = "https://github.com/transmission/transmission.git"
 revision = "838877323facc4cc2b677fe817e203779c437bb1"
 purpose = "Independent mature client for application policy such as ratio and idle limits, queueing, and per-torrent overrides"
-required = false
+required = true
 
 [[sibling]]
 name = "jstorrent"
