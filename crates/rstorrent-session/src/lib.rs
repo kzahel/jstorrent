@@ -172,3 +172,5 @@ pub use views::{
     ViewSetUpdate, ViewSnapshot, ViewSpec, ViewSubscription, ViewUpdate, ViewUpdatePayload,
     assess_progress, deserialize_client_info,
 };
+
+pub mod update_compatibility;

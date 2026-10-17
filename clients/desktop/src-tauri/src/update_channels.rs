@@ -45,6 +45,7 @@ pub(crate) struct CheckedUpdate {
     pub(crate) body: Option<String>,
     pub(crate) signature: String,
     pub(crate) download_url: url::Url,
+    pub(crate) compatibility: Option<crate::update_compatibility::SignedCompatibility>,
 }
 
 #[derive(Deserialize)]
@@ -54,6 +55,8 @@ struct UpdateManifest {
     notes: Option<String>,
     url: url::Url,
     signature: String,
+    #[serde(default)]
+    compatibility: Option<crate::update_compatibility::SignedCompatibility>,
     #[serde(default)]
     channel: Option<String>,
 }
@@ -87,6 +90,7 @@ fn checked_manifest(
         body: manifest.notes,
         signature: manifest.signature,
         download_url: manifest.url,
+        compatibility: manifest.compatibility,
     }))
 }
 
@@ -224,6 +228,7 @@ pub(crate) struct ChannelCheckResult {
     pub(crate) version: Option<String>,
     pub(crate) notes: Option<String>,
     pub(crate) waiting_for_stable: bool,
+    pub(crate) blocked_reason: Option<String>,
 }
 
 async fn bounded_json<T: for<'a> Deserialize<'a>>(
@@ -407,7 +412,7 @@ pub(crate) async fn check_update(
     };
     let (root, endpoint) =
         qualification_routes(&app).unwrap_or_else(|| update_routes(&app.config().identifier))?;
-    let (supported, waiting_for_stable) =
+    let (supported, mut waiting_for_stable) =
         discover_at(root, channel, env!("CARGO_PKG_VERSION")).await?;
     let endpoint = if supported {
         format!("{endpoint}?channel={}", channel.as_str())
@@ -447,6 +452,18 @@ pub(crate) async fn check_update(
         .await?;
         checked_manifest(manifest, env!("CARGO_PKG_VERSION"), channel, supported)?
     };
+    let mut blocked_reason = None;
+    let candidate = match candidate {
+        Some(update) => match crate::update_compatibility::admit(&app, &update) {
+            Ok(()) => Some(update),
+            Err(reason) => {
+                waiting_for_stable = channel == ChannelId::Stable;
+                blocked_reason = Some(reason);
+                None
+            }
+        },
+        None => None,
+    };
     let mut updates = state.lock().map_err(|error| error.to_string())?;
     if updates.generation != generation || updates.selected != channel || updates.installing {
         return Err("Update check was superseded by a channel change".into());
@@ -457,6 +474,7 @@ pub(crate) async fn check_update(
         version: candidate.as_ref().map(|update| update.version.clone()),
         notes: candidate.as_ref().and_then(|update| update.body.clone()),
         waiting_for_stable,
+        blocked_reason,
     };
     updates.candidate = candidate;
     Ok(result)
@@ -509,7 +527,7 @@ pub(crate) async fn desktop_install_update(
             .map_err(|error| error.to_string())?;
         // Product check headers are deliberately absent on artifact requests.
         let mut response = client
-            .get(update.download_url)
+            .get(update.download_url.clone())
             .send()
             .await
             .map_err(|error| error.to_string())?
@@ -536,6 +554,7 @@ pub(crate) async fn desktop_install_update(
             });
         }
         crate::automatic_updates::verify(&app, &bytes, &update.signature)?;
+        crate::update_compatibility::admit(&app, &update)?;
         crate::update_install::validate_payload(&bytes)?;
         crate::update_install::preflight(&app, &bytes)?;
         let _ = progress.send(InstallProgress {
@@ -606,6 +625,7 @@ mod tests {
     #[test]
     fn manifests_reject_downgrades_channel_mismatch_and_unsafe_artifacts() {
         let manifest = |url: &str, version: &str| UpdateManifest {
+            compatibility: None,
             version: version.into(),
             notes: None,
             url: url.parse().unwrap(),

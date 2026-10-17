@@ -20,5 +20,6 @@
       "releaseKind": "prerelease",
       "requiredAsset": "JSTorrent_x64.app.tar.gz"
     }
-  }
+  },
+  "compatibilityRequiredFrom": "0.3.2"
 }

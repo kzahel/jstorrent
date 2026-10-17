@@ -1,4 +1,14 @@
 fn main() {
+    println!("cargo:rerun-if-changed=../../../distribution/desktop-compatibility.json");
+    println!("cargo:rerun-if-changed=../../../crates/rstorrent-session/src");
+    println!("cargo:rerun-if-changed=../../../scripts/desktop-compatibility.mjs");
+    println!("cargo:rerun-if-changed=../../../crates/rstorrent-session/src/product_state.rs");
+    // A package may never carry stale database admission facts.
+    let status = std::process::Command::new("node")
+        .arg("../../../scripts/desktop-compatibility.mjs")
+        .status()
+        .expect("Node is required to verify release database compatibility");
+    assert!(status.success(), "database compatibility metadata is stale");
     // Tauri deliberately strips NSIS packaging options from runtime Config.
     // Record only the prompt-free installer policy from the same merged input
     // the bundler consumes; never infer it from a stripped runtime default.

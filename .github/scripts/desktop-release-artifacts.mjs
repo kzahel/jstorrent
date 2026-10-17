@@ -173,8 +173,8 @@ export async function assembleDesktopRelease({ root, input, output, sourceSha, r
   requireValue(repository, /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, "repository");
   if (!["stable", "latest"].includes(channel)) fail(`invalid channel: ${channel}`);
   if (!["RSTorrent", "JSTorrent"].includes(product)) fail("unknown release product");
-  if (productionPublication && (product !== "JSTorrent" || channel !== "stable" || !tag)) {
-    fail("Production publication requires a tagged Stable JSTorrent release");
+  if (productionPublication && (product !== "JSTorrent" || !["stable", "latest"].includes(channel) || !tag)) {
+    fail("Production publication requires a tagged JSTorrent release");
   }
   if (product === "JSTorrent" && tag && productionPublication !== true) fail("JSTorrent candidate publication is not enabled");
   const publish = Boolean(tag);

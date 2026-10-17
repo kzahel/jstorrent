@@ -1399,3 +1399,7 @@ and [`../topics/oracle-driven-engine-campaign.md`](../topics/oracle-driven-engin
 - [310 — Concise first use and background setup](310-concise-first-use-and-background-setup.md):
   short statistics choice, folder-first Android setup and notification-gated
   explicit background continuation; independent seeding and transmission policy.
+
+- [377 — Compatible touchless release channels](377-compatible-touchless-release-channels.md):
+  active; shared version ordering, database admission, deployed Latest and
+  production-signed unattended-update acceptance before Stable promotion.

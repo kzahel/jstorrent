@@ -1,0 +1,41 @@
+name: JSTorrent Latest Desktop
+on:
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+concurrency:
+  group: jstorrent-latest-selector
+  cancel-in-progress: false
+jobs:
+  select:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      sha: ${{ github.sha }}
+      version: ${{ steps.select.outputs.version }}
+      tag: ${{ steps.select.outputs.tag }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+      - name: Require successful main CI for this exact source
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run list --workflow ci.yml --commit "$GITHUB_SHA" --branch main --json conclusion,status > "$RUNNER_TEMP/ci.json"
+          jq -e 'length > 0 and .[0].status == "completed" and .[0].conclusion == "success"' "$RUNNER_TEMP/ci.json"
+      - id: select
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/desktop-release-train.mjs
+  release:
+    needs: select
+    uses: ./.github/workflows/desktop-release.yml
+    with:
+      source_sha: ${{ needs.select.outputs.sha }}
+      release_version: ${{ needs.select.outputs.version }}
+      release_tag: ${{ needs.select.outputs.tag }}
+      production_latest: true
+    secrets: inherit

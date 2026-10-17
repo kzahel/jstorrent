@@ -51,6 +51,7 @@ mod external_intake;
 mod linux_single_instance;
 mod native_host_registration;
 mod update_channels;
+mod update_compatibility;
 mod update_install;
 mod update_policy;
 mod updater;

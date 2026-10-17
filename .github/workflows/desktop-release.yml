@@ -16,6 +16,9 @@ on:
         default: false
   workflow_call:
     inputs:
+      production_latest:
+        type: boolean
+        default: false
       source_sha:
         required: true
         type: string
@@ -55,6 +58,7 @@ jobs:
           node-version: 22
       - id: identity
         env:
+          INPUT_PRODUCTION_LATEST: ${{ inputs.production_latest || false }}
           INPUT_PRODUCTION_CANDIDATE: ${{ inputs.production_candidate || false }}
           INPUT_PRODUCTION_PUBLICATION: ${{ inputs.production_publication || false }}
           INPUT_SOURCE_SHA: ${{ inputs.source_sha }}
@@ -73,6 +77,12 @@ jobs:
         run: |
           git fetch --force --tags --depth=1 origin
           node scripts/compat-ledger.mjs --release "$RELEASE" || [ "$ENFORCE" != true ]
+      - name: Verify shared version train and released database histories
+        if: steps.identity.outputs.publish == 'true' && steps.identity.outputs.production == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ steps.identity.outputs.version }}
+        run: node scripts/desktop-release-train.mjs --verify
       - name: Refuse to overwrite a published release
         if: steps.identity.outputs.publish == 'true'
         env:
@@ -733,6 +743,17 @@ jobs:
             --tag "$VALIDATION_TAG" \
             --repository "$GITHUB_REPOSITORY"
 
+      - name: Authenticate production database admission metadata
+        if: needs.release-input.outputs.production == 'true' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          npm ci --prefix clients/web
+          sudo apt-get update
+          sudo apt-get install -y minisign
+          node scripts/sign-desktop-compatibility.mjs artifacts/desktop-release-output
+
       - name: Verify every production updater payload signature
         if: needs.release-input.outputs.production == 'true' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
         run: |
@@ -758,7 +779,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          if [ "$PRODUCTION_PUBLICATION" = true ]; then
+          if [ "$PRODUCTION_PUBLICATION" = true ] && [ "$RELEASE_CHANNEL" = stable ]; then
             git fetch --no-tags origin "refs/tags/$RELEASE_TAG"
             TAG_COMMIT=$(git rev-parse 'FETCH_HEAD^{commit}')
             test "$TAG_COMMIT" = "$SOURCE_SHA" || { echo "::error::Production tag moved away from the built source"; exit 1; }
@@ -865,7 +886,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ "$PRODUCTION_PUBLICATION" = true ]; then
+          if [ "$PRODUCTION_PUBLICATION" = true ] && [ "$RELEASE_CHANNEL" = stable ]; then
             git fetch --no-tags origin "refs/tags/$RELEASE_TAG"
             TAG_COMMIT=$(git rev-parse 'FETCH_HEAD^{commit}')
             test "$TAG_COMMIT" = "$SOURCE_SHA" || { echo "::error::Production tag moved away from the validated draft"; exit 1; }

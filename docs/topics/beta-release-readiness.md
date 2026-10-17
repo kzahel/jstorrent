@@ -2064,3 +2064,18 @@ assets are included under078/084. All29 text localizations are audited; Hindi
 name retains JSTorrent spelling. Actual 5% publication is recorded under088;
 production-channel installed delivery, 24-hour observation, physical Intel and
 unrun reboot/sleep/background-upload gates remain unqualified.
+
+## Compatible unattended channels (377)
+
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md)
+adds authenticated per-release database compatibility to the existing
+Stable/Latest choice. New public JSTorrent builds use one numeric version
+train across both channels; equal-version promotion does not reinstall.
+Stable selection saves the preference immediately and waits for a newer
+compatible offer. Native admission authenticates the metadata, binds it to
+the exact product/version/platform/payload, and checks all existing stores
+before download and again before shutdown. Missing metadata fails closed.
+Latest enables production idle installation first; Stable activation and
+publication require installed acceptance. The frozen incubation lane stays
+frozen. The shared service extension is deployed with unchanged Stable bytes;
+publication and VM qualification remain in progress.

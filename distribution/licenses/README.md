@@ -46,3 +46,11 @@ for the independently matched x64/ARM Tauri mirror launcher hashes; inspection
 refuses omitted or altered notice/provenance. No launcher implementation is
 imported. Exact upstream/mirror byte equality and a source locator do not
 establish a reproducible build or complete native redistribution clearance.
+
+Tactical 377 repairs notice generation for fourteen existing archive omissions
+in the default-feature desktop graph (including the older PHF/html parser
+family pulled by native dialog dependencies). Their exact registry manifests
+and available VCS revisions are recorded in `cargo-sources.json`. These entries
+use the existing explicit declaration-only policy: identify the original
+package/manifest grant and standard terms, without inventing an upstream
+copyright notice. No implementation source or new dependency is imported.

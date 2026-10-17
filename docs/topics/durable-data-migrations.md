@@ -83,3 +83,18 @@ below to **Retired** with the commit.
 ## Retired
 
 None yet.
+
+## Release admission metadata (377)
+
+`distribution/desktop-compatibility.json` records supported floors, written
+versions and cumulative migration-prefix fingerprints for session/product/
+metrics databases. `scripts/desktop-compatibility.mjs` derives and checks it
+from frozen baseline fixtures and migration source; a schema bump must extend
+the registry. Desktop builds refuse stale generated facts. Release collection
+signs the exact facts and updater URL/signature pairs with the retained updater
+key. New builds audit every previously published metadata prefix; source
+changes cannot silently rewrite a released migration. Native read-only
+inspection uses the existing `user_version` markers and metrics' existing
+`metrics_meta` row, including committed WAL state. It never creates a store.
+The store-open migration/refusal paths remain authoritative, including when an
+older binary is installed outside the updater. No schema step is added by 377.

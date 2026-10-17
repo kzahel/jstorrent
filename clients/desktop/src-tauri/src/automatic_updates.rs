@@ -364,6 +364,8 @@ impl AutomaticUpdates {
         self.change(|state| {
             state.snapshot.phase = if result.waiting_for_stable {
                 "waiting-for-stable"
+            } else if result.blocked_reason.is_some() {
+                "incompatible"
             } else if result.version.is_some() {
                 "available"
             } else {
@@ -372,7 +374,7 @@ impl AutomaticUpdates {
             .into();
             state.snapshot.version = result.version;
             state.snapshot.notes = result.notes;
-            state.snapshot.message = None;
+            state.snapshot.message = result.blocked_reason;
             state.policy.candidate_changed();
         });
         let should_stage = {
@@ -398,6 +400,7 @@ impl AutomaticUpdates {
     }
     async fn stage_current(&self, manual: bool) -> Result<(), String> {
         let update = self.candidate()?;
+        crate::update_compatibility::admit(&self.app, &update)?;
         std::fs::create_dir_all(&self.cache).map_err(|error| error.to_string())?;
         let metadata = serde_json::to_vec(&(
             update.version.clone(),
@@ -488,6 +491,7 @@ impl AutomaticUpdates {
         if current.version != update.version
             || current.signature != update.signature
             || current.download_url != update.download_url
+            || current.compatibility != update.compatibility
         {
             return Err("Update download superseded by a channel or candidate change".into());
         }
@@ -517,6 +521,7 @@ impl AutomaticUpdates {
         let update = self.candidate()?;
         let bytes = read_bounded(&self.cache.join("payload"))?;
         verify(&self.app, &bytes, &update.signature)?;
+        crate::update_compatibility::admit(&self.app, &update)?;
         crate::update_install::preflight(&self.app, &bytes)?;
         {
             let current = match update_channels::check_update(
@@ -554,6 +559,7 @@ impl AutomaticUpdates {
                 current.version == update.version
                     && current.signature == update.signature
                     && current.download_url == update.download_url
+                    && current.compatibility == update.compatibility
             })
         {
             return Ok(Preparation::Deferred);
@@ -659,6 +665,11 @@ impl HostUpdateControl for AutomaticUpdates {
                 state.policy.activity(self.now());
                 state.snapshot.version = None;
                 state.snapshot.channel = channel.as_str().into();
+                state.snapshot.automatic_available = automatic_available(&self.app);
+                state.policy.enabled =
+                    state.snapshot.automatic_install && state.snapshot.automatic_available;
+                state.snapshot.phase = "checking".into();
+                state.snapshot.message = None;
                 state.check_requested = true;
                 let _ = std::fs::remove_file(self.cache.join("payload"));
             }
@@ -720,7 +731,7 @@ pub(crate) fn verify(app: &tauri::AppHandle, bytes: &[u8], signature: &str) -> R
         .ok_or("Missing updater signing key")?;
     verify_signature(key, bytes, signature)
 }
-fn verify_signature(key: &str, bytes: &[u8], signature: &str) -> Result<(), String> {
+pub(crate) fn verify_signature(key: &str, bytes: &[u8], signature: &str) -> Result<(), String> {
     let decode = |value: &str| -> Result<String, String> {
         String::from_utf8(
             base64::engine::general_purpose::STANDARD
@@ -773,15 +784,24 @@ fn jittered_delay(seconds: u64) -> Duration {
     Duration::from_secs(seconds.saturating_sub(spread).saturating_add(jitter))
 }
 
-/// Shipping activation is an evidence gate, not a runtime override. Add a
-/// production target only with its signed-package acceptance record in 355.
-/// Qualification fixtures exercise the complete owner under an isolated ID.
+/// Latest is the opted-in production qualification lane. Stable activation
+/// follows the installed acceptance record in Tactical 377.
 fn automatic_available(app: &tauri::AppHandle) -> bool {
-    cfg!(feature = "update-qualification")
+    if cfg!(feature = "update-qualification")
         && app
             .config()
             .identifier
             .starts_with("com.jstorrent.qualification.")
+    {
+        return true;
+    }
+    app.config().identifier == "com.jstorrent.desktop"
+        && app
+            .state::<Mutex<ChannelUpdates>>()
+            .lock()
+            .unwrap()
+            .selected
+            == ChannelId::Latest
 }
 
 #[cfg(test)]

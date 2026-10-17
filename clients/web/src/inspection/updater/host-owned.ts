@@ -63,12 +63,13 @@ export class HostOwnedUpdater implements DesktopUpdater {
       case "available": state = { phase: "available", version, reason: this.manualCheck ? "manual" : "periodic", ...(result.notes === null ? {} : { notes: result.notes }) }; break;
       case "downloading": state = { phase: "downloading", version, downloadedBytes: result.downloadedBytes, ...(result.totalBytes === null ? {} : { totalBytes: result.totalBytes }) }; break;
       case "installing": state = { phase: "installing", version }; break;
+      case "incompatible":
       case "error": state = { phase: "error", operation: "install", message: result.message ?? "Update failed", ...(version ? { version } : {}) }; break;
       default: state = { phase: "idle" };
     }
     this.snapshot = { ...this.snapshot, info: { ...this.snapshot.info, bundleType }, state, channel: result.channel === "latest" ? "latest" : "stable", automaticUpdates: result.automaticInstall, automaticAvailable: result.automaticAvailable, updateMessage: result.message ?? undefined, lastOutcome: result.lastOutcome ?? undefined, restartInSeconds: result.restartInSeconds ?? undefined };
     for (const listener of this.listeners) listener();
-    if (["available", "up-to-date", "error", "waiting-for-stable"].includes(result.phase)) this.manualCheck = false;
+    if (["available", "up-to-date", "error", "incompatible", "waiting-for-stable"].includes(result.phase)) this.manualCheck = false;
   }
 }
 

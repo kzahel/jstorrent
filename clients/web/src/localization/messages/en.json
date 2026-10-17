@@ -229,11 +229,11 @@
     "description": "Product copy in inspection/components/AboutUpdatesSettingsSection.tsx"
   },
   "inspection.components.about.updates.settings.section.latest": {
-    "defaultMessage": "Latest",
+    "defaultMessage": "Latest — Early access",
     "description": "Latest desktop update channel"
   },
   "inspection.components.about.updates.settings.section.latest.description": {
-    "defaultMessage": "Latest offers signed builds from verified main changes. Installation always needs your approval.",
+    "defaultMessage": "Signed builds with new changes sooner; may contain bugs. Automatic installation follows your setting below.",
     "description": "Latest desktop update channel guidance"
   },
   "inspection.components.about.updates.settings.section.linux.appimage": {
@@ -293,11 +293,11 @@
     "description": "Product copy in inspection/components/AboutUpdatesSettingsSection.tsx"
   },
   "inspection.components.about.updates.settings.section.stable": {
-    "defaultMessage": "Stable",
+    "defaultMessage": "Stable — Recommended",
     "description": "Stable desktop update channel"
   },
   "inspection.components.about.updates.settings.section.stable.description": {
-    "defaultMessage": "Stable offers deliberate desktop preview releases.",
+    "defaultMessage": "Releases promoted after testing.",
     "description": "Stable desktop update channel guidance"
   },
   "inspection.components.about.updates.settings.section.target": {
@@ -313,11 +313,11 @@
     "description": "Product copy in inspection/components/AboutUpdatesSettingsSection.tsx"
   },
   "inspection.components.about.updates.settings.section.waiting.for.stable": {
-    "defaultMessage": "Waiting for Stable to catch up",
+    "defaultMessage": "Stable selected · Waiting for a compatible release",
     "description": "A newer Latest build remains installed after selecting Stable"
   },
   "inspection.components.about.updates.settings.section.waiting.for.stable.description": {
-    "defaultMessage": "This installed build is newer than Stable. JSTorrent will keep it until a newer Stable release is available.",
+    "defaultMessage": "Your current version stays installed until a newer compatible Stable release is available. Your data stays unchanged.",
     "description": "No automatic downgrade after switching from Latest to Stable"
   },
   "inspection.components.about.updates.settings.section.version": {

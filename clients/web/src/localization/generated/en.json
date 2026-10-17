@@ -1972,13 +1972,13 @@
   "inspection.components.about.updates.settings.section.latest": [
     {
       "type": 0,
-      "value": "Latest"
+      "value": "Latest — Early access"
     }
   ],
   "inspection.components.about.updates.settings.section.latest.description": [
     {
       "type": 0,
-      "value": "Latest offers signed builds from verified main changes. Installation always needs your approval."
+      "value": "Signed builds with new changes sooner; may contain bugs. Automatic installation follows your setting below."
     }
   ],
   "inspection.components.about.updates.settings.section.linux.appimage": [
@@ -2092,13 +2092,13 @@
   "inspection.components.about.updates.settings.section.stable": [
     {
       "type": 0,
-      "value": "Stable"
+      "value": "Stable — Recommended"
     }
   ],
   "inspection.components.about.updates.settings.section.stable.description": [
     {
       "type": 0,
-      "value": "Stable offers deliberate desktop preview releases."
+      "value": "Releases promoted after testing."
     }
   ],
   "inspection.components.about.updates.settings.section.target": [
@@ -2128,13 +2128,13 @@
   "inspection.components.about.updates.settings.section.waiting.for.stable": [
     {
       "type": 0,
-      "value": "Waiting for Stable to catch up"
+      "value": "Stable selected · Waiting for a compatible release"
     }
   ],
   "inspection.components.about.updates.settings.section.waiting.for.stable.description": [
     {
       "type": 0,
-      "value": "This installed build is newer than Stable. JSTorrent will keep it until a newer Stable release is available."
+      "value": "Your current version stays installed until a newer compatible Stable release is available. Your data stays unchanged."
     }
   ],
   "inspection.components.about.updates.settings.section.windows.msi": [

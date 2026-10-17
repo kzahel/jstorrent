@@ -266,12 +266,12 @@ export function validateDesktopReleaseConfiguration({
   ) {
     fail("desktop joined restart command is missing");
   }
-  if (!tauriUpdater.includes('relaunch: () => invoke("application_restart")')) {
-    fail("web updater does not use joined native restart");
+  if (!tauriUpdater.includes('invoke("desktop_install_update"')) {
+    fail("web updater does not use native update installation");
   }
   if (
-    !desktopMain.includes(
-      '#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]',
+    !desktopMain.replace(/\s+/gu, "").includes(
+      '#![cfg_attr(any(not(debug_assertions),feature="update-qualification"),windows_subsystem="windows")]',
     )
   ) {
     fail("release desktop binary must use the Windows GUI subsystem");

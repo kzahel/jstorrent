@@ -1,7 +1,13 @@
 import { appendFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-export function resolveDesktopReleaseInput({ event, ref, sha, sourceSha, version, tag, productionCandidate = false, productionPublication = false }) {
+export function resolveDesktopReleaseInput({ event, ref, sha, sourceSha, version, tag, productionCandidate = false, productionPublication = false, productionLatest = false }) {
+  if (productionLatest) {
+    if (!/^[0-9a-f]{40}$/.test(sourceSha ?? "") || !/^\d+\.\d+\.\d+$/.test(version ?? "") || tag !== `desktop-latest-v${version}` || productionCandidate || productionPublication) {
+      throw new Error("Production Latest requires exact source, version and Latest tag");
+    }
+    return { sourceSha, version, tag, channel: "latest", publish: true, production: true, productionPublication: true };
+  }
   if (productionPublication) {
     if (productionCandidate || event !== "workflow_dispatch" || sourceSha || version || tag ||
         !/^refs\/tags\/desktop-v\d+\.\d+\.\d+$/.test(ref ?? "") || !/^[0-9a-f]{40}$/.test(sha ?? "")) {
@@ -44,6 +50,7 @@ if (fileURLToPath(import.meta.url) === process.argv[1]) {
       tag: process.env.INPUT_RELEASE_TAG,
       productionCandidate: process.env.INPUT_PRODUCTION_CANDIDATE === "true",
       productionPublication: process.env.INPUT_PRODUCTION_PUBLICATION === "true",
+      productionLatest: process.env.INPUT_PRODUCTION_LATEST === "true",
     });
     appendFileSync(process.env.GITHUB_OUTPUT, Object.entries(result).map(([key, value]) => `${key}=${value}\n`).join(""));
     console.log(JSON.stringify(result));

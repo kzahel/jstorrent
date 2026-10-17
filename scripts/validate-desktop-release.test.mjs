@@ -52,7 +52,7 @@ test("rejects updater route and public-key drift", () => {
   );
 });
 
-test("rejects updater restart that bypasses joined native shutdown", () => {
+test("rejects updater installation that bypasses native shutdown", () => {
   const permissionFixture = repositoryFixture();
   permissionFixture.capability.permissions.push("process:default");
   assert.throws(
@@ -62,12 +62,12 @@ test("rejects updater restart that bypasses joined native shutdown", () => {
 
   const webFixture = repositoryFixture();
   webFixture.tauriUpdater = webFixture.tauriUpdater.replace(
-    'relaunch: () => invoke("application_restart")',
-    "relaunch: rawProcessRestart",
+    'invoke("desktop_install_update"',
+    'invoke("raw_install_update"',
   );
   assert.throws(
     () => validateDesktopReleaseConfiguration(webFixture),
-    /web updater does not use joined native restart/,
+    /web updater does not use native update installation/,
   );
 });
 

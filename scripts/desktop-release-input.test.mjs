@@ -46,3 +46,11 @@ test("production candidates cannot publish or reuse nightly/tag inputs", () => {
     assert.throws(() => resolveDesktopReleaseInput({...input, ...overrides}), /manual branch build/u);
   }
 });
+
+test("JSTorrent Latest explicitly selects production signing and never a Stable tag", () => {
+  const input={event:"workflow_call",ref:"refs/heads/main",sha:"b".repeat(40),sourceSha:"a".repeat(40),version:"0.3.2",tag:"desktop-latest-v0.3.2",productionLatest:true};
+  const result=resolveDesktopReleaseInput(input);
+  assert.equal(result.production,true);assert.equal(result.productionPublication,true);assert.equal(result.channel,"latest");
+  for(const overrides of [{tag:"desktop-v0.3.2"},{productionCandidate:true},{productionPublication:true},{sourceSha:""}])
+    assert.throws(()=>resolveDesktopReleaseInput({...input,...overrides}),/Production Latest/);
+});

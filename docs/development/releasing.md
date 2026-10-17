@@ -100,3 +100,23 @@ exercise those checks without publishing or enabling remote access.
 Retained [desktop preview](../desktop-release.md) and
 [Crostini](../crostini-release.md) runbooks contain historical channel evidence.
 They do not authorize re-enabling a frozen release lane.
+
+## Stable and Latest with database admission
+
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md)
+owns initial installed acceptance. `JSTorrent Latest Desktop` is an explicit
+manual workflow for signed prereleases from an exact successful main CI
+commit. It allocates the next numeric version across both JSTorrent channels
+and invokes the existing five-target signing/collection pipeline. The old
+incubation nightly remains disabled. Both channels use the original app ID,
+updater key and installers. New metadata-required releases carry authenticated
+database ranges and migration prefixes, bound to the exact payload signatures.
+
+Run `node scripts/desktop-compatibility.mjs` before a package build. On a real
+schema change, extend that script's source registry, regenerate with `--write`,
+and review its prefix against published releases; never rewrite a released
+prefix to make a check pass. `node --test scripts/desktop-release-train.test.mjs`
+checks common version ordering and preservation of released migrations.
+A later Stable promotion must retain the tested version and package bytes;
+newer Latest users wait, and equal-version users need no reinstall. Stable
+publication remains explicit and separate from qualification.
