@@ -29,6 +29,9 @@ import org.rstorrent.session.uniffi.ViewProjection
 import org.rstorrent.session.uniffi.ViewSelector
 import org.rstorrent.session.uniffi.ViewUpdate
 
+/** Rows in one file catalog page. Rows are in file-index order, padding included. */
+internal const val FILE_CATALOG_PAGE_ROWS = 1_024U
+
 /** Keeps UI request order across the service's asynchronous startup dispatch. */
 internal class LatestPresentationRequest(
     private val dispatch: ((AndroidPresentationRepository) -> Unit) -> Unit,
@@ -457,7 +460,7 @@ internal class AndroidPresentationRepository(
         projection,
         DeliveryPolicy(250U, 512U * 1024U),
         null,
-        CatalogPageRequest(offset, 1_024U),
+        CatalogPageRequest(offset, FILE_CATALOG_PAGE_ROWS),
     )
 
     private fun libraryMediaSpec(request: LibraryMediaRequest) =

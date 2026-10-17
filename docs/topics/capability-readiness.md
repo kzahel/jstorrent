@@ -11,8 +11,9 @@ platform/transfer/recovery matrix is incomplete. The mixed-version horizon
 remains 30 days. Android/headless update ownership is unchanged.
 
 Tactical [376](../tactical/376-android-media-library.md) brings the media
-Library to Android over the existing `library_media` projection, with Library
-and Torrents as primary destinations (bar on phones, rail from 600 dp). No
+Library to Android over the existing `library_media` projection, with Torrents
+and Library as primary destinations (bar on phones, rail from 600 dp) and
+Files-style row actions. No
 Rust or contract change; controlled Compose, JVM and live seeded-AVD evidence
 pass. Audio playback and iOS remain open.
 

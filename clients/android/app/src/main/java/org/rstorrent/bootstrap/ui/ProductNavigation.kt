@@ -10,7 +10,7 @@ import org.rstorrent.session.uniffi.TorrentView
 internal object ProductRoutes {
     const val TORRENTS = "torrent_list"
     const val MEDIA_LIBRARY = "media_library"
-    const val DETAIL = "torrent_detail/{torrentId}"
+    const val DETAIL = "torrent_detail/{torrentId}?file={file}"
     const val SPEED = "speed_history"
     const val DHT = "dht_info"
     const val LOGS = "logs"
@@ -22,7 +22,12 @@ internal object ProductRoutes {
     const val SETTINGS_POWER = "settings/power"
     const val SETTINGS_ADVANCED = "settings/advanced"
 
-    fun detail(torrentId: String): String = "torrent_detail/$torrentId"
+    /** With [fileIndex], the detail opens on Files with that file shown. */
+    fun detail(
+        torrentId: String,
+        fileIndex: UInt? = null,
+    ): String =
+        if (fileIndex == null) "torrent_detail/$torrentId" else "torrent_detail/$torrentId?file=$fileIndex"
 }
 
 enum class TorrentFilter(

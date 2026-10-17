@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import gc
+import re
 import shutil
 import subprocess
 import sys
@@ -228,6 +229,41 @@ def resumed_activity(adb: Adb) -> str:
     return ""
 
 
+def library_action(adb: Adb, label: str, screenshots: Path | None, name: str) -> str:
+    """Runs a row action that leaves the app and returns to the Library."""
+    tap_text(adb, "File actions")
+    tap_text(adb, label)
+    deadline = time.monotonic() + UI_TIMEOUT_SECONDS
+    activity = resumed_activity(adb)
+    # Between activities nothing is resumed; wait for the other app.
+    while not activity or PACKAGE in activity:
+        if time.monotonic() > deadline:
+            raise ScenarioFailure(f"{label} stayed in the app:\n{product_logs(adb)}")
+        time.sleep(0.3)
+        activity = resumed_activity(adb)
+    time.sleep(1)
+    capture(adb, screenshots, name)
+    # A file manager may walk up its folders before returning, and a video
+    # app may first show the system's one-time full-screen notice.
+    for _ in range(6):
+        notice = clickable_with_text(dump_ui(adb), "Got it")
+        if notice is not None:
+            tap_bounds(adb, notice.attrib["bounds"])
+            time.sleep(0.5)
+        adb.shell("input", "keyevent", "KEYCODE_BACK")
+        time.sleep(0.8)
+        if PACKAGE in resumed_activity(adb):
+            break
+    wait_for_ui(adb, f"the Library after {label}", lambda root: shows(root, "All media"))
+    return activity
+
+
+def component(activity: str) -> str:
+    """The package/activity name from a dumpsys activity record."""
+    match = re.search(r"[\w.]+/[\w.$]+", activity)
+    return match.group(0) if match else activity
+
+
 def capture(adb: Adb, directory: Path | None, name: str) -> None:
     if directory is not None:
         adb.capture_screenshot(directory / f"{name}.png")
@@ -267,7 +303,7 @@ def run(arguments: argparse.Namespace) -> None:
         root = wait_for_ui(
             adb,
             "the completed episodes",
-            lambda root: shows(root, f"{SHOW_TITLE} S01E01") and shows(root, "S01E01 · "),
+            lambda root: shows(root, f"{SHOW_TITLE} S01E01"),
         )
         capture(adb, screenshots, "library")
         if clickable_with_text(root, "Play") is None:
@@ -286,7 +322,7 @@ def run(arguments: argparse.Namespace) -> None:
         root = wait_for_ui(
             adb,
             "the open show",
-            lambda root: shows(root, "S02E01 · ") and not shows(root, "TV shows"),
+            lambda root: shows(root, f"{SHOW_TITLE} S02E01") and not shows(root, "TV shows"),
         )
         capture(adb, screenshots, "show")
         episodes = sum(
@@ -330,13 +366,31 @@ def run(arguments: argparse.Namespace) -> None:
             "the Library after the player",
             lambda root: shows(root, "All media"),
         )
-        if "FATAL EXCEPTION" in product_logs(adb):
-            raise ScenarioFailure("Android runtime failed during the Library flow")
+        # Every row has a menu. The first row is the extra in its own folder.
+        folder_activity = library_action(adb, "Open containing folder", screenshots, "folder")
+        if "documentsui" not in folder_activity and "files" not in folder_activity.lower():
+            raise ScenarioFailure(f"the folder did not open in a file manager: {folder_activity}")
+        # The chooser opens the only capable app directly when there is one.
+        open_with_activity = library_action(adb, "Open with…", screenshots, "open-with")
+        tap_text(adb, "File actions")
+        tap_text(adb, "Show in torrent")
+        wait_for_ui(
+            adb,
+            "the file in its torrent's Files tab",
+            lambda root: shows(root, "Behind the scenes.webm") and not shows(root, "All media"),
+        )
+        capture(adb, screenshots, "in-torrent")
+        adb.shell("input", "keyevent", "KEYCODE_BACK")
+        wait_for_ui(adb, "the Library after the torrent", lambda root: shows(root, "All media"))
+        if "FATAL EXCEPTION" in product_logs(adb) or "product control failed" in product_logs(adb):
+            raise ScenarioFailure(f"Android runtime failed during the Library flow:\n{product_logs(adb)}")
         print(
             f"android_serial={arguments.serial} info_hash={fixture.info_hash} "
             f"navigation={navigation} "
             f"show={SHOW_TITLE!r} episodes={EXPECTED_EPISODES} seasons=2 "
-            "open_show=ok back_in_place=ok play=PlayerActivity cleanup=ok"
+            "open_show=ok back_in_place=ok play=PlayerActivity "
+            f"folder={component(folder_activity)} "
+            f"open_with={component(open_with_activity)} show_in_torrent=ok cleanup=ok"
         )
     finally:
         if port is not None:

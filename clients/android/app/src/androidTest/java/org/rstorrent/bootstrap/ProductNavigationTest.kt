@@ -1784,8 +1784,21 @@ class ProductNavigationTest {
     fun libraryOpensShowsInPlaceAndReachesTheSourceTorrent() {
         val torrent = torrent()
         val episodes = listOf(libraryItem(0U), libraryItem(1U))
+        val files = selectionFiles()
         var state by mutableStateOf(
-            libraryState(torrent).copy(libraryMedia = libraryPage(LibraryBrowseState(), episodes)),
+            libraryState(torrent).copy(
+                libraryMedia = libraryPage(LibraryBrowseState(), episodes),
+                files =
+                    mapOf(
+                        torrent.torrentId to
+                            FileCatalogViewState(
+                                state = FileCatalogState.AVAILABLE,
+                                filesystemContentBase = null,
+                                page = CatalogPageView(0U, 3U, 3U, null),
+                                files = files.associateBy(FileView::fileId),
+                            ),
+                    ),
+            ),
         )
         compose.setContent {
             ProductApp(
@@ -1805,7 +1818,7 @@ class ProductNavigationTest {
         }
 
         awaitDisplayed("Episode 1")
-        compose.onNodeWithText("S01E02 · Show Name · 0.0% downloaded · 1.0 KB").assertIsDisplayed()
+        compose.onNodeWithText("S01E02 · Show Name").assertIsDisplayed()
 
         // A page answering another request is never shown as the current one.
         compose.onNodeWithText("TV shows").performSemanticsAction(SemanticsActions.OnClick)
@@ -1834,13 +1847,20 @@ class ProductNavigationTest {
         }
         awaitDisplayed("2 episodes · 1 season · 2.0 KB")
 
-        // An item opens its source torrent, and Back returns to the open show.
+        // An item's actions show it in its torrent's Files tab, and Back
+        // returns to the open show.
         compose.onNodeWithTag("library-group-series:show name")
             .performSemanticsAction(SemanticsActions.OnClick)
         compose.runOnIdle { state = state.copy(libraryMedia = libraryPage(opened, episodes)) }
         awaitDisplayed("Episode 1")
-        compose.onNodeWithText("Episode 1").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithTag("library-more-t1-0123456789abcdef0123456789abcdef:1")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithTag("library-sheet-play").assertIsNotEnabled()
+        compose.onNodeWithTag("library-sheet-open-with").assertIsNotEnabled()
+        compose.onNodeWithTag("library-sheet-folder").assertIsEnabled()
+        compose.onNodeWithText("Show in torrent").performSemanticsAction(SemanticsActions.OnClick)
         awaitDisplayed("Fixture torrent")
+        compose.onNodeWithTag("file-notes-file").assertIsDisplayed()
         compose.onAllNodesWithText("Library").assertCountEquals(0)
         compose.onNodeWithContentDescription("Back").performSemanticsAction(SemanticsActions.OnClick)
         awaitDisplayed("Episode 2")
@@ -1850,7 +1870,8 @@ class ProductNavigationTest {
     @Test
     fun libraryOffersPlayPagesSearchAndEmptyStates() {
         val streamable = libraryItem(0U, availability = MediaFileAvailability.STREAMABLE)
-        val incomplete = libraryItem(1U, availability = MediaFileAvailability.INCOMPLETE)
+        val incomplete =
+            libraryItem(1U, availability = MediaFileAvailability.INCOMPLETE).copy(verifiedBytes = "512")
         val track =
             libraryItem(2U, availability = MediaFileAvailability.AVAILABLE).copy(
                 title = "Opening Theme",
@@ -1892,12 +1913,23 @@ class ProductNavigationTest {
         }
 
         awaitDisplayed("Opening Theme")
-        compose.onNodeWithText("Soundtrack · Track 1 · 1.0 KB").assertIsDisplayed()
+        compose.onNodeWithText("Soundtrack · Track 1").assertIsDisplayed()
+        compose.onNodeWithText("50.0% · 512 B of 1.0 KB").assertIsDisplayed()
         // Video rows offer Play when the file can stream; audio has no player yet.
         val play = compose.onAllNodesWithContentDescription("Play")
         play.assertCountEquals(2)
         play[0].assertIsEnabled()
         play[1].assertIsNotEnabled()
+        // Every row, audio included, has the actions menu.
+        compose.onAllNodesWithContentDescription("File actions").assertCountEquals(3)
+        compose.onNodeWithTag("library-more-t1-0123456789abcdef0123456789abcdef:2")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        compose.onAllNodesWithTag("library-sheet-play").assertCountEquals(0)
+        compose.onNodeWithTag("library-sheet-open-with").assertIsEnabled()
+        compose.onNodeWithTag("library-sheet-folder").performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("library-sheet-torrent").fetchSemanticsNodes().isEmpty()
+        }
 
         compose.onNodeWithText("1–100").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Next").performSemanticsAction(SemanticsActions.OnClick)

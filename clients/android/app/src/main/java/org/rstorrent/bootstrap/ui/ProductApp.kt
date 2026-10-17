@@ -100,11 +100,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
+import androidx.navigation.navArgument
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
+import org.rstorrent.bootstrap.FILE_CATALOG_PAGE_ROWS
 import org.rstorrent.bootstrap.ProductEngineService
 import org.rstorrent.bootstrap.ProductDataResetPhase
 import org.rstorrent.bootstrap.ProductDataResetState
@@ -976,7 +979,12 @@ private fun ProductNavHost(
                 presentationOwner = service,
                 onPresent = { service?.presentLibrary(it) },
                 onOpenTorrent = { navController.navigate(ProductRoutes.detail(it)) },
+                onShowInTorrent = {
+                    navController.navigate(ProductRoutes.detail(it.torrentId, it.fileIndex))
+                },
                 onPlay = { service?.playLibraryMedia(it) },
+                onOpenWith = { service?.openLibraryMedia(it) },
+                onOpenFolder = { service?.openLibraryFolder(it) },
                 onAdd = { addOpen = true },
                 onPause = { service?.pause(it) },
                 onResume = { service?.resume(it) },
@@ -1054,8 +1062,19 @@ private fun ProductNavHost(
                 onSelectionModeChange = onTorrentSelectionMode,
             )
         }
-        composable(ProductRoutes.DETAIL) { entry ->
+        composable(
+            ProductRoutes.DETAIL,
+            arguments =
+                listOf(
+                    navArgument("file") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
+        ) { entry ->
             val torrentId = requireNotNull(entry.arguments?.getString("torrentId"))
+            val focusFile = entry.arguments?.getString("file")?.toUIntOrNull()
             val torrent = state.presentedTorrent(state.torrents[torrentId])
             // The service is replaced when the activity returns after a
             // lifecycle stop; select on each owner and clear on the current one.
@@ -1072,6 +1091,7 @@ private fun ProductNavHost(
             }
             TorrentDetailScreen(
                 presentationOwner = service,
+                focusFile = focusFile,
                 torrent = torrent,
                 state = state,
                 onBack = navController::popBackStack,
@@ -1929,6 +1949,7 @@ private fun ProductNavHost(
 @Composable
 private fun TorrentDetailScreen(
     presentationOwner: Any?,
+    focusFile: UInt?,
     torrent: TorrentView?,
     state: ProductState,
     onBack: () -> Unit,
@@ -1960,7 +1981,13 @@ private fun TorrentDetailScreen(
     onTrackerPage: (UInt) -> Unit,
 ) {
     var overflow by remember { mutableStateOf(false) }
-    val pager = rememberPagerState(pageCount = { TorrentDetailTab.entries.size })
+    val pager =
+        rememberPagerState(
+            initialPage = if (focusFile == null) 0 else TorrentDetailTab.FILES.ordinal,
+            pageCount = { TorrentDetailTab.entries.size },
+        )
+    // A file opened from the Library is presented once, on the page that holds it.
+    var focusPending by rememberSaveable { mutableStateOf(focusFile != null) }
     val scope = rememberCoroutineScope()
     // File selection lives here so its bars can replace this screen's app bar,
     // with the same mechanics as the Torrents selection.
@@ -1993,7 +2020,12 @@ private fun TorrentDetailScreen(
                 TorrentDetailTab.PEERS -> TorrentPresentation.PEERS
                 TorrentDetailTab.PIECES -> TorrentPresentation.PIECES
             }
-        onPresent(presentation)
+        val focusPage = focusFile?.let { it / FILE_CATALOG_PAGE_ROWS * FILE_CATALOG_PAGE_ROWS }
+        if (presentation == TorrentPresentation.FILES && focusPending && focusPage != null && focusPage > 0U) {
+            onFilePage(focusPage)
+        } else {
+            onPresent(presentation)
+        }
     }
     Scaffold(
         topBar = {
@@ -2111,6 +2143,8 @@ private fun TorrentDetailScreen(
                     TorrentDetailTab.entries[page],
                     torrent,
                     state,
+                    focusFile.takeIf { focusPending },
+                    { focusPending = false },
                     fileSelection,
                     { fileSelection = it },
                     onFileSafetyOverride,
@@ -2133,6 +2167,8 @@ private fun DetailTabContent(
     tab: TorrentDetailTab,
     torrent: TorrentView?,
     state: ProductState,
+    focusFile: UInt?,
+    onFocusShown: () -> Unit,
     fileSelection: Set<String>,
     onFileSelectionChange: (Set<String>) -> Unit,
     onFileSafetyOverride: (org.rstorrent.session.uniffi.FileView, Boolean) -> Unit,
@@ -2226,6 +2262,8 @@ private fun DetailTabContent(
                 onOpen = onOpenFile,
                 mediaLaunchPending = state.mediaLaunchPending,
                 onPage = onFilePage,
+                focusFile = focusFile,
+                onFocusShown = onFocusShown,
             )
         TorrentDetailTab.TRACKERS ->
             TrackersScreen(state.trackers[torrent.torrentId], onTrackerPage)

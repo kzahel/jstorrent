@@ -99,6 +99,7 @@ import org.rstorrent.session.uniffi.HttpsServerAuthenticationPolicy
 import org.rstorrent.session.uniffi.ListenerPolicy
 import org.rstorrent.session.uniffi.ListenerStatus
 import org.rstorrent.session.uniffi.LibraryMediaItemView
+import org.rstorrent.session.uniffi.TorrentView
 import org.rstorrent.session.uniffi.MediaUrlOutcome
 import org.rstorrent.session.uniffi.PortMappingPolicy
 import org.rstorrent.session.uniffi.RequestEnvelope
@@ -3493,31 +3494,170 @@ class ProductEngineService : Service() {
         if (rejectMutationDuringDataReset()) return
         scope.launch(Dispatchers.IO) {
             try {
-                require(file.verifiedBytes == file.lengthBytes) { "File is not complete" }
-                val tree =
-                    ProductSafRootRegistry.treeForRoot(this@ProductEngineService, storageRoot)
-                        ?: error("Download folder is unavailable")
-                val path =
-                    if (file.path.firstOrNull() == torrentName) {
-                        file.path
-                    } else {
-                        listOf(torrentName) + file.path
-                    }
-                val document =
-                    ProductSafDocuments.contentDocument(this@ProductEngineService, tree, path)
-                        ?: error("Completed file is unavailable")
-                val mime = contentResolver.getType(document) ?: "application/octet-stream"
-                startActivity(
-                    Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(document, mime)
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    },
-                )
+                openCompletedDocument(storageRoot, torrentName, file, chooser = false)
             } catch (error: Throwable) {
                 reportError(error)
             }
         }
+    }
+
+    /** Library "Open with…": the system chooser for a complete file. */
+    fun openLibraryMedia(item: LibraryMediaItemView) {
+        if (rejectMutationDuringDataReset()) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                val torrent = libraryTorrent(item)
+                openCompletedDocument(
+                    torrent.storageRoot,
+                    libraryContentName(torrent),
+                    libraryFile(item),
+                    chooser = true,
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                reportError(error)
+            }
+        }
+    }
+
+    /** Opens the folder that holds a Library item in the system file manager. */
+    fun openLibraryFolder(item: LibraryMediaItemView) {
+        if (rejectMutationDuringDataReset()) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                val torrent = libraryTorrent(item)
+                val file = libraryFile(item)
+                val tree =
+                    ProductSafRootRegistry.treeForRoot(this@ProductEngineService, torrent.storageRoot)
+                        ?: error(getString(R.string.error_folder_unavailable))
+                val folder =
+                    ProductSafDocuments.containingFolder(
+                        this@ProductEngineService,
+                        tree,
+                        contentPath(libraryContentName(torrent), file),
+                    ) ?: error(getString(R.string.error_folder_unavailable))
+                withContext(Dispatchers.Main.immediate) { openFolderDocument(folder) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                reportError(error)
+            }
+        }
+    }
+
+    /** Library items exist only with metadata, which names the torrent's content. */
+    private fun libraryContentName(torrent: TorrentView): String =
+        torrent.displayName ?: error(getString(R.string.error_file_unavailable))
+
+    private fun libraryTorrent(item: LibraryMediaItemView): TorrentView =
+        mutableState.value.torrents[item.torrentId]
+            ?: error(getString(R.string.torrent_unavailable))
+
+    /**
+     * Library rows carry no path, so read the one catalog page that holds the
+     * item. Catalog rows are in file-index order, padding included.
+     */
+    private suspend fun libraryFile(item: LibraryMediaItemView): FileView {
+        clientReady.await()
+        val pageSize = FILE_CATALOG_PAGE_ROWS
+        val subscription =
+            client.subscribe(
+                SubscriptionSpec(
+                    ViewSelector.Torrent(item.torrentId),
+                    ViewProjection.FILES,
+                    DeliveryPolicy(0U, 512U * 1024U),
+                    null,
+                    CatalogPageRequest(item.fileIndex / pageSize * pageSize, pageSize),
+                ),
+            )
+        try {
+            return withTimeout(10_000) {
+                var files: ViewSnapshot.Files? = null
+                while (files == null) {
+                    val update = subscription.nextUpdate() ?: error("file view closed")
+                    when (val payload = update.payload) {
+                        is ViewUpdatePayload.Snapshot -> files = payload.snapshot as? ViewSnapshot.Files
+                        is ViewUpdatePayload.ResetRequired -> subscription.resync()
+                        is ViewUpdatePayload.Patch -> Unit
+                    }
+                }
+                files.files.firstOrNull { it.fileIndex == item.fileIndex }
+                    ?: error(getString(R.string.error_file_unavailable))
+            }
+        } finally {
+            subscription.close()
+        }
+    }
+
+    private fun contentPath(
+        torrentName: String,
+        file: FileView,
+    ): List<String> =
+        if (file.path.firstOrNull() == torrentName) {
+            file.path
+        } else {
+            listOf(torrentName) + file.path
+        }
+
+    private suspend fun openCompletedDocument(
+        storageRoot: String,
+        torrentName: String,
+        file: FileView,
+        chooser: Boolean,
+    ) {
+        require(file.verifiedBytes == file.lengthBytes) { "File is not complete" }
+        val tree =
+            ProductSafRootRegistry.treeForRoot(this, storageRoot)
+                ?: error("Download folder is unavailable")
+        val document =
+            ProductSafDocuments.contentDocument(this, tree, contentPath(torrentName, file))
+                ?: error("Completed file is unavailable")
+        val mime = contentResolver.getType(document) ?: "application/octet-stream"
+        val view =
+            Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(document, mime)
+                clipData = ClipData.newRawUri(null, document)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        withContext(Dispatchers.Main.immediate) {
+            startActivity(
+                if (chooser) {
+                    Intent.createChooser(view, getString(R.string.action_open_with))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                } else {
+                    view
+                },
+            )
+        }
+    }
+
+    /**
+     * Android has no single "show folder" intent. The system file manager
+     * views a directory document; Google Files and then any viewer are the
+     * fallbacks, as in the original JSTorrent app.
+     */
+    private fun openFolderDocument(folder: Uri) {
+        val attempts =
+            listOf(
+                Intent(Intent.ACTION_VIEW).setDataAndType(
+                    folder,
+                    DocumentsContract.Document.MIME_TYPE_DIR,
+                ),
+                Intent(Intent.ACTION_VIEW, folder).setPackage("com.google.android.apps.nbu.files"),
+                Intent(Intent.ACTION_VIEW, folder),
+            )
+        for (attempt in attempts) {
+            attempt.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            try {
+                startActivity(attempt)
+                return
+            } catch (_: android.content.ActivityNotFoundException) {
+                continue
+            }
+        }
+        error(getString(R.string.error_folder_viewer_unavailable))
     }
 
     fun playMedia(

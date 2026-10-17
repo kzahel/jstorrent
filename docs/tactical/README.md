@@ -1,9 +1,10 @@
 # Implementation Tactical Docs
 
 - [376 — Android media Library](376-android-media-library.md): complete;
-  Library | Torrents primary navigation (bar, or rail from 600 dp) and a
+  Torrents | Library primary navigation (bar, or rail from 600 dp) and a
   Compose Library over `library_media` with presets, search, filters, shows
-  and albums in place, pages, video Play and the source torrent.
+  and albums in place, pages, and Files-style rows with Play, Open with…,
+  Open containing folder and Show in torrent.
 - [375 — CI reconciliation and UI regressions](375-ci-reconciliation-and-ui-regressions.md):
   merge concurrent contracts, repair Rust test lints, and scope browser/iOS
   assertions to displayed or scrolled settings controls.

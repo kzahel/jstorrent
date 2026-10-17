@@ -21,14 +21,16 @@ accepted. Production activation remains gated pending the full signed package,
 window/transfer and failure matrix in 355.
 
 Tactical [376](../tactical/376-android-media-library.md) adds the media
-Library to Android as a second primary destination, **Library | Torrents**:
+Library to Android as a second primary destination, **Torrents | Library**:
 a navigation bar at compact widths, a rail from 600 dp, hidden while torrent
 selection owns the bottom bar, with the last destination remembered in
 `product_ui`. The torrent list is now called Torrents in code and copy. The
 Library leases one `library_media` page per query, shows only a page stamped
 with the current request, and offers the web presets, search, sort,
 availability and archived scope, in-place shows/albums/torrents with Back,
-pages, video Play and the source torrent. Rows only; audio playback, cards and
+pages and Files-tab-style rows with progress and a ⋮ sheet (Play, Open with…,
+Open containing folder, Show in torrent, which scrolls the torrent's Files tab
+to the file). Rows only; audio playback, cards and
 persisted filters are deferred. Fresh API 28 phone and API 35 tablet emulators
 and a live seeded-host scenario on phone and tablet AVDs pass.
 

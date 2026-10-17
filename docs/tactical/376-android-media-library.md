@@ -19,7 +19,8 @@ pushed on top and global screens in the overflow menu. It has no drawer and no
 primary navigation. The maintainer accepted this direction:
 
 - Android gets the same two primary destinations as the web UI,
-  **Library | Torrents**, in a Material 3 navigation bar at compact widths and
+  **Torrents | Library** (Torrents first on Android, by maintainer review),
+  in a Material 3 navigation bar at compact widths and
   a navigation rail at 600 dp and wider (ChromeOS windows, tablets, landscape
   phones). No hamburger: two destinations do not justify a drawer, and the
   global screens stay in the overflow menu.
@@ -142,15 +143,20 @@ Android Files tab.
   - the album and track for tracks;
   - the year for movies;
   - the torrent name otherwise.
-- **Size and progress.** A complete file shows its size. An incomplete file
-  shows the percentage verified and its size. Partial files are never
-  described as available.
+- **Size and progress.** As in the Files tab, a complete file shows its size.
+  An incomplete file shows its verified percentage and bytes, with a progress
+  bar. Partial files are never described as available.
 - **Archived** items are marked.
 - **Play** is offered when the existing Android playback policy allows the
   item: a recognized video extension and `available` or `streamable` media
   availability, with no launch pending. Play uses the existing
   `createMediaUrl` and `PlayerActivity` path.
-- **Tapping a row** opens its source torrent's detail.
+- **Tapping a row or its ⋮** opens an action sheet, as in the Files tab,
+  for video and audio alike:
+  - Play (video only);
+  - Open with… (the system chooser, complete files only);
+  - Open containing folder;
+  - Show in torrent.
 
 The screen also shows how many torrents are still fetching metadata, an empty
 state for an empty Library, and a no-matches state when filters or search
@@ -274,10 +280,54 @@ Two findings from these runs:
 Each run clears the app, removes the grant folder and its captures, and kills
 its emulator.
 
+### Maintainer review, 2026-10-17
+
+After installing on the Pixel 9, the maintainer asked for these changes:
+
+- **Navigation order.** Torrents is now on the left and Library on the right,
+  in both the bar and the rail. This departs from the web's Library | Torrents
+  order.
+- **Row actions.** Every item row, audio included, gets the Files tab's
+  layout: kind icon, title, detail line, a status line with verified bytes, a
+  progress bar while incomplete, a Play slot, and ⋮. Tapping the row or ⋮
+  opens the action sheet.
+  - **Play** is unchanged.
+  - **Open with…** wraps the existing SAF `ACTION_VIEW` in the system chooser.
+  - **Open containing folder** views the parent directory document with
+    `MIME_TYPE_DIR`, then falls back to Google Files and then any viewer. This
+    is the strategy the original JSTorrent Android app used.
+  - **Show in torrent** pushes `torrent_detail/{torrentId}?file={index}`. The
+    detail opens on Files, presents the catalog page that holds the file once,
+    scrolls to it and highlights it.
+
+Library rows carry no path, and adding paths to the projection would break
+its per-page byte bound. So when Open with… or Open containing folder is
+chosen, the service resolves that one file. It reads the single 1,024-row
+Files catalog page that holds the file index (catalog rows are in file-index
+order, padding included) through a 10-second subscription closed in
+`finally`, the same pattern as the service's existing settings waits.
+
+Group rows (shows, albums, torrents) still open in place and have no ⋮.
+
+**Evidence for the review changes.**
+- JVM: 218 cases still pass.
+- Instrumentation: the Library cases now cover the item sheet's enabled
+  actions, Show in torrent reaching the file on the Files tab, a partial
+  file's `50.0% · 512 B of 1.0 KB` status, and ⋮ on audio rows.
+- Live: on both the phone (bar) and tablet (rail) AVDs, the scenario also:
+  - opens the extra's folder (`North Shore Stories › Extras`) in DocumentsUI
+    `FilesActivity`;
+  - sends Open with… through the chooser, which launched Google Photos
+    directly as the only handler;
+  - shows `Behind the scenes.webm` highlighted on the torrent's Files tab.
+
+  The scenario dismisses the system's one-time "Viewing full screen" notice
+  that the external video app raised on the tablet.
+
 ### Deferred
 
 - Audio playback with background playback and a media session.
 - Cards, persisted Library preset and filters, and Library item counts in the
   preset tabs.
-- Opening the source torrent directly on its Files tab.
+- Actions for whole shows, albums and torrents.
 - iOS.

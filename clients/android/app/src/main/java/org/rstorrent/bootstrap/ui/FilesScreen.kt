@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -50,6 +51,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -110,6 +112,8 @@ internal fun FilesScreen(
     onOpen: (FileView) -> Unit,
     mediaLaunchPending: Boolean,
     onPage: (UInt) -> Unit,
+    focusFile: UInt? = null,
+    onFocusShown: () -> Unit = {},
 ) {
     if (catalog == null) {
         ProductLoading(stringResource(R.string.file_catalog_title))
@@ -118,8 +122,19 @@ internal fun FilesScreen(
     val files = remember(catalog.files) { presentedFiles(catalog) }
     var sheetFileId by rememberSaveable { mutableStateOf<String?>(null) }
     val selectionMode = files.any { it.fileId in selection }
+    // A file shown from the Library stays marked while the tab is open.
+    var highlighted by rememberSaveable { mutableStateOf<String?>(null) }
+    val listState = rememberLazyListState()
+    LaunchedEffect(focusFile, files) {
+        val position = files.indexOfFirst { it.fileIndex == focusFile }
+        if (focusFile == null || position < 0) return@LaunchedEffect
+        highlighted = files[position].fileId
+        // The summary is the first item.
+        listState.scrollToItem(position + 1)
+        onFocusShown()
+    }
 
-    LazyColumn(Modifier.fillMaxSize()) {
+    LazyColumn(Modifier.fillMaxSize(), state = listState) {
         item("summary") {
             FilesSummary(catalog, files)
             if (archived) {
@@ -141,6 +156,7 @@ internal fun FilesScreen(
             FileRow(
                 file = file,
                 selected = file.fileId in selection,
+                highlighted = file.fileId == highlighted,
                 selectionMode = selectionMode,
                 mediaLaunchPending = mediaLaunchPending,
                 onClick = {
@@ -229,6 +245,7 @@ private fun FilesSummary(
 private fun FileRow(
     file: FileView,
     selected: Boolean,
+    highlighted: Boolean,
     selectionMode: Boolean,
     mediaLaunchPending: Boolean,
     onClick: () -> Unit,
@@ -243,7 +260,11 @@ private fun FileRow(
         modifier =
             Modifier.fillMaxWidth()
                 .background(
-                    if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                    when {
+                        selected -> MaterialTheme.colorScheme.primaryContainer
+                        highlighted -> MaterialTheme.colorScheme.secondaryContainer
+                        else -> Color.Transparent
+                    },
                 )
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 .testTag("file-${file.fileId}")
@@ -472,7 +493,7 @@ private fun FileActionsSheet(
 }
 
 @Composable
-private fun FileSheetAction(
+internal fun FileSheetAction(
     icon: ImageVector,
     label: String,
     enabled: Boolean,

@@ -34,24 +34,24 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import org.rstorrent.bootstrap.R
 
-/** The two primary destinations, in the web UI's order (Tactical 376). */
+/** The two primary destinations; Android puts Torrents first (Tactical 376). */
 enum class PrimaryDestination(
     val route: String,
     @StringRes val labelRes: Int,
     val icon: ImageVector,
     val selectedIcon: ImageVector,
 ) {
-    LIBRARY(
-        ProductRoutes.MEDIA_LIBRARY,
-        R.string.nav_library,
-        Icons.Outlined.VideoLibrary,
-        Icons.Filled.VideoLibrary,
-    ),
     TORRENTS(
         ProductRoutes.TORRENTS,
         R.string.nav_torrents,
         Icons.Outlined.Download,
         Icons.Filled.Download,
+    ),
+    LIBRARY(
+        ProductRoutes.MEDIA_LIBRARY,
+        R.string.nav_library,
+        Icons.Outlined.VideoLibrary,
+        Icons.Filled.VideoLibrary,
     ),
     ;
 

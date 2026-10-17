@@ -191,11 +191,16 @@
     <string name="media_library_show_all">Show all media</string>
     <string name="media_library_separator" translatable="false">" · "</string>
     <string name="media_library_detail_pair">%1$s · %2$s</string>
-    <string name="media_library_progress">%1$s downloaded</string>
     <string name="media_library_episode_code">S%1$02dE%2$02d</string>
     <string name="media_library_episode_range">S%1$02dE%2$02d–E%3$02d</string>
     <string name="media_library_episode_number">Episode %1$d</string>
     <string name="media_library_track">Track %1$d</string>
+    <string name="action_open_with">Open with…</string>
+    <string name="action_open_folder">Open containing folder</string>
+    <string name="action_show_in_torrent">Show in torrent</string>
+    <string name="error_file_unavailable">This file is no longer in its torrent.</string>
+    <string name="error_folder_unavailable">This folder has not been created yet.</string>
+    <string name="error_folder_viewer_unavailable">No app on this device can show folders.</string>
     <plurals name="media_library_metadata_pending">
         <item quantity="one">%1$d torrent is still getting file details from peers.</item>
         <item quantity="other">%1$d torrents are still getting file details from peers.</item>

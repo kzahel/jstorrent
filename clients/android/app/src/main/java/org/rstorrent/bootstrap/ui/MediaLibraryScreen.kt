@@ -2,6 +2,14 @@ package org.rstorrent.bootstrap.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -103,7 +111,10 @@ internal fun MediaLibraryScreen(
     presentationOwner: Any?,
     onPresent: (LibraryMediaRequest) -> Unit,
     onOpenTorrent: (String) -> Unit,
+    onShowInTorrent: (LibraryMediaItemView) -> Unit,
     onPlay: (LibraryMediaItemView) -> Unit,
+    onOpenWith: (LibraryMediaItemView) -> Unit,
+    onOpenFolder: (LibraryMediaItemView) -> Unit,
     onAdd: () -> Unit,
     onPause: (String) -> Unit,
     onResume: (String) -> Unit,
@@ -121,6 +132,7 @@ internal fun MediaLibraryScreen(
     var searchOpen by rememberSaveable { mutableStateOf(browse.text.isNotEmpty()) }
     var searchInput by rememberSaveable { mutableStateOf(browse.text) }
     var optionsOpen by remember { mutableStateOf(false) }
+    var sheetItemId by rememberSaveable { mutableStateOf<String?>(null) }
     var overflowOpen by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     LaunchedEffect(searchInput) {
@@ -317,7 +329,7 @@ internal fun MediaLibraryScreen(
                                 page = 0,
                             )
                     },
-                    onOpenTorrent = onOpenTorrent,
+                    onItemActions = { sheetItemId = it.itemId },
                     onPlay = onPlay,
                     onPage = { offset ->
                         browse = browse.copy(page = (offset / LIBRARY_PAGE_SIZE.toUInt()).toInt())
@@ -334,6 +346,23 @@ internal fun MediaLibraryScreen(
                 )
             }
         }
+    }
+
+    // The sheet follows the row on the current page; a new page closes it.
+    page?.items?.firstOrNull { it.itemId == sheetItemId }?.let { item ->
+        fun act(action: (LibraryMediaItemView) -> Unit): () -> Unit = {
+            sheetItemId = null
+            action(item)
+        }
+        LibraryItemActionsSheet(
+            item = item,
+            mediaLaunchPending = state.mediaLaunchPending,
+            onDismiss = { sheetItemId = null },
+            onPlay = act(onPlay),
+            onOpenWith = act(onOpenWith),
+            onOpenFolder = act(onOpenFolder),
+            onShowInTorrent = act(onShowInTorrent),
+        )
     }
 }
 
@@ -452,7 +481,7 @@ private fun LibraryPage(
     listState: androidx.compose.foundation.lazy.LazyListState,
     mediaLaunchPending: Boolean,
     onOpenGroup: (LibraryGroupView) -> Unit,
-    onOpenTorrent: (String) -> Unit,
+    onItemActions: (LibraryMediaItemView) -> Unit,
     onPlay: (LibraryMediaItemView) -> Unit,
     onPage: (UInt) -> Unit,
     onShowAll: () -> Unit,
@@ -487,9 +516,8 @@ private fun LibraryPage(
         items(page.items, key = { "item-${it.itemId}" }) { item ->
             LibraryItemRow(
                 item = item,
-                playEnabled =
-                    AndroidMediaPlaybackPolicy.isLibraryPlayActionEnabled(item, mediaLaunchPending),
-                onOpen = { onOpenTorrent(item.torrentId) },
+                mediaLaunchPending = mediaLaunchPending,
+                onActions = { onItemActions(item) },
                 onPlay = { onPlay(item) },
             )
             HorizontalDivider()
@@ -582,42 +610,147 @@ private fun LibraryGroupRow(
 @Composable
 private fun LibraryItemRow(
     item: LibraryMediaItemView,
-    playEnabled: Boolean,
-    onOpen: () -> Unit,
+    mediaLaunchPending: Boolean,
+    onActions: () -> Unit,
     onPlay: () -> Unit,
 ) {
-    val description = libraryItemDescription(item)
-    val size = formatBytes(item.lengthBytes)
-    // Partial files show how much is verified, never just their size.
-    val progress =
-        if (item.offline) {
-            null
-        } else {
-            stringResource(R.string.media_library_progress, percentLabel(libraryItemProgress(item)))
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .clickable(onClick = onActions)
+                .testTag("library-item-${item.itemId}")
+                .padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            Icon(
+                libraryItemIcon(item),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
-    val supporting =
-        listOfNotNull(
-            description,
-            progress,
-            size,
-            stringResource(R.string.library_filter_archived).takeIf { item.archived },
-        ).joinToString(stringResource(R.string.media_library_separator))
-    ListItem(
-        headlineContent = { Text(item.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-        supportingContent = { Text(supporting, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-        leadingContent = { Icon(libraryItemIcon(item), contentDescription = null) },
-        trailingContent = {
+        Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
+            LibraryItemText(item)
+            // Partial files show how much is verified, as in the Files tab.
+            if (!item.offline) {
+                Spacer(Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = { libraryItemProgress(item) },
+                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
+                )
+            }
+        }
+        // The slot is reserved for audio too so names and progress bars align.
+        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
             if (item.kind == LibraryMediaKind.VIDEO) {
-                IconButton(onClick = onPlay, enabled = playEnabled) {
-                    Icon(
-                        Icons.Default.PlayArrow,
-                        contentDescription = stringResource(R.string.action_play),
-                    )
+                IconButton(
+                    onClick = onPlay,
+                    enabled =
+                        AndroidMediaPlaybackPolicy.isLibraryPlayActionEnabled(item, mediaLaunchPending),
+                    modifier = Modifier.testTag("library-play-${item.itemId}"),
+                ) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.action_play))
                 }
             }
-        },
-        modifier = Modifier.clickable(onClick = onOpen).testTag("library-item-${item.itemId}"),
+        }
+        IconButton(onClick = onActions, modifier = Modifier.testTag("library-more-${item.itemId}")) {
+            Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.a11y_file_actions))
+        }
+    }
+}
+
+/** Title, what the item is, and its size or verified progress. */
+@Composable
+private fun LibraryItemText(item: LibraryMediaItemView) {
+    val separator = stringResource(R.string.media_library_separator)
+    Text(
+        item.title,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        fontWeight = FontWeight.Medium,
     )
+    Text(
+        libraryItemDescription(item),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    val verified = item.verifiedBytes.toULongOrNull() ?: 0UL
+    val status =
+        if (item.offline || verified == 0UL) {
+            formatBytes(item.lengthBytes)
+        } else {
+            stringResource(
+                R.string.file_progress_status,
+                percentLabel(libraryItemProgress(item)),
+                formatBytes(item.verifiedBytes),
+                formatBytes(item.lengthBytes),
+            )
+        }
+    Text(
+        listOfNotNull(
+            status,
+            stringResource(R.string.library_filter_archived).takeIf { item.archived },
+        ).joinToString(separator),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LibraryItemActionsSheet(
+    item: LibraryMediaItemView,
+    mediaLaunchPending: Boolean,
+    onDismiss: () -> Unit,
+    onPlay: () -> Unit,
+    onOpenWith: () -> Unit,
+    onOpenFolder: () -> Unit,
+    onShowInTorrent: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+            Column(Modifier.padding(horizontal = 24.dp)) {
+                LibraryItemText(item)
+            }
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider()
+            if (item.kind == LibraryMediaKind.VIDEO) {
+                FileSheetAction(
+                    icon = Icons.Default.PlayArrow,
+                    label = stringResource(R.string.action_play),
+                    enabled = AndroidMediaPlaybackPolicy.isLibraryPlayActionEnabled(item, mediaLaunchPending),
+                    tag = "library-sheet-play",
+                    onClick = onPlay,
+                )
+            }
+            FileSheetAction(
+                icon = Icons.AutoMirrored.Outlined.OpenInNew,
+                label = stringResource(R.string.action_open_with),
+                // Partial files are never handed to another app as if complete.
+                enabled = item.offline,
+                tag = "library-sheet-open-with",
+                onClick = onOpenWith,
+            )
+            FileSheetAction(
+                icon = Icons.Outlined.FolderOpen,
+                label = stringResource(R.string.action_open_folder),
+                enabled = true,
+                tag = "library-sheet-folder",
+                onClick = onOpenFolder,
+            )
+            FileSheetAction(
+                icon = Icons.Outlined.Download,
+                label = stringResource(R.string.action_show_in_torrent),
+                enabled = true,
+                tag = "library-sheet-torrent",
+                onClick = onShowInTorrent,
+            )
+        }
+    }
 }
 
 private fun libraryItemIcon(item: LibraryMediaItemView): ImageVector =
