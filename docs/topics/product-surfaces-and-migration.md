@@ -1,5 +1,13 @@
 # Product Surfaces And JSTorrent Migration
 
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md) supplies
+the compatible Stable/Latest release train and production-signed private update
+rehearsals. Promotion preserves tested native/source bytes and rechecks its
+Stable predecessor, Latest source and asset digests before publication. The
+shared service is deployed; ordinary Stable bodies remain unchanged and its
+automatic permission remains false during installed qualification. No public
+release is published past the existing companion compatibility hold.
+
 Tactical [355](../tactical/355-automatic-updates.md) implements fully unattended
 updates for JSTorrent macOS app, Windows NSIS and Linux AppImage. Maintainer
 direction on October 16 permits a brief transfer interruption and restart

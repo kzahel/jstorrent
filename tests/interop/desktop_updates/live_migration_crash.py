@@ -40,7 +40,9 @@ def main():
                 if not process.name.isdigit() or int(process.name) == args.previous_pid:
                     continue
                 try:
-                    if process.stat().st_uid != os.getuid() or (process / "exe").resolve().name != "jstorrent-client":
+                    if process.stat().st_uid != os.getuid() or (process / "comm").read_text().strip() not in ("jstorrent-clien", "jstorrent-client"):
+                        continue
+                    if (process / "exe").resolve().name != "jstorrent-client":
                         continue
                     environment = (process / "environ").read_bytes().split(b"\0")
                     if ("APPIMAGE=" + str(image)).encode() not in environment:

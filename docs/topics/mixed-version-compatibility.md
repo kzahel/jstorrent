@@ -1,5 +1,13 @@
 # Mixed-Version Compatibility
 
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md) adds
+release/database compatibility metadata to the updater service, without new
+application fields, commands or capability IDs. The existing desktop updater
+capability and older-host fallback remain. Public Latest and Stable publication
+still run the strict-companion guard; private installation cohorts do not waive
+the 30-day window or authorize host-side response shaping. Installed updater
+qualification continues independently of the pending publication-policy choice.
+
 Tactical [375](../tactical/375-ci-reconciliation-and-ui-regressions.md)
 reconciles the concurrent updater/safety contracts. Safety and bitmap capability
 IDs remain 4 and 5; the unpublished desktop updater uses 6. Both generated

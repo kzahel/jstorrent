@@ -2083,7 +2083,10 @@ Stable selection saves the preference immediately and waits for a newer
 compatible offer. Native admission authenticates the metadata, binds it to
 the exact product/version/platform/payload, and checks all existing stores
 before download and again before shutdown. Missing metadata fails closed.
-Latest enables production idle installation first; Stable activation and
-publication require installed acceptance. The frozen incubation lane stays
-frozen. The shared service extension is deployed with unchanged Stable bytes;
-publication and VM qualification remain in progress.
+The production code supports both channels only when the service explicitly
+permits that native target; Stable permission remains false during qualification.
+Latest is the first rollout lane. Promotion preserves tested native/source
+bytes and checks its predecessor and source/digests again before publication.
+The frozen incubation lane stays frozen. The shared service extension is
+deployed with unchanged ordinary Stable bodies; public publication retains the
+strict-companion hold, and private signed VM qualification remains in progress.

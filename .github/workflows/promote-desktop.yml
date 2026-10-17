@@ -62,6 +62,7 @@ jobs:
           test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$LATEST_TAG" --jq .sha)" = "$SOURCE_SHA"
           gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$TAG" > "$RUNNER_TEMP/promotion/tags.json"
           jq -e 'length == 0' "$RUNNER_TEMP/promotion/tags.json"
+          node scripts/check-desktop-promotion.mjs "$RUNNER_TEMP/promotion"
       - name: Publish the validated promotion
         if: inputs.publish
         env:
@@ -75,4 +76,5 @@ jobs:
           gh release view "$TAG" --json tagName,isDraft,isPrerelease,assets > "$DIR/uploaded.json"
           node .github/scripts/desktop-release-artifacts.mjs verify-upload --local "$DIR/release.json" --remote "$DIR/uploaded.json"
           test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$LATEST_TAG" --jq .sha)" = "$SOURCE_SHA"
+          node scripts/check-desktop-promotion.mjs "$DIR"
           gh release edit "$TAG" --draft=false --latest

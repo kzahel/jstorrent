@@ -1,5 +1,14 @@
 # Capability Readiness
 
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md) extends
+the unattended updater with one Stable/Latest version train, authenticated
+database admission, immutable promotion and service-controlled target rollout.
+Source tests and deployed service checks pass. Private production-signed
+installed qualification is in progress; its first Linux update exposed and
+corrected a released-catalog startup preflight bug without changing user data.
+Stable permission remains off. Public Latest publication retains the existing
+strict-companion compatibility hold; this tactical does not waive that policy.
+
 Tactical [355](../tactical/355-automatic-updates.md) is a desktop-only
 unattended-update implementation in progress as of October 16. The maintainer accepts a restart
 after 15 minutes without interaction, including brief download/seeding

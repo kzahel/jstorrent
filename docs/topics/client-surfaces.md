@@ -1,5 +1,14 @@
 # Client Surfaces
 
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md) clarifies
+About's existing channel selector as **Stable — Recommended** and
+**Latest — Early access**. Returning to Stable preserves the installed app until
+a newer compatible release arrives. Authenticated native admission checks the
+actual database versions and migration history before staging and shutdown.
+Production availability follows explicit service permission for the selected
+channel and native target, with the user's separate automatic-install setting
+retained. Signed installed qualification and Stable activation remain pending.
+
 Tactical [355](../tactical/355-automatic-updates.md) now implements unattended
 desktop updates through one native host owner, including with the window
 closed. Maintainer direction accepts restarting after 15 minutes without

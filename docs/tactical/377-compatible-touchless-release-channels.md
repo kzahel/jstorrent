@@ -347,3 +347,24 @@ before killing only that process. Recovery remains an explicit driver relaunch.
 CI also caught a folded YAML test command; split the two invocations into
 a literal script. Both source/distribution suites (33 cases) and actionlint
 pass with that correction.
+
+Promotion now rechecks the exact Stable predecessor identity and metadata
+digest, Latest source commit and all 17 source asset digests before draft
+creation and immediately before publication. An intervening Stable, replaced
+release, changed metadata/source or changed Latest package refuses the prepared
+promotion. The shared publisher lock still serializes cooperating workflows;
+GitHub release editing by an outside owner is not a transactional CAS. Eight
+train/promotion tests and workflow lint pass.
+
+Independent owned keyboard editors receive untargeted control input on macOS,
+Windows and Linux before offers. Windows setup requires a native click; its
+temporary topmost flag is removed and independently verified. The new macOS
+AppKit editor and native focus observer compile on the actual guest.
+
+Corrected Linux B2's source/run/attempt, payload hash and original updater-key
+signature verify independently from its completed native leg. Manual recovery
+replaces only the stopped failed B AppImage with higher B2 (no downgrade or
+profile replacement). Its real production API reports 0.3.60004, session 29,
+product 4 and metrics 1; all seven released fixture identities and the owned
+installation identity are retained. This verifies the startup correction and
+normal forward migration. Installed unattended acceptance remains in progress.

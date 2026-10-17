@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planDesktopPromotion,promotedManifest } from './desktop-promotion.mjs';
+import { assertPromotionFresh, planDesktopPromotion,promotedManifest } from './desktop-promotion.mjs';
 const repo='kzahel/jstorrent',version='0.3.8',tag='desktop-latest-v'+version;
 const names=['latest.json','SHA256SUMS','JSTorrent_x64.app.tar.gz','JSTorrent_aarch64.app.tar.gz',`JSTorrent_${version}_AppImage-sources-final.tar.gz`,...Array.from({length:12},(_,i)=>'asset'+i)];
 const release={tag_name:tag,draft:false,prerelease:true,assets:names.map(name=>({name,size:1,digest:'sha256:'+'a'.repeat(64),browser_download_url:`https://github.com/${repo}/releases/download/${tag}/${name}`}))};
@@ -34,4 +34,21 @@ test('source carriers retain their established two GiB bound independently of pa
  assert.doesNotThrow(()=>planDesktopPromotion(withSize(4,925938523),'0.3.1',repo));
  assert.throws(()=>planDesktopPromotion(withSize(4,2*1024**3+1),'0.3.1',repo));
  assert.throws(()=>planDesktopPromotion(withSize(2,512*1024**2+1),'0.3.1',repo));
+});
+
+test('a prepared promotion refuses an intervening Stable or mutated Latest',()=>{
+ const stable={...release,id:17,tag_name:'desktop-v0.3.1',prerelease:false};
+ const sourceSha='a'.repeat(40);
+ const plan={...planDesktopPromotion(release,'0.3.1',repo),sourceSha,previousStableVersion:'0.3.1',previousStableId:17,
+  previousStableManifestDigest:stable.assets[0].digest,
+  sourceAssets:release.assets.map(({name,size,digest})=>({name,size,digest})).sort((a,b)=>a.name.localeCompare(b.name))};
+ assert.doesNotThrow(()=>assertPromotionFresh(plan,[stable],release,sourceSha));
+ const intervening={...stable,id:18,tag_name:'desktop-v0.3.9'};
+ assert.throws(()=>assertPromotionFresh(plan,[stable,intervening],release,sourceSha),/Stable changed/);
+ assert.throws(()=>assertPromotionFresh(plan,[{...stable,id:19}],release,sourceSha),/replaced/);
+ const changed={...release,assets:release.assets.map((asset,i)=>i===2?{...asset,digest:'sha256:'+'b'.repeat(64)}:asset)};
+ assert.throws(()=>assertPromotionFresh(plan,[stable],changed,sourceSha),/assets changed/);
+ assert.throws(()=>assertPromotionFresh(plan,[stable],release,'b'.repeat(40)),/tag changed/);
+ const changedStable={...stable,assets:stable.assets.map((asset,i)=>i===0?{...asset,digest:'sha256:'+'c'.repeat(64)}:asset)};
+ assert.throws(()=>assertPromotionFresh(plan,[changedStable],release,sourceSha),/metadata changed/);
 });

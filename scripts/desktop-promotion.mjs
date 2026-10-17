@@ -1,5 +1,27 @@
 import assert from 'node:assert/strict';
 import { compare } from './desktop-release-train.mjs';
+export function currentDesktopStable(releases) {
+  const stable = releases.filter(release => !release.draft && !release.prerelease
+    && /^desktop-v\d+\.\d+\.\d+$/.test(release.tag_name)
+    && release.assets.some(asset => asset.name === 'JSTorrent_x64.app.tar.gz'))
+    .sort((a, b) => compare(b.tag_name.slice(9), a.tag_name.slice(9)))[0];
+  assert(stable, 'existing Stable release required');
+  return stable;
+}
+export function assertPromotionFresh(plan, releases, source, sourceSha) {
+  assert(Number.isSafeInteger(plan.previousStableId) && plan.previousStableId > 0, 'missing Stable release identity');
+  assert(/^sha256:[a-f0-9]{64}$/.test(plan.previousStableManifestDigest), 'missing Stable metadata digest');
+  const stable = currentDesktopStable(releases);
+  assert.equal(stable.tag_name, `desktop-v${plan.previousStableVersion}`, 'Stable changed; prepare and qualify the promotion again');
+  assert.equal(stable.id, plan.previousStableId, 'Stable release was replaced');
+  assert.equal(stable.assets.find(asset => asset.name === 'latest.json')?.digest,
+    plan.previousStableManifestDigest, 'Stable metadata changed');
+  assert.equal(sourceSha, plan.sourceSha, 'Latest source tag changed');
+  const current = planDesktopPromotion(source, plan.previousStableVersion, 'kzahel/jstorrent');
+  assert.equal(current.tag, plan.tag, 'promotion target changed');
+  assert.deepEqual(source.assets.map(({name, size, digest}) => ({name, size, digest})).sort((a,b) => a.name.localeCompare(b.name)),
+    plan.sourceAssets, 'Latest assets changed after preparation');
+}
 /** A promotion changes release metadata and location, never native packages. */
 export function planDesktopPromotion(release, currentStableVersion, repository) {
   assert.equal(repository, 'kzahel/jstorrent', 'unexpected production repository');
