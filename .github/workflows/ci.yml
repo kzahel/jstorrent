@@ -30,7 +30,7 @@ jobs:
   rust:
     name: Rust and loopback interop
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -197,6 +197,7 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts -p test_distribution_review.py
           python3 -m unittest discover -s scripts -p test_current_appimage_sources.py
+          python3 -m unittest discover -s tests/interop/desktop_updates -p test_live_migration_crash.py
 
       - name: Validate Crostini bootstrap release tools
         run: |

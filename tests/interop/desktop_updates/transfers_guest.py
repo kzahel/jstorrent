@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import socket
 import time
+import uuid
 
 
 class Transfers:
@@ -13,9 +14,8 @@ class Transfers:
         self.config = json.loads((root / "transfers.json").read_text())
 
     def command(self, command):
-        self.application.sequence += 1
         response = self.application.call({"type": "dispatch", "request": {
-            "version": 1, "request_id": "transfers-" + str(self.application.sequence), "command": command,
+            "version": 1, "request_id": "transfers-" + uuid.uuid4().hex, "command": command,
         }})["response"]
         if response.get("status") != "success":
             raise ValueError("Controlled transfer command failed: " + str(response))

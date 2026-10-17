@@ -368,3 +368,50 @@ profile replacement). Its real production API reports 0.3.60004, session 29,
 product 4 and metrics 1; all seven released fixture identities and the owned
 installation identity are retained. This verifies the startup correction and
 normal forward migration. Installed unattended acceptance remains in progress.
+
+### Installed timing, refusal and crash evidence
+
+The Linux production app refuses a forged compatibility envelope before
+staging; a valid offer with service permission off stays manual despite user
+preference on. Turning the preference off during an active download cancels
+it and retains no payload. A full ordinary 900/60 run stages a valid signed
+candidate, then revokes its service permission during the notice. The final
+pre-install refresh cancels restart: the original host and schema 29 remain,
+with the verified payload retained for an explicit manual action.
+
+The actual macOS ARM installed B2 -> C2 run passes ordinary idle/notice timers,
+closed-window preservation, no observed native activation/visibility and 105
+untargeted typing tokens (1,272 characters) into an independent editor. A
+readonly file receipt at 24 seconds remaining confirms the download was still
+partial. C2 writes schema 30 and retains all ten controlled torrent identities
+and the installation identity. Download completion/paused-file hashes and
+saved intents pass after restart; an independent pinned peer receives and
+verifies 2 MiB uploaded from the restarted app.
+
+The actual Linux B2 -> C2 run reaches its migration with an incomplete
+download. The observer requires more than 2 MiB of checksum-valid uncommitted
+WAL pages, using SQLite's documented salts, rolling checksums and commit
+markers (https://sqlite.org/fileformat2.html#wal_format), rather than counting
+old WAL file length. It kills only the new owned app. Read-only inspection
+then verifies schema 29, no probe table, the same ten identities and
+`quick_check=ok`. An explicit driver relaunch of the installed C2 completes
+schema 30 with the same identities. This is application-crash recovery with
+a driver relaunch, not an OS automatic-restart claim. The independently
+authored observer tests exercise actual spill, commit, checkpoint reuse with
+a retained stale tail, checksum corruption and truncated frames.
+
+Test transport setup matters: Linux-controller firewall initially blocked its
+private peers. Narrow temporary rules repair the claimed sources/ports; only
+the two controlled stalled transfer records are recreated after repair,
+keeping content and all seven original fixture torrents. Request IDs are
+unique across helper processes. The Windows long-lived observer must launch
+through Machine Control's persistent desktop route; an SSH descendant did
+not survive session completion, and that unstarted timed run is superseded.
+Windows qualification and Stable catch-up remain in progress.
+
+Main CI at e6c6f12f passes every platform, Android owned runtime, web, extension,
+iOS and release-tools job. Its Rust job hits the 45-minute cold-build budget: 
+workspace tests start after roughly 40 minutes, and the 500-seed runtime case
+is still running when the job is canceled. No assertion failure is reported.
+Raise that bounded job to 75 minutes and include the fast WAL observer case
+in release-tools CI; local 1,747-test workspace evidence remains separate.
