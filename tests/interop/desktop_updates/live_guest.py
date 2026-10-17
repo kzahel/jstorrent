@@ -13,6 +13,7 @@ import sqlite3
 import sys
 import time
 import guest
+from live_files import publish_text
 
 guest.IDENTIFIER = "com.jstorrent.desktop"
 
@@ -89,6 +90,7 @@ def main():
                     raise RuntimeError("Observation bound exceeded")
                 if args.snapshot or ((not args.expect_version or version == args.expect_version)
                                      and (not args.expect_phase or status["phase"] == args.expect_phase)
+                                     and (not args.expect_version or (status.get("lastOutcome") or {}).get("succeeded") is True)
                                      and (args.expect_version or args.expect_phase)):
                     receipt = {"passed": True, "version": version, "status": status, "schemas": schemas(), "records": records}
                     (root / "live-result.json").write_text(json.dumps(receipt, indent=2))
@@ -100,9 +102,7 @@ def main():
                 connection = None
                 (root / "last-error").write_text(str(error)[:1024])
             finally:
-                temporary = root / "live-observations.tmp"
-                temporary.write_text(json.dumps(records, indent=2))
-                os.replace(temporary, root / "live-observations.json")
+                publish_text(root / "live-observations.json", json.dumps(records, indent=2))
             time.sleep(.5)
         raise TimeoutError("Real installed update did not satisfy the expected state")
     finally:

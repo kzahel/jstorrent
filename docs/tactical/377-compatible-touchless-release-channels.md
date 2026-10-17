@@ -410,8 +410,32 @@ not survive session completion, and that unstarted timed run is superseded.
 Windows qualification and Stable catch-up remain in progress.
 
 Main CI at e6c6f12f passes every platform, Android owned runtime, web, extension,
-iOS and release-tools job. Its Rust job hits the 45-minute cold-build budget: 
+iOS and release-tools job. Its Rust job hits the 45-minute cold-build budget:
 workspace tests start after roughly 40 minutes, and the 500-seed runtime case
 is still running when the job is canceled. No assertion failure is reported.
 Raise that bounded job to 75 minutes and include the fast WAL observer case
 in release-tools CI; local 1,747-test workspace evidence remains separate.
+
+Windows B2 -> C2 also passes the ordinary 900/60 cycle, preserving its minimized
+window without activation or a presenting window. An independent editor
+receives all 18 untargeted tokens (324 characters) through replacement and
+relaunch. Session 30, product 4, metrics 1, ten torrent identities and the
+installation identity remain. The active download is still partial at 185/256
+verified pieces after restart. Startup acknowledgement subsequently records
+success. The observer now requires that acknowledgement as well as the new
+version, avoiding an early reconnect's transient unfinished-attempt snapshot.
+
+Earlier Windows typing attempts are superseded because their file oracle
+froze: an ordinary concurrent reader can deny atomic replacement, leaving
+Tk's modified flag set. A native screenshot independently shows the additional
+input in the widget. Tick-based snapshot publication retries sharing errors;
+shared readers and actual Windows sharing-collision/recovery tests pass.
+No application focus-loss finding is inferred from the superseded snapshots.
+
+On all three installed C2/schema-30 apps, selecting private Stable D2
+(0.3.60006/schema 29) persists Stable and reports waiting for compatible
+migration history. No payload is staged or replaced, no schema changes and
+explicit Install also refuses. Compatible private Stable E2 (0.3.60007/schema
+30) is now undergoing real 900/60 acceptance: foreground macOS, visible Linux
+behind the editor, and minimized Windows, with continuous independent typing
+on Linux and Windows. Ordinary public Stable remains 0.3.1 and untouched.

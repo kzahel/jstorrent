@@ -197,7 +197,7 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts -p test_distribution_review.py
           python3 -m unittest discover -s scripts -p test_current_appimage_sources.py
-          python3 -m unittest discover -s tests/interop/desktop_updates -p test_live_migration_crash.py
+          python3 -m unittest discover -s tests/interop/desktop_updates -p 'test_live_*.py'
 
       - name: Validate Crostini bootstrap release tools
         run: |

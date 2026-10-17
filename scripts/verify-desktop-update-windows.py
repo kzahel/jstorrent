@@ -78,7 +78,7 @@ class Run:
         self.created = True
         archive = io.BytesIO()
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as packed:
-            for name in ("guest.py", "focus_windows.py", "editor_windows.py", "token_windows.py"):
+            for name in ("guest.py", "focus_windows.py", "editor_windows.py", "token_windows.py", "live_files.py"):
                 packed.write(REPO / "tests/interop/desktop_updates" / name, name)
             packed.write(REPO / "crates/rstorrent-session/tests/fixtures/product/v2.sqlite", "product-v2.sqlite")
         self.ps(f"$r={quote(self.root)}; $s=[Console]::OpenStandardInput();$f=[IO.File]::Create((Join-Path $r 'tools.zip'));$s.CopyTo($f);$f.Dispose();Expand-Archive (Join-Path $r 'tools.zip') -DestinationPath $r; Copy-Item (Join-Path {quote(fixture)} 'fixture.json') (Join-Path $r 'fixture.json'); Copy-Item (Join-Path {quote(fixture)} '100.0.1'),(Join-Path {quote(fixture)} '100.0.2') -Destination $r -Recurse; Copy-Item (Join-Path {quote(fixture)} 'server.pem'),(Join-Path {quote(fixture)} 'server.key') -Destination $r; New-Item -ItemType Directory (Join-Path $r 'runtime/config') -Force | Out-Null; Copy-Item (Join-Path $r 'product-v2.sqlite') (Join-Path $r 'runtime/config/product.db')", data=archive.getvalue())

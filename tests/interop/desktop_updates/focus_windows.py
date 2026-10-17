@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import time
+from live_files import publish_text
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--root", type=Path, required=True)
@@ -109,9 +110,7 @@ def tick(_window, _message, _timer, _time):
         previous = visible
         write({"kind": "visibility", "windows": visible, "critical": (root / "offer").exists()})
     pid, watched = identity(user.GetForegroundWindow())
-    temporary = root / "foreground.tmp"
-    temporary.write_text(json.dumps({"pid": pid, "watched": watched, "maxSampleGap": max_gap, "minimizedWindows": minimized}))
-    os.replace(temporary, root / "foreground.json")
+    publish_text(root / "foreground.json", json.dumps({"pid": pid, "watched": watched, "maxSampleGap": max_gap, "minimizedWindows": minimized}))
     if (root / "stop").exists() or now >= deadline:
         write({"kind": "finished", "maxSampleGap": max_gap})
         user.PostQuitMessage(0)
