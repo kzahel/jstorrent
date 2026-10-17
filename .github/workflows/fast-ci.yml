@@ -58,7 +58,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.rust == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       FAST_CI_PACKAGES: ${{ needs.plan.outputs.packages }}
       FAST_CI_TEST_PACKAGES: ${{ needs.plan.outputs.test-packages }}

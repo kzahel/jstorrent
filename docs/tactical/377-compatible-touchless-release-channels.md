@@ -439,3 +439,11 @@ explicit Install also refuses. Compatible private Stable E2 (0.3.60007/schema
 30) is now undergoing real 900/60 acceptance: foreground macOS, visible Linux
 behind the editor, and minimized Windows, with continuous independent typing
 on Linux and Windows. Ordinary public Stable remains 0.3.1 and untouched.
+
+Fast CI at 694ce531 also exhausted its separate 15-minute job budget: compile
+finished at 10:34:14 after a 10:20:31 start, leaving about 90 seconds for unit
+tests. All reported assertions pass; the 500-seed scheduling case is still
+running at cancellation. Give this bounded affected-crate job 30 minutes;
+retain its unchanged checks and no-cache-write policy. Seven fast-planner
+regressions and workflow lint pass. This is timeout evidence, not a claim that
+the canceled run passed; the full workspace CI remains independently pending.
