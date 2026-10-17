@@ -1,6 +1,6 @@
 # Tactical 378: Public Latest and Nightly Publication
 
-Status: Active, 2026-10-17.
+Status: Complete, 2026-10-17. Public Latest 0.3.2 verified; nightly active.
 
 Topics: `mixed-version-compatibility`, `product-surfaces-and-migration`,
 `capability-readiness`, `beta-release-readiness`.
@@ -67,8 +67,8 @@ Local validation: 50 release/selector/compatibility/promotion/metadata tests
 pass; workflow lint passes for Latest, publisher and full CI; database source
 metadata and delivery-ledger checks pass; web typecheck passes and 863 web
 tests pass with three pre-existing skips. No Rust runtime or schema changes.
-Next: commit/push, wait for exact-source full CI, dispatch the Latest publisher
-and verify public offers without changing Stable.
+Execution below records the exact-source full CI, publication and live
+verification that complete this plan.
 
 Full CI 39036770272 and Fast CI 39036770375 pass at e633f322. Initial
 publication dispatch 39040106459 correctly selects 0.3.2 and passes the
@@ -96,3 +96,40 @@ Resume the private draft with the exact same-run native artifacts and original
 signed metadata, retaining source SHA 6ac2553d. Complete the corresponding
 source archive and all ordinary draft/hash/signature checks before publication;
 this tooling repair does not rebuild or replace any qualified package.
+
+
+## Published release and retained fixtures
+
+Public [Latest 0.3.2](https://github.com/kzahel/jstorrent/releases/tag/desktop-latest-v0.3.2)
+is published at 17:07 UTC from exact source 6ac2553d. The completed carrier
+has 39,211 verified members, 775 locked Cargo packages, offline metadata checks
+for both Linux targets and exact AppImage/runtime/native-source bindings.
+The corrected helper at 8ed3e75f completes source preparation locally; all
+original signed native packages and signed database metadata remain identical.
+The ordinary production draft and release validators pass before publication.
+All 17 public asset digests, checksum coverage, six native updater signatures
+and the original signed metadata/database facts pass independent verification.
+
+The unmodified fixture generators run in a detached worktree at the public tag
+and produce session v29/product v4 fixtures. The released-store matrices now
+cover both these stores and their original v26/v2 baselines; all six focused
+released-store/export/import tests pass. Pre-bitmap conversion assertions apply
+only to pre-29 fixtures; every original row, including current bitmap rows, is
+still compared unchanged. No runtime, SQL migration or fingerprint changes.
+[378 receipt](evidence/378-public-latest.json) binds the exact source, assets,
+source archive, workflow runs and released-store fixture hashes. Nightly is
+active for 03:17 UTC; unchanged-source and exact-green-main tests pass. The
+qualified binary source remains 6ac2553d; later tooling/receipt commits qualify
+for a future nightly after their own full CI succeeds.
+
+
+After the ordinary five-minute empty-result cache expires, the live update
+service offers 0.3.2 for all five Latest targets. Each response matches the
+public payload URL/signature and authenticated compatibility envelope; automatic
+permission is true only for the four qualified native targets and false for
+Linux ARM. Equal 0.3.2 and newer 0.3.3 callers receive 204. Implicit and explicit
+Stable response bodies retain their original hashes on all five targets and
+GitHub's latest-release pointer remains desktop-v0.3.1. No service restart,
+configuration change or Stable publication is needed. Session test Clippy,
+formatting and database fingerprint checks also pass after fixture registration.
+The temporary release-tag worktree is removed after fixture generation.

@@ -1,7 +1,7 @@
 # Product Surfaces And JSTorrent Migration
 
 Tactical [379](../tactical/379-release-security-dependencies.md) removes fresh
-dependency-audit blockers before 378's public Latest. It preserves the native
+dependency-audit blockers for 378's public Latest 0.3.2. It preserves the native
 updater version, product identity, store migrations and package formats while
 patching TLS and torrent-list ZIP handling. No Stable publication is implied.
 
@@ -43,8 +43,9 @@ production desktop-extension admission. Released desktop 0.3.0/0.3.1 retain
 a native helper guard allowing only the beta ID, although registration and
 authenticated WebSocket admission already allow production. The source repair
 and an unpacked production 1.1.4/macOS candidate pass local launch/lifecycle
-qualification. A corrected signed desktop update is still required; retrying
-or reinstalling the unchanged extension cannot repair the released helper.
+qualification. Public Latest 0.3.2 now contains the corrected signed desktop helper.
+Stable 0.3.1 retains the guard; retrying or reinstalling the unchanged
+extension cannot repair that older host.
 
 Tactical [330](../tactical/330-android-1-0-31-production-release.md) submits
 Android 1.0.31/code 31 for production at 100%, automatically publishing after

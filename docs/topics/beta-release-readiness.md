@@ -5,7 +5,10 @@ fresh-audit blocker found during 378 publication: rustls 0.23.46 and ZIP 9.0.4,
 with optional ZIP extraction disabled on the unchanged updater 2.10.1. Raw
 Windows installers/Linux AppImages and unconditional macOS tar.gz remain.
 No vulnerability is waived. Five source-reviewed warning additions retain the
-existing November 12 expiry; native/source qualification is pending.
+existing November 12 expiry. Full source CI, all five signed native builds
+and all 17 public Latest 0.3.2 assets pass qualification. The Linux source
+carrier is completed with the corrected 7-Zip lookup after the collector
+stops with its draft private; original signed native bytes are retained.
 
 Tactical [377](../tactical/377-compatible-touchless-release-channels.md) adds
 authenticated database admission, one increasing Stable/Latest release train,
@@ -22,7 +25,9 @@ physical Intel claim is inferred. Public Stable retains the strict-companion
 hold; service permission alone publishes no package. Tactical
 [378](../tactical/378-public-latest-and-nightly.md) authorizes Latest publication
 and a daily changed-main release, accepting only the eight current field
-exposures with extension 1.1.5 or newer required. Stable is not authorized.
+exposures with extension 1.1.5 or newer required. Latest 0.3.2 and all five live
+update offers verify, including authenticated metadata and unchanged Stable
+bodies. Stable publication is not authorized.
 
 Tactical [355](../tactical/355-automatic-updates.md) narrows the automatic
 update plan to desktop app/NSIS/AppImage. The accepted goal is unattended

@@ -48,8 +48,8 @@ below to **Retired** with the commit.
 
 | Format | Owner | Current | Floor | Notes |
 | --- | --- | --- | --- | --- |
-| Session catalog `session.db` | `crates/rstorrent-session/src/store*.rs` | 29 | 26 | Baseline 26 is every public release since `android-v0.1.0` / `desktop-v0.1.4`; fixture `tests/fixtures/catalog/v26.sqlite` |
-| Product state `product.db` | `crates/rstorrent-session/src/product_state.rs` | 4 | 2 | Baseline 2 is every public release; fixture `tests/fixtures/product/v2.sqlite` |
+| Session catalog `session.db` | `crates/rstorrent-session/src/store*.rs` | 29 | 26 | Baseline 26 covers releases through desktop 0.3.1; Latest 0.3.2 ships 29; fixtures `tests/fixtures/catalog/v26.sqlite` and `v29.sqlite` |
+| Product state `product.db` | `crates/rstorrent-session/src/product_state.rs` | 4 | 2 | Baseline 2 covers releases through desktop 0.3.1; Latest 0.3.2 ships 4; fixtures `tests/fixtures/product/v2.sqlite` and `v4.sqlite` |
 | Speed history `metrics.db` | `crates/rstorrent-session/src/speed.rs` | 1 | 1 | No migrations; an unknown version runs without saved history and is not deleted |
 | Desktop shell `desktop-shell.json` | `clients/desktop/src-tauri/src/desktop_lifecycle.rs` | retired format | — | Imported once into `product.db`; never written since Tactical 358 |
 | Torrent list bundle | `crates/rstorrent-session/src/torrent_list.rs` | 1 | 1 | Export format; readers ignore unknown fields and refuse newer versions |

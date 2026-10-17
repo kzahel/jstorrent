@@ -47,9 +47,11 @@ keep fields a newer client added. Search text and page are not stored.
 ## Supported Catalog Contract
 
 Tactical [345](../tactical/345-supported-catalog-migrations.md) ends the
-disposable-catalog era. Every public release since `android-v0.1.0` and
-`desktop-v0.1.4`, including all JSTorrent production releases, ships session
-catalog schema 26, so schema 26 is the supported baseline:
+disposable-catalog era. Public releases from `android-v0.1.0` and
+`desktop-v0.1.4` through desktop 0.3.1 ship session catalog schema 26. Public Latest 0.3.2 ships session
+schema 29 and product schema 4; schema 26 remains the supported session
+baseline. Exact-release populated v29/v4 fixtures preserve these released
+formats alongside the frozen baseline fixtures:
 
 - The application never resets, replaces or discards a session catalog on its
   own. The automatic reset of older catalogs is removed. Only the user's

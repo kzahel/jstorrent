@@ -3,15 +3,16 @@
 Tactical [377](../tactical/377-compatible-touchless-release-channels.md) adds
 release/database compatibility metadata to the updater service, without new
 application fields, commands or capability IDs. The existing desktop updater
-capability and older-host fallback remain. Public Latest and Stable publication
-still run the strict-companion guard; private installation cohorts do not waive
-the 30-day window or authorize host-side response shaping. Installed updater
-qualification passes independently of the pending publication-policy choice.
+capability and older-host fallback remain. At its completion public publication
+retained the strict-companion guard; private installation cohorts do not waive
+the 30-day window or authorize host-side response shaping. Subsequent Latest
+authorization and publication are recorded below.
 The adoption dashboard required Google reauthentication on October 17, so no
 new adoption count or permission to lift the hold is inferred.
 
 Tactical [378](../tactical/378-public-latest-and-nightly.md) records subsequent
-maintainer authorization to publish public Latest and schedule daily releases.
+maintainer authorization and public Latest 0.3.2 publication, with daily
+changed-main releases scheduled at 03:17 UTC.
 Latest requires extension 1.1.5 or newer for exactly the eight accepted field
 exposures. `acceptedLatestDesktopFields` is limited to numeric
 `desktop-latest-v*` releases on desktop; new fields and unrequested variants

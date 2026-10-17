@@ -1,7 +1,9 @@
 # Tactical 377: Compatible Touchless Release Channels
 
 Status: Implementation and installed acceptance complete for the enabled
-targets, 2026-10-17. Public publication retains the companion-policy hold.
+targets, 2026-10-17. Subsequent Tactical [378](378-public-latest-and-nightly.md)
+publishes Latest 0.3.2 under explicit maintainer authorization; Stable retains
+the companion-policy hold. Earlier execution notes below retain their context.
 
 Topics: `beta-release-readiness`, `durable-data-migrations`,
 `product-surfaces-and-migration`, `client-surfaces`,

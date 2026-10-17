@@ -16,6 +16,9 @@ Public Stable retains the existing strict-companion hold. Tactical
 [378](../tactical/378-public-latest-and-nightly.md) authorizes public Latest
 with extension 1.1.5 or newer for exactly the reviewed eight field additions,
 and daily publication of changed main after exact-source full CI succeeds.
+Latest 0.3.2 is public with all 17 assets independently verified; Stable is
+still 0.3.1. [378 evidence](../tactical/evidence/378-public-latest.json) records
+the qualified source, five signed native legs and source-carrier recovery.
 
 Tactical [355](../tactical/355-automatic-updates.md) is a desktop-only
 unattended-update implementation in progress as of October 16. The maintainer accepts a restart

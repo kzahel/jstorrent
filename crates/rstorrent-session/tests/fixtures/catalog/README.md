@@ -20,7 +20,8 @@ Copy the output here, add it to `RELEASED_CATALOGS`, and record it below.
 
 | Fixture | Release tag | Commit | SHA-256 |
 | --- | --- | --- | --- |
-| `v26.sqlite` | `android-v1.0.31` (schema 26, as every public release since `android-v0.1.0` and `desktop-v0.1.4`) | `70150ec99ff5613bb468fd816fed46c687ff7557` | `499e32a3ba498ee3d0743e8b13d6f9c09a08f497572303dedfbe262c8c008bfa` |
+| `v26.sqlite` | `android-v1.0.31` (schema 26, as public releases through desktop 0.3.1 since `android-v0.1.0` and `desktop-v0.1.4`) | `70150ec99ff5613bb468fd816fed46c687ff7557` | `499e32a3ba498ee3d0743e8b13d6f9c09a08f497572303dedfbe262c8c008bfa` |
+| `v29.sqlite` | `desktop-latest-v0.3.2` | `6ac2553d93788b12f5a7dc614e5920c9e4bb7488` | `5c15b41cc0206414ee046f17444ad2b6a7ae43230095f46a60ff402e378d2786` |
 
 The fixture holds seven torrents covering running, paused, archived, removing
 (keep data), pending file selection, multi-file with High and Skip priorities,

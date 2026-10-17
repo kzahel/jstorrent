@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "Local repair checked; complete workspace and hosted native qualification pending",
+  "status": "Workspace, full hosted CI, signed five-target native builds and public asset validation pass",
   "advisoryRevision": "e6e9dd63d3a520c35a3b4695f612018d78f61b72",
   "vulnerabilities": {
     "cargo": 0,
@@ -127,6 +127,138 @@
     "versionOneZipCompatibility": true,
     "zip4ReadsZip9StoredOutput": true,
     "updaterVersionRetained": "2.10.1",
-    "updaterZipFeatureEnabled": false
+    "updaterZipFeatureEnabled": false,
+    "workspaceTestsPassed": 1748,
+    "workspaceTestSuites": 73,
+    "workspaceTestsIgnored": 20,
+    "workspaceFormatting": true
+  },
+  "hostedQualification": {
+    "sourceSha": "6ac2553d93788b12f5a7dc614e5920c9e4bb7488",
+    "fullCi": 39045059529,
+    "fastCi": 39045059512,
+    "independentDependencyAudit": 39045635628,
+    "signedNativeBuilds": 39047869310,
+    "nativeBuildsPassed": 5,
+    "publication": "https://github.com/kzahel/jstorrent/releases/tag/desktop-latest-v0.3.2",
+    "releaseEvidence": "378-public-latest.json",
+    "collectorFinalization": "Original qualified bytes retained; missing-7zz source step completed locally with reviewed executable lookup fix"
+  },
+  "productionDependencyReview": {
+    "schema": 1,
+    "reviewed_at": "2026-10-17",
+    "database_revision": "999ec89d5d3f10f20be14750ec8c2d8b44e0ac9b",
+    "cargo_vulnerabilities": 0,
+    "npm_vulnerabilities": 0,
+    "website_npm_vulnerabilities": 0,
+    "reviewed_warnings": [
+      [
+        "unmaintained",
+        "RUSTSEC-2024-0370",
+        "proc-macro-error",
+        "1.0.4"
+      ],
+      [
+        "unmaintained",
+        "RUSTSEC-2025-0057",
+        "fxhash",
+        "0.2.1"
+      ],
+      [
+        "unmaintained",
+        "RUSTSEC-2025-0075",
+        "unic-char-range",
+        "0.9.0"
+      ],
+      [
+        "unmaintained",
+        "RUSTSEC-2025-0080",
+        "unic-common",
+        "0.9.0"
+      ],
+      [
+        "unmaintained",
+        "RUSTSEC-2025-0081",
+        "unic-char-property",
+        "0.9.0"
+      ],
+      [
+        "unmaintained",
+        "RUSTSEC-2025-0098",
+        "unic-ucd-version",
+        "0.9.0"
+      ],
+      [
+        "unmaintained",
+        "RUSTSEC-2025-0100",
+        "unic-ucd-ident",
+        "0.9.0"
+      ],
+      [
+        "unmaintained",
+        "RUSTSEC-2026-0370",
+        "zvariant",
+        "5.15.0"
+      ],
+      [
+        "unmaintained",
+        "RUSTSEC-2026-0371",
+        "zbus_names",
+        "4.3.4"
+      ],
+      [
+        "unmaintained",
+        "RUSTSEC-2026-0372",
+        "zvariant_derive",
+        "5.15.0"
+      ],
+      [
+        "unsound",
+        "RUSTSEC-2024-0429",
+        "glib",
+        "0.18.5"
+      ],
+      [
+        "unsound",
+        "RUSTSEC-2026-0097",
+        "rand",
+        "0.7.3"
+      ]
+    ],
+    "reviewed_features": {
+      "rand@0.7.3": [
+        "alloc",
+        "default",
+        "getrandom",
+        "getrandom_package",
+        "libc",
+        "rand_pcg",
+        "small_rng",
+        "std"
+      ]
+    },
+    "source_verified_backports": [
+      {
+        "package": "glib",
+        "version": "0.18.5",
+        "advisory": "RUSTSEC-2024-0429",
+        "license": "MIT",
+        "upstream_archive": "https://static.crates.io/crates/glib/glib-0.18.5.crate",
+        "upstream_archive_sha256": "233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5",
+        "upstream_revision": "42b9caf98e03ded086362d9653ca58fe94dc8658",
+        "patch": "distribution/patches/glib-0.18.5-variant-iterator.patch",
+        "patch_sha256": "8eb6674027f126bdfac118d8644308d390c511e1cf88cf2857794c93a72a2e6f",
+        "patched_file_sha256": "a0f5ee8acb8faa089bcdfbc9a57372609fce7654026ccef7d9a224d05a654ccc",
+        "source_manifest_sha256": "b4c7d59e738c7999884177232c056720ddeb15b1e83568594cc60ba4b7e7fa0b",
+        "status": "source-verified-backport"
+      }
+    ],
+    "release_blockers": [],
+    "release_ready": true,
+    "lockfiles": {
+      "Cargo.lock": "1d17f8a661e674a4683830291b4b18a3021ce974eefd21e486c59dec8a6ab5fb",
+      "clients/web/package-lock.json": "e04bf5ede2ff00326264e39bffef29df2f863e857b1c39b9ac995cf91b258eb0",
+      "website/package-lock.json": "3157dda6cf5dd0ed4c714df286b4400510c35950aedcf53193aa28aae7122390"
+    }
   }
 }
