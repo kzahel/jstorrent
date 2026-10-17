@@ -83,7 +83,8 @@ For maintainer-specific cross-project context, see
 Mature clients are the best evidence for how BitTorrent behavior should work
 and what users expect. [`reference/pins.toml`](reference/pins.toml) pins
 them; `python3 scripts/references.py sync` fetches missing checkouts and
-`sync --only NAME` fetches one.
+`sync --only NAME` fetches one. `bump` moves pins to the newest upstream
+releases; libtorrent is held to its interop-oracle version unless named.
 
 - **Adding or changing core engine behavior** (protocol, discovery, peer
   lifecycle, scheduling, choking, storage, hashing): read the BEP in

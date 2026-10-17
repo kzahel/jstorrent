@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Synchronize and validate RSTorrent's local reference repositories."""
+"""Synchronize, validate and bump JSTorrent's local reference repositories."""
 
 from __future__ import annotations
 
 import argparse
+import dataclasses
+import io
+import json
 import re
 import subprocess
 import sys
+import tarfile
 import tomllib
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NoReturn
@@ -16,8 +21,11 @@ from typing import Any, NoReturn
 ROOT = Path(__file__).resolve().parent.parent
 REFERENCE_ROOT = ROOT / "reference"
 MANIFEST_PATH = REFERENCE_ROOT / "pins.toml"
+README_PATH = REFERENCE_ROOT / "README.md"
 REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 BRANCH_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
+LATEST_POLICIES = ("tag", "branch", "crate")
+CRATES_USER_AGENT = "jstorrent-references (https://github.com/kzahel/jstorrent)"
 
 
 class ReferenceError(Exception):
@@ -35,6 +43,10 @@ class Reference:
     revision: str | None
     branch: str | None
     submodules: bool
+    latest: str | None = None
+    tag_pattern: re.Pattern[str] | None = None
+    crate: str | None = None
+    hold: str | None = None
 
     @property
     def absolute_path(self) -> Path:
@@ -84,6 +96,31 @@ def parse_records(kind: str, raw_records: Any) -> list[Reference]:
         if not isinstance(submodules, bool):
             fail(f"{context} submodules must be a boolean")
 
+        latest = raw.get("latest")
+        tag_pattern = None
+        crate = raw.get("crate")
+        hold = raw.get("hold")
+        if latest is not None:
+            if kind != "checkout":
+                fail(f"{context} latest applies only to checkouts")
+            if latest not in LATEST_POLICIES:
+                fail(f"{context} latest must be one of {', '.join(LATEST_POLICIES)}")
+        if (latest == "tag") != ("tag_pattern" in raw):
+            fail(f"{context} tag_pattern is required exactly when latest = \"tag\"")
+        if latest == "tag":
+            try:
+                tag_pattern = re.compile(require_string(raw, "tag_pattern", context))
+            except re.error as error:
+                fail(f"{context} tag_pattern is invalid: {error}")
+            if tag_pattern.groups == 0:
+                fail(f"{context} tag_pattern must capture numeric version groups")
+        if (latest == "crate") != (crate is not None):
+            fail(f"{context} crate is required exactly when latest = \"crate\"")
+        if crate is not None:
+            crate = require_string(raw, "crate", context)
+        if hold is not None:
+            hold = require_string(raw, "hold", context)
+
         records.append(
             Reference(
                 kind=kind,
@@ -95,6 +132,10 @@ def parse_records(kind: str, raw_records: Any) -> list[Reference]:
                 revision=revision,
                 branch=branch,
                 submodules=submodules,
+                latest=latest,
+                tag_pattern=tag_pattern,
+                crate=crate,
+                hold=hold,
             )
         )
     return records
@@ -416,6 +457,177 @@ def sync(records: list[Reference]) -> None:
     status(records)
 
 
+@dataclass(frozen=True)
+class Bump:
+    record: Reference
+    revision: str
+    label: str | None
+
+
+def remote_tags(repository: str) -> dict[str, str]:
+    """Return tag names mapped to the commits they peel to."""
+    output = run_git(["ls-remote", "--tags", repository]).stdout
+    tags: dict[str, str] = {}
+    for line in output.splitlines():
+        revision, ref = line.split("\t", 1)
+        name = ref.removeprefix("refs/tags/")
+        if name.endswith("^{}"):
+            tags[name.removesuffix("^{}")] = revision
+        else:
+            tags.setdefault(name, revision)
+    return tags
+
+
+def latest_tag(record: Reference) -> tuple[str, str]:
+    assert record.tag_pattern is not None
+    candidates: list[tuple[tuple[int, ...], str, str]] = []
+    for name, revision in remote_tags(record.repository).items():
+        match = record.tag_pattern.fullmatch(name)
+        if match:
+            version = tuple(int(group) for group in match.groups())
+            candidates.append((version, name, revision))
+    if not candidates:
+        fail(f"{record.name} has no remote tag matching {record.tag_pattern.pattern!r}")
+    _, name, revision = max(candidates)
+    return name, revision
+
+
+def latest_branch_head(record: Reference) -> str:
+    output = run_git(["ls-remote", record.repository, "HEAD"]).stdout.split()
+    if not output:
+        fail(f"{record.name} remote has no default branch HEAD")
+    return output[0]
+
+
+def fetch_url(url: str) -> bytes:
+    request = urllib.request.Request(url, headers={"User-Agent": CRATES_USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            return response.read()
+    except OSError as error:
+        fail(f"cannot fetch {url}: {error}")
+
+
+def latest_crate(record: Reference) -> tuple[str, str]:
+    """Return the newest stable crate version and the commit it was packaged from."""
+    assert record.crate is not None
+    try:
+        url = f"https://crates.io/api/v1/crates/{record.crate}"
+        metadata = json.loads(fetch_url(url))
+        version = metadata["crate"]["max_stable_version"]
+    except (ValueError, KeyError, TypeError):
+        fail(f"crates.io returned unexpected metadata for {record.crate}")
+    if not isinstance(version, str) or not version:
+        fail(f"{record.crate} has no stable crates.io release")
+
+    archive = fetch_url(
+        f"https://static.crates.io/crates/{record.crate}/{record.crate}-{version}.crate"
+    )
+    member = f"{record.crate}-{version}/.cargo_vcs_info.json"
+    try:
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as crate_file:
+            vcs_file = crate_file.extractfile(member)
+            if vcs_file is None:
+                raise KeyError(member)
+            revision = json.loads(vcs_file.read())["git"]["sha1"]
+    except (tarfile.TarError, KeyError, ValueError, TypeError):
+        fail(f"{record.crate} {version} does not record its source commit")
+    if not isinstance(revision, str) or not REVISION_PATTERN.fullmatch(revision):
+        fail(f"{record.crate} {version} records an invalid source commit")
+    return version, revision
+
+
+def resolve_latest(record: Reference) -> Bump:
+    if record.latest == "tag":
+        tag, revision = latest_tag(record)
+        return Bump(record, revision, tag)
+    if record.latest == "crate":
+        version, revision = latest_crate(record)
+        return Bump(record, revision, version)
+    return Bump(record, latest_branch_head(record), None)
+
+
+def revision_cell(bump: Bump) -> str:
+    if bump.record.latest == "tag":
+        return f"`{bump.label}` (`{bump.revision}`)"
+    if bump.record.latest == "crate":
+        return f"`{bump.revision}` (crates.io `{bump.label}`)"
+    return f"`{bump.revision}`"
+
+
+def write_pins(bumps: list[Bump]) -> None:
+    manifest = MANIFEST_PATH.read_text()
+    for bump in bumps:
+        old = f'revision = "{bump.record.revision}"'
+        if manifest.count(old) != 1:
+            fail(f"cannot locate a unique {bump.record.name} revision in pins.toml")
+        manifest = manifest.replace(old, f'revision = "{bump.revision}"')
+    MANIFEST_PATH.write_text(manifest)
+
+
+def write_readme(bumps: list[Bump]) -> None:
+    readme = README_PATH.read_text()
+    for bump in bumps:
+        row = re.compile(
+            rf"^(\| `{re.escape(bump.record.path)}` \| )[^|]*( \|.*)$",
+            re.MULTILINE,
+        )
+        readme, count = row.subn(
+            lambda match: match.group(1) + revision_cell(bump) + match.group(2),
+            readme,
+        )
+        if count != 1:
+            print(
+                f"[warn]  {bump.record.name}: no unique row in "
+                f"{README_PATH.relative_to(ROOT)}; update it by hand",
+                file=sys.stderr,
+            )
+    README_PATH.write_text(readme)
+
+
+def bump(records: list[Reference], explicit: set[str], dry_run: bool) -> None:
+    """Move checkout pins to their newest upstream versions and check them out."""
+    bumps: list[Bump] = []
+    for record in records:
+        if record.kind != "checkout":
+            print(f"[skip]  {record.name}: tracks {record.branch}; use sync")
+            continue
+        if record.latest is None:
+            print(f"[skip]  {record.name}: no latest policy in pins.toml")
+            continue
+        if record.hold is not None and record.name not in explicit:
+            print(f"[hold]  {record.name}: {record.hold}")
+            continue
+
+        candidate = resolve_latest(record)
+        label = f" ({candidate.label})" if candidate.label else ""
+        if candidate.revision == record.revision:
+            print(f"[same]  {record.name} {record.revision}{label}")
+            continue
+        print(
+            f"[bump]  {record.name} {record.revision} -> {candidate.revision}{label}",
+            flush=True,
+        )
+        if record.hold is not None:
+            print(f"[warn]  {record.name} is held: {record.hold}", file=sys.stderr)
+        bumps.append(candidate)
+
+    if not bumps or dry_run:
+        return
+
+    write_pins(bumps)
+    write_readme(bumps)
+    moved = [dataclasses.replace(item.record, revision=item.revision) for item in bumps]
+    for record in moved:
+        sync_checkout(record)
+    status(moved)
+    print(
+        "Pins moved. Record the reason and validation for each move in "
+        "reference/README.md, and re-check citations that depend on the old "
+        "revisions, before committing."
+    )
+
+
 def select_records(records: list[Reference], names: list[str]) -> list[Reference]:
     """Return manifest-ordered records selected by unique command-line names."""
     if not names:
@@ -436,12 +648,15 @@ def select_records(records: list[Reference], names: list[str]) -> list[Reference
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Synchronize or validate local reference repositories.",
+        description="Synchronize, validate or bump local reference repositories.",
     )
     parser.add_argument(
         "command",
-        choices=("sync", "status"),
-        help="clone/update references or validate them without changing state",
+        choices=("sync", "status", "bump"),
+        help=(
+            "clone/update references, validate them without changing state, or "
+            "move checkout pins to their newest upstream versions"
+        ),
     )
     parser.add_argument(
         "--only",
@@ -449,6 +664,11 @@ def parse_args() -> argparse.Namespace:
         default=[],
         metavar="NAME",
         help="operate on one named manifest record; may be repeated",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="with bump, report the newest versions without changing anything",
     )
     return parser.parse_args()
 
@@ -461,6 +681,8 @@ def main() -> int:
         command = arguments.command
         if command == "sync":
             sync(records)
+        elif command == "bump":
+            bump(records, set(arguments.only), arguments.dry_run)
         else:
             status(records)
         return 0
