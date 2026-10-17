@@ -1,13 +1,18 @@
 # Client Surfaces
 
-Tactical [377](../tactical/377-compatible-touchless-release-channels.md) clarifies
-About's existing channel selector as **Stable — Recommended** and
-**Latest — Early access**. Returning to Stable preserves the installed app until
-a newer compatible release arrives. Authenticated native admission checks the
-actual database versions and migration history before staging and shutdown.
-Production availability follows explicit service permission for the selected
-channel and native target, with the user's separate automatic-install setting
-retained. Signed installed qualification and Stable activation remain pending.
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md) labels
+About's selector **Stable — Recommended** and **Latest — Early access**.
+Returning to Stable saves the choice and waits for a newer release that supports
+both the actual databases and their immutable migration history. Signed macOS
+ARM, Windows x64 and Linux x64 runs prove incompatible Stable waiting and
+compatible unattended catch-up. Closed-window macOS, foreground macOS,
+minimized Windows and Linux behind an independent editor retain their intended
+presentation; background typing checks pass. The user's separate automatic
+setting persists, and service permission gates each channel/native target.
+Intel macOS under Rosetta additionally passes input during the actual startup
+gap, without foreground reacquisition. Both channels are service-enabled for
+macOS ARM/x64, Windows x64 and Linux x64; Linux ARM stays manual. See 377 for
+exact evidence, remaining architecture coverage and release holds.
 
 Tactical [355](../tactical/355-automatic-updates.md) now implements unattended
 desktop updates through one native host owner, including with the window
@@ -26,8 +31,9 @@ native synthetic runners are implemented. macOS ARM64 passes repeated window
 matrices, full idle intervals and controlled transfer resumption; Windows and
 Linux ARM64 synthetic presentation matrices also pass.
 Default-on for qualified targets, a 60-second notice and one-hour snooze are
-accepted. Production activation remains gated pending the full signed package,
-window/transfer and failure matrix in 355.
+accepted. Tactical 377 extends this synthetic evidence with actual shipping-signed
+packages and explicit per-target rollout; unrun 355 cases remain separate
+qualification gaps rather than evidence for an untested architecture.
 
 Tactical [376](../tactical/376-android-media-library.md) adds the media
 Library to Android as a second primary destination, **Torrents | Library**:

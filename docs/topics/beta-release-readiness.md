@@ -1,12 +1,18 @@
 # Beta Release Readiness
 
 Tactical [377](../tactical/377-compatible-touchless-release-channels.md) adds
-authenticated database admission, a shared increasing release train, complete
-source-bearing Latest publication and immutable Stable promotion. The deployed
-service controls unattended rollout by channel and exact updater target, with
-local opt-out and a pre-shutdown recheck. Public Stable remains manual while
-production-signed owned-VM acceptance is in progress. No new public release or
-installed qualification is inferred from the source implementation.
+authenticated database admission, one increasing Stable/Latest release train,
+source-bearing Latest publication and immutable Stable promotion. Actual signed
+macOS ARM, Windows x64 and Linux x64 installations pass real 900/60 cycles,
+higher-version/older-schema refusal and compatible Stable catch-up with retained
+identities and channel choice. Background typing and transfer hashes/intent
+pass; a real uncommitted SQLite migration crash rolls back and recovers on an
+explicit relaunch. Exact package/source and sanitized result receipts are in
+[377 evidence](../tactical/evidence/377-compatible-updates.json). Intel macOS under Rosetta also passes the full real-idle late-focus test and
+manual compatible Stable catch-up. Both channels now permit unattended install
+on macOS ARM/x64, Windows x64 and Linux x64. Linux ARM remains manual; no
+physical Intel claim is inferred. Public publication retains the strict-companion
+hold; service permission alone publishes no package.
 
 Tactical [355](../tactical/355-automatic-updates.md) narrows the automatic
 update plan to desktop app/NSIS/AppImage. The accepted goal is unattended
@@ -20,7 +26,7 @@ hidden and unfocused intervals, five feed/download failures, and controlled
 download/seeding resumption. Windows/Linux ARM64 synthetic presentation matrices also pass. See 355 for
 exact source receipts and the remaining shipping qualification gates.
 Android in-app updates and the self-updating Linux CLI are separate follow-ups;
-no new unattended-update readiness is claimed.
+377 records the additional signed installed evidence and bounded rollout.
 
 Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
 repairs desktop notice generation for npm's SSH spelling of the exact reviewed

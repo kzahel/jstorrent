@@ -6,7 +6,9 @@ application fields, commands or capability IDs. The existing desktop updater
 capability and older-host fallback remain. Public Latest and Stable publication
 still run the strict-companion guard; private installation cohorts do not waive
 the 30-day window or authorize host-side response shaping. Installed updater
-qualification continues independently of the pending publication-policy choice.
+qualification passes independently of the pending publication-policy choice.
+The adoption dashboard required Google reauthentication on October 17, so no
+new adoption count or permission to lift the hold is inferred.
 
 Tactical [375](../tactical/375-ci-reconciliation-and-ui-regressions.md)
 reconciles the concurrent updater/safety contracts. Safety and bitmap capability
@@ -246,7 +248,7 @@ never deleted.
 
 ## Current Release Hold
 
-As of 2026-10-15, `main` carries eight reviewed client exposures (see
+As of 2026-10-17, `main` carries thirteen reviewed client exposures (see
 `reviewedClientExposure` in `clients/web/src/api/release-compatibility.json`). Extensions 1.1.3 and 1.1.4
 (built from `5fa018ff`, published) validate strictly. A torrent list
 snapshot from a host built from current `main` includes the new
@@ -254,10 +256,12 @@ snapshot from a host built from current `main` includes the new
 library view and asks for a reload. **Do not release desktop, headless or
 Android from `main`** until extension 1.1.5 (tolerant; `extension-v1.1.5`,
 published 2026-10-15) has had a few days to auto-update, or the maintainer accepts the companion break for that
-release. Five are kinds 1.1.5 accepts. The other three are the
-`library_media` view, snapshot and patch variants (Tactical 363); a host
-sends them only to a client that leases the view, which no released client
-does.
+release. Eight are fields 1.1.5 tolerates, including the three download-safety
+fields added by 373. The other five are the `library_media` view/snapshot/patch
+variants (363) and `product_update` call/result variants (355); each is sent
+only after a request no released client makes. The publishing guard currently
+refuses all eight field additions; none of the five request-gated variants
+requires a break exception.
 
 The desktop and Android release workflows enforce this hold:
 `scripts/check-release-compatibility.mjs` fails a publishing run while a

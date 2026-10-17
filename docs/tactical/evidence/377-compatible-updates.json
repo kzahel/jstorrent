@@ -1,0 +1,326 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Nonpublishing signed update qualification; probe packages must never ship",
+  "sourceCommit": "954bca0a9add4c50f839f9aa3847d68f02d70f14",
+  "candidates": {
+    "B2": {
+      "version": "0.3.60004",
+      "sessionSchema": 29,
+      "workflowRun": 39018395079,
+      "attempt": 1,
+      "payloads": {
+        "darwin-aarch64": {
+          "sha256": "675f545ae6e521443ef03cd60dc2406a41eb6cd4c4f453bab8f8c6e1c3e99127",
+          "size": 20908991
+        },
+        "darwin-x86_64": {
+          "sha256": "7d9cd89a4b8a19e2569706cd60a98227e3e0caf5c7f0003f5b514fa739fd9745",
+          "size": 22411343
+        },
+        "windows-x86_64": {
+          "sha256": "b419ad30d8e08b38b785bb869b25bda5b412527bc509df32875951a58889b776",
+          "size": 15533456
+        },
+        "linux-aarch64": {
+          "sha256": "7e255c6f79906b5c31d6dae4d565ab1d0ae9201083f40acf4ee68e44a1f0cf42",
+          "size": 100469256
+        },
+        "linux-x86_64": {
+          "sha256": "6dc0f11819a7e8a14be79161f219c606478afe771dacd0151dc962dd10c27c24",
+          "size": 102279672
+        }
+      }
+    },
+    "C2": {
+      "version": "0.3.60005",
+      "sessionSchema": 30,
+      "workflowRun": 39018396812,
+      "attempt": 1,
+      "payloads": {
+        "darwin-aarch64": {
+          "sha256": "68551159398f58da76474f6be66d4100acdc864aeafeaf9d3f0bbf2030c6b228",
+          "size": 20912934
+        },
+        "darwin-x86_64": {
+          "sha256": "a6ebb6f5c60224597d5a7670afccb1dab02c44e310f78283ef65de2ae543303e",
+          "size": 22411187
+        },
+        "windows-x86_64": {
+          "sha256": "e1b0aba1e2d09e684acb1bd47f1170bc5d74647d6a0df55a2713bc91c962759f",
+          "size": 15528504
+        },
+        "linux-aarch64": {
+          "sha256": "a9f3e9cad48ce9a9b27b31302e705e52487b4704076d2a72d2164b9e52eeff2d",
+          "size": 100481544
+        },
+        "linux-x86_64": {
+          "sha256": "5e264952c497a65faf631d62440fe0fc472fa625dc41382536a5b032f1108dcc",
+          "size": 102283768
+        }
+      }
+    },
+    "D2": {
+      "version": "0.3.60006",
+      "sessionSchema": 29,
+      "workflowRun": 39018398537,
+      "attempt": 1,
+      "payloads": {
+        "darwin-aarch64": {
+          "sha256": "9b27d773e659d9c38cee72e04a70a05d7e5bb62d0eb1d9bdea9a82ed54d6a1fd",
+          "size": 20909008
+        },
+        "darwin-x86_64": {
+          "sha256": "2f8560f163eaa5806bc1637a08bb878f470ed669f36c4bdd97ae47f6bf43a261",
+          "size": 22411018
+        },
+        "windows-x86_64": {
+          "sha256": "5d595482c8620079dd1eb6273dc91c0c23396a83af742e17c19e9301e4de1838",
+          "size": 15532896
+        },
+        "linux-aarch64": {
+          "sha256": "4def30257681ddc8df7515051aa529345e69adf147d31f41d0641aa51ebe0049",
+          "size": 100461064
+        },
+        "linux-x86_64": {
+          "sha256": "4ca905459f121e1b1f907d7d352d273c75ae04b533b75071365ff1d542247455",
+          "size": 102296056
+        }
+      }
+    },
+    "E2": {
+      "version": "0.3.60007",
+      "sessionSchema": 30,
+      "workflowRun": 39018400572,
+      "attempt": 1,
+      "payloads": {
+        "darwin-aarch64": {
+          "sha256": "e1fc6ca02a54694c9a7d8b5dcadebbd9ae019e128a27ae63e79e42ebbd2aab2a",
+          "size": 20911571
+        },
+        "darwin-x86_64": {
+          "sha256": "5378b8be0317f029d75612b4d8a2827c2f00f3fe3851b6ad346288cd0d5e8ed8",
+          "size": 22408497
+        },
+        "windows-x86_64": {
+          "sha256": "a06d0aa7d04b321233a48627b8b7521aa793c96b9378387d1566f8910a58fa87",
+          "size": 15527200
+        },
+        "linux-aarch64": {
+          "sha256": "0450ede2c147c50899585a7b7d04d01e9bd54dfb078dc941e9e7aa6accd2a9e3",
+          "size": 100506120
+        },
+        "linux-x86_64": {
+          "sha256": "dd5f8c2ea6c83558dc26bf3296beda7f858b0fdad4374743b8cdb0af42c96cec",
+          "size": 102296056
+        }
+      }
+    }
+  },
+  "installedResults": {
+    "darwin-aarch64": {
+      "passed": true,
+      "realQuietSeconds": 900.3591172079996,
+      "realNoticeSeconds": 60,
+      "compatibleStableCatchUpVersion": "0.3.60007",
+      "savedStableChoice": true,
+      "storesAndIdentitiesRetained": true,
+      "torrentCount": 10,
+      "presentation": "foreground",
+      "incompatibleHigherStableRefused": true,
+      "startupAcknowledged": true,
+      "independentPostLatestUploadBytes": 2097152,
+      "postLatestTransferIntentAndAllContentHashes": true,
+      "installedStableCodeSealAndExactExecutable": true
+    },
+    "linux-x86_64": {
+      "passed": true,
+      "realQuietSeconds": 900.518229012001,
+      "realNoticeSeconds": 60,
+      "compatibleStableCatchUpVersion": "0.3.60007",
+      "savedStableChoice": true,
+      "storesAndIdentitiesRetained": true,
+      "torrentCount": 10,
+      "presentation": "unfocused",
+      "incompatibleHigherStableRefused": true,
+      "startupAcknowledged": true,
+      "keyboard": {
+        "tokens": 218,
+        "characters": 2628,
+        "passed": true
+      },
+      "maxObserverSampleGapSeconds": 0.379164663998381,
+      "transferIntentAndAllContentHashes": true,
+      "independentPostStableUploadBytes": 2097152,
+      "installedStableExactAppImageDigest": true
+    },
+    "windows-x86_64": {
+      "passed": true,
+      "realQuietSeconds": 900.4960068,
+      "realNoticeSeconds": 60,
+      "compatibleStableCatchUpVersion": "0.3.60007",
+      "savedStableChoice": true,
+      "storesAndIdentitiesRetained": true,
+      "torrentCount": 10,
+      "presentation": "minimized",
+      "incompatibleHigherStableRefused": true,
+      "startupAcknowledged": true,
+      "keyboard": {
+        "tokens": 222,
+        "characters": 2988,
+        "passed": true
+      },
+      "maxObserverSampleGapSeconds": 0.06247899999834772,
+      "transferIntentAndAllContentHashes": true,
+      "independentPostStableUploadBytes": 2097152,
+      "partialDownloadAtNotice": {
+        "verifiedPieces": 216,
+        "totalPieces": 256,
+        "noticeSecondsRemaining": 14,
+        "fileHashStillPartial": true
+      },
+      "installedStableAuthenticodeValid": true
+    },
+    "darwin-x86_64": {
+      "passed": true,
+      "architecture": "x86_64 under Rosetta; no physical Intel claim",
+      "version": "0.3.60005",
+      "quietToNoticeSeconds": 901.5722489170003,
+      "noticeSeconds": 60,
+      "visibleSchemaAtGap": 29,
+      "uncommittedWalBytes": 4542464,
+      "foregroundIntentAtHandoff": true,
+      "editorOpenedAfterOldProcessExit": true,
+      "noProductActivationAfterEditorSetup": true,
+      "currentEditorActive": true,
+      "newProductWindowVisible": true,
+      "storesAndIdentitiesRetained": true,
+      "torrentCount": 7,
+      "signedExecutableMatches": true,
+      "codeSealValid": true,
+      "initialUntargetedInput": true,
+      "keyboard": {
+        "tokens": 5,
+        "characters": 120,
+        "passed": true
+      },
+      "incompatibleHigherStableRefused": true,
+      "compatibleStableCatchUp": {
+        "passed": true,
+        "version": "0.3.60007",
+        "mode": "explicit install after automatic permission/admission; no second real-idle claim",
+        "channel": "stable",
+        "storesAndIdentitiesRetained": true,
+        "torrentCount": 7,
+        "presentation": "visible unfocused",
+        "noNativeActivation": true,
+        "codeSealValid": true,
+        "keyboard": {
+          "passed": true,
+          "tokens": 5,
+          "characters": 235
+        }
+      },
+      "osVersion": "26.6.2"
+    }
+  },
+  "publicReleasePublished": false,
+  "sourceCarrier": {
+    "candidate": "B2",
+    "bytes": 1128526081,
+    "sha256": "fa37e33a108b5e543ba5e3cd92d4bf7571a44dd678bd5c24513baf214908d591",
+    "members": 39191,
+    "cargoPackages": 776,
+    "nativeSourceVersionPairs": 85,
+    "bothLinuxEmptyCargoHomeOfflineGraphs": true
+  },
+  "localValidation": {
+    "rustWorkspacePassed": 1747,
+    "rustWorkspaceIgnored": 20,
+    "webPassed": 863,
+    "webSkipped": 3,
+    "serverPassed": 134,
+    "focusedDesktopPassed": 78,
+    "distributionSourcePassed": 33,
+    "trainPromotionPassed": 8,
+    "snapshotAndWalPassed": 2,
+    "snapshotAndWalPlatformSkip": 1,
+    "actualWindowsSnapshotPassed": 2,
+    "singleFiveHundredSeedRegressionSeconds": 41.26,
+    "snapshotAndWalCases": 3
+  },
+  "stagedProcessResources": {
+    "mac": {
+      "residentBytes": 129204224
+    },
+    "linux": {
+      "residentBytes": 234983424,
+      "peakResidentBytes": 336859136
+    },
+    "windows": {
+      "privateBytes": 16031744,
+      "residentBytes": 53366784,
+      "peakResidentBytes": 79904768
+    }
+  },
+  "hostedValidation": {
+    "sourceCommit": "694ce531489d2e768d16a28a20241d7b8942aada",
+    "workflowRun": 39024491901,
+    "conclusion": "success",
+    "coverage": "Rust/loopback, both Linux architectures, macOS, Windows, Android dual ABI/owned runtime, iOS, web/extension and release tools"
+  },
+  "serviceRollout": {
+    "passed": true,
+    "targets": {
+      "darwin-aarch64": {
+        "version": "0.3.1",
+        "bodyUnchanged": true,
+        "automaticInstall": true
+      },
+      "windows-x86_64": {
+        "version": "0.3.1",
+        "bodyUnchanged": true,
+        "automaticInstall": true
+      },
+      "linux-x86_64": {
+        "version": "0.3.1",
+        "bodyUnchanged": true,
+        "automaticInstall": true
+      },
+      "linux-aarch64": {
+        "version": "0.3.1",
+        "bodyUnchanged": true,
+        "automaticInstall": false
+      },
+      "darwin-x86_64": {
+        "version": "0.3.1",
+        "bodyUnchanged": true,
+        "automaticInstall": true
+      }
+    },
+    "publicLatestEmpty": true,
+    "publicStablePublished": false
+  },
+  "publicationHold": {
+    "strictCompanionPolicyUnchanged": true,
+    "blockingFields": 8,
+    "requestGatedVariants": 5,
+    "noAcceptedBreak": true,
+    "adoptionUnknownBecauseGoogleReauthenticationRequired": true
+  },
+  "cleanup": {
+    "allClaimedVmsOffAndReleased": true,
+    "originalLinuxConfigurationBytesRestored": true,
+    "windowsRegistryScopesRestoredAndVerified": 50,
+    "ownedProgramFirewallRulesRemoved": 2,
+    "ownedControllerNftRulesRemoved": 2,
+    "temporarySshIncludeRestoredAbsent": true,
+    "allPrivateProbeProfilesDiscarded": true,
+    "serviceCohortEnvironmentIdsAndAssetsRemoved": true,
+    "ownedGuestRootsCapturesAndTaskCreatedCachesRemoved": true
+  },
+  "followUpFastCI": {
+    "sourceCommit": "cc5214527e0e8b23aef251b1d27adc14dd3b2c3a",
+    "workflowRun": 39027221148,
+    "conclusion": "success"
+  }
+}

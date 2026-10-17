@@ -1,19 +1,23 @@
 # Product Surfaces And JSTorrent Migration
 
 Tactical [377](../tactical/377-compatible-touchless-release-channels.md) supplies
-the compatible Stable/Latest release train and production-signed private update
+the compatible Stable/Latest train and production-signed private update
 rehearsals. Promotion preserves tested native/source bytes and rechecks its
-Stable predecessor, Latest source and asset digests before publication. The
-shared service is deployed; ordinary Stable bodies remain unchanged and its
-automatic permission remains false during installed qualification. No public
-release is published past the existing companion compatibility hold.
+Stable predecessor, Latest source and every asset digest before publication.
+Signed macOS ARM, Windows x64 and Linux x64 real-idle updates, schema refusal,
+compatible Stable catch-up and retained-data checks pass. The shared service
+controls automatic permission by channel and exact native target. Ordinary
+Stable bodies remain unchanged; no public release bypasses the companion hold.
+Intel macOS under Rosetta also passes the real-idle late-focus test and manual
+Stable catch-up. Both channels permit exactly the four tested updater targets;
+Linux ARM stays manual. Physical Intel coverage is not inferred.
 
 Tactical [355](../tactical/355-automatic-updates.md) implements fully unattended
 updates for JSTorrent macOS app, Windows NSIS and Linux AppImage. Maintainer
 direction on October 16 permits a brief transfer interruption and restart
 after 15 minutes without interaction. Existing identities, signing roots,
 channels, durable data and package ownership remain constraints; default-on
-activation awaits shipping-package qualification. Android, store-managed extension
+activation follows the per-target signed qualification in 377. Android, store-managed extension
 updates and the future Linux CLI retain their separate distribution owners.
 This implementation does not change production routes or the 30-day compatibility policy.
 

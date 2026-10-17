@@ -1,13 +1,18 @@
 # Capability Readiness
 
 Tactical [377](../tactical/377-compatible-touchless-release-channels.md) extends
-the unattended updater with one Stable/Latest version train, authenticated
-database admission, immutable promotion and service-controlled target rollout.
-Source tests and deployed service checks pass. Private production-signed
-installed qualification is in progress; its first Linux update exposed and
-corrected a released-catalog startup preflight bug without changing user data.
-Stable permission remains off. Public Latest publication retains the existing
-strict-companion compatibility hold; this tactical does not waive that policy.
+the unattended updater with authenticated database admission, one increasing
+Stable/Latest train, immutable promotion and target-specific service rollout.
+Actual signed macOS ARM, Windows x64 and Linux x64 installs pass ordinary
+900/60 timers, incompatible higher Stable refusal, compatible Stable catch-up,
+retained identities and background input. Linux also passes a checksum-proven
+uncommitted migration crash, intact rollback and explicit forward recovery.
+[Sanitized evidence](../tactical/evidence/377-compatible-updates.json) binds
+package hashes and source runs. Rosetta Intel real-idle/late-focus and manual
+Stable catch-up also pass. Both channels are armed for those four tested
+updater targets; production Linux ARM stays manual. Physical Intel and
+production Linux ARM installed coverage are not inferred.
+Public releases retain the existing strict-companion hold.
 
 Tactical [355](../tactical/355-automatic-updates.md) is a desktop-only
 unattended-update implementation in progress as of October 16. The maintainer accepts a restart
@@ -15,8 +20,8 @@ after 15 minutes without interaction, including brief download/seeding
 interruption and resume. Native ownership, activity/blocker reporting and verified staging are
 implemented. macOS ARM64 synthetic installed updates pass repeated window matrices, full
 900/60-second hidden/unfocused timing and controlled transfer resumption;
-shipping activation remains gated while the full signed
-platform/transfer/recovery matrix is incomplete. The mixed-version horizon
+Tactical 377 supplies signed production-identity qualification and per-target
+service permission; unqualified targets remain manual. The mixed-version horizon
 remains 30 days. Android/headless update ownership is unchanged.
 
 Tactical [376](../tactical/376-android-media-library.md) brings the media

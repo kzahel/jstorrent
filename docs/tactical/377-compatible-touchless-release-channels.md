@@ -1,6 +1,7 @@
 # Tactical 377: Compatible Touchless Release Channels
 
-Status: In implementation, 2026-10-17.
+Status: Implementation and installed acceptance complete for the enabled
+targets, 2026-10-17. Public publication retains the companion-policy hold.
 
 Topics: `beta-release-readiness`, `durable-data-migrations`,
 `product-surfaces-and-migration`, `client-surfaces`,
@@ -130,7 +131,7 @@ strict extension 1.1.4 still belongs to the 30-day support window, while main
 emits eight new fields its decoder rejects. Tactical 354 explicitly removed
 host response shaping. Maintainer direction has been requested on restoring
 compatibility versus explicitly limiting Latest to updated companions. Do not
-silently waive the guard or activate Stable. Private signed candidates and
+silently waive the guard or publish Stable. Private signed candidates and
 independent updater work may continue while that decision is pending.
 
 ## Restart checkpoint
@@ -447,3 +448,135 @@ running at cancellation. Give this bounded affected-crate job 30 minutes;
 retain its unchanged checks and no-cache-write policy. Seven fast-planner
 regressions and workflow lint pass. This is timeout evidence, not a claim that
 the canceled run passed; the full workspace CI remains independently pending.
+
+### Compatible Stable acceptance
+
+All three owned production-identity C2 -> E2 installations pass the ordinary
+quiet/notice cycle: first notice after 900.359 seconds on macOS ARM, 900.518
+seconds on Linux x64 and 900.496 seconds on Windows x64. Each records a full
+60-second notice, successful startup acknowledgement, saved Stable choice,
+unchanged ten torrent identities and installation identity, and session 30 /
+product 4 / metrics 1. macOS foreground is restored; Linux stays behind the
+independent editor (218 tokens, 2,628 characters); Windows stays minimized
+(222 tokens, 2,988 characters), without native product activation or a normal
+presenting window. Linux's virtual-keyboard focus toggles match its previously
+recorded no-update control; top-level product activation and exact input remain
+the assertions. Maximum observed sampling gaps are 379 ms and 63 ms respectively.
+
+Windows is still at 216/256 verified download pieces with a differing content
+hash at 14 seconds remaining. Its controlled 2 KiB/s global limit survives both
+updates, then is explicitly restored to unlimited for completion. All download
+and paused-file hashes and saved intents pass. Fresh independent pinned receivers
+verify 2 MiB uploaded after E2 on Windows and Linux. macOS's post-C2 hashes,
+intent and independent 2 MiB upload already pass. Installed E2 additionally
+matches Linux's exact signed AppImage digest, macOS's exact signed executable
+and code seal, and Windows's valid Authenticode signature/version.
+
+[Sanitized machine-readable evidence](evidence/377-compatible-updates.json)
+records all four corrected candidate runs and every platform payload digest,
+the corrected B2 source carrier and the installed results. B2's carrier is
+1,128,526,081 bytes, SHA-256
+`fa37e33a108b5e543ba5e3cd92d4bf7571a44dd678bd5c24513baf214908d591`,
+with 39,191 members, 776 Cargo packages, 85 native source/version pairs and
+both empty-Cargo-home offline Linux graphs passing. This supersedes the old B
+carrier for a candidate that actually starts and migrates correctly.
+
+Full CI at 694ce531 / run 39024491901 passes every required job, including
+Rust/loopback, both Linux targets, macOS, Windows, Android dual ABI and owned
+runtime, iOS, web/extension and release tools. The previously budget-limited
+500-seed test also passes locally in 41.26 seconds. Follow-up harness/CI budget
+changes remain independently under validation.
+
+Linux and Windows are restored, independently powered off and released.
+Linux's preserved original configuration bytes match; only the owned handler
+and its MIME references are removed, retaining the original handlers. Windows
+restores and verifies 50 registry scopes, restores original shortcuts and
+removes only the two owned program firewall rules. Owned profiles, roots,
+processes and matching capture payloads are removed. Windows's first normal
+shutdown exceeded provider waiting; no power action was replayed. Independent
+Off and planned shutdown/event-log/OS events confirm completion. Both private
+controller firewall rules and the temporary SSH include are removed exactly.
+The macOS Intel/Rosetta acceptance and final service cleanup remain running.
+
+The scoped cohort leaves the ordinary `/version` summary at public Stable
+0.3.1. A later equal-version private cohort check can therefore still show
+waiting-for-Stable; this is not evidence for clearing that copy after a public
+promotion. Public equal-version promotion/no-reinstall and downgrade transitions
+are covered deterministically. Released 0.3.1 also parses an empty Latest 204
+as EOF during discovery, before its scoped platform request. The new discovery
+path handles healthy empty channels; the Rosetta baseline bootstraps through
+private Stable B2 before selecting Latest with the new owner.
+
+Observed staged native-process RSS is 123 MiB on macOS ARM (current sample),
+321 MiB Linux peak and 77 MiB Windows peak. These are native-process samples,
+excluding UI child processes, rather than whole-application resource bounds.
+Existing payload/archive caps and the new bounded metadata/history/store-read
+checks remain the enforced limits.
+
+The current publication policy has thirteen reviewed exposures: eight fields
+rejected by strict companions and five request-gated variants no released
+client requests. The explicit desktop-latest-v0.3.2 publishing check still
+refuses the eight fields, with no accepted break. The Google adoption page
+requires reauthentication; no new count or policy exception is inferred.
+Arming service permission for a qualified target does not publish a release or
+waive that guard. Ordinary Stable remains the same 0.3.1 payload.
+
+
+### Final installed scope and deployed permission
+
+A separate fresh Intel macOS profile runs the actual notarized x86_64 0.3.1
+bundle under Rosetta on macOS 26.6.2. Its ordinary manual B2 upgrade preserves
+all seven frozen fixture identities through schema 26 -> 29. B2 -> C2 then
+uses the full 901.572-second quiet interval and 60-second notice. After the
+old process exits, an independent observer verifies the new signed executable,
+visible schema 29 and 4,542,464 bytes of checksum-valid uncommitted WAL, then
+opens the owned editor. Untargeted input reaches it before startup finishes.
+C2 opens its window without taking focus back, commits schema 30 and retains
+all identities; the complete 120-character editor text verifies. Native events
+confirm the original foreground handoff, editor activation and no subsequent
+product activation. There is no physical Intel hardware claim.
+
+Rosetta also refuses higher Stable D2 before staging. Changing channels safely
+evicts the old cache; no incompatible payload or database change occurs.
+Compatible Stable E2 passes ordinary signed admission and an **explicit**
+install while the editor stays foreground, preserving seven identities and
+Stable selection. Its 235-character final text includes 115 new characters.
+This is a manual Stable catch-up check, not a second real-idle claim. On the
+other targets, reported final text also includes prior control text; the JSON
+receipt records the separate new-character counts.
+
+Production service permission is now armed on both channels for exactly
+`darwin-aarch64`, `darwin-x86_64`, `windows-x86_64` and `linux-x86_64`.
+Production Linux ARM remains manual: its native signed build passes, but the
+available installed target was refused by Machine Control's health guard.
+Older ARM synthetic qualification is not substituted for that missing live run.
+All five ordinary Stable body hashes still match the original 0.3.1 snapshots;
+public Latest is healthy and empty. No public Stable or Latest release was
+published. The private cohort environment/drop-in, installation IDs and all
+private service assets have been removed; the ordinary service is healthy.
+
+Every claimed VM returns to its original Off state and is released. macOS
+normal Quit finishes before removing both owned profiles, app paths,
+registrations, five matching captures and only the two WebKit/cache directories
+created during this task. Unowned OS settings, applications and caches remain.
+Private controller peers/firewall/SSH state and downloaded source investigation
+scratch are removed. The synthetic schema-30 profiles are discarded, satisfying
+their data-ledger retirement condition for this execution.
+
+### Remaining boundaries
+
+Public publication still needs the existing companion compatibility policy to
+clear or a maintainer's explicit per-release accepted break; this tactical
+changes neither. Physical Intel coverage is absent; Rosetta is identified
+explicitly. Production Linux ARM auto-install is not enabled. The broader 355
+power-loss, packaged failure/repetition and long-soak cases not executed here
+remain unclaimed. The qualified rollout can be paused per channel/target by
+service configuration, and the pre-shutdown permission recheck is live-tested.
+
+Current source has passed full core CI at 694ce531 and follow-up Fast CI at
+cc521452 / 39027221148. Follow-up full CI 39027221207 exposes a separate iOS
+Add-to-Settings UI navigation timing failure: the captured hierarchy remains
+on the library after an immediate tap following sheet dismissal. Synchronize
+on dismissal and next-button hittability without dropping assertions; 375 and
+`localization` own that bounded harness correction. Final exact-source CI is
+required before publication, independently of the companion hold.
