@@ -75,3 +75,23 @@ archive, browser traces and attachment exports are removed; the owned Vite
 server and Chromium terminate. The existing development server is untouched.
 Hosted CI cannot establish green for an unsubmitted commit; no push, tag,
 release or deployment is performed by this local qualification.
+
+
+## Hosted follow-up, October 17
+
+Full run 39024491901 passes the same iOS assertions. Follow-up 39027221207
+fails expanded pseudo-locale navigation at the Settings-screen existence check.
+Its exported activity tree and failure hierarchy show Add dismissed and the
+library still visible after the immediate Settings tap. Synchronize all three
+Add-to-Settings tests on Add-sheet disappearance and Settings-button hittability
+before tapping. Retain every localization, navigation and scrolling assertion;
+no product UI or runtime code changes. This bounded harness correction is
+carried with 377's final CI reconciliation and requires hosted validation.
+
+The corrected project-managed run passes all five UI tests on a fresh owned
+iPhone 17 Pro / iOS 26.5 simulator with Xcode 26.6. It uses the normal scheme,
+Debug, `-parallel-testing-enabled NO`, `-only-testing:RSTorrentUITests` and
+unsigned test settings. The simulator is shut down/deleted and independently
+absent afterward. An earlier standalone swiftc attempt omitted XCTest's Swift
+overlay and provides no validation; the normal project build compiles and runs
+the actual tests. No test is skipped, retried automatically or weakened.

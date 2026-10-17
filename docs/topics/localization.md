@@ -1,5 +1,10 @@
 # Localization
 
+The October 17 hosted follow-up to 375 synchronizes Add-to-Settings UI tests
+on sheet disappearance and the next button's hittability. A captured failed
+run remained on the library after its immediate tap. Localization, navigation
+and lower-row reachability assertions are retained; product behavior is unchanged.
+
 Tactical [375](../tactical/375-ci-reconciliation-and-ui-regressions.md)
 updates iOS pseudo-locale reachability checks to scroll through the expanded
 Settings Form to the actual hittable background-notification switch, while
@@ -318,3 +323,6 @@ non-English cohort. Android replacement localization remains open until that
 cohort passes provenance, native review, lifecycle, layout, accessibility,
 and release disclosure. Website, store, marketing, and support-copy
 localization remain outside this owner until explicitly planned.
+
+The 375 navigation synchronization passes all five UI tests in a fresh owned
+iOS 26.5 simulator under Xcode 26.6; the simulator is deleted afterward.

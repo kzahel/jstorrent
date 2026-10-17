@@ -22,9 +22,7 @@ final class ProductSurfaceUITests: XCTestCase {
         XCTAssertTrue(app.textFields["magnet-input"].exists)
         app.swipeUp()
         XCTAssertTrue(app.buttons["browse-torrent"].waitForExistence(timeout: 5))
-        app.navigationBars.buttons.firstMatch.tap()
-
-        app.buttons["open-settings"].tap()
+        dismissAddThenOpenSettings(app)
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["choose-download-folder"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["storage-root-ios-documents"].exists)
@@ -107,9 +105,7 @@ final class LocalizationUITests: XCTestCase {
         app.swipeUp()
         XCTAssertTrue(app.buttons["browse-torrent"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["browse-torrent"].isHittable)
-        app.navigationBars.buttons.firstMatch.tap()
-
-        app.buttons["open-settings"].tap()
+        dismissAddThenOpenSettings(app)
         XCTAssertTrue(
             app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5)
         )
@@ -136,8 +132,7 @@ final class LocalizationUITests: XCTestCase {
         add.tap()
         XCTAssertTrue(app.textFields["magnet-input"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.textFields["magnet-input"].placeholderValue?.contains("dialog_") ?? true)
-        app.navigationBars.buttons.firstMatch.tap()
-        settings.tap()
+        dismissAddThenOpenSettings(app)
         XCTAssertTrue(
             app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5)
         )
@@ -189,5 +184,18 @@ final class LocalizationUITests: XCTestCase {
         ]
         app.launch()
         return app
+    }
+}
+
+private extension XCTestCase {
+    func dismissAddThenOpenSettings(_ app: XCUIApplication) {
+        let addSheet = app.descendants(matching: .any)["add-torrent-sheet"].firstMatch
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(addSheet.waitForNonExistence(timeout: 5))
+
+        let settings = app.buttons["open-settings"]
+        expectation(for: NSPredicate(format: "hittable == true"), evaluatedWith: settings)
+        waitForExpectations(timeout: 5)
+        settings.tap()
     }
 }
