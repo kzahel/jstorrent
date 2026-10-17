@@ -127,7 +127,7 @@ pub(crate) fn prepare_catalog(profile_root: &Path) -> Result<CatalogPreparation,
     )
 }
 
-fn classify_catalog_version(
+pub(crate) fn classify_catalog_version(
     version: i64,
     baseline: i64,
     current: i64,

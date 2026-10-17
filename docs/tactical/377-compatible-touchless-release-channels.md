@@ -308,3 +308,31 @@ B's complete signed workflow 39013645870 passes all platform legs and collection
 all six updater signatures and five cohort payload digests verify independently.
 Only its owned installation IDs are offered B; ordinary Stable bodies remain
 byte-identical across all five targets.
+
+### Real installed refusal found and corrected before release
+
+B replaces the real Linux AppImage through the normal updater, then its startup
+legacy-import preflight wrongly rejects released schema 26 as not equal to 29.
+The original populated catalog remains schema 26 with all seven identities;
+no migration/reset runs. Withdraw B's owned offer immediately. Mac and Windows
+have only checked the offer, so their installed baseline remains 0.3.1.
+
+Both desktop and Android legacy preflights duplicated an equality-only schema
+check ahead of the ordinary forward-migration owner. Reuse the canonical pure
+catalog-version classifier: supported older catalogs reach ordinary open,
+while retired, newer and unversioned nonempty stores remain refused unchanged.
+Keep inspection read-only, legacy source validation before destination migration,
+and ordinary store backup/transaction ownership. No migration baseline or step
+changes. Regressions exercise both actual startup entry points with the frozen
+released fixture, unchanged bytes before ordinary open, retained identities
+through forward migration and both adapters' negative classifications. This is
+shared startup correctness, including Android, rather than a new engine feature.
+
+The completed source carrier against B's exact AppImages independently verifies
+39,191 members, 776 Cargo packages and both empty-Cargo-home Linux metadata
+graphs. It binds 85 native source/version pairs, including the explicitly pinned
+new libxml2 descriptor/files. Archive SHA-256 is
+`8b80dbaca08ee7e2e984523d9e99296a9145aa36c70ae413d51611ae66f0f08c`,
+1,128,509,255 bytes. This qualifies source preparation for B's exact bytes,
+not B startup. Rebuild corrected candidates with new reserved versions before
+resuming installed acceptance.

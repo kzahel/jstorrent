@@ -99,3 +99,13 @@ inspection uses the existing `user_version` markers and metrics' existing
 `metrics_meta` row, including committed WAL state. It never creates a store.
 The store-open migration/refusal paths remain authoritative, including when an
 older binary is installed outside the updater. No schema step is added by 377.
+
+
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md) found
+that the desktop and Android legacy-import preflight required the destination's
+schema to equal current, preventing ordinary upgrades from the released schema
+26 fixture. Both now share the canonical pure catalog-version classifier.
+Inspection leaves supported older catalogs unchanged; ordinary store open owns
+the forward migration, pre-migration copy and transaction. Retired, newer and
+unversioned nonempty catalogs remain refused without reset. Released-fixture
+startup regressions cover both adapters and source validation before mutation.
