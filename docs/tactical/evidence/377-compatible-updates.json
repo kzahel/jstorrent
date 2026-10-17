@@ -274,31 +274,38 @@
       "darwin-aarch64": {
         "version": "0.3.1",
         "bodyUnchanged": true,
-        "automaticInstall": true
+        "automaticInstall": true,
+        "responseSha256": "5884a8239b391a62fbca341277a5ffb4c267753c22156e7b71b405bd726eaf34"
       },
       "windows-x86_64": {
         "version": "0.3.1",
         "bodyUnchanged": true,
-        "automaticInstall": true
+        "automaticInstall": true,
+        "responseSha256": "ce1cb09a996e18005186fe6c1497bea0526bca7d248d55ed79b9b668144fc23b"
       },
       "linux-x86_64": {
         "version": "0.3.1",
         "bodyUnchanged": true,
-        "automaticInstall": true
+        "automaticInstall": true,
+        "responseSha256": "a269efa049661698316f82ba19abac34ebd3b8f8104402a8b7721f7333ae4e1f"
       },
       "linux-aarch64": {
         "version": "0.3.1",
         "bodyUnchanged": true,
-        "automaticInstall": false
+        "automaticInstall": false,
+        "responseSha256": "64ea3c7f89e9f6626cc6234c1d45915ee402df7294a274130c02bbaa2e4ffea7"
       },
       "darwin-x86_64": {
         "version": "0.3.1",
         "bodyUnchanged": true,
-        "automaticInstall": true
+        "automaticInstall": true,
+        "responseSha256": "85457534b9f2b01c60431de5cfae8555f9c65b2593be9cdc6f9e69374ab8f98e"
       }
     },
     "publicLatestEmpty": true,
-    "publicStablePublished": false
+    "publicStablePublished": false,
+    "descriptorSha256": "9f0c78d082bd362b35840305b68de9fb6463ee39db803f5b86904420f2380fec",
+    "serverSourceCommit": "8542f85fb82ea9f11fbb0963991c62045edd610f"
   },
   "publicationHold": {
     "strictCompanionPolicyUnchanged": true,
@@ -322,5 +329,14 @@
     "sourceCommit": "cc5214527e0e8b23aef251b1d27adc14dd3b2c3a",
     "workflowRun": 39027221148,
     "conclusion": "success"
+  },
+  "localIOSNavigationValidation": {
+    "codeCommit": "8fe28fa00b5fb491ea89e61076970dc5a1c6f0ca",
+    "xcode": "26.6",
+    "simulator": "fresh owned iPhone 17 Pro / iOS 26.5",
+    "uiTestsPassed": 5,
+    "failed": 0,
+    "assertionsRetained": true,
+    "ownedSimulatorDeletedAndIndependentlyAbsent": true
   }
 }
