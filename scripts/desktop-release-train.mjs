@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertForwardCompatibility, databaseCompatibility } from './desktop-compatibility.mjs';
@@ -36,7 +36,9 @@ export function assertNewDesktopVersion(version, releases) {
 function releases(repo) {
   return JSON.parse(execFileSync('gh',['api','--paginate','--slurp',`repos/${repo}/releases?per_page=100`,'--jq','.'],{encoding:'utf8',maxBuffer:32*1024*1024})).flat();
 }
-if (fileURLToPath(import.meta.url) === process.argv[1]) {
+let isMain = false;
+try { isMain = realpathSync(process.argv[1] ?? "") === fileURLToPath(import.meta.url); } catch {}
+if (isMain) {
   const root=resolve(import.meta.dirname,'..');
   const repo=process.env.GITHUB_REPOSITORY || 'kzahel/jstorrent';
   const list=releases(repo);

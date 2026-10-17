@@ -10,6 +10,14 @@ on:
         description: Build JSTorrent identity using existing signing inputs; never publish
         type: boolean
         default: true
+      candidate_version:
+        description: Private cohort test version only (0.3.60000–60999); never publish
+        type: string
+        default: ''
+      qualification_schema_bump:
+        description: Private source-overlay schema-30 probe and Stable activation; never publish
+        type: boolean
+        default: false
       production_publication:
         description: Publish JSTorrent only from an explicitly approved desktop-v tag; candidate must be false
         type: boolean
@@ -51,6 +59,7 @@ jobs:
       publish: ${{ steps.identity.outputs.publish }}
       production: ${{ steps.identity.outputs.production }}
       production_publication: ${{ steps.identity.outputs.productionPublication }}
+      qualification_schema_bump: ${{ steps.identity.outputs.qualificationSchemaBump }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
@@ -58,6 +67,8 @@ jobs:
           node-version: 22
       - id: identity
         env:
+          INPUT_CANDIDATE_VERSION: ${{ inputs.candidate_version }}
+          INPUT_QUALIFICATION_SCHEMA_BUMP: ${{ inputs.qualification_schema_bump || false }}
           INPUT_PRODUCTION_LATEST: ${{ inputs.production_latest || false }}
           INPUT_PRODUCTION_CANDIDATE: ${{ inputs.production_candidate || false }}
           INPUT_PRODUCTION_PUBLICATION: ${{ inputs.production_publication || false }}
@@ -136,12 +147,18 @@ jobs:
       - name: Install locked web dependencies
         run: npm ci --prefix clients/web
 
-      - name: Apply verified Latest package identity
-        if: needs.release-input.outputs.channel == 'latest'
+      - name: Apply selected package identity
+        if: needs.release-input.outputs.version != ''
         shell: bash
         env:
           RELEASE_VERSION: ${{ needs.release-input.outputs.version }}
         run: node scripts/apply-desktop-nightly-version.mjs "$RELEASE_VERSION"
+
+      - name: Prepare private schema qualification source
+        if: needs.release-input.outputs.qualification_schema_bump == 'true'
+        env:
+          JSTORRENT_PRIVATE_UPDATE_QUALIFICATION: 'true'
+        run: node scripts/prepare-private-update-qualification.mjs
 
       - name: Verify the locked package identity
         run: cargo metadata --locked --no-deps --format-version 1 > /dev/null
@@ -440,8 +457,8 @@ jobs:
       - name: Install locked web dependencies
         run: npm ci --prefix clients/web
 
-      - name: Apply verified Latest package identity
-        if: needs.release-input.outputs.channel == 'latest'
+      - name: Apply selected package identity
+        if: needs.release-input.outputs.version != ''
         shell: bash
         env:
           RELEASE_VERSION: ${{ needs.release-input.outputs.version }}
@@ -449,6 +466,12 @@ jobs:
 
       - name: Install pinned license notice generator
         run: cargo install cargo-about --locked --version 0.9.2 --features cli
+
+      - name: Prepare private schema qualification source
+        if: needs.release-input.outputs.qualification_schema_bump == 'true'
+        env:
+          JSTORRENT_PRIVATE_UPDATE_QUALIFICATION: 'true'
+        run: node scripts/prepare-private-update-qualification.mjs
 
       - name: Build signed desktop packages
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
@@ -743,6 +766,12 @@ jobs:
             --tag "$VALIDATION_TAG" \
             --repository "$GITHUB_REPOSITORY"
 
+      - name: Prepare private schema metadata source
+        if: needs.release-input.outputs.qualification_schema_bump == 'true'
+        env:
+          JSTORRENT_PRIVATE_UPDATE_QUALIFICATION: 'true'
+        run: node scripts/prepare-private-update-qualification.mjs
+
       - name: Authenticate production database admission metadata
         if: needs.release-input.outputs.production == 'true' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
         env:
@@ -753,6 +782,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y minisign
           node scripts/sign-desktop-compatibility.mjs artifacts/desktop-release-output
+          if [ "${{ needs.release-input.outputs.publish }}" != true ]; then
+            node scripts/sign-desktop-cohort.mjs artifacts/desktop-release-output
+          fi
 
       - name: Verify every production updater payload signature
         if: needs.release-input.outputs.production == 'true' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
@@ -769,6 +801,8 @@ jobs:
           path: |
             artifacts/desktop-release-output/release.json
             artifacts/desktop-release-output/notes.md
+            artifacts/desktop-release-output/cohort-candidate.json
+            artifacts/desktop-release-output/private-qualification-source.json
             artifacts/desktop-release-output/assets/*
           if-no-files-found: error
           retention-days: 14

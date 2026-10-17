@@ -12,13 +12,15 @@
       "displayName": "Stable",
       "tagPrefix": "desktop-v",
       "releaseKind": "release",
-      "requiredAsset": "JSTorrent_x64.app.tar.gz"
+      "requiredAsset": "JSTorrent_x64.app.tar.gz",
+      "automaticInstall": false
     },
     "latest": {
       "displayName": "Latest",
       "tagPrefix": "desktop-latest-v",
       "releaseKind": "prerelease",
-      "requiredAsset": "JSTorrent_x64.app.tar.gz"
+      "requiredAsset": "JSTorrent_x64.app.tar.gz",
+      "automaticInstall": true
     }
   },
   "compatibilityRequiredFrom": "0.3.2"

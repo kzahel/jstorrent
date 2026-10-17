@@ -123,6 +123,11 @@ export async function stageDesktopReleaseLeg({ root, lane, sourceSha, runId, att
     assets.push({ name: file.name, size: checkedFile(destination), sha256: await digestFile(destination) });
   }
   const metadata = { product, lane, version, sourceSha, runId, attempt, assets };
+  const privateReceipt = join(root, "distribution/private-update-qualification.json");
+  if (existsSync(privateReceipt)) {
+    checkedFile(privateReceipt, MAX_METADATA_BYTES);
+    metadata.privateQualification = JSON.parse(readFileSync(privateReceipt, "utf8"));
+  }
   writeFileSync(join(output, "meta.json"), `${JSON.stringify(metadata, null, 2)}\n`);
   return metadata;
 }
@@ -188,6 +193,7 @@ export async function assembleDesktopRelease({ root, input, output, sourceSha, r
     checkedFile(join(legPath, "meta.json"), MAX_METADATA_BYTES);
     const meta = JSON.parse(readFileSync(join(legPath, "meta.json"), "utf8"));
     if (meta.product !== product) fail("mixed release products");
+    if (meta.privateQualification && publish) fail("Private schema qualification packages cannot be published");
     if (!RELEASE_LANES.includes(meta.lane) || legs.has(meta.lane)) fail(`duplicate or unknown release lane: ${meta.lane}`);
     if (meta.sourceSha !== sourceSha || meta.runId !== runId || meta.attempt !== attempt) {
       fail(`stale release leg: ${meta.lane}`);
@@ -210,6 +216,8 @@ export async function assembleDesktopRelease({ root, input, output, sourceSha, r
     }
     legs.set(meta.lane, { meta, directory: legPath });
   }
+  const qualificationReceipts = [...legs.values()].map(leg => JSON.stringify(leg.meta.privateQualification ?? null));
+  if (new Set(qualificationReceipts).size !== 1) fail("Mixed private qualification source receipts");
   const releaseVersion = version || legs.get(RELEASE_LANES[0])?.meta.version;
   requireValue(releaseVersion, /^\d+\.\d+\.\d+$/, "release version");
   if ([...legs.values()].some((leg) => leg.meta.version !== releaseVersion)) fail("release leg versions differ");

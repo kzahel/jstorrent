@@ -54,3 +54,10 @@ test("JSTorrent Latest explicitly selects production signing and never a Stable 
   for(const overrides of [{tag:"desktop-v0.3.2"},{productionCandidate:true},{productionPublication:true},{sourceSha:""}])
     assert.throws(()=>resolveDesktopReleaseInput({...input,...overrides}),/Production Latest/);
 });
+
+test('private cohort version/schema overrides cannot enter publication',()=>{
+ const base={event:'workflow_dispatch',ref:'refs/heads/main',sha:'a'.repeat(40),productionCandidate:true,candidateVersion:'0.3.60001',qualificationSchemaBump:true};
+ const result=resolveDesktopReleaseInput(base);
+ assert.equal(result.version,'0.3.60001');assert.equal(result.publish,false);assert.equal(result.qualificationSchemaBump,true);
+ for(const change of [{productionCandidate:false},{productionPublication:true},{productionLatest:true},{candidateVersion:'0.3.2'},{candidateVersion:''}])assert.throws(()=>resolveDesktopReleaseInput({...base,...change}));
+});

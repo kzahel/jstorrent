@@ -229,6 +229,7 @@ pub(crate) struct ChannelCheckResult {
     pub(crate) notes: Option<String>,
     pub(crate) waiting_for_stable: bool,
     pub(crate) blocked_reason: Option<String>,
+    pub(crate) automatic_allowed: bool,
 }
 
 async fn bounded_json<T: for<'a> Deserialize<'a>>(
@@ -351,6 +352,11 @@ async fn discover_at(
     {
         return Err("The update service did not confirm the selected channel".into());
     }
+    // An explicitly confirmed, healthy empty channel still permits the
+    // installation-specific platform check (including an owned trial cohort).
+    if response.status() == reqwest::StatusCode::NO_CONTENT {
+        return Ok((true, false));
+    }
     let available: VersionInfo = bounded_json(
         response
             .error_for_status()
@@ -441,6 +447,11 @@ pub(crate) async fn check_update(
         request = request.header("X-CFU-Id", id);
     }
     let response = request.send().await.map_err(|error| error.to_string())?;
+    let automatic_allowed = response
+        .headers()
+        .get("X-Automatic-Install")
+        .and_then(|value| value.to_str().ok())
+        == Some("true");
     let candidate = if response.status() == reqwest::StatusCode::NO_CONTENT {
         None
     } else {
@@ -473,8 +484,9 @@ pub(crate) async fn check_update(
         generation,
         version: candidate.as_ref().map(|update| update.version.clone()),
         notes: candidate.as_ref().and_then(|update| update.body.clone()),
-        waiting_for_stable,
+        waiting_for_stable: waiting_for_stable && candidate.is_none(),
         blocked_reason,
+        automatic_allowed,
     };
     updates.candidate = candidate;
     Ok(result)
@@ -800,6 +812,35 @@ mod tests {
                 .await
                 .unwrap(),
             (true, true)
+        );
+        server.join().unwrap();
+    }
+    #[tokio::test]
+    async fn confirmed_empty_channel_is_healthy_but_unavailable_upstream_is_not() {
+        let channels = r#"{"schemaVersion":1,"channels":[{"id":"latest"}]}"#;
+        let (root, server) = fixture(vec![
+            ("200 OK", "", channels),
+            ("204 No Content", "X-Update-Channel: latest\r\n", ""),
+        ]);
+        assert_eq!(
+            discover_at(&root, ChannelId::Latest, "0.3.1")
+                .await
+                .unwrap(),
+            (true, false)
+        );
+        server.join().unwrap();
+        let (root, server) = fixture(vec![
+            ("200 OK", "", channels),
+            (
+                "500 Internal Server Error",
+                "X-Update-Channel: latest\r\n",
+                "{}",
+            ),
+        ]);
+        assert!(
+            discover_at(&root, ChannelId::Latest, "0.3.1")
+                .await
+                .is_err()
         );
         server.join().unwrap();
     }

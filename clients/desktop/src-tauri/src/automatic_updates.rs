@@ -82,7 +82,10 @@ impl AutomaticUpdates {
             cache: config.join("update-cache"),
             started: Instant::now(),
             state: Mutex::new(OwnerState {
-                policy: update_policy(stored.automatic_install && automatic_available(&app), &app),
+                policy: update_policy(
+                    stored.automatic_install && qualification_available(&app),
+                    &app,
+                ),
                 snapshot: HostUpdateSnapshot {
                     phase: if can_install {
                         "idle"
@@ -98,7 +101,7 @@ impl AutomaticUpdates {
                     total_bytes: None,
                     restart_in_seconds: None,
                     automatic_install: stored.automatic_install,
-                    automatic_available: automatic_available(&app),
+                    automatic_available: qualification_available(&app),
                     channel: channel.as_str().into(),
                     can_install,
                     package: match tauri::utils::platform::bundle_type() {
@@ -362,6 +365,10 @@ impl AutomaticUpdates {
         )
         .await?;
         self.change(|state| {
+            state.snapshot.automatic_available = automatic_available(&self.app)
+                && (result.automatic_allowed || qualification_available(&self.app));
+            state.policy.enabled =
+                state.snapshot.automatic_install && state.snapshot.automatic_available;
             state.snapshot.phase = if result.waiting_for_stable {
                 "waiting-for-stable"
             } else if result.blocked_reason.is_some() {
@@ -534,6 +541,17 @@ impl AutomaticUpdates {
                 Ok(current) => current,
                 Err(error) => return Ok(Preparation::RetryCheck(error)),
             };
+            if !manual && !current.automatic_allowed && !qualification_available(&self.app) {
+                self.change(|state| {
+                    state.snapshot.automatic_available = false;
+                    state.snapshot.restart_in_seconds = None;
+                    state.snapshot.message =
+                        Some("Automatic installation is paused for this channel".into());
+                    state.policy.enabled = false;
+                    state.policy.candidate_changed();
+                });
+                return Ok(Preparation::Deferred);
+            }
             if current.version.as_deref() != Some(&update.version)
                 || self.candidate()?.signature != update.signature
             {
@@ -665,7 +683,7 @@ impl HostUpdateControl for AutomaticUpdates {
                 state.policy.activity(self.now());
                 state.snapshot.version = None;
                 state.snapshot.channel = channel.as_str().into();
-                state.snapshot.automatic_available = automatic_available(&self.app);
+                state.snapshot.automatic_available = qualification_available(&self.app);
                 state.policy.enabled =
                     state.snapshot.automatic_install && state.snapshot.automatic_available;
                 state.snapshot.phase = "checking".into();
@@ -787,12 +805,7 @@ fn jittered_delay(seconds: u64) -> Duration {
 /// Latest is the opted-in production qualification lane. Stable activation
 /// follows the installed acceptance record in Tactical 377.
 fn automatic_available(app: &tauri::AppHandle) -> bool {
-    if cfg!(feature = "update-qualification")
-        && app
-            .config()
-            .identifier
-            .starts_with("com.jstorrent.qualification.")
-    {
+    if qualification_available(app) {
         return true;
     }
     app.config().identifier == "com.jstorrent.desktop"
@@ -802,6 +815,14 @@ fn automatic_available(app: &tauri::AppHandle) -> bool {
             .unwrap()
             .selected
             == ChannelId::Latest
+}
+
+fn qualification_available(app: &tauri::AppHandle) -> bool {
+    cfg!(feature = "update-qualification")
+        && app
+            .config()
+            .identifier
+            .starts_with("com.jstorrent.qualification.")
 }
 
 #[cfg(test)]

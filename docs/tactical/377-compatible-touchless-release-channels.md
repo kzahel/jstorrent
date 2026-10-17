@@ -181,3 +181,48 @@ launch, opens in that actual Stable app. All seven torrent identities and the
 installation identity survive, with schema 26/product 2/metrics 1 recorded.
 This establishes the old installed endpoint; upgrade acceptance is still open.
 Full local workspace tests passed 1,743 tests (20 ignored) across 73 suites.
+
+### Private cohort qualification while publication policy is pending
+
+Use the existing pinned installation-cohort and local asset delivery facilities
+from Tactical 252 for owned VM profiles. Public Stable/Latest selectors remain
+unchanged. Add private-candidate-only numeric version overrides (0.3.60000+
+for this task) and an optional source-overlay qualification mode: append a
+synthetic schema-30 probe migration and enable Stable policy only in the owned
+CI working copy. Record the exact overlay and source digests. Never commit the
+probe migration to shipping schema history, publish such a package, or run it
+against an unowned profile. All private profiles must be removed at cleanup;
+they cannot return to lower public application/database versions.
+
+The planned sequence is released Stable schema 26 -> private B schema 29 ->
+private C schema 30 through unattended updating; refuse higher-version D whose
+actual binary/metadata support only schema 29; verify Stable waiting and a
+compatible schema-30 E catch-up. Private B/C/E retain real production identity,
+updater root, OS signing/notarization and installer hooks. CI additionally
+signs cohort URL-bound metadata for the existing HTTPS asset service, keeping
+it outside the public asset inventory. A healthy empty channel reports 204
+without masking upstream failure, and native discovery still checks scoped
+platform offers. These rehearsals do not waive the public companion policy.
+
+The private populated-store probe pauses ten seconds inside its transaction,
+providing a bounded application-process crash window and a long startup gap
+for focus testing. Empty/fresh catalogs do not pause. This delay is confined
+to the private source overlay; shipping source/schema stay unchanged. The
+source-overlay CLI is tested end to end in a temporary tree, including refusal
+without explicit qualification authority and preservation of every real prefix.
+The collector refuses publication or mixed-platform source receipts for these
+artifacts. Private candidate versions are reserved to 0.3.60000–60999 and cannot
+be combined with either publication mode. The private probe has a retirement
+row in the durable-data ledger.
+
+Channel automatic-install permission is now separate from package identity:
+the service sends `X-Automatic-Install`, with false/missing failing closed.
+Native code checks it on discovery and again immediately before shutdown;
+manual installation and stored opt-outs remain independent. Owned cohorts can
+override rollout without changing public offers. This lets an identical
+qualified binary move from Latest to Stable without requiring a rebuild just
+to change a compile-time channel switch. The per-target compiled gate remains
+Latest-only until installed evidence lands; the private probe enables Stable
+only for that controlled rehearsal. Server 2c2e767 is deployed with 132 passing
+tests; all five Stable response bodies remain identical, Stable permission is
+false, and healthy empty Latest discovery now returns 204.

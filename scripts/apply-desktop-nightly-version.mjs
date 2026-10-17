@@ -21,7 +21,7 @@ export function applyNightlyVersion(root, version) {
   const cargo = readFileSync(cargoPath, "utf8");
   writeFileSync(cargoPath, cargo.replace(/^(version = )"[^"]+"/m, `$1"${version}"`));
   const cargoLockPath = resolve(root, "Cargo.lock");
-  const cargoLock = readFileSync(cargoLockPath, "utf8");
+  const cargoLock = readFileSync(cargoLockPath, "utf8").replace(/\r\n/g, "\n");
   writeFileSync(cargoLockPath, cargoLock.replace(/(name = "rstorrent-desktop"\nversion = )"[^"]+"/, `$1"${version}"`));
   const changelogPath = resolve(root, "CHANGELOG.md");
   const changelog = readFileSync(changelogPath, "utf8");

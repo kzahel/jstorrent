@@ -33,6 +33,8 @@ def schemas():
                 result[name]["torrents"] = connection.execute("SELECT count(*) FROM torrents").fetchone()[0]
                 ids = [row[0].hex() for row in connection.execute("SELECT torrent_id FROM torrents ORDER BY torrent_id")]
                 result[name]["identityDigest"] = hashlib.sha256(json.dumps(ids).encode()).hexdigest()
+                if connection.execute("SELECT count(*) FROM sqlite_master WHERE name='qualification_update_probe'").fetchone()[0]:
+                    result[name]["qualificationProbe"] = connection.execute("SELECT marker FROM qualification_update_probe WHERE singleton=1").fetchone()[0]
             if name == "product":
                 value = connection.execute("SELECT installation_id FROM product_state WHERE singleton=1").fetchone()[0]
                 result[name]["identityDigest"] = hashlib.sha256(value.encode()).hexdigest()

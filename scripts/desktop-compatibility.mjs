@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
@@ -67,7 +67,9 @@ export function assertForwardCompatibility(previous, next) {
     }
   }
 }
-if (fileURLToPath(import.meta.url) === process.argv[1]) {
+let isMain = false;
+try { isMain = realpathSync(process.argv[1] ?? "") === fileURLToPath(import.meta.url); } catch {}
+if (isMain) {
   const path = resolve(root, 'distribution/desktop-compatibility.json');
   const facts = databaseCompatibility(root);
   const generated = `${JSON.stringify(facts, null, 2)}\n`;

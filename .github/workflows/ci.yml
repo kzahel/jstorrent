@@ -178,6 +178,7 @@ jobs:
             scripts/desktop-release-input.test.mjs \
             scripts/desktop-release-train.test.mjs \
             scripts/desktop-promotion.test.mjs \
+            scripts/prepare-private-update-qualification.test.mjs \
             scripts/apply-desktop-nightly-version.test.mjs \
             scripts/check-release-compatibility.test.mjs \
             scripts/compat-ledger.test.mjs \

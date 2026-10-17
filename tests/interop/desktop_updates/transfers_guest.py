@@ -24,7 +24,7 @@ class Transfers:
     def rows(self):
         snapshot = self.command({"type": "snapshot"})
         rows = {row["torrent_id"]: row for row in snapshot["torrents"]}
-        if set(rows) != {item["id"] for item in self.config["items"]}:
+        if set(rows) != {item["id"] for item in self.config["items"]} | set(self.config.get("existingIds", [])):
             raise ValueError("The update lost or duplicated a controlled torrent")
         return rows
 

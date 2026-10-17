@@ -12301,7 +12301,7 @@
   "updates.automatic-awaiting-qualification": [
     {
       "type": 0,
-      "value": "Automatic installation is unavailable for this build. You can still install updates here."
+      "value": "Automatic installation isn’t enabled here yet. You can still install updates manually."
     }
   ],
   "updates.automatic-install": [
