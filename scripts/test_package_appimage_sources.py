@@ -13,6 +13,16 @@ spec.loader.exec_module(module)
 
 
 class SourceCarrierTests(unittest.TestCase):
+    def test_7zip_binary_names_support_macos_and_ubuntu_and_fail_clearly(self):
+        from unittest.mock import patch
+        for available, expected in [({"7zz": "/tools/7zz", "7z": "/tools/7z"}, "/tools/7zz"),
+                                    ({"7z": "/usr/bin/7z"}, "/usr/bin/7z")]:
+            with patch.object(module.shutil, "which", side_effect=available.get):
+                self.assertEqual(module.seven_zip(), expected)
+        with patch.object(module.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(ValueError, "Install 7-Zip"):
+                module.seven_zip()
+
     def test_candidate_version_is_bound_to_committed_source(self):
         candidate = {"sourceSha": "a" * 40, "version": "0.3.1"}
         self.assertEqual(module.candidate_version(

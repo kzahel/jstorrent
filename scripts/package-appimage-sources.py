@@ -12,9 +12,18 @@ import io
 import json
 from pathlib import Path, PurePosixPath
 import re
+import shutil
 import subprocess
 import tarfile
 import tempfile
+
+
+def seven_zip() -> str:
+    for name in ("7zz", "7z"):
+        executable = shutil.which(name)
+        if executable:
+            return executable
+    raise ValueError("Install 7-Zip (7zz or 7z) before preparing corresponding sources")
 
 
 def digest(path: Path) -> str:
@@ -188,7 +197,7 @@ def main() -> None:
                 if hashlib.sha256(runtime).hexdigest() != binding["normalizedRuntimeSha256"]:
                     raise ValueError("Outer runtime differs from reviewed source binding")
                 extracted = work / arch
-                subprocess.run(["7zz", "x", "-y", "-o" + str(extracted), str(image),
+                subprocess.run([seven_zip(), "x", "-y", "-o" + str(extracted), str(image),
                                 "usr/share/rstorrent/native-notices/*"],
                                check=True, capture_output=True, timeout=120)
                 notice_root = extracted / "usr/share/rstorrent/native-notices"

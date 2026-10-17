@@ -12,6 +12,16 @@ spec.loader.exec_module(module)
 
 
 class CurrentSources(unittest.TestCase):
+    def test_missing_extractor_fails_before_fetching_source_inputs(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temporary:
+            arguments = ["package-current-appimage-sources.py", "--source-sha", "a" * 40,
+                         "--release-dir", temporary, "--cache", temporary,
+                         "--output", str(Path(temporary) / "fresh.tar.gz")]
+            with patch("sys.argv", arguments), patch.object(module.common.shutil, "which", return_value=None):
+                with self.assertRaisesRegex(ValueError, "Install 7-Zip"):
+                    module.main()
+
     def test_new_or_changed_inputs_need_exact_distribution_integrity_and_preferred_sources(self):
         row = {"version": "1.0.0", "resolved": "https://registry.npmjs.org/a/-/a-1.0.0.tgz", "integrity": "sha512-exact", "license": "MIT"}
         current = {"packages": {"node_modules/a": row}}

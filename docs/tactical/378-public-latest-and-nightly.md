@@ -84,3 +84,15 @@ Full CI 39040311337 and Fast CI 39040311268 pass at 3f88d8ea. Retry
 proof, then stops before package builds on fresh Cargo advisories. Tactical
 [379](379-release-security-dependencies.md) owns the bounded security repair;
 no draft or public release is created and no advisory gate is waived.
+
+Full CI 39045059529, Fast CI 39045059512 and independent dependency audit
+39045635628 pass at 6ac2553d. Production run 39047869310 passes fresh audits,
+source checks and all five signed native builds, including both macOS
+notarizations and Windows Authenticode. The collector creates only a private
+draft, then source preparation stops because Ubuntu's 7zip package exposes
+`7z`, while the helper hardcodes `7zz`. Resolve either executable and check
+availability before downloading large inputs; eleven source-helper tests pass.
+Resume the private draft with the exact same-run native artifacts and original
+signed metadata, retaining source SHA 6ac2553d. Complete the corresponding
+source archive and all ordinary draft/hash/signature checks before publication;
+this tooling repair does not rebuild or replace any qualified package.
