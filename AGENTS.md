@@ -1,7 +1,5 @@
 # Repository Instructions
 
-`AGENTS.md` owns shared repository instructions; `CLAUDE.md` imports this file.
-
 ## Project Entry Points
 
 Start with [`README.md`](README.md) and
