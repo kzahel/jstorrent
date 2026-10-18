@@ -115,7 +115,7 @@ def main():
     args = parser.parse_args()
     if not re.fullmatch(r"[a-f0-9]{40}", args.source_sha) or args.output.exists():
         raise ValueError("Use an immutable source SHA and fresh output")
-    archiver = common.seven_zip()
+    extractor = common.squashfs_extractor()
     pins = json.loads((ROOT / "distribution/appimage-source-inputs.json").read_text())
     if pins["schemaVersion"] != 1:
         raise ValueError("Unknown source input schema")
@@ -213,7 +213,7 @@ def main():
             prior = next(row for row in prior_index["artifacts"] if row["name"].endswith("_" + arch + ".AppImage"))
             binding = runtime_binding(image, prior)
             extracted = work / ("native-" + arch)
-            subprocess.run([archiver, "x", "-y", "-o" + str(extracted), str(image), "usr/share/rstorrent/native-notices/*"], check=True, stdout=subprocess.DEVNULL, timeout=120)
+            common.extract_native_notices(image, extracted, binding["runtimeBytes"], extractor)
             notices = extracted / "usr/share/rstorrent/native-notices"
             manifest = json.loads((notices / "manifest.json").read_text())
             for row in manifest["notices"]:

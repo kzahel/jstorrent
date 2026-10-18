@@ -18,12 +18,25 @@ import tarfile
 import tempfile
 
 
-def seven_zip() -> str:
-    for name in ("7zz", "7z"):
-        executable = shutil.which(name)
-        if executable:
-            return executable
-    raise ValueError("Install 7-Zip (7zz or 7z) before preparing corresponding sources")
+def squashfs_extractor() -> str:
+    executable = shutil.which("unsquashfs")
+    if not executable:
+        raise ValueError("Install squashfs-tools (macOS: brew install squashfs) before preparing corresponding sources")
+    return executable
+
+
+def extract_native_notices(image: Path, destination: Path, runtime_bytes: int, extractor: str) -> None:
+    # Use the reviewed runtime boundary, never execute an AppImage or guess an
+    # embedded archive offset. Ubuntu's 7-Zip cannot read Zstandard SquashFS.
+    if not 0 < runtime_bytes <= 4 * 1024 * 1024:
+        raise ValueError("Invalid reviewed runtime bound")
+    with image.open("rb") as stream:
+        stream.seek(runtime_bytes)
+        if stream.read(4) != b"hsqs":
+            raise ValueError("Missing SquashFS at reviewed runtime boundary")
+    subprocess.run([extractor, "-no-progress", "-processors", "1", "-offset", str(runtime_bytes),
+                    "-dest", str(destination), str(image), "usr/share/rstorrent/native-notices"],
+                   check=True, stdout=subprocess.DEVNULL, timeout=120)
 
 
 def digest(path: Path) -> str:
@@ -104,6 +117,7 @@ def main() -> None:
     parser.add_argument("--guide", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
+    extractor = squashfs_extractor()
     for revision in (args.source_sha, args.dependency_source_sha):
         if not re.fullmatch(r"[a-f0-9]{40}", revision):
             raise ValueError("Use full immutable source commits")
@@ -197,9 +211,7 @@ def main() -> None:
                 if hashlib.sha256(runtime).hexdigest() != binding["normalizedRuntimeSha256"]:
                     raise ValueError("Outer runtime differs from reviewed source binding")
                 extracted = work / arch
-                subprocess.run([seven_zip(), "x", "-y", "-o" + str(extracted), str(image),
-                                "usr/share/rstorrent/native-notices/*"],
-                               check=True, capture_output=True, timeout=120)
+                extract_native_notices(image, extracted, binding["runtimeBytes"], extractor)
                 notice_root = extracted / "usr/share/rstorrent/native-notices"
                 manifest = json.loads((notice_root / "manifest.json").read_text())
                 for notice in manifest["notices"]:

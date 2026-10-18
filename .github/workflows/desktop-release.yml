@@ -142,7 +142,8 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libssl-dev \
             openssl \
-            patchelf
+            patchelf \
+            squashfs-tools
 
       - name: Install locked web dependencies
         run: npm ci --prefix clients/web
@@ -190,6 +191,8 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts -p test_distribution_review.py
           python3 -m unittest discover -s scripts -p test_linux_native.py
+          python3 -m unittest discover -s scripts -p test_package_appimage_sources.py
+          python3 -m unittest discover -s scripts -p test_current_appimage_sources.py
 
       - name: Audit tagged release dependencies
         if: needs.release-input.outputs.publish == 'true'
@@ -876,7 +879,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y 7zip
+          sudo apt-get install -y squashfs-tools
           RELEASE_DIR=artifacts/desktop-release-output
           SOURCE_ARCHIVE="$RUNNER_TEMP/JSTorrent_${RELEASE_VERSION}_AppImage-sources-final.tar.gz"
           python3 scripts/package-current-appimage-sources.py \

@@ -19,7 +19,7 @@ class CurrentSources(unittest.TestCase):
                          "--release-dir", temporary, "--cache", temporary,
                          "--output", str(Path(temporary) / "fresh.tar.gz")]
             with patch("sys.argv", arguments), patch.object(module.common.shutil, "which", return_value=None):
-                with self.assertRaisesRegex(ValueError, "Install 7-Zip"):
+                with self.assertRaisesRegex(ValueError, "Install squashfs-tools"):
                     module.main()
 
     def test_new_or_changed_inputs_need_exact_distribution_integrity_and_preferred_sources(self):

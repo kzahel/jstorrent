@@ -1,5 +1,15 @@
 # Beta Release Readiness
 
+The October 18 Latest collector failure is in source extraction: Ubuntu 24.04's
+7-Zip cannot read the Zstandard SquashFS used by the signed AppImages. Source
+packagers now use `unsquashfs` at the reviewed runtime boundary without executing
+either architecture. Full CI and release source checks install squashfs-tools
+and exercise a synthetic Zstandard filesystem with an outer runtime, selective
+notice extraction and invalid-offset refusals. Ubuntu extraction of both exact
+0.3.3 AppImages verifies all 141 x64 and 140 ARM64 notice hashes. Hosted CI for
+this repair is recorded by its commit checks; the failed 0.3.3 draft remains
+private until publication is separately authorized.
+
 Tactical [379](../tactical/379-release-security-dependencies.md) repairs the
 fresh-audit blocker found during 378 publication: rustls 0.23.46 and ZIP 9.0.4,
 with optional ZIP extraction disabled on the unchanged updater 2.10.1. Raw

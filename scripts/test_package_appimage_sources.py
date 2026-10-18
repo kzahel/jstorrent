@@ -3,6 +3,8 @@ import hashlib
 import importlib.util
 import io
 from pathlib import Path
+import shutil
+import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -13,15 +15,39 @@ spec.loader.exec_module(module)
 
 
 class SourceCarrierTests(unittest.TestCase):
-    def test_7zip_binary_names_support_macos_and_ubuntu_and_fail_clearly(self):
+    def test_squashfs_extractor_is_required(self):
         from unittest.mock import patch
-        for available, expected in [({"7zz": "/tools/7zz", "7z": "/tools/7z"}, "/tools/7zz"),
-                                    ({"7z": "/usr/bin/7z"}, "/usr/bin/7z")]:
-            with patch.object(module.shutil, "which", side_effect=available.get):
-                self.assertEqual(module.seven_zip(), expected)
+        with patch.object(module.shutil, "which", return_value="/tools/unsquashfs"):
+            self.assertEqual(module.squashfs_extractor(), "/tools/unsquashfs")
         with patch.object(module.shutil, "which", return_value=None):
-            with self.assertRaisesRegex(ValueError, "Install 7-Zip"):
-                module.seven_zip()
+            with self.assertRaisesRegex(ValueError, "Install squashfs-tools"):
+                module.squashfs_extractor()
+
+    @unittest.skipUnless(shutil.which("mksquashfs") and shutil.which("unsquashfs"), "requires squashfs-tools")
+    def test_zstd_appimage_extracts_only_notices_at_reviewed_offset(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            notices = source / "usr/share/rstorrent/native-notices"
+            notices.mkdir(parents=True)
+            content = b"independently authored native notice\n"
+            (notices / "copyright").write_bytes(content)
+            (source / "must-not-extract").write_text("unrelated payload")
+            filesystem = root / "payload.squashfs"
+            subprocess.run(["mksquashfs", str(source), str(filesystem), "-comp", "zstd",
+                            "-noappend", "-no-progress", "-processors", "1"],
+                           check=True, stdout=subprocess.DEVNULL, timeout=30)
+            image = root / "test.AppImage"
+            runtime = b"synthetic non-executable runtime" * 100
+            image.write_bytes(runtime + filesystem.read_bytes())
+            destination = root / "extracted"
+            module.extract_native_notices(image, destination, len(runtime), module.squashfs_extractor())
+            extracted = destination / "usr/share/rstorrent/native-notices/copyright"
+            self.assertEqual(extracted.read_bytes(), content)
+            self.assertEqual([p for p in destination.rglob("*") if p.is_file()], [extracted])
+            for offset in (0, -1, 4 * 1024 * 1024 + 1, len(runtime) - 1, image.stat().st_size):
+                with self.subTest(offset=offset), self.assertRaises(ValueError):
+                    module.extract_native_notices(image, root / "invalid", offset, module.squashfs_extractor())
 
     def test_candidate_version_is_bound_to_committed_source(self):
         candidate = {"sourceSha": "a" * 40, "version": "0.3.1"}

@@ -196,7 +196,10 @@ jobs:
 
       - name: Verify dependency and distribution review tools
         run: |
+          sudo apt-get update
+          sudo apt-get install -y squashfs-tools
           python3 -m unittest discover -s scripts -p test_distribution_review.py
+          python3 -m unittest discover -s scripts -p test_package_appimage_sources.py
           python3 -m unittest discover -s scripts -p test_current_appimage_sources.py
           python3 -m unittest discover -s tests/interop/desktop_updates -p 'test_live_*.py'
 
