@@ -118,3 +118,20 @@ access and the Stable/Android companion-policy exception remain pending.
 separately (the debug build helper itself does not run lint). Extension
 Actions completes successfully, and the public GitHub receipt/ZIP/build record
 match the submitted source and hash. The 12-delivery ledger check passes.
+
+Adding the submitted 1.1.6 delivery exercises its own captured decoder in the
+local matrix. Its observed failure list is empty; record that explicit
+expectation alongside 1.1.5. The first check fails only because the new
+delivery lacks that required expectation, not because its decoder rejects a
+host frame. Re-run web typecheck and the full suite after adding the record.
+The Android 1.0.32/code 32 release-helper dry run passes from a clean tree.
+Both enforced Stable 0.3.4 and Android 1.0.32 guards reject the exact eight
+reviewed fields, confirming that no host publication is authorized by an
+unrecorded exception.
+
+The final web typecheck and full suite pass: 868 tests, three existing skips.
+The new decoder expectation records zero observed failures and does not waive
+any incompatibility. Source changes and receipts are pushed to main; full
+hosted source CI continues. Fresh hosted dependency review 39482229102 is
+running against the reviewed lockfiles/policy; the earlier failed audit and
+passing local strict review remain recorded separately.
