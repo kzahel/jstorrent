@@ -1,6 +1,7 @@
 # Tactical 380: Desktop, Extension and Android Release
 
-Status: Preparing, 2026-10-20. Publication requested by the maintainer.
+Status: Extension 1.1.6 submitted, 2026-10-20. Desktop Stable and Android
+await explicit companion-policy and testbed-access decisions.
 
 Topics: `beta-release-readiness`, `mixed-version-compatibility`.
 
@@ -87,7 +88,7 @@ before building; retry uses the existing supported setup320 QA identity.
 `cargo test --workspace` pass: 1,749 tests, 20 existing ignores, zero failures
 across 73 suites. `node scripts/check-localization.mjs` passes all catalogs.
 The normal full Android debug builder passes both locked native ABIs,
-host/JNI generation, JVM tests, lint, APK packaging and notice inspection,
+host/JNI generation, 218 JVM tests, APK packaging and notice inspection,
 using the existing isolated org.jstorrent.setup320 QA identity. No production
 app or durable library is installed over or modified by this build.
 
@@ -95,3 +96,25 @@ Fresh local pinned Cargo and web/website npm reports pass
 `review-dependency-audit.py --require-release-ready`; all 30 distribution
 review unit tests pass. Hosted audit's initial warning-inventory failure is
 retained above rather than represented as a successful hosted run.
+
+## Extension submission
+
+Actions [39479561516](https://github.com/kzahel/jstorrent/actions/runs/39479561516)
+passes exact tagged construction, web checks, extension tests and the live
+old/new host-client matrix. The existing production store item accepts
+1.1.6 from b3792b9064c24bcdf0344c7c4c30390cb2744543 and returns
+PENDING_REVIEW, with automatic publication after approval. Its exact ZIP
+SHA-256 is aeb7abe31a4e8b41d643e53828f00ee3fc284da04733e77021ef1346a76ceae6.
+The receipt still reports 1.1.5 as the published version. Record 1.1.6 as
+submitted and retain its exact-source client capture; do not infer delivery.
+
+The ChromeOS common doctor passes. Its ARC ADB connection requires a new
+host-key approval; no APK is installed and no debug-trust approval is given.
+The candidate is ready, but explicit maintainer permission for this debugging
+access and the Stable/Android companion-policy exception remain pending.
+
+`clients/android/gradlew -p clients/android
+-PchromeosQualificationTestPackage=org.jstorrent.setup320 lintDebug` passes
+separately (the debug build helper itself does not run lint). Extension
+Actions completes successfully, and the public GitHub receipt/ZIP/build record
+match the submitted source and hash. The 12-delivery ledger check passes.
