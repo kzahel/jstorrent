@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "reviewed_at": "2026-10-17",
+  "reviewed_at": "2026-10-20",
   "review_expires": "2026-11-12",
   "warnings": [
     {
@@ -79,6 +79,13 @@
       "advisory": "RUSTSEC-2024-0429",
       "package": "glib",
       "version": "0.18.5"
+    },
+    {
+      "kind": "unmaintained",
+      "advisory": "RUSTSEC-2026-0374",
+      "package": "basic-toml",
+      "version": "0.1.10",
+      "reason": "Archived parser retained by askama_derive 0.14 through UniFFI 0.31 binding-generation tooling; absent from the default all-target runtime graph. Advisory reports maintenance status, no disclosed vulnerability. Keep the qualified UniFFI toolchain for this release and review its migration before the unchanged November 12 expiry."
     }
   ],
   "release_blockers": [],

@@ -62,3 +62,21 @@ credentials, pairing ownership or ARC listener scope. A handler regression
 checks paired hello, preflight, successful folder completion and rejected
 credentials for each spelling. Physical ChromeOS verification remains a
 separate pre-publication gate.
+
+## Fresh dependency review
+
+Hosted audit 39479660510 finds zero Cargo, web and website vulnerabilities,
+but stops on newly indexed RUSTSEC-2026-0374, basic-toml 0.1.10 maintenance
+status. Advisory revision b19b2c83 (October 20) describes its archived
+repository and suggests toml; it discloses no vulnerability. The default
+all-target Cargo graph contains no basic-toml. The workspace/all-features,
+all-target reverse graph retains it only through askama_derive 0.14,
+askama and UniFFI 0.31 binding-generation tooling. Record this warning with
+that bounded justification; preserve the qualified UniFFI dependency graph
+and existing November 12 review expiry. No vulnerability or source-integrity
+gate is waived.
+
+The companion handler regression, localization catalog validation, formatting
+and workspace Clippy pass. Full Rust tests and dual-ABI Android debug build
+continue. The first qualification build rejects an unsupported test identity
+before building; retry uses the existing supported setup320 QA identity.
