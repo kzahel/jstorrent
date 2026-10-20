@@ -21,6 +21,15 @@ three-component versions, and desktop release tags use
 
 ## [Unreleased]
 
+- Browse videos and music across torrents in the Library, with search,
+  filters, albums, shows, and playback for completed local media.
+- Export and import torrent lists, share richer links, and set seeding limits.
+- Add download-safety controls and improve large file selections.
+- Improve navigation, narrow layouts, file actions, and connection recovery.
+- Add signed Stable and Latest updates with database compatibility checks,
+  idle installation, and recovery protection for interrupted updates.
+- Repair production browser-extension control and improve app diagnostics.
+
 ## [0.1.4] - 2026-09-26
 
 - Add durable seeding goals, add-time file selection, and live DHT/PEX controls

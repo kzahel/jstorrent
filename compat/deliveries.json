@@ -108,9 +108,10 @@
       "tag": "android-v1.0.31",
       "commit": "70150ec99ff5613bb468fd816fed46c687ff7557",
       "channel": "play-production",
-      "status": "submitted",
+      "status": "published",
       "submitted": "2026-10-13",
-      "firstPublic": null,
+      "firstPublic": "2026-10-13",
+      "firstPublicBasis": "Play Console inspection on 2026-10-20 confirms production 31 active, with last publication on 2026-10-13.",
       "roles": ["host"]
     },
     {

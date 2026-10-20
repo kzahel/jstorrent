@@ -80,3 +80,18 @@ The companion handler regression, localization catalog validation, formatting
 and workspace Clippy pass. Full Rust tests and dual-ABI Android debug build
 continue. The first qualification build rejects an unsupported test identity
 before building; retry uses the existing supported setup320 QA identity.
+
+## Completed local validation
+
+`cargo fmt --all -- --check`, `cargo clippy --workspace -- -D warnings` and
+`cargo test --workspace` pass: 1,749 tests, 20 existing ignores, zero failures
+across 73 suites. `node scripts/check-localization.mjs` passes all catalogs.
+The normal full Android debug builder passes both locked native ABIs,
+host/JNI generation, JVM tests, lint, APK packaging and notice inspection,
+using the existing isolated org.jstorrent.setup320 QA identity. No production
+app or durable library is installed over or modified by this build.
+
+Fresh local pinned Cargo and web/website npm reports pass
+`review-dependency-audit.py --require-release-ready`; all 30 distribution
+review unit tests pass. Hosted audit's initial warning-inventory failure is
+retained above rather than represented as a successful hosted run.
