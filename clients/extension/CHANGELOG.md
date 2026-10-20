@@ -5,6 +5,15 @@ Production releases of the existing JSTorrent Chrome Web Store item
 `scripts/release-extension.sh <version>`; see
 [`docs/topics/mixed-version-compatibility.md`](../../docs/topics/mixed-version-compatibility.md).
 
+## [1.1.6]
+
+- Browse videos and music across torrents in the Library, with search,
+  filters, and playback for completed local media.
+- Improve narrow layouts, navigation, file selection, and connection recovery.
+- Add torrent-list import and export, richer share links, and seeding limits
+  when the connected app supports them.
+- Show clearer download-safety controls and app-version diagnostics.
+
 ## [1.1.5]
 
 - The companion accepts fields and row updates a newer JSTorrent app adds,

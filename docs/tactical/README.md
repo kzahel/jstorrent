@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [380 — Desktop, extension and Android release](380-product-release.md):
+  preparing production releases; host compatibility decision pending.
+
 - [379 — Release security dependency repair](379-release-security-dependencies.md):
   complete; patched rustls/ZIP and retained updater 2.10.1 pass full CI,
   signed native builds and public Latest 0.3.2 qualification.
