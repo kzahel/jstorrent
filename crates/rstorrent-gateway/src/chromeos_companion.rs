@@ -1183,7 +1183,8 @@ async fn companion_hello(State(state): State<CompanionHttpState>, headers: Heade
     match state.pairings.hello(origin, state.port) {
         Ok(mut hello) => {
             hello.paired = headers
-                .get("x-rstorrent-installation")
+                .get("x-jstorrent-installation")
+                .or_else(|| headers.get("x-rstorrent-installation"))
                 .and_then(|value| value.to_str().ok())
                 .filter(|installation_id| valid_identifier(installation_id))
                 .is_some_and(|installation_id| {
@@ -1271,7 +1272,8 @@ async fn companion_download_root(
         return StatusCode::FORBIDDEN.into_response();
     };
     let Some(installation_id) = headers
-        .get("x-rstorrent-installation")
+        .get("x-jstorrent-installation")
+        .or_else(|| headers.get("x-rstorrent-installation"))
         .and_then(|value| value.to_str().ok())
     else {
         return companion_status(StatusCode::UNAUTHORIZED, origin);
@@ -1327,7 +1329,9 @@ async fn companion_preflight(
     );
     response.headers_mut().insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
-        HeaderValue::from_static("authorization, content-type, x-rstorrent-installation"),
+        HeaderValue::from_static(
+            "authorization, content-type, x-jstorrent-installation, x-rstorrent-installation",
+        ),
     );
     response
 }
@@ -1539,6 +1543,127 @@ mod tests {
             .expect("pairing row count");
         assert_eq!(rows, 0);
         fs::remove_dir_all(root).expect("remove pairing fixture");
+    }
+
+    #[tokio::test]
+    async fn released_installation_headers_allow_paired_hello_and_folder_selection() {
+        use rstorrent_session::{
+            ApplicationConfig, ApplicationService, NetworkConfig, NetworkPolicy,
+        };
+
+        let (owner, root) = owner("installation-headers");
+        let service = Arc::new(tokio::sync::Mutex::new(
+            ApplicationService::open(ApplicationConfig::ephemeral(
+                "test".to_owned(),
+                vec![],
+                NetworkConfig::new(
+                    NetworkPolicy::LoopbackOnly,
+                    Duration::from_secs(1),
+                    Duration::from_secs(1),
+                ),
+            ))
+            .await
+            .expect("open application"),
+        ));
+        let platform = CompanionPlatformOwner::new();
+        let server = bind_companion_on(
+            Ipv4Addr::LOCALHOST,
+            owner.clone(),
+            platform.clone(),
+            service.clone(),
+            "test",
+            "1.0.32",
+        )
+        .await
+        .expect("bind companion");
+        let state = server.state.clone();
+        let pending = request(&owner, "installation_1234");
+        owner.approve(&pending.request_id).expect("approve pairing");
+        let credential = owner
+            .poll(
+                BETA_EXTENSION_ORIGIN,
+                &pending.request_id,
+                "installation_1234",
+                "extension_nonce_1234",
+            )
+            .expect("poll pairing")
+            .credential
+            .expect("credential");
+        for name in ["x-jstorrent-installation", "x-rstorrent-installation"] {
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                header::ORIGIN,
+                HeaderValue::from_static(BETA_EXTENSION_ORIGIN),
+            );
+            headers.insert(
+                header::HOST,
+                HeaderValue::from_str(state.gateway.allowed_host.as_ref()).expect("host"),
+            );
+            headers.insert(name, HeaderValue::from_static("installation_1234"));
+            headers.insert(
+                header::AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {credential}")).expect("authorization"),
+            );
+            let preflight = companion_preflight(State(state.clone()), headers.clone()).await;
+            assert_eq!(preflight.status(), StatusCode::NO_CONTENT);
+            assert!(
+                preflight.headers()[header::ACCESS_CONTROL_ALLOW_HEADERS]
+                    .to_str()
+                    .expect("allowed headers")
+                    .split(", ")
+                    .any(|value| value == name)
+            );
+            let hello = companion_hello(State(state.clone()), headers.clone()).await;
+            let body = axum::body::to_bytes(hello.into_body(), 16384)
+                .await
+                .expect("hello body");
+            let hello: serde_json::Value = serde_json::from_slice(&body).expect("hello JSON");
+            assert_eq!(hello["paired"], true, "{name}");
+            let request_state = state.clone();
+            let request_headers = headers.clone();
+            let response = tokio::spawn(async move {
+                companion_download_root(
+                    State(request_state),
+                    request_headers,
+                    Json(ChooseDownloadRootRequest { repair_root: None }),
+                )
+                .await
+            });
+            let pending = tokio::time::timeout(Duration::from_secs(2), platform.next_request())
+                .await
+                .expect("authenticated folder request")
+                .expect("pending request");
+            assert!(platform.complete(&pending.request_id, None));
+            assert_eq!(
+                response.await.expect("join folder request").status(),
+                StatusCode::OK
+            );
+            headers.insert(
+                header::AUTHORIZATION,
+                HeaderValue::from_static("Bearer wrong"),
+            );
+            assert_eq!(
+                companion_download_root(
+                    State(state.clone()),
+                    headers,
+                    Json(ChooseDownloadRootRequest { repair_root: None }),
+                )
+                .await
+                .status(),
+                StatusCode::UNAUTHORIZED
+            );
+        }
+        drop(server);
+        drop(state);
+        service
+            .lock()
+            .await
+            .shutdown()
+            .await
+            .expect("shutdown application");
+        drop(service);
+        drop(owner);
+        fs::remove_dir_all(root).expect("remove header fixture");
     }
 
     #[test]

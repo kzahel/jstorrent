@@ -38,3 +38,27 @@ hosted signed Android dual-ABI/JVM/lint/artifact validation and independently
 verify downloaded artifacts before Play upload. Desktop promotion must retain
 native bytes and signatures, verify authenticated database facts, exact
 source and current Stable predecessor. Record exact checks and workflow runs.
+
+## Preparation evidence
+
+Web typecheck, 863 web tests (three existing skips), all 69 extension tests,
+production packaging, 27 Android release-tool cases, and 17 release-policy,
+promotion/train/metadata tests pass. Database metadata and the existing
+11-delivery capture ledger pass. The unauthenticated store check confirms
+1.1.5 is live. Extension 1.1.6 is tagged at b3792b90; Actions 39479561516
+owns construction, live compatibility and submission.
+
+Authenticated Play inspection confirms production 31 is active across 178
+countries, no unpublished changes, and managed publishing off. Its dashboard
+reports two foreground-service-start timeout crashes affecting two users;
+crash/ANR rates are unavailable. The existing disabled-R8 optimization warning
+has a February 2027 deadline. These are current-production observations,
+not new-release qualification.
+
+Tactical 371's Android prerequisite is still present: released clients send
+X-JSTorrent-Installation while hello, folder authentication and CORS accept
+only X-RSTorrent-Installation. Repair both names without changing origins,
+credentials, pairing ownership or ARC listener scope. A handler regression
+checks paired hello, preflight, successful folder completion and rejected
+credentials for each spelling. Physical ChromeOS verification remains a
+separate pre-publication gate.
