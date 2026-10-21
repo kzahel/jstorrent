@@ -1,5 +1,37 @@
 # Beta Release Readiness
 
+The October 21 Latest 0.3.4 source check at `52067935` failed its fresh
+dependency audit before packaging or publication. Earlier dependency fixes had
+passed advisory review on October 20. The lockfiles now select rustls-webpki
+0.103.16, webpki-roots 1.0.10, webpki-root-certs 1.0.10 and Vite 8.1.6 within
+its existing minor series. Upstream documents the certificate distrust fixes
+([0382](https://rustsec.org/advisories/RUSTSEC-2026-0382.html),
+[0381](https://rustsec.org/advisories/RUSTSEC-2026-0381.html),
+[0383](https://rustsec.org/advisories/RUSTSEC-2026-0383.html)) and the
+[Vite editor-command issue](https://github.com/advisories/GHSA-587h-7wmj-h5pm).
+Fresh Cargo and both npm audits now have zero vulnerabilities, and the strict
+release-ready review passes with the existing warning inventory, independently
+verified GLib backport and unchanged November 12 expiry. Independent advisory
+review now runs daily at 05:31 UTC, retaining the fresh publication gate.
+GitHub Dependabot alerts and automatic security updates are enabled; these
+findings were absent from its open alerts at inspection, so that service remains
+an additional signal.
+
+Local validation passes: `cargo fmt --all -- --check`,
+`cargo clippy --workspace --locked -- -D warnings` and
+`cargo test --workspace --locked` (1,749 passed, 20 ignored);
+`npm run typecheck --prefix clients/web`, `npm run test --prefix clients/web`
+(870 passed, three skipped) and `npm run build --prefix clients/web`, including
+CSP validation. `actionlint .github/workflows/dependency-review.yml` and
+`python3 -m unittest discover -s scripts -p test_distribution_review.py`
+(30 tests) pass. `clients/android/build.sh` completes both release ABIs and
+Kotlin binding generation; packaging initially stops on local disk exhaustion.
+After space is available, `clients/android/gradlew -p clients/android
+assembleDebug testDebugUnitTest` passes, followed by
+`python3 scripts/inspect-android-notices.py --archive
+clients/android/app/build/outputs/apk/debug/app-debug.apk --variant debug`
+(84 Maven and 207 Rust packages). This patch does not publish a release.
+
 The October 18 Latest collector failure is in source extraction: Ubuntu 24.04's
 7-Zip cannot read the Zstandard SquashFS used by the signed AppImages. Source
 packagers now use `unsquashfs` at the reviewed runtime boundary without executing

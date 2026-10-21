@@ -84,7 +84,7 @@ variant-specific Maven/AAR and Rust attribution.
 [`audit-cargo-dependencies.py`](../../scripts/audit-cargo-dependencies.py) and
 [`review-dependency-audit.py`](../../scripts/review-dependency-audit.py)
 provide `--help` for report inputs and options. The
-[weekly dependency workflow](../../.github/workflows/dependency-review.yml)
+[daily dependency workflow](../../.github/workflows/dependency-review.yml)
 owns audit tool versions and report collection; tagged publication requires
 `--require-release-ready`, including fresh advisory/review evidence.
 
