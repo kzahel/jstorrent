@@ -1,7 +1,7 @@
 # Implementation Tactical Docs
 
-- [380 — Desktop, extension and Android release](380-product-release.md):
-  extension 1.1.6 submitted; Stable/Android policy and testbed access pending.
+- [380 — Product releases](380-product-release.md):
+  extension 1.1.6 submitted; remote 0.3.3 preparing; Stable/Android held.
 
 - [379 — Release security dependency repair](379-release-security-dependencies.md):
   complete; patched rustls/ZIP and retained updater 2.10.1 pass full CI,

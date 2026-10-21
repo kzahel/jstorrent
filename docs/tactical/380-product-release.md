@@ -1,7 +1,8 @@
-# Tactical 380: Desktop, Extension and Android Release
+# Tactical 380: Product Releases
 
 Status: Extension 1.1.6 submitted, 2026-10-20. Desktop Stable and Android
-await explicit companion-policy and testbed-access decisions.
+await explicit companion-policy and testbed-access decisions. Remote controller
+0.3.3 is authorized for independent publication, 2026-10-21.
 
 Topics: `beta-release-readiness`, `mixed-version-compatibility`.
 
@@ -16,7 +17,9 @@ record pending review separately from public availability.
 
 Preserve existing identities, signing roots, durable data, production
 countries and rollout settings. No engine, schema, permissions, dependency,
-listing, remote-controller or website changes. No unrelated store drafts.
+listing or marketing-site changes. The hosted remote controller is added to
+scope by subsequent maintainer direction; its independent release does not
+authorize the held host releases. No unrelated store drafts.
 
 ## Policy checkpoint
 
@@ -135,3 +138,26 @@ any incompatibility. Source changes and receipts are pushed to main; full
 hosted source CI continues. Fresh hosted dependency review 39482229102 is
 running against the reviewed lockfiles/policy; the earlier failed audit and
 passing local strict review remain recorded separately.
+
+
+## Independent remote controller 0.3.3
+
+The maintainer requests the hosted remote website release while retaining the
+Stable/Android decisions. Follow the existing independent controller lane:
+commit candidate source, capture its exact client decoder, record submission
+and explicit decoder outcomes in a following metadata commit, then atomically
+push main and remote-v0.3.3 at the candidate. No new host capability, schema,
+relay configuration, origin, credential or trust policy is introduced.
+
+Current source 4271e57c passes hosted full CI 39482545761, Fast CI
+39482545932 and Remote Controller build 39482545745. Dependency review
+39482229102 also passes against the unchanged reviewed dependency inputs.
+Production still reports remote 0.3.2/859f00de before this release.
+
+Tagged Actions must pass the old/new live matrix, web suite, retained
+root-artifact browser smoke, deployment headers and every manifested digest.
+Then run scripts/verify-hosted-remote.mjs against the public origin using
+a disposable host and separate Playwright Chromium. Require private login,
+reload/browser restart, revocation, shared-session behavior and signed route
+release before removing the temporary authority. Retain the immutable
+controller rollback artifact and mark first-public only after verification.
