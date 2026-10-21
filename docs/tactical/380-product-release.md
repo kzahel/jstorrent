@@ -1,6 +1,6 @@
 # Tactical 380: Product Releases
 
-Status: Extension 1.1.6 submitted, 2026-10-20. Desktop Stable and Android
+Status: Extension 1.1.6 publicly verified, 2026-10-21. Desktop Stable and Android
 await explicit companion-policy and testbed-access decisions. Remote controller
 0.3.3 published and publicly verified, 2026-10-21.
 
@@ -199,3 +199,15 @@ cases pass). The exact focused local test passes; a failed-job hosted rerun
 is requested without code or threshold changes. Full main CI 39543233157
 also continues. This does not replace the successful tagged client release
 gates or authorize either held host release.
+
+
+### Extension public availability
+
+Public store inspection on 2026-10-21 confirms version 1.1.6, with listing
+update date October 20. The submission receipt remains historical evidence
+of PENDING_REVIEW at submission; it is not the current delivery status.
+Retain a separate [public receipt](evidence/380-extension-public-receipt.json)
+and mark the ledger published. Use the observation date as a conservative
+latest-possible first-public date; the listing's update date alone does not
+establish the exact publication time. This does not change the existing
+30-day support window for strict extension clients or the host release holds.
