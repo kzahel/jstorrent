@@ -161,3 +161,11 @@ a disposable host and separate Playwright Chromium. Require private login,
 reload/browser restart, revocation, shared-session behavior and signed route
 release before removing the temporary authority. Retain the immutable
 controller rollback artifact and mark first-public only after verification.
+
+Candidate source is 5cb10f298943f1f18b9481ee68492b3840842a66. Its exact
+client capture accepts all current host frames (zero raw failures); the
+initial expectation-only failure confirms that observed result before adding
+its explicit record. Web typecheck, the full web suite and all 12 remote
+assembly/ledger cases pass. The 13-delivery ledger validates. The tag points
+to the candidate; this following metadata commit retains its capture and
+submission without a first-public claim.
