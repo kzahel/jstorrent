@@ -2,7 +2,7 @@
 
 Status: Extension 1.1.6 submitted, 2026-10-20. Desktop Stable and Android
 await explicit companion-policy and testbed-access decisions. Remote controller
-0.3.3 is authorized for independent publication, 2026-10-21.
+0.3.3 published and publicly verified, 2026-10-21.
 
 Topics: `beta-release-readiness`, `mixed-version-compatibility`.
 
@@ -169,3 +169,33 @@ its explicit record. Web typecheck, the full web suite and all 12 remote
 assembly/ledger cases pass. The 13-delivery ledger validates. The tag points
 to the candidate; this following metadata commit retains its capture and
 submission without a first-public claim.
+
+
+### Remote publication evidence
+
+[Actions 39543233167](https://github.com/kzahel/jstorrent/actions/runs/39543233167)
+passes tagged web checks, root-artifact browser smoke, the live compatibility
+matrix, exact-artifact Pages deployment and both deployment/custom-domain
+header and digest verification. Production reports 0.3.3/5cb10f29. Independently
+downloaded build files match all 42 manifested digests; the public manifest
+is byte-identical to that retained artifact. The immutable rollback archive
+and its SHA-256 are retained in the GitHub prerelease and
+[evidence receipt](evidence/380-remote-release-receipt.json). Desktop's Latest
+release pointer is preserved.
+
+The exact-source debug headless/gateway build passes. Public
+`node scripts/verify-hosted-remote.mjs` passes private login, reload and
+browser restart resume, exact revocation, shared login and password after
+shared-browser restart. No third-party requests or page errors are observed.
+Signed route release succeeds before temporary host/browser cleanup.
+`node scripts/verify-remote-deployment.mjs https://remote.jstorrent.com/
+5cb10f298943f1f18b9481ee68492b3840842a66` passes independently. Local web
+validation is 870 passed/three existing skips, plus typecheck and 12 remote
+assembly/ledger cases. The delivery is now published with verified date.
+
+The separate main Fast CI 39543233158 initially times out in existing
+`storage_pressure_cannot_starve_dht_intake_or_dial_refill` (613 other engine
+cases pass). The exact focused local test passes; a failed-job hosted rerun
+is requested without code or threshold changes. Full main CI 39543233157
+also continues. This does not replace the successful tagged client release
+gates or authorize either held host release.

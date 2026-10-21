@@ -328,6 +328,10 @@ Before deploying the hosted controller:
    rollback artifact. Main and marketing deployment do not advance the client.
 
 The first independent release is remote-v0.3.2 at 859f00de (2026-10-16).
+Remote-v0.3.3 at 5cb10f29 is public from 2026-10-21; Tactical
+[380](../tactical/380-product-release.md) records exact-source capture, the
+passing tagged matrix/deployment and disposable public canary with signed
+cleanup. Host Stable/Android companion-policy holds remain.
 The legacy remote 0.3.1/bdc58e4a delivery leaves its window on November 15;
 old-origin admission and frozen lazy assets remain until reviewed retirement
 no earlier than November 16. Old document redirects remain afterwards.
