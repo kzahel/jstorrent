@@ -430,3 +430,11 @@ For `requestedBy` exemptions, a supported client may ask for a feature whose
 response it already understands. The prohibited case is a client that both
 can ask for the feature and rejects its output. A synthetic negative control
 covers that case, alongside each actual supported capture.
+
+
+October 22 release qualification adds Android 1.0.32 as a captured host with
+seeding-limit and magnet-export capabilities. The real-dispatch request
+matrix now derives stripping/refusal expectations from each captured hello,
+while validating supported requests against that host's exact schema. Earlier
+hosts retain their existing refusal and fallback expectations. Tactical 380
+records the source-gate correction.

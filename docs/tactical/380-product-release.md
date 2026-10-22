@@ -241,3 +241,19 @@ pass; all 22 focused release-policy/promotion/train/selector cases pass.
 The ChromeOS common target remains healthy; its ADB debugging key is
 unauthorized. Dedicated-testbed approval is requested while independent build
 qualification proceeds. The QA APK uses only org.jstorrent.setup320.
+
+
+### Fresh source gate corrections
+
+Full main CI 39776594324 exposes two stale assertions in the released-host
+request matrix: the newly captured Android 1.0.32 correctly advertises
+seeding limits and magnet export options. Assert stripping/refusal only when
+that exact captured hello lacks the capability, and validate emitted requests
+against the exact schema when supported. No runtime compatibility behavior
+changes. Web typecheck and all 878 tests pass (three existing skips).
+
+Fresh hosted dependency review 39776594315 rejects two newly indexed Vitest
+mocker advisories (GHSA-qxg6-89mg-rqv8, GHSA-xp26-3454-mjgp). Upgrade the
+test-only Vitest family to 4.1.12; npm audit reports zero vulnerabilities.
+Keep the existing review expiry and all warning/source-integrity gates.
+Android's tagged native/Compose source is unchanged by these web-test fixes.
