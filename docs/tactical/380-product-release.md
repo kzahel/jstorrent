@@ -373,3 +373,60 @@ companion and full-CI gates remain. All 29 selector/train/promotion/policy tests
 pass, including missing inventories, malformed lookups and CI negative
 controls. A live read-only dry run selects 0.3.4 and verifies 39790212157.
 The changed selector receives fresh exact-main CI before publication.
+
+Repair source ecd65fe4 is pushed for full CI 39803878465 and Fast CI
+39803878513. Its new exact host capture is byte-identical to Android
+071ada49's schema. The pending Stable entry, 15-delivery ledger,
+database-history check, web typecheck and 886 web tests (three existing skips)
+pass locally. Independent exact-tag downloads of Latest 0.3.2 and 0.3.3
+verify both manifest hashes, original-key signed database facts and every
+released migration prefix against this source. Product Rust and application
+runtime source is unchanged from the qualified Android tag; subsequent
+changes are release infrastructure, test-only Vitest dependencies, test
+assertions and evidence. Publication still requires green exact-source CI,
+fresh dependency review and all signed native package gates.
+
+Full CI [39803878465](https://github.com/kzahel/jstorrent/actions/runs/39803878465)
+and Fast CI 39803878513 pass at ecd65fe4. The repaired selector's live dry run
+checks exact published records, directly confirms this successful main-push
+run and selects 0.3.4. Signed Latest construction is dispatched as
+[39811129985](https://github.com/kzahel/jstorrent/actions/runs/39811129985).
+Before publication, all five Stable 0.3.1 response bodies still match the
+original probes from current version 0.3.0; four automatic targets and manual
+Linux ARM remain unchanged. The website provenance still reports 0.3.1.
+
+### Exact native packages and source-only collector recovery
+
+Run 39811129985 passes fresh strict dependency review, source tests and all
+five signed native legs at ecd65fe4, including both macOS notarizations,
+Windows Authenticode/activation registry and Linux package checks. The collector
+stops with a private 16-asset draft because changed Vitest inputs lack reviewed
+source pins. It has published nothing. Follow 378's source-only recovery:
+reassemble the same-run artifacts, compare all fourteen native/signature assets
+against the private draft, and retain the original CI-signed metadata unchanged.
+All six payload signatures and signed database/platform facts verify locally.
+
+Add immutable preferred-source pins for the eleven newly changed Vitest, Vite,
+Chai and tinyrainbow distributions, retaining package-lock SHA-512 integrity
+and original MIT terms. Source verification also catches the October 19 official
+AppImage runtime update and two Ubuntu source revisions. Both normalized runtime
+prefixes exactly match the upstream release digests; their embedded commit is
+fedfad51. Its sole source diff from 8f39b89 maps temporary build paths out of
+debug information, with no runtime-code or dependency-version changes. Supply
+the new MIT source archive, retaining all original component sources/terms and
+relink instructions. Additional runtime bindings require exact source/binary
+pins and still exclude only the named 16-byte payload digest. Negative controls
+reject unrelated byte changes and mismatched source, size or digest bindings.
+
+Supply exact Ubuntu GLib 2.80.0-6ubuntu3.10 and xz-utils
+5.6.1+really5.4.5-1ubuntu0.4 descriptors, every referenced source archive and
+their original patches/terms. Primary HTTPS, descriptor identity, SHA-256 and
+byte counts verify; retained OpenPGP signatures are not independently verified.
+The complete source carrier has 39,249 verified members, 775 locked Cargo
+packages and empty-Cargo-home offline metadata checks for both Linux targets.
+Its SHA-256 is 2a68d389b8fd7b09452cb379df12263d392d491618cba2a5b119d7ba5675f6f0.
+All thirteen source-helper cases pass. Both exact Mac app bundles pass deep
+strict code-signature verification and packaged native-host hello; Intel runs
+under Rosetta, without launching the product app or touching its profile.
+No physical Intel or new installed-update cohort is claimed. Publication still
+requires the ordinary complete-draft/hash checks and final public verification.

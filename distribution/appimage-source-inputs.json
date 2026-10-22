@@ -25,6 +25,116 @@
         "commit": "ac47648e17674299accb51816e9e33b8a7b07b05",
         "sha256": "a74080a30c72c776c2b2b34e8cd367d37afec79ee418d607fbc16fabac465dd5"
       }
+    },
+    "@vitest/expect@4.1.12": {
+      "distribution": "https://registry.npmjs.org/@vitest/expect/-/expect-4.1.12.tgz",
+      "integrity": "sha512-vFlTt+YEu9WBpNjdGayNmlMVzrWPi1+sv853/7t2FU7hpO5gAFBKHzQmkCq5Xjpr+evegF2994LQT3hF3mRlqQ==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+      }
+    },
+    "@vitest/mocker@4.1.12": {
+      "distribution": "https://registry.npmjs.org/@vitest/mocker/-/mocker-4.1.12.tgz",
+      "integrity": "sha512-fKShNpKZzupWZuY0z7egydvL0sqW4INEZBEExMBMAa6izlENEVHwoXgdaTCaBZ5fwlr4xf2o1wXC83n9RpO+NA==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+      }
+    },
+    "@vitest/pretty-format@4.1.12": {
+      "distribution": "https://registry.npmjs.org/@vitest/pretty-format/-/pretty-format-4.1.12.tgz",
+      "integrity": "sha512-XW9O8+Mxx4VpCtkYdMJLZQQwsVryP9wk7cPKDxtXFfwSak6yRh5+2fep/Y0XF/ElBvJHq8bcYdi6aeuai0opZA==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+      }
+    },
+    "@vitest/runner@4.1.12": {
+      "distribution": "https://registry.npmjs.org/@vitest/runner/-/runner-4.1.12.tgz",
+      "integrity": "sha512-NKlVKCr5QnCe8jijdMnmkpHHU+WTqiLFR6G0pHji9uRjXK9xJl1k1nTw6F3pOOj2PDcsDt2GKQMI7wIsaT491w==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+      }
+    },
+    "@vitest/snapshot@4.1.12": {
+      "distribution": "https://registry.npmjs.org/@vitest/snapshot/-/snapshot-4.1.12.tgz",
+      "integrity": "sha512-ko1y1Qgb/slzQ9mr+b89Cuqud8WG1TKtsPD8r7ZUBdvVOGt85Af2HwCqHujrhwJq95hs/9RM7fcAPg57o1vlzw==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+      }
+    },
+    "@vitest/spy@4.1.12": {
+      "distribution": "https://registry.npmjs.org/@vitest/spy/-/spy-4.1.12.tgz",
+      "integrity": "sha512-RGq9x4JNGNTZHEJxvN0oSiJjeSCExm0n2gZKKJZHY9cX5AVA6M7VJILBT3ZJ/tJ/0J9uWT7fETV9/btoi//vSg==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+      }
+    },
+    "@vitest/utils@4.1.12": {
+      "distribution": "https://registry.npmjs.org/@vitest/utils/-/utils-4.1.12.tgz",
+      "integrity": "sha512-Q3awXrwOfEV+qc3WmO5ONyE0yO7Q1gQ9/oyHxGLZ/pl7N3NO/ZztqQwKLuwMkV+CA1JYSIeO3gkHnRDIo4AVaA==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+      }
+    },
+    "vitest@4.1.12": {
+      "distribution": "https://registry.npmjs.org/vitest/-/vitest-4.1.12.tgz",
+      "integrity": "sha512-5eWdz2yb3ajxWF3C8C4TjkXl7FGm3n2E/VlazALrQHzK7nYMSGFnCZto0bbPNl77AwkOZVLk0YnBAejUu0NiWA==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+        "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+      }
+    },
+    "vite@8.1.6": {
+      "distribution": "https://registry.npmjs.org/vite/-/vite-8.1.6.tgz",
+      "integrity": "sha512-aRAHIxx5SW5zc1sMqFwJU/t5qaFfXb5Hj0J7W0VXihu/X99+346tz6080tO1T1xVIJORX/b3zVTXGFqUXh35uw==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/vitejs/vite/tar.gz/dade886f0cc17fedf777eff804593d2af182abd4",
+        "commit": "dade886f0cc17fedf777eff804593d2af182abd4",
+        "sha256": "67da5546f37ba172a41101e09f248a2227a015a169d58365718d73d4181a7cfa"
+      }
+    },
+    "chai@6.3.0": {
+      "distribution": "https://registry.npmjs.org/chai/-/chai-6.3.0.tgz",
+      "integrity": "sha512-XWAtwJ6OHO+tj0EKCs0Y2UamnyOxseZWltU4x2U2wh8g4AigdjwvtUjvLP2tqkA/avxHEtzxNaqGq/YGNwckKg==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/chaijs/chai/tar.gz/d86de2a9519bdd0d89aa64c9fbcc0e880513b153",
+        "commit": "d86de2a9519bdd0d89aa64c9fbcc0e880513b153",
+        "sha256": "4bbcd0a7b2e8058afd0dc207cedb3b528dbf2fad6fe768aa9fe4e91d8c2adca5"
+      }
+    },
+    "tinyrainbow@3.2.0": {
+      "distribution": "https://registry.npmjs.org/tinyrainbow/-/tinyrainbow-3.2.0.tgz",
+      "integrity": "sha512-LgO3D9yZJjApUiuUfl9iFAwrtaX4+lok3wJIqttGoKCHlWUqHqbQpnxCf82L8FjgKsh4iGo78hqJwgL8F6To2A==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/tinylibs/tinyrainbow/tar.gz/d7c7339e5e3b75349466f253f20a64880fda44c7",
+        "commit": "d7c7339e5e3b75349466f253f20a64880fda44c7",
+        "sha256": "a80df40b2c176fc45e03903abdc38a51c49c17993ca982bc7f4c28f3ed17276b"
+      }
     }
   },
   "additionalNativeSources": {
@@ -52,6 +162,104 @@
           "bytes": 61552
         }
       ]
+    },
+    "glib2.0@2.80.0-6ubuntu3.10": {
+      "sourcePackage": "glib2.0",
+      "sourceVersion": "2.80.0-6ubuntu3.10",
+      "authentication": "Primary HTTPS and exact descriptor identity; original OpenPGP retained, not independently verified",
+      "files": [
+        {
+          "filename": "glib2.0_2.80.0-6ubuntu3.10.dsc",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/glib2.0/2.80.0-6ubuntu3.10/glib2.0_2.80.0-6ubuntu3.10.dsc",
+          "sha256": "0ee18e055f5fba9a33763f94823b44ab38e4f677f625ba7540486fe03b436136",
+          "bytes": 4080
+        },
+        {
+          "filename": "glib2.0_2.80.0.orig-unicode-data.tar.xz",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/glib2.0/2.80.0-6ubuntu3.10/glib2.0_2.80.0.orig-unicode-data.tar.xz",
+          "sha256": "38680f78a0ae6258826418cb5096c19ae3566ba8fee0a2112a0ec40056e58729",
+          "bytes": 263364
+        },
+        {
+          "filename": "glib2.0_2.80.0.orig.tar.xz",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/glib2.0/2.80.0-6ubuntu3.10/glib2.0_2.80.0.orig.tar.xz",
+          "sha256": "8228a92f92a412160b139ae68b6345bd28f24434a7b5af150ebe21ff587a561d",
+          "bytes": 5510536
+        },
+        {
+          "filename": "glib2.0_2.80.0-6ubuntu3.10.debian.tar.xz",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/glib2.0/2.80.0-6ubuntu3.10/glib2.0_2.80.0-6ubuntu3.10.debian.tar.xz",
+          "sha256": "9790a8bbf6d775f8a482f3862a64b2127330a1866ceaf04c85be34fbd2698254",
+          "bytes": 178808
+        }
+      ]
+    },
+    "xz-utils@5.6.1+really5.4.5-1ubuntu0.4": {
+      "sourcePackage": "xz-utils",
+      "sourceVersion": "5.6.1+really5.4.5-1ubuntu0.4",
+      "authentication": "Primary HTTPS and exact descriptor identity; original OpenPGP retained, not independently verified",
+      "files": [
+        {
+          "filename": "xz-utils_5.6.1+really5.4.5-1ubuntu0.4.dsc",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/xz-utils/5.6.1+really5.4.5-1ubuntu0.4/xz-utils_5.6.1+really5.4.5-1ubuntu0.4.dsc",
+          "sha256": "a9d6c2e7561c928d75594277a3b9f2ffe3b61293d272e282aab5110de18d0109",
+          "bytes": 2684
+        },
+        {
+          "filename": "xz-utils_5.6.1+really5.4.5.orig.tar.xz",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/xz-utils/5.6.1+really5.4.5-1ubuntu0.4/xz-utils_5.6.1+really5.4.5.orig.tar.xz",
+          "sha256": "da9dec6c12cf2ecf269c31ab65b5de18e8e52b96f35d5bcd08c12b43e6878803",
+          "bytes": 1680520
+        },
+        {
+          "filename": "xz-utils_5.6.1+really5.4.5-1ubuntu0.4.debian.tar.xz",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/xz-utils/5.6.1+really5.4.5-1ubuntu0.4/xz-utils_5.6.1+really5.4.5-1ubuntu0.4.debian.tar.xz",
+          "sha256": "b11106c2e0e0898d87cf186d14073770c1ff8999e7c8c4cb02b55bfc0cc8b424",
+          "bytes": 33844
+        }
+      ]
+    }
+  },
+  "additionalRuntimes": {
+    "amd64": {
+      "upstreamBinary": {
+        "url": "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64",
+        "sha256": "617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46",
+        "bytes": 944632
+      },
+      "binding": {
+        "runtimeBytes": 944632,
+        "payloadDigestFieldOffset": 932096,
+        "excludedBytes": 16,
+        "normalizedRuntimeSha256": "617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46",
+        "sourceCommit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef"
+      },
+      "source": {
+        "url": "https://codeload.github.com/AppImage/type2-runtime/tar.gz/fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+        "commit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+        "sha256": "e27ea3c837e9c660e1a9a2993b673ae93bbb53077330efba8654031e302d4e8e",
+        "filename": "type2-runtime-fedfad5.tar.gz"
+      }
+    },
+    "aarch64": {
+      "upstreamBinary": {
+        "url": "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-aarch64",
+        "sha256": "9a72a744d221576c9347ec074243acc5c3c7568896b12714e0e82e9f0bf47900",
+        "bytes": 936456
+      },
+      "binding": {
+        "runtimeBytes": 936456,
+        "payloadDigestFieldOffset": 923920,
+        "excludedBytes": 16,
+        "normalizedRuntimeSha256": "9a72a744d221576c9347ec074243acc5c3c7568896b12714e0e82e9f0bf47900",
+        "sourceCommit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef"
+      },
+      "source": {
+        "url": "https://codeload.github.com/AppImage/type2-runtime/tar.gz/fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+        "commit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+        "sha256": "e27ea3c837e9c660e1a9a2993b673ae93bbb53077330efba8654031e302d4e8e",
+        "filename": "type2-runtime-fedfad5.tar.gz"
+      }
     }
   }
 }

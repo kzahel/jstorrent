@@ -90,12 +90,19 @@ owns audit tool versions and report collection; tagged publication requires
 
 ## Website and remote controller
 
-[`deploy-production-website.yml`](../../.github/workflows/deploy-production-website.yml)
-owns building React/Wasm, Astro and the combined Pages artifact. The
-[assembler](../../scripts/assemble-pages-site.mjs) and
-[deployment verifier](../../scripts/verify-remote-deployment.mjs) enforce build
-identity, digests, content types and cache/security policy. Local builds can
-exercise those checks without publishing or enabling remote access.
+[`promote-production-website.yml`](../../.github/workflows/promote-production-website.yml)
+verifies the public Stable release's source, asset hashes and original updater
+signatures before committing its download inventory and release announcement.
+It dispatches the canonical
+[`deploy-website.yml`](../../.github/workflows/deploy-website.yml) workflow,
+which builds Astro, assembles the site and records public source provenance.
+The retained `deploy-production-website.yml` lane is for rollback only.
+
+The remote controller has its own tagged release lane. Its
+[deployment verifier](../../scripts/verify-remote-deployment.mjs) enforces build
+identity, digests, content types and cache/security policy. Website promotion
+does not release a new controller. Local builds can exercise these checks
+without publishing or enabling remote access.
 
 Retained [desktop preview](../desktop-release.md) and
 [Crostini](../crostini-release.md) runbooks contain historical channel evidence.

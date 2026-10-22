@@ -83,6 +83,40 @@ class CurrentSources(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "runtime bound"):
                 module.runtime_binding(path, {"runtime": {**prior["runtime"], "runtimeBytes": 4}})
 
+    def test_new_runtime_needs_an_exact_source_and_binary_pin(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "image"
+            old = bytearray(range(128))
+            old[32:48] = b"\0" * 16
+            prior = {"runtime": {"runtimeBytes": 128, "payloadDigestFieldOffset": 32,
+                                 "normalizedRuntimeSha256": hashlib.sha256(old).hexdigest()}}
+            new = bytearray(old)
+            new[60] ^= 1
+            digest = hashlib.sha256(new).hexdigest()
+            reviewed = {
+                "source": {"commit": "a" * 40},
+                "upstreamBinary": {"bytes": 128, "sha256": digest},
+                "binding": {"runtimeBytes": 128, "payloadDigestFieldOffset": 32,
+                            "excludedBytes": 16, "normalizedRuntimeSha256": digest,
+                            "sourceCommit": "a" * 40},
+            }
+            path.write_bytes(new)
+            with self.assertRaisesRegex(ValueError, "Outer runtime changed"):
+                module.runtime_binding(path, prior)
+            self.assertEqual(module.runtime_binding(path, prior, reviewed), reviewed["binding"])
+            new[35] ^= 1
+            path.write_bytes(new)
+            self.assertEqual(module.runtime_binding(path, prior, reviewed), reviewed["binding"])
+            for key, value in (("sourceCommit", "b" * 40), ("excludedBytes", 32),
+                               ("runtimeBytes", 127), ("normalizedRuntimeSha256", "b" * 64)):
+                invalid = {**reviewed, "binding": {**reviewed["binding"], key: value}}
+                with self.assertRaisesRegex(ValueError, "runtime source binding"):
+                    module.runtime_binding(path, prior, invalid)
+            new[61] ^= 1
+            path.write_bytes(new)
+            with self.assertRaisesRegex(ValueError, "Outer runtime changed"):
+                module.runtime_binding(path, prior, reviewed)
+
 
 if __name__ == "__main__":
     unittest.main()
