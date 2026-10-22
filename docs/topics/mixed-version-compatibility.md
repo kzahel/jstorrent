@@ -21,6 +21,13 @@ This is an accepted Latest exception, not an adoption finding or retirement of
 strict clients. The daily selector requires green full push CI for exact main
 head and skips source already released to Latest.
 
+Tactical [380](../tactical/380-product-release.md) records explicit October 22
+publication authorization for desktop Stable 0.3.4 and Android 1.0.32 with
+extension 1.1.5+ required. Per-release exceptions accept the same eight reviewed
+field additions; strict-client support/captures remain for other releases.
+This is an accepted release exception, not measured adoption or a changed
+30-day horizon. Legacy host response shaping is deferred.
+
 Tactical [375](../tactical/375-ci-reconciliation-and-ui-regressions.md)
 reconciles the concurrent updater/safety contracts. Safety and bitmap capability
 IDs remain 4 and 5; the unpublished desktop updater uses 6. Both generated

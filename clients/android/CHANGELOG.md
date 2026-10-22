@@ -2,6 +2,9 @@
 
 ## [1.0.32]
 
+- Chromebook browser control requires JSTorrent extension 1.1.5 or newer.
+- Restore Chromebook companion authentication and download-folder selection.
+
 - Browse videos and music across torrents in the new Library, with search,
   filters, albums, shows, and file actions.
 - Export and import torrent lists, share richer links, and set seeding limits.

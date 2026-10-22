@@ -1,7 +1,9 @@
 # Tactical 380: Product Releases
 
-Status: Extension 1.1.6 publicly verified, 2026-10-21. Desktop Stable and Android
-await explicit companion-policy and testbed-access decisions. Remote controller
+Status: Desktop Stable 0.3.4 and Android 1.0.32 publication authorized,
+2026-10-22, requiring extension 1.1.5+. Physical ChromeOS companion
+verification and exact-source signed qualification remain gates. Extension
+1.1.6 is publicly verified, 2026-10-21. Remote controller
 0.3.3 published and publicly verified, 2026-10-21.
 
 Topics: `beta-release-readiness`, `mixed-version-compatibility`.
@@ -211,3 +213,22 @@ and mark the ledger published. Use the observation date as a conservative
 latest-possible first-public date; the listing's update date alone does not
 establish the exact publication time. This does not change the existing
 30-day support window for strict extension clients or the host release holds.
+
+
+## Resumed host publication, October 22
+
+The maintainer elects to publish after a short extension rollout buffer,
+accepting extension 1.1.5+ for desktop Stable 0.3.4 and Android 1.0.32. Record
+per-release exceptions for the eight existing reviewed field additions; retain
+strict-client captures, the normal 30-day horizon and all other guards.
+No measured extension adoption is claimed. Legacy response shaping is deferred.
+Release notes disclose the minimum extension.
+
+The existing local dependency patch 43ef065c repairs the advisories which
+stopped Latest 0.3.4 before packaging. Include that reviewed source without
+reverting or weakening fresh dependency review. Build a fresh candidate whose
+own policy permits Stable; the older public Latest 0.3.3 cannot inherit a
+policy change. Prefer unchanged-byte promotion after signed qualification.
+Android's existing dual-spelling companion header fix still requires physical
+ChromeOS pairing/folder evidence before Play submission. Existing identities,
+production countries, signing roots and durable user data remain invariant.
