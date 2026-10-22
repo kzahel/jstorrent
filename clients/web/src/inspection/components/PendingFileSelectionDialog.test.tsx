@@ -64,22 +64,27 @@ describe("pending file selection", () => {
     );
   });
 
-  it("starts a fresh draft for the next queued torrent after confirming", async () => {
+  it.each(["Download", "Cancel"])("starts a fresh draft for the next queued torrent after %s", async (action) => {
     const user = userEvent.setup();
     const onConfirm = vi.fn(async () => undefined);
-    const view = renderDialog({ onConfirm, queuedCount: 1 });
+    const onCancel = vi.fn(async () => undefined);
+    const view = renderDialog({ onConfirm, onCancel, queuedCount: 1 });
 
     await user.click(screen.getByRole("checkbox", { name: /first\.mkv/i }));
     await user.click(
       screen.getByRole("checkbox", { name: /Don’t show file selection again/i }),
     );
-    await user.click(screen.getByRole("button", { name: "Download" }));
-    await waitFor(() => expect(onConfirm).toHaveBeenCalledOnce());
+    await user.click(screen.getByRole("button", { name: action }));
+    await waitFor(() =>
+      expect(action === "Download" ? onConfirm : onCancel).toHaveBeenCalledOnce(),
+    );
+    expect(action === "Download" ? onCancel : onConfirm).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Download" })).toBeDisabled();
 
     view.rerender(
       dialogElement({
         onConfirm,
+        onCancel,
         torrent: { ...torrent(), id: "t1-11111111111111111111111111111111", name: "Next" },
       }),
     );
