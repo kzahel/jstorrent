@@ -142,5 +142,6 @@ all native packages/signatures and source materials unchanged, preserves the
 candidate's database facts, and re-signs only the URL-bound updater metadata
 for Stable. It never rebuilds a native package. An explicit `publish=true`
 dispatch is required to publish; it also enforces the candidate source's own
-companion-compatibility guard. This task has not authorized or dispatched
-Stable publication.
+companion-compatibility guard. Tactical [380](../tactical/380-product-release.md) records explicit
+Stable 0.3.4 authorization with extension 1.1.5+ required. That exact release
+exception does not authorize other Stable versions.

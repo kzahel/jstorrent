@@ -1,5 +1,14 @@
 # Beta Release Readiness
 
+Tactical [380](../tactical/380-product-release.md) records the October 22
+authorization for desktop Stable 0.3.4 and Android 1.0.32 with extension
+1.1.5+ required. Extension 1.1.6 and remote controller 0.3.3 are publicly
+verified. Android 1.0.32 passes signed dual-ABI qualification, independent
+16-KiB/signing checks and physical ChromeOS pairing/folder selection; Play
+shows its 100% production change in review with automatic publication after
+approval. Desktop awaits fresh exact-source CI and signed qualification.
+These current decisions supersede historical publication holds below.
+
 The October 21 Latest 0.3.4 source check at `52067935` failed its fresh
 dependency audit before packaging or publication. Earlier dependency fixes had
 passed advisory review on October 20. The lockfiles now select rustls-webpki

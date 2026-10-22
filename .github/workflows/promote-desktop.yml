@@ -32,7 +32,10 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --prefix clients/web
-      - run: sudo apt-get update && sudo apt-get install -y minisign
+      - run: |
+          bash scripts/configure-ci-apt.sh
+          sudo apt-get update
+          sudo apt-get install -y minisign
       - name: Prepare unchanged native packages and authenticated Stable metadata
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

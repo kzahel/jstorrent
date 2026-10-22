@@ -1,8 +1,9 @@
 # Tactical 380: Product Releases
 
 Status: Desktop Stable 0.3.4 and Android 1.0.32 publication authorized,
-2026-10-22, requiring extension 1.1.5+. Physical ChromeOS companion
-verification and exact-source signed qualification remain gates. Extension
+2026-10-22, requiring extension 1.1.5+. Android 1.0.32 is submitted for Play
+review; physical ChromeOS companion verification and signed artifact checks
+pass. Desktop exact-source signed qualification remains a gate. Extension
 1.1.6 is publicly verified, 2026-10-21. Remote controller
 0.3.3 published and publicly verified, 2026-10-21.
 
@@ -18,8 +19,9 @@ with automatic publication after review is the store stopping condition;
 record pending review separately from public availability.
 
 Preserve existing identities, signing roots, durable data, production
-countries and rollout settings. No engine, schema, permissions, dependency,
-listing or marketing-site changes. The hosted remote controller is added to
+countries and rollout settings. No engine, schema, permissions, listing or
+marketing-site changes. Include the bounded security dependency patches
+recorded below. The hosted remote controller is added to
 scope by subsequent maintainer direction; its independent release does not
 authorize the held host releases. No unrelated store drafts.
 
@@ -28,8 +30,9 @@ authorize the held host releases. No unrelated store drafts.
 Extension 1.1.5 is live since October 15. Strict extension 1.1.4 and older
 remain inside the 30-day support window. Existing Latest authorization
 covers eight reviewed fields only; it does not authorize Stable or Android.
-An explicit maintainer decision is pending before either host publication.
-Extension preparation and validation can proceed independently.
+The original hold below is historical: the October 22 maintainer decision
+authorizes the two exact host releases with extension 1.1.5+ required. Other
+releases retain their own guards.
 
 ## Ownership and validation
 
@@ -257,3 +260,72 @@ mocker advisories (GHSA-qxg6-89mg-rqv8, GHSA-xp26-3454-mjgp). Upgrade the
 test-only Vitest family to 4.1.12; npm audit reports zero vulnerabilities.
 Keep the existing review expiry and all warning/source-integrity gates.
 Android's tagged native/Compose source is unchanged by these web-test fixes.
+
+
+### Android submission and physical ChromeOS evidence
+
+The maintainer explicitly approves dedicated-testbed ADB debugging trust and
+the isolated QA installation. A fresh setup320 build passes both native ABIs,
+JVM tests and packaged notices. On ChromeOS 150 / Android API 33, the released
+1.1.6 extension runtime pairs with Android 1.0.32, receives authenticated hello,
+opens the real Android DocumentsUI picker, receives a granted folder and
+reconnects after reload without another approval. The retained Android root
+registry and extension settings both contain the owned folder. The extension
+uses only the existing beta key and QA display name to isolate its storage;
+runtime bytes are unchanged. Production pairing and Android 1.0.31 are preserved.
+The QA app, extension, empty folder, deployed files and owned tabs are removed;
+common Machine Control doctor passes afterward. The sanitized
+[physical receipt](evidence/380-chromeos-release-receipt.json) records the bound
+source, artifacts, checks and cleanup. This is bounded companion evidence,
+not a Play-signed update rehearsal.
+
+Tagged [Android Actions 39776657995](https://github.com/kzahel/jstorrent/actions/runs/39776657995)
+and [live compatibility 39776657979](https://github.com/kzahel/jstorrent/actions/runs/39776657979)
+pass. Independently downloaded APK/AAB hashes equal the public GitHub assets.
+`python3 scripts/validate-android-release.py --bundletool <pinned 1.18.3 jar>`
+passes original signing identity, version/code, JSTorrent manifest, both ABIs
+and 16-KiB ELF/ZIP alignment. Exact hashes, signing roots and workflow links
+are in the [submission receipt](evidence/380-android-submission-receipt.json).
+
+Play accepts the exact signed AAB as 32 (1.0.32), API 28+, target 36 and two
+ABIs, with zero lost supported devices. Production remains targeted at the
+existing 178 countries and 100%; previous 31 is not retained. The only release
+warning is the missing deobfuscation file with R8 still disabled. One production
+change is sent for review; automated quick checks finish successfully and
+Publishing overview confirms the changes are now in review, with managed
+publishing off. Approval will
+publish automatically. Public Play availability is not yet claimed. Existing
+foreground-service-start timeout reports are not claimed fixed by this release.
+
+
+### Desktop source qualification and promotion disclosure
+
+Full push CI [39778029885](https://github.com/kzahel/jstorrent/actions/runs/39778029885),
+Fast CI 39778029778, remote build-only 39778029901 and strict hosted dependency
+review 39778029500 all pass at cc334489. Full CI includes both Android ABIs,
+JVM/lint and the API 35 product SAF lifecycle; web unit/E2E checks; iOS simulator
+tests/archive; Rust workspace, deterministic libtorrent and application
+lifecycle/corruption checks; and all four native desktop CI targets.
+
+Latest selector [39786199224](https://github.com/kzahel/jstorrent/actions/runs/39786199224)
+selects 0.3.4 at that exact source and proves the retained updater signing
+identity. Attempt 1 is cancelled before native construction after repeated
+Ubuntu mirror download retries; attempt 2 reruns the same source and gates.
+No package is published by the cancelled attempt.
+
+Promotion preparation previously replaced the candidate notes with generic
+provenance. Preserve the original Latest body in the initial Stable draft so
+its minimum extension disclosure survives promotion. The updater's append-only
+notes cache can retain its first observation, making a post-publication edit
+insufficient. This changes release prose only. Script syntax and all 22
+existing promotion/train/selector/compatibility cases pass.
+
+
+Attempt 2 repeats Azure archive download retries on a fresh runner, before
+any source check or native build. CI, desktop construction/collection and
+promotion now configure Ubuntu's official HTTPS archive instead of the
+Azure archive alias, with 30-second HTTP/HTTPS download timeouts and two
+retries. Ubuntu index/package signature verification and all release gates
+remain unchanged; ports and other repositories retain their existing URLs.
+Bash syntax, workflow actionlint and diff whitespace checks pass. Fresh
+main CI qualifies this infrastructure correction before another selection.

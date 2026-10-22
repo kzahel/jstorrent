@@ -135,6 +135,7 @@ jobs:
 
       - name: Install Linux desktop build dependencies
         run: |
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y \
             libayatana-appindicator3-dev \
@@ -260,7 +261,10 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
-      - run: sudo apt-get update && sudo apt-get install -y minisign
+      - run: |
+          bash scripts/configure-ci-apt.sh
+          sudo apt-get update
+          sudo apt-get install -y minisign
       - run: npm ci --prefix clients/web
       - name: Sign and verify an owned nonce
         env:
@@ -371,6 +375,7 @@ jobs:
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
         run: |
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y \
             desktop-file-utils \
@@ -793,6 +798,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           npm ci --prefix clients/web
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y minisign
           node scripts/sign-desktop-compatibility.mjs artifacts/desktop-release-output
@@ -803,6 +809,7 @@ jobs:
       - name: Verify every production updater payload signature
         if: needs.release-input.outputs.production == 'true' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
         run: |
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y minisign
           node scripts/verify-desktop-signatures.mjs artifacts/desktop-release-output/assets JSTorrent
@@ -878,6 +885,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y squashfs-tools
           RELEASE_DIR=artifacts/desktop-release-output

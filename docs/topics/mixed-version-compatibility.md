@@ -16,7 +16,8 @@ changed-main releases scheduled at 03:17 UTC.
 Latest requires extension 1.1.5 or newer for exactly the eight accepted field
 exposures. `acceptedLatestDesktopFields` is limited to numeric
 `desktop-latest-v*` releases on desktop; new fields and unrequested variants
-still block. Stable, Android and Stable promotion retain the original guard.
+still block. Stable, Android and Stable promotion retain the original guard
+unless their exact release has a separately accepted exception, recorded below.
 This is an accepted Latest exception, not an adoption finding or retirement of
 strict clients. The daily selector requires green full push CI for exact main
 head and skips source already released to Latest.
