@@ -185,6 +185,18 @@
       "roles": [
         "host"
       ]
+    },
+    {
+      "surface": "desktop",
+      "version": "0.3.4",
+      "tag": "desktop-v0.3.4",
+      "commit": "ecd65fe4e0fd274a3fc0538245334c528375a321",
+      "channel": "stable",
+      "status": "published",
+      "submitted": "2026-10-22",
+      "firstPublic": "2026-10-22",
+      "firstPublicBasis": "Public Stable desktop-v0.3.4 published at 2026-10-22T17:32:04Z. All 17 unauthenticated public downloads, original updater signatures, signed database facts and all five Stable updater selectors independently verified on 2026-10-22.",
+      "roles": ["host"]
     }
   ]
 }

@@ -1,18 +1,27 @@
 # Beta Release Readiness
 
-Tactical [380](../tactical/380-product-release.md) records the October 22
-authorization for desktop Stable 0.3.4 and Android 1.0.32 with extension
-1.1.5+ required. Extension 1.1.6 and remote controller 0.3.3 are publicly
-verified. Android 1.0.32 passes signed dual-ABI qualification, independent
-16-KiB/signing checks and physical ChromeOS pairing/folder selection; Play
-now confirms 32 Active and Available on Google Play in all 178 countries,
-released October 22 at 15:54 Europe/Berlin. Desktop source d631ee5f passes
-full/Fast CI, but two Latest selectors allocate already-public 0.3.2 and stop
-before native construction. The selector now cross-checks exact release tags
-and directly verifies the matching full-CI run; all 29 release-policy tests and
-its live read-only 0.3.4 selection pass. This tooling repair awaits fresh
-exact-source CI and signed qualification.
-These current decisions supersede historical publication holds below.
+Tactical [380](../tactical/380-product-release.md) completes the October 22
+release: desktop Stable 0.3.4 and Android 1.0.32 are public, requiring extension
+1.1.5+. Extension 1.1.6 and remote controller 0.3.3 were already verified.
+Android's exact signed dual-ABI/16-KiB artifacts and physical ChromeOS
+pairing/folder selection pass; Play confirms availability in all 178 countries.
+Desktop exact-source full CI and all five signed native jobs pass at ecd65fe4.
+The collector's corresponding-source inventory failure is recovered separately
+with reviewed tooling/pins at 9bc0b3ef, retaining every original signed native
+byte and CI-signed metadata. Thirteen source-helper tests and all 39,249 source
+carrier members verify. Both Mac native hosts execute; Intel uses Rosetta.
+
+Unchanged-byte Stable promotion passes. All seventeen public assets in each
+channel, six payload signatures, signed database facts and live update offers
+verify; equal/newer callers receive no update. Four automatic targets remain
+enabled and Linux ARM remains manual. The canonical website deploy passes,
+and public provenance/download links select 0.3.4 at bdd9c4e9. Final web
+validation is 886 passed/three existing skips plus typecheck; the fifteen-delivery
+ledger and database-history checks pass. The
+[desktop receipt](../tactical/evidence/380-desktop-release-receipt.json) records
+exact source, recovery and public evidence. This does not repeat 377's installed
+update cohorts or establish production stability. These current decisions
+supersede historical publication holds below.
 
 The October 21 Latest 0.3.4 source check at `52067935` failed its fresh
 dependency audit before packaging or publication. Earlier dependency fixes had

@@ -1,19 +1,18 @@
 # Tactical 380: Product Releases
 
-Status: Desktop Stable 0.3.4 and Android 1.0.32 publication authorized,
-2026-10-22, requiring extension 1.1.5+. Android 1.0.32 is publicly available
-on Google Play; physical ChromeOS companion verification and signed artifact
-checks pass. Desktop exact-source signed qualification remains a gate.
-Extension 1.1.6 is publicly verified, 2026-10-21. Remote controller 0.3.3
-published and publicly verified, 2026-10-21.
+Status: Complete, 2026-10-22. Desktop Stable 0.3.4 and Android 1.0.32
+are publicly available, requiring extension 1.1.5+. Signed public artifacts,
+physical ChromeOS pairing/folder selection, both desktop updater channels and
+the production website downloads verify. Extension 1.1.6 and remote controller
+0.3.3 were publicly verified on October 21.
 
 Topics: `beta-release-readiness`, `mixed-version-compatibility`.
 
 ## Scope and stopping condition
 
 Publish production JSTorrent desktop, extension 1.1.6 and Android
-1.0.32/code 32 from qualified source. Desktop Stable is 0.3.1; public
-Latest 0.3.3 exists at fe4be51c. Prefer immutable promotion after its
+1.0.32/code 32 from qualified source. The campaign started with desktop
+Stable 0.3.1 and public Latest 0.3.3 at fe4be51c. Prefer immutable promotion after its
 compatibility and installed-evidence requirements pass. Store submission
 with automatic publication after review is the store stopping condition;
 record pending review separately from public availability.
@@ -430,3 +429,46 @@ strict code-signature verification and packaged native-host hello; Intel runs
 under Rosetta, without launching the product app or touching its profile.
 No physical Intel or new installed-update cohort is claimed. Publication still
 requires the ordinary complete-draft/hash checks and final public verification.
+
+
+### Public desktop and website verification
+
+Latest 0.3.4 publishes at 17:26:57 UTC from exact ecd65fe4 after the complete
+private-draft validators pass. All seventeen assets are independently downloaded
+through unauthenticated public URLs: byte counts, GitHub digests and checksum
+coverage agree; all six original-key payload signatures and the signed database
+facts verify. The manifest retains eleven platform/installer bindings for five
+native targets. All five Stable 0.3.1 response bodies and their automatic-target
+permissions remain unchanged until explicit promotion.
+
+[Stable promotion 39823173729](https://github.com/kzahel/jstorrent/actions/runs/39823173729)
+passes and publishes desktop-v0.3.4 at 17:32:04 UTC, retaining the exact source,
+all fifteen native/signature/source assets and database facts. Only URL-bound
+latest.json and SHA256SUMS differ. Initial Stable prose preserves the full
+0.3.4 changelog, minimum extension disclosure and source-only recovery evidence.
+Independent unauthenticated downloads verify all seventeen Stable assets and
+original-key signatures again; GitHub's latest-release pointer selects Stable.
+
+Both live channels offer the exact signed 0.3.4 payload and compatibility
+envelope on all five targets. Each channel's ten equal/newer probes returns
+204. Automatic installation remains enabled for macOS ARM/Intel, Windows x64
+and Linux x64; Linux ARM remains manual. No updater configuration or signing
+root changes are needed.
+
+[Website promotion 39824081164](https://github.com/kzahel/jstorrent/actions/runs/39824081164)
+independently verifies the public release and commits bdd9c4e9's inventory/news.
+Canonical [Website 39824203043](https://github.com/kzahel/jstorrent/actions/runs/39824203043)
+passes tests, checks, build and deployment. Public provenance reports that exact
+commit and desktop 0.3.4; all six homepage package/source links select 0.3.4.
+The remote controller remains its independently released 0.3.3. Local main
+fast-forwards over only the website's two generated data files.
+
+The published 15-delivery ledger, exact-source capture and database-history
+checks pass. Final web typecheck and the full suite pass with 886 tests and
+three existing skips. The [desktop receipt](evidence/380-desktop-release-receipt.json)
+retains exact assets, source-input provenance, source-only recovery, Mac native
+checks, both updater probe sets and website evidence. Android's separate public
+receipt records 1.0.32 available in all 178 countries. No new installed-update
+cohort, physical Intel run, Play-installed update or production stability result
+is inferred. Temporary release downloads, logs and extracted bundles are
+removed; previously linked proof images remain available.

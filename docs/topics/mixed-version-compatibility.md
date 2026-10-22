@@ -28,6 +28,11 @@ extension 1.1.5+ required. Per-release exceptions accept the same eight reviewed
 field additions; strict-client support/captures remain for other releases.
 This is an accepted release exception, not measured adoption or a changed
 30-day horizon. Legacy host response shaping is deferred.
+Both exact host versions are now public, with their October 22 first-public
+records and source captures retained in the delivery ledger. Desktop's public
+Stable/Latest payloads, signed database facts and live offers verify; Android
+passes physical ChromeOS companion checks and is available on Google Play.
+This does not authorize future Stable/Android exceptions or remove a fallback.
 
 Tactical [375](../tactical/375-ci-reconciliation-and-ui-regressions.md)
 reconciles the concurrent updater/safety contracts. Safety and bitmap capability
