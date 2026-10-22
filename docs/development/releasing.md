@@ -106,8 +106,11 @@ They do not authorize re-enabling a frozen release lane.
 Tactical [377](../tactical/377-compatible-touchless-release-channels.md)
 owns initial installed acceptance. `JSTorrent Latest Desktop` runs daily at
 03:17 UTC and supports manual dispatch for signed prereleases from the exact
-main head after successful full push CI. It skips source already published to
-Latest; scheduled runs also skip a main head whose CI is not yet green. Any
+main head after successful full push CI. It refreshes exact release records
+for known desktop tags before allocating a version; incomplete inventories
+stop selection. It refreshes the matching main-push CI run directly and checks
+its workflow, source and result. It skips source already published to Latest;
+scheduled runs also skip a main head whose CI is not yet green. Any
 new commit qualifies, including documentation-only changes. It allocates the
 next numeric version across both JSTorrent channels
 and invokes the existing five-target signing/collection pipeline. The old

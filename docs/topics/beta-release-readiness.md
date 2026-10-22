@@ -5,8 +5,13 @@ authorization for desktop Stable 0.3.4 and Android 1.0.32 with extension
 1.1.5+ required. Extension 1.1.6 and remote controller 0.3.3 are publicly
 verified. Android 1.0.32 passes signed dual-ABI qualification, independent
 16-KiB/signing checks and physical ChromeOS pairing/folder selection; Play
-shows its 100% production change in review with automatic publication after
-approval. Desktop awaits fresh exact-source CI and signed qualification.
+now confirms 32 Active and Available on Google Play in all 178 countries,
+released October 22 at 15:54 Europe/Berlin. Desktop source d631ee5f passes
+full/Fast CI, but two Latest selectors allocate already-public 0.3.2 and stop
+before native construction. The selector now cross-checks exact release tags
+and directly verifies the matching full-CI run; all 29 release-policy tests and
+its live read-only 0.3.4 selection pass. This tooling repair awaits fresh
+exact-source CI and signed qualification.
 These current decisions supersede historical publication holds below.
 
 The October 21 Latest 0.3.4 source check at `52067935` failed its fresh

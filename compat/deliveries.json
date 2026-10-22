@@ -178,9 +178,10 @@
       "tag": "android-v1.0.32",
       "commit": "071ada49f1c29cd10351dda619d5ab5029bdfda3",
       "channel": "play-production",
-      "status": "submitted",
+      "status": "published",
       "submitted": "2026-10-22",
-      "firstPublic": null,
+      "firstPublic": "2026-10-22",
+      "firstPublicBasis": "Play Console production shows 32 (1.0.32) active and Available on Google Play across 178 countries, released October 22 at 15:54 Europe/Berlin; verified on 2026-10-22.",
       "roles": [
         "host"
       ]

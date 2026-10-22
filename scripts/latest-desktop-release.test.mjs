@@ -1,13 +1,82 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { planLatestRelease, previousLatestRelease } from './latest-desktop-release.mjs';
+import { planLatestRelease, previousLatestRelease, verifiedDesktopInventory, verifiedMainPushRuns } from './latest-desktop-release.mjs';
 
 const old = 'a'.repeat(40), sha = 'b'.repeat(40);
 const release = (tag_name, extra = {}) => ({ tag_name, draft: false, prerelease: true,
   assets: [{ name: 'JSTorrent_x64.app.tar.gz' }], ...extra });
-const verified = { head_sha: sha, head_branch: 'main', event: 'push', status: 'completed', conclusion: 'success' };
+const verified = { head_sha: sha, head_branch: 'main', event: 'push', path: '.github/workflows/ci.yml', status: 'completed', conclusion: 'success' };
 const input = { sha, baseVersion: '0.3.1', releases: [], runs: [verified], isAncestor: () => true };
+
+test('exact tags repair an incomplete list before choosing a version and previous source', () => {
+  const latest = release('desktop-latest-v0.3.3');
+  const stable = release('desktop-v0.3.1', { prerelease: false });
+  for (const listed of [[stable], [{ ...latest, assets: [] }]]) {
+    const fetched = [];
+    const releases = verifiedDesktopInventory({
+      listed, baseVersion: '0.3.1',
+      tags: [stable.tag_name, latest.tag_name, 'desktop-v0.1.4'],
+      lookup: tag => { fetched.push(tag); return tag === stable.tag_name ? stable : latest; },
+    });
+    assert.deepEqual(fetched.sort(), [latest.tag_name, stable.tag_name].sort());
+    assert.equal(previousLatestRelease(releases), latest);
+    assert.equal(planLatestRelease({ ...input, releases, previousSha: old }).version, '0.3.4');
+  }
+});
+test('an unavailable or malformed exact release stops selection', () => {
+  const tag = 'desktop-latest-v0.3.3';
+  const inventory = { listed: [], tags: [tag], baseVersion: '0.3.1' };
+  assert.throws(() => verifiedDesktopInventory({ ...inventory, lookup: () => { throw new Error('HTTP 503'); } }), /HTTP 503/);
+  for (const value of [release(tag, { assets: undefined }), release(tag, { assets: [] }),
+    release(tag, { assets: [{ name: 'JSTorrent_0.3.3_x64.dmg' }] }), release('desktop-latest-v0.3.2')]) {
+    assert.throws(() => verifiedDesktopInventory({ ...inventory, lookup: () => value }), /inventory|different tag/);
+  }
+});
+test('exact refresh preserves frozen identities and unpublished drafts', () => {
+  const frozen = release('desktop-latest-v0.9.999', { assets: [{ name: 'RSTorrent_x64.app.tar.gz' }] });
+  const draft = release('desktop-latest-v0.3.90', { draft: true, assets: [] });
+  const releases = verifiedDesktopInventory({
+    listed: [frozen, draft], tags: [], baseVersion: '0.3.1',
+    lookup: tag => tag === frozen.tag_name ? frozen : draft,
+  });
+  assert.equal(previousLatestRelease(releases), undefined);
+  assert.equal(planLatestRelease({ ...input, releases }).version, '0.3.2');
+});
+test('CI selection retries missing list entries and refreshes the exact matching run', () => {
+  let calls = 0;
+  const current = { ...verified, id: 12 };
+  const runs = verifiedMainPushRuns({
+    sha,
+    list: () => ++calls < 3 ? [{ ...current, head_sha: old }] : [{ ...current, status: 'in_progress', conclusion: null }],
+    lookup: id => { assert.equal(id, current.id); return current; },
+  });
+  assert.equal(calls, 3);
+  assert.deepEqual(runs, [current]);
+  assert.equal(planLatestRelease({ ...input, runs }).build, true);
+});
+test('missing exact CI remains unverified after three bounded reads', () => {
+  let calls = 0;
+  const runs = verifiedMainPushRuns({ sha, list: () => { calls++; return []; },
+    lookup: () => { throw new Error('must not look up another source'); } });
+  assert.equal(calls, 3);
+  assert.equal(planLatestRelease({ ...input, runs }).unverified, true);
+});
+test('a newer failed CI run cannot fall back to an older successful run', () => {
+  const failed = { ...verified, id: 13, conclusion: 'failure' };
+  const runs = verifiedMainPushRuns({ sha,
+    list: () => [failed, { ...verified, id: 12 }],
+    lookup: id => { assert.equal(id, failed.id); return failed; },
+  });
+  assert.equal(planLatestRelease({ ...input, runs }).unverified, true);
+});
+test('an exact CI lookup cannot substitute a different run or source', () => {
+  const candidate = { ...verified, id: 12 };
+  for (const changed of [{ id: 13 }, { head_sha: old }, { head_branch: 'other' }, { event: 'pull_request' }, { path: '.github/workflows/fast-ci.yml' }]) {
+    assert.throws(() => verifiedMainPushRuns({ sha, list: () => [candidate],
+      lookup: () => ({ ...candidate, ...changed }) }), /different/);
+  }
+});
 
 test('first public Latest uses the common train and ignores frozen incubation', () => {
   const releases = [release('desktop-v0.3.1', { prerelease: false }),

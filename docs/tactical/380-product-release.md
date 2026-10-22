@@ -1,11 +1,11 @@
 # Tactical 380: Product Releases
 
 Status: Desktop Stable 0.3.4 and Android 1.0.32 publication authorized,
-2026-10-22, requiring extension 1.1.5+. Android 1.0.32 is submitted for Play
-review; physical ChromeOS companion verification and signed artifact checks
-pass. Desktop exact-source signed qualification remains a gate. Extension
-1.1.6 is publicly verified, 2026-10-21. Remote controller
-0.3.3 published and publicly verified, 2026-10-21.
+2026-10-22, requiring extension 1.1.5+. Android 1.0.32 is publicly available
+on Google Play; physical ChromeOS companion verification and signed artifact
+checks pass. Desktop exact-source signed qualification remains a gate.
+Extension 1.1.6 is publicly verified, 2026-10-21. Remote controller 0.3.3
+published and publicly verified, 2026-10-21.
 
 Topics: `beta-release-readiness`, `mixed-version-compatibility`.
 
@@ -19,8 +19,9 @@ with automatic publication after review is the store stopping condition;
 record pending review separately from public availability.
 
 Preserve existing identities, signing roots, durable data, production
-countries and rollout settings. No engine, schema, permissions, listing or
-marketing-site changes. Include the bounded security dependency patches
+countries and rollout settings. No engine, schema, permissions, listing, marketing copy or
+layout changes. Advance the existing verified website download inventory
+after Stable publication. Include the bounded security dependency patches
 recorded below. The hosted remote controller is added to
 scope by subsequent maintainer direction; its independent release does not
 authorize the held host releases. No unrelated store drafts.
@@ -329,3 +330,46 @@ retries. Ubuntu index/package signature verification and all release gates
 remain unchanged; ports and other repositories retain their existing URLs.
 Bash syntax, workflow actionlint and diff whitespace checks pass. Fresh
 main CI qualifies this infrastructure correction before another selection.
+
+
+### Android public availability
+
+After successful automated checks and review, Play production shows 32
+(1.0.32) Active and Available on Google Play in all 178 countries, released
+October 22 at 15:54 Europe/Berlin. Publishing overview has no unpublished
+changes and managed publishing remains off. Record the verified first-public
+date in the ledger and retain a separate
+[public receipt](evidence/380-android-public-receipt.json); the submission
+receipt above remains historical evidence. No Play-installed update or
+production stability result is inferred from console availability.
+
+
+The d631ee5f desktop candidate includes the bounded CI download
+configuration and preserved promotion disclosure. Its exact host capture and
+pending Stable delivery pass the 15-delivery ledger and database-history
+checks. Local web typecheck and all 886 tests pass, with three existing skips.
+These metadata changes remain local through exact-main qualification so they
+do not replace the selected source or cancel its CI.
+
+Full push CI [39790212157](https://github.com/kzahel/jstorrent/actions/runs/39790212157)
+and Fast CI 39790211631 pass at d631ee5f. Latest attempts
+[39800228964](https://github.com/kzahel/jstorrent/actions/runs/39800228964) and
+[39801262253](https://github.com/kzahel/jstorrent/actions/runs/39801262253)
+both select already-public 0.3.2 from the release list. The first stops at the
+immutable-publication guard; the second stops at the increasing-version
+guard. Neither reaches native construction or changes a public release.
+Independent authenticated and public inventory reads identify 0.3.4 as next.
+The SHA-filtered CI list also returns no run while unfiltered main-push reads
+and the exact run record confirm successful full CI at the same source.
+
+The selector now refreshes known numeric desktop tags through exact release
+lookups, including tags missing from the list, and refuses incomplete public
+production inventories. It fetches main-push CI without the inconsistent
+server SHA filter, makes at most three list reads, and refreshes the first
+exact matching run directly. That record must retain its run ID, main branch,
+push event, full-CI workflow path and exact source. A newer failed run never
+falls back to an older success. Original identity, version ordering, ancestry,
+companion and full-CI gates remain. All 29 selector/train/promotion/policy tests
+pass, including missing inventories, malformed lookups and CI negative
+controls. A live read-only dry run selects 0.3.4 and verifies 39790212157.
+The changed selector receives fresh exact-main CI before publication.
