@@ -61,5 +61,6 @@ Object.assign(release.assets.find(a=>a.name==='SHA256SUMS'),await digest(join(as
 writeFileSync(join(directory,'release.json'),JSON.stringify(release,null,2)+'\n');
 const sourceAssets=source.assets.map(({name,size,digest})=>({name,size,digest})).sort((a,b)=>a.name.localeCompare(b.name));
 writeFileSync(join(directory,'promotion.json'),JSON.stringify({sourceTag,sourceSha,tag:plan.tag,version:plan.version,previousStableVersion,previousStableId:stable.id,previousStableManifestDigest:stableManifestAsset.digest,sourceAssets},null,2)+'\n');
-writeFileSync(join(directory,'notes.md'),`Promoted the tested JSTorrent Latest ${plan.version} packages without rebuilding.\n\nSource: ${sourceSha}\nLatest: https://github.com/${repo}/releases/tag/${sourceTag}\n\nNative packages, detached payload signatures and corresponding sources retain their original bytes. Updater metadata and checksums are regenerated for Stable.\n`);
+assert(typeof source.body === 'string' && source.body.trim(), 'Latest release notes required');
+writeFileSync(join(directory,'notes.md'),`${source.body.trim()}\n\nPromoted the tested JSTorrent Latest ${plan.version} packages without rebuilding.\n\nSource: ${sourceSha}\nLatest: https://github.com/${repo}/releases/tag/${sourceTag}\n\nNative packages, detached payload signatures and corresponding sources retain their original bytes. Updater metadata and checksums are regenerated for Stable.\n`);
 console.log(`Prepared ${plan.tag} from exact ${sourceTag} bytes; nothing published`);
