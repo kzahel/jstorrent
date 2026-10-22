@@ -171,6 +171,19 @@
       "roles": [
         "client"
       ]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.32",
+      "tag": "android-v1.0.32",
+      "commit": "071ada49f1c29cd10351dda619d5ab5029bdfda3",
+      "channel": "play-production",
+      "status": "submitted",
+      "submitted": "2026-10-22",
+      "firstPublic": null,
+      "roles": [
+        "host"
+      ]
     }
   ]
 }

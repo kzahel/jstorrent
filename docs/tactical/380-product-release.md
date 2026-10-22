@@ -232,3 +232,12 @@ policy change. Prefer unchanged-byte promotion after signed qualification.
 Android's existing dual-spelling companion header fix still requires physical
 ChromeOS pairing/folder evidence before Play submission. Existing identities,
 production countries, signing roots and durable user data remain invariant.
+
+
+Android source 071ada49/code 32 is committed with its per-release exception
+and exact host capture. Following metadata records the delivery before a
+production tag is visible. Web typecheck and 870 tests (three existing skips)
+pass; all 22 focused release-policy/promotion/train/selector cases pass.
+The ChromeOS common target remains healthy; its ADB debugging key is
+unauthorized. Dedicated-testbed approval is requested while independent build
+qualification proceeds. The QA APK uses only org.jstorrent.setup320.
