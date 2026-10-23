@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 def load(name):
@@ -17,6 +18,7 @@ def load(name):
 audit = load('review-dependency-audit')
 package = load('inspect-distribution')
 notices = load('prepare-release-notices')
+collector = load('audit-cargo-dependencies')
 
 
 class PlaybackDependencySourceTests(unittest.TestCase):
@@ -126,6 +128,80 @@ class AdvisoryReviewTests(unittest.TestCase):
         self.assertEqual(result['npm_findings']['website'],
                          [{'package': 'astro', 'severity': 'critical'}])
         self.assertNotIn('unreviewed details', json.dumps(result))
+
+
+class ProbeAdvisoryTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.lock = self.root / audit.PROBE_LOCKFILE
+        self.lock.parent.mkdir(parents=True)
+        self.lock.write_bytes(b'probe lockfile')
+        self.today = date(2026, 10, 23)
+        self.cargo = {'rstorrent_ios_probe': {
+            'lock_sha256': audit.hashlib.sha256(self.lock.read_bytes()).hexdigest(),
+            'audit': {'database': {'last-updated': '2026-10-22T00:00:00+00:00',
+                                   'last-commit': 'abc'},
+                      'vulnerabilities': {'count': 0}, 'warnings': {}}}}
+
+    def test_collection_audits_both_locks_without_rewriting_them(self):
+        metadata = json.dumps({'packages': [], 'resolve': {'nodes': []}})
+        with patch.object(collector.glib_backport, 'audit_lock',
+                          return_value=(b'root projection', {'source': 'verified'})), \
+                patch.object(collector.subprocess, 'check_output',
+                             side_effect=['cargo-audit 0.22.2', metadata]), \
+                patch.object(collector, 'audit_lock', return_value={}) as collect:
+            result = collector.collect(self.root)
+        self.assertEqual([c.args[0] for c in collect.call_args_list],
+                         [b'root projection', b'probe lockfile'])
+        self.assertEqual(result['rstorrent_ios_probe']['lock_sha256'],
+                         self.cargo['rstorrent_ios_probe']['lock_sha256'])
+        self.assertEqual(self.lock.read_bytes(), b'probe lockfile')
+
+    def test_clean_probe_records_exact_lock_and_database(self):
+        result = audit.review_ios_probe(self.cargo, self.today, self.root)
+        self.assertEqual(result['lockfile'], audit.PROBE_LOCKFILE)
+        self.assertEqual(result['database_revision'], 'abc')
+        self.assertEqual(result['cargo_vulnerabilities'], 0)
+
+    def test_missing_report_and_changed_lock_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'current lockfile'):
+            audit.review_ios_probe({}, self.today, self.root)
+        self.lock.write_bytes(b'changed')
+        with self.assertRaisesRegex(ValueError, 'current lockfile'):
+            audit.review_ios_probe(self.cargo, self.today, self.root)
+
+    def test_probe_vulnerabilities_and_warnings_are_rejected(self):
+        report = self.cargo['rstorrent_ios_probe']['audit']
+        report['vulnerabilities']['count'] = 1
+        with self.assertRaisesRegex(ValueError, 'vulnerabilities'):
+            audit.review_ios_probe(self.cargo, self.today, self.root)
+        report['vulnerabilities']['count'] = 0
+        report['warnings'] = {'yanked': [{'package': {'name': 'chacha20'}}]}
+        with self.assertRaisesRegex(ValueError, 'warnings'):
+            audit.review_ios_probe(self.cargo, self.today, self.root)
+        report.pop('warnings')
+        with self.assertRaisesRegex(ValueError, 'warnings'):
+            audit.review_ios_probe(self.cargo, self.today, self.root)
+
+    def test_stale_and_future_probe_database_are_rejected(self):
+        report = self.cargo['rstorrent_ios_probe']['audit']
+        for updated in ('2026-09-01T00:00:00+00:00', '2026-10-24T00:00:00+00:00'):
+            report['database']['last-updated'] = updated
+            with self.assertRaisesRegex(ValueError, '30 days'):
+                audit.review_ios_probe(self.cargo, self.today, self.root)
+
+    def test_failure_summary_retains_bounded_probe_findings(self):
+        report = self.cargo['rstorrent_ios_probe']['audit']
+        report['vulnerabilities'] = {'count': 25, 'list': [{
+            'advisory': {'id': 'RUSTSEC-test', 'description': 'raw advisory'},
+            'package': {'name': 'quinn-proto', 'version': '0.11.16'},
+        }] * 25}
+        result = audit.failure_summary(self.cargo, {}, {}, 'probe failure')
+        self.assertEqual(result['ios_probe_vulnerability_count'], 25)
+        self.assertEqual(len(result['ios_probe_findings']), 20)
+        self.assertNotIn('raw advisory', json.dumps(result))
 
 
 class DistributionTests(unittest.TestCase):

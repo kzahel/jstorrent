@@ -10,6 +10,7 @@ on:
       - Cargo.toml
       - "**/Cargo.toml"
       - Cargo.lock
+      - experiments/ios-storage-probe/Cargo.lock
       - vendor/**
       - scripts/glib_backport.py
       - scripts/audit-cargo-dependencies.py
@@ -19,6 +20,7 @@ on:
       - website/package-lock.json
       - distribution/**
       - scripts/review-dependency-audit.py
+      - scripts/test_distribution_review.py
       - .github/workflows/dependency-review.yml
 
 permissions:
@@ -36,6 +38,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613 # 1.97.0
       - name: Install pinned advisory checker
         run: cargo install cargo-audit --locked --version 0.22.2
+      - name: Test advisory review guards
+        run: python3 -m unittest discover -s scripts -p test_distribution_review.py
       - name: Collect current reports
         shell: bash
         run: |
