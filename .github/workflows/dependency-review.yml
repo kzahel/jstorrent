@@ -2,7 +2,7 @@ name: Dependency advisory review
 
 on:
   schedule:
-    - cron: "31 5 * * 3"
+    - cron: "31 5 * * *"
   workflow_dispatch:
   workflow_call:
   pull_request:

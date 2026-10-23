@@ -47,6 +47,7 @@ jobs:
 
       - name: Install Linux desktop build dependencies
         run: |
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y \
             libayatana-appindicator3-dev \
@@ -162,6 +163,7 @@ jobs:
       - name: Validate desktop release configuration and tools
         run: |
           node scripts/validate-desktop-release.mjs
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y minisign
           node scripts/validate-jstorrent-candidate.mjs
@@ -196,7 +198,11 @@ jobs:
 
       - name: Verify dependency and distribution review tools
         run: |
+          bash scripts/configure-ci-apt.sh
+          sudo apt-get update
+          sudo apt-get install -y squashfs-tools
           python3 -m unittest discover -s scripts -p test_distribution_review.py
+          python3 -m unittest discover -s scripts -p test_package_appimage_sources.py
           python3 -m unittest discover -s scripts -p test_current_appimage_sources.py
           python3 -m unittest discover -s tests/interop/desktop_updates -p 'test_live_*.py'
 
@@ -345,6 +351,7 @@ jobs:
       - name: Install Linux desktop packaging dependencies
         if: runner.os == 'Linux'
         run: |
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y \
             desktop-file-utils \

@@ -84,18 +84,25 @@ variant-specific Maven/AAR and Rust attribution.
 [`audit-cargo-dependencies.py`](../../scripts/audit-cargo-dependencies.py) and
 [`review-dependency-audit.py`](../../scripts/review-dependency-audit.py)
 provide `--help` for report inputs and options. The
-[weekly dependency workflow](../../.github/workflows/dependency-review.yml)
+[daily dependency workflow](../../.github/workflows/dependency-review.yml)
 owns audit tool versions and report collection; tagged publication requires
 `--require-release-ready`, including fresh advisory/review evidence.
 
 ## Website and remote controller
 
-[`deploy-production-website.yml`](../../.github/workflows/deploy-production-website.yml)
-owns building React/Wasm, Astro and the combined Pages artifact. The
-[assembler](../../scripts/assemble-pages-site.mjs) and
-[deployment verifier](../../scripts/verify-remote-deployment.mjs) enforce build
-identity, digests, content types and cache/security policy. Local builds can
-exercise those checks without publishing or enabling remote access.
+[`promote-production-website.yml`](../../.github/workflows/promote-production-website.yml)
+verifies the public Stable release's source, asset hashes and original updater
+signatures before committing its download inventory and release announcement.
+It dispatches the canonical
+[`deploy-website.yml`](../../.github/workflows/deploy-website.yml) workflow,
+which builds Astro, assembles the site and records public source provenance.
+The retained `deploy-production-website.yml` lane is for rollback only.
+
+The remote controller has its own tagged release lane. Its
+[deployment verifier](../../scripts/verify-remote-deployment.mjs) enforces build
+identity, digests, content types and cache/security policy. Website promotion
+does not release a new controller. Local builds can exercise these checks
+without publishing or enabling remote access.
 
 Retained [desktop preview](../desktop-release.md) and
 [Crostini](../crostini-release.md) runbooks contain historical channel evidence.
@@ -106,8 +113,11 @@ They do not authorize re-enabling a frozen release lane.
 Tactical [377](../tactical/377-compatible-touchless-release-channels.md)
 owns initial installed acceptance. `JSTorrent Latest Desktop` runs daily at
 03:17 UTC and supports manual dispatch for signed prereleases from the exact
-main head after successful full push CI. It skips source already published to
-Latest; scheduled runs also skip a main head whose CI is not yet green. Any
+main head after successful full push CI. It refreshes exact release records
+for known desktop tags before allocating a version; incomplete inventories
+stop selection. It refreshes the matching main-push CI run directly and checks
+its workflow, source and result. It skips source already published to Latest;
+scheduled runs also skip a main head whose CI is not yet green. Any
 new commit qualifies, including documentation-only changes. It allocates the
 next numeric version across both JSTorrent channels
 and invokes the existing five-target signing/collection pipeline. The old
@@ -142,5 +152,6 @@ all native packages/signatures and source materials unchanged, preserves the
 candidate's database facts, and re-signs only the URL-bound updater metadata
 for Stable. It never rebuilds a native package. An explicit `publish=true`
 dispatch is required to publish; it also enforces the candidate source's own
-companion-compatibility guard. This task has not authorized or dispatched
-Stable publication.
+companion-compatibility guard. Tactical [380](../tactical/380-product-release.md) records explicit
+Stable 0.3.4 authorization with extension 1.1.5+ required. That exact release
+exception does not authorize other Stable versions.

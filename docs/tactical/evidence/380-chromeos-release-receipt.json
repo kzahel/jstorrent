@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "observed": "2026-10-22",
+  "source": "071ada49f1c29cd10351dda619d5ab5029bdfda3",
+  "delivery": "isolated-debug-sideload",
+  "android": {
+    "version": "1.0.32",
+    "versionCode": 32,
+    "package": "org.jstorrent.setup320",
+    "api": 33,
+    "apkSha256": "4383d1321481041bcd33b01f286c750549f931c75bb810ea439bdc74d070d6fe"
+  },
+  "chromeos": {
+    "milestone": 150,
+    "version": "16700.66.0"
+  },
+  "extension": {
+    "version": "1.1.6",
+    "source": "b3792b9064c24bcdf0344c7c4c30390cb2744543",
+    "artifactSha256": "aeb7abe31a4e8b41d643e53828f00ee3fc284da04733e77021ef1346a76ceae6",
+    "substitutions": [
+      "isolated beta manifest key",
+      "QA display name"
+    ],
+    "runtimeBytesChanged": false
+  },
+  "checks": {
+    "nativePairingApproval": true,
+    "authenticatedHelloAndApplication": true,
+    "realFolderPickerAndGrant": true,
+    "folderReturnedToExtension": true,
+    "retainedRootVerified": true,
+    "reloadReconnectWithoutApproval": true,
+    "inheritedProductionAppVersion": "1.0.31",
+    "inheritedProductionExtensionVersion": "1.1.6",
+    "inheritedPairingChanged": false
+  },
+  "limits": [
+    "Bounded physical companion evidence; not a Play-signed update rehearsal.",
+    "Initial input/focus attempts did not complete approval; final observed native approval and folder result pass."
+  ],
+  "cleanup": {
+    "status": "pass",
+    "qaAppAbsent": true,
+    "qaExtensionAbsent": true,
+    "ownedEmptyFolderAbsent": true,
+    "ownedDeployedFilesRemoved": true,
+    "ownedTabsClosed": true,
+    "productionAndroid": "1.0.31 (31)",
+    "productionExtension": "1.1.6 enabled",
+    "inheritedWebServerPreserved": true
+  }
+}

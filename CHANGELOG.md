@@ -4,6 +4,20 @@ Notable desktop changes are recorded here. JSTorrent follows
 three-component versions, and desktop release tags use
 `desktop-v<version>`.
 
+## [0.3.4] - 2026-10-22
+
+- Browse videos and music across torrents in the Library, with search,
+  filters, albums, shows, and playback for completed local media.
+- Export and import torrent lists, share richer links, and set seeding limits.
+- Add download-safety controls and improve large file selections.
+- Improve navigation, narrow layouts, file actions, and connection recovery.
+- Add signed Stable and Latest updates with database compatibility checks,
+  idle installation, and recovery protection for interrupted updates.
+- Repair production browser-extension control and improve app diagnostics.
+
+- Browser control requires JSTorrent extension 1.1.5 or newer.
+- Update TLS certificate handling and build-tool security fixes.
+
 ## [0.3.1] - 2026-10-13
 
 - Fix file-selection dialogs freezing when several torrents are queued, and
@@ -19,7 +33,6 @@ three-component versions, and desktop release tags use
 - Restore original branding and best-effort desktop/Android legacy migration.
 - Qualification candidate only; production publication is a separate operation.
 
-## [Unreleased]
 
 ## [0.1.4] - 2026-09-26
 

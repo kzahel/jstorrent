@@ -91,19 +91,29 @@ def required_web_inputs(current, prior, pins):
     return required
 
 
-def runtime_binding(image, prior):
-    binding = prior["runtime"]
-    size, offset = binding["runtimeBytes"], binding["payloadDigestFieldOffset"]
-    if not 0 <= offset <= size - 16 or not 0 < size <= 4 * 1024 * 1024:
-        raise ValueError("Invalid reviewed runtime bound")
-    with image.open("rb") as stream:
-        runtime = bytearray(stream.read(size))
-    if len(runtime) != size:
-        raise ValueError("Truncated outer runtime")
-    runtime[offset:offset + 16] = b"\0" * 16
-    if hashlib.sha256(runtime).hexdigest() != binding["normalizedRuntimeSha256"]:
-        raise ValueError("Outer runtime changed; review original sources before publication")
-    return binding
+def runtime_binding(image, prior, reviewed=None):
+    bindings = [prior["runtime"]]
+    if reviewed is not None:
+        binding, source, binary = reviewed["binding"], reviewed["source"], reviewed["upstreamBinary"]
+        if (not re.fullmatch(r"[a-f0-9]{40}", source["commit"])
+                or binding.get("sourceCommit") != source["commit"]
+                or binary["bytes"] != binding["runtimeBytes"]
+                or binary["sha256"] != binding["normalizedRuntimeSha256"]
+                or binding.get("excludedBytes") != 16):
+            raise ValueError("Invalid reviewed runtime source binding")
+        bindings.append(binding)
+    for binding in bindings:
+        size, offset = binding["runtimeBytes"], binding["payloadDigestFieldOffset"]
+        if not 0 <= offset <= size - 16 or not 0 < size <= 4 * 1024 * 1024:
+            raise ValueError("Invalid reviewed runtime bound")
+        with image.open("rb") as stream:
+            runtime = bytearray(stream.read(size))
+        if len(runtime) != size:
+            raise ValueError("Truncated outer runtime")
+        runtime[offset:offset + 16] = b"\0" * 16
+        if hashlib.sha256(runtime).hexdigest() == binding["normalizedRuntimeSha256"]:
+            return binding
+    raise ValueError("Outer runtime changed; review original sources before publication")
 
 
 def main():
@@ -115,6 +125,7 @@ def main():
     args = parser.parse_args()
     if not re.fullmatch(r"[a-f0-9]{40}", args.source_sha) or args.output.exists():
         raise ValueError("Use an immutable source SHA and fresh output")
+    extractor = common.squashfs_extractor()
     pins = json.loads((ROOT / "distribution/appimage-source-inputs.json").read_text())
     if pins["schemaVersion"] != 1:
         raise ValueError("Unknown source input schema")
@@ -204,15 +215,27 @@ def main():
         pairs = set()
         supplied_pairs = set(prior_pairs)
         receipt["newNativeSources"] = []
+        receipt["newRuntimeSources"] = []
+        runtime_sources = set()
         for arch in ("amd64", "aarch64"):
             name = f"JSTorrent_{version}_{arch}.AppImage"
             image = args.release_dir / "assets" / name
             if image.stat().st_size != assets[name]["size"] or "sha256:" + common.digest(image) != assets[name]["digest"]:
                 raise ValueError("AppImage differs from collected signed bytes")
             prior = next(row for row in prior_index["artifacts"] if row["name"].endswith("_" + arch + ".AppImage"))
-            binding = runtime_binding(image, prior)
+            reviewed = pins.get("additionalRuntimes", {}).get(arch)
+            binding = runtime_binding(image, prior, reviewed)
+            if binding is not prior["runtime"]:
+                source = reviewed["source"]
+                common.safe_name(source["filename"])
+                path = args.cache / source["filename"]
+                fetched(source["url"], path, 64 * 1024 ** 2, source["sha256"])
+                if source["filename"] not in runtime_sources:
+                    extra_files.append(("runtime/sources/" + source["filename"], path))
+                    runtime_sources.add(source["filename"])
+                receipt["newRuntimeSources"].append({"architecture": arch, **reviewed})
             extracted = work / ("native-" + arch)
-            subprocess.run(["7zz", "x", "-y", "-o" + str(extracted), str(image), "usr/share/rstorrent/native-notices/*"], check=True, stdout=subprocess.DEVNULL)
+            common.extract_native_notices(image, extracted, binding["runtimeBytes"], extractor)
             notices = extracted / "usr/share/rstorrent/native-notices"
             manifest = json.loads((notices / "manifest.json").read_text())
             for row in manifest["notices"]:
@@ -261,7 +284,11 @@ all original terms, preferred web sources, Ubuntu source packages, native patche
 outer-runtime originals and separate rebuild/relink instructions. Extract it
 separately and follow its README for native libraries/runtime relinking. The new
 source-index.json binds the current exact AppImages to those same source/version
-pairs and outer-runtime identities. Current native notices are also supplied.
+pairs and reviewed outer-runtime identities. New runtime source archives under
+runtime/sources supersede the prior runtime source for the architectures named
+in newRuntimeSources. Use their retained build recipes with the original
+component inputs and separate relink instructions. Current native notices are
+also supplied.
 Current application.tar, cargo-vendor and new web inputs supersede the previous
 application/dependency versions; previous material is retained for provenance.
 

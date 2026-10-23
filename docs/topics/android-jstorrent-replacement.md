@@ -1,5 +1,11 @@
 # Android JSTorrent Replacement Readiness
 
+Tactical [380](../tactical/380-product-release.md) prepares Android 1.0.32
+and repairs companion HTTP header compatibility: accept both released
+X-JSTorrent-Installation and legacy X-RSTorrent-Installation in hello, folder
+authentication and CORS. Origin, credential and ARC-interface limits remain.
+Production 1.0.31 is confirmed active on October 20; new delivery is pending.
+
 Tactical [357](../tactical/357-rich-share-links.md) adds **Share…** (system
 chooser) and **Show QR code** beside Copy share link, Files **Share file(s)**,
 the include-my-address prompt with Remember my choice, a Settings → Network &

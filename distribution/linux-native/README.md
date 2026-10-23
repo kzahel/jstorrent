@@ -80,3 +80,30 @@ first-party source. Distribution bytes must match package-lock SHA-512, and
 preferred archives must match their recorded immutable Git commit and SHA-256.
 The archive keeps original component terms and source/relink instructions.
 It does not promise a sealed offline web build or binary reproducibility.
+
+The October 22 carrier also supplies Vitest 4.1.12 and its seven changed
+packages, Vite 8.1.6, Chai 6.3.0 and tinyrainbow 3.2.0. Official npm metadata
+matches the locked distribution integrity and MIT license. Preferred sources
+use the Vitest/Vite version tags resolved to immutable commits and Chai's and
+tinyrainbow's npm `gitHead` commits. All four archives retain their MIT license
+files. Chai and tinyrainbow stamp distribution versions during publication;
+their repository package versions differ. These inputs are retained for
+source/attribution, without importing their code into first-party source.
+
+`additionalRuntimes` binds each October 22 outer runtime to the official
+AppImage binary digest and source commit
+`fedfad51acc2860b2916a1eef32ba4a500ff31ef`. Its sole change from the retained
+`8f39b89` source adds temporary-path mapping to dependency build flags; runtime
+code, dependency versions and original terms are unchanged. The new MIT runtime
+archive retains its recipes and notices; the prior carrier retains all original
+component sources and separate relink instructions. Only the named 16-byte
+payload digest is excluded from the binary comparison. Unreviewed runtime
+changes still stop publication.
+
+The same carrier supplies exact Ubuntu source descriptors and every referenced
+archive for GLib `2.80.0-6ubuntu3.10` and xz-utils
+`5.6.1+really5.4.5-1ubuntu0.4`, in addition to the existing libxml2 pin. The
+packaged notices bind these source pairs to the actual binaries. Primary HTTPS,
+descriptor identity, byte counts and descriptor SHA-256 inventories are checked;
+the original OpenPGP signatures are retained without claiming independent key
+verification. Original component terms and Ubuntu patches accompany the sources.

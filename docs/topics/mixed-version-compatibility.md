@@ -3,22 +3,36 @@
 Tactical [377](../tactical/377-compatible-touchless-release-channels.md) adds
 release/database compatibility metadata to the updater service, without new
 application fields, commands or capability IDs. The existing desktop updater
-capability and older-host fallback remain. Public Latest and Stable publication
-still run the strict-companion guard; private installation cohorts do not waive
-the 30-day window or authorize host-side response shaping. Installed updater
-qualification passes independently of the pending publication-policy choice.
+capability and older-host fallback remain. At its completion public publication
+retained the strict-companion guard; private installation cohorts do not waive
+the 30-day window or authorize host-side response shaping. Subsequent Latest
+authorization and publication are recorded below.
 The adoption dashboard required Google reauthentication on October 17, so no
 new adoption count or permission to lift the hold is inferred.
 
 Tactical [378](../tactical/378-public-latest-and-nightly.md) records subsequent
-maintainer authorization to publish public Latest and schedule daily releases.
+maintainer authorization and public Latest 0.3.2 publication, with daily
+changed-main releases scheduled at 03:17 UTC.
 Latest requires extension 1.1.5 or newer for exactly the eight accepted field
 exposures. `acceptedLatestDesktopFields` is limited to numeric
 `desktop-latest-v*` releases on desktop; new fields and unrequested variants
-still block. Stable, Android and Stable promotion retain the original guard.
+still block. Stable, Android and Stable promotion retain the original guard
+unless their exact release has a separately accepted exception, recorded below.
 This is an accepted Latest exception, not an adoption finding or retirement of
 strict clients. The daily selector requires green full push CI for exact main
 head and skips source already released to Latest.
+
+Tactical [380](../tactical/380-product-release.md) records explicit October 22
+publication authorization for desktop Stable 0.3.4 and Android 1.0.32 with
+extension 1.1.5+ required. Per-release exceptions accept the same eight reviewed
+field additions; strict-client support/captures remain for other releases.
+This is an accepted release exception, not measured adoption or a changed
+30-day horizon. Legacy host response shaping is deferred.
+Both exact host versions are now public, with their October 22 first-public
+records and source captures retained in the delivery ledger. Desktop's public
+Stable/Latest payloads, signed database facts and live offers verify; Android
+passes physical ChromeOS companion checks and is available on Google Play.
+This does not authorize future Stable/Android exceptions or remove a fallback.
 
 Tactical [375](../tactical/375-ci-reconciliation-and-ui-regressions.md)
 reconciles the concurrent updater/safety contracts. Safety and bitmap capability
@@ -327,6 +341,10 @@ Before deploying the hosted controller:
    rollback artifact. Main and marketing deployment do not advance the client.
 
 The first independent release is remote-v0.3.2 at 859f00de (2026-10-16).
+Remote-v0.3.3 at 5cb10f29 is public from 2026-10-21; Tactical
+[380](../tactical/380-product-release.md) records exact-source capture, the
+passing tagged matrix/deployment and disposable public canary with signed
+cleanup. Host Stable/Android companion-policy holds remain.
 The legacy remote 0.3.1/bdc58e4a delivery leaves its window on November 15;
 old-origin admission and frozen lazy assets remain until reviewed retirement
 no earlier than November 16. Old document redirects remain afterwards.
@@ -418,3 +436,11 @@ For `requestedBy` exemptions, a supported client may ask for a feature whose
 response it already understands. The prohibited case is a client that both
 can ask for the feature and rejects its output. A synthetic negative control
 covers that case, alongside each actual supported capture.
+
+
+October 22 release qualification adds Android 1.0.32 as a captured host with
+seeding-limit and magnet-export capabilities. The real-dispatch request
+matrix now derives stripping/refusal expectations from each captured hello,
+while validating supported requests against that host's exact schema. Earlier
+hosts retain their existing refusal and fallback expectations. Tactical 380
+records the source-gate correction.

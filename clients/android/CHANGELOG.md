@@ -1,5 +1,17 @@
 # Android Changelog
 
+## [1.0.32]
+
+- Chromebook browser control requires JSTorrent extension 1.1.5 or newer.
+- Restore Chromebook companion authentication and download-folder selection.
+
+- Browse videos and music across torrents in the new Library, with search,
+  filters, albums, shows, and file actions.
+- Export and import torrent lists, share richer links, and set seeding limits.
+- Improve transfer cards, background status, navigation after external adds,
+  and recovery when the torrent catalog cannot open.
+- Add download-safety settings and improve large file selections.
+
 ## [1.0.31]
 
 - Fix torrent removal hanging during active downloads with incoming peers.

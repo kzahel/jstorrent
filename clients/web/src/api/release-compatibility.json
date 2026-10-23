@@ -71,7 +71,10 @@
       "reason": "373 safety-aware All selection totals; release tolerant clients before hosts"
     }
   },
-  "acceptedBreaks": {},
+  "acceptedBreaks": {
+    "desktop-v0.3.4": "Maintainer authorized publication on 2026-10-22 after extension 1.1.5 and 1.1.6 became public. Requires extension 1.1.5 or newer; older strict extensions may fail to connect. Accepts the eight currently reviewed field additions only (seeding limits, private_torrent, source_size_bytes and file safety); no new enum or unsolicited view variant is authorized. No extension-adoption measurement is inferred.",
+    "android-v1.0.32": "Maintainer authorized publication on 2026-10-22 after extension 1.1.5 and 1.1.6 became public. Requires extension 1.1.5 or newer; older strict extensions may fail to connect. Accepts the eight currently reviewed field additions only (seeding limits, private_torrent, source_size_bytes and file safety); no new enum or unsolicited view variant is authorized. No extension-adoption measurement is inferred."
+  },
   "acceptedLatestDesktopFields": {
     "minimumExtension": "1.1.5",
     "reason": "Maintainer authorized public Latest and nightly publication on 2026-10-17 after disclosure of older-extension failures. Stable and Android remain guarded; only these reviewed fields are accepted.",

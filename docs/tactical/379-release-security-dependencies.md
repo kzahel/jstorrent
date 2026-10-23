@@ -1,6 +1,6 @@
 # Tactical 379: Release Security Dependency Repair
 
-Status: Active, 2026-10-17. Dependency gate blocks public Latest in 378.
+Status: Complete, 2026-10-17. Public Latest 0.3.2 contains the repair.
 
 Topics: `beta-release-readiness`, `client-persistence`,
 `product-surfaces-and-migration`.
@@ -93,3 +93,19 @@ receipt are in [379 evidence](evidence/379-security-dependencies.json).
 Workspace Clippy, eight bundle/export/import cases and thirty distribution
 review tests pass before commit. Complete workspace tests continue locally;
 full hosted native qualification and signed publication remain required.
+
+
+## Completed qualification
+
+At source 6ac2553d, local formatting/Clippy and all 1,748 workspace tests in
+73 suites pass (20 existing ignores). Full CI 39045059529 and Fast CI
+39045059512 pass, including Android/iOS and platform builds. Independent audit
+39045635628 and production audit 39047869310 report zero vulnerabilities at
+RustSec 999ec89d5d3f10f20be14750ec8c2d8b44e0ac9b with the unchanged expiry.
+All five production signed native legs pass. The collector stops only on the
+source helper's 7zz/7z naming assumption; 378 completes the private draft with
+the exact qualified bytes, original signed database metadata and verified
+corresponding sources. All 17 public assets and six updater signatures pass
+independent verification. [Final receipt](evidence/379-security-dependencies.json)
+records the exact qualification and the retained installer implementation.
+No fresh installed acceptance is inferred beyond 377's recorded evidence.

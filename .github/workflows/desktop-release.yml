@@ -135,6 +135,7 @@ jobs:
 
       - name: Install Linux desktop build dependencies
         run: |
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y \
             libayatana-appindicator3-dev \
@@ -142,7 +143,8 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libssl-dev \
             openssl \
-            patchelf
+            patchelf \
+            squashfs-tools
 
       - name: Install locked web dependencies
         run: npm ci --prefix clients/web
@@ -190,6 +192,8 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts -p test_distribution_review.py
           python3 -m unittest discover -s scripts -p test_linux_native.py
+          python3 -m unittest discover -s scripts -p test_package_appimage_sources.py
+          python3 -m unittest discover -s scripts -p test_current_appimage_sources.py
 
       - name: Audit tagged release dependencies
         if: needs.release-input.outputs.publish == 'true'
@@ -257,7 +261,10 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
-      - run: sudo apt-get update && sudo apt-get install -y minisign
+      - run: |
+          bash scripts/configure-ci-apt.sh
+          sudo apt-get update
+          sudo apt-get install -y minisign
       - run: npm ci --prefix clients/web
       - name: Sign and verify an owned nonce
         env:
@@ -368,6 +375,7 @@ jobs:
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
         run: |
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y \
             desktop-file-utils \
@@ -790,6 +798,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           npm ci --prefix clients/web
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y minisign
           node scripts/sign-desktop-compatibility.mjs artifacts/desktop-release-output
@@ -800,6 +809,7 @@ jobs:
       - name: Verify every production updater payload signature
         if: needs.release-input.outputs.production == 'true' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
         run: |
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y minisign
           node scripts/verify-desktop-signatures.mjs artifacts/desktop-release-output/assets JSTorrent
@@ -875,8 +885,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
-          sudo apt-get install -y 7zip
+          sudo apt-get install -y squashfs-tools
           RELEASE_DIR=artifacts/desktop-release-output
           SOURCE_ARCHIVE="$RUNNER_TEMP/JSTorrent_${RELEASE_VERSION}_AppImage-sources-final.tar.gz"
           python3 scripts/package-current-appimage-sources.py \

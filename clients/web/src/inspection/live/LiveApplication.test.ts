@@ -32,7 +32,7 @@ import {
   libraryMediaRequest,
   libraryMediaViewId,
 } from "../library-browse";
-import { MAGNET_EXPORT_OPTIONS } from "../host-capabilities";
+import { MAGNET_EXPORT_OPTIONS, SEED_STOP_LIMITS } from "../host-capabilities";
 import type { ViewSetState } from "../../view-set-reducer";
 import { torrentMatchesCategory } from "../state";
 import {
@@ -2496,9 +2496,11 @@ describe("requests to released hosts", () => {
       // What was dropped or substituted for this host is observed.
       const [observed] = application.compatibilityObservations();
       expect(observed?.libraryAttached).toBe(true);
+      const capabilities = (hello as ApiHello).capabilities ?? [];
       expect(Object.keys(observed?.strippedFields ?? {}).sort()).toEqual([
-        "export_magnet.options",
-        "update_client_settings.seed_stop_ratio_percent",
+        ...(!capabilities.includes(MAGNET_EXPORT_OPTIONS) ? ["export_magnet.options"] : []),
+        ...(!capabilities.includes(SEED_STOP_LIMITS)
+          ? ["update_client_settings.seed_stop_ratio_percent"] : []),
       ]);
       expect(observed?.degradedActions.download_all_pending_add ?? 0).toBe(
         serverNowMillis === "0" ? 1 : 0,
@@ -2506,14 +2508,20 @@ describe("requests to released hosts", () => {
       await application.close();
     });
 
-    it("refuses actions it lacks without sending anything", async () => {
+    it("gates seeding actions according to its advertised capabilities", async () => {
       const client = new FakeLiveClient();
       client.helloOverride = hello as ApiHello;
       const application = await LiveApplication.open(client);
+      const supportsSeeding = ((hello as ApiHello).capabilities ?? []).includes(SEED_STOP_LIMITS);
       for (const command of GATED) {
-        await expect(application.dispatch(command)).resolves.toMatchObject({ accepted: false });
+        await expect(application.dispatch(command)).resolves.toMatchObject({ accepted: supportsSeeding });
       }
-      expect(client.requests).toEqual([]);
+      if (supportsSeeding) {
+        expect(client.requests).toHaveLength(GATED.length);
+        for (const request of client.requests) expect(validate(request)).toBe(true);
+      } else {
+        expect(client.requests).toEqual([]);
+      }
       await application.close();
     });
   });

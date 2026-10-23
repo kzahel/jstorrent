@@ -1,11 +1,14 @@
 # Implementation Tactical Docs
 
+- [380 — Product releases](380-product-release.md):
+  extension 1.1.6 and remote 0.3.3 published; Stable/Android release resumed.
+
 - [379 — Release security dependency repair](379-release-security-dependencies.md):
-  active; patch rustls and ZIP and remove unused ZIP updater support before
-  public Latest, retaining the qualified native updater implementation.
+  complete; patched rustls/ZIP and retained updater 2.10.1 pass full CI,
+  signed native builds and public Latest 0.3.2 qualification.
 - [378 — Public Latest and nightly publication](378-public-latest-and-nightly.md):
-  active; publish qualified JSTorrent Latest and schedule unchanged-source-aware
-  daily releases with a bounded Latest-only companion compatibility exception.
+  complete; public Latest 0.3.2 and live five-target offers verify; daily
+  changed-main releases use full CI and a bounded companion exception.
 - [377 — Compatible touchless release channels](377-compatible-touchless-release-channels.md):
   qualified signed installed updates, database admission and immutable promotion.
 - [376 — Android media Library](376-android-media-library.md): complete;

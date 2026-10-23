@@ -1379,8 +1379,10 @@ mod tests {
 
     const START: u64 = 1_800_000_000_000;
 
-    const RELEASED_PRODUCT_DATABASES: &[(i64, &[u8])] =
-        &[(2, include_bytes!("../tests/fixtures/product/v2.sqlite"))];
+    const RELEASED_PRODUCT_DATABASES: &[(i64, &[u8])] = &[
+        (2, include_bytes!("../tests/fixtures/product/v2.sqlite")),
+        (4, include_bytes!("../tests/fixtures/product/v4.sqlite")),
+    ];
 
     fn schema(connection: &rusqlite::Connection) -> Vec<(String, Option<String>)> {
         let mut statement = connection

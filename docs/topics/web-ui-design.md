@@ -1420,7 +1420,11 @@ magnet metadata arrives its **Download** button sends
 `download_all_pending_add`, honoring **Don’t show file selection again**;
 afterwards the same button confirms the checklist. Dialog buttons keep one
 label while busy and are disabled with `aria-busy`, so a click target never
-changes width or text under the pointer.
+changes width or text under the pointer. The draft is keyed by torrent identity
+(Tactical [324](../tactical/324-release-queued-adds-on-skip-file-selection.md)),
+so confirming or cancelling a queued add gives the next torrent fresh controls,
+file choices, preference checkbox and cached pages. Component regressions cover
+both queue transitions; older desktop 0.3.0 reused the busy draft after Cancel.
 
 Hiding add options continues to use the usable
 default root and starts content normally. Tactical `083` reuses this exact

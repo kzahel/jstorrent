@@ -1,11 +1,79 @@
 # Beta Release Readiness
 
+Tactical [380](../tactical/380-product-release.md) completes the October 22
+release: desktop Stable 0.3.4 and Android 1.0.32 are public, requiring extension
+1.1.5+. Extension 1.1.6 and remote controller 0.3.3 were already verified.
+Android's exact signed dual-ABI/16-KiB artifacts and physical ChromeOS
+pairing/folder selection pass; Play confirms availability in all 178 countries.
+Desktop exact-source full CI and all five signed native jobs pass at ecd65fe4.
+The collector's corresponding-source inventory failure is recovered separately
+with reviewed tooling/pins at 9bc0b3ef, retaining every original signed native
+byte and CI-signed metadata. Thirteen source-helper tests and all 39,249 source
+carrier members verify. Both Mac native hosts execute; Intel uses Rosetta.
+
+Unchanged-byte Stable promotion passes. All seventeen public assets in each
+channel, six payload signatures, signed database facts and live update offers
+verify; equal/newer callers receive no update. Four automatic targets remain
+enabled and Linux ARM remains manual. The canonical website deploy passes,
+and public provenance/download links select 0.3.4 at bdd9c4e9. Final web
+validation is 886 passed/three existing skips plus typecheck; the fifteen-delivery
+ledger and database-history checks pass. The
+[desktop receipt](../tactical/evidence/380-desktop-release-receipt.json) records
+exact source, recovery and public evidence. This does not repeat 377's installed
+update cohorts or establish production stability. These current decisions
+supersede historical publication holds below.
+
+The October 21 Latest 0.3.4 source check at `52067935` failed its fresh
+dependency audit before packaging or publication. Earlier dependency fixes had
+passed advisory review on October 20. The lockfiles now select rustls-webpki
+0.103.16, webpki-roots 1.0.10, webpki-root-certs 1.0.10 and Vite 8.1.6 within
+its existing minor series. Upstream documents the certificate distrust fixes
+([0382](https://rustsec.org/advisories/RUSTSEC-2026-0382.html),
+[0381](https://rustsec.org/advisories/RUSTSEC-2026-0381.html),
+[0383](https://rustsec.org/advisories/RUSTSEC-2026-0383.html)) and the
+[Vite editor-command issue](https://github.com/advisories/GHSA-587h-7wmj-h5pm).
+Fresh Cargo and both npm audits now have zero vulnerabilities, and the strict
+release-ready review passes with the existing warning inventory, independently
+verified GLib backport and unchanged November 12 expiry. Independent advisory
+review now runs daily at 05:31 UTC, retaining the fresh publication gate.
+GitHub Dependabot alerts and automatic security updates are enabled; these
+findings were absent from its open alerts at inspection, so that service remains
+an additional signal.
+
+Local validation passes: `cargo fmt --all -- --check`,
+`cargo clippy --workspace --locked -- -D warnings` and
+`cargo test --workspace --locked` (1,749 passed, 20 ignored);
+`npm run typecheck --prefix clients/web`, `npm run test --prefix clients/web`
+(870 passed, three skipped) and `npm run build --prefix clients/web`, including
+CSP validation. `actionlint .github/workflows/dependency-review.yml` and
+`python3 -m unittest discover -s scripts -p test_distribution_review.py`
+(30 tests) pass. `clients/android/build.sh` completes both release ABIs and
+Kotlin binding generation; packaging initially stops on local disk exhaustion.
+After space is available, `clients/android/gradlew -p clients/android
+assembleDebug testDebugUnitTest` passes, followed by
+`python3 scripts/inspect-android-notices.py --archive
+clients/android/app/build/outputs/apk/debug/app-debug.apk --variant debug`
+(84 Maven and 207 Rust packages). This patch does not publish a release.
+
+The October 18 Latest collector failure is in source extraction: Ubuntu 24.04's
+7-Zip cannot read the Zstandard SquashFS used by the signed AppImages. Source
+packagers now use `unsquashfs` at the reviewed runtime boundary without executing
+either architecture. Full CI and release source checks install squashfs-tools
+and exercise a synthetic Zstandard filesystem with an outer runtime, selective
+notice extraction and invalid-offset refusals. Ubuntu extraction of both exact
+0.3.3 AppImages verifies all 141 x64 and 140 ARM64 notice hashes. Hosted CI for
+this repair is recorded by its commit checks; the failed 0.3.3 draft remains
+private until publication is separately authorized.
+
 Tactical [379](../tactical/379-release-security-dependencies.md) repairs the
 fresh-audit blocker found during 378 publication: rustls 0.23.46 and ZIP 9.0.4,
 with optional ZIP extraction disabled on the unchanged updater 2.10.1. Raw
 Windows installers/Linux AppImages and unconditional macOS tar.gz remain.
 No vulnerability is waived. Five source-reviewed warning additions retain the
-existing November 12 expiry; native/source qualification is pending.
+existing November 12 expiry. Full source CI, all five signed native builds
+and all 17 public Latest 0.3.2 assets pass qualification. The Linux source
+carrier is completed with the corrected 7-Zip lookup after the collector
+stops with its draft private; original signed native bytes are retained.
 
 Tactical [377](../tactical/377-compatible-touchless-release-channels.md) adds
 authenticated database admission, one increasing Stable/Latest release train,
@@ -22,7 +90,9 @@ physical Intel claim is inferred. Public Stable retains the strict-companion
 hold; service permission alone publishes no package. Tactical
 [378](../tactical/378-public-latest-and-nightly.md) authorizes Latest publication
 and a daily changed-main release, accepting only the eight current field
-exposures with extension 1.1.5 or newer required. Stable is not authorized.
+exposures with extension 1.1.5 or newer required. Latest 0.3.2 and all five live
+update offers verify, including authenticated metadata and unchanged Stable
+bodies. Stable publication is not authorized.
 
 Tactical [355](../tactical/355-automatic-updates.md) narrows the automatic
 update plan to desktop app/NSIS/AppImage. The accepted goal is unattended

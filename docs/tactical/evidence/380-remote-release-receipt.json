@@ -1,0 +1,30 @@
+{
+  "surface": "remote",
+  "version": "0.3.3",
+  "source": "5cb10f298943f1f18b9481ee68492b3840842a66",
+  "tag": "remote-v0.3.3",
+  "firstPublic": "2026-10-21",
+  "workflow": "https://github.com/kzahel/jstorrent/actions/runs/39543233167",
+  "deployment": "https://d736cff5.jstorrent-remote.pages.dev/",
+  "publicUrl": "https://remote.jstorrent.com/",
+  "release": "https://github.com/kzahel/jstorrent/releases/tag/remote-v0.3.3",
+  "manifestSha256": "d343c9cefb3ef893bd9380eee3798c0b76b8ede525e96867b496ea8126103391",
+  "manifestFiles": 42,
+  "rollbackArtifact": {
+    "name": "controller.tar.gz",
+    "bytes": 759867,
+    "sha256": "7395cb2e1bae142b09286a1d6170d7737f211c131d8bdc4b9a6fcb4e97d01fb9"
+  },
+  "publicCanary": {
+    "base": "https://remote.jstorrent.com/",
+    "privateSignIn": true,
+    "reloadResume": true,
+    "browserRestartResume": true,
+    "revocationReturnsToSignIn": true,
+    "sharedSignIn": true,
+    "sharedRestartRequiresPassword": true,
+    "noThirdPartyRequests": true,
+    "pageErrors": 0,
+    "signedRouteReleased": true
+  }
+}
