@@ -1,5 +1,25 @@
 # Beta Release Readiness
 
+The October 23 Dependabot cleanup retains the verified GLib 0.18.5 backport
+and the feature-guarded rand 0.7.3 review; alerts #1 and #18 are dismissed with
+that evidence. The November 12 warning-review expiry is unchanged. The
+non-shipping iOS storage probe now selects rustls 0.23.46, rustls-webpki
+0.103.16, webpki-root-certs 1.0.10, quinn-proto 0.11.18 and chacha20 0.10.2.
+Fresh audit of that previously uncovered lockfile found five Quinn advisories
+and a yanked ChaCha dependency after the TLS refresh; the targeted updates
+clear all probe vulnerabilities and warnings without changing production
+dependencies. Its obsolete storage-key field name is aligned with the current
+engine API so the probe compiles for the iOS simulator again.
+
+Daily, pull-request and release advisory collection now includes the probe
+lockfile. Review requires its exact digest, a fresh advisory database, zero
+vulnerabilities and zero unreviewed warnings; bounded CI receipts include the
+probe result and findings on failure. Local validation passes 36 distribution
+review tests, ten GLib backport tests, workflow actionlint, workspace/probe
+formatting, the locked iOS simulator compile check and fresh strict review
+of both Cargo and both npm lockfiles. This cleanup does not publish a release
+or repeat physical probe qualification.
+
 Tactical [380](../tactical/380-product-release.md) completes the October 22
 release: desktop Stable 0.3.4 and Android 1.0.32 are public, requiring extension
 1.1.5+. Extension 1.1.6 and remote controller 0.3.3 were already verified.

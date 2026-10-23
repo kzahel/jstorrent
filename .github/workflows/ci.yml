@@ -691,6 +691,12 @@ jobs:
       - name: Run iOS simulator unit and UI tests
         run: clients/ios/scripts/test.sh "$RUNNER_TEMP/RSTorrent.xcresult"
 
+      - name: Check the standalone iOS storage probe
+        run: >-
+          cargo check --locked
+          --manifest-path experiments/ios-storage-probe/Cargo.toml
+          --target aarch64-apple-ios-sim
+
       - name: Build an unsigned iOS device archive
         run: clients/ios/scripts/archive.sh --unsigned "$RUNNER_TEMP/RSTorrent.xcarchive"
 

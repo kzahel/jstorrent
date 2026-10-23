@@ -10,6 +10,7 @@ import re
 import glib_backport
 
 ROOT = Path(__file__).resolve().parents[1]
+PROBE_LOCKFILE = 'experiments/ios-storage-probe/Cargo.lock'
 SAFE_FAILURES = {
     'Cargo vulnerability report is missing or has vulnerabilities',
     'web npm vulnerability report is missing or has vulnerabilities',
@@ -20,7 +21,34 @@ SAFE_FAILURES = {
     'reviewed backports require exact independently verified source',
     'Cargo report must audit the exact original backport registry identity',
     'reviewed rand warning requires the log feature to remain disabled',
+    'iOS probe audit must match its current lockfile',
+    'iOS probe vulnerability report is missing or has vulnerabilities',
+    'iOS probe has unreviewed dependency warnings',
+    'iOS probe advisory database must be at most 30 days old',
 }
+
+
+def review_ios_probe(cargo, today, root=ROOT):
+    probe = cargo.get('rstorrent_ios_probe', {})
+    digest = hashlib.sha256((root / PROBE_LOCKFILE).read_bytes()).hexdigest()
+    if probe.get('lock_sha256') != digest:
+        raise ValueError('iOS probe audit must match its current lockfile')
+    report = probe.get('audit', {})
+    if report.get('vulnerabilities', {}).get('count') != 0:
+        raise ValueError('iOS probe vulnerability report is missing or has vulnerabilities')
+    if not isinstance(report.get('warnings'), dict) or any(report['warnings'].values()):
+        raise ValueError('iOS probe has unreviewed dependency warnings')
+    database = report['database']
+    updated = datetime.fromisoformat(database['last-updated']).date()
+    if not 0 <= (today - updated).days <= 30:
+        raise ValueError('iOS probe advisory database must be at most 30 days old')
+    return {
+        'lockfile': PROBE_LOCKFILE,
+        'lock_sha256': digest,
+        'database_revision': database['last-commit'],
+        'cargo_vulnerabilities': 0,
+        'warnings': [],
+    }
 
 
 def review(cargo, npm, website_npm, policy, today, backports=()):
@@ -76,13 +104,14 @@ def failure_summary(cargo, npm, website_npm, reason):
     def bounded(value):
         return re.sub(r'[^A-Za-z0-9_.:-]', '_', str(value))[:100]
 
-    cargo_findings = []
-    for item in cargo.get('vulnerabilities', {}).get('list', [])[:20]:
-        cargo_findings.append({
-            'advisory': bounded(item.get('advisory', {}).get('id', 'unknown')),
+    def findings(report):
+        return [{
+            'advisory': bounded((item.get('advisory') or {}).get('id', 'unknown')),
             'package': bounded(item.get('package', {}).get('name', 'unknown')),
             'version': bounded(item.get('package', {}).get('version', 'unknown')),
-        })
+        } for item in report.get('vulnerabilities', {}).get('list', [])[:20]]
+
+    probe = cargo.get('rstorrent_ios_probe', {}).get('audit', {})
     npm_findings = {}
     for label, report in (('web', npm), ('website', website_npm)):
         npm_findings[label] = [
@@ -94,7 +123,9 @@ def failure_summary(cargo, npm, website_npm, reason):
         'status': 'failed',
         'reason': reason,
         'cargo_vulnerability_count': cargo.get('vulnerabilities', {}).get('count'),
-        'cargo_findings': cargo_findings,
+        'cargo_findings': findings(cargo),
+        'ios_probe_vulnerability_count': probe.get('vulnerabilities', {}).get('count'),
+        'ios_probe_findings': findings(probe),
         'npm_vulnerability_counts': {
             label: report.get('metadata', {}).get('vulnerabilities', {}).get('total')
             for label, report in (('web', npm), ('website', website_npm))
@@ -119,11 +150,14 @@ def main():
         _, provenance = glib_backport.audit_lock(ROOT)
         if cargo.get('rstorrent_source_review') != provenance:
             raise ValueError('Cargo report must audit the exact original backport registry identity')
-        result = review(cargo, npm, website_npm, policy, datetime.now(timezone.utc).date(),
+        today = datetime.now(timezone.utc).date()
+        probe = review_ios_probe(cargo, today)
+        result = review(cargo, npm, website_npm, policy, today,
                         [glib_backport.verify(ROOT)])
+        result['ios_probe'] = probe
         result['lockfiles'] = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
                                for name in ('Cargo.lock', 'clients/web/package-lock.json',
-                                            'website/package-lock.json')}
+                                            'website/package-lock.json', PROBE_LOCKFILE)}
     except (ValueError, KeyError, TypeError) as error:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         safe_reason = str(error) if str(error) in SAFE_FAILURES else 'integrity or report error'
