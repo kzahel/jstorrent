@@ -1,19 +1,30 @@
 {
-  "name": "rstorrent-website",
+  "name": "jstorrent-website",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "astro dev",
     "check": "astro check",
-    "build": "astro build",
-    "preview": "astro preview"
+    "build": "astro build && node ../scripts/website-security.mjs dist",
+    "preview": "astro preview",
+    "test": "node --test src/lib/share-link.test.mjs ../scripts/production-website-release.test.mjs ../scripts/hosted-context.test.mjs ../scripts/website-security.test.mjs ../scripts/promote-website-release.test.mjs ../scripts/commit-website-promotion.test.mjs ../scripts/chrome-extension-handoff.test.mjs"
   },
   "dependencies": {
-    "astro": "7.3.5"
+    "astro": "7.3.6",
+    "@astrojs/react": "6.0.6",
+    "@astrojs/rss": "4.0.19",
+    "@astrojs/sitemap": "3.7.4",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.10",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

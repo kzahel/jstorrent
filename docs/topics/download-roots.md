@@ -2,6 +2,72 @@
 
 Topic: `download-roots`
 
+[Tactical292](../tactical/292-android-repair-paused-intent.md) completes a bounded
+Android correction: root probes reconcile durable run intent; delayed
+AwaitingStorage presentation no longer dispatches Resume. Unchanged API35
+normal Repair reproduces managed27's paused-to-Seeding failure. Fixed paused
+and running controls retain bytes and intent through Repair/cold reopen with
+the source closed. Android build/122 JVM cases/lint and owned AVD cleanup pass.
+This is debug/local qualification; new original-signed code>27 and managed
+repair evidence remain required. No Rust/JNI/schema or new grant policy changes.
+
+Tactical259's managed Android27 cohort now proves an owned missing default
+folder is not recreated, its paused library is retained with actionable Repair,
+and original-path restoration returns available storage and the verified file
+without a live source. Persisted grant identity/modes/time and package identity
+remain; exact owned cleanup leaves only the empty selected test folder/grant.
+Grant-loss/Repair picking and exact relocated/per-torrent binding remain separate.
+The current Storage screen's duplicate default/retained-root rows and Select versus
+Repair wording are recorded design notes, with no source change in this check.
+
+Tactical 253's second-cohort follow-up keeps the native Library in a checking
+state until the startup probe completes, instead of offering premature folder
+repair. Android browser HTTP 408 now explains picker expiration and an explicit
+new selection, preserving cancellation and authorization errors. The physical
+picker expires with that message, and a subsequent explicit selection completes
+through the real picker, committing the root and rendering it in Chrome.
+A separate controlled native payload remains unchanged through revoked-grant
+cancellation and completed repair. Library Repair now passes the retained
+default root to the existing repair callback; ordinary menu selection remains
+an add-folder action. No automatic retry or permission change is
+introduced. The second cohort's Linux hostname failure is now traced to the
+ChromeOS 150 Baguette path; ordinary restart is not a repair for that defect.
+
+Tactical
+[253](../tactical/253-chromeos-onboarding-recovery-and-physical-qualification.md)
+independently verifies a controlled file in separate Android SAF and
+Linux profiles on cohort A. The follow-up adds real ChromeOS file-picker intake
+through the normal-hostname Linux browser and its Linux Downloads root. This
+does not migrate roots or authorize simultaneous writing of one payload.
+The explicit Linux guide retains Share
+with Linux versus Android-grant wording; ordinary Terminal startup restores Linux
+hostname registration. Current installed candidate Launcher remains unrun.
+Retain 178/194's exact historical sharing/repair evidence. Cohort B now adds
+the bounded Android revoked-grant checks above; new Linux share-loss journeys
+remain open.
+
+Tactical [246](../tactical/246-android-legacy-import-and-installed-upgrade.md)
+maps Android root keys to stable SAF root IDs and preserves the pinned private
+`files/downloads` fallback as an existing path root. It never creates that old
+payload directory during discovery. Default roots carry where supported; current
+latest-profile choices win. Unknown/ambiguous bindings skip their records.
+
+Tactical [245](../tactical/245-android-legacy-inventory-and-import-contract.md)
+records Android's one-session root mapping: exact SAF keys/URIs and actual OS
+grants, plus the explicit private `files/downloads` fallback. Copied locators
+and old healthy hints prove no access. The proposed importer retains unavailable
+roots and derives registry bindings before startup; no Android root import or
+installed handoff is implemented by the generated format checkpoint.
+
+Completed local Tactical [241](../tactical/241-atomic-legacy-desktop-import.md)
+resolves desktop legacy root keys within each source profile and assigns new
+opaque destination IDs. Imported records keep exact path bindings; matching
+current identities remain unchanged. Existing settings and defaults, including
+an unset default, win. Missing roots remain registered for repair and the
+production startup hook preserves unavailable paths without creating them.
+The normal 32-root limit applies; overflow skips records without partial inserts.
+Installed legacy handoff remains unqualified.
+
 Status: Tactical
 [`191`](../tactical/191-direct-filesystem-storage.md) completes the direct
 root-relative content model across path, Android SAF, and qualified iOS roots.
@@ -102,7 +168,7 @@ This topic owns the product meaning and user experience of download roots:
   removed;
 - how an add flow chooses a root without exposing ambient paths on the
   application command boundary;
-- which behavior is shared across desktop, the local browser presentation, and
+- which behavior is shared across desktop, the local browser client, and
   Android despite different platform capabilities;
 - what belongs in application-private storage versus a user-visible content
   location; and
@@ -115,7 +181,7 @@ It complements:
 - [`application-control.md`](application-control.md), which owns semantic
   commands and the platform-capability boundary;
 - [`product-surfaces-and-migration.md`](product-surfaces-and-migration.md),
-  which owns backend/profile isolation and later JSTorrent import root
+  which owns host/profile isolation and later JSTorrent import root
   remapping;
 - [`web-ui-design.md`](web-ui-design.md), which owns the shared React
   presentation and browser-local versus durable state; and
@@ -138,7 +204,7 @@ Android SAF descriptor replacement.
 A **download root** is a long-lived, user-visible base location into which the
 application may publish torrent content. It is not the application-data
 directory, a torrent-specific final path, or an arbitrary path supplied by a
-presentation.
+client.
 
 A root has a stable opaque **root ID** used by the application service,
 database, commands, and torrent records. The ID is not an absolute path, SAF
@@ -156,11 +222,11 @@ The ownership split is:
   token, or Android SAF tree grant;
 - the engine owns safe relative torrent layout, staging, verification,
   publication, and content I/O beneath an already resolved capability; and
-- the presentation requests semantic root selection and displays established
+- the client requests semantic root selection and displays established
   roots, but does not become filesystem authority.
 
 The default root and root registry are durable profile/application state. They
-are shared by every presentation attached to the same backend and are not
+are shared by every client attached to the same host and are not
 browser-local preferences. A setting that skips add options also changes add
 behavior and therefore belongs to the profile rather than one browser tab.
 
@@ -233,8 +299,11 @@ new root ID or trust prior verified state without the normal storage checks.
 A root referenced by retained torrents cannot be removed as if it were unused.
 The product must require those torrents to be removed, retained in an explicit
 unavailable state, or deliberately relocated by a later feature. Removing an
-unreferenced default root either requires choosing a replacement or leaves the
-profile with no usable default; it does not silently remap existing torrents.
+unreferenced default root makes the first other registered root (by root ID)
+the default, or leaves the profile with no default when none remains, so the
+next add asks for a folder. An unavailable replacement is not a usable default,
+so adds still show the dialog. This matches the Android detach path, which
+also skips unavailable roots. Removal never remaps existing torrents.
 
 An unavailable root is a missing prerequisite, not evidence that torrent
 metadata, the database, or verified-piece state is corrupt. Preserve user
@@ -252,7 +321,7 @@ worker remain the only owners. BEP 9 metadata is acquired and verified while
 durable content intent is paused. No output directory, staging tree, wanted
 file, or part file is created. Once metadata is available, the user opens the
 ordinary Files tab, changes any non-padding file between `Normal` and `Skip`,
-and presses Start. That selection is durable and shared by every presentation.
+and presses Start. That selection is durable and shared by every client.
 
 The root behavior remains unchanged: a fresh profile still requires a folder,
 a per-add root does not change the default, and hiding add options uses the
@@ -273,24 +342,24 @@ application command, or browser-local persistence.
 
 - Tauri asks its native platform adapter to open the folder picker and install
   the resulting root capability.
-- The local `./scripts/webui` backend may expose the same trusted local
+- The local `./scripts/webui` host may expose the same trusted local
   operation over its authenticated or explicitly development-scoped
   connection. The gateway process, not the browser sandbox, resolves and owns
   the filesystem capability.
-- A generic remote or relayed presentation may select an already established
+- A generic remote or relayed client may select an already established
   root. It cannot register a path merely by submitting a string or claiming a
   product identity. The exact Linux headless runtime may advertise a distinct
-  validated server-path operation; the backend installs the locator and
+  validated server-path operation; the host installs the locator and
   returns an opaque root ID. Other transports without a safe acquisition
   operation direct the user to the owning product to add or repair a root.
-- Tactical `194`'s authenticated same-device ChromeOS Android presentation is
+- Tactical `194`'s authenticated same-device ChromeOS Android client is
   such a safe acquisition operation. It invokes the Android-owned SAF picker
   through the existing `chooseDownloadRoot` platform seam and receives only
   the installed root snapshot; URI, document, descriptor, and intent values
   never cross into React or the application connection.
 
 Do not use the browser File System Access API as an engine storage backend and
-do not move piece payload through the web presentation. Browser directory
+do not move piece payload through the web client. Browser directory
 handles cannot supply the native Rust engine's durable cross-platform storage
 authority and would violate the existing hot-path boundary.
 
@@ -366,7 +435,7 @@ portable application values retain the stable root ID. A revoked grant leaves
 the torrent waiting for repair rather than selecting app-private storage.
 
 Tactical `194` replaces the former singleton URI with a bounded retained-root
-registry shared by Compose and the extension presentation. At most one root is
+registry shared by Compose and the extension client. At most one root is
 current/default for future Android downloads; if it is unavailable, new work
 waits for repair or an explicit current-root change. Selecting a new tree
 adds or deduplicates a stable root and makes it current only after its grant and
@@ -495,7 +564,7 @@ source, fixture, or asset is imported by this topic.
 - Android SAF and eventual Apple bookmarks/URLs remain platform-owned
   capabilities; neither is serialized as a portable locator or interpreted by
   another backend.
-- Presentations cannot grant native filesystem authority by sending strings.
+- Clients cannot grant native filesystem authority by sending strings.
 - Root removal, repair/recheck, direct content access, and later relocation
   never silently move, overwrite, merge, or trust content.
 - Interactive and headless add paths distinguish user consent from explicit
@@ -542,7 +611,7 @@ Later intake work should add `.torrent` sources or pre-metadata cancellation
 without moving file selection out of the Files tab.
 Completed Tactical `116` adds backend-neutral observations and root-health
 semantics, closes SAF published reads, and records bounded physical iOS root
-feasibility without implementing fast resume or a complete iOS client.
+feasibility without implementing fast resume or a complete iOS app.
 Completed Tactical `123` records the historical app-owned-only result.
 Completed Tactical `147` is the qualified-selected-root successor;
 completed Tactical `152` closes qualified-root multifile coordination and

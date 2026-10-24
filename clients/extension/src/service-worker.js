@@ -2,12 +2,16 @@ import { ProductMetricsOwner } from "./product-metrics.js";
 
 const NATIVE_HOST = "com.jstorrent.rstorrent.native";
 const PROTOCOL_VERSION = 1;
-const CROSTINI_ORIGIN = "http://penguin.linux.test:3030";
+const CROSTINI_ORIGIN = "http://jstorrent.localhost:3030";
 const CROSTINI_ROOT = `${CROSTINI_ORIGIN}/`;
 const CROSTINI_LAUNCH_URL = `${CROSTINI_ORIGIN}/launch-chromeos`;
+const CROSTINI_CONNECTION_PAGE = "crostini/connect.html";
 const CROSTINI_TAB_KEY = "crostiniUiTabId";
-const ANDROID_LAUNCH_URL = "rstorrent://chromeos-companion";
+const ANDROID_HANDOFF_URL = "https://jstorrent.com/chrome-extension.html";
 const ANDROID_PAGE = "companion/companion.html";
+const DESKTOP_TAB_KEY = "desktopUiTabId";
+let desktopOpen;
+let androidOpen;
 const ANDROID_TAB_KEY = "androidUiTabId";
 const productMetrics = new ProductMetricsOwner(chrome, chrome.runtime.getManifest().version);
 productMetrics.start();
@@ -20,7 +24,9 @@ function sendNativeOperation(op) {
   };
 
   return new Promise((resolve) => {
+    const timeout = setTimeout(() => resolve({ ok: false, error: { code: "bootstrap_timeout", message: "Desktop did not respond in time. Try Start again." } }), 15_000);
     chrome.runtime.sendNativeMessage(NATIVE_HOST, request, (response) => {
+      clearTimeout(timeout);
       const runtimeError = chrome.runtime.lastError;
       if (runtimeError) {
         resolve({
@@ -28,17 +34,17 @@ function sendNativeOperation(op) {
           error: {
             code: "native_host_unavailable",
             message:
-              "RSTorrent Desktop is unavailable. Install it and open it once to finish setup.",
+              "JSTorrent Desktop is unavailable. Install it and open it once to finish setup.",
           },
         });
         return;
       }
-      if (!response || response.id !== request.id) {
+      if (!response || response.id !== request.id || response.protocolVersion !== PROTOCOL_VERSION) {
         resolve({
           ok: false,
           error: {
             code: "invalid_native_response",
-            message: "RSTorrent Desktop returned an invalid bootstrap response.",
+            message: "JSTorrent Desktop returned an invalid bootstrap response.",
           },
         });
         return;
@@ -48,7 +54,9 @@ function sendNativeOperation(op) {
   });
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (sender?.id !== chrome.runtime.id ||
+      (sender.url && !sender.url.startsWith(chrome.runtime.getURL("")))) return false;
   if (message?.type === "productMetrics") {
     const operation = productMetricsOperation(message);
     if (operation === null) return false;
@@ -58,8 +66,18 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     );
     return true;
   }
-  if (message?.type === "nativeBootstrap" && ["hello", "launch"].includes(message.op)) {
+  if (message?.type === "nativeBootstrap" && ["hello", "launch", "start_control", "attach_control"].includes(message.op)) {
     sendNativeOperation(message.op).then(sendResponse);
+    return true;
+  }
+  if (message?.type === "desktopBootstrap" && message.op === "open") {
+    desktopOpen ??= (async () => {
+      const response = await sendNativeOperation("start_control");
+      // The page obtains its own ephemeral credential through attach-only bootstrap.
+      await focusOrOpenExtensionTab(DESKTOP_TAB_KEY, `${ANDROID_PAGE}?backend=desktop`);
+      return { ok: response.ok, error: response.error, result: { kind: "desktop_ui" } };
+    })().finally(() => { desktopOpen = undefined; });
+    desktopOpen.then(sendResponse);
     return true;
   }
   if (message?.type === "crostiniBootstrap" && message.op === "open") {
@@ -67,7 +85,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
   if (message?.type === "androidBootstrap" && message.op === "open") {
-    launchAndOpenAndroid().then(sendResponse);
+    androidOpen ??= openAndroidUi().finally(() => { androidOpen = undefined; });
+    androidOpen.then(sendResponse);
     return true;
   }
   return false;
@@ -86,6 +105,11 @@ function productMetricsOperation(message) {
 }
 
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  if (validAndroidHandoffMessage(message, sender)) {
+    androidOpen ??= openAndroidUi().finally(() => { androidOpen = undefined; });
+    androidOpen.then(sendResponse, () => sendResponse({ ok: false }));
+    return true;
+  }
   if (!validCrostiniLaunchMessage(message, sender)) {
     return false;
   }
@@ -106,24 +130,17 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   });
 });
 
-async function launchAndOpenAndroid() {
-  let launchRequested = false;
-  try {
-    await chrome.tabs.create({ url: ANDROID_LAUNCH_URL, active: true });
-    launchRequested = true;
-  } catch {
-    // ChromeOS may reject or defer the custom-scheme launch. The visible
-    // companion page keeps probing and explains how to retry.
+async function openAndroidUi() {
+  const status = await focusOrOpenExtensionTab(ANDROID_TAB_KEY, ANDROID_PAGE);
+  if (status === "focused") {
+    const tabId = await readRememberedTab(ANDROID_TAB_KEY);
+    // Extension documents receive runtime messages; tabs.sendMessage targets
+    // content scripts. Only the named owned page may retry an idle attempt.
+    // The website receipt means UI opened, not connection established. A tab
+    // that freezes or never answers must not hold that receipt or the singleton.
+    void chrome.runtime.sendMessage({ type: "androidAttachRequested", tabId }).catch(() => {});
   }
-  const tab = await focusOrOpenExtensionTab(ANDROID_TAB_KEY, ANDROID_PAGE);
-  return {
-    ok: true,
-    result: {
-      kind: "android_ui",
-      status: tab,
-      launchRequested,
-    },
-  };
+  return { ok: true, result: { kind: "android_ui", status } };
 }
 
 async function readRememberedTab(key) {
@@ -133,9 +150,18 @@ async function readRememberedTab(key) {
 
 async function focusOrOpenExtensionTab(key, relativeUrl) {
   const remembered = await readRememberedTab(key);
-  if (remembered !== null) {
+  // Tab URLs are redacted without the broad tabs permission. Enumerate only
+  // our own extension documents, including restored pages after worker restart.
+  const contexts = await chrome.runtime.getContexts({
+    contextTypes: ["TAB"],
+    documentUrls: [chrome.runtime.getURL(relativeUrl)],
+    frameIds: [0],
+  });
+  const existing = contexts.find((context) => context.tabId === remembered) ?? contexts[0];
+  if (existing && Number.isInteger(existing.tabId) && existing.tabId >= 0) {
     try {
-      await activateTab(remembered);
+      await activateTab(existing.tabId);
+      await chrome.storage.session.set({ [key]: existing.tabId });
       return "focused";
     } catch {
       await chrome.storage.session.remove(key);
@@ -146,10 +172,17 @@ async function focusOrOpenExtensionTab(key, relativeUrl) {
     active: true,
   });
   if (!Number.isInteger(tab.id)) {
-    throw new Error("Chrome could not open the RSTorrent Android page");
+    throw new Error("Chrome could not open the JSTorrent page");
   }
   await chrome.storage.session.set({ [key]: tab.id });
   return "opened";
+}
+
+function validAndroidHandoffMessage(message, sender) {
+  return message?.type === "openAndroidUi" && message.protocolVersion === 1 &&
+    Object.keys(message).sort().join(",") === "protocolVersion,type" &&
+    Number.isInteger(sender?.tab?.id) && sender.tab.id >= 0 &&
+    sender.frameId === 0 && sender.url === ANDROID_HANDOFF_URL;
 }
 
 function validCrostiniLaunchMessage(message, sender) {
@@ -170,7 +203,7 @@ function validCrostiniLaunchMessage(message, sender) {
     return (
       url.href === CROSTINI_LAUNCH_URL &&
       url.protocol === "http:" &&
-      url.hostname === "penguin.linux.test" &&
+      url.hostname === "jstorrent.localhost" &&
       url.port === "3030" &&
       url.username === "" &&
       url.password === ""
@@ -203,6 +236,15 @@ async function focusOrOpenCrostiniTab(handoffTabId = null) {
   if (remembered !== null) {
     try {
       await activateTab(remembered);
+      if (handoffTabId !== null) {
+        // A real backend handoff can recover a remembered offline connection tab.
+        const contexts = await chrome.runtime.getContexts({
+          contextTypes: ["TAB"], documentUrls: [chrome.runtime.getURL(CROSTINI_CONNECTION_PAGE)],
+        });
+        if (contexts.some(context => context.tabId === remembered)) {
+          await chrome.tabs.update(remembered, { url: freshCrostiniRoot() });
+        }
+      }
       if (handoffTabId !== null && handoffTabId !== remembered) {
         await chrome.tabs.remove(handoffTabId);
       }
@@ -215,7 +257,7 @@ async function focusOrOpenCrostiniTab(handoffTabId = null) {
   if (handoffTabId !== null) {
     try {
       const tab = await chrome.tabs.update(handoffTabId, {
-        url: CROSTINI_ROOT,
+        url: freshCrostiniRoot(),
         active: true,
       });
       if (Number.isInteger(tab.windowId)) {
@@ -228,16 +270,20 @@ async function focusOrOpenCrostiniTab(handoffTabId = null) {
     }
   }
 
-  const tab = await chrome.tabs.create({ url: CROSTINI_ROOT, active: true });
+  const tab = await chrome.tabs.create({ url: chrome.runtime.getURL(CROSTINI_CONNECTION_PAGE), active: true });
   if (!Number.isInteger(tab.id)) {
     return {
       ok: false,
       error: {
         code: "crostini_tab_unavailable",
-        message: "Chrome could not open the RSTorrent Linux page.",
+        message: "Chrome could not open the JSTorrent Linux page.",
       },
     };
   }
   await rememberCrostiniTab(tab.id);
-  return { ok: true, result: { kind: "crostini_ui", status: "opened" } };
+  return { ok: true, result: { kind: "crostini_ui", status: "requested" } };
+}
+
+function freshCrostiniRoot() {
+  return `${CROSTINI_ROOT}?connect=${crypto.randomUUID()}`;
 }

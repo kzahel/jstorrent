@@ -1,5 +1,6 @@
+import { usePlayback } from "./VideoPlayer";
 import { message as localizedMessage } from "../../localization/runtime";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useInspectionCommand, useInspectionStore } from "../context";
 import type { DataUnits } from "../appearance";
@@ -9,13 +10,22 @@ import type { FileRow, ViewMaterialization } from "../model";
 import type { DesktopRemoteAccess } from "../remote-access/types";
 import { FileActionsMenu } from "./FileActionsMenu";
 import { FileActionMenuItems } from "./FileActionMenuItems";
-import { VirtualTable, type VirtualColumn } from "./VirtualTable";
+import {
+  TableToolbarSlot,
+  VirtualTable,
+  type VirtualColumn,
+} from "./VirtualTable";
 import { ActionMenuPopover } from "./overlays/AnchoredOverlay";
+import { useToast } from "./Toast";
+import { useTorrentActions } from "./TorrentActionContext";
 import styles from "./FileTable.module.css";
 
-const columns = (dataUnits: DataUnits): readonly VirtualColumn<FileRow>[] => [
+const DIRECT_SAVE_TOAST = "direct-save";
+
+const columns = (dataUnits: DataUnits, override: (row: FileRow) => void, busy: boolean): readonly VirtualColumn<FileRow>[] => [
   {
     id: "name",
+    listRole: "title",
     label: localizedMessage("inspection.components.file.table.name"),
     width: 270,
     minimumWidth: 130,
@@ -29,6 +39,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<FileRow>[] => [
   },
   {
     id: "folder",
+    listRole: "subtitle",
     label: localizedMessage("inspection.components.file.table.folder"),
     width: 210,
     minimumWidth: 100,
@@ -38,6 +49,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<FileRow>[] => [
   },
   {
     id: "priority",
+    listRole: "trailing",
     label: localizedMessage("inspection.components.file.table.priority"),
     width: 76,
     sortValue: (row) => row.selection,
@@ -53,7 +65,16 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<FileRow>[] => [
     ),
   },
   {
+    id: "safety", listRole: "detail", label: localizedMessage("safety.files.column"), width: 360, minimumWidth: 230, maximumWidth: 600,
+    sortValue: row => row.safety?.matched_extension ?? "",
+    render: row => row.safety == null ? "—" : <span className={styles.safety}>
+      <span title={safetyReason(row)}>{safetyReason(row)}</span>
+      <button type="button" disabled={busy} aria-label={`${(row.safety.overridden ? localizedMessage("safety.files.undo") : localizedMessage("safety.files.download"))} ${row.name}`} onClick={event => { event.stopPropagation(); override(row); }}>{(row.safety.overridden ? localizedMessage("safety.files.undo") : localizedMessage("safety.files.download"))}</button>
+    </span>,
+  },
+  {
     id: "size",
+    listRole: "detail",
     label: localizedMessage("inspection.components.file.table.size"),
     width: 92,
     align: "right",
@@ -63,6 +84,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<FileRow>[] => [
   },
   {
     id: "progress",
+    listRole: "wide",
     label: localizedMessage("inspection.components.file.table.progress"),
     width: 108,
     minimumWidth: 88,
@@ -164,18 +186,34 @@ export function FileTable({
   readonly torrentId: string;
   readonly remoteAccess?: DesktopRemoteAccess | undefined;
 }) {
+  const playback = usePlayback();
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
-  const displayColumns = useMemo(() => columns(dataUnits), [dataUnits]);
   const [currentFileId, setCurrentFileId] = useState<string | null>(null);
   const [selectedFileIds, setSelectedFileIds] = useState<ReadonlySet<string>>(
     new Set(),
   );
   const [fileActionPending, setFileActionPending] = useState(false);
-  const [fileActionStatus, setFileActionStatus] = useState("");
+  const [tableToolbar, setTableToolbar] = useState<HTMLDivElement | null>(
+    null,
+  );
   const [directFileEnabled, setDirectFileEnabled] = useState<boolean | null>(null);
-  const [directSaveAbort, setDirectSaveAbort] = useState<AbortController | null>(null);
+  const directSaveAbort = useRef<AbortController | null>(null);
   const execute = useInspectionCommand();
+  const toast = useToast();
+  const overrideSafety = useCallback((row: FileRow) => {
+    if (row.safety == null) return;
+    setFileActionPending(true);
+    void execute({ type: "set_file_safety_override", torrentId: row.torrentId, fileIndices: [row.index], allowed: !row.safety.overridden }).then(result => {
+      if (!result.accepted) toast.show({ message: result.message ?? localizedMessage("safety.settings.failed") });
+    }).catch(error => toast.show({ message: String(error) })).finally(() => setFileActionPending(false));
+  }, [execute, toast]);
+
+  const { shareFiles } = useTorrentActions();
   const demo = useInspectionStore((state) => state.demo);
+  const safetySummary = useInspectionStore(state => state.torrents[torrentId]?.safetySummary);
+  const torrentArchived = useInspectionStore(
+    (state) => state.torrents[torrentId]?.archived === true,
+  );
   const fileSet = useInspectionStore(
     (state) => state.filesByTorrent[torrentId],
   );
@@ -190,6 +228,8 @@ export function FileTable({
         .filter((row): row is FileRow => row !== undefined && !row.padding),
     [fileSet],
   );
+  const safetyRelevant = (safetySummary?.blocked_file_count ?? 0) > 0 || rows.some(row => row.safety != null);
+  const displayColumns = useMemo(() => columns(dataUnits, overrideSafety, fileActionPending).filter(column => column.id !== "safety" || safetyRelevant), [dataUnits, overrideSafety, fileActionPending, safetyRelevant]);
   const paddingCount = useMemo(
     () =>
       (fileSet?.order ?? []).filter((id) => fileSet?.rows[id]?.padding === true)
@@ -205,11 +245,8 @@ export function FileTable({
     setCurrentFileId(null);
     setSelectedFileIds(new Set());
     setFileActionPending(false);
-    setFileActionStatus("");
-    setDirectSaveAbort((current) => {
-      current?.abort();
-      return null;
-    });
+    directSaveAbort.current?.abort();
+    directSaveAbort.current = null;
   }, [torrentId]);
 
   useEffect(() => {
@@ -269,6 +306,10 @@ export function FileTable({
     demo === null
       ? undefined
       : "File actions are unavailable in demo scenarios.";
+  const shareUnavailableReason =
+    fileSet?.state === "available"
+      ? undefined
+      : localizedMessage("inspection.components.file.table.share.needs.details");
   const selectedSkippedCount = rows.filter(
     (row) => selectedFileIds.has(row.id) && row.selection === "skipped",
   ).length;
@@ -276,13 +317,15 @@ export function FileTable({
     selectedFileIds.size === 1
       ? rows.find((row) => selectedFileIds.has(row.id))?.mediaAvailability
       : undefined;
-  const toolbarActions = resolveFileActions(
+  const toolbarActions = playbackActions(resolveFileActions(
     selectedFileIds.size,
     selectedSkippedCount,
     fileActionPending,
     unavailableReason,
     selectedOpenAvailability,
-  );
+    torrentArchived,
+    shareUnavailableReason,
+  ), rows.filter(row => selectedFileIds.has(row.id)));
   const selectedRows = rows.filter((row) => selectedFileIds.has(row.id));
   const toolbarDirectSave = resolveDirectSave(
     remoteAccess,
@@ -291,6 +334,39 @@ export function FileTable({
     directFileEnabled,
     unavailableReason,
   );
+
+  function playbackActions(
+    actions: ReturnType<typeof resolveFileActions>,
+    targets: readonly FileRow[],
+  ) {
+    actions = actions.map(action => action.id === "download_now" && targets.some(row => row.safety?.blocked === true) ? { ...action, disabled: true, disabledReason: localizedMessage("safety.files.use.override") } : action);
+    const playable = targets.length === 1 &&
+      playback.canPlay(targets[0]!.name, targets[0]!.mediaAvailability);
+    if (!playback.remote) {
+      // Local files keep Open in a new tab beside the in-app Play.
+      return actions.flatMap(action =>
+        action.id === "open" && playable
+          ? [{ ...action, id: "play" as const, label: localizedMessage("remote.video.play"), external: false as const }, action]
+          : [action]);
+    }
+    const availability = resolveDirectSave(
+      remoteAccess, targets, fileActionPending, directFileEnabled, unavailableReason,
+    );
+    return actions
+      .filter(action => action.id !== "open" || playable)
+      .map(action => {
+        if (action.id !== "open") return action;
+        const reason = action.disabledReason ?? availability?.disabledReason;
+        return {
+          ...action,
+          id: "play" as const,
+          label: localizedMessage("remote.video.play"),
+          external: false as const,
+          disabled: action.disabled || availability?.disabled !== false || remoteAccess?.playCompletedFile === undefined,
+          ...(reason === undefined ? {} : { disabledReason: reason }),
+        };
+      });
+  }
 
   const runFileAction = async (
     actionId: FileActionId,
@@ -301,27 +377,43 @@ export function FileTable({
       .filter((row) => requested.has(row.id))
       .sort((left, right) => left.index - right.index);
     if (targetRows.length !== requested.size) {
-      setFileActionStatus(localizedMessage("inspection.components.file.table.a.selected.file.is.no.longer.available"));
+      toast.show({ message: localizedMessage("inspection.components.file.table.a.selected.file.is.no.longer.available") });
       return;
     }
-    const action = resolveFileActions(
+    const action = playbackActions(resolveFileActions(
       targetRows.length,
       targetRows.filter((row) => row.selection === "skipped").length,
       fileActionPending,
       unavailableReason,
       targetRows.length === 1 ? targetRows[0]?.mediaAvailability : undefined,
-    ).find((candidate) => candidate.id === actionId);
+      torrentArchived,
+      shareUnavailableReason,
+    ), targetRows).find((candidate) => candidate.id === actionId);
     if (action === undefined || action.disabled) {
       if (action?.disabledReason !== undefined) {
-        setFileActionStatus(action.disabledReason);
+        toast.show({ message: action.disabledReason });
       }
       return;
     }
+    if (action.id === "share") {
+      // Synchronous, so the clipboard write keeps the menu click's activation.
+      shareFiles(torrentId, targetRows, {
+        type: "row",
+        tableId: "files",
+        rowId: currentFileId ?? targetRows[0]!.id,
+      });
+      return;
+    }
+    if (action.id === "play") {
+      const row = targetRows[0]!;
+      playback.play({ torrentId, fileIndex: row.index, fileName: row.name, lengthBytes: row.lengthBytes });
+      return;
+    }
     setFileActionPending(true);
-    setFileActionStatus("");
     try {
       const fileIndices = targetRows.map((row) => row.index);
-      const result = await execute(
+      // The Priority column shows the result; only failures need words.
+      await execute(
         action.id === "open"
           ? {
               type: "open_file",
@@ -341,11 +433,11 @@ export function FileTable({
               priority: action.priority,
             },
       );
-      setFileActionStatus(result.message);
     } catch (error) {
-      setFileActionStatus(
-        error instanceof Error ? error.message : String(error),
-      );
+      toast.show({
+        tone: "error",
+        message: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setFileActionPending(false);
     }
@@ -364,16 +456,23 @@ export function FileTable({
       unavailableReason,
     );
     if (action === undefined || action.disabled || targetRows.length !== 1) {
-      if (action?.disabledReason !== undefined) setFileActionStatus(action.disabledReason);
+      if (action?.disabledReason !== undefined) toast.show({ message: action.disabledReason });
       return;
     }
     const save = remoteAccess?.saveCompletedFile;
     if (save === undefined) return;
     const row = targetRows[0]!;
     const cancellation = new AbortController();
-    setDirectSaveAbort(cancellation);
+    directSaveAbort.current = cancellation;
+    const cancel = {
+      label: localizedMessage("inspection.components.file.table.cancel.save"),
+      onAction: () => cancellation.abort(),
+    };
+    const progressToast = (message: string, progress: number) =>
+      toast.show({ key: DIRECT_SAVE_TOAST, message, progress, action: cancel });
     setFileActionPending(true);
-    setFileActionStatus(localizedMessage("inspection.components.file.table.choose.where.to.save.this.remote.file"));
+    progressToast(localizedMessage("inspection.components.file.table.choose.where.to.save.this.remote.file"), 0);
+    let lastProgressUpdate = -Infinity;
     try {
       await save({
         torrentId,
@@ -383,114 +482,123 @@ export function FileTable({
         signal: cancellation.signal,
         onProgress: (progress) => {
           if (progress.state === "connecting") {
-            setFileActionStatus(localizedMessage("inspection.components.file.table.connecting.directly.to.the.remote.device"));
+            progressToast(localizedMessage("inspection.components.file.table.connecting.directly.to.the.remote.device"), 0);
           } else if (progress.state === "transferring") {
-            setFileActionStatus(
-              `Saving directly… ${directProgress(progress.bytesWritten, progress.fileLength)}`,
+            const now = performance.now();
+            if (now - lastProgressUpdate < 200) return;
+            lastProgressUpdate = now;
+            progressToast(
+              localizedMessage("inspection.components.file.table.saving.directly"),
+              directProgress(progress.bytesWritten, progress.fileLength),
             );
           } else if (progress.state === "complete") {
-            setFileActionStatus(localizedMessage("inspection.components.file.table.remote.file.saved"));
+            toast.show({
+              key: DIRECT_SAVE_TOAST,
+              message: localizedMessage("inspection.components.file.table.remote.file.saved"),
+            });
           }
         },
       });
     } catch (error) {
-      setFileActionStatus(
+      toast.show(
         error instanceof DOMException && error.name === "AbortError"
-          ? "Remote file save cancelled."
-          : error instanceof Error
-            ? error.message
-            : String(error),
+          ? { key: DIRECT_SAVE_TOAST, message: localizedMessage("feedback.direct.save.cancelled") }
+          : {
+              key: DIRECT_SAVE_TOAST,
+              tone: "error",
+              message: error instanceof Error ? error.message : String(error),
+            },
       );
     } finally {
-      setDirectSaveAbort(null);
+      if (directSaveAbort.current === cancellation) directSaveAbort.current = null;
       setFileActionPending(false);
     }
   };
 
   return (
     <div className={styles.filePanel}>
-      <div className={styles.summary}>
-        <span>{rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.file.table.files")}</span>
-        {paddingCount > 0 ? (
-          <span>{paddingCount.toLocaleString()}{" "}{localizedMessage("inspection.components.file.table.padding.hidden")}</span>
-        ) : null}
-        <span
-          className={styles.storagePath}
-          title={fileSet?.filesystemContentBase ?? undefined}
-        >
-          {fileSet?.filesystemContentBase ?? localizedMessage("inspection.components.file.table.platform.managed.storage")}
-        </span>
-        <output className={styles.commandStatus} aria-live="polite">
-          {fileActionStatus}
-        </output>
-        {directSaveAbort === null ? null : (
-          <button
-            type="button"
-            className={styles.cancelSave}
-            onClick={() => directSaveAbort.abort()}
-          >{localizedMessage("inspection.components.file.table.cancel.save")}</button>
-        )}
-        <FileActionsMenu
-          pending={fileActionPending}
-          actions={toolbarActions}
-          onAction={(actionId) => void runFileAction(actionId)}
-          directSave={toolbarDirectSave}
-          onDirectSave={() => void runDirectSave()}
-        />
+      <div>
+        <div className={styles.summary}>
+          {(safetySummary?.blocked_file_count ?? 0) > 0 ? <span>{localizedMessage("safety.files.total", { count: safetySummary!.blocked_file_count })}</span> : null}
+          {safetySummary?.blocked_file_count === fileSet?.page.total && safetySummary?.blocked_file_count !== 0 ? <span>{localizedMessage("safety.files.none.selected")}</span> : null}
+          {paddingCount > 0 ? (
+            <span>{paddingCount.toLocaleString()}{" "}{localizedMessage("inspection.components.file.table.padding.hidden")}</span>
+          ) : null}
+          <span
+            className={styles.storagePath}
+            title={fileSet?.filesystemContentBase ?? undefined}
+          >
+            {fileSet?.filesystemContentBase ?? localizedMessage("inspection.components.file.table.managed.by.android")}
+          </span>
+          <FileActionsMenu
+            pending={fileActionPending}
+            actions={toolbarActions}
+            onAction={(actionId) => void runFileAction(actionId)}
+            directSave={toolbarDirectSave}
+            onDirectSave={() => void runDirectSave()}
+          />
+          <div ref={setTableToolbar} className={styles.tableToolbar} />
+        </div>
       </div>
-      <VirtualTable
-        tableId="files"
-        label={localizedMessage("inspection.components.file.table.torrent.files")}
-        rows={rows}
-        getRowId={(row) => row.id}
-        columns={displayColumns}
-        interfaceSize={interfaceSize}
-        currentRowId={currentFileId}
-        selection={{
-          selectedIds: selectedFileIds,
-          getRowLabel: (row) => row.name,
-          onChange: changeSelection,
-        }}
-        contextMenu={{
-          label: localizedMessage("inspection.components.file.table.file.actions"),
-          render: (_row, targetIds) => {
-            const targetIdSet = new Set(targetIds);
-            const actions = resolveFileActions(
-              targetIds.length,
-              rows.filter(
-                (row) =>
-                  targetIdSet.has(row.id) && row.selection === "skipped",
-              ).length,
-              fileActionPending,
-              unavailableReason,
-              targetIds.length === 1
-                ? rows.find((row) => row.id === targetIds[0])?.mediaAvailability
-                : undefined,
-            );
-            const directSave = resolveDirectSave(
-              remoteAccess,
-              rows.filter((row) => targetIdSet.has(row.id)),
-              fileActionPending,
-              directFileEnabled,
-              unavailableReason,
-            );
-            return (
-              <ActionMenuPopover label={localizedMessage("inspection.components.file.table.file.actions")}>
-                <FileActionMenuItems
-                  actions={actions}
-                  onAction={(actionId) =>
-                    void runFileAction(actionId, targetIds)
-                  }
-                  directSave={directSave}
-                  onDirectSave={() => void runDirectSave(targetIds)}
-                />
-              </ActionMenuPopover>
-            );
-          },
-        }}
-        emptyMessage={fileEmptyMessage(materialization, fileSet?.state)}
-        initialSort={{ columnId: "index", direction: "asc" }}
-      />
+      <TableToolbarSlot.Provider value={tableToolbar}>
+        <VirtualTable
+          formatCount={(count) => localizedMessage("common.count.files", { count })}
+          tableId="files"
+          label={localizedMessage("inspection.components.file.table.torrent.files")}
+          rows={rows}
+          getRowId={(row) => row.id}
+          columns={displayColumns}
+          additionalListLines={safetyRelevant ? 2 : 0}
+          interfaceSize={interfaceSize}
+          currentRowId={currentFileId}
+          selection={{
+            selectedIds: selectedFileIds,
+            getRowLabel: (row) => row.name,
+            onChange: changeSelection,
+          }}
+          contextMenu={{
+            label: localizedMessage("inspection.components.file.table.file.actions"),
+            render: (_row, targetIds) => {
+              const targetIdSet = new Set(targetIds);
+              const actions = playbackActions(resolveFileActions(
+                targetIds.length,
+                rows.filter(
+                  (row) =>
+                    targetIdSet.has(row.id) && row.selection === "skipped",
+                ).length,
+                fileActionPending,
+                unavailableReason,
+                targetIds.length === 1
+                  ? rows.find((row) => row.id === targetIds[0])?.mediaAvailability
+                  : undefined,
+                torrentArchived,
+                shareUnavailableReason,
+              ), rows.filter(row => targetIdSet.has(row.id)));
+              const directSave = resolveDirectSave(
+                remoteAccess,
+                rows.filter((row) => targetIdSet.has(row.id)),
+                fileActionPending,
+                directFileEnabled,
+                unavailableReason,
+              );
+              return (
+                <ActionMenuPopover label={localizedMessage("inspection.components.file.table.file.actions")}>
+                  <FileActionMenuItems
+                    actions={actions}
+                    onAction={(actionId) =>
+                      void runFileAction(actionId, targetIds)
+                    }
+                    directSave={directSave}
+                    onDirectSave={() => void runDirectSave(targetIds)}
+                  />
+                </ActionMenuPopover>
+              );
+            },
+          }}
+          emptyMessage={fileEmptyMessage(materialization, fileSet?.state)}
+          initialSort={{ columnId: "index", direction: "asc" }}
+        />
+      </TableToolbarSlot.Provider>
     </div>
   );
 }
@@ -523,10 +631,9 @@ function resolveDirectSave(
   return { disabled: false };
 }
 
-function directProgress(written: bigint, length: bigint): string {
-  if (length === 0n) return "100%";
-  const basisPoints = (written * 10_000n) / length;
-  return `${Number(basisPoints) / 100}%`;
+function directProgress(written: bigint, length: bigint): number {
+  if (length === 0n) return 100;
+  return Number((written * 1_000n) / length) / 10;
 }
 
 function setsEqual(left: ReadonlySet<string>, right: ReadonlySet<string>) {
@@ -554,18 +661,25 @@ function fileEmptyMessage(
 ): string {
   switch (materialization.status) {
     case "not_requested":
-      return localizedMessage("inspection.components.file.table.file.inspection.is.not.requested");
+      return localizedMessage("inspection.components.file.table.nothing.to.show");
     case "loading":
-      return localizedMessage("inspection.components.file.table.loading.file.catalog");
+      // Blank, like the peer table: a loading label only flickers.
+      return "";
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
       if (catalogState === "metadata_pending")
-        return localizedMessage("inspection.components.file.table.files.are.available.after.metadata.is.verified");
+        return localizedMessage("inspection.components.file.table.files.appear.once.torrent.info.arrives");
       if (catalogState === "torrent_missing")
         return localizedMessage("inspection.components.file.table.the.torrent.is.no.longer.present");
-      return localizedMessage("inspection.components.file.table.this.torrent.has.no.ordinary.files.to");
+      return localizedMessage("inspection.components.file.table.this.torrent.has.no.files.to.show");
   }
+}
+
+function safetyReason(row: FileRow): string {
+  const safety = row.safety;
+  if (safety == null) return "";
+  return safety.overridden ? localizedMessage("safety.files.allowed", { extension: safety.matched_extension }) : localizedMessage("safety.files.blocked", { extension: safety.matched_extension, preset: localizedMessage(safety.preset === "custom" ? "safety.preset.custom" : safety.preset === "archives" ? "safety.preset.archives" : "safety.preset.recommended") });
 }

@@ -8,7 +8,7 @@ import type {
 
 const UNIT_SYSTEMS = {
   decimal: { base: 1000, suffixes: ["B", "kB", "MB", "GB", "TB", "PB"] },
-  binary: { base: 1024, suffixes: ["B", "KiB", "MiB", "GiB", "TiB", "PiB"] },
+  binary: { base: 1024, suffixes: ["B", "KB", "MB", "GB", "TB", "PB"] },
 } as const satisfies Record<
   DataUnits,
   { readonly base: number; readonly suffixes: readonly string[] }
@@ -107,7 +107,7 @@ export function formatRate(value: number | null, dataUnits: DataUnits): string {
 }
 
 export function formatProgress(value: number | null): string {
-  if (value === null) return localizedMessage("inspection.format.metadata");
+  if (value === null) return localizedMessage("inspection.format.getting.info");
   return `${(value * 100).toFixed(value >= 0.9995 ? 0 : 1)}%`;
 }
 
@@ -122,6 +122,18 @@ export function torrentProgressSortValue(row: TorrentRow): number | null {
   return row.status === "checking"
     ? checkingProgressRatio(row.checking)
     : row.progress;
+}
+
+/** Removal is committed and still running in the engine or platform. */
+export function torrentRemovalActive(row: TorrentRow): boolean {
+  return row.removalState === "pending" || row.removalState === "awaiting_platform";
+}
+
+/** Status that replaces the transfer state while a torrent is being removed. */
+export function torrentRemovalLabel(row: TorrentRow): string | null {
+  if (torrentRemovalActive(row)) return localizedMessage("inspection.format.removing");
+  if (row.removalState === "failed") return localizedMessage("inspection.format.removal.failed");
+  return null;
 }
 
 export function torrentVisibleProgress(row: TorrentRow): number | null {

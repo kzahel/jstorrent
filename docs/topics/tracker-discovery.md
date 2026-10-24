@@ -291,6 +291,16 @@ every schedule transition and only publishes terminal inactive state after
 its UDP operations have been aborted and joined. Diagnostics remain an
 independent ordered observation stream.
 
+Completed Tactical
+[`300`](../tactical/300-monotonic-tracker-view-deadlines.md) repairs the
+application inspection clock without changing that schedule or tracker wire
+policy. The synchronous activity sink converts relative snapshot timings once
+into application-monotonic deadlines/outcome instants. Leased batches expose
+current application time, including replay; React anchors it to its own
+monotonic clock per epoch. Unrelated traffic and reopened snapshots therefore
+cannot restart an old wait. Deterministic projection/replay and real loopback
+gateway/browser tests cover this boundary; Android shared bindings/build pass.
+
 The leased application view retains at most the schedule's existing 32
 tracker records. A durable magnet can reconstruct inactive configured rows
 after restart, but volatile response and deadline history is deliberately not
@@ -308,7 +318,10 @@ from `TorrentRuntime`, uses port `1` only for outbound-only participation, and
 uses the mapped external or actual eligible TCP listener port for a matching
 incoming seed registration. Corrective `none`, exactly-once eligible
 `completed`, imported-complete, and five-second-bounded `stopped` transitions
-are deterministic; a correction arriving during the initial started request
+are deterministic (Tactical
+[366](../tactical/366-bounded-host-shutdown.md) bounds application-shutdown
+`stopped` announces by a shared 2 s cleanup budget and a host hurry signal;
+torrent removal keeps 5 s); a correction arriving during the initial started request
 is retained.
 
 An independent libtorrent `2.0.13.0` tracker-only leecher announced to the

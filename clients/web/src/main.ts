@@ -1,7 +1,9 @@
 import { applyStoredAppearance } from "./inspection/appearance";
 import { resolveInspectionBootstrapTarget } from "./inspection/bootstrap-target";
 import { localizeDocumentShell, message } from "./localization/runtime";
+import { markStartup, startupTimings } from "./startup-timing";
 
+markStartup("entry");
 localizeDocumentShell();
 
 const parameters = new URLSearchParams(window.location.search);
@@ -20,6 +22,7 @@ void startInspection().catch(renderBootstrapError);
 async function startInspection(): Promise<void> {
   const { startDemoInspection, startLiveInspection, startTauriInspection } =
     await import("./inspection/bootstrap");
+  markStartup("app_loaded");
   const target = resolveInspectionBootstrapTarget(
     parameters,
     "__TAURI_INTERNALS__" in window,
@@ -27,7 +30,7 @@ async function startInspection(): Promise<void> {
   );
   switch (target.type) {
     case "demo":
-      startDemoInspection(target.parameters);
+      await startDemoInspection(target.parameters);
       break;
     case "live":
       await startLiveInspection(target.parameters);
@@ -39,6 +42,11 @@ async function startInspection(): Promise<void> {
 }
 
 function renderBootstrapError(error: unknown): void {
+  // Once the application has rendered, it reports connection problems itself.
+  if (startupTimings().shell_rendered !== undefined) {
+    console.error("JSTorrent startup failed after the application rendered", error);
+    return;
+  }
   const rootElement = document.querySelector<HTMLElement>("#app");
   if (rootElement === null) {
     console.error("Unable to start RSTorrent", error);

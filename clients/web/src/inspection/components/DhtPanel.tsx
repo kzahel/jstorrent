@@ -179,8 +179,8 @@ function RoutingDistribution({
   );
   const description =
     mode === "normalized"
-      ? `Normalized shared-prefix depth zero through 31, followed by a 128-band tail. ${tail.live} live nodes occupy the tail.`
-      : "Literal engine bucket indices zero through 159. Equal pixel widths represent engine slots, not equal keyspace volumes.";
+      ? `Routing table buckets from farthest to closest, with ${tail.live} live nodes in the closest group.`
+      : "All 160 routing table buckets.";
 
   useEffect(() => {
     const element = wrapRef.current;
@@ -224,8 +224,8 @@ function RoutingDistribution({
       </div>
       <p className={styles.encodingNote}>
         {mode === "normalized"
-          ? localizedMessage("inspection.components.dht.panel.depth.159.bucket.index.moving.right.adds")
-          : localizedMessage("inspection.components.dht.panel.all.160.engine.slots.are.shown.in")}
+          ? localizedMessage("inspection.components.dht.panel.bars.further.right.are.closer")
+          : localizedMessage("inspection.components.dht.panel.each.bar.is.one.bucket")}
       </p>
     </section>
   );
@@ -251,11 +251,11 @@ function drawRouting(
   const colors = {
     text: tokens.getPropertyValue("--text-muted").trim() || "#718096",
     grid: tokens.getPropertyValue("--border-soft").trim() || "#334155",
-    good: "#35b982",
-    questionable: "#e49a3a",
-    replacement: "#718096",
-    fresh: "#3aa884",
-    aging: "#e49a3a",
+    good: tokens.getPropertyValue("--dht-good").trim() || "#1f8eee",
+    questionable: tokens.getPropertyValue("--dht-questionable").trim() || "#d39a3a",
+    replacement: tokens.getPropertyValue("--dht-replacement").trim() || "#9a9187",
+    fresh: tokens.getPropertyValue("--dht-fresh").trim() || "#1f8eee",
+    aging: tokens.getPropertyValue("--dht-aging").trim() || "#d39a3a",
     surface: tokens.getPropertyValue("--surface-secondary").trim() || "#111827",
   };
   const left = 42;
@@ -536,7 +536,7 @@ function OperationalFacts({
           value={`${inspection.announces_succeeded} succeeded · ${inspection.announces_failed} failed`}
         />
       </dl>
-      <p>{localizedMessage("inspection.components.dht.panel.traffic.is.complete.udp.datagram.bytes.at")}</p>
+      <p>{localizedMessage("inspection.components.dht.panel.includes.all.dht.traffic")}</p>
     </section>
   );
 }

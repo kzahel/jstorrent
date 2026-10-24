@@ -100,15 +100,18 @@ semantic_fields!(
         ProtocolIdentities => protocol_identities: TorrentProtocolIdentities,
         DisplayName => display_name: Option<String>,
         SourceDisplayName => source_display_name: Option<String>,
+        SourceSizeBytes => source_size_bytes: Option<String>,
         State => state: TorrentState,
         OperationalState => operational_state: TorrentOperationalState,
         DownloadQueuePosition => download_queue_position: Option<u32>,
         TransferLimits => transfer_limits: TorrentTransferLimits,
         StorageState => storage_state: StorageState,
         MetadataAvailable => metadata_available: bool,
+        PrivateTorrent => private_torrent: bool,
         AwaitingFileSelection => awaiting_file_selection: bool,
         PendingFileSelectionPosition => pending_file_selection_position: Option<u32>,
         FileCatalogId => file_catalog_id: Option<String>,
+        SafetySummary => safety_summary: Option<crate::FileSafetySummary>,
         SelectableFileCount => selectable_file_count: u32,
         SelectedFileCount => selected_file_count: u32,
         SelectableFileBytes => selectable_file_bytes: String,
@@ -163,18 +166,21 @@ impl TorrentRowUpdate {
         changed!(ProtocolIdentities, protocol_identities);
         changed!(DisplayName, display_name);
         changed!(SourceDisplayName, source_display_name);
+        changed!(SourceSizeBytes, source_size_bytes);
         changed!(State, state);
         changed!(OperationalState, operational_state);
         changed!(DownloadQueuePosition, download_queue_position);
         changed!(TransferLimits, transfer_limits);
         changed!(StorageState, storage_state);
         changed!(MetadataAvailable, metadata_available);
+        changed!(PrivateTorrent, private_torrent);
         changed!(AwaitingFileSelection, awaiting_file_selection);
         changed!(
             PendingFileSelectionPosition,
             pending_file_selection_position
         );
         changed!(FileCatalogId, file_catalog_id);
+        changed!(SafetySummary, safety_summary);
         changed!(SelectableFileCount, selectable_file_count);
         changed!(SelectedFileCount, selected_file_count);
         changed!(SelectableFileBytes, selectable_file_bytes);
@@ -248,6 +254,7 @@ semantic_fields!(
     FileView,
     {
         Selection => selection: Option<FileSelectionView>,
+        Safety => safety: Option<crate::FileSafetyView>,
         DoneBytes => done_bytes: String,
         VerifiedBytes => verified_bytes: String,
         MediaAvailability => media_availability: MediaFileAvailability
@@ -285,6 +292,7 @@ impl FileRowUpdate {
             };
         }
         changed!(Selection, selection);
+        changed!(Safety, safety);
         changed!(DoneBytes, done_bytes);
         changed!(VerifiedBytes, verified_bytes);
         changed!(MediaAvailability, media_availability);
@@ -534,6 +542,7 @@ mod tests {
 
     fn torrent() -> TorrentView {
         TorrentView {
+            safety_summary: None,
             torrent_id: TORRENT_ID.to_owned(),
             protocol_identities: TorrentProtocolIdentities {
                 v1: Some("000102030405060708090a0b0c0d0e0f10111213".to_owned()),
@@ -541,6 +550,7 @@ mod tests {
             },
             display_name: None,
             source_display_name: None,
+            source_size_bytes: None,
             state: TorrentState::Downloading,
             operational_state: TorrentOperationalState::Downloading,
             download_queue_position: None,
@@ -548,6 +558,7 @@ mod tests {
             storage_state: StorageState::Available,
             storage_root: "downloads".to_owned(),
             metadata_available: false,
+            private_torrent: false,
             awaiting_file_selection: false,
             pending_file_selection_position: None,
             file_catalog_id: None,
@@ -592,6 +603,7 @@ mod tests {
         current.protocol_identities.v2 = Some("11".repeat(32));
         current.display_name = Some("verified".to_owned());
         current.source_display_name = Some("source".to_owned());
+        current.source_size_bytes = Some("4096".to_owned());
         current.state = TorrentState::Paused;
         current.operational_state = TorrentOperationalState::Paused;
         current.download_queue_position = Some(3);
@@ -603,6 +615,7 @@ mod tests {
         };
         current.storage_state = StorageState::Available;
         current.metadata_available = true;
+        current.private_torrent = true;
         current.piece_count = 4;
         current.total_size_bytes = Some("32771".to_owned());
         current.verified_piece_count = 2;
@@ -653,7 +666,7 @@ mod tests {
         current.error = Some("failure".to_owned());
 
         let update = TorrentRowUpdate::between(&previous, &current).expect("all fields changed");
-        assert_eq!(update.fields.len(), 30);
+        assert_eq!(update.fields.len(), 32);
         let mut applied = previous;
         update.apply(&mut applied).expect("apply");
         assert_eq!(applied, current);
@@ -661,6 +674,7 @@ mod tests {
         let mut cleared = current.clone();
         cleared.display_name = None;
         cleared.source_display_name = None;
+        cleared.source_size_bytes = None;
         cleared.download_queue_position = None;
         cleared.configured_tracker_count = None;
         cleared.total_size_bytes = None;
@@ -672,6 +686,25 @@ mod tests {
         let clear = TorrentRowUpdate::between(&current, &cleared).expect("nullable clears");
         clear.apply(&mut current).expect("apply clears");
         assert_eq!(current, cleared);
+    }
+
+    #[test]
+    fn private_flag_is_absent_on_the_wire_for_public_rows() {
+        let public = torrent();
+        let wire = serde_json::to_value(&public).expect("serialize public row");
+        assert!(wire.get("private_torrent").is_none());
+        let decoded: TorrentView = serde_json::from_value(wire).expect("decode public row");
+        assert!(!decoded.private_torrent);
+
+        let mut private = public.clone();
+        private.private_torrent = true;
+        let wire = serde_json::to_value(&private).expect("serialize private row");
+        assert_eq!(wire["private_torrent"], serde_json::Value::Bool(true));
+        let update = TorrentRowUpdate::between(&public, &private).expect("flag changed");
+        assert_eq!(
+            update.fields,
+            vec![TorrentFieldUpdate::PrivateTorrent { value: true }]
+        );
     }
 
     fn peer() -> PeerView {
@@ -782,6 +815,7 @@ mod tests {
     #[test]
     fn file_and_active_piece_updates_preserve_immutable_identity() {
         let file = FileView {
+            safety: None,
             file_id: "0".to_owned(),
             file_index: 0,
             path: vec!["file".to_owned()],

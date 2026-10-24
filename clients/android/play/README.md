@@ -1,4 +1,10 @@
-# RSTorrent Canary Play Listing
+# JSTorrent Canary Preview Listing
+
+**Historical canary material.** Tactical 250 changes Android release packaging
+to the existing `com.jstorrent.app` JSTorrent app. This separate canary listing,
+banner and placeholder screenshots must not be uploaded there unchanged. Prepare
+current JSTorrent screenshots/copy under the full cutover checklist before store
+submission; this directory does not configure publication.
 
 Prepared on 2026-09-06 for the separate `com.jstorrent.rstorrent` app.
 The listing is saved in Play Console, ready to send for review; this directory
@@ -18,7 +24,7 @@ here does not imply a new third-party license grant.
   JSTorrent placeholders, not evidence of the RSTorrent interface. Source
   names are mapped below; their original Play ordering is not asserted.
 - `feature-graphic.svg`: new editable 1024×500 SVG composition with the
-  duplicated icon embedded, RSTorrent title, and Canary designation.
+  duplicated icon embedded, JSTorrent title, and Canary designation.
   `feature-graphic.png` is its visually checked render using `rsvg-convert`.
   Only this newly composed visual is labeled as created/edited with AI in
   the Play listing. Copied icon/screenshots were not generated or edited.

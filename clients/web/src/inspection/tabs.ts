@@ -19,6 +19,10 @@ export const DETAIL_TABS: readonly {
   { id: "dht", label: localizedMessage("inspection.tabs.dht"), scope: "session", view: "dht" },
 ];
 
+export const DETAIL_TAB_IDS: readonly DetailTab[] = DETAIL_TABS.map(
+  (tab) => tab.id,
+);
+
 export function desiredDetailForTab(
   tab: DetailTab,
   torrentId: string | null,
@@ -28,4 +32,10 @@ export function desiredDetailForTab(
   return definition.scope === "session" || torrentId !== null
     ? definition.view
     : null;
+}
+
+export function isSessionTab(tab: DetailTab): boolean {
+  return DETAIL_TABS.some(
+    (candidate) => candidate.id === tab && candidate.scope === "session",
+  );
 }

@@ -4,14 +4,14 @@
   height: var(--ui-control-height);
   align-items: center;
   gap: var(--ui-space-xs);
-  border: 1px solid var(--border-soft);
-  border-radius: 0.34rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   padding: 0 var(--ui-space-sm);
   color: var(--text-secondary);
-  background: var(--surface-secondary);
+  background: var(--surface-primary);
   font: inherit;
   font-size: var(--ui-font-caption);
-  font-weight: 650;
+  font-weight: var(--weight-medium);
   cursor: pointer;
 }
 

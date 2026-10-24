@@ -45,3 +45,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "rstorrent-android"
 include(":app")
+
+include(":legacy-upgrade-fixture")

@@ -5,8 +5,28 @@ on:
     tags:
       - "desktop-v*"
   workflow_dispatch:
+    inputs:
+      production_candidate:
+        description: Build JSTorrent identity using existing signing inputs; never publish
+        type: boolean
+        default: true
+      candidate_version:
+        description: Private cohort test version only (0.3.60000–60999); never publish
+        type: string
+        default: ''
+      qualification_schema_bump:
+        description: Private source-overlay schema-30 crash probe; never publish
+        type: boolean
+        default: false
+      production_publication:
+        description: Publish JSTorrent only from an explicitly approved desktop-v tag; candidate must be false
+        type: boolean
+        default: false
   workflow_call:
     inputs:
+      production_latest:
+        type: boolean
+        default: false
       source_sha:
         required: true
         type: string
@@ -21,7 +41,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: desktop-release-publisher
+  group: ${{ github.event_name == 'workflow_dispatch' && inputs.production_candidate && !inputs.production_publication && format('desktop-private-{0}', github.run_id) || 'desktop-release-publisher' }}
   cancel-in-progress: false
 
 env:
@@ -37,6 +57,9 @@ jobs:
       tag: ${{ steps.identity.outputs.tag }}
       channel: ${{ steps.identity.outputs.channel }}
       publish: ${{ steps.identity.outputs.publish }}
+      production: ${{ steps.identity.outputs.production }}
+      production_publication: ${{ steps.identity.outputs.productionPublication }}
+      qualification_schema_bump: ${{ steps.identity.outputs.qualificationSchemaBump }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
@@ -44,10 +67,33 @@ jobs:
           node-version: 22
       - id: identity
         env:
+          INPUT_CANDIDATE_VERSION: ${{ inputs.candidate_version }}
+          INPUT_QUALIFICATION_SCHEMA_BUMP: ${{ inputs.qualification_schema_bump || false }}
+          INPUT_PRODUCTION_LATEST: ${{ inputs.production_latest || false }}
+          INPUT_PRODUCTION_CANDIDATE: ${{ inputs.production_candidate || false }}
+          INPUT_PRODUCTION_PUBLICATION: ${{ inputs.production_publication || false }}
           INPUT_SOURCE_SHA: ${{ inputs.source_sha }}
           INPUT_RELEASE_VERSION: ${{ inputs.release_version }}
           INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
         run: node scripts/desktop-release-input.mjs
+      - name: Keep released extension companions working
+        env:
+          RELEASE: ${{ steps.identity.outputs.tag || format('desktop-v{0}', steps.identity.outputs.version) }}
+          ENFORCE: ${{ steps.identity.outputs.publish == 'true' || steps.identity.outputs.productionPublication == 'true' }}
+        run: node scripts/check-release-compatibility.mjs --surface desktop --release "$RELEASE" --enforce "$ENFORCE"
+      - name: Require captures for every supported delivery
+        env:
+          RELEASE: ${{ steps.identity.outputs.tag || format('desktop-v{0}', steps.identity.outputs.version) }}
+          ENFORCE: ${{ steps.identity.outputs.publish == 'true' || steps.identity.outputs.productionPublication == 'true' }}
+        run: |
+          git fetch --force --tags --depth=1 origin
+          node scripts/compat-ledger.mjs --release "$RELEASE" || [ "$ENFORCE" != true ]
+      - name: Verify shared version train and released database histories
+        if: steps.identity.outputs.publish == 'true' && steps.identity.outputs.production == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ steps.identity.outputs.version }}
+        run: node scripts/desktop-release-train.mjs --verify
       - name: Refuse to overwrite a published release
         if: steps.identity.outputs.publish == 'true'
         env:
@@ -89,22 +135,32 @@ jobs:
 
       - name: Install Linux desktop build dependencies
         run: |
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y \
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libwebkit2gtk-4.1-dev \
-            patchelf
+            libssl-dev \
+            openssl \
+            patchelf \
+            squashfs-tools
 
       - name: Install locked web dependencies
         run: npm ci --prefix clients/web
 
-      - name: Apply verified Latest package identity
-        if: needs.release-input.outputs.channel == 'latest'
+      - name: Apply selected package identity
+        if: needs.release-input.outputs.version != ''
         shell: bash
         env:
           RELEASE_VERSION: ${{ needs.release-input.outputs.version }}
         run: node scripts/apply-desktop-nightly-version.mjs "$RELEASE_VERSION"
+
+      - name: Prepare private schema qualification source
+        if: needs.release-input.outputs.qualification_schema_bump == 'true'
+        env:
+          JSTORRENT_PRIVATE_UPDATE_QUALIFICATION: 'true'
+        run: node scripts/prepare-private-update-qualification.mjs
 
       - name: Verify the locked package identity
         run: cargo metadata --locked --no-deps --format-version 1 > /dev/null
@@ -117,18 +173,27 @@ jobs:
           else
             node scripts/validate-desktop-release.mjs
           fi
+          node scripts/validate-jstorrent-candidate.mjs
           node --test \
+            scripts/validate-jstorrent-candidate.test.mjs \
             scripts/validate-desktop-package.test.mjs \
             scripts/validate-desktop-release.test.mjs \
             .github/scripts/desktop-release-artifacts.test.mjs \
+            .github/scripts/desktop-production-publisher.test.mjs \
             .github/scripts/validate-desktop-release.test.mjs \
             .github/scripts/write-release-checksums.test.mjs \
             scripts/nightly-desktop-release.test.mjs \
+            scripts/latest-desktop-release.test.mjs \
+            scripts/check-release-compatibility.test.mjs \
             scripts/desktop-release-input.test.mjs \
             scripts/apply-desktop-nightly-version.test.mjs
 
       - name: Verify dependency review tools
-        run: python3 -m unittest discover -s scripts -p test_distribution_review.py
+        run: |
+          python3 -m unittest discover -s scripts -p test_distribution_review.py
+          python3 -m unittest discover -s scripts -p test_linux_native.py
+          python3 -m unittest discover -s scripts -p test_package_appimage_sources.py
+          python3 -m unittest discover -s scripts -p test_current_appimage_sources.py
 
       - name: Audit tagged release dependencies
         if: needs.release-input.outputs.publish == 'true'
@@ -148,10 +213,23 @@ jobs:
       - name: Validate and package the JSTorrent Beta extension seed
         run: |
           npm test --prefix clients/extension
-          npm run package --prefix clients/extension
+          if [[ "${{ needs.release-input.outputs.production }}" == true ]]; then
+            npm run package:jstorrent --prefix clients/extension
+          else
+            npm run package --prefix clients/extension
+          fi
 
       - name: Provide the Tauri compile-time asset directory
         run: mkdir -p clients/web/dist
+
+      - name: Retain bounded dependency review evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-dependency-review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dependency-review.json
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
@@ -169,6 +247,36 @@ jobs:
 
       - name: Build the production web application
         run: npm run build --prefix clients/web
+
+  signing-probe:
+    name: Prove current CI updater signing identity
+    needs: release-input
+    if: needs.release-input.outputs.production == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ needs.release-input.outputs.source_sha }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+      - run: |
+          bash scripts/configure-ci-apt.sh
+          sudo apt-get update
+          sudo apt-get install -y minisign
+      - run: npm ci --prefix clients/web
+      - name: Sign and verify an owned nonce
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: node scripts/probe-desktop-signing.mjs signing-proof.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: jstorrent-signing-proof-${{ github.run_id }}
+          path: signing-proof.json
+          if-no-files-found: warn
 
   build-desktop:
     name: Signed ${{ matrix.name }} packages
@@ -190,13 +298,13 @@ jobs:
             rust_target: x86_64-apple-darwin
           - name: Linux x86_64
             lane: linux-x86_64
-            runner: ubuntu-22.04
-            args: "--bundles appimage,deb,rpm"
+            runner: ubuntu-24.04
+            args: "--bundles ${{ needs.release-input.outputs.production == 'true' && 'appimage' || 'appimage,deb,rpm' }}"
             rust_target: ""
           - name: Linux arm64
             lane: linux-aarch64
-            runner: ubuntu-22.04-arm
-            args: "--bundles appimage,deb,rpm"
+            runner: ubuntu-24.04-arm
+            args: "--bundles ${{ needs.release-input.outputs.production == 'true' && 'appimage' || 'appimage,deb,rpm' }}"
             rust_target: ""
           - name: Windows x86_64
             lane: windows-x86_64
@@ -207,6 +315,8 @@ jobs:
     timeout-minutes: 90
     env:
       APPIMAGE_EXTRACT_AND_RUN: "1"
+      PACKAGE_PRODUCT: ${{ needs.release-input.outputs.production == 'true' && 'JSTorrent' || 'RSTorrent' }}
+      PACKAGE_DISPLAY_NAME: ${{ needs.release-input.outputs.production == 'true' && 'JSTorrent' || 'JSTorrent Preview' }}
       HAS_UPDATER_SIGNING: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD != '' }}
       HAS_MACOS_SIGNING: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' && secrets.MACOS_KEYCHAIN_PASSWORD != '' }}
       HAS_MACOS_NOTARIZATION: ${{ secrets.ASC_API_KEY_P8_BASE64 != '' && secrets.ASC_API_KEY_ID != '' && secrets.ASC_API_ISSUER_ID != '' }}
@@ -265,6 +375,7 @@ jobs:
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
         run: |
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y \
             desktop-file-utils \
@@ -272,14 +383,30 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libwebkit2gtk-4.1-dev \
+            libssl-dev \
+            openssl \
             patchelf \
             xdg-utils
+          WEBKIT_VERSION=$(dpkg-query -W -f='${Version}' libwebkit2gtk-4.1-0)
+          dpkg --compare-versions "$WEBKIT_VERSION" ge 2.52.6-0ubuntu0.24.04.1
 
       - name: Exercise the GLib backport with release optimization
         if: runner.os == 'Linux'
         run: |
           mkdir -p clients/web/dist
           cargo test --locked --release -p rstorrent-desktop --test glib_backport
+
+      - name: Build reviewed Linux native libraries without GPL-only chains
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            cmake dpkg-dev patch libdbusmenu-gtk3-dev libgirepository1.0-dev \
+            libjpeg-dev liblzma-dev libzstd-dev libwebp-dev zlib1g-dev \
+            libdeflate-dev liblerc-dev
+          python3 scripts/build-linux-native.py \
+            --sources-dir "$RUNNER_TEMP/jstorrent-native-sources" \
+            --output "$RUNNER_TEMP/jstorrent-native-build" --download
+          echo "JSTORRENT_LINUX_NATIVE_BUILD=$RUNNER_TEMP/jstorrent-native-build" >> "$GITHUB_ENV"
 
       - name: Set up macOS code-signing keychain
         if: runner.os == 'macOS'
@@ -349,8 +476,8 @@ jobs:
       - name: Install locked web dependencies
         run: npm ci --prefix clients/web
 
-      - name: Apply verified Latest package identity
-        if: needs.release-input.outputs.channel == 'latest'
+      - name: Apply selected package identity
+        if: needs.release-input.outputs.version != ''
         shell: bash
         env:
           RELEASE_VERSION: ${{ needs.release-input.outputs.version }}
@@ -358,6 +485,12 @@ jobs:
 
       - name: Install pinned license notice generator
         run: cargo install cargo-about --locked --version 0.9.2 --features cli
+
+      - name: Prepare private schema qualification source
+        if: needs.release-input.outputs.qualification_schema_bump == 'true'
+        env:
+          JSTORRENT_PRIVATE_UPDATE_QUALIFICATION: 'true'
+        run: node scripts/prepare-private-update-qualification.mjs
 
       - name: Build signed desktop packages
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
@@ -374,15 +507,16 @@ jobs:
             ${{ matrix.args }}
             ${{ runner.os == 'Linux' && '--verbose' || '' }}
             --config src-tauri/tauri.release.conf.json
+            ${{ needs.release-input.outputs.production == 'true' && '--config src-tauri/tauri.jstorrent.conf.json' || '' }}
             ${{ runner.os == 'Windows' && '--config ''{"bundle":{"windows":{"signCommand":"trusted-signing-cli -e https://eus.codesigning.azure.net -a kylegraehl -c jstorrent-profile %1"}}}''' || '' }}
 
       - name: Verify macOS signing and notarization
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          APP_PATH="target/${{ matrix.rust_target }}/release/bundle/macos/RSTorrent.app"
+          APP_PATH="target/${{ matrix.rust_target }}/release/bundle/macos/$PACKAGE_DISPLAY_NAME.app"
           test -d "$APP_PATH"
-          node scripts/validate-desktop-package.mjs --mac-app "$APP_PATH"
+          node scripts/validate-desktop-package.mjs --mac-app "$APP_PATH" --product "$PACKAGE_PRODUCT"
           python3 scripts/inspect-distribution.py --root "$APP_PATH" --output artifacts/distribution/macos.json
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
           spctl --assess --type execute --verbose=2 "$APP_PATH"
@@ -390,6 +524,31 @@ jobs:
           DMG_PATH=$(find "target/${{ matrix.rust_target }}/release/bundle/dmg" -maxdepth 1 -type f -name '*.dmg' -print -quit)
           test -n "$DMG_PATH"
           codesign --verify --verbose=2 "$DMG_PATH"
+          # Tauri notarizes/staples the app, but only signs the outer DMG.
+          # Submit the actual download before staging its final hash.
+          mkdir -p artifacts/notarization
+          xcrun notarytool submit "$DMG_PATH" \
+            --key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY" \
+            --issuer "$APPLE_API_ISSUER" --wait --timeout 20m \
+            --output-format json > artifacts/notarization/dmg-submit.json
+          SUBMISSION_ID=$(jq -er '.id' artifacts/notarization/dmg-submit.json)
+          xcrun notarytool log "$SUBMISSION_ID" \
+            --key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY" \
+            --issuer "$APPLE_API_ISSUER" artifacts/notarization/dmg-log.json
+          jq -e '.status == "Accepted"' artifacts/notarization/dmg-submit.json
+          jq -e '.status == "Accepted" and ((.issues // []) | length == 0)' artifacts/notarization/dmg-log.json
+          xcrun stapler staple "$DMG_PATH"
+          xcrun stapler validate "$DMG_PATH"
+          codesign --verify --verbose=2 "$DMG_PATH"
+          spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG_PATH"
+
+      - name: Retain macOS notarization results
+        if: always() && runner.os == 'macOS'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: notarization-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/notarization/*.json
+          retention-days: 14
 
       - name: Verify Windows Authenticode signatures
         if: runner.os == 'Windows'
@@ -422,8 +581,8 @@ jobs:
           if ($installer.Count -ne 1) {
             throw "Expected one NSIS installer; found $($installer.Count)"
           }
-          $installDirectory = Join-Path $env:LOCALAPPDATA 'RSTorrent'
-          $executable = Join-Path $installDirectory 'rstorrent-desktop.exe'
+          $installDirectory = Join-Path $env:LOCALAPPDATA $env:PACKAGE_DISPLAY_NAME
+          $executable = Join-Path $installDirectory 'jstorrent-client.exe'
           try {
             $install = Start-Process -FilePath $installer[0].FullName -ArgumentList '/S' -Wait -PassThru
             if ($install.ExitCode -ne 0) {
@@ -432,8 +591,19 @@ jobs:
             if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
               throw "Installed RSTorrent executable is missing"
             }
+            foreach ($binary in @($executable, (Join-Path $installDirectory 'rstorrent-native-host.exe'))) {
+              if (-not (Test-Path -LiteralPath $binary -PathType Leaf)) {
+                throw "Installed signed binary is missing: $binary"
+              }
+              $signature = Get-AuthenticodeSignature -FilePath $binary
+              if ($signature.Status -ne 'Valid' -or
+                  $signature.SignerCertificate.Subject -notmatch 'CN=Kyle Graehl(?:,|$)') {
+                throw "Installed binary has an invalid or unexpected signature: $binary"
+              }
+            }
             $torrentExtension = Get-Item 'Registry::HKEY_CURRENT_USER\Software\Classes\.torrent'
-            $torrentCommand = Get-Item 'Registry::HKEY_CURRENT_USER\Software\Classes\com.jstorrent.rstorrent.torrent\shell\open\command'
+            $fileClass = if ($env:PACKAGE_PRODUCT -eq 'JSTorrent') { 'com.jstorrent.desktop.torrent' } else { 'com.jstorrent.rstorrent.torrent' }
+            $torrentCommand = Get-Item "Registry::HKEY_CURRENT_USER\Software\Classes\$fileClass\shell\open\command"
             $magnet = Get-Item 'Registry::HKEY_CURRENT_USER\Software\Classes\magnet'
             $magnetCommand = Get-Item 'Registry::HKEY_CURRENT_USER\Software\Classes\magnet\shell\open\command'
             @{
@@ -447,7 +617,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) {
               throw "Installed Windows distribution inspection failed"
             }
-            node scripts/validate-desktop-package.mjs --windows-registry-json "$env:RUNNER_TEMP\rstorrent-registry.json"
+            node scripts/validate-desktop-package.mjs --windows-registry-json "$env:RUNNER_TEMP\rstorrent-registry.json" --product "$env:PACKAGE_PRODUCT"
             if ($LASTEXITCODE -ne 0) {
               throw "Installed Windows activation registry validation failed"
             }
@@ -463,15 +633,21 @@ jobs:
         shell: bash
         run: |
           test "$(find target/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' | wc -l)" -eq 1
-          test "$(find target/release/bundle/deb -maxdepth 1 -type f -name '*.deb' | wc -l)" -eq 1
-          test "$(find target/release/bundle/rpm -maxdepth 1 -type f -name '*.rpm' | wc -l)" -eq 1
-          for kind in appimage deb rpm; do
+          KINDS=(appimage)
+          if [ "$PACKAGE_PRODUCT" != JSTorrent ]; then
+            test "$(find target/release/bundle/deb -maxdepth 1 -type f -name '*.deb' | wc -l)" -eq 1
+            test "$(find target/release/bundle/rpm -maxdepth 1 -type f -name '*.rpm' | wc -l)" -eq 1
+            KINDS+=(deb rpm)
+          else
+            test -z "$(find target/release/bundle -type f \( -name '*.deb' -o -name '*.rpm' \) -print -quit)"
+          fi
+          for kind in "${KINDS[@]}"; do
             EXTRACT_DIR="$RUNNER_TEMP/rstorrent-$kind"
             mkdir -p "$EXTRACT_DIR"
             NATIVE_NOTICE_ARGS=()
             case "$kind" in
               appimage)
-                NATIVE_NOTICE_ARGS=(--require-native-notices)
+                NATIVE_NOTICE_ARGS=(--require-native-notices --require-mit-native)
                 PACKAGE=$(find target/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' -print -quit)
                 PACKAGE=$(realpath "$PACKAGE")
                 (cd "$EXTRACT_DIR" && "$PACKAGE" --appimage-extract >/dev/null)
@@ -491,7 +667,7 @@ jobs:
             DESKTOP_FILE=$(find "$SEARCH_ROOT" -type f -name '*.desktop' -print -quit)
             test -n "$DESKTOP_FILE"
             desktop-file-validate "$DESKTOP_FILE"
-            node scripts/validate-desktop-package.mjs --linux-desktop "$DESKTOP_FILE"
+            node scripts/validate-desktop-package.mjs --linux-desktop "$DESKTOP_FILE" --product "$PACKAGE_PRODUCT"
             python3 scripts/inspect-distribution.py --root "$SEARCH_ROOT" "${NATIVE_NOTICE_ARGS[@]}" --output "artifacts/distribution/linux-$kind.json"
           done
 
@@ -517,7 +693,7 @@ jobs:
             --run-id "$GITHUB_RUN_ID" \
             --attempt "$GITHUB_RUN_ATTEMPT" \
             --version "$RELEASE_VERSION" \
-            --output artifacts/desktop-release-leg
+            --output artifacts/desktop-release-leg --product "$PACKAGE_PRODUCT"
 
       - name: Retain signed release leg for collection
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -526,6 +702,18 @@ jobs:
           path: artifacts/desktop-release-leg/*
           if-no-files-found: error
           retention-days: 14
+          compression-level: 0
+
+      - name: Retain failed candidate bundle outputs
+        if: failure() && needs.release-input.outputs.production == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: jstorrent-failed-bundles-${{ matrix.lane }}-${{ github.run_id }}
+          path: |
+            target/release/bundle/
+            target/${{ matrix.rust_target }}/release/bundle/
+          if-no-files-found: ignore
+          retention-days: 7
           compression-level: 0
 
       - name: Clean up macOS keychain
@@ -547,6 +735,9 @@ jobs:
       RELEASE_TAG: ${{ needs.release-input.outputs.tag }}
       RELEASE_VERSION: ${{ needs.release-input.outputs.version }}
       RELEASE_CHANNEL: ${{ needs.release-input.outputs.channel }}
+      PRODUCTION_PUBLICATION: ${{ needs.release-input.outputs.production_publication }}
+      PACKAGE_PRODUCT: ${{ needs.release-input.outputs.production == 'true' && 'JSTorrent' || 'RSTorrent' }}
+      PACKAGE_DISPLAY_NAME: ${{ needs.release-input.outputs.production == 'true' && 'JSTorrent' || 'JSTorrent Preview' }}
       SOURCE_SHA: ${{ needs.release-input.outputs.source_sha }}
     steps:
       - name: Check out source
@@ -585,7 +776,8 @@ jobs:
             --repository "$GITHUB_REPOSITORY" \
             --channel "$RELEASE_CHANNEL" \
             --version "$RELEASE_VERSION" \
-            --tag "$RELEASE_TAG"
+            --tag "$RELEASE_TAG" --product "$PACKAGE_PRODUCT" \
+            --production-publication "$PRODUCTION_PUBLICATION"
           VALIDATION_TAG=$(jq -r .tagName artifacts/desktop-release-output/release.json)
           node .github/scripts/validate-desktop-release.mjs \
             --release artifacts/desktop-release-output/release.json \
@@ -593,15 +785,46 @@ jobs:
             --tag "$VALIDATION_TAG" \
             --repository "$GITHUB_REPOSITORY"
 
-      - name: Retain private rehearsal manifest
-        if: needs.release-input.outputs.publish == 'false' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
+      - name: Prepare private schema metadata source
+        if: needs.release-input.outputs.qualification_schema_bump == 'true'
+        env:
+          JSTORRENT_PRIVATE_UPDATE_QUALIFICATION: 'true'
+        run: node scripts/prepare-private-update-qualification.mjs
+
+      - name: Authenticate production database admission metadata
+        if: needs.release-input.outputs.production == 'true' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          npm ci --prefix clients/web
+          bash scripts/configure-ci-apt.sh
+          sudo apt-get update
+          sudo apt-get install -y minisign
+          node scripts/sign-desktop-compatibility.mjs artifacts/desktop-release-output
+          if [ "${{ needs.release-input.outputs.publish }}" != true ]; then
+            node scripts/sign-desktop-cohort.mjs artifacts/desktop-release-output
+          fi
+
+      - name: Verify every production updater payload signature
+        if: needs.release-input.outputs.production == 'true' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
+        run: |
+          bash scripts/configure-ci-apt.sh
+          sudo apt-get update
+          sudo apt-get install -y minisign
+          node scripts/verify-desktop-signatures.mjs artifacts/desktop-release-output/assets JSTorrent
+
+      - name: Retain candidate diagnostic manifest and payloads
+        if: always() && needs.release-input.outputs.publish == 'false' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: desktop-release-rehearsal-manifest-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             artifacts/desktop-release-output/release.json
             artifacts/desktop-release-output/notes.md
-            artifacts/desktop-release-output/assets/latest.json
+            artifacts/desktop-release-output/cohort-candidate.json
+            artifacts/desktop-release-output/private-qualification-source.json
+            artifacts/desktop-release-output/assets/*
           if-no-files-found: error
           retention-days: 14
 
@@ -611,6 +834,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
+          if [ "$PRODUCTION_PUBLICATION" = true ] && [ "$RELEASE_CHANNEL" = stable ]; then
+            git fetch --no-tags origin "refs/tags/$RELEASE_TAG"
+            TAG_COMMIT=$(git rev-parse 'FETCH_HEAD^{commit}')
+            test "$TAG_COMMIT" = "$SOURCE_SHA" || { echo "::error::Production tag moved away from the built source"; exit 1; }
+          fi
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo "::error::Release $RELEASE_TAG already exists; inspect its private draft before retrying"
             exit 1
@@ -619,7 +847,7 @@ jobs:
           if [ "$RELEASE_CHANNEL" = latest ]; then KIND=(--prerelease); fi
           gh release create "$RELEASE_TAG" \
             --target "$SOURCE_SHA" \
-            --title "RSTorrent Desktop v$RELEASE_VERSION" \
+            --title "$PACKAGE_DISPLAY_NAME Desktop v$RELEASE_VERSION" \
             --notes-file artifacts/desktop-release-output/notes.md \
             --draft "${KIND[@]}"
 
@@ -648,8 +876,37 @@ jobs:
             "$RELEASE_DIR/uploaded-release.json" "$RELEASE_DIR/SHA256SUMS"
           gh release upload "$RELEASE_TAG" "$RELEASE_DIR/SHA256SUMS" --clobber
 
+      - name: Install pinned Rust for corresponding-source preparation
+        if: needs.release-input.outputs.production_publication == 'true'
+        uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613 # 1.97.0
+
+      - name: Bind corresponding AppImage sources before public publication
+        if: needs.release-input.outputs.production_publication == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash scripts/configure-ci-apt.sh
+          sudo apt-get update
+          sudo apt-get install -y squashfs-tools
+          RELEASE_DIR=artifacts/desktop-release-output
+          SOURCE_ARCHIVE="$RUNNER_TEMP/JSTorrent_${RELEASE_VERSION}_AppImage-sources-final.tar.gz"
+          python3 scripts/package-current-appimage-sources.py \
+            --source-sha "$SOURCE_SHA" --release-dir "$RELEASE_DIR" \
+            --cache "$RUNNER_TEMP/source-inputs" --output "$SOURCE_ARCHIVE"
+          python3 - "$RELEASE_DIR" "$SOURCE_ARCHIVE" <<'PY'
+          import hashlib,json,pathlib,sys
+          root,source=map(pathlib.Path,sys.argv[1:])
+          core=json.loads((root/'release.json').read_text())['assets']
+          digest=hashlib.file_digest(source.open('rb'),'sha256').hexdigest()
+          rows=[f"{a['digest'][7:]}  {a['name']}" for a in core if not a['name'].endswith('.sig')]
+          rows.append(digest+'  '+source.name)
+          (root/'SHA256SUMS').write_text('\n'.join(sorted(rows))+'\n')
+          PY
+          gh release upload "$RELEASE_TAG" "$SOURCE_ARCHIVE"
+          gh release upload "$RELEASE_TAG" "$RELEASE_DIR/SHA256SUMS" --clobber
+
       - name: Remove redundant detached signatures
-        if: needs.release-input.outputs.publish == 'true' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
+        if: needs.release-input.outputs.publish == 'true' && needs.release-input.outputs.production != 'true' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -666,7 +923,7 @@ jobs:
         shell: bash
         run: |
           if [ "$RELEASE_CHANNEL" = latest ]; then
-            CHANGELOG="Signed Latest build from verified main source."
+            CHANGELOG="Signed Latest build from verified main source. Browser integration requires JSTorrent extension 1.1.5 or newer; older extensions may fail to display the library."
           else
             CHANGELOG=$(awk "/^## \[$RELEASE_VERSION\]/{found=1; next} /^## \[/{found=0} found" CHANGELOG.md)
           fi
@@ -678,7 +935,11 @@ jobs:
             echo "- Five signed updater targets validated from \`latest.json\`."
             echo "- Developer ID signing and notarization validated for both macOS architectures."
             echo "- Authenticode signatures validated for Windows NSIS and MSI."
-            echo "- Linux AppImage, DEB, and RPM packages validated for x86_64 and ARM64."
+            if [ "$PACKAGE_PRODUCT" = JSTorrent ]; then
+              echo "- Best-effort Linux AppImages validated for x86_64 and ARM64."
+            else
+              echo "- Linux AppImage, DEB, and RPM packages validated for x86_64 and ARM64."
+            fi
             echo "- Workflow: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             echo "- Commit: \`${SOURCE_SHA}\`"
             echo "- Exact hashes: https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/SHA256SUMS"
@@ -687,11 +948,34 @@ jobs:
           } > "$RUNNER_TEMP/release-notes.md"
           gh release edit "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
 
+      - name: Verify complete production draft before publication
+        if: needs.release-input.outputs.production_publication == 'true' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_DIR=artifacts/desktop-release-output
+          gh release view "$RELEASE_TAG" --json tagName,isDraft,isPrerelease,assets > "$RELEASE_DIR/final-production-draft.json"
+          node .github/scripts/desktop-release-artifacts.mjs verify-production-draft \
+            --local "$RELEASE_DIR/release.json" \
+            --remote "$RELEASE_DIR/final-production-draft.json" \
+            --checksums "$RELEASE_DIR/SHA256SUMS" \
+            --sources "$RUNNER_TEMP/JSTorrent_${RELEASE_VERSION}_AppImage-sources-final.tar.gz"
+          node .github/scripts/validate-desktop-release.mjs \
+            --release "$RELEASE_DIR/final-production-draft.json" \
+            --latest "$RELEASE_DIR/assets/latest.json" \
+            --tag "$RELEASE_TAG" \
+            --repository "$GITHUB_REPOSITORY"
+
       - name: Publish validated release
         if: needs.release-input.outputs.publish == 'true' && needs.source-checks.result == 'success' && needs.build-desktop.result == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ "$PRODUCTION_PUBLICATION" = true ] && [ "$RELEASE_CHANNEL" = stable ]; then
+            git fetch --no-tags origin "refs/tags/$RELEASE_TAG"
+            TAG_COMMIT=$(git rev-parse 'FETCH_HEAD^{commit}')
+            test "$TAG_COMMIT" = "$SOURCE_SHA" || { echo "::error::Production tag moved away from the validated draft"; exit 1; }
+          fi
           if [ "$RELEASE_CHANNEL" = latest ]; then
             gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false
           else

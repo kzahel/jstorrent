@@ -21,11 +21,8 @@ import type {
   TrackerRow,
   TrackerSet,
 } from "../model";
-import {
-  DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW,
-  type DhtInspectionView,
-  type SpeedHistoryView,
-} from "../../api";
+import type { DhtInspectionView, SpeedHistoryView } from "../../api";
+import { DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW } from "../../api/generated/v1";
 import { emptyDiskSet } from "../state";
 
 const BASE_TIME_MS = Date.UTC(2026, 7, 1, 8, 0, 0);
@@ -33,11 +30,13 @@ const BUNNY_ID = "t1-00000000000000000000000000000001";
 const SINTEL_ID = "t1-00000000000000000000000000000002";
 const ARCH_ID = "t1-00000000000000000000000000000003";
 const MEDIA_LIBRARY_ID = "t1-00000000000000000000000000000004";
+const DEBIAN_ID = "t1-00000000000000000000000000000005";
 const DEMO_INFO_HASHES: Readonly<Record<string, string>> = {
   [BUNNY_ID]: "a962f460b83861cfb5faa1d7ad7da9c3f3cc2fc4",
   [SINTEL_ID]: "08ada5a7a6183aae1e09d831df6748d566095a10",
   [ARCH_ID]: "e2d1f50a5d72bfc9c4d6c3f9913b1dfb2cf4f210",
   [MEDIA_LIBRARY_ID]: "c3cc3e6ca44942f80e7b7b318773c18360864027",
+  [DEBIAN_ID]: "6a1c4d7e2b9f80315d2e4c6a8b0f1e3d5c7a9b2e",
 };
 
 export const DEMO_SCENARIOS: readonly DemoScenarioSummary[] = [
@@ -203,6 +202,13 @@ export const DEMO_SCENARIOS: readonly DemoScenarioSummary[] = [
     autoplay: true,
   },
   {
+    id: "seeding-limits",
+    title: localizedMessage("inspection.demo.catalog.seeding.limits"),
+    description: localizedMessage("inspection.demo.catalog.seeding.limits.description"),
+    durationMs: 60_000,
+    autoplay: false,
+  },
+  {
     id: "empty-library",
     title: localizedMessage("inspection.demo.catalog.empty.library"),
     description: localizedMessage("inspection.demo.catalog.a.clean.first.run.library.with.no"),
@@ -262,7 +268,7 @@ export function buildScenarioSnapshot(
     revision,
     durableRevision: String(revision),
     session: {
-      connection: "demo",
+      connection: { type: "demo" },
       downloadRate: sum(active.map((torrent) => torrent.downloadRate)),
       uploadRate: sum(active.map((torrent) => torrent.uploadRate ?? 0)),
       dhtNodes: scenarioId === "empty-library" ? 0 : 638,
@@ -282,6 +288,7 @@ export function buildScenarioSnapshot(
     swarmByTorrent,
     filesByTorrent,
     mediaByTorrent,
+    libraryMedia: null,
     trackersByTorrent,
     piecesByTorrent,
     disk,
@@ -297,6 +304,9 @@ export function buildScenarioSnapshot(
     },
     viewStatus: {
       library: { status: "ready" },
+      // DemoApplication answers Library queries itself; a raw scenario
+      // snapshot stands for a host without the projection.
+      libraryMedia: { status: "unsupported", reason: "The media library is unavailable" },
       torrentSummary: { status: "ready" },
       peers: { status: "ready" },
       swarm: { status: "ready" },
@@ -540,16 +550,12 @@ function buildSpeedHistory(
       "logical_hash_read",
       "payload_redundant",
       "payload_hash_failed",
+      "payload_uploaded",
     ].map((metric) => ({
       metric: metric as SpeedHistoryView["catalog"][number]["metric"],
       available: true,
       reason: null,
     })),
-    {
-      metric: "payload_uploaded",
-      available: false,
-      reason: localizedMessage("inspection.demo.catalog.upload.and.seeding.are.not.implemented"),
-    },
   ];
   return {
     captured_millis: completeThrough.toString(),
@@ -573,7 +579,9 @@ function buildSpeedHistory(
               ? scenarioId === "speed-idle" ? "0" : "7340032"
               : entry.metric === "payload_verified"
                 ? scenarioId === "speed-idle" ? "0" : "6815744"
-                : demoTrafficRate(entry.metric, scenarioId),
+                : entry.metric === "payload_uploaded"
+                  ? scenarioId === "speed-idle" ? "0" : "1258291"
+                  : demoTrafficRate(entry.metric, scenarioId),
       })),
     series: [
       {
@@ -590,6 +598,11 @@ function buildSpeedHistory(
         metric: "payload_verified",
         current_rate_bytes: "6815744",
         values: makeValues(6.8 * 1024 * 1024, 7),
+      },
+      {
+        metric: "payload_uploaded",
+        current_rate_bytes: "1258291",
+        values: makeValues(1.2 * 1024 * 1024, 11),
       },
     ],
     catalog,
@@ -676,6 +689,8 @@ function buildScenarioContent(
     case "speed-reset":
     case "dht-observatory":
       return healthyDownload(elapsedMs);
+    case "seeding-limits":
+      return seedingLimits();
     case "empty-library":
       return { torrents: [], peers: {}, logs: [] };
     }
@@ -826,6 +841,68 @@ function healthyDownload(elapsedMs: number): ScenarioContent {
   };
 }
 
+/**
+ * A finished torrent stopped by its own share ratio limit, which offers Keep
+ * seeding, beside one that stops after a day of seeding.
+ */
+function seedingLimits(): ScenarioContent {
+  return {
+    torrents: [
+      torrent({
+        id: DEBIAN_ID,
+        name: "Debian 13.1 amd64 netinst",
+        status: "paused",
+        sizeBytes: 790_626_304,
+        progress: 1,
+        downloadedBytes: 790_626_304,
+        lifetimeUploadedBytes: "1604971397",
+        lifetimeDownloadedBytes: "790626304",
+        activeSeconds: "66120",
+        finishedSeconds: "64800",
+        seedingSeconds: "64800",
+        shareRatioHundredths: "203",
+        seedStop: {
+          limits: {
+            ratio_percent: { type: "limited", value: 200 },
+            time_seconds: { type: "use_global" },
+          },
+          stopped: true,
+        },
+        peersKnown: 38,
+        progressReason: "Stopped at its share ratio limit",
+        addedAtMs: BASE_TIME_MS - 172_800_000,
+      }),
+      torrent({
+        id: ARCH_ID,
+        name: "Arch Linux 2026.08.01 x86_64",
+        status: "complete",
+        sizeBytes: 1_265_348_608,
+        progress: 1,
+        uploadRate: 1_820_000,
+        uploadedBytes: 1_796_794_023,
+        lifetimeDownloadedBytes: "1265348608",
+        activeSeconds: "66900",
+        finishedSeconds: "64800",
+        seedingSeconds: "64800",
+        shareRatioHundredths: "142",
+        seedStop: {
+          limits: {
+            ratio_percent: { type: "use_global" },
+            time_seconds: { type: "limited", value: 86_400 },
+          },
+          stopped: false,
+        },
+        peersConnected: 6,
+        peersKnown: 47,
+        progressReason: localizedMessage("inspection.demo.catalog.seeding.to.6.peers"),
+        addedAtMs: BASE_TIME_MS - 86_400_000,
+      }),
+    ],
+    peers: {},
+    logs: [],
+  };
+}
+
 function mediaLibrary(): ScenarioContent {
   const catalog = namedMediaLibraryCatalog();
   const requiredBytes = catalog.files.order.reduce(
@@ -851,6 +928,8 @@ function mediaLibrary(): ScenarioContent {
         id: MEDIA_LIBRARY_ID,
         name: "North Shore Stories · Seasons 1–2",
         status: "downloading",
+        // The one private (BEP 27) demo torrent: a members-only series.
+        privateTorrent: true,
         sizeBytes: Number(totalBytes),
         progress: Number(doneBytes) / Number(totalBytes),
         downloadedBytes: Number(doneBytes),
@@ -1276,6 +1355,8 @@ function stalledMetadata(elapsedMs: number): ScenarioContent {
         name: "Big Buck Bunny (magnet metadata)",
         status: "metadata",
         sizeBytes: null,
+        // The magnet's `xl`, shown as from the link until metadata arrives.
+        sourceSizeBytes: 276_445_467,
         progress: null,
         peersConnected: peers.length,
         peersKnown: 127,
@@ -1326,7 +1407,7 @@ function trackerRecovery(elapsedMs: number): ScenarioContent {
     };
   }
   const rate = progress === null || progress === 1 ? 0 : 8_800_000 + wave(seconds, 1_200_000);
-  const observedAtMs = Date.now();
+  const nowMs = performance.now();
   const primaryStatus: TrackerRow["status"] =
     seconds < 3
       ? "announcing"
@@ -1352,15 +1433,14 @@ function trackerRecovery(elapsedMs: number): ScenarioContent {
     intervalSeconds: seconds < 22 ? null : 600,
     nextAction:
       seconds < 3 ? null : seconds < 22 ? "retry" : "reannounce",
-    nextActionInMs:
+    nextActionAtMs:
       seconds < 3
         ? null
         : seconds < 22
-          ? Math.max(0, (22 - seconds) * 1_000)
-          : Math.max(0, (622 - seconds) * 1_000),
-    observedAtMs,
-    lastSuccessAgeMs: seconds < 22 ? null : (seconds - 22) * 1_000,
-    lastFailureAgeMs: seconds < 3 ? null : (seconds - 3) * 1_000,
+          ? nowMs + Math.max(0, (22 - seconds) * 1_000)
+          : nowMs + Math.max(0, (622 - seconds) * 1_000),
+    lastSuccessAtMs: seconds < 22 ? null : nowMs - (seconds - 22) * 1_000,
+    lastFailureAtMs: seconds < 3 ? null : nowMs - (seconds - 3) * 1_000,
     error: seconds >= 3 && seconds < 22 ? "UDP announce timed out" : null,
   };
   const fallback: TrackerRow = {
@@ -1381,11 +1461,10 @@ function trackerRecovery(elapsedMs: number): ScenarioContent {
     leechers: seconds < 22 ? null : 4,
     intervalSeconds: seconds < 22 ? null : 900,
     nextAction: seconds < 22 ? "announce" : "reannounce",
-    nextActionInMs:
-      seconds < 22 ? 0 : Math.max(0, (922 - seconds) * 1_000),
-    observedAtMs,
-    lastSuccessAgeMs: seconds < 22 ? null : (seconds - 22) * 1_000,
-    lastFailureAgeMs: null,
+    nextActionAtMs:
+      nowMs + (seconds < 22 ? 0 : Math.max(0, (922 - seconds) * 1_000)),
+    lastSuccessAtMs: seconds < 22 ? null : nowMs - (seconds - 22) * 1_000,
+    lastFailureAtMs: null,
     error: null,
   };
   return {
@@ -1969,6 +2048,9 @@ function torrent(input: Partial<TorrentRow> & Pick<TorrentRow, "id" | "name" | "
       download: { type: "unlimited" },
     },
     sizeBytes: size,
+    ...(size === null && input.sourceSizeBytes != null
+      ? { sourceSizeBytes: input.sourceSizeBytes }
+      : {}),
     progress,
     checking: input.checking ?? null,
     downloadRate: input.downloadRate ?? 0,
@@ -2002,11 +2084,13 @@ function torrent(input: Partial<TorrentRow> & Pick<TorrentRow, "id" | "name" | "
             finished_time_met: false,
           }
         : null),
+    seedStop: input.seedStop ?? null,
     addedAtMs: input.addedAtMs ?? BASE_TIME_MS - 3_600_000,
     archived: input.archived ?? false,
     removalState: input.removalState ?? null,
     deleteDataSupported: input.deleteDataSupported ?? true,
     forceRecheckAvailable: input.forceRecheckAvailable ?? false,
+    privateTorrent: input.privateTorrent ?? false,
     infoHash:
       input.infoHash ??
       DEMO_INFO_HASHES[input.id] ??
@@ -2051,7 +2135,7 @@ function buildPeers(
   seconds: number,
   torrentProgress: number,
 ): PeerRow[] {
-  const clients = ["libtorrent 2.0.13", "qBittorrent 5.1", "Transmission 4.1", "Deluge 2.2", "WebTorrent 2.8", "RSTorrent dev"];
+  const clients = ["libtorrent 2.0.13", "qBittorrent 5.1", "Transmission 4.1", "Deluge 2.2", "WebTorrent 2.8", "JSTorrent dev"];
   const sources = ["tracker", "dht", "tracker", "dht", "pex", "manual"] as const;
   const rows: PeerRow[] = [];
   for (let index = 0; index < count; index += 1) {

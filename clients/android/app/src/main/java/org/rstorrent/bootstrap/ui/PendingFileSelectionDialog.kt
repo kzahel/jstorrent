@@ -63,6 +63,7 @@ internal fun PendingFileSelectionDialog(
     onRepairRoot: () -> Unit,
     onConfirm: (PendingFileSelectionDraft, Boolean) -> Unit,
     onCancel: () -> Unit,
+    onDownloadAll: (Boolean) -> Unit,
 ) {
     var draft by remember(torrent.torrentId) { mutableStateOf(PendingFileSelectionDraft()) }
     var disableFuture by remember(torrent.torrentId) { mutableStateOf(false) }
@@ -157,7 +158,7 @@ internal fun PendingFileSelectionDialog(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    stringResource(R.string.file_selection_explanation),
+                    stringResource(R.string.file_selection_explanation) + " " + stringResource(R.string.safety_selection_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -218,13 +219,14 @@ internal fun PendingFileSelectionDialog(
                             val checked = draft.selected(file)
                             Row(
                                 modifier =
-                                    Modifier.fillMaxWidth().clickable {
+                                    Modifier.fillMaxWidth().clickable(enabled = file.safety?.blocked != true) {
                                         toggleFile(file)
                                     }.padding(vertical = 7.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Checkbox(
                                     checked = checked,
+                                    enabled = file.safety?.blocked != true,
                                     onCheckedChange = { toggleFile(file) },
                                 )
                                 Column(Modifier.weight(1f)) {
@@ -234,7 +236,7 @@ internal fun PendingFileSelectionDialog(
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                     Text(
-                                        formatBytes(file.lengthBytes),
+                                        file.safety?.takeIf { it.blocked }?.let { stringResource(R.string.safety_skip_detail, it.matchedExtension, safetyPresetLabel(it.preset)) } ?: formatBytes(file.lengthBytes),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -254,6 +256,14 @@ internal fun PendingFileSelectionDialog(
                         onCheckedChange = { disableFuture = it },
                     )
                     Text(stringResource(R.string.file_selection_disable_future))
+                }
+                if (metadataReady) {
+                    TextButton(
+                        onClick = { onConfirm(draft.selectAll(), disableFuture) },
+                        enabled = rootReady,
+                    ) {
+                        Text(stringResource(R.string.action_download_all))
+                    }
                 }
                 (draftError ?: error)?.let {
                     Text(it, color = MaterialTheme.colorScheme.error)
@@ -276,15 +286,21 @@ internal fun PendingFileSelectionDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 ) {
                     OutlinedButton(onClick = onCancel) { Text(stringResource(R.string.action_cancel)) }
-                    Button(
-                        onClick = { onConfirm(draft, disableFuture) },
-                        enabled = metadataReady && rootReady,
-                    ) {
-                        Text(
-                            stringResource(
-                                if (summary.count == 0L) R.string.action_add else R.string.action_download,
-                            ),
-                        )
+                    if (!metadataReady) {
+                        Button(onClick = { onDownloadAll(disableFuture) }, enabled = rootReady) {
+                            Text(stringResource(R.string.action_download_all))
+                        }
+                    } else {
+                        Button(
+                            onClick = { onConfirm(draft, disableFuture) },
+                            enabled = rootReady,
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (summary.count == 0L) R.string.action_add else R.string.action_download,
+                                ),
+                            )
+                        }
                     }
                 }
             }

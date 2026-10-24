@@ -55,7 +55,7 @@ if [ "$ARCH" != "$HOST_ARCH" ] && [ -z "$BINARY_DIRECTORY" ]; then
 fi
 
 cd "$REPO_ROOT"
-VITE_RSTORRENT_DEFAULT_LIVE=same-origin npm run build --prefix clients/web
+VITE_RSTORRENT_DEFAULT_LIVE=same-origin npm run build:hosted --prefix clients/web
 if [ -z "$BINARY_DIRECTORY" ]; then
     cargo build --release -p rstorrent-gateway -p rstorrent-headless
     BINARY_DIRECTORY="$REPO_ROOT/target/release"

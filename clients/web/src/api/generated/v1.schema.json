@@ -622,6 +622,28 @@
       ],
       "type": "object"
     },
+    "ApiClientInfo": {
+      "description": "What a client reports about itself when it connects. Informational\nonly: hosts count and log it and never decide features from it. The\nstrings are open so that a newer client kind or version format never\nbreaks a host's handshake.",
+      "properties": {
+        "build_id": {
+          "description": "Source commit, or a local marker such as `development`.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "`remote` (the hosted controller), `extension` (an extension page) or\n`web` (a page the host serves); newer clients may report others.",
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "build_id"
+      ],
+      "type": "object"
+    },
     "ApiEncoding": {
       "enum": [
         "json",
@@ -703,6 +725,16 @@
         },
         "limits": {
           "$ref": "#/$defs/ApiLimits"
+        },
+        "product": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApiProductInfo"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -776,6 +808,50 @@
       ],
       "type": "object"
     },
+    "ApiProductInfo": {
+      "description": "Facts the host product reports about itself and the profile it serves.\nThey are fixed for the lifetime of the host process.",
+      "properties": {
+        "build_id": {
+          "description": "Source commit, or a local marker such as `development`.",
+          "type": "string"
+        },
+        "identifier": {
+          "description": "Desktop or Android application identifier, when the host has one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "description": "`desktop`, `headless`, `android`, `crostini` or `gateway`.",
+          "type": "string"
+        },
+        "profile_id": {
+          "type": "string"
+        },
+        "profile_location": {
+          "description": "Durable profile directory; absent for an ephemeral profile.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "build_id",
+        "target",
+        "profile_id"
+      ],
+      "type": "object"
+    },
     "ApiVersion": {
       "properties": {
         "current": {
@@ -799,6 +875,22 @@
     },
     "ApplicationCall": {
       "oneOf": [
+        {
+          "properties": {
+            "request": {
+              "$ref": "#/$defs/HostUpdateRequest"
+            },
+            "type": {
+              "const": "product_update",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "request"
+          ],
+          "type": "object"
+        },
         {
           "properties": {
             "request": {
@@ -896,6 +988,22 @@
       "oneOf": [
         {
           "properties": {
+            "snapshot": {
+              "$ref": "#/$defs/HostUpdateSnapshot"
+            },
+            "type": {
+              "const": "product_update",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "snapshot"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
             "response": {
               "$ref": "#/$defs/ResponseEnvelope"
             },
@@ -972,11 +1080,42 @@
       "oneOf": [
         {
           "properties": {
+            "call_id": {
+              "type": "string"
+            },
+            "request": {
+              "$ref": "#/$defs/ChooseDownloadRootRequest"
+            },
+            "type": {
+              "const": "choose_download_root",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "call_id",
+            "request"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
             "api_version": {
               "format": "uint16",
               "maximum": 65535,
               "minimum": 0,
               "type": "integer"
+            },
+            "client": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ApiClientInfo"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The client's own product identity. Hosts released before it\nignore it; a malformed identity is dropped, never fatal."
             },
             "client_instance_id": {
               "type": "string"
@@ -1252,6 +1391,26 @@
     },
     "ApplicationServerFrame": {
       "oneOf": [
+        {
+          "properties": {
+            "call_id": {
+              "type": "string"
+            },
+            "response": {
+              "$ref": "#/$defs/ChooseDownloadRootResponse"
+            },
+            "type": {
+              "const": "download_root_chosen",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "call_id",
+            "response"
+          ],
+          "type": "object"
+        },
         {
           "properties": {
             "api_version": {
@@ -1711,6 +1870,15 @@
         "encryption": {
           "$ref": "#/$defs/EncryptionPolicy"
         },
+        "file_safety": {
+          "$ref": "#/$defs/FileSafetySettings",
+          "default": {
+            "custom_extensions": [],
+            "enabled": true,
+            "mark_internet_origin": true,
+            "preset": "recommended"
+          }
+        },
         "finished_download_ratio_limit_percent": {
           "default": 700,
           "format": "uint32",
@@ -1749,6 +1917,20 @@
           "maximum": 65535,
           "minimum": 1024,
           "type": "integer"
+        },
+        "seed_stop_ratio_percent": {
+          "$ref": "#/$defs/SeedStopLimit",
+          "default": {
+            "type": "off"
+          },
+          "description": "Stop a finished torrent once its share ratio reaches this percent."
+        },
+        "seed_stop_time_seconds": {
+          "$ref": "#/$defs/SeedStopLimit",
+          "default": {
+            "type": "off"
+          },
+          "description": "Stop a finished torrent once it has seeded this many seconds."
         },
         "share_ratio_limit_percent": {
           "default": 200,
@@ -1907,6 +2089,12 @@
           "maximum": 65535,
           "minimum": 1024,
           "type": "integer"
+        },
+        "seed_stop_ratio_percent": {
+          "$ref": "#/$defs/SeedStopLimit"
+        },
+        "seed_stop_time_seconds": {
+          "$ref": "#/$defs/SeedStopLimit"
         },
         "share_ratio_limit_percent": {
           "format": "uint32",
@@ -2375,6 +2563,27 @@
         },
         {
           "properties": {
+            "disable_future": {
+              "default": false,
+              "type": "boolean"
+            },
+            "torrent_id": {
+              "pattern": "^t1-[0-9a-f]{32}$",
+              "type": "string"
+            },
+            "type": {
+              "const": "download_all_pending_add",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "torrent_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
             "torrent_id": {
               "pattern": "^t1-[0-9a-f]{32}$",
               "type": "string"
@@ -2387,6 +2596,52 @@
           "required": [
             "type",
             "torrent_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "settings": {
+              "$ref": "#/$defs/FileSafetySettings"
+            },
+            "type": {
+              "const": "update_file_safety_settings",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "settings"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "allowed": {
+              "type": "boolean"
+            },
+            "file_indices": {
+              "items": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "torrent_id": {
+              "pattern": "^t1-[0-9a-f]{32}$",
+              "type": "string"
+            },
+            "type": {
+              "const": "set_file_safety_override",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "torrent_id",
+            "file_indices",
+            "allowed"
           ],
           "type": "object"
         },
@@ -2469,6 +2724,17 @@
         },
         {
           "properties": {
+            "options": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/MagnetExportOptions"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Share parameters. Absent, the export is the Tactical 107 magnet,\nbyte for byte; present, the engine owns every `xl`, `so` and\n`x.pe` in the result."
+            },
             "torrent_id": {
               "pattern": "^t1-[0-9a-f]{32}$",
               "type": "string"
@@ -2677,6 +2943,25 @@
         "stream"
       ],
       "type": "string"
+    },
+    "DesktopUpdateAttempt": {
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "succeeded": {
+          "type": "boolean"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "succeeded",
+        "message"
+      ],
+      "type": "object"
     },
     "DhtAddressFamilyView": {
       "enum": [
@@ -3788,6 +4073,28 @@
         {
           "properties": {
             "field": {
+              "const": "safety",
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FileSafetyView"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "field"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "field": {
               "const": "done_bytes",
               "type": "string"
             },
@@ -3877,6 +4184,82 @@
       "required": [
         "file_id",
         "fields"
+      ],
+      "type": "object"
+    },
+    "FileSafetyPreset": {
+      "enum": [
+        "recommended",
+        "archives",
+        "custom"
+      ],
+      "type": "string"
+    },
+    "FileSafetySettings": {
+      "additionalProperties": false,
+      "properties": {
+        "custom_extensions": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 128,
+          "type": "array"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "mark_internet_origin": {
+          "type": "boolean"
+        },
+        "preset": {
+          "$ref": "#/$defs/FileSafetyPreset"
+        }
+      },
+      "required": [
+        "enabled",
+        "preset",
+        "custom_extensions",
+        "mark_internet_origin"
+      ],
+      "type": "object"
+    },
+    "FileSafetySummary": {
+      "properties": {
+        "blocked_file_bytes": {
+          "type": "string"
+        },
+        "blocked_file_count": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "blocked_file_count",
+        "blocked_file_bytes"
+      ],
+      "type": "object"
+    },
+    "FileSafetyView": {
+      "properties": {
+        "blocked": {
+          "type": "boolean"
+        },
+        "matched_extension": {
+          "type": "string"
+        },
+        "overridden": {
+          "type": "boolean"
+        },
+        "preset": {
+          "$ref": "#/$defs/FileSafetyPreset"
+        }
+      },
+      "required": [
+        "matched_extension",
+        "preset",
+        "overridden",
+        "blocked"
       ],
       "type": "object"
     },
@@ -3994,6 +4377,16 @@
           },
           "type": "array"
         },
+        "safety": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FileSafetyView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "selection": {
           "anyOf": [
             {
@@ -4021,6 +4414,192 @@
         "done_bytes",
         "verified_bytes",
         "media_availability"
+      ],
+      "type": "object"
+    },
+    "HostUpdateRequest": {
+      "oneOf": [
+        {
+          "properties": {
+            "action": {
+              "const": "status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "action": {
+              "const": "check",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "action": {
+              "const": "install",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "action": {
+              "const": "select_channel",
+              "type": "string"
+            },
+            "channel": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "channel"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "action": {
+              "const": "set_automatic",
+              "type": "string"
+            },
+            "enabled": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "action",
+            "enabled"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "action": {
+              "const": "activity",
+              "type": "string"
+            },
+            "blocked": {
+              "type": "boolean"
+            },
+            "interacted": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "action",
+            "interacted",
+            "blocked"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "action": {
+              "const": "snooze",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "HostUpdateSnapshot": {
+      "properties": {
+        "automaticAvailable": {
+          "default": false,
+          "type": "boolean"
+        },
+        "automaticInstall": {
+          "type": "boolean"
+        },
+        "canInstall": {
+          "type": "boolean"
+        },
+        "channel": {
+          "type": "string"
+        },
+        "downloadedBytes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lastOutcome": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DesktopUpdateAttempt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "package": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "restartInSeconds": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "totalBytes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "phase",
+        "downloadedBytes",
+        "automaticInstall",
+        "channel",
+        "canInstall",
+        "package"
       ],
       "type": "object"
     },
@@ -4360,6 +4939,426 @@
         }
       ]
     },
+    "LibraryArchivedFilter": {
+      "enum": [
+        "exclude",
+        "include",
+        "only"
+      ],
+      "type": "string"
+    },
+    "LibraryAvailabilityFilter": {
+      "oneOf": [
+        {
+          "enum": [
+            "any"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "offline",
+          "description": "Every byte verified.",
+          "type": "string"
+        },
+        {
+          "const": "incomplete",
+          "description": "Wanted but not yet verified completely.",
+          "type": "string"
+        }
+      ]
+    },
+    "LibraryFacetsView": {
+      "description": "Counts over the items selected by text, archived scope and torrent,\nbefore the kind, role, availability and group filters.",
+      "properties": {
+        "albums": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "audio": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "episodes": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "incomplete": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "items": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "metadata_pending": {
+          "description": "Torrents in scope whose metadata is not verified yet.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "movies": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "offline": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "other_videos": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "series": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "torrents": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tracks": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "video": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "video",
+        "audio",
+        "episodes",
+        "movies",
+        "other_videos",
+        "tracks",
+        "offline",
+        "incomplete",
+        "series",
+        "albums",
+        "torrents",
+        "metadata_pending"
+      ],
+      "type": "object"
+    },
+    "LibraryGroupView": {
+      "properties": {
+        "group_id": {
+          "description": "`series:`, `album:` or `torrent:` followed by the group key.",
+          "type": "string"
+        },
+        "item_count": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "offline_count": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "season_count": {
+          "description": "Distinct seasons of a series; zero for other groups.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        },
+        "torrent_count": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "total_bytes": {
+          "type": "string"
+        },
+        "year": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "group_id",
+        "title",
+        "item_count",
+        "offline_count",
+        "total_bytes",
+        "season_count",
+        "torrent_count"
+      ],
+      "type": "object"
+    },
+    "LibraryGrouping": {
+      "enum": [
+        "none",
+        "series",
+        "album",
+        "torrent"
+      ],
+      "type": "string"
+    },
+    "LibraryMediaItemView": {
+      "properties": {
+        "album_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "album_title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "archived": {
+          "type": "boolean"
+        },
+        "disc_number": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "ending_episode_number": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "episode_number": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "extension": {
+          "type": "string"
+        },
+        "file_index": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "file_name": {
+          "type": "string"
+        },
+        "item_id": {
+          "description": "`<torrent_id>:<file_index>`.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/LibraryMediaKind"
+        },
+        "length_bytes": {
+          "type": "string"
+        },
+        "media_availability": {
+          "$ref": "#/$defs/MediaFileAvailability"
+        },
+        "offline": {
+          "description": "Every byte of the file is verified.",
+          "type": "boolean"
+        },
+        "role": {
+          "$ref": "#/$defs/LibraryMediaRole"
+        },
+        "season_number": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "series_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "series_title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "torrent_id": {
+          "pattern": "^t1-[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "torrent_name": {
+          "type": "string"
+        },
+        "track_number": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "verified_bytes": {
+          "type": "string"
+        },
+        "year": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "item_id",
+        "torrent_id",
+        "torrent_name",
+        "file_index",
+        "file_name",
+        "title",
+        "kind",
+        "role",
+        "extension",
+        "length_bytes",
+        "verified_bytes",
+        "offline",
+        "archived",
+        "media_availability"
+      ],
+      "type": "object"
+    },
+    "LibraryMediaKind": {
+      "enum": [
+        "video",
+        "audio"
+      ],
+      "type": "string"
+    },
+    "LibraryMediaQuery": {
+      "description": "One Library query. Every field defaults, so a client sends only what it\nnarrows. Empty `kinds` and `roles` select the original video and audio\nsets; a host never returns a kind or role a client did not ask for.",
+      "properties": {
+        "archived": {
+          "$ref": "#/$defs/LibraryArchivedFilter",
+          "default": "exclude",
+          "description": "Ignored when `torrent_id` selects one torrent."
+        },
+        "availability": {
+          "$ref": "#/$defs/LibraryAvailabilityFilter",
+          "default": "any"
+        },
+        "descending": {
+          "default": false,
+          "type": "boolean"
+        },
+        "group_id": {
+          "description": "A `group_id` from a grouped result.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "grouping": {
+          "$ref": "#/$defs/LibraryGrouping",
+          "default": "none"
+        },
+        "kinds": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LibraryMediaKind"
+          },
+          "type": "array"
+        },
+        "roles": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LibraryMediaRole"
+          },
+          "type": "array"
+        },
+        "sort": {
+          "$ref": "#/$defs/LibraryMediaSort",
+          "default": "title"
+        },
+        "text": {
+          "default": "",
+          "description": "Words that must all appear in the file path, title, series, album or\nsource torrent name, ignoring case and separators.",
+          "type": "string"
+        },
+        "torrent_id": {
+          "pattern": "^t1-[0-9a-f]{32}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "LibraryMediaRole": {
+      "enum": [
+        "episode",
+        "movie",
+        "other",
+        "track"
+      ],
+      "type": "string"
+    },
+    "LibraryMediaSort": {
+      "oneOf": [
+        {
+          "enum": [
+            "size"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "title",
+          "description": "Series, season and episode; album, disc and track; or title.",
+          "type": "string"
+        },
+        {
+          "const": "source",
+          "description": "Source torrent name, then the torrent's file order.",
+          "type": "string"
+        }
+      ]
+    },
     "ListenerBindFailureReason": {
       "enum": [
         "address_in_use",
@@ -4516,6 +5515,30 @@
         }
       ]
     },
+    "MagnetExportOptions": {
+      "description": "Share parameters for [`Command::ExportMagnet`].",
+      "properties": {
+        "file_indices": {
+          "description": "Add BEP 53 `so` for these file indices, in the same index space as\n`FileView::file_index`. Sorted, unique, at most 4096 entries; every\nindex must name a non-padding file of the verified file list.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "include_size": {
+          "description": "Add `xl` with the verified total size. Omitted until metadata is\nverified; never copied from a source magnet.",
+          "type": "boolean"
+        },
+        "peer_hint": {
+          "description": "Add BEP 9 `x.pe` for at most two of the sharer's endpoints; see\n[`MagnetExportResult::peer_hints`].",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "MagnetExportResult": {
       "properties": {
         "magnet": {
@@ -4526,8 +5549,28 @@
           "minimum": 0,
           "type": "integer"
         },
+        "peer_hint_omission": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MagnetPeerHintOmission"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set when `peer_hint` was requested and no hint was included."
+        },
+        "peer_hints": {
+          "description": "The `x.pe` values included in `magnet`, in order. Empty unless\n`peer_hint` was requested.",
+          "items": {
+            "$ref": "#/$defs/MagnetPeerHint"
+          },
+          "maxItems": 2,
+          "type": "array"
+        },
         "source": {
-          "$ref": "#/$defs/MagnetExportSource"
+          "$ref": "#/$defs/MagnetExportSource",
+          "description": "Where the magnet came from before any share parameters were applied."
         }
       },
       "required": [
@@ -4544,6 +5587,67 @@
         "synthesized"
       ],
       "type": "string"
+    },
+    "MagnetPeerHint": {
+      "properties": {
+        "endpoint": {
+          "description": "The exported `x.pe` value: `ipv4:port` or `[ipv6]:port`.",
+          "maxLength": 64,
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/MagnetPeerHintScope"
+        }
+      },
+      "required": [
+        "endpoint",
+        "scope"
+      ],
+      "type": "object"
+    },
+    "MagnetPeerHintOmission": {
+      "description": "Why a requested peer hint was left out of the export.",
+      "oneOf": [
+        {
+          "const": "private_torrent",
+          "description": "Verified metainfo sets BEP 27 `private`.",
+          "type": "string"
+        },
+        {
+          "const": "metadata_pending",
+          "description": "Metadata is not verified: the private flag is unknown and this\nsession has nothing to serve yet.",
+          "type": "string"
+        },
+        {
+          "const": "incoming_disabled",
+          "description": "Incoming connections are off or no listener is bound.",
+          "type": "string"
+        },
+        {
+          "const": "not_reachable",
+          "description": "The listener has a public address that no outside peer has reached\nyet, and no private local-network address.",
+          "type": "string"
+        },
+        {
+          "const": "no_address",
+          "description": "The listener has no shareable address (loopback only).",
+          "type": "string"
+        }
+      ]
+    },
+    "MagnetPeerHintScope": {
+      "oneOf": [
+        {
+          "const": "internet",
+          "description": "A public address on which an outside peer has reached this session.",
+          "type": "string"
+        },
+        {
+          "const": "local_network",
+          "description": "A private (RFC 1918) address of the listening port.",
+          "type": "string"
+        }
+      ]
     },
     "MediaCatalogState": {
       "enum": [
@@ -6430,6 +7534,61 @@
       ],
       "type": "object"
     },
+    "SeedStopLimit": {
+      "description": "A session-wide seeding stop limit. `value` is a share ratio in percent\nor a seeding time in seconds, depending on the setting that holds it.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "off",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "limited",
+              "type": "string"
+            },
+            "value": {
+              "format": "uint32",
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "SeedStopView": {
+      "additionalProperties": false,
+      "description": "A torrent's own seeding stop limits and whether a reached limit stopped\nit. Clients resolve `UseGlobal` against the session settings.",
+      "properties": {
+        "limits": {
+          "$ref": "#/$defs/TorrentSeedStopLimits"
+        },
+        "stopped": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "limits",
+        "stopped"
+      ],
+      "type": "object"
+    },
     "ServiceSnapshot": {
       "properties": {
         "client_settings": {
@@ -6445,6 +7604,12 @@
               "type": "unlimited"
             },
             "encryption": "allow",
+            "file_safety": {
+              "custom_extensions": [],
+              "enabled": true,
+              "mark_internet_origin": true,
+              "preset": "recommended"
+            },
             "finished_download_ratio_limit_percent": 700,
             "finished_time_limit_seconds": 86400,
             "ipv6_enabled": true,
@@ -6455,6 +7620,12 @@
             "peer_exchange_enabled": true,
             "port_mapping": "disabled",
             "preferred_listen_port": 6881,
+            "seed_stop_ratio_percent": {
+              "type": "off"
+            },
+            "seed_stop_time_seconds": {
+              "type": "off"
+            },
             "share_ratio_limit_percent": 200,
             "tracker_https_server_authentication": "system_trust",
             "upload_rate_limit": {
@@ -7158,6 +8329,24 @@
         {
           "properties": {
             "field": {
+              "const": "source_size_bytes",
+              "type": "string"
+            },
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "field"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "field": {
               "const": "state",
               "type": "string"
             },
@@ -7258,6 +8447,22 @@
         {
           "properties": {
             "field": {
+              "const": "private_torrent",
+              "type": "string"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "field",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "field": {
               "const": "awaiting_file_selection",
               "type": "string"
             },
@@ -7301,6 +8506,28 @@
               "type": [
                 "string",
                 "null"
+              ]
+            }
+          },
+          "required": [
+            "field"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "field": {
+              "const": "safety_summary",
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FileSafetySummary"
+                },
+                {
+                  "type": "null"
+                }
               ]
             }
           },
@@ -7872,6 +9099,76 @@
       ],
       "type": "object"
     },
+    "TorrentSeedStopLimit": {
+      "description": "A torrent's own seeding stop limit, overriding the session limit.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "use_global",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "off",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "limited",
+              "type": "string"
+            },
+            "value": {
+              "format": "uint32",
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "TorrentSeedStopLimits": {
+      "additionalProperties": false,
+      "description": "A torrent's own seeding stop limits.",
+      "properties": {
+        "ratio_percent": {
+          "$ref": "#/$defs/TorrentSeedStopLimit",
+          "description": "Share ratio in percent."
+        },
+        "time_seconds": {
+          "$ref": "#/$defs/TorrentSeedStopLimit",
+          "description": "Seeding time in seconds."
+        }
+      },
+      "required": [
+        "ratio_percent",
+        "time_seconds"
+      ],
+      "type": "object"
+    },
     "TorrentSeedingView": {
       "additionalProperties": false,
       "properties": {
@@ -7887,6 +9184,17 @@
               "type": "null"
             }
           ]
+        },
+        "stop": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SeedStopView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Absent while the torrent uses the session limits and is not stopped."
         }
       },
       "required": [
@@ -7900,6 +9208,12 @@
       "properties": {
         "download_rate_limit": {
           "$ref": "#/$defs/TransferRateLimit"
+        },
+        "seed_stop_ratio_percent": {
+          "$ref": "#/$defs/TorrentSeedStopLimit"
+        },
+        "seed_stop_time_seconds": {
+          "$ref": "#/$defs/TorrentSeedStopLimit"
         },
         "upload_rate_limit": {
           "$ref": "#/$defs/TransferRateLimit"
@@ -7986,6 +9300,32 @@
               "type": "null"
             }
           ]
+        },
+        "safety_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FileSafetySummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "seed_limit_stopped": {
+          "default": false,
+          "description": "Paused because a seeding stop limit was reached, not by the user.",
+          "type": "boolean"
+        },
+        "seed_stop_limits": {
+          "$ref": "#/$defs/TorrentSeedStopLimits",
+          "default": {
+            "ratio_percent": {
+              "type": "use_global"
+            },
+            "time_seconds": {
+              "type": "use_global"
+            }
+          }
         },
         "selectable_file_bytes": {
           "default": "",
@@ -8203,6 +9543,10 @@
           "minimum": 0,
           "type": "integer"
         },
+        "private_torrent": {
+          "description": "The verified metainfo sets the BEP 27 `private` flag. False for\npublic torrents and for a magnet whose metadata is not verified\nyet; it is never inferred from a magnet link.",
+          "type": "boolean"
+        },
         "progress": {
           "$ref": "#/$defs/ProgressAssessment"
         },
@@ -8237,6 +9581,16 @@
             "null"
           ]
         },
+        "safety_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FileSafetySummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "seeding": {
           "$ref": "#/$defs/TorrentSeedingView",
           "default": {
@@ -8264,6 +9618,14 @@
           "type": "integer"
         },
         "source_display_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_size_bytes": {
+          "description": "Total size in bytes claimed by the source magnet's `xl`, as a\ndecimal string, while metadata is not verified. Absent once\nmetadata is verified or when the magnet carries no acceptable `xl`.\nA claim from the link, never a verified size.",
+          "pattern": "^[1-9][0-9]{0,18}$",
           "type": [
             "string",
             "null"
@@ -8484,7 +9846,8 @@
             "null"
           ]
         },
-        "last_failure_age_millis": {
+        "last_failure_at_millis": {
+          "description": "Last accepted failure on the same application monotonic clock.",
           "type": [
             "string",
             "null"
@@ -8498,7 +9861,8 @@
             "null"
           ]
         },
-        "last_success_age_millis": {
+        "last_success_at_millis": {
+          "description": "Last accepted success on the same application monotonic clock.",
           "type": [
             "string",
             "null"
@@ -8522,7 +9886,8 @@
             }
           ]
         },
-        "next_action_in_millis": {
+        "next_action_at_millis": {
+          "description": "Application-clock deadline; compare with UpdateBatch::server_now_millis.\nThis is not a Unix timestamp and is not persisted across runtime restart.",
           "type": [
             "string",
             "null"
@@ -8673,6 +10038,11 @@
           "type": "string"
         },
         "epoch": {
+          "type": "string"
+        },
+        "server_now_millis": {
+          "default": "0",
+          "description": "Milliseconds on the current application instance's monotonic clock.\nRefreshed at delivery; tracker *_at_millis fields use this same origin.\nHosts released before 0.3.1 omit it; they also omit the tracker\ninstants it anchors, so clients default it to \"0\".",
           "type": "string"
         },
         "updates": {
@@ -9164,6 +10534,26 @@
             "retention"
           ],
           "type": "object"
+        },
+        {
+          "description": "Changed progress of items already on the delivered page. Membership,\norder, totals and facets change only through a snapshot.",
+          "properties": {
+            "type": {
+              "const": "library_media",
+              "type": "string"
+            },
+            "upsert": {
+              "items": {
+                "$ref": "#/$defs/LibraryMediaItemView"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "type",
+            "upsert"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -9307,6 +10697,12 @@
                     "type": "unlimited"
                   },
                   "encryption": "allow",
+                  "file_safety": {
+                    "custom_extensions": [],
+                    "enabled": true,
+                    "mark_internet_origin": true,
+                    "preset": "recommended"
+                  },
                   "finished_download_ratio_limit_percent": 700,
                   "finished_time_limit_seconds": 86400,
                   "ipv6_enabled": true,
@@ -9317,6 +10713,12 @@
                   "peer_exchange_enabled": true,
                   "port_mapping": "disabled",
                   "preferred_listen_port": 6881,
+                  "seed_stop_ratio_percent": {
+                    "type": "off"
+                  },
+                  "seed_stop_time_seconds": {
+                    "type": "off"
+                  },
                   "share_ratio_limit_percent": 200,
                   "tracker_https_server_authentication": "system_trust",
                   "upload_rate_limit": {
@@ -9765,6 +11167,41 @@
             "retention"
           ],
           "type": "object"
+        },
+        {
+          "description": "Items without grouping, groups with it; the other list is empty.",
+          "properties": {
+            "facets": {
+              "$ref": "#/$defs/LibraryFacetsView"
+            },
+            "groups": {
+              "items": {
+                "$ref": "#/$defs/LibraryGroupView"
+              },
+              "type": "array"
+            },
+            "items": {
+              "items": {
+                "$ref": "#/$defs/LibraryMediaItemView"
+              },
+              "type": "array"
+            },
+            "page": {
+              "$ref": "#/$defs/CatalogPageView"
+            },
+            "type": {
+              "const": "library_media",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "page",
+            "facets",
+            "items",
+            "groups"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -10131,6 +11568,52 @@
             "type",
             "view_id",
             "torrent_id"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Video and audio across the profile's torrents (Tactical 363). A page\ndefaults to the first 100 rows.",
+          "properties": {
+            "delivery": {
+              "$ref": "#/$defs/ViewDeliveryPolicy",
+              "default": {
+                "min_interval_millis": 0
+              }
+            },
+            "page": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CatalogPageRequest"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "query": {
+              "$ref": "#/$defs/LibraryMediaQuery",
+              "default": {
+                "archived": "exclude",
+                "availability": "any",
+                "descending": false,
+                "grouping": "none",
+                "kinds": [],
+                "roles": [],
+                "sort": "title",
+                "text": ""
+              }
+            },
+            "type": {
+              "const": "library_media",
+              "type": "string"
+            },
+            "view_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "view_id"
           ],
           "type": "object"
         },

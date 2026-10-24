@@ -58,7 +58,7 @@
     },
     {
       "term": "remove",
-      "definition": "Remove the torrent from RSTorrent while preserving downloaded data.",
+      "definition": "Remove the torrent from JSTorrent while preserving downloaded data.",
       "capitalization": "sentence case in actions"
     },
     {

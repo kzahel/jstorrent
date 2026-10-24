@@ -4,12 +4,12 @@ import {
   validateApiHello,
   validateApplicationServerFrame,
   validateChooseDownloadRootResponse,
-  validateCommand,
   validateMediaUrlResponse,
   validateOpenViewSetResponse,
   validateResponseEnvelope,
   validateUpdateBatch,
 } from "./generated/v1.validators.js";
+import { validateCommand } from "./generated/v1.client-validators.js";
 
 const validators = new Map<string, StandaloneValidateFunction>([
   ["ApiHello", validateApiHello],

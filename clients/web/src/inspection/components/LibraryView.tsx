@@ -10,10 +10,12 @@ import {
 
 import type { DataUnits, InterfaceSize } from "../appearance";
 import { useInspectionStore } from "../context";
+import type { LayoutMode } from "../layout";
 import {
   checkingStatusLabel,
   formatBytes,
   formatProgress,
+  torrentRemovalLabel,
   torrentVisibleProgress,
 } from "../format";
 import type {
@@ -21,9 +23,15 @@ import type {
   TorrentRow,
   ViewMaterialization,
 } from "../model";
+import { seedLimitReached } from "../seed-stop";
 import { torrentMatchesLibraryCategory } from "../state";
-import { LibraryDetailView } from "./LibraryDetailView";
+import { Icon } from "./Icon";
+import { LibraryDetailView, waterLevel } from "./LibraryDetailView";
+import { LibraryMediaView } from "./LibraryMediaView";
 import styles from "./LibraryView.module.css";
+
+// Varied, fixed title widths so placeholder cards read as content.
+const PLACEHOLDER_WIDTHS = [78, 56, 88, 64, 72, 50];
 
 const GRID_METRICS: Readonly<
   Record<
@@ -55,9 +63,6 @@ export function LibraryView() {
   const detailOpen = useInspectionStore(
     (state) => state.presentation.libraryDetailOpen,
   );
-  const detailMode = useInspectionStore(
-    (state) => state.presentation.libraryDetailMode,
-  );
   const layout = useInspectionStore((state) => state.presentation.layout);
   const interfaceSize = useInspectionStore(
     (state) => state.presentation.interfaceSize,
@@ -68,17 +73,12 @@ export function LibraryView() {
   const closeLibraryTorrentDetail = useInspectionStore(
     (state) => state.closeLibraryTorrentDetail,
   );
-  const selectLibraryDetailMode = useInspectionStore(
-    (state) => state.selectLibraryDetailMode,
-  );
-  const selectDestination = useInspectionStore(
-    (state) => state.selectDestination,
-  );
-  const selectLibraryCategory = useInspectionStore(
-    (state) => state.selectLibraryCategory,
-  );
   const materialization = useInspectionStore(
     (state) => state.viewStatus.library,
+  );
+  // Hosts without the cross-torrent projection keep the torrent cards.
+  const mediaLibrary = useInspectionStore(
+    (state) => state.viewStatus.libraryMedia.status !== "unsupported",
   );
   const allRows = useMemo(
     () =>
@@ -108,75 +108,19 @@ export function LibraryView() {
   const current = allRows.find((row) => row.id === currentTorrentId);
   const [collectionScrollTop, setCollectionScrollTop] = useState(0);
   const [returnFocusId, setReturnFocusId] = useState<string | null>(null);
+  const [returnFocusItemId, setReturnFocusItemId] = useState<string | null>(null);
 
+  // The route owner may reopen a detail from history; focus returns there.
   useEffect(() => {
-    const onPopState = (event: PopStateEvent) => {
-      const route = libraryHistoryRoute(event.state);
-      if (route === null) {
-        closeLibraryTorrentDetail();
-        return;
-      }
-      selectDestination("library");
-      selectLibraryCategory(route.category);
-      if (route.torrentId === null || torrents[route.torrentId] === undefined) {
-        closeLibraryTorrentDetail();
-        return;
-      }
-      setReturnFocusId(route.torrentId);
-      openLibraryTorrentDetail(route.torrentId);
-      selectLibraryDetailMode(route.mode);
-    };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, [
-    closeLibraryTorrentDetail,
-    openLibraryTorrentDetail,
-    selectDestination,
-    selectLibraryCategory,
-    selectLibraryDetailMode,
-    torrents,
-  ]);
-
-  useEffect(() => {
-    if (!detailOpen || currentTorrentId === null) return;
-    const route = libraryHistoryRoute(window.history.state);
-    if (route?.torrentId !== currentTorrentId || route.mode === detailMode) return;
-    window.history.replaceState(
-      withLibraryHistory(window.history.state, {
-        torrentId: currentTorrentId,
-        category,
-        mode: detailMode,
-      }),
-      "",
-    );
-  }, [category, currentTorrentId, detailMode, detailOpen]);
+    if (detailOpen && currentTorrentId !== null) setReturnFocusId(currentTorrentId);
+  }, [currentTorrentId, detailOpen]);
 
   const openDetail = (torrentId: string) => {
     setReturnFocusId(torrentId);
-    window.history.replaceState(
-      withLibraryHistory(window.history.state, {
-        torrentId: null,
-        category,
-        mode: "media",
-      }),
-      "",
-    );
-    window.history.pushState(
-      withLibraryHistory(window.history.state, {
-        torrentId,
-        category,
-        mode: "media",
-      }),
-      "",
-    );
     openLibraryTorrentDetail(torrentId);
   };
 
-  const closeDetail = () => {
-    const route = libraryHistoryRoute(window.history.state);
-    if (route?.torrentId === currentTorrentId) window.history.back();
-    else closeLibraryTorrentDetail();
-  };
+  const closeDetail = closeLibraryTorrentDetail;
 
   useEffect(() => {
     if (!detailOpen) return;
@@ -192,20 +136,49 @@ export function LibraryView() {
   if (detailOpen && current !== undefined) {
     return <LibraryDetailView torrent={current} onBack={closeDetail} />;
   }
+  if (mediaLibrary) {
+    return (
+      <LibraryMediaView
+        returnFocusItemId={returnFocusItemId}
+        onOpenTorrent={(torrentId, itemId) => {
+          setReturnFocusItemId(itemId);
+          openDetail(torrentId);
+        }}
+      />
+    );
+  }
 
   return (
     <section className={styles.library} aria-labelledby="library-heading">
       <div className={styles.heading}>
         <div>
-          <p className={styles.eyebrow}>{localizedMessage("inspection.components.library.view.library")}</p>
           <h1 id="library-heading">{categoryLabel(category)}</h1>
           <p>
-            {rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.library.view.torrent.backed.content")}{" "}
-            {rows.length === 1 ? localizedMessage("inspection.components.library.view.source") : localizedMessage("inspection.components.library.view.sources")}
+            {materialization.status === "loading" ? (
+              materializationMessage(materialization)
+            ) : (
+              <>
+                {rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.library.view.torrent.backed.content")}{" "}
+                {rows.length === 1 ? localizedMessage("inspection.components.library.view.source") : localizedMessage("inspection.components.library.view.sources")}
+              </>
+            )}
           </p>
         </div>
       </div>
-      {materialization.status !== "ready" ? (
+      {materialization.status === "loading" ? (
+        <VirtualLibraryGrid
+          placeholders
+          rows={[]}
+          currentId={null}
+          interfaceSize={interfaceSize}
+          layout={layout}
+          dataUnits={dataUnits}
+          initialScrollTop={0}
+          returnFocusId={null}
+          onScrollTop={() => {}}
+          onActivate={() => {}}
+        />
+      ) : materialization.status !== "ready" ? (
         <LibraryEmpty message={materializationMessage(materialization)} />
       ) : rows.length === 0 ? (
         <LibraryEmpty message={emptyMessage(category)} />
@@ -227,6 +200,7 @@ export function LibraryView() {
 }
 
 function VirtualLibraryGrid({
+  placeholders = false,
   rows,
   currentId,
   interfaceSize,
@@ -237,10 +211,12 @@ function VirtualLibraryGrid({
   onScrollTop,
   onActivate,
 }: {
+  /** Fill the viewport with placeholder cards until rows arrive (Tactical 352). */
+  readonly placeholders?: boolean;
   readonly rows: readonly TorrentRow[];
   readonly currentId: string | null;
   readonly interfaceSize: InterfaceSize;
-  readonly layout: "wide" | "compact" | "phone";
+  readonly layout: LayoutMode;
   readonly dataUnits: DataUnits;
   readonly initialScrollTop: number;
   readonly returnFocusId: string | null;
@@ -283,7 +259,10 @@ function VirtualLibraryGrid({
         (metrics.minimumCardWidth + metrics.gap),
     ),
   );
-  const logicalRowCount = Math.ceil(rows.length / columnCount);
+  const visibleGridRows = Math.max(1, Math.ceil(viewportSize.height / metrics.rowHeight));
+  const logicalRowCount = placeholders
+    ? visibleGridRows
+    : Math.ceil(rows.length / columnCount);
   const firstRow = Math.max(
     0,
     Math.floor(scrollTop / metrics.rowHeight) - OVERSCAN_ROWS,
@@ -309,7 +288,9 @@ function VirtualLibraryGrid({
       data-layout={layout}
       role="list"
       aria-label={localizedMessage("inspection.components.library.view.torrent.backed.content.b57b1e1")}
+      aria-busy={placeholders || undefined}
       onScroll={onScroll}
+      data-testid={placeholders ? "library-placeholders" : undefined}
     >
       <div
         className={styles.canvas}
@@ -327,73 +308,97 @@ function VirtualLibraryGrid({
                 transform: `translateY(${logicalRow * metrics.rowHeight}px)`,
               }}
             >
-              {rows
-                .slice(firstItem, firstItem + columnCount)
-                .map((row, column) => {
-                  const position = firstItem + column;
-                  const visibleProgress = torrentVisibleProgress(row);
-                  const checkingIndeterminate =
-                    row.status === "checking" && visibleProgress === null;
-                  return (
-                    <article
-                      key={row.id}
+              {placeholders
+                ? Array.from({ length: columnCount }, (_, column) => (
+                    <div
+                      key={column}
                       className={styles.card}
-                      role="listitem"
-                      aria-posinset={position + 1}
-                      aria-setsize={rows.length}
-                      data-current={row.id === currentId}
+                      aria-hidden="true"
                     >
-                      <button
-                        type="button"
-                        aria-label={`Open details for ${row.name}`}
-                        aria-pressed={row.id === currentId}
-                        onClick={() => onActivate(row.id)}
-                        data-library-torrent-id={row.id}
-                        ref={row.id === returnFocusId ? focusButtonRef : undefined}
-                      >
-                        <span
-                          className={styles.art}
-                          data-tone={toneFor(row.infoHash)}
-                          aria-hidden="true"
-                        >
-                          <span>{initials(row.name)}</span>
-                        </span>
+                      <div className={styles.placeholderCard}>
+                        <span className={styles.art} />
                         <span className={styles.cardBody}>
-                          <strong title={row.name}>{row.name}</strong>
-                          <span>{availabilityLabel(row)}</span>
-                          <span>{formatBytes(row.sizeBytes, dataUnits)}</span>
-                        </span>
-                        {row.progress === null && row.status !== "checking" ? null : (
                           <span
-                            className={styles.progress}
-                            data-indeterminate={checkingIndeterminate || undefined}
-                            role="progressbar"
-                            aria-label={
-                              row.status === "checking"
-                                ? `${row.name} checking progress: ${checkingStatusLabel(row)}`
-                                : `${row.name} download progress`
-                            }
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-valuenow={
-                              visibleProgress === null
-                                ? undefined
-                                : Math.round(visibleProgress * 100)
-                            }
+                            className={styles.placeholderBar}
+                            style={{ width: `${PLACEHOLDER_WIDTHS[(firstItem + column) % PLACEHOLDER_WIDTHS.length]}%` }}
+                          />
+                          <span
+                            className={styles.placeholderBar}
+                            data-secondary="true"
+                          />
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                : rows
+                    .slice(firstItem, firstItem + columnCount)
+                    .map((row, column) => {
+                      const position = firstItem + column;
+                      const visibleProgress = torrentVisibleProgress(row);
+                      const checkingIndeterminate =
+                        row.status === "checking" && visibleProgress === null;
+                      return (
+                        <article
+                          key={row.id}
+                          className={styles.card}
+                          role="listitem"
+                          aria-posinset={position + 1}
+                          aria-setsize={rows.length}
+                          data-current={row.id === currentId}
+                        >
+                          <button
+                            type="button"
+                            aria-label={`Open details for ${row.name}`}
+                            aria-pressed={row.id === currentId}
+                            onClick={() => onActivate(row.id)}
+                            data-library-torrent-id={row.id}
+                            ref={row.id === returnFocusId ? focusButtonRef : undefined}
                           >
-                            {visibleProgress === null ? null : (
+                            <span
+                              className={styles.art}
+                              data-indeterminate={checkingIndeterminate || undefined}
+                              data-full={visibleProgress !== null && visibleProgress >= 1 ? true : undefined}
+                              style={waterLevel(visibleProgress)}
+                              aria-hidden="true"
+                            >
+                              <span>{initials(row.name)}</span>
+                            </span>
+                            <span className={styles.cardBody}>
+                              <strong title={row.name}>{row.name}</strong>
+                              <span>{availabilityLabel(row)}</span>
+                              <span>{formatBytes(row.sizeBytes, dataUnits)}</span>
+                            </span>
+                            {row.progress === null && row.status !== "checking" ? null : (
                               <span
-                                style={{
-                                  width: `${Math.round(visibleProgress * 100)}%`,
-                                }}
-                              />
+                                className={styles.progress}
+                                data-indeterminate={checkingIndeterminate || undefined}
+                                role="progressbar"
+                                aria-label={
+                                  row.status === "checking"
+                                    ? `${row.name} checking progress: ${checkingStatusLabel(row)}`
+                                    : `${row.name} download progress`
+                                }
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                                aria-valuenow={
+                                  visibleProgress === null
+                                    ? undefined
+                                    : Math.round(visibleProgress * 100)
+                                }
+                              >
+                                {visibleProgress === null ? null : (
+                                  <span
+                                    style={{
+                                      width: `${Math.round(visibleProgress * 100)}%`,
+                                    }}
+                                  />
+                                )}
+                              </span>
                             )}
-                          </span>
-                        )}
-                      </button>
-                    </article>
-                  );
-                })}
+                          </button>
+                        </article>
+                      );
+                    })}
             </div>
           );
         })}
@@ -402,49 +407,10 @@ function VirtualLibraryGrid({
   );
 }
 
-interface LibraryHistoryRoute {
-  readonly torrentId: string | null;
-  readonly category: LibraryCategory;
-  readonly mode: "media" | "files";
-}
-
-function libraryHistoryRoute(state: unknown): LibraryHistoryRoute | null {
-  if (typeof state !== "object" || state === null) return null;
-  const value = (state as { rstorrentLibrary?: unknown }).rstorrentLibrary;
-  if (typeof value !== "object" || value === null) return null;
-  const route = value as Partial<LibraryHistoryRoute>;
-  if (
-    (route.torrentId !== null && typeof route.torrentId !== "string") ||
-    !isLibraryCategory(route.category) ||
-    (route.mode !== "media" && route.mode !== "files")
-  ) {
-    return null;
-  }
-  return route as LibraryHistoryRoute;
-}
-
-function withLibraryHistory(
-  state: unknown,
-  route: LibraryHistoryRoute,
-): Record<string, unknown> {
-  return {
-    ...(typeof state === "object" && state !== null
-      ? (state as Record<string, unknown>)
-      : {}),
-    rstorrentLibrary: route,
-  };
-}
-
-function isLibraryCategory(value: unknown): value is LibraryCategory {
-  return ["all", "recent", "available", "downloading", "archived"].includes(
-    String(value),
-  );
-}
-
 function LibraryEmpty({ message }: { readonly message: string }) {
   return (
     <div className={styles.empty}>
-      <span aria-hidden="true">◇</span>
+      <Icon name="library" />
       <strong>{message}</strong>
     </div>
   );
@@ -466,6 +432,8 @@ function categoryLabel(category: LibraryCategory): string {
 }
 
 function availabilityLabel(row: TorrentRow): string {
+  const removal = torrentRemovalLabel(row);
+  if (removal !== null) return removal;
   switch (row.status) {
     case "metadata":
       return localizedMessage("inspection.components.library.view.finding.content.details");
@@ -474,7 +442,9 @@ function availabilityLabel(row: TorrentRow): string {
     case "complete":
       return localizedMessage("inspection.components.library.view.available.offline");
     case "paused":
-      return `${formatProgress(row.progress)} downloaded · Paused`;
+      return seedLimitReached(row)
+        ? localizedMessage("inspection.components.library.view.available.seed.limit.reached")
+        : `${formatProgress(row.progress)} downloaded · Paused`;
     case "checking":
       return checkingStatusLabel(row);
     case "error":
@@ -500,13 +470,13 @@ function emptyMessage(category: LibraryCategory): string {
 function materializationMessage(materialization: ViewMaterialization): string {
   switch (materialization.status) {
     case "not_requested":
-      return localizedMessage("inspection.components.library.view.library.collection.is.not.requested.in.this");
+      return localizedMessage("inspection.components.library.view.loading");
     case "loading":
       return localizedMessage("inspection.components.library.view.loading.library.content");
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
       return localizedMessage("inspection.components.library.view.no.content.sources.yet");
   }
@@ -522,8 +492,3 @@ function initials(name: string): string {
   return value === "" ? "RS" : value;
 }
 
-function toneFor(infoHash: string): string {
-  let sum = 0;
-  for (const character of infoHash.slice(0, 12)) sum += character.charCodeAt(0);
-  return String(sum % 6);
-}

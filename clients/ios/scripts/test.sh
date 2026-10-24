@@ -17,9 +17,7 @@ output=$1
   exit 2
 }
 
-if [[ -f "${HOME}/.profile" ]]; then
-  source "${HOME}/.profile"
-fi
+source "${client_root}/../../scripts/dev-env.sh"
 "${script_root}/generate-project.sh"
 
 simulator_id=$(
@@ -41,6 +39,10 @@ if [[ -z "${simulator_id}" ]]; then
   xcrun simctl list devices available >&2
   exit 1
 fi
+
+# Finish simulator boot and first-boot setup before Xcode starts its launch
+# deadlines. -b also works when the selected simulator is already running.
+xcrun simctl bootstatus "${simulator_id}" -b
 
 xcodebuild \
   -project "${client_root}/RSTorrent.xcodeproj" \

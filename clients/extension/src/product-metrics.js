@@ -104,6 +104,9 @@ export class ProductMetricsOwner {
   #mutate(change) {
     return this.#serialize(async () => {
       const loaded = await this.#load();
+      if (loaded.readOnly) {
+        throw new Error("product metrics state was written by a newer extension");
+      }
       const state = normalizeState(change(loaded.state), this.extensionVersion);
       await this.chrome.storage.local.set({ [PRODUCT_METRICS_KEY]: state });
       await this.#register(buildUninstallUrl(state, this.now()));
@@ -117,23 +120,30 @@ export class ProductMetricsOwner {
     return next;
   }
 
+  // Stored consent and identity are never replaced by defaults (Tactical
+  // 358). A newer extension's state is read only; a damaged schema-1 state
+  // keeps every field that is still valid; consent that cannot be read counts
+  // as statistics off.
   async #load() {
     const stored = (await this.chrome.storage.local.get(PRODUCT_METRICS_KEY))?.[PRODUCT_METRICS_KEY];
     if (stored === undefined) {
       const state = freshState(this.extensionVersion, this.now);
       await this.chrome.storage.local.set({ [PRODUCT_METRICS_KEY]: state });
-      return { state, malformed: false };
+      return { state, malformed: false, readOnly: false };
     }
     try {
       const state = normalizeState(stored, this.extensionVersion);
       if (JSON.stringify(state) !== JSON.stringify(stored)) {
         await this.chrome.storage.local.set({ [PRODUCT_METRICS_KEY]: state });
       }
-      return { state, malformed: false };
+      return { state, malformed: false, readOnly: false };
     } catch {
-      const state = freshState(this.extensionVersion, this.now);
-      await this.chrome.storage.local.set({ [PRODUCT_METRICS_KEY]: state });
-      return { state, malformed: true };
+      const state = recoverState(stored, this.extensionVersion, this.now);
+      const readOnly = isNewerState(stored);
+      if (!readOnly) {
+        await this.chrome.storage.local.set({ [PRODUCT_METRICS_KEY]: state });
+      }
+      return { state, malformed: true, readOnly };
     }
   }
 
@@ -182,6 +192,51 @@ function freshState(extensionVersion, now) {
     everConnected: false,
     disclosureVersion: 0,
     statisticsEnabled: true,
+    backendSummary: null,
+  };
+}
+
+function isNewerState(value) {
+  return isObject(value) && Number.isInteger(value.schemaVersion) && value.schemaVersion > 1;
+}
+
+function isObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+/** Each valid known field of a damaged or newer state, defaults for the
+ * rest. Consent that cannot be read is statistics off. */
+function recoverState(value, extensionVersion, now) {
+  const source = isObject(value) ? value : {};
+  const fresh = freshState(extensionVersion, now);
+  const pick = (key, valid) => {
+    try {
+      return valid(source[key]) ? source[key] : fresh[key];
+    } catch {
+      return fresh[key];
+    }
+  };
+  const isU64 = (field) => {
+    validateU64(field);
+    return true;
+  };
+  const isVersion = (field) => {
+    validateVersion(field);
+    return true;
+  };
+  const statisticsEnabled =
+    typeof source.statisticsEnabled === "boolean" ? source.statisticsEnabled : false;
+  return {
+    ...fresh,
+    installationId: pick("installationId", (field) => UUID_V4.test(field)),
+    createdAtMillis: pick("createdAtMillis", isU64),
+    firstVersion: pick("firstVersion", isVersion),
+    sessions: pick("sessions", isU64),
+    everConnected: pick("everConnected", (field) => typeof field === "boolean"),
+    disclosureVersion: pick("disclosureVersion", (field) =>
+      [0, PRODUCT_METRICS_DISCLOSURE_VERSION].includes(field),
+    ),
+    statisticsEnabled,
     backendSummary: null,
   };
 }

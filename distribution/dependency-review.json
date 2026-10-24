@@ -1,8 +1,43 @@
 {
   "schema": 1,
-  "reviewed_at": "2026-09-12",
-  "review_expires": "2026-10-12",
+  "reviewed_at": "2026-10-22",
+  "review_expires": "2026-11-12",
   "warnings": [
+    {
+      "kind": "unmaintained",
+      "advisory": "RUSTSEC-2026-0370",
+      "package": "zvariant",
+      "version": "5.15.0",
+      "reason": "Standalone crate moved into zbus 6 wire module. Existing zbus 5.19/notify-rust/keepawake and Tauri Linux integration still require this API. Advisory discloses maintenance reorganization, no vulnerability. Migrate the dependent integrations before the unchanged November 12 review expiry."
+    },
+    {
+      "kind": "unmaintained",
+      "advisory": "RUSTSEC-2026-0371",
+      "package": "zbus_names",
+      "version": "4.3.4",
+      "reason": "Standalone name types moved into zbus 6 names module. Retained through the existing zbus 5.19 desktop integration; no vulnerability is disclosed. Same bounded framework-migration deferral and unchanged review expiry as zvariant."
+    },
+    {
+      "kind": "unmaintained",
+      "advisory": "RUSTSEC-2026-0372",
+      "package": "zvariant_derive",
+      "version": "5.15.0",
+      "reason": "Macros moved into zbus 6. Current zbus 5.19 desktop integration retains this procedural macro; no vulnerability is disclosed. Same bounded framework-migration deferral and unchanged review expiry as zvariant."
+    },
+    {
+      "kind": "unmaintained",
+      "advisory": "RUSTSEC-2025-0057",
+      "package": "fxhash",
+      "version": "0.2.1",
+      "reason": "Tauri's selectors/kuchikiki/tauri-utils graph retains this hash helper. Advisory reports lack of maintenance, not a disclosed vulnerability; replacing the qualified framework is deferred. Reviewed with all-target reverse dependency graph, under the unchanged review expiry."
+    },
+    {
+      "kind": "unsound",
+      "advisory": "RUSTSEC-2026-0097",
+      "package": "rand",
+      "version": "0.7.3",
+      "reason": "Only phf_generator 0.8/phf_codegen via selectors build-dependencies. The all-target resolved features omit log, required by this custom-logger/thread-RNG reentrancy advisory. Re-review if that graph changes. Existing expiry is retained."
+    },
     {
       "kind": "unmaintained",
       "advisory": "RUSTSEC-2024-0370",
@@ -44,6 +79,13 @@
       "advisory": "RUSTSEC-2024-0429",
       "package": "glib",
       "version": "0.18.5"
+    },
+    {
+      "kind": "unmaintained",
+      "advisory": "RUSTSEC-2026-0374",
+      "package": "basic-toml",
+      "version": "0.1.10",
+      "reason": "Archived parser retained by askama_derive 0.14 through UniFFI 0.31 binding-generation tooling; absent from the default all-target runtime graph. Advisory reports maintenance status, no disclosed vulnerability. Keep the qualified UniFFI toolchain for this release and review its migration before the unchanged November 12 expiry."
     }
   ],
   "release_blockers": [],

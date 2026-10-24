@@ -1,6 +1,17 @@
-//! SQLite schema facts for the current disposable-incubation catalog epoch.
+//! SQLite schema facts for the session catalog.
+//!
+//! Schema 26 is the supported baseline: every public release ships it, and
+//! its definitions are frozen. A later schema adds a step in
+//! `store_migration` and a released-catalog fixture; it never edits the
+//! baseline definitions or discards a stored catalog.
 
-pub(crate) const SCHEMA_VERSION: i64 = 26;
+/// The oldest catalog the application opens. Every public release since
+/// `android-v0.1.0` and `desktop-v0.1.4` writes it.
+pub(crate) const BASELINE_SCHEMA_VERSION: i64 = 26;
+
+/// The catalog version this build writes: the baseline plus one per step in
+/// `store_migration::MIGRATION_STEPS`.
+pub(crate) const SCHEMA_VERSION: i64 = 29;
 
 pub(crate) const FILE_PRIORITIES_TABLE_SQL: &str = "CREATE TABLE file_priorities (
         torrent_id BLOB NOT NULL CHECK (

@@ -4,7 +4,7 @@ This crate owns the bounded Crostini launcher and per-user package adapter from
 Tactical 167. It does not own the torrent engine or web application. The
 installed static systemd user service executes the packaged
 `rstorrent-gateway`, which serves the matching `clients/web` production bundle
-and application API at `http://penguin.linux.test:3030`.
+and application API at `http://jstorrent.localhost:3030`.
 
 `rstorrent-crostini launch` maps a real X11 window before starting the static
 service, validates the exact gateway health identity on loopback, and opens the
@@ -25,5 +25,5 @@ profile.
 
 The release-ready website bootstrap and two-architecture signed-manifest
 contract are documented in [`docs/crostini-release.md`](../../docs/crostini-release.md).
-There is no public Crostini release yet, so the one-command path is not a
-current availability claim.
+The public signed `crostini-v0.1.0` preview is available through that bootstrap.
+Local candidate packages remain separate from the published release.

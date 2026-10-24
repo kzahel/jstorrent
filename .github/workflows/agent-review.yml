@@ -1,0 +1,227 @@
+name: Agent PR review
+
+on:
+  workflow_run:
+    workflows: [Fast CI]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number (open, non-draft, owner-authored)
+        required: true
+        type: string
+      qualification_only:
+        description: Verify existing OIDC and gateway access without inference or posting
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches: [main]
+    paths:
+      - Cargo.lock
+      - clients/web/package-lock.json
+      - .github/agent-review/**
+      - .github/workflows/agent-review.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-review-${{ github.event.workflow_run.head_branch || github.event.inputs.pr || github.ref }}
+  cancel-in-progress: true
+
+env:
+  REVIEW_IMAGE: rstorrent-pr-review:ci
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  review:
+    if: >-
+      github.repository == 'kzahel/jstorrent' && github.ref == 'refs/heads/main' &&
+      (vars.AGENT_REVIEW_ENABLED == 'true' || github.event_name == 'workflow_dispatch') &&
+      github.event_name != 'push' &&
+      (github.event_name != 'workflow_run' ||
+        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      eligible: ${{ steps.select.outputs.eligible }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      id-token: write
+    steps:
+      - name: Install Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.18.0
+
+      - name: Set private workspace path
+        run: echo "REVIEW_DIR=$RUNNER_TEMP/agent-review" >> "$GITHUB_ENV"
+
+      - name: Check out trusted controller
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Select and fetch an eligible PR
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/agent-review/github.mjs prepare
+
+      - name: Build trusted review image
+        if: steps.select.outputs.eligible == 'true' && github.event.inputs.qualification_only != 'true'
+        run: docker build -t "$REVIEW_IMAGE" .github/agent-review
+
+      - name: Verify the isolated CLI and socket boundary
+        if: steps.select.outputs.eligible == 'true' && github.event.inputs.qualification_only != 'true'
+        run: node .github/agent-review/docker-smoke.mjs
+
+      - name: Restore trusted main build and dependency cache
+        if: steps.select.outputs.eligible == 'true' && github.event.inputs.qualification_only != 'true'
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ env.REVIEW_DIR }}/cache
+          key: agent-review-v1-${{ runner.os }}-x64-${{ hashFiles('.github/agent-review/Dockerfile', 'Cargo.lock', 'clients/web/package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            agent-review-v1-${{ runner.os }}-x64-${{ hashFiles('.github/agent-review/Dockerfile', 'Cargo.lock', 'clients/web/package-lock.json') }}-
+
+      - name: Prepare dependencies without credentials or Tailscale
+        if: steps.select.outputs.eligible == 'true' && github.event.inputs.qualification_only != 'true'
+        run: node .github/agent-review/run.mjs prepare
+
+      - name: Join the tailnet as an ephemeral reviewer
+        if: steps.select.outputs.eligible == 'true'
+        uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4
+        with:
+          oauth-client-id: ${{ vars.AGENT_REVIEW_TS_CLIENT_ID }}
+          audience: ${{ vars.AGENT_REVIEW_TS_AUDIENCE }}
+          tags: tag:pr-review
+          version: 1.104.1
+          hostname: pr-review-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Disable advertised subnet routes and verify the gateway
+        if: steps.select.outputs.eligible == 'true'
+        env:
+          AAR_URL: ${{ vars.AGENT_REVIEW_AAR_URL }}
+        run: |
+          sudo tailscale set --accept-routes=false
+          node --input-type=module - <<'NODE'
+          const response = await fetch(process.env.AAR_URL + '/responses', {
+            method: 'POST', redirect: 'error', signal: AbortSignal.timeout(30000),
+          });
+          if (response.status !== 401) throw new Error(`Expected gateway authentication boundary, received ${response.status}`);
+          console.log('Private HTTPS gateway is reachable and requires authorization');
+          NODE
+
+      - name: Review with network isolated code execution
+        if: steps.select.outputs.eligible == 'true' && github.event.inputs.qualification_only != 'true'
+        env:
+          AAR_TOKEN: ${{ secrets.AGENT_REVIEW_AAR_TOKEN }}
+          AAR_URL: ${{ vars.AGENT_REVIEW_AAR_URL }}
+          REVIEW_MODEL: ${{ vars.AGENT_REVIEW_MODEL || 'gpt-6.1-sol' }}
+        run: node .github/agent-review/run.mjs review
+
+      - name: Retain bounded review result
+        if: steps.select.outputs.eligible == 'true' && github.event.inputs.qualification_only != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: agent-review-${{ github.run_id }}
+          path: |
+            ${{ env.REVIEW_DIR }}/metadata.json
+            ${{ env.REVIEW_DIR }}/result.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove remaining containers
+        if: always()
+        run: |
+          docker rm -f "review-agent-$GITHUB_RUN_ID" "review-prepare-$GITHUB_RUN_ID" 2>/dev/null || true
+
+  publish:
+    needs: review
+    if: needs.review.result == 'success' && needs.review.outputs.eligible == 'true' && github.event.inputs.qualification_only != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    steps:
+      - name: Install Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.18.0
+
+      - name: Set private workspace path
+        run: echo "REVIEW_DIR=$RUNNER_TEMP/agent-review" >> "$GITHUB_ENV"
+
+      - name: Check out trusted publisher
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download review result
+        id: download
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: agent-review-${{ github.run_id }}
+          path: ${{ env.REVIEW_DIR }}
+
+      - name: Validate and publish commit-bound findings
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/agent-review/github.mjs publish
+
+  warm-cache:
+    if: >-
+      github.repository == 'kzahel/jstorrent' && github.event_name == 'push' &&
+      vars.AGENT_REVIEW_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - name: Install Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.18.0
+
+      - name: Set private workspace path
+        run: echo "REVIEW_DIR=$RUNNER_TEMP/agent-review" >> "$GITHUB_ENV"
+
+      - name: Check out trusted main source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Prepare trusted main workspace
+        run: |
+          mkdir -p "$REVIEW_DIR"
+          cp -a . "$REVIEW_DIR/repo"
+
+      - name: Restore trusted main cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ env.REVIEW_DIR }}/cache
+          key: agent-review-v1-${{ runner.os }}-x64-${{ hashFiles('.github/agent-review/Dockerfile', 'Cargo.lock', 'clients/web/package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            agent-review-v1-${{ runner.os }}-x64-${{ hashFiles('.github/agent-review/Dockerfile', 'Cargo.lock', 'clients/web/package-lock.json') }}-
+
+      - name: Build trusted review image
+        run: docker build -t "$REVIEW_IMAGE" "$REVIEW_DIR/repo/.github/agent-review"
+
+      - name: Compile trusted main tests and cache dependencies
+        run: node "$REVIEW_DIR/repo/.github/agent-review/run.mjs" warm
+
+      - name: Save only trusted main build cache
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ env.REVIEW_DIR }}/cache
+          key: agent-review-v1-${{ runner.os }}-x64-${{ hashFiles('.github/agent-review/Dockerfile', 'Cargo.lock', 'clients/web/package-lock.json') }}-${{ github.sha }}
+
+      - name: Remove remaining container
+        if: always()
+        run: docker rm -f "review-prepare-$GITHUB_RUN_ID" 2>/dev/null || true

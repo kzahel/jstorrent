@@ -2,6 +2,51 @@
 
 Topic: `remote-access-authentication`
 
+Tactical [360](../tactical/360-remote-controller-subdomain.md) publishes the
+independently tagged controller at `https://remote.jstorrent.com/` on
+2026-10-16. Marketing and controller artifacts/deployments are separate.
+Production temporarily admits both exact new and previous controller origins;
+frozen old assets and admission remain through the compatibility window, with
+reviewed retirement no earlier than 2026-11-16. New-origin password sign-in,
+browser approval, resume and revocation pass a disposable public canary with
+signed cleanup. Host/relay authority and the existing unadvertised support
+scope remain unchanged. Browser credentials and pins are not copied.
+
+Historical predecessor Tactical [303](../tactical/303-canonical-remote-origin.md) deploys the accepted
+canonical controller at jstorrent.com/remote/. At that cutover relay admission selected
+only the exact jstorrent.com origin; the relay hostname, host authority and
+cryptographic protocol are retained. Former and foreign origins are rejected.
+Cloudflare hosting retains strict remote HTTP protections; browser authorization
+requires fresh sign-in at the new origin. Relay tests/clippy, website assembly
+guards, deployed six-file/header verification and live hostile-origin rejection
+pass. A disposable exact-source headless canary proves login, reload/restart
+resume, revocation, shared-session behavior and signed cleanup. Former remote
+document entrypoints redirect with query/fragment continuity. DNS/mail operation
+and ignored screenshots are recorded in the private infrastructure checklist.
+
+Tactical [276](../tactical/276-preview-host-verification.md) corrects the
+private preview verifier after the approved source8c deployment encounters
+HTTP403 before activation. Direct private hops must name the configured public
+Host. Actual approved-source gateway checks preserve wrong-Host403 and missing-
+credential401 while static/health/WebSocket verification passes. The gateway
+security policy is unchanged; preview activation and exact-source private-listener/HTTPS verification pass.
+
+Tactical [258](../tactical/258-cross-surface-branding-and-design-audit.md)
+changes only remote presentation: the sign-in gate follows shared JSTorrent
+appearance/palette, applies existing saved preferences before connection, and
+scrolls within a phone viewport. Local light/dark and scroll-to-sign-in renders,
+full web tests and the packaged remote CSP check pass. Startup failure receives
+the independent branded alert style. Authentication, credentials, trust,
+transport authority and deployment status are unchanged. See the
+[audit execution record](../tactical/258-cross-surface-branding-and-design-audit.md).
+
+Tactical [254](../tactical/254-ci-candidate-and-pages-validation.md) restores
+Pages assembly of the remote client's hashed JSTorrent PNG. Hashed images/fonts
+are accepted alongside code/Wasm; unhashed assets and service workers remain
+rejected. CLI regressions and an actual remote/website build with independent
+manifest digest checks pass locally. No remote authentication/runtime behavior
+or deployed artifact changes; hosted/deployed evidence remains separate.
+
 Status: Direction and investigation background accepted from maintainer
 discussion on 2026-08-04. Controlled foundation Tactical
 [`190`](../tactical/190-opaque-wasm-relay-foundation.md) and local
@@ -132,8 +177,8 @@ Tactical
 [`109-stable-same-origin-web-launch.md`](../tactical/109-stable-same-origin-web-launch.md)
 removes caller-selected browser gateway destinations and makes hosted browser
 authority the exact page origin. That reduces local bootstrap ambiguity but
-does not supply remote host identity, owner authentication, a relay, or E2E
-encryption.
+does not supply host identity for remote access, owner authentication, a
+relay, or E2E encryption.
 
 [`http-file-serving-and-streaming.md`](http-file-serving-and-streaming.md)
 owns local verified-file capability URLs and future incomplete-file streaming.
@@ -233,7 +278,7 @@ key and proves possession of it on later connections.
 
 The host identity key answers which RSTorrent installation accepted the
 connection. A device key answers which remembered controller initiated it.
-The relay registration credential answers which backend may claim a routing
+The relay registration credential answers which host may claim a routing
 slot. A connection traffic key protects one connection generation. None is a
 substitute for the others.
 
@@ -704,7 +749,7 @@ production-shaped local Tactical `192` rather than being implied by the proof.
 Do not add a production remote listener from this topic alone. Completed
 Tactical
 [`190`](../tactical/190-opaque-wasm-relay-foundation.md) owns the controlled
-native-host/browser-Wasm construction and evidence record; its retired proof
+host/browser-Wasm construction and evidence record; its retired proof
 binary was never a product mode.
 
 Completed Tactical

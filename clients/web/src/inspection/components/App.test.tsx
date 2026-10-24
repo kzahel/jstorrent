@@ -1,8 +1,10 @@
+import { DEFAULT_CLIENT_SETTINGS as FILE_SAFETY_DEFAULTS } from "../../api";
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
 
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -22,7 +24,7 @@ import {
 } from "vitest";
 import { createRef } from "react";
 
-import type { ClientSettingsRuntimeView } from "../../api";
+import type { ClientSettingsRuntimeView, TorrentListImportTarget } from "../../api";
 import type {
   HostedAccessMode,
   HostedProduct,
@@ -42,6 +44,7 @@ import type { InspectionApplication } from "../application";
 import { InspectionProvider } from "../context";
 import { InspectionController } from "../controller";
 import { DemoApplication } from "../demo/DemoApplication";
+import { DEFAULT_LIBRARY_BROWSE, libraryMediaRequest } from "../library-browse";
 import {
   DEMO_PRIMARY_TORRENT_ID,
   buildScenarioSnapshot,
@@ -50,6 +53,7 @@ import type {
   CommandResult,
   DownloadStorageSettings,
   DesiredInspectionViews,
+  FileRow,
   InspectionCommand,
   InspectionUpdate,
   MagnetExport,
@@ -65,7 +69,10 @@ import type {
   DesktopPower,
   DesktopPowerSettings,
 } from "../desktop-power/types";
-import type { DesktopRemoteAccess } from "../remote-access/types";
+import type { DesktopRemoteAccess, RemoteCompletedFileSaveRequest } from "../remote-access/types";
+import type { LocalVideoPlayback } from "../video-playback";
+import { HOST_CAPTURES } from "../../compat/captures";
+import { decodeOpenViewSetResponse } from "../../validation";
 import { App } from "./App";
 import { RemoveTorrentDialog } from "./RemoveTorrentDialog";
 
@@ -130,53 +137,235 @@ afterEach(async () => {
   );
 });
 
+// desktop 0.3.1 and Android 1.0.30, captured from their release commit.
+const released031 = HOST_CAPTURES.find(
+  (capture) => capture.commit === "5fa018ff589f8058f6ed3910f5cea5fcd06410ab",
+)!;
+const released031Hello = released031.hello;
+const released031Trace = released031.trace;
+
 describe("inspection application", () => {
   it("updates the tab title with live session rates and restores it on unmount", async () => {
     const rendered = renderScenario("healthy-download", 42_000);
 
     await waitFor(() => {
       expect(document.title).toMatch(
-        /^RSTorrent - ↓[\d.]+ [kMGT]?B\/s ↑[\d.]+ [kMGT]?B\/s$/,
+        /^JSTorrent - ↓[\d.]+ [kKMGT]?B\/s ↑[\d.]+ [kKMGT]?B\/s$/,
       );
     });
 
     rendered.unmount();
-    expect(document.title).toBe("RSTorrent");
+    expect(document.title).toBe("JSTorrent");
   });
 
-  it("renders the typed torrent ETA in Transfers and Workbench", async () => {
-    const user = userEvent.setup();
+  it("renders the typed torrent ETA in Torrents", () => {
     renderScenario("healthy-download", 42_000);
 
-    const transfers = screen.getByRole("grid", { name: "Transfer queue" });
+    const transfers = screen.getByRole("grid", { name: "Torrents" });
     const transferEta = within(transfers).getByLabelText(
       /Estimated time remaining:/,
     );
     expect(transferEta).toHaveTextContent("55s");
-
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
-    const workbench = screen.getByRole("grid", { name: "Torrent library" });
-    expect(
-      within(workbench).getByLabelText(/Estimated time remaining:/),
-    ).toHaveTextContent("55s");
   });
 
   it("gives a stalled ETA an infinite glyph and accessible explanation", () => {
     renderScenario("swarm-lifecycle", 11_000);
-    const transfers = screen.getByRole("grid", { name: "Transfer queue" });
+    const transfers = screen.getByRole("grid", { name: "Torrents" });
     expect(
       within(transfers).getByLabelText("Transfer stalled"),
     ).toHaveTextContent("∞");
   });
 
-  it("shows determinate checker progress across transfers library and details", async () => {
+  it("shows placeholders, not an empty library, until the first library view", async () => {
+    const user = userEvent.setup();
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...base,
+        demo: null,
+        session: { ...base.session, connection: { type: "connecting" } },
+        torrentOrder: [],
+        torrents: {},
+        viewStatus: { ...base.viewStatus, library: { status: "loading" } },
+      },
+    });
+    const { container } = renderApplication(application);
+
+    expect(container.firstElementChild).toHaveAttribute("data-connection", "connecting");
+    const grid = screen.getByRole("grid", { name: "Torrents" });
+    expect(grid).toHaveAttribute("aria-busy", "true");
+    expect(within(grid).getByTestId("table-placeholders")).toBeInTheDocument();
+    expect(within(grid).getByRole("status")).toHaveTextContent("Loading torrent library…");
+    expect(within(grid).queryByText(/No torrents yet/)).not.toBeInTheDocument();
+    expect(within(grid).queryAllByRole("row", { selected: true })).toHaveLength(0);
+    expect(screen.queryByText("0 torrents")).not.toBeInTheDocument();
+    const filters = screen.getByRole("navigation", { name: "Torrent filters" });
+    expect(within(filters).getByRole("button", { name: /^All torrents$/ })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    const dialog = await screen.findByRole("dialog", { name: "Settings" });
+    await user.click(within(dialog).getByRole("tab", { name: "Connection & seeding" }));
+    expect(within(dialog).getByText("Loading current settings…")).toBeVisible();
+    expect(within(dialog).getByRole("button", { name: "Save settings" })).toBeDisabled();
+    await user.click(within(dialog).getByRole("tab", { name: "Downloads" }));
+    expect(within(dialog).getByText("Loading download folders…")).toBeVisible();
+    expect(
+      within(dialog).queryByText(/No download folder has been chosen yet/),
+    ).not.toBeInTheDocument();
+
+    act(() => {
+      application.emitUpdate({
+        type: "snapshot",
+        snapshot: {
+          ...base,
+          demo: null,
+          session: { ...base.session, connection: { type: "connected" } },
+          torrentOrder: [],
+          torrents: {},
+        },
+      });
+    });
+    expect(within(dialog).queryByText("Loading download folders…")).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(grid).not.toHaveAttribute("aria-busy");
+    expect(within(grid).queryByTestId("table-placeholders")).not.toBeInTheDocument();
+    expect(within(grid).getByText(/No torrents yet/)).toBeVisible();
+    expect(screen.getByText("0 torrents")).toBeInTheDocument();
+    expect(within(filters).getByRole("button", { name: /^All torrents\s*0$/ })).toBeVisible();
+  });
+
+  it("shows header rates only while something transfers and no connection pill", () => {
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...base,
+        demo: null,
+        session: {
+          ...base.session,
+          connection: { type: "connected" },
+          downloadRate: 0,
+          uploadRate: null,
+        },
+      },
+    });
+    const { container } = renderApplication(application);
+    expect(
+      screen.queryByLabelText("Session transfer rates"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("banner")).queryByText("connected"),
+    ).not.toBeInTheDocument();
+    expect(container.firstElementChild).toHaveAttribute(
+      "data-connection",
+      "connected",
+    );
+
+    act(() => {
+      application.emitUpdate({
+        type: "patch",
+        revision: base.revision + 1,
+        session: { ...base.session, downloadRate: 2_500_000, uploadRate: 0 },
+      });
+    });
+    expect(screen.getByLabelText("Session transfer rates")).toHaveTextContent(
+      "↓ 2.4 MB/s↑ —",
+    );
+  });
+
+  it("covers the app while the engine connection stays down", async () => {
+    const user = userEvent.setup();
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...base,
+        demo: null,
+        session: {
+          ...base.session,
+          connection: {
+            type: "reconnecting",
+            since: Date.now() - 5_000,
+            nextAttemptAt: Date.now() + 12_000,
+          },
+        },
+      },
+    });
+    const { container } = renderApplication(application);
+    const overlay = screen.getByRole("alertdialog", { name: "Connection lost" });
+    expect(within(overlay).getByRole("status")).toHaveTextContent(
+      "Trying again in 12 seconds",
+    );
+    expect(container.firstElementChild).toHaveAttribute("inert");
+    expect(within(overlay).getByRole("button", { name: "Retry now" })).toHaveFocus();
+
+    await user.click(within(overlay).getByRole("button", { name: "Retry now" }));
+    expect(application.reconnectRequests).toBe(1);
+
+    act(() => {
+      application.emitUpdate({
+        type: "patch",
+        revision: base.revision + 1,
+        session: { ...base.session, connection: { type: "connected" } },
+      });
+    });
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(container.firstElementChild).not.toHaveAttribute("inert");
+  });
+
+  it("waits out brief connection drops without covering the app", () => {
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    renderApplication(
+      new RecordingLiveApplication({
+        type: "snapshot",
+        snapshot: {
+          ...base,
+          demo: null,
+          session: {
+            ...base.session,
+            connection: {
+              type: "reconnecting",
+              since: Date.now() - 500,
+              nextAttemptAt: null,
+            },
+          },
+        },
+      }),
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("asks to sign in again once the engine rejects this session", () => {
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    renderApplication(
+      new RecordingLiveApplication({
+        type: "snapshot",
+        snapshot: {
+          ...base,
+          demo: null,
+          session: {
+            ...base.session,
+            connection: { type: "stopped", reason: "signed_out" },
+          },
+        },
+      }),
+    );
+    const overlay = screen.getByRole("alertdialog", { name: "Signed out" });
+    expect(within(overlay).getByRole("button", { name: "Sign in" })).toBeVisible();
+    expect(
+      within(overlay).queryByRole("button", { name: "Retry now" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows determinate checker progress across Torrents, Library and details", async () => {
     const user = userEvent.setup();
     const snapshot = checkingSnapshot("hashing");
     renderApplication(
       new RecordingLiveApplication({ type: "snapshot", snapshot }),
     );
 
-    const transfers = screen.getByRole("grid", { name: "Transfer queue" });
+    const transfers = screen.getByRole("grid", { name: "Torrents" });
     expect(within(transfers).getByText("Checked 25.0%")).toBeVisible();
     expect(
       within(transfers).getByRole("progressbar", {
@@ -192,10 +381,15 @@ describe("inspection application", () => {
       }),
     ).toHaveAttribute("aria-valuenow", "25");
 
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await user.click(screen.getByRole("tab", { name: "General" }));
     const detail = screen.getByRole("region", { name: "Torrent details" });
-    expect(within(detail).getByText("Current check")).toBeVisible();
+    expect(within(detail).getByText("Checking", { exact: true })).toBeVisible();
+    expect(within(detail).getByText("25.0%", { exact: true })).toBeVisible();
     expect(within(detail).getByText("2 / 8")).toBeVisible();
     expect(within(detail).getByText("Matched").parentElement).toHaveTextContent(
       "Matched1",
@@ -212,7 +406,7 @@ describe("inspection application", () => {
       new RecordingLiveApplication({ type: "snapshot", snapshot }),
     );
 
-    const transfers = screen.getByRole("grid", { name: "Transfer queue" });
+    const transfers = screen.getByRole("grid", { name: "Torrents" });
     expect(
       within(transfers).getByText("Updating file selection"),
     ).toBeVisible();
@@ -256,14 +450,16 @@ describe("inspection application", () => {
     renderApplication(
       new RecordingLiveApplication({ type: "snapshot", snapshot }),
     );
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await user.click(screen.getByRole("tab", { name: "General" }));
     const detail = screen.getByRole("region", { name: "Torrent details" });
-    expect(within(detail).getByText("Status").parentElement).toHaveTextContent(
-      "Statusqueued",
-    );
+    expect(within(detail).getByText("Queued", { exact: true })).toBeVisible();
     expect(
-      within(detail).getByText("Lifetime uploaded").parentElement,
+      within(detail).getByText("Uploaded").parentElement,
     ).toHaveTextContent("14 B");
     expect(within(detail).getByText("Share ratio").parentElement).toHaveTextContent(
       "2.00",
@@ -271,12 +467,167 @@ describe("inspection application", () => {
     expect(within(detail).getByText("Active time").parentElement).toHaveTextContent(
       "30m 1s",
     );
+    expect(within(detail).getByText("Finished time")).toBeVisible();
     expect(
-      within(detail).getByText("Seeding priority").parentElement,
-    ).toHaveTextContent("queued seed · goal met");
+      within(detail).getByText("Seeding goals").parentElement,
+    ).toHaveTextContent("Reached: share ratio");
+  });
+
+  it("states a seeding torrent once and copies its links from General", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn<(value: string) => Promise<void>>();
+    writeText.mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const source = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const torrent = source.torrents[DEMO_PRIMARY_TORRENT_ID]!;
+    const snapshot = {
+      ...source,
+      demo: null,
+      torrents: {
+        ...source.torrents,
+        [DEMO_PRIMARY_TORRENT_ID]: {
+          ...torrent,
+          status: "complete" as const,
+          operationalState: "seeding" as const,
+          progress: 1,
+          progressReason: "complete",
+          finishedSeconds: "2770",
+          seedingSeconds: "2770",
+          seedAdmission: "inactive_exempt" as const,
+          seedGoal: {
+            status: "met" as const,
+            share_ratio_met: false,
+            finished_download_ratio_met: true,
+            finished_time_met: false,
+          },
+        },
+      },
+    };
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot,
+    });
+    const magnet =
+      `magnet:?xt=urn:btih:${torrent.infoHash}&dn=Original%20Name` +
+      "&tr=udp%3A%2F%2Ftracker.example%3A6969%2Fannounce";
+    application.magnetExports.set(torrent.id, {
+      magnet,
+      source: "verbatim",
+      omittedTrackerCount: 0,
+    });
+    renderApplication(application);
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "General" }));
+    const detail = screen.getByRole("region", { name: "Torrent details" });
+
     expect(
-      within(detail).getByText(/a goal-met torrent may keep seeding/i),
-    ).toHaveTextContent("Met thresholds: share ratio");
+      within(detail).getByText("Seeding (idle)", { exact: true }),
+    ).toBeVisible();
+    expect(within(detail).queryByText(/complete/)).not.toBeInTheDocument();
+    expect(within(detail).queryByText("Finished time")).not.toBeInTheDocument();
+    expect(within(detail).getByText("46m 10s")).toBeVisible();
+    expect(
+      within(detail).getByText("Seeding goals").parentElement,
+    ).toHaveTextContent("Reached: seeding time vs. download time");
+
+    await user.click(
+      within(detail).getByRole("button", { name: "Copy magnet link" }),
+    );
+    await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(magnet));
+    await findToast("Magnet link copied");
+
+    // The link button opens the Share panel; its Copy copies the link.
+    const shareButton = within(detail).getByRole("button", { name: "Share" });
+    await user.click(shareButton);
+    const panel = await screen.findByRole("dialog", { name: "Share torrent" });
+    const link =
+      `https://jstorrent.com/share/#xt=urn:btih:${torrent.infoHash}` +
+      "&dn=Original%20Name&tr=udp%3A%2F%2Ftracker.example%3A6969%2Fannounce";
+    await waitFor(() =>
+      expect(within(panel).getByRole("textbox", { name: "Share link" })).toHaveValue(link),
+    );
+    await user.click(within(panel).getByRole("button", { name: "Copy" }));
+    await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(link));
+    await findToast("Share link copied");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Share torrent" })).toBeNull();
+    await waitFor(() => expect(shareButton).toHaveFocus());
+
+    await user.click(
+      within(detail).getByRole("button", { name: "Copy info hash" }),
+    );
+    await waitFor(() =>
+      expect(writeText).toHaveBeenLastCalledWith(torrent.infoHash),
+    );
+    await findToast("Info hash copied");
+
+    application.rejectNextTorrentId = torrent.id;
+    await user.click(
+      within(detail).getByRole("button", { name: "Copy magnet link" }),
+    );
+    await findToast("Could not copy magnet links: rejected for test");
+    expect(writeText).toHaveBeenCalledTimes(3);
+    expect(
+      within(detail).queryByText(/Private torrent/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("warns that a private torrent's links stay inside its tracker", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn<(value: string) => Promise<void>>();
+    writeText.mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const source = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const torrent = source.torrents[DEMO_PRIMARY_TORRENT_ID]!;
+    const snapshot = {
+      ...source,
+      demo: null,
+      torrents: {
+        ...source.torrents,
+        [DEMO_PRIMARY_TORRENT_ID]: { ...torrent, privateTorrent: true },
+      },
+    };
+    renderApplication(
+      new RecordingLiveApplication({ type: "snapshot", snapshot }),
+    );
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "General" }));
+    const detail = screen.getByRole("region", { name: "Torrent details" });
+    expect(
+      within(detail).getByText(
+        "Private torrent: magnet and share links only work for members of its tracker.",
+      ),
+    ).toBeVisible();
+
+    await user.click(within(detail).getByRole("button", { name: "Share" }));
+    const panel = await screen.findByRole("dialog", { name: "Share torrent" });
+    // A private torrent never carries the address, so there is no choice.
+    expect(
+      within(panel).queryByRole("checkbox", { name: "Include my IP address" }),
+    ).toBeNull();
+    const copy = within(panel).getByRole("button", { name: "Copy" });
+    await waitFor(() => expect(copy).toBeEnabled());
+    await user.click(copy);
+    await findToast(
+      "Share link copied. This torrent is private, so the link only works for members of its tracker.",
+    );
+    expect(writeText).toHaveBeenLastCalledWith(
+      expect.stringMatching(/^https:\/\/jstorrent\.com\/share\/#xt=urn:btih:/),
+    );
   });
 
   it("saves one atomic per-torrent upload and download limit pair", async () => {
@@ -290,42 +641,45 @@ describe("inspection application", () => {
       snapshot,
     });
     renderApplication(application);
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await user.click(screen.getByRole("tab", { name: "General" }));
     const detail = screen.getByRole("region", { name: "Torrent details" });
-    expect(within(detail).queryByRole("spinbutton", {
-      name: "Torrent upload limit in KiB per second",
+    expect(within(detail).queryByRole("combobox", {
+      name: "Upload",
     })).not.toBeInTheDocument();
-    const grid = screen.getByRole("grid", { name: "Torrent library" });
+    const grid = screen.getByRole("grid", { name: "Torrents" });
     const torrentRow = within(grid).getByRole("row", { name: /Big Buck Bunny 1080p surround/ });
     fireEvent.contextMenu(torrentRow);
     await user.click(await screen.findByRole("menuitem", { name: "Torrent settings" }));
     const settings = screen.getByRole("dialog", { name: "Torrent settings" });
     expect(within(settings).getByRole("button", { name: "Cancel" })).toHaveFocus();
 
-    await user.click(
-      within(settings).getByRole("checkbox", {
-        name: "Torrent upload limit unlimited",
-      }),
+    expect(
+      within(settings).getByRole("combobox", { name: "Upload" }),
+    ).toHaveValue("unlimited");
+    await user.selectOptions(
+      within(settings).getByRole("combobox", { name: "Upload" }),
+      "Custom…",
     );
     const upload = within(settings).getByRole("spinbutton", {
-      name: "Torrent upload limit in KiB per second",
+      name: "Upload, custom speed in KB per second",
     });
     await user.clear(upload);
     await user.type(upload, "32");
-    await user.click(
-      within(settings).getByRole("checkbox", {
-        name: "Torrent download limit unlimited",
+    await user.selectOptions(
+      within(settings).getByRole("combobox", { name: "Download" }),
+      "500 KB/s",
+    );
+    expect(
+      within(settings).queryByRole("spinbutton", {
+        name: "Download, custom speed in KB per second",
       }),
-    );
-    const download = within(settings).getByRole("spinbutton", {
-      name: "Torrent download limit in KiB per second",
-    });
-    await user.clear(download);
-    await user.type(download, "96");
-    await user.click(
-      within(settings).getByRole("button", { name: "Save torrent limits" }),
-    );
+    ).not.toBeInTheDocument();
+    await user.click(within(settings).getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
       expect(application.commands.at(-1)).toEqual({
@@ -333,7 +687,7 @@ describe("inspection application", () => {
         torrentId: snapshot.torrentOrder[0],
         patch: {
           upload_rate_limit: { type: "limited", bytes_per_second: 32_768 },
-          download_rate_limit: { type: "limited", bytes_per_second: 98_304 },
+          download_rate_limit: { type: "limited", bytes_per_second: 512_000 },
         },
       }),
     );
@@ -361,17 +715,27 @@ describe("inspection application", () => {
       snapshot,
     });
     renderApplication(application);
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await user.click(screen.getByRole("tab", { name: "General" }));
     await user.click(screen.getByRole("button", { name: /^More/ }));
     await user.click(await screen.findByRole("menuitem", { name: "Torrent settings" }));
     const settings = screen.getByRole("dialog", { name: "Torrent settings" });
-    const downloadUnlimited = within(settings).getByRole("checkbox", {
-      name: "Torrent download limit unlimited",
+    const download = within(settings).getByRole("combobox", {
+      name: "Download",
     });
+    expect(download).toHaveValue("custom");
+    expect(
+      within(settings).getByRole("spinbutton", {
+        name: "Download, custom speed in KB per second",
+      }),
+    ).toHaveValue(96);
 
-    await user.click(downloadUnlimited);
-    expect(downloadUnlimited).toBeChecked();
+    await user.selectOptions(download, "Unlimited");
+    expect(download).toHaveValue("unlimited");
     for (let revision = 2; revision <= 25; revision += 1) {
       application.emitUpdate({
         type: "patch",
@@ -388,11 +752,9 @@ describe("inspection application", () => {
         },
       });
     }
-    expect(downloadUnlimited).toBeChecked();
+    expect(download).toHaveValue("unlimited");
 
-    await user.click(
-      within(settings).getByRole("button", { name: "Save torrent limits" }),
-    );
+    await user.click(within(settings).getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(application.commands.at(-1)).toEqual({
         type: "update_torrent_settings",
@@ -400,7 +762,261 @@ describe("inspection application", () => {
         patch: { download_rate_limit: { type: "unlimited" } },
       }),
     );
-    expect(downloadUnlimited).toBeChecked();
+    expect(download).toHaveValue("unlimited");
+  });
+
+  it("saves per-torrent seeding stop limits against the global ones", async () => {
+    const user = userEvent.setup();
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const fixture = clientSettingsRuntimeFixture();
+    const snapshot = {
+      ...base,
+      demo: null,
+      clientSettings: {
+        ...fixture,
+        configured: {
+          ...fixture.configured,
+          seed_stop_ratio_percent: { type: "limited" as const, value: 200 },
+        },
+      },
+    };
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot,
+    });
+    renderApplication(application);
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    const grid = screen.getByRole("grid", { name: "Torrents" });
+    fireEvent.contextMenu(
+      within(grid).getByRole("row", { name: /Big Buck Bunny 1080p surround/ }),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: "Torrent settings" }));
+    const settings = screen.getByRole("dialog", { name: "Torrent settings" });
+    expect(
+      within(settings).getByRole("heading", { name: "Stop seeding" }),
+    ).toBeVisible();
+    const ratio = within(settings).getByRole("combobox", { name: "Share ratio" });
+    const time = within(settings).getByRole("combobox", { name: "Seeding time" });
+    expect(ratio).toHaveValue("use_global");
+    expect(
+      within(ratio).getByRole("option", { name: "Use global (2.0)" }),
+    ).toBeInTheDocument();
+    expect(time).toHaveValue("use_global");
+    expect(
+      within(time).getByRole("option", { name: "Use global (No limit)" }),
+    ).toBeInTheDocument();
+    const save = within(settings).getByRole("button", { name: "Save" });
+    expect(save).toBeDisabled();
+
+    await user.selectOptions(ratio, "No limit");
+    await user.selectOptions(time, "6 hours");
+    await user.click(save);
+    await waitFor(() =>
+      expect(application.commands.at(-1)).toEqual({
+        type: "update_torrent_settings",
+        torrentId: snapshot.torrentOrder[0],
+        patch: {
+          seed_stop_ratio_percent: { type: "off" },
+          seed_stop_time_seconds: { type: "limited", value: 21_600 },
+        },
+      }),
+    );
+
+    // Back to the global ratio; the unchanged time limit is not resent.
+    await user.selectOptions(ratio, "Use global (2.0)");
+    await user.click(save);
+    await waitFor(() =>
+      expect(application.commands.at(-1)).toEqual({
+        type: "update_torrent_settings",
+        torrentId: snapshot.torrentOrder[0],
+        patch: { seed_stop_ratio_percent: { type: "use_global" } },
+      }),
+    );
+  });
+
+  it("labels a limit-stopped torrent and offers Keep seeding", async () => {
+    const user = userEvent.setup();
+    const snapshot = {
+      ...buildScenarioSnapshot("seeding-limits", 0, false, 1),
+      demo: null,
+    };
+    const debian = Object.values(snapshot.torrents).find(
+      (torrent) => torrent.name === "Debian 13.1 amd64 netinst",
+    )!;
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot,
+    });
+    renderApplication(application);
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    const grid = screen.getByRole("grid", { name: "Torrents" });
+    const row = within(grid).getByRole("row", { name: /Debian 13\.1 amd64 netinst/ });
+    expect(within(row).getByText("Seeding limit reached")).toBeVisible();
+    expect(within(row).queryByText("Paused")).not.toBeInTheDocument();
+
+    await user.click(within(row).getByText("Debian 13.1 amd64 netinst"));
+    await user.click(screen.getByRole("tab", { name: "General" }));
+    const detail = screen.getByRole("region", { name: "Torrent details" });
+    expect(
+      within(detail).getByText("Seeding limit reached", { exact: true }),
+    ).toBeVisible();
+    expect(
+      within(detail).getByRole("region", { name: "Stop seeding" }),
+    ).toHaveTextContent("Stops at ratio 2.00 · now 2.03");
+
+    expect(screen.queryByRole("button", { name: "Start" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Keep seeding" }));
+    await waitFor(() =>
+      expect(application.commands).toContainEqual({
+        type: "resume",
+        torrentId: debian.id,
+      }),
+    );
+
+    // The seeding torrent shows its time limit and progress.
+    await user.click(
+      within(
+        within(grid).getByRole("row", { name: /Arch Linux 2026\.08\.01 x86_64/ }),
+      ).getByText("Arch Linux 2026.08.01 x86_64"),
+    );
+    expect(
+      within(detail).getByRole("region", { name: "Stop seeding" }),
+    ).toHaveTextContent("Stops after 1 day · seeded 18h 0m");
+    expect(screen.getByRole("button", { name: "Start" })).toBeVisible();
+  });
+
+  it("hides seeding stop limits on a released host that predates them", async () => {
+    const user = userEvent.setup();
+    const open = decodeOpenViewSetResponse(JSON.stringify(released031Trace.open));
+    const update = open.initial.updates[0];
+    if (update?.type !== "snapshot" || update.snapshot.type !== "torrent_list") {
+      throw new Error("released trace has no library snapshot");
+    }
+    const scenario = buildScenarioSnapshot("seeding-limits", 0, false, 1);
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...scenario,
+        demo: null,
+        clientSettings: update.snapshot.client_settings,
+        session: {
+          ...scenario.session,
+          hostCapabilities: released031Hello.capabilities,
+        },
+      },
+    });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    const dialog = await screen.findByRole("dialog", { name: "Settings" });
+    await user.click(within(dialog).getByRole("tab", { name: "Connection & seeding" }));
+    expect(
+      within(dialog).getByRole("region", { name: "Seeding priority" }),
+    ).toBeVisible();
+    expect(
+      within(dialog).queryByRole("region", { name: "Stop seeding" }),
+    ).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Close settings" }));
+
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    const grid = screen.getByRole("grid", { name: "Torrents" });
+    await user.click(within(grid).getAllByRole("row")[1]!);
+    await user.click(screen.getByRole("tab", { name: "General" }));
+    const detail = screen.getByRole("region", { name: "Torrent details" });
+    expect(
+      within(detail).queryByRole("region", { name: "Stop seeding" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("saves only the changed seeding stop limits in Settings", async () => {
+    const user = userEvent.setup();
+    const fixture = clientSettingsRuntimeFixture();
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...liveSnapshot({ roots: [], defaultRoot: null, showAddOptions: true }),
+        clientSettings: {
+          ...fixture,
+          configured: {
+            ...fixture.configured,
+            seed_stop_time_seconds: { type: "limited", value: 5_400 },
+          },
+        },
+      },
+    });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    await user.click(within(dialog).getByRole("tab", { name: "Connection & seeding" }));
+    const stop = within(dialog).getByRole("region", { name: "Stop seeding" });
+    expect(
+      within(stop).getByText(/Resume a stopped torrent to keep seeding it/),
+    ).toBeVisible();
+    const ratio = within(stop).getByRole("combobox", { name: "Share ratio" });
+    const time = within(stop).getByRole("combobox", { name: "Seeding time" });
+    expect(ratio).toHaveValue("off");
+    // 90 minutes is not a preset, so it opens as a custom number of minutes.
+    expect(time).toHaveValue("custom");
+    expect(
+      within(stop).getByRole("spinbutton", { name: "Seeding time, custom time" }),
+    ).toHaveValue(90);
+    expect(
+      within(stop).getByRole("combobox", { name: "Seeding time, unit" }),
+    ).toHaveValue("minutes");
+    const save = within(dialog).getByRole("button", { name: "Save settings" });
+    expect(save).toBeDisabled();
+
+    await user.selectOptions(ratio, "Custom…");
+    const customRatio = within(stop).getByRole("spinbutton", {
+      name: "Share ratio, custom ratio",
+    });
+    fireEvent.change(customRatio, { target: { value: "2.555" } });
+    expect(
+      within(stop).getByText(/Enter a ratio from 0 to .* with up to two decimals/),
+    ).toBeVisible();
+    expect(save).toBeDisabled();
+    fireEvent.change(customRatio, { target: { value: "2.5" } });
+    expect(save).toBeEnabled();
+    await user.click(save);
+    await waitFor(() =>
+      expect(application.commands.at(-1)).toEqual({
+        type: "update_client_settings",
+        patch: { seed_stop_ratio_percent: { type: "limited", value: 250 } },
+      }),
+    );
+    await waitFor(() => expect(save).toBeDisabled());
+    expect(customRatio).toHaveValue(2.5);
+
+    await user.selectOptions(time, "Off");
+    const priority = within(dialog).getByRole("region", { name: "Seeding priority" });
+    expect(
+      within(priority).getByText(/Reaching a goal doesn't stop seeding/),
+    ).toBeVisible();
+    await user.selectOptions(
+      within(priority).getByRole("combobox", { name: "Seeding time" }),
+      "No time goal",
+    );
+    await user.click(save);
+    await waitFor(() =>
+      expect(application.commands.at(-1)).toEqual({
+        type: "update_client_settings",
+        patch: {
+          finished_time_limit_seconds: 2_147_483_647,
+          seed_stop_time_seconds: { type: "off" },
+        },
+      }),
+    );
   });
 
   it("renders the responsive hierarchy and changes detail tabs", async () => {
@@ -411,26 +1027,26 @@ describe("inspection application", () => {
     expect(within(header).queryByText(/peers/i)).not.toBeInTheDocument();
     const primary = screen.getByRole("navigation", { name: "Primary" });
     expect(
-      within(primary).getByRole("button", { name: "Transfers" }),
+      within(primary).getByRole("button", { name: "Torrents" }),
     ).toHaveAttribute("aria-current", "page");
     expect(
-      screen.getByRole("navigation", { name: "Transfer filters" }),
+      screen.getByRole("navigation", { name: "Torrent filters" }),
     ).toBeVisible();
     expect(screen.getByRole("button", { name: "Add demo" })).toBeVisible();
     expect(
       screen.queryByRole("textbox", { name: "Magnet link or torrent URL" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("grid", { name: "Transfer queue" }),
+      screen.getByRole("grid", { name: "Torrents" }),
     ).toHaveAttribute("aria-rowcount", "4");
     await user.click(
-      within(primary).getByRole("button", { name: "Workbench" }),
+      within(primary).getByRole("button", { name: "Torrents" }),
     );
     expect(
-      screen.getByRole("navigation", { name: "Workbench torrent filters" }),
+      screen.getByRole("navigation", { name: "Torrent filters" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("grid", { name: "Torrent library" }),
+      screen.getByRole("grid", { name: "Torrents" }),
     ).toHaveAttribute("aria-rowcount", "4");
     const peerGrid = screen.getByRole("grid", {
       name: "Active peer connections",
@@ -443,7 +1059,7 @@ describe("inspection application", () => {
       within(peerGrid).getByRole("columnheader", { name: "Connected" }),
     ).toBeVisible();
     expect(
-      within(peerGrid).getByRole("columnheader", { name: "Last payload" }),
+      within(peerGrid).getByRole("columnheader", { name: "Last data" }),
     ).toBeVisible();
     await user.click(
       screen.getAllByRole("button", { name: "Columns" }).at(-1)!,
@@ -451,7 +1067,7 @@ describe("inspection application", () => {
     const peerColumns = screen.getByRole("dialog", {
       name: "Table column settings",
     });
-    for (const name of ["Up", "Uploaded", "Connected", "Last payload"]) {
+    for (const name of ["Up", "Uploaded", "Connected", "Last data"]) {
       expect(within(peerColumns).getByRole("checkbox", { name })).toBeChecked();
     }
     await user.keyboard("{Escape}");
@@ -478,19 +1094,54 @@ describe("inspection application", () => {
     expect(flagLegend).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "General" }));
-    expect(screen.getByText("Current transfer")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Copy magnet link" }),
+    ).toBeVisible();
     expect(peersTab).toHaveTextContent(/^Peers$/);
     await user.click(screen.getByRole("tab", { name: "Logs" }));
     expect(
-      screen.getByRole("log", { name: "Chronological diagnostic events" }),
+      await screen.findByRole("log", { name: "Chronological diagnostic events" }),
     ).toBeVisible();
+  });
+
+  it("shows unavailable storage in Needs attention without counting it active", async () => {
+    const user = userEvent.setup();
+    const snapshot = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const torrent = snapshot.torrents[DEMO_PRIMARY_TORRENT_ID]!;
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...snapshot,
+        demo: null,
+        torrentOrder: [torrent.id],
+        torrents: {
+          [torrent.id]: {
+            ...torrent,
+            status: "error",
+            operationalState: "paused",
+            progressReason: "waiting for storage",
+            progress: 0,
+            error: null,
+          },
+        },
+      },
+    });
+    renderApplication(application);
+    const filters = screen.getByRole("navigation", { name: "Torrent filters" });
+    expect(within(filters).getByRole("button", { name: /^Active\s*0$/ })).toBeVisible();
+    expect(within(filters).getByRole("button", { name: /^Downloading\s*0$/ })).toBeVisible();
+    await user.click(within(filters).getByRole("button", { name: /^Needs attention\s*1$/ }));
+    const grid = screen.getByRole("grid", { name: "Torrents" });
+    expect(within(grid).getByText("Storage unavailable")).toBeVisible();
+    expect(within(grid).queryByText("downloading")).not.toBeInTheDocument();
+    expect(application.commands).toHaveLength(0);
   });
 
   it("explains and opens torrent errors from status", async () => {
     const user = userEvent.setup();
     renderScenario("disk-error", 8_000);
 
-    const transfers = screen.getByRole("grid", { name: "Transfer queue" });
+    const transfers = screen.getByRole("grid", { name: "Torrents" });
     const status = within(transfers).getByRole("button", {
       name: "Error: Write failed: destination has no free space. Open General details",
     });
@@ -510,7 +1161,11 @@ describe("inspection application", () => {
     status.focus();
     await user.keyboard("{Enter}");
 
-    expect(screen.getByRole("button", { name: "Workbench" })).toHaveAttribute(
+    expect(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    ).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -525,19 +1180,45 @@ describe("inspection application", () => {
     );
     expect(error).toHaveFocus();
     expect(
-      within(screen.getByRole("grid", { name: "Torrent library" })).getByRole(
+      within(screen.getByRole("grid", { name: "Torrents" })).getByRole(
         "button",
         {
-          name: "error: Write failed: destination has no free space. Open General details",
+          name: "Error: Write failed: destination has no free space. Open General details",
         },
       ),
     ).toBeVisible();
   });
 
+  it("summarizes trackers, DHT, peer exchange and incoming peers above the trackers", async () => {
+    const user = userEvent.setup();
+    renderScenario("swarm-lifecycle", 30_000);
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "Trackers" }));
+
+    const sources = await screen.findByRole("table", { name: "Peer sources" });
+    expect(
+      within(sources).getAllByRole("row").map((row) => row.textContent),
+    ).toEqual([
+      // The scenario lists no trackers but tags its swarm peers as tracker peers.
+      "TrackersNone3 known0 connected",
+      "DHTOn3 known0 connected",
+      "Peer exchangeOn2 known1 connected",
+      "Incoming connectionsOff0 known0 connected",
+    ]);
+  });
+
   it("renders the bounded swarm registry independently of active connections", async () => {
     const user = userEvent.setup();
     renderScenario("swarm-lifecycle", 24_000);
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await user.click(screen.getByRole("tab", { name: "Swarm" }));
 
     const grid = await screen.findByRole("grid", { name: "Known swarm peers" });
@@ -555,8 +1236,8 @@ describe("inspection application", () => {
     expect(
       within(grid).getByRole("columnheader", { name: "Uploaded" }),
     ).toBeVisible();
-    expect(within(grid).getByText("512 MB")).toBeVisible();
-    expect(within(grid).getByText("32.0 MB")).toBeVisible();
+    expect(within(grid).getByText("488 MB")).toBeVisible();
+    expect(within(grid).getByText("30.5 MB")).toBeVisible();
 
     await user.click(
       within(grid).getByRole("button", { name: "Explain Downloaded" }),
@@ -564,14 +1245,18 @@ describe("inspection application", () => {
     expect(
       screen.getByRole("dialog", { name: "Downloaded column help" }),
     ).toHaveTextContent(
-      "Useful payload received from this peer across every connection retained by this Swarm record",
+      "Total useful file data received from this peer since JSTorrent started.",
     );
   });
 
   it("drives an ordered diagnostic console with separate capture controls", async () => {
     const user = userEvent.setup();
     const rendered = renderScenario("diagnostic-console", 45_000);
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await user.click(screen.getByRole("tab", { name: "Logs" }));
 
     const feed = screen.getByRole("log", {
@@ -581,15 +1266,15 @@ describe("inspection application", () => {
     expect(rendered.container.querySelectorAll("article").length).toBeLessThan(
       60,
     );
-    expect(screen.getByText(/retained$/)).toHaveTextContent("2,048 retained");
+    expect(screen.getByText(/kept$/)).toHaveTextContent("2,048 kept");
 
-    const captureScope = screen.getByLabelText("Diagnostic capture scope");
+    const captureScope = screen.getByLabelText("Torrents to log");
     await user.selectOptions(captureScope, DEMO_PRIMARY_TORRENT_ID);
     await user.click(screen.getByRole("row", { name: /Sintel 4K open movie/ }));
     expect(captureScope).toHaveValue(DEMO_PRIMARY_TORRENT_ID);
 
     await user.selectOptions(
-      screen.getByLabelText("Diagnostic capture profile"),
+      screen.getByLabelText("Log detail level"),
       "trace",
     );
     expect(screen.getByText("High-volume producer capture")).toBeVisible();
@@ -647,6 +1332,7 @@ describe("inspection application", () => {
     expect(
       within(dialog).queryByRole("tab", { name: "About & updates" }),
     ).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("tab", { name: "About" })).toBeVisible();
     const close = within(dialog).getByRole("button", {
       name: "Close settings",
     });
@@ -658,23 +1344,25 @@ describe("inspection application", () => {
       within(colorThemeGroup).getByRole("radio", { name: /Auto/ }),
     ).toBeChecked();
     const dataUnitsGroup = within(dialog).getByRole("group", {
-      name: "Data units",
+      name: "Size units",
     });
     expect(
-      within(dataUnitsGroup).getByRole("radio", { name: /Decimal/ }),
+      within(dataUnitsGroup).getByRole("radio", { name: /^KB, MB, GB/ }),
     ).toBeChecked();
-    expect(screen.getAllByText(/(?:kB|MB)(?:\/s)?$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/\d KB(?:\/s)?$/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/\d kB(?:\/s)?$/)).toHaveLength(0);
 
     await user.tab({ shift: true });
     expect(
-      within(dataUnitsGroup).getByRole("radio", { name: /Binary/ }),
+      within(dataUnitsGroup).getByRole("radio", { name: /Decimal/ }),
     ).toHaveFocus();
     await user.click(
-      within(dataUnitsGroup).getByRole("radio", { name: /Binary/ }),
+      within(dataUnitsGroup).getByRole("radio", { name: /Decimal/ }),
     );
-    expect(screen.getAllByText(/(?:KiB|MiB)(?:\/s)?$/).length).toBeGreaterThan(
-      0,
-    );
+    expect(screen.getAllByText(/\d kB(?:\/s)?$/).length).toBeGreaterThan(0);
+    expect(
+      screen.queryAllByText(/\d KB(?:\/s)?$/, { ignore: "option, script, style" }),
+    ).toHaveLength(0);
     await user.click(within(dialog).getByRole("radio", { name: /Dark/ }));
     expect(document.documentElement).toHaveAttribute(
       "data-color-theme",
@@ -686,7 +1374,7 @@ describe("inspection application", () => {
       version: 3,
       interfaceSize: "spacious",
       colorTheme: "dark",
-      dataUnits: "binary",
+      dataUnits: "decimal",
     });
 
     await user.keyboard("{Escape}");
@@ -711,9 +1399,9 @@ describe("inspection application", () => {
     );
     await user.click(screen.getByRole("button", { name: "Settings" }));
     expect(
-      within(screen.getByRole("group", { name: "Data units" })).getByRole(
+      within(screen.getByRole("group", { name: "Size units" })).getByRole(
         "radio",
-        { name: /Binary/ },
+        { name: /Decimal/ },
       ),
     ).toBeChecked();
   });
@@ -821,7 +1509,7 @@ describe("inspection application", () => {
     const status = screen.getByRole("status", {
       name: "Network prerequisite status",
     });
-    expect(status).toHaveTextContent("Waiting for an unmetered network.");
+    expect(status).toHaveTextContent("Waiting for Wi-Fi.");
     expect(status).toHaveTextContent("resume automatically");
     expect(within(status).queryByRole("button")).not.toBeInTheDocument();
   });
@@ -904,7 +1592,7 @@ describe("inspection application", () => {
     await user.click(screen.getByRole("tab", { name: "Power" }));
     expect(
       screen.getByRole("checkbox", {
-        name: /Prevent sleep during active downloads and checks/,
+        name: /Prevent sleep while downloading/,
       }),
     ).toBeChecked();
   });
@@ -912,7 +1600,11 @@ describe("inspection application", () => {
   it("switches named scenarios and advances the frozen clock", async () => {
     const user = userEvent.setup();
     renderScenario("tracker-recovery", 0);
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await user.click(screen.getByRole("tab", { name: "General" }));
     expect(screen.getByText(/retry scheduled in 22 seconds/i)).toBeVisible();
     await user.click(screen.getByRole("button", { name: "+10s" }));
@@ -928,8 +1620,8 @@ describe("inspection application", () => {
 
   it("keeps rendered rows and cards bounded for large logical collections", async () => {
     const user = userEvent.setup();
-    renderScenario("large-swarm", 0);
-    const transferGrid = screen.getByRole("grid", { name: "Transfer queue" });
+    renderScenario("large-swarm", 0, undefined, undefined, undefined, undefined, false);
+    const transferGrid = screen.getByRole("grid", { name: "Torrents" });
     expect(transferGrid).toHaveAttribute("aria-rowcount", "2001");
     expect(within(transferGrid).getAllByRole("row").length).toBeLessThanOrEqual(
       100,
@@ -941,8 +1633,12 @@ describe("inspection application", () => {
     });
     expect(within(library).getAllByRole("listitem").length).toBeLessThan(100);
 
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
-    const torrentGrid = screen.getByRole("grid", { name: "Torrent library" });
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    const torrentGrid = screen.getByRole("grid", { name: "Torrents" });
     const peerGrid = screen.getByRole("grid", {
       name: "Active peer connections",
     });
@@ -959,7 +1655,11 @@ describe("inspection application", () => {
   it("materializes a full file catalog only on the Files tab", async () => {
     const user = userEvent.setup();
     renderScenario("file-progress", 24_000);
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     expect(
       screen.queryByRole("grid", { name: "Torrent files" }),
     ).not.toBeInTheDocument();
@@ -998,13 +1698,13 @@ describe("inspection application", () => {
     expect(secondFile).toHaveAttribute("aria-current", "true");
     await user.keyboard("{Shift>}{ArrowDown}{/Shift}");
     expect(files).toHaveAttribute("aria-multiselectable", "true");
-    expect(screen.getByText("2 selected for actions")).toBeVisible();
+    expect(screen.getByText("2 selected")).toBeVisible();
     expect(within(files).getAllByRole("row")[3]).toHaveAttribute(
       "aria-current",
       "true",
     );
     await user.keyboard("{Control>}a{/Control}");
-    expect(screen.getByText("4,095 selected for actions")).toBeVisible();
+    expect(screen.getByText("4,095 selected")).toBeVisible();
     expect(within(files).getAllByRole("row").length).toBeLessThanOrEqual(100);
     await user.keyboard("{Escape}");
     expect(
@@ -1037,7 +1737,11 @@ describe("inspection application", () => {
       .find((row) => row?.padding === false)!;
     renderApplication(application);
 
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await user.click(screen.getByRole("tab", { name: "Files" }));
     const files = screen.getByRole("grid", { name: "Torrent files" });
     await user.click(within(files).getAllByRole("row")[1]!);
@@ -1081,6 +1785,75 @@ describe("inspection application", () => {
         priority: "normal",
       }),
     );
+    // The Priority column shows the change; nothing is added above the table.
+    expect(screen.queryByRole("region", { name: "Notification" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/set to normal/i)).not.toBeInTheDocument();
+  });
+
+  it("offers in-app Play before new-tab Open for a completed local video", async () => {
+    const user = userEvent.setup();
+    const base = buildScenarioSnapshot("file-progress", 24_000, false, 1);
+    const fileSet = base.filesByTorrent[DEMO_PRIMARY_TORRENT_ID]!;
+    const file = fileSet.order
+      .map((id) => fileSet.rows[id])
+      .find((candidate) => candidate?.padding === false)!;
+    const snapshot = {
+      ...base,
+      demo: null,
+      filesByTorrent: {
+        ...base.filesByTorrent,
+        [DEMO_PRIMARY_TORRENT_ID]: {
+          ...fileSet,
+          rows: {
+            ...fileSet.rows,
+            [file.id]: {
+              ...file,
+              name: "movie.mkv",
+              mediaAvailability: "available" as const,
+            },
+          },
+        },
+      },
+    };
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot,
+    });
+    const localPlayback: LocalVideoPlayback = {
+      play: vi.fn(async () => ({ close: async () => {} })),
+      openExternally: vi.fn(async () => {}),
+      mediaUrl: vi.fn(async () => "/media/v1/test"),
+    };
+    renderApplication(
+      application, undefined, undefined, undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined, localPlayback,
+    );
+
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "Files" }));
+    const files = screen.getByRole("grid", { name: "Torrent files" });
+    await user.click(within(files).getByText("movie.mkv"));
+    await user.click(screen.getByRole("button", { name: "More file actions" }));
+    const items = screen.getAllByRole("menuitem").map((item) => item.textContent);
+    expect(items.slice(0, 2)).toEqual(["Play", "Open"]);
+    const play = screen.getByRole("menuitem", { name: "Play" });
+    expect(play.querySelector("svg")).toBeNull();
+    await user.click(play);
+
+    await waitFor(() => expect(localPlayback.play).toHaveBeenCalledOnce());
+    expect(localPlayback.play).toHaveBeenCalledWith(
+      expect.objectContaining({
+        torrentId: DEMO_PRIMARY_TORRENT_ID,
+        fileIndex: file.index,
+        fileName: "movie.mkv",
+      }),
+    );
+    expect(screen.getByRole("dialog", { name: "Play movie.mkv" })).toBeTruthy();
+    expect(application.commands.some((command) => command.type === "open_file")).toBe(false);
   });
 
   it("shows Open only for a single verified available file", async () => {
@@ -1110,12 +1883,19 @@ describe("inspection application", () => {
     });
     renderApplication(application);
 
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await user.click(screen.getByRole("tab", { name: "Files" }));
     const files = screen.getByRole("grid", { name: "Torrent files" });
     await user.click(within(files).getByText(file.name));
     await user.click(screen.getByRole("button", { name: "More file actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Open" }));
+    const open = screen.getByRole("menuitem", { name: "Open" });
+    // The file opens in a new tab or app, so the item says so visually.
+    expect(open.querySelector("svg")).not.toBeNull();
+    await user.click(open);
 
     await waitFor(() =>
       expect(application.commands.at(-1)).toEqual({
@@ -1126,7 +1906,7 @@ describe("inspection application", () => {
     );
   });
 
-  it("offers a direct save for one verified file on a capable remote host", async () => {
+  it("keeps remote save progress bounded and reports completion and cancellation immediately", async () => {
     const user = userEvent.setup();
     const base = buildScenarioSnapshot("file-progress", 24_000, false, 1);
     const fileSet = base.filesByTorrent[DEMO_PRIMARY_TORRENT_ID]!;
@@ -1150,7 +1930,17 @@ describe("inspection application", () => {
         },
       },
     });
-    const saveCompletedFile = vi.fn(async () => undefined);
+    let saveRequest: RemoteCompletedFileSaveRequest;
+    let finishSave: () => void;
+    const saveCompletedFile = vi.fn((request: RemoteCompletedFileSaveRequest) => {
+      saveRequest = request;
+      return new Promise<void>((resolve, reject) => {
+        finishSave = resolve;
+        request.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Cancelled", "AbortError"));
+        }, { once: true });
+      });
+    });
     const remoteAccess = directFileRemoteAccess(saveCompletedFile);
     renderApplication(
       application,
@@ -1165,7 +1955,11 @@ describe("inspection application", () => {
       remoteAccess,
     );
 
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await user.click(screen.getByRole("tab", { name: "Files" }));
     await user.click(within(screen.getByRole("grid", { name: "Torrent files" })).getByText(file.name));
     await user.click(screen.getByRole("button", { name: "More file actions" }));
@@ -1183,6 +1977,43 @@ describe("inspection application", () => {
         }),
       ),
     );
+    const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+    try {
+      const report = (state: "transferring" | "complete", bytesWritten: bigint) => {
+        saveRequest.onProgress?.({ state, bytesWritten, fileLength: 1000n });
+      };
+      act(() => report("transferring", 10n));
+      const progress = screen.getByRole("progressbar", { name: "Saving directly…" });
+      expect(progress).toHaveAttribute("value", "1");
+      // Simulate a burst of per-chunk callbacks without advancing the display clock.
+      act(() => {
+        for (let bytes = 11n; bytes < 700n; bytes++) report("transferring", bytes);
+      });
+      expect(progress).toHaveAttribute("value", "1");
+      clock.mockReturnValue(200);
+      act(() => report("transferring", 732n));
+      expect(progress).toHaveAttribute("value", "73.2");
+      expect(within(toast()).getByText("73.2%")).toBeInTheDocument();
+      expect(within(toast()).getByText("Saving directly…")).not.toHaveTextContent("73.2%");
+      // Progress lives in the toast, not in a row above the file table.
+      expect(screen.getByRole("grid", { name: "Torrent files" })).not.toContainElement(progress);
+      clock.mockReturnValue(201);
+      await act(async () => {
+        report("complete", 1000n);
+        finishSave();
+      });
+      expect(toast()).toHaveTextContent("Remote file saved.");
+      expect(screen.queryByRole("progressbar", { name: "Saving directly…" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Cancel save" })).not.toBeInTheDocument();
+    } finally {
+      clock.mockRestore();
+    }
+    await user.click(screen.getByRole("button", { name: "More file actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Save file…" }));
+    await user.click(screen.getByRole("button", { name: "Cancel save" }));
+    await findToast("Remote file save cancelled.");
+    expect(saveRequest!.signal?.aborted).toBe(true);
+    expect(screen.queryByRole("progressbar", { name: "Saving directly…" })).not.toBeInTheDocument();
   });
 
   it("sends one Download now command for a skipped file", async () => {
@@ -1198,13 +2029,21 @@ describe("inspection application", () => {
       .find((row) => row?.padding === false && row.selection === "skipped")!;
     renderApplication(application);
 
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await user.click(screen.getByRole("tab", { name: "Files" }));
     const files = screen.getByRole("grid", { name: "Torrent files" });
     await user.click(within(files).getByText(skippedFile.name));
     await user.click(screen.getByRole("button", { name: "More file actions" }));
     const fileActions = screen.getByRole("menu", { name: "More file actions" });
-    expect(within(fileActions).getAllByRole("separator")).toHaveLength(1);
+    // Download, priority and share groups.
+    expect(within(fileActions).getAllByRole("separator")).toHaveLength(2);
+    expect(
+      within(fileActions).getByRole("menuitem", { name: "Share file" }),
+    ).toBeEnabled();
     expect(within(fileActions).queryByText("Download", { exact: true })).not.toBeInTheDocument();
     await user.click(screen.getByRole("menuitem", { name: "Download now" }));
 
@@ -1262,14 +2101,18 @@ describe("inspection application", () => {
       .slice(0, 2);
     renderApplication(application);
 
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await user.click(screen.getByRole("tab", { name: "Files" }));
     const grid = screen.getByRole("grid", { name: "Torrent files" });
     const firstRow = within(grid).getAllByRole("row")[1]!;
     fireEvent.contextMenu(firstRow, { clientX: 120, clientY: 160 });
     const contextMenu = await screen.findByRole("menu");
     expect(within(contextMenu).queryByText("Priority", { exact: true })).not.toBeInTheDocument();
-    expect(within(contextMenu).getAllByRole("separator")).toHaveLength(1);
+    expect(within(contextMenu).getAllByRole("separator")).toHaveLength(2);
     await user.click(
       within(contextMenu).getByRole("menuitem", { name: "Skip" }),
     );
@@ -1299,16 +2142,41 @@ describe("inspection application", () => {
     );
   });
 
+  it("explains a safety skip and sends explicit per-file allowance without Download now", async () => {
+    const user = userEvent.setup();
+    const base = { ...buildScenarioSnapshot("file-progress", 24_000, false, 1), demo: null };
+    const files = base.filesByTorrent[DEMO_PRIMARY_TORRENT_ID]!;
+    const first = files.order.map(id => files.rows[id]!).find(row => !row.padding)!;
+    const blocked: FileRow = { ...first, name: "movie.mkv.exe", path: ["movie.mkv.exe"], selection: "skipped", safety: { matched_extension: ".exe", preset: "recommended", overridden: false, blocked: true } };
+    const snapshot = { ...base, filesByTorrent: { ...base.filesByTorrent, [DEMO_PRIMARY_TORRENT_ID]: { ...files, rows: { ...files.rows, [blocked.id]: blocked } } } };
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+    renderApplication(application);
+    await user.click(within(screen.getByRole("navigation", { name: "Primary" })).getByRole("button", { name: "Torrents" }));
+    await user.click(screen.getByRole("tab", { name: "Files" }));
+    expect(screen.getByText(/Skipped by safety settings.*.exe/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Download anyway movie.mkv.exe" }));
+    await waitFor(() => expect(application.commands.at(-1)).toEqual({ type: "set_file_safety_override", torrentId: DEMO_PRIMARY_TORRENT_ID, fileIndices: [blocked.index], allowed: true }));
+    expect(application.commands.some(command => command.type === "download_files" || command.type === "resume")).toBe(false);
+    application.emitUpdate({ type: "snapshot", snapshot: { ...snapshot, filesByTorrent: { ...snapshot.filesByTorrent, [DEMO_PRIMARY_TORRENT_ID]: { ...files, rows: { ...files.rows, [blocked.id]: { ...blocked, selection: "normal", safety: { ...blocked.safety!, overridden: true, blocked: false } } } } } } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Undo safety override movie.mkv.exe" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Undo safety override movie.mkv.exe" }));
+    await waitFor(() => expect(application.commands.at(-1)).toMatchObject({ type: "set_file_safety_override", allowed: false }));
+  });
+
   it("materializes the global disk pipeline only on the Disk tab", async () => {
     const user = userEvent.setup();
     renderScenario("slow-disk-pressure", 20_000);
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     expect(
       screen.queryByRole("grid", { name: "Active storage pieces" }),
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Disk" }));
     expect(
-      screen.getByText("Receive → write → verify → checkpoint"),
+      await screen.findByText("Receive → write → verify → checkpoint"),
     ).toBeVisible();
     expect(screen.getByLabelText("Disk pressure Backpressured")).toBeVisible();
     const pieces = screen.getByRole("grid", { name: "Active storage pieces" });
@@ -1320,11 +2188,15 @@ describe("inspection application", () => {
   it("renders a bounded accessible canvas for a 250,000-piece torrent", async () => {
     const user = userEvent.setup();
     renderScenario("large-swarm", 0);
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
 
     await user.click(screen.getByRole("tab", { name: "Pieces" }));
 
-    const canvas = screen.getByRole("img", {
+    const canvas = await screen.findByRole("img", {
       name: /250,000 pieces: 135,000 verified, 6 active/i,
     }) as HTMLCanvasElement;
     expect(canvas).toBeVisible();
@@ -1337,7 +2209,11 @@ describe("inspection application", () => {
   it("resizes the detail pane with pointer and keyboard input", async () => {
     const user = userEvent.setup();
     renderScenario("healthy-download", 42_000);
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     const splitter = screen.getByRole("separator", {
       name: "Resize torrent details",
     });
@@ -1430,9 +2306,7 @@ describe("inspection application", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-    expect(
-      screen.getByText(/Removed Big Buck Bunny/, { exact: true }),
-    ).toBeVisible();
+    expect(toast()).toHaveTextContent(/Removed Big Buck Bunny/);
   });
 
   it("keeps a failed removal dialog actionable", async () => {
@@ -1469,18 +2343,22 @@ describe("inspection application", () => {
 
   it("renders truthful empty states without fabricating media details", async () => {
     const user = userEvent.setup();
-    renderScenario("empty-library", 0);
-    expect(screen.getByText(/No transfers yet/i)).toBeVisible();
+    renderScenario("empty-library", 0, undefined, undefined, undefined, undefined, false);
+    expect(screen.getByText(/No torrents yet/i)).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Library" }));
     expect(screen.getByText("No content sources yet")).toBeVisible();
     expect(
       screen.queryByRole("button", { name: /^Play / }),
     ).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
-    expect(screen.getByText(/Select a torrent to inspect it/i)).toBeVisible();
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    expect(screen.getByText(/Select a torrent to see its details/i)).toBeVisible();
   });
 
-  it("shares multi-selection between Transfers and Workbench", async () => {
+  it("preserves multi-selection across Library and drops it for hidden torrents", async () => {
     const user = userEvent.setup();
     renderScenario("healthy-download", 42_000);
     expect(
@@ -1489,23 +2367,38 @@ describe("inspection application", () => {
     fireEvent.click(screen.getByRole("row", { name: /Sintel 4K open movie/ }), {
       shiftKey: true,
     });
-    expect(screen.getByText("2 selected for actions")).toBeVisible();
+    expect(screen.getByText("2 selected")).toBeVisible();
     expect(screen.getByRole("button", { name: "Remove" })).toBeEnabled();
-    await user.click(screen.getByRole("button", { name: /Paused/ }));
-    expect(
-      screen.getByText("2 selected for actions (1 outside this view)"),
-    ).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    expect(screen.getByText("2 selected")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: /Paused/ }));
+    expect(screen.queryByText(/not shown/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /All torrents/ }));
     expect(
-      screen.getByRole("checkbox", {
-        name: "Deselect Big Buck Bunny 1080p surround",
-      }),
-    ).toBeChecked();
+      screen.getAllByRole("checkbox", { name: /^Deselect / }),
+    ).toHaveLength(1);
+  });
+
+  it("offers all torrents when a category filter hides every torrent", async () => {
+    const user = userEvent.setup();
+    renderScenario("healthy-download", 42_000);
+    await user.click(screen.getByRole("button", { name: /Needs attention/ }));
+    expect(screen.getByText("No torrents need attention.")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Show all torrents" }));
     expect(
-      screen.getByRole("checkbox", { name: "Deselect Sintel 4K open movie" }),
-    ).toBeChecked();
-    expect(screen.getByText("2 selected for actions")).toBeVisible();
+      screen.getByRole("row", { name: /Sintel 4K open movie/ }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Show all torrents" }),
+    ).not.toBeInTheDocument();
   });
 
   it("uses exact torrent context targets and the shared grouped action set", async () => {
@@ -1519,7 +2412,7 @@ describe("inspection application", () => {
       snapshot,
     });
     renderApplication(application);
-    const grid = screen.getByRole("grid", { name: "Transfer queue" });
+    const grid = screen.getByRole("grid", { name: "Torrents" });
     const sintelRow = within(grid).getByRole("row", {
       name: /Sintel 4K open movie/,
     });
@@ -1538,6 +2431,7 @@ describe("inspection application", () => {
       "Move to top",
       "Move to bottom",
       "Copy magnet link",
+      "Copy share link",
       "Torrent settings",
       "Archive",
       "Restore",
@@ -1591,7 +2485,7 @@ describe("inspection application", () => {
   it("opens a torrent context menu from the keyboard for the checked selection", async () => {
     const user = userEvent.setup();
     renderScenario("healthy-download", 42_000);
-    const grid = screen.getByRole("grid", { name: "Transfer queue" });
+    const grid = screen.getByRole("grid", { name: "Torrents" });
     await user.click(
       within(grid).getByRole("checkbox", {
         name: "Select Sintel 4K open movie",
@@ -1610,10 +2504,14 @@ describe("inspection application", () => {
   it("keeps the detail row within the checked selection", async () => {
     const user = userEvent.setup();
     renderScenario("healthy-download", 42_000);
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await user.click(screen.getByRole("tab", { name: "General" }));
 
-    const grid = screen.getByRole("grid", { name: "Torrent library" });
+    const grid = screen.getByRole("grid", { name: "Torrents" });
     const detail = screen.getByRole("region", { name: "Torrent details" });
     const bunny = within(grid).getByRole("row", {
       name: /Big Buck Bunny 1080p surround/,
@@ -1630,7 +2528,7 @@ describe("inspection application", () => {
 
     await user.keyboard("{Shift>}{ArrowUp}{/Shift}");
     expect(bunny).toHaveAttribute("aria-current", "true");
-    expect(screen.getByText("2 selected for actions")).toBeVisible();
+    expect(screen.getByText("2 selected")).toBeVisible();
     expect(
       within(detail).getByRole("heading", {
         name: "Big Buck Bunny 1080p surround",
@@ -1638,14 +2536,14 @@ describe("inspection application", () => {
     ).toBeVisible();
 
     await user.keyboard("{Control>}a{/Control}");
-    expect(screen.getByText("3 selected for actions")).toBeVisible();
+    expect(screen.getByText("3 selected")).toBeVisible();
     await user.keyboard("{ArrowUp}");
     const arch = within(grid).getByRole("row", {
       name: /Arch Linux 2026\.08\.01 x86_64/,
     });
     expect(arch).toHaveAttribute("aria-current", "true");
     expect(
-      screen.queryByText("3 selected for actions"),
+      screen.queryByText("3 selected"),
     ).not.toBeInTheDocument();
     expect(
       within(grid).getByRole("checkbox", {
@@ -1665,7 +2563,7 @@ describe("inspection application", () => {
 
     await user.keyboard("{Escape}");
     expect(
-      screen.queryByText("3 selected for actions"),
+      screen.queryByText("3 selected"),
     ).not.toBeInTheDocument();
     expect(arch).toHaveAttribute("aria-current", "true");
   });
@@ -1701,7 +2599,7 @@ describe("inspection application", () => {
       torrentId: sintel.id,
     });
 
-    fireEvent.click(screen.getByRole("grid", { name: "Transfer queue" }));
+    fireEvent.click(screen.getByRole("grid", { name: "Torrents" }));
     expect(screen.getByRole("button", { name: "Pause" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Remove" })).toBeDisabled();
   });
@@ -1732,11 +2630,58 @@ describe("inspection application", () => {
         { type: "archive", torrentId: sintel.id },
       ]),
     );
+    expect(within(toast()).getByRole("alert")).toHaveTextContent(
+      "1 of 2 torrents failed: Sintel 4K open movie: rejected for test",
+    );
+    // A partial failure offers no Undo.
     expect(
-      screen.getByText(
-        /Archived 1 of 2; 1 failed: Sintel 4K open movie: rejected for test/,
-      ),
-    ).toBeVisible();
+      within(toast()).queryByRole("button", { name: "Undo" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers Undo after archiving and resumes only torrents that were running", async () => {
+    const user = userEvent.setup();
+    const snapshot = {
+      ...buildScenarioSnapshot("healthy-download", 42_000, false, 1),
+      demo: null,
+    };
+    const sintel = Object.values(snapshot.torrents).find(
+      (torrent) => torrent.name === "Sintel 4K open movie",
+    )!;
+    const primary = snapshot.torrents[DEMO_PRIMARY_TORRENT_ID]!;
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...snapshot,
+        torrents: {
+          ...snapshot.torrents,
+          [DEMO_PRIMARY_TORRENT_ID]: { ...primary, operationalState: "downloading" },
+          [sintel.id]: { ...sintel, operationalState: "paused", status: "paused" },
+        },
+      },
+    });
+    renderApplication(application);
+    await user.click(
+      screen.getByRole("checkbox", { name: "Select Sintel 4K open movie" }),
+    );
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("menuitem", { name: "Archive" }));
+
+    await findToast("Archived 2 torrents");
+    expect(within(toast()).queryByRole("alert")).not.toBeInTheDocument();
+    await user.click(within(toast()).getByRole("button", { name: "Undo" }));
+
+    await waitFor(() =>
+      expect(application.commands).toEqual([
+        { type: "archive", torrentId: DEMO_PRIMARY_TORRENT_ID },
+        { type: "archive", torrentId: sintel.id },
+        { type: "unarchive", torrentId: DEMO_PRIMARY_TORRENT_ID },
+        { type: "unarchive", torrentId: sintel.id },
+        { type: "resume", torrentId: DEMO_PRIMARY_TORRENT_ID },
+      ]),
+    );
+    // Undo itself is not undoable.
+    expect(screen.queryByRole("region", { name: "Notification" })).not.toBeInTheDocument();
   });
 
   it("removes multiple torrents and retries only failed targets", async () => {
@@ -1770,7 +2715,7 @@ describe("inspection application", () => {
 
     dialog = await screen.findByRole("dialog", { name: "Remove torrent?" });
     expect(within(dialog).getAllByRole("alert").at(-1)).toHaveTextContent(
-      /Removed 1 of 2; 1 failed: Sintel 4K open movie: rejected for test/,
+      "1 of 2 torrents failed: Sintel 4K open movie: rejected for test",
     );
     expect(
       within(dialog).getByRole("button", { name: "Retry failed" }),
@@ -1794,9 +2739,9 @@ describe("inspection application", () => {
     ]);
   });
 
-  it("opens truthful Library details and hands their source to Workbench", async () => {
+  it("opens truthful Library details and hands their source to Torrents", async () => {
     const user = userEvent.setup();
-    renderScenario("healthy-download", 42_000);
+    renderScenario("healthy-download", 42_000, undefined, undefined, undefined, undefined, false);
     await user.click(screen.getByRole("button", { name: "Library" }));
     expect(
       screen.queryByRole("button", { name: /^Play / }),
@@ -1815,13 +2760,19 @@ describe("inspection application", () => {
       "true",
     );
     expect(screen.getByText("Waiting for torrent metadata…")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Open in Workbench" }));
-    expect(screen.getByRole("button", { name: "Workbench" })).toHaveAttribute(
+    await user.click(screen.getByRole("button", { name: "Open in Torrents" }));
+    expect(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    ).toHaveAttribute(
       "aria-current",
       "page",
     );
     await user.click(screen.getByRole("tab", { name: "General" }));
-    expect(screen.getByText("Current transfer")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Copy magnet link" }),
+    ).toBeVisible();
     expect(screen.getAllByText("Sintel 4K open movie").length).toBeGreaterThan(
       0,
     );
@@ -1829,7 +2780,7 @@ describe("inspection application", () => {
 
   it("orders a TV detail numerically and restores its Library card", async () => {
     const user = userEvent.setup();
-    renderScenario("media-library", 0);
+    renderScenario("media-library", 0, undefined, undefined, undefined, undefined, false);
     await user.click(screen.getByRole("button", { name: "Library" }));
     const trigger = screen.getByRole("button", {
       name: "Open details for North Shore Stories · Seasons 1–2",
@@ -1913,15 +2864,12 @@ describe("inspection application", () => {
         fileIndex: 2,
       }),
     );
-    expect(
-      screen.getByText(
-        "Opening North.Shore.Stories.S01E02.1080p.WEB-DL.mp4 for playback",
-      ),
-    ).toBeVisible();
+    // The player opening is the confirmation.
+    expect(screen.queryByRole("region", { name: "Notification" })).not.toBeInTheDocument();
 
     application.rejectNextTorrentId = snapshot.torrentOrder[0];
     await user.click(playable);
-    expect(await screen.findByText("rejected for test")).toBeVisible();
+    expect(within(await findToast("rejected for test")).getByRole("alert")).toBeVisible();
     expect(playable).toBeEnabled();
   });
 
@@ -1938,29 +2886,33 @@ describe("inspection application", () => {
     const card = screen.getByRole("button", {
       name: "Open details for North Shore Stories · Seasons 1–2",
     });
-    expect(within(card).getByText("4.4 GB")).toBeVisible();
+    expect(within(card).getByText("4.1 GB")).toBeVisible();
     await user.click(card);
     expect(screen.queryByText("Size pending")).not.toBeInTheDocument();
-    expect(screen.getAllByText("4.4 GB").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("4.1 GB").length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("button", { name: "Back to Library" }));
-    await user.click(screen.getByRole("button", { name: "Transfers" }));
+    await user.click(screen.getByRole("button", { name: "Torrents" }));
     expect(
-      within(screen.getByRole("grid", { name: "Transfer queue" })).getByText(
-        "4.4 GB",
+      within(screen.getByRole("grid", { name: "Torrents" })).getByText(
+        "4.1 GB",
       ),
     ).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await user.click(screen.getByRole("tab", { name: "General" }));
     expect(
       screen.getByText("Size", { selector: "dt" }).parentElement,
-    ).toHaveTextContent("4.4 GB");
+    ).toHaveTextContent("4.1 GB");
   });
 
   it("bounds the mounted media rows for a 4,096-file catalog", async () => {
     const user = userEvent.setup();
-    renderScenario("file-progress", 24_000);
+    renderScenario("file-progress", 24_000, undefined, undefined, undefined, undefined, false);
     await user.click(screen.getByRole("button", { name: "Library" }));
     await user.click(
       screen.getByRole("button", {
@@ -1979,7 +2931,145 @@ describe("inspection application", () => {
     expect(mountedRows).toBeLessThanOrEqual(20);
   });
 
-  it("leases detail views only while Workbench needs them", async () => {
+  it("browses media across torrents by preset, show, search and layout", async () => {
+    const user = userEvent.setup();
+    renderScenario("media-library", 0);
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    expect(screen.getByRole("heading", { name: "All media" })).toBeVisible();
+    // The skipped double episode is not part of the library.
+    const items = () => screen.getByRole("list", { name: "Library items" });
+    expect(within(items()).getAllByRole("listitem")).toHaveLength(5);
+    expect(screen.getByText("5 items")).toBeVisible();
+    expect(within(items()).getAllByText(/^S01 · E01 · North Shore Stories$/)).toHaveLength(1);
+    expect(within(items()).getAllByText(/^Complete · /)).toHaveLength(2);
+    // Art shows the kind of media, not initials.
+    expect(within(items()).queryByText("NS")).not.toBeInTheDocument();
+
+    const filters = screen.getByRole("navigation", { name: "Library filters" });
+    expect(within(filters).getByRole("button", { name: /^TV shows/ })).toHaveTextContent("4");
+    expect(within(filters).getByRole("button", { name: /^Movies/ })).toHaveTextContent("0");
+    await user.click(within(filters).getByRole("button", { name: /^TV shows/ }));
+    const shows = screen.getByRole("list", { name: "TV shows" });
+    const show = within(shows).getByRole("button", { name: /North Shore Stories/ });
+    expect(show).toHaveTextContent("4 episodes · 2 seasons");
+    expect(show).toHaveTextContent("2 of 4 complete");
+    await user.click(show);
+    expect(screen.getByRole("heading", { name: "North Shore Stories" })).toBeVisible();
+    expect(within(items()).getAllByRole("listitem")).toHaveLength(4);
+    await user.click(screen.getByRole("button", { name: "Back to TV shows" }));
+    expect(screen.getByRole("list", { name: "TV shows" })).toBeVisible();
+
+    await user.click(within(filters).getByRole("button", { name: /^All media/ }));
+    await user.type(
+      screen.getByRole("searchbox", { name: "Search the library" }),
+      "s02",
+    );
+    await waitFor(() =>
+      expect(within(items()).getAllByRole("listitem")).toHaveLength(1),
+    );
+    await user.click(screen.getByRole("radio", { name: "List" }));
+    const table = screen.getByRole("grid", { name: "Library items" });
+    expect(within(table).getByRole("columnheader", { name: /Show or album/ })).toBeVisible();
+    expect(within(table).getAllByRole("row")).toHaveLength(2);
+
+    await user.click(
+      within(table).getByRole("button", { name: /^Show .* in its torrent$/ }),
+    );
+    expect(
+      screen.getByRole("heading", { name: "North Shore Stories · Seasons 1–2" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Back to Library" }));
+    // The search and page return with the Library, and focus with the item.
+    expect(
+      within(screen.getByRole("grid", { name: "Library items" })).getByRole("button", {
+        name: /^Show .* in its torrent$/,
+      }),
+    ).toHaveFocus();
+  });
+
+  it("pages the Library through the host query", async () => {
+    const user = userEvent.setup();
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const request = libraryMediaRequest(DEFAULT_LIBRARY_BROWSE);
+    const rows = Array.from({ length: 100 }, (_, index) => ({
+      id: `t1-000102030405060708090a0b0c0d0e0f:${index}`,
+      torrentId: "t1-000102030405060708090a0b0c0d0e0f",
+      torrentName: "Lectures",
+      fileIndex: index,
+      fileName: `${index} Lecture.mp4`,
+      title: `Lecture ${index}`,
+      kind: "video" as const,
+      role: "other" as const,
+      seriesTitle: null,
+      seriesId: null,
+      seasonNumber: null,
+      episodeNumber: null,
+      endingEpisodeNumber: null,
+      albumTitle: null,
+      albumId: null,
+      discNumber: null,
+      trackNumber: null,
+      year: null,
+      extension: "mp4",
+      lengthBytes: "1000",
+      verifiedBytes: "1000",
+      offline: true,
+      archived: false,
+      mediaAvailability: "available" as const,
+    }));
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...base,
+        demo: null,
+        libraryMedia: {
+          request,
+          page: { offset: 0, limit: 100, total: 250, nextOffset: 100 },
+          facets: {
+            items: 250,
+            video: 250,
+            audio: 0,
+            episodes: 0,
+            movies: 0,
+            other_videos: 250,
+            tracks: 0,
+            offline: 250,
+            incomplete: 0,
+            series: 0,
+            albums: 0,
+            torrents: 1,
+            metadata_pending: 2,
+          },
+          items: rows,
+          groups: [],
+        },
+        viewStatus: { ...base.viewStatus, libraryMedia: { status: "ready" } },
+      },
+    });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    const pages = screen.getByRole("navigation", { name: "Library pages" });
+    expect(pages).toHaveTextContent("1–100 of 250");
+    expect(within(pages).getByRole("button", { name: "Previous page" })).toBeDisabled();
+    await user.click(within(pages).getByRole("button", { name: "Next page" }));
+    await waitFor(() =>
+      expect(application.views.at(-1)?.libraryMedia).toEqual({
+        ...request,
+        offset: 100,
+      }),
+    );
+    // A new query returns to the first page and keeps the last page shown.
+    await user.click(screen.getByRole("radio", { name: "Complete" }));
+    await waitFor(() =>
+      expect(application.views.at(-1)?.libraryMedia).toMatchObject({
+        offset: 0,
+        query: { availability: "offline" },
+      }),
+    );
+    expect(screen.getAllByText("Lecture 0").length).toBeGreaterThan(0);
+  });
+
+  it("leases detail views only while Torrents needs them", async () => {
     const user = userEvent.setup();
     const snapshot = {
       ...buildScenarioSnapshot("healthy-download", 42_000, false, 1),
@@ -1990,9 +3080,11 @@ describe("inspection application", () => {
       snapshot,
     });
     renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Library" }));
     await waitFor(() =>
       expect(application.views.at(-1)).toEqual({
         library: true,
+        libraryMedia: DEFAULT_LIBRARY_REQUEST,
         torrentId: null,
         detail: null,
         logCapture: null,
@@ -2000,7 +3092,11 @@ describe("inspection application", () => {
       }),
     );
 
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     await waitFor(() =>
       expect(application.views.at(-1)).toMatchObject({
         library: true,
@@ -2012,10 +3108,55 @@ describe("inspection application", () => {
     await waitFor(() =>
       expect(application.views.at(-1)).toEqual({
         library: true,
+        libraryMedia: DEFAULT_LIBRARY_REQUEST,
         torrentId: null,
         detail: null,
         logCapture: null,
         speed: null,
+      }),
+    );
+  });
+
+  it("offers Restore when an added torrent is already archived", async () => {
+    const user = userEvent.setup();
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const archived = { ...base.torrents[DEMO_PRIMARY_TORRENT_ID]!, archived: true };
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...base,
+        demo: null,
+        storage: {
+          roots: [downloadRoot("root_a", "Downloads")],
+          defaultRoot: "root_a",
+          showAddOptions: false,
+        },
+        torrents: { ...base.torrents, [archived.id]: archived },
+      },
+    });
+    const dispatch = application.dispatch.bind(application);
+    vi.spyOn(application, "dispatch").mockImplementation(async (command) =>
+      command.type === "add_magnet"
+        ? {
+            accepted: true,
+            torrentId: archived.id,
+            addDisposition: { type: "already_present" },
+          }
+        : dispatch(command),
+    );
+    renderApplication(application);
+    await user.type(
+      screen.getByRole("textbox", { name: "Magnet link or torrent URL" }),
+      "magnet:?xt=urn:btih:000102030405060708090a0b0c0d0e0f10111213",
+    );
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    await findToast("Torrent is already in Archived.");
+    await user.click(within(toast()).getByRole("button", { name: "Restore" }));
+    await waitFor(() =>
+      expect(application.commands.at(-1)).toEqual({
+        type: "unarchive",
+        torrentId: archived.id,
       }),
     );
   });
@@ -2033,7 +3174,7 @@ describe("inspection application", () => {
     await user.click(screen.getByRole("button", { name: "Add" }));
 
     let dialog = screen.getByRole("dialog", {
-      name: "Choose download options",
+      name: "Add torrent",
     });
     expect(
       within(dialog).getByText(/download folder is required/i),
@@ -2056,7 +3197,7 @@ describe("inspection application", () => {
     );
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(
-      screen.queryByRole("dialog", { name: "Choose download options" }),
+      screen.queryByRole("dialog", { name: "Add torrent" }),
     ).not.toBeInTheDocument();
     expect(draft).toHaveValue(magnet);
     expect(
@@ -2064,15 +3205,15 @@ describe("inspection application", () => {
     ).toEqual([]);
 
     await user.click(screen.getByRole("button", { name: "Add" }));
-    dialog = screen.getByRole("dialog", { name: "Choose download options" });
+    dialog = screen.getByRole("dialog", { name: "Add torrent" });
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /Don’t show these options again/,
+        name: "Always use this folder",
       }),
     );
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /Start downloading files when metadata is available/,
+        name: "Start downloading right away",
       }),
     );
     await user.click(
@@ -2080,7 +3221,7 @@ describe("inspection application", () => {
     );
     await waitFor(() =>
       expect(
-        screen.queryByRole("dialog", { name: "Choose download options" }),
+        screen.queryByRole("dialog", { name: "Add torrent" }),
       ).not.toBeInTheDocument(),
     );
     expect(draft).toHaveValue("");
@@ -2118,7 +3259,7 @@ describe("inspection application", () => {
       "accept",
       ".torrent,application/x-bittorrent",
     );
-    expect(fileInput).not.toHaveAttribute("multiple");
+    expect(fileInput).toHaveAttribute("multiple");
     await user.click(add);
     expect(openChooser).toHaveBeenCalledOnce();
     draft.focus();
@@ -2170,7 +3311,229 @@ describe("inspection application", () => {
     expect(read).toHaveBeenCalledOnce();
     expect(fileInput).toHaveValue("");
     expect(JSON.stringify(application.commands)).not.toContain("private-name");
-    expect(screen.getByText("Torrent added", { exact: true })).toBeVisible();
+    // A new torrent appears in the list; no toast repeats that.
+    expect(screen.queryByRole("region", { name: "Notification" })).not.toBeInTheDocument();
+  });
+
+  it("adds several selected files in turn with one summary", async () => {
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: liveSnapshot({
+        roots: [downloadRoot("root_a", "Downloads")],
+        defaultRoot: "root_a",
+        showAddOptions: false,
+        showFileSelection: true,
+      }),
+    });
+    const dispatch = application.dispatch.bind(application);
+    const first = new Uint8Array([1, 2, 3]).buffer;
+    const second = new Uint8Array([4, 5, 6]).buffer;
+    vi.spyOn(application, "dispatch").mockImplementation(async (command) => {
+      const result = await dispatch(command);
+      if (command.type === "add_torrent_bytes" && command.source === second) {
+        return {
+          accepted: true,
+          torrentId: "t1-00000000000000000000000000000002",
+          addDisposition: { type: "already_present" },
+        };
+      }
+      return result;
+    });
+    renderApplication(application);
+    const fileA = new File([new Uint8Array(first)], "a.torrent");
+    Object.defineProperty(fileA, "arrayBuffer", { value: async () => first });
+    const fileB = new File([new Uint8Array(second)], "b.torrent");
+    Object.defineProperty(fileB, "arrayBuffer", { value: async () => second });
+    const empty = new File([], "empty.torrent");
+
+    fireEvent.change(torrentFileInput(), {
+      target: { files: [fileA, fileB, empty] },
+    });
+
+    await waitFor(() =>
+      expect(within(toast()).getByRole("alert")).toHaveTextContent(
+        "Added 1. Already in your list: 1. Couldn't add 1: empty.torrent: Torrent files must contain at least one byte.",
+      ),
+    );
+    // Several files share the default folder and never wait for selection.
+    expect(application.commands).toEqual([
+      { type: "add_torrent_bytes", source: first, storageRoot: "root_a", startContent: true },
+      { type: "add_torrent_bytes", source: second, storageRoot: "root_a", startContent: true },
+    ]);
+    expect(screen.queryByRole("dialog", { name: "Add torrent" })).not.toBeInTheDocument();
+  });
+
+  it("asks once for the folder of several files when add options are shown", async () => {
+    const user = userEvent.setup();
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: liveSnapshot({
+        roots: [
+          downloadRoot("root_a", "Downloads"),
+          downloadRoot("root_b", "Other folder"),
+        ],
+        defaultRoot: "root_a",
+        showAddOptions: true,
+      }),
+    });
+    renderApplication(application);
+    const sources = [new Uint8Array([1]).buffer, new Uint8Array([2]).buffer];
+    const files = sources.map((source, index) => {
+      const file = new File([new Uint8Array(source)], `file-${index}.torrent`);
+      Object.defineProperty(file, "arrayBuffer", { value: async () => source });
+      return file;
+    });
+
+    fireEvent.change(torrentFileInput(), { target: { files } });
+    const dialog = screen.getByRole("dialog", { name: "Add torrent" });
+    await user.click(within(dialog).getByRole("radio", { name: /Other folder/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Add torrent" }));
+
+    await waitFor(() =>
+      expect(application.commands).toEqual(
+        sources.map((source) => ({
+          type: "add_torrent_bytes",
+          source,
+          storageRoot: "root_b",
+          startContent: true,
+        })),
+      ),
+    );
+    expect(await findToast("Added 2. Already in your list: 0.")).toBeVisible();
+  });
+
+  it("adds from the header on every destination where there is room", async () => {
+    const user = userEvent.setup();
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: liveSnapshot({
+        roots: [downloadRoot("root_a", "Downloads")],
+        defaultRoot: "root_a",
+        showAddOptions: false,
+      }),
+    });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    const header = screen.getByRole("banner");
+    const magnet = `magnet:?xt=urn:btih:${"c".repeat(40)}&dn=Library`;
+    await user.type(
+      within(header).getByRole("textbox", { name: "Magnet link or torrent URL" }),
+      magnet,
+    );
+    await user.click(within(header).getByRole("button", { name: "Add" }));
+    await waitFor(() =>
+      expect(application.commands).toEqual([
+        { type: "add_magnet", magnet, storageRoot: "root_a", startContent: true },
+      ]),
+    );
+    expect(screen.getAllByRole("textbox", { name: "Magnet link or torrent URL" })).toHaveLength(1);
+  });
+
+  it("adds each pasted magnet link with one summary", async () => {
+    const user = userEvent.setup();
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: liveSnapshot({
+        roots: [downloadRoot("root_a", "Downloads")],
+        defaultRoot: "root_a",
+        showAddOptions: false,
+      }),
+    });
+    renderApplication(application);
+    const first = `magnet:?xt=urn:btih:${"a".repeat(40)}&dn=First`;
+    const second = `magnet:?xt=urn:btih:${"b".repeat(40)}&dn=Second`;
+    const draft = screen.getByRole("textbox", { name: "Magnet link or torrent URL" });
+
+    await user.click(draft);
+    await user.paste(`${first}\n\n${second}\nnot-a-link\n`);
+    expect(draft).toHaveValue(`${first} ${second} not-a-link`);
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() =>
+      expect(within(toast()).getByRole("alert")).toHaveTextContent(
+        "Added 2. Already in your list: 0. Couldn't add 1: not-a-link: Enter a magnet link beginning with magnet:?",
+      ),
+    );
+    expect(application.commands).toEqual([
+      { type: "add_magnet", magnet: first, storageRoot: "root_a", startContent: true },
+      { type: "add_magnet", magnet: second, storageRoot: "root_a", startContent: true },
+    ]);
+    // A failed link stays in the box so it can be fixed.
+    expect(draft).not.toHaveValue("");
+
+    fireEvent.change(draft, { target: { value: `${first} ${second}` } });
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(draft).toHaveValue(""));
+    expect(await findToast("Added 2. Already in your list: 0.")).toBeVisible();
+  });
+
+  it("keeps the open Settings category in the store", async () => {
+    const user = userEvent.setup();
+    renderApplication(
+      new RecordingLiveApplication({
+        type: "snapshot",
+        snapshot: liveSnapshot({
+          roots: [downloadRoot("root_a", "Downloads")],
+          defaultRoot: "root_a",
+          showAddOptions: false,
+        }),
+      }),
+    );
+    const store = controllers.at(-1)!.store;
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(await screen.findByRole("tab", { name: "Downloads" }));
+    expect(store.getState().presentation.settingsCategory).toBe("downloads");
+
+    // A link may name a category this client lacks; Appearance shows instead.
+    act(() => store.getState().selectSettingsCategory("power"));
+    expect(screen.getByRole("tab", { name: "Appearance" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    act(() => store.getState().closeSettings());
+    expect(screen.queryByRole("dialog", { name: "Settings" })).not.toBeInTheDocument();
+  });
+
+  it("shows torrent list export and import only where the client supports them", async () => {
+    const user = userEvent.setup();
+    const unsupported = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: liveSnapshot({
+        roots: [downloadRoot("root_a", "Downloads")],
+        defaultRoot: "root_a",
+        showAddOptions: false,
+      }),
+    });
+    const first = renderApplication(unsupported);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(screen.getByRole("tab", { name: "Data & reset" }));
+    expect(screen.getByRole("button", { name: "Restore defaults…" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Export torrent list" })).not.toBeInTheDocument();
+    first.unmount();
+
+    const supported = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: liveSnapshot({
+        roots: [downloadRoot("root_a", "Downloads"), downloadRoot("root_b", "Other folder")],
+        defaultRoot: "root_b",
+        showAddOptions: false,
+      }),
+    });
+    const exportTorrentList = vi.fn(async () => true);
+    const importTorrentBundle = vi.fn(
+      async (_target: TorrentListImportTarget, chooseFile: () => Promise<ArrayBuffer | null>) => {
+        await chooseFile();
+        return { added: 1, already_present: 0, failed: [] };
+      },
+    );
+    Object.assign(supported, { exportTorrentList, importTorrentBundle });
+    renderApplication(supported);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(screen.getByRole("tab", { name: "Data & reset" }));
+    await user.click(screen.getByRole("button", { name: "Export torrent list" }));
+    expect(exportTorrentList).toHaveBeenCalledOnce();
+    expect(await findToast("Torrent list saved.")).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "Import into" })).toHaveValue("root_b");
   });
 
   it("retains only the File while options are chosen and applies them after read", async () => {
@@ -2197,7 +3560,7 @@ describe("inspection application", () => {
     await user.click(screen.getByRole("button", { name: "Add" }));
     fireEvent.change(torrentFileInput(), { target: { files: [file] } });
     const dialog = screen.getByRole("dialog", {
-      name: "Choose download options",
+      name: "Add torrent",
     });
     expect(read).not.toHaveBeenCalled();
     expect(application.commands).toEqual([]);
@@ -2207,12 +3570,12 @@ describe("inspection application", () => {
     );
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /Start downloading files when metadata is available/,
+        name: "Start downloading right away",
       }),
     );
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /Don’t show these options again/,
+        name: "Always use this folder",
       }),
     );
     await user.click(
@@ -2221,7 +3584,7 @@ describe("inspection application", () => {
 
     await waitFor(() =>
       expect(
-        screen.queryByRole("dialog", { name: "Choose download options" }),
+        screen.queryByRole("dialog", { name: "Add torrent" }),
       ).not.toBeInTheDocument(),
     );
     expect(read).toHaveBeenCalledOnce();
@@ -2232,6 +3595,7 @@ describe("inspection application", () => {
         storageRoot: "root_b",
         startContent: false,
       },
+      { type: "set_default_download_root", rootId: "root_b" },
       { type: "set_show_add_options", show: false },
     ]);
   });
@@ -2265,7 +3629,7 @@ describe("inspection application", () => {
     Object.defineProperty(file, "arrayBuffer", { value: read });
     fireEvent.change(fileInput, { target: { files: [file] } });
     const dialog = screen.getByRole("dialog", {
-      name: "Choose download options",
+      name: "Add torrent",
     });
     await user.click(
       within(dialog).getByRole("button", { name: "Add torrent" }),
@@ -2318,7 +3682,8 @@ describe("inspection application", () => {
 
     await user.click(add);
     fireEvent.change(fileInput, { target: { files: [file] } });
-    await waitFor(() => expect(add).toHaveTextContent("Adding…"));
+    await waitFor(() => expect(add).toHaveAttribute("aria-busy", "true"));
+    expect(add).toHaveTextContent("Add");
     expect(fileInput).toHaveValue("");
     fireEvent.submit(add.closest("form")!);
     expect(openChooser).toHaveBeenCalledOnce();
@@ -2354,7 +3719,7 @@ describe("inspection application", () => {
     );
     await user.click(screen.getByRole("button", { name: "Add" }));
     const dialog = screen.getByRole("dialog", {
-      name: "Choose download options",
+      name: "Add torrent",
     });
     expect(
       within(dialog).getByRole("radio", { name: /Default Downloads/ }),
@@ -2392,7 +3757,7 @@ describe("inspection application", () => {
     renderApplication(application, undefined, undefined, external);
 
     let dialog = await screen.findByRole("dialog", {
-      name: "Choose download options",
+      name: "Add torrent",
     });
     expect(
       within(dialog).getByText(/external magnet link requested this add/i),
@@ -2418,7 +3783,7 @@ describe("inspection application", () => {
       }),
     );
     dialog = await screen.findByRole("dialog", {
-      name: "Choose download options",
+      name: "Add torrent",
     });
     expect(
       within(dialog).getByText(/external \.torrent file requested this add/i),
@@ -2466,9 +3831,10 @@ describe("inspection application", () => {
       storageRoot: "root_a",
       startContent: true,
     });
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Torrent added");
-    expect(external.getSnapshot().pending).toEqual([]);
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(external.getSnapshot().pending).toEqual([]);
+    });
   });
 
   it("keeps a retryable external activation available and reports queue notices", async () => {
@@ -2489,9 +3855,9 @@ describe("inspection application", () => {
     renderApplication(application, undefined, undefined, external);
 
     const dialog = await screen.findByRole("dialog", {
-      name: "Choose download options",
+      name: "Add torrent",
     });
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(within(toast()).getByRole("alert")).toHaveTextContent(
       "external add rejected",
     );
     expect(external.getSnapshot()).toMatchObject({
@@ -2547,7 +3913,7 @@ describe("inspection application", () => {
         show: false,
       }),
     );
-    expect(within(dialog).getByText(/future torrents only/i)).toBeVisible();
+    expect(within(dialog).getByText(/Existing torrents stay where they are/i)).toBeVisible();
   });
 
   it("uses only the current Android root and retains older roots in Settings", async () => {
@@ -2592,7 +3958,7 @@ describe("inspection application", () => {
       }),
     );
     expect(
-      screen.queryByRole("dialog", { name: "Choose download options" }),
+      screen.queryByRole("dialog", { name: "Add torrent" }),
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Settings" }));
@@ -2706,7 +4072,7 @@ describe("inspection application", () => {
       magnet,
     );
     await user.click(screen.getByRole("button", { name: "Add" }));
-    dialog = screen.getByRole("dialog", { name: "Choose download options" });
+    dialog = screen.getByRole("dialog", { name: "Add torrent" });
     expect(
       within(dialog).getByLabelText("Chromebook storage guidance"),
     ).toBeVisible();
@@ -2758,6 +4124,57 @@ describe("inspection application", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("does not label incoming Off as failed when IPv6 is unavailable", async () => {
+    const user = userEvent.setup();
+    const settings = clientSettingsRuntimeFixture();
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot: { ...liveSnapshot({ roots: [], defaultRoot: null, showAddOptions: true }), clientSettings: { ...settings, transport_application: { type: "degraded", reason: "transport_bind_failed", detail: "IPv6 route unavailable" } } } });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    await user.click(within(dialog).getByRole("tab", { name: "Connection & seeding" }));
+    const incoming = within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ });
+    expect(incoming).not.toBeChecked();
+    expect(incoming).not.toHaveAccessibleName(/Couldn't apply/);
+  });
+
+  it("keeps incoming off and explains forwarding before saving an enable", async () => {
+    const user = userEvent.setup();
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot: { ...liveSnapshot({ roots: [], defaultRoot: null, showAddOptions: true }), clientSettings: clientSettingsRuntimeFixture() } });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    await user.click(within(dialog).getByRole("tab", { name: "Connection & seeding" }));
+    const incoming = within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ });
+    const forwarding = within(dialog).getByRole("checkbox", { name: /Automatic port forwarding/ });
+    expect(incoming).not.toBeChecked(); expect(forwarding).toBeDisabled();
+    expect(within(dialog).queryByRole("radio", { name: "Fixed" })).toBeNull();
+    await user.click(incoming); await user.click(forwarding);
+    expect(within(dialog).getByText(/Your operating system may ask for network access/)).toBeVisible();
+    expect(forwarding).not.toBeChecked();
+    await user.click(within(dialog).getByRole("button", { name: "Not now" }));
+    expect(forwarding).not.toBeChecked();
+    await user.click(forwarding);
+    await user.click(within(dialog).getByRole("button", { name: /^Enable$/ }));
+    expect(forwarding).toBeChecked();
+    expect(application.commands.filter(c => c.type === "update_client_settings")).toHaveLength(0);
+    await user.click(within(dialog).getByRole("button", { name: "Save settings" }));
+    await waitFor(() => expect(application.commands).toContainEqual(expect.objectContaining({ type: "update_client_settings", patch: { listener: { type: "automatic_local_network" }, port_mapping: "upnp" } })));
+  });
+
+  it("turns off incoming and forwarding in one settings patch", async () => {
+    const user = userEvent.setup();
+    const fixture = clientSettingsRuntimeFixture();
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot: { ...liveSnapshot({ roots: [], defaultRoot: null, showAddOptions: true }), clientSettings: { ...fixture, configured: { ...fixture.configured, listener: { type: "automatic_local_network" }, port_mapping: "upnp" } } } });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    await user.click(within(dialog).getByRole("tab", { name: "Connection & seeding" }));
+    await user.click(within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ }));
+    expect(within(dialog).getByRole("checkbox", { name: /Automatic port forwarding/ })).toBeDisabled();
+    await user.click(within(dialog).getByRole("button", { name: "Save settings" }));
+    await waitFor(() => expect(application.commands).toContainEqual(expect.objectContaining({ type: "update_client_settings", patch: { listener: { type: "disabled" }, port_mapping: "disabled" } })));
+  });
+
   it("validates and atomically saves connection and seeding settings", async () => {
     const user = userEvent.setup();
     const application = new RecordingLiveApplication({
@@ -2790,11 +4207,21 @@ describe("inspection application", () => {
     });
     expect(connectionTab).toBeVisible();
     await user.click(connectionTab);
+    for (const name of [
+      "Speed limits",
+      "Queue",
+      "Stop seeding",
+      "Seeding priority",
+      "Connections",
+      "Network",
+    ]) {
+      expect(within(dialog).getByRole("heading", { name })).toBeVisible();
+    }
+    expect(within(dialog).queryByText(/Effective/)).toBeNull();
+    expect(within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ })).not.toBeChecked();
+    await user.click(within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ }));
     expect(
-      within(dialog).getByText(/use IPv4 and, when available, IPv6/i),
-    ).toBeVisible();
-    expect(
-      within(dialog).getByRole("radio", { name: /^Automatic port/ }),
+      within(dialog).getByRole("radio", { name: "Automatic" }),
     ).toBeChecked();
     expect(within(dialog).queryByRole("radio", { name: /Off/ })).toBeNull();
     expect(within(dialog).queryByText(/device-only/i)).toBeNull();
@@ -2804,17 +4231,13 @@ describe("inspection application", () => {
       }),
     ).toBeNull();
     expect(
-      within(dialog).getByText(
-        /safely limited to 120 by available file descriptors/i,
-      ),
+      within(dialog).getByText("Limited to 120 on this device"),
     ).toBeVisible();
 
     await user.click(
-      within(dialog).getByRole("radio", { name: /^Fixed port/ }),
+      within(dialog).getByRole("radio", { name: "Fixed" }),
     );
-    const port = within(dialog).getByRole("spinbutton", {
-      name: "Fixed listener port",
-    });
+    const port = within(dialog).getByRole("spinbutton", { name: "Port number" });
     expect(port).toHaveValue(null);
     const save = within(dialog).getByRole("button", { name: "Save settings" });
     expect(save).toBeDisabled();
@@ -2827,84 +4250,94 @@ describe("inspection application", () => {
     await user.clear(port);
     await user.type(port, "1024");
     const peers = within(dialog).getByRole("spinbutton", {
-      name: "Peer connection limit",
+      name: "Max peer connections",
     });
     await user.clear(peers);
     await user.type(peers, "2000");
     const slots = within(dialog).getByRole("spinbutton", {
-      name: "Payload upload slots",
+      name: "Upload slots",
     });
     await user.clear(slots);
     await user.type(slots, "0");
     const activeDownloads = within(dialog).getByRole("spinbutton", {
-      name: "Simultaneous downloads",
+      name: "Max active downloads",
     });
     await user.clear(activeDownloads);
     await user.type(activeDownloads, "4");
     expect(
-      within(dialog).getByText(/Meeting a goal does not stop a torrent/i),
+      within(dialog).getByText(/Reaching a goal doesn't stop seeding/i),
     ).toBeVisible();
     const activeSeeds = within(dialog).getByRole("spinbutton", {
-      name: "Active seeds",
+      name: "Max active seeds",
     });
     expect(activeSeeds).toHaveValue(5);
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /Unlimited active seeds/,
+        name: /No limit on active seeds/,
       }),
     );
     expect(activeSeeds).toBeDisabled();
     const shareRatio = within(dialog).getByRole("spinbutton", {
-      name: "Share-ratio priority goal (%)",
+      name: "Share ratio",
     });
     await user.clear(shareRatio);
     await user.type(shareRatio, "250");
     const finishedDownloadRatio = within(dialog).getByRole("spinbutton", {
-      name: "Finished/download time priority goal (%)",
+      name: "Seeding time vs. download time",
     });
     await user.clear(finishedDownloadRatio);
     await user.type(finishedDownloadRatio, "800");
-    const finishedTime = within(dialog).getByRole("spinbutton", {
-      name: "Finished-time priority goal (seconds)",
+    const priority = within(dialog).getByRole("region", { name: "Seeding priority" });
+    const finishedTime = within(priority).getByRole("combobox", {
+      name: "Seeding time",
     });
-    await user.clear(finishedTime);
-    await user.type(finishedTime, "90000");
-    await user.click(
-      within(dialog).getByRole("checkbox", {
-        name: "All torrents upload limit unlimited",
-      }),
+    expect(finishedTime).toHaveValue("86400");
+    await user.selectOptions(finishedTime, "Custom…");
+    const finishedTimeValue = within(priority).getByRole("spinbutton", {
+      name: "Seeding time, custom time",
+    });
+    expect(finishedTimeValue).toHaveValue(1);
+    await user.selectOptions(
+      within(priority).getByRole("combobox", { name: "Seeding time, unit" }),
+      "hours",
+    );
+    await user.clear(finishedTimeValue);
+    await user.type(finishedTimeValue, "25");
+    await user.selectOptions(
+      within(dialog).getByRole("combobox", { name: "Upload" }),
+      "Custom…",
     );
     const uploadRate = within(dialog).getByRole("spinbutton", {
-      name: "All torrents upload limit in KiB per second",
+      name: "Upload, custom speed in KB per second",
     });
     await user.clear(uploadRate);
     await user.type(uploadRate, "64");
-    await user.click(
-      within(dialog).getByRole("checkbox", {
-        name: "All torrents download limit unlimited",
-      }),
+    await user.selectOptions(
+      within(dialog).getByRole("combobox", { name: "Download" }),
+      "Custom…",
     );
     const downloadRate = within(dialog).getByRole("spinbutton", {
-      name: "All torrents download limit in KiB per second",
+      name: "Download, custom speed in KB per second",
     });
     await user.clear(downloadRate);
     await user.type(downloadRate, "256");
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /Map incoming TCP and uTP with UPnP/,
+        name: /Automatic port forwarding/,
       }),
     );
+    await user.click(within(dialog).getByRole("button", { name: /^Enable$/ }));
     await user.click(
-      within(dialog).getByRole("checkbox", { name: /Enable IPv6/ }),
+      within(dialog).getByRole("checkbox", { name: /^IPv6/ }),
     );
     await user.click(
-      within(dialog).getByRole("checkbox", { name: /Enable DHT/ }),
+      within(dialog).getByRole("checkbox", { name: /^DHT/ }),
     );
     await user.click(
-      within(dialog).getByRole("checkbox", { name: /Enable peer exchange/ }),
+      within(dialog).getByRole("checkbox", { name: /^Peer exchange \(PEX\)/ }),
     );
     expect(
-      within(dialog).getByText(/keeps interested peers choked/i),
+      within(dialog).getByText("Peers you upload to at the same time"),
     ).toBeVisible();
     expect(save).toBeEnabled();
 
@@ -2939,7 +4372,9 @@ describe("inspection application", () => {
         },
       }),
     );
-    expect(within(dialog).getByText(/Transport: applying/i)).toBeVisible();
+    expect(
+      within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ }),
+    ).toBeVisible();
     expect(within(dialog).queryByText(/restart/i)).not.toBeInTheDocument();
 
     await user.clear(peers);
@@ -2998,6 +4433,7 @@ describe("inspection application", () => {
   it("reports a recoverable listener bind failure without hiding settings", async () => {
     const user = userEvent.setup();
     const active = {
+      file_safety: FILE_SAFETY_DEFAULTS.file_safety,
       listener: { type: "fixed_loopback" as const, port: 51_413 },
       preferred_listen_port: 6_881,
       port_mapping: "disabled" as const,
@@ -3008,6 +4444,8 @@ describe("inspection application", () => {
       share_ratio_limit_percent: 200,
       finished_download_ratio_limit_percent: 700,
       finished_time_limit_seconds: 86_400,
+      seed_stop_ratio_percent: { type: "off" as const },
+      seed_stop_time_seconds: { type: "off" as const },
       upload_rate_limit: { type: "unlimited" as const },
       download_rate_limit: { type: "unlimited" as const },
       encryption: "allow" as const,
@@ -3118,13 +4556,13 @@ describe("inspection application", () => {
       within(dialog).getByRole("tab", { name: "Connection & seeding" }),
     );
 
-    expect(within(dialog).getByText(/port already in use/i)).toHaveTextContent(
-      "port 51413 is already in use",
-    );
-    expect(within(dialog).getByText(/Transport: degraded/i)).toBeVisible();
+    expect(
+      within(dialog).getByText("Port already in use"),
+    ).toBeVisible();
+    expect(within(dialog).queryByText(/51413/)).not.toBeInTheDocument();
     expect(within(dialog).queryByText(/restart/i)).not.toBeInTheDocument();
     expect(
-      within(dialog).getByRole("radio", { name: /^Automatic port/ }),
+      within(dialog).getByRole("radio", { name: "Automatic" }),
     ).toBeChecked();
     expect(
       within(dialog).getByRole("button", { name: "Save settings" }),
@@ -3196,21 +4634,27 @@ describe("inspection application", () => {
       within(dialog).getByRole("tab", { name: "Connection & seeding" }),
     );
 
+    const upnp = within(dialog).getByRole("checkbox", {
+      name: /Automatic port forwarding/,
+    });
+    expect(upnp).not.toBeChecked();
+    expect(upnp).toHaveAccessibleName(/The router may keep port 48001 open/);
     expect(
-      within(dialog).getByRole("checkbox", {
-        name: /Map incoming TCP and uTP with UPnP/,
-      }),
-    ).not.toBeChecked();
-    expect(
-      within(dialog).getByText(/Effective gateway mapping policy: UPnP/i),
-    ).toBeVisible();
-    expect(
-      within(dialog).getByText(/may remain for 42 seconds/i),
-    ).toBeVisible();
-    expect(
-      within(dialog).getByText(/does not mean an incoming peer has connected/i),
-    ).toBeVisible();
-    expect(within(dialog).getByText(/Port mapping: degraded/i)).toBeVisible();
+      within(dialog).getByText("Accept incoming connections").parentElement,
+    ).toHaveTextContent("Port 41234");
+
+    await user.click(within(dialog).getByText("Network details"));
+    for (const line of [
+      "UDP: port 41234",
+      "If you declined firewall access, review your operating system's firewall settings. Downloads still work with incoming connections off.",
+      "Router forwarding (TCP): the router may keep port 48001 open for up to 42s",
+      "IPv6 router firewall: port 41234 open, renewed automatically",
+      "Peers are told to use port 41234. It isn't confirmed reachable from the internet.",
+    ]) {
+      expect(within(dialog).getByText(line)).toBeVisible();
+    }
+    expect(within(dialog).queryByText(/delete verification failed/)).toBeNull();
+    expect(within(dialog).queryByText(/Effective/)).toBeNull();
     expect(within(dialog).queryByText(/restart/i)).not.toBeInTheDocument();
   });
 
@@ -3248,9 +4692,7 @@ describe("inspection application", () => {
     await user.click(copy);
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(exactMagnet));
-    expect(
-      screen.getByText("Magnet link copied", { exact: true }),
-    ).toBeVisible();
+    expect(toast()).toHaveTextContent("Magnet link copied");
     expect(
       screen.queryByRole("menu", { name: "More" }),
     ).not.toBeInTheDocument();
@@ -3262,12 +4704,7 @@ describe("inspection application", () => {
       screen.getByRole("menuitem", { name: "Copy magnet link" }),
     );
     expect(
-      await screen.findByText(
-        "Could not copy magnet links: rejected for test",
-        {
-          exact: true,
-        },
-      ),
+      within(await findToast("Could not copy magnet links: rejected for test")).getByRole("alert"),
     ).toBeVisible();
     expect(writeText).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(more).toHaveFocus());
@@ -3278,10 +4715,7 @@ describe("inspection application", () => {
       screen.getByRole("menuitem", { name: "Copy magnet link" }),
     );
     expect(
-      await screen.findByText(
-        "Could not copy magnet links: permission denied",
-        { exact: true },
-      ),
+      within(await findToast("Could not copy magnet links: permission denied")).getByRole("alert"),
     ).toBeVisible();
     await waitFor(() => expect(more).toHaveFocus());
 
@@ -3310,14 +4744,11 @@ describe("inspection application", () => {
     await waitFor(() =>
       expect(writeText).toHaveBeenLastCalledWith(selectedMagnets),
     );
-    expect(
-      screen.getByText(
-        "2 magnet links copied; 1 tracker omitted to keep them usable",
-        { exact: true },
-      ),
-    ).toBeVisible();
+    expect(toast()).toHaveTextContent(
+      "2 magnet links copied; 1 tracker omitted to keep them usable",
+    );
 
-    fireEvent.click(screen.getByRole("grid", { name: "Transfer queue" }));
+    fireEvent.click(screen.getByRole("grid", { name: "Torrents" }));
     await user.click(more);
     expect(
       screen.getByRole("menuitem", { name: "Copy magnet links" }),
@@ -3375,7 +4806,7 @@ describe("inspection application", () => {
       ]);
     });
     expect(draft).toHaveValue("unfinished draft");
-    expect(screen.getByText("Torrent added", { exact: true })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Notification" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("menu", { name: "More" }),
     ).not.toBeInTheDocument();
@@ -3459,9 +4890,13 @@ describe("inspection application", () => {
 
     await waitFor(() => expect(application.commands).toHaveLength(1));
     expect(screen.getByRole("button", { name: "More" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Adding…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
     expect(draft).toHaveValue("unfinished draft");
-    await user.click(screen.getByRole("button", { name: "Workbench" }));
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
     expect(screen.getByRole("button", { name: "More" })).toBeDisabled();
     releaseFirst();
     await waitFor(() => expect(application.commands).toHaveLength(5));
@@ -3473,7 +4908,7 @@ describe("inspection application", () => {
         startContent: true,
       })),
     );
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(within(toast()).getByRole("alert")).toHaveTextContent(
       "Sample torrents: 3 added, 1 already present, 1 failed. Sintel: tracker unavailable",
     );
   });
@@ -3498,26 +4933,29 @@ describe("inspection application", () => {
       await user.click(screen.getByRole("menuitem", {
         name: "Add all sample torrents",
       }));
-      return screen.getByRole("dialog", { name: "Choose download options" });
+      return screen.getByRole("dialog", { name: "Add torrent" });
     };
 
     let dialog = await openBatch();
-    expect(dialog).toHaveTextContent("These 5 sample torrents will use the same download options.");
+    expect(dialog).not.toHaveTextContent(/sample torrents/i);
+    expect(
+      within(dialog).getByRole("button", { name: "Choose another folder…" }),
+    ).toBeEnabled();
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(application.commands).toEqual([]);
 
     dialog = await openBatch();
     await user.click(within(dialog).getByRole("radio", { name: /Other folder/ }));
     await user.click(within(dialog).getByRole("checkbox", {
-      name: /Start downloading files when metadata is available/,
+      name: "Start downloading right away",
     }));
     await user.click(within(dialog).getByRole("checkbox", {
-      name: /show these options again/,
+      name: "Always use this folder",
     }));
     await user.click(within(dialog).getByRole("button", {
-      name: "Add all sample torrents",
+      name: "Add torrent",
     }));
-    await waitFor(() => expect(application.commands).toHaveLength(6));
+    await waitFor(() => expect(application.commands).toHaveLength(7));
     expect(application.commands).toEqual([
       ...WEBTORRENT_TEST_TORRENTS.map((torrent) => ({
         type: "add_magnet",
@@ -3525,6 +4963,7 @@ describe("inspection application", () => {
         storageRoot: "root_b",
         startContent: false,
       })),
+      { type: "set_default_download_root", rootId: "root_b" },
       { type: "set_show_add_options", show: false },
     ]);
     expect(screen.getByRole("status")).toHaveTextContent(
@@ -3533,6 +4972,408 @@ describe("inspection application", () => {
   });
 });
 
+describe("rich share links", () => {
+  const LAN_HINT = "192.168.1.20:6881";
+
+  function clipboard() {
+    const writeText = vi.fn<(value: string) => Promise<void>>();
+    writeText.mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    return writeText;
+  }
+
+  function rememberPeerHint(choice: "ask" | "include" | "omit") {
+    globalThis.localStorage.setItem(
+      "rstorrent.presentation.share",
+      JSON.stringify({ version: 1, peerHint: choice }),
+    );
+  }
+
+  function rememberedPeerHint(): unknown {
+    const stored = globalThis.localStorage.getItem("rstorrent.presentation.share");
+    return stored === null ? null : (JSON.parse(stored) as { peerHint: unknown }).peerHint;
+  }
+
+  /** Answers exports like the engine: `xl`, `so` and a LAN hint on request. */
+  function shareExports(
+    application: RecordingLiveApplication,
+    torrents: Readonly<Record<string, TorrentRow>>,
+  ) {
+    application.exportHandler = (command) => {
+      const torrent = torrents[command.torrentId]!;
+      let magnet = `magnet:?xt=urn:btih:${torrent.infoHash}&dn=Name`;
+      const options = command.options;
+      if (options?.includeSize === true && torrent.sizeBytes !== null) {
+        magnet += `&xl=${torrent.sizeBytes}`;
+      }
+      if (options?.fileIndices !== undefined) {
+        magnet += `&so=${options.fileIndices.join(",")}`;
+      }
+      const hinted = options?.peerHint === true && torrent.privateTorrent !== true;
+      if (hinted) magnet += `&x.pe=${LAN_HINT}`;
+      return {
+        accepted: true,
+        magnetExport: {
+          magnet,
+          source: "verbatim",
+          omittedTrackerCount: 0,
+          ...(hinted
+            ? { peerHints: [{ endpoint: LAN_HINT, scope: "local_network" as const }] }
+            : {}),
+        },
+      };
+    };
+  }
+
+  function exports(application: RecordingLiveApplication) {
+    return application.commands.filter(
+      (command) => command.type === "export_magnet",
+    );
+  }
+
+  function seedingSnapshot(overrides: Partial<TorrentRow> = {}) {
+    const snapshot = {
+      ...buildScenarioSnapshot("healthy-download", 42_000, false, 1),
+      demo: null,
+    };
+    const current = snapshot.torrents[snapshot.torrentOrder[0]!]!;
+    return {
+      snapshot: {
+        ...snapshot,
+        torrents: { ...snapshot.torrents, [current.id]: { ...current, ...overrides } },
+      },
+      current: { ...current, ...overrides },
+    };
+  }
+
+  it("asks about the address on the first share-link copy and remembers it", async () => {
+    const user = userEvent.setup();
+    const writeText = clipboard();
+    const { snapshot, current } = seedingSnapshot();
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+    shareExports(application, snapshot.torrents);
+    renderApplication(application);
+
+    const more = screen.getByRole("button", { name: "More" });
+    await user.click(more);
+    await user.click(screen.getByRole("menuitem", { name: "Copy share link" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Let them connect to you directly?",
+    });
+    expect(dialog).toHaveAccessibleDescription(
+      "Adding your address to the link lets the people you share it with reach you sooner. Anyone who has the link can see your IP address.",
+    );
+    expect(writeText).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole("button", { name: "Don't include" })).toHaveFocus();
+    await user.click(within(dialog).getByRole("checkbox", { name: "Remember my choice" }));
+    await user.click(within(dialog).getByRole("button", { name: "Include my address" }));
+
+    const link =
+      `https://jstorrent.com/share/#xt=urn:btih:${current.infoHash}&dn=Name` +
+      `&xl=${current.sizeBytes}&x.pe=${LAN_HINT}`;
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(link));
+    expect(exports(application).at(-1)).toEqual({
+      type: "export_magnet",
+      torrentId: current.id,
+      options: { includeSize: true, peerHint: true },
+    });
+    await findToast(
+      "Share link copied with your local network address. Only people on your network can use it to reach you.",
+    );
+    expect(rememberedPeerHint()).toBe("include");
+    await waitFor(() => expect(more).toHaveFocus());
+
+    // The remembered choice copies at once.
+    await user.click(more);
+    await user.click(screen.getByRole("menuitem", { name: "Copy share link" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(writeText).toHaveBeenLastCalledWith(link);
+  });
+
+  it("leaves the address out once and asks again next time", async () => {
+    const user = userEvent.setup();
+    const writeText = clipboard();
+    const { snapshot, current } = seedingSnapshot();
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+    shareExports(application, snapshot.torrents);
+    renderApplication(application);
+
+    const more = screen.getByRole("button", { name: "More" });
+    await user.click(more);
+    await user.click(screen.getByRole("menuitem", { name: "Copy share link" }));
+    await user.click(
+      within(
+        await screen.findByRole("dialog", { name: "Let them connect to you directly?" }),
+      ).getByRole("button", { name: "Don't include" }),
+    );
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        `https://jstorrent.com/share/#xt=urn:btih:${current.infoHash}&dn=Name&xl=${current.sizeBytes}`,
+      ),
+    );
+    expect(exports(application).at(-1)).toEqual({
+      type: "export_magnet",
+      torrentId: current.id,
+      options: { includeSize: true },
+    });
+    await findToast("Share link copied");
+    expect(rememberedPeerHint()).toBeNull();
+
+    await user.click(more);
+    await user.click(screen.getByRole("menuitem", { name: "Copy share link" }));
+    await screen.findByRole("dialog", { name: "Let them connect to you directly?" });
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(writeText).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(more).toHaveFocus());
+  });
+
+  it("never asks or hints for a private torrent", async () => {
+    const user = userEvent.setup();
+    const writeText = clipboard();
+    const { snapshot, current } = seedingSnapshot({ privateTorrent: true });
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+    shareExports(application, snapshot.torrents);
+    rememberPeerHint("include");
+    renderApplication(application);
+
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("menuitem", { name: "Copy share link" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(exports(application).at(-1)).toEqual({
+      type: "export_magnet",
+      torrentId: current.id,
+      options: { includeSize: true },
+    });
+    await findToast(
+      "Share link copied. This torrent is private, so the link only works for members of its tracker.",
+    );
+  });
+
+  it("copies a plain share link from a host that rejects export options", async () => {
+    const user = userEvent.setup();
+    const writeText = clipboard();
+    const { snapshot, current } = seedingSnapshot();
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+    application.exportHandler = (command) =>
+      command.options === undefined
+        ? {
+            accepted: true,
+            magnetExport: {
+              magnet: `magnet:?xt=urn:btih:${current.infoHash}`,
+              source: "verbatim",
+              omittedTrackerCount: 0,
+            },
+          }
+        : { accepted: false, message: "unknown field options", code: "invalid_request" };
+    rememberPeerHint("include");
+    renderApplication(application);
+
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("menuitem", { name: "Copy share link" }));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        `https://jstorrent.com/share/#xt=urn:btih:${current.infoHash}`,
+      ),
+    );
+    expect(exports(application)).toHaveLength(2);
+    await findToast("Share link copied");
+  });
+
+  it("shares one file with its name and size, or several by index", async () => {
+    const user = userEvent.setup();
+    const writeText = clipboard();
+    const snapshot = {
+      ...buildScenarioSnapshot("file-progress", 24_000, false, 1),
+      demo: null,
+    };
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+    shareExports(application, snapshot.torrents);
+    rememberPeerHint("omit");
+    const fileSet = snapshot.filesByTorrent[DEMO_PRIMARY_TORRENT_ID]!;
+    const [first, second] = fileSet.order
+      .map((id) => fileSet.rows[id])
+      .filter((row) => row?.padding === false)
+      .slice(0, 2) as [FileRow, FileRow];
+    const torrent = snapshot.torrents[DEMO_PRIMARY_TORRENT_ID]!;
+    renderApplication(application);
+
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "Files" }));
+    const files = screen.getByRole("grid", { name: "Torrent files" });
+    await user.click(within(files).getByText(first.name));
+    await user.click(screen.getByRole("button", { name: "More file actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Share file" }));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        `https://jstorrent.com/share/#xt=urn:btih:${torrent.infoHash}&dn=Name` +
+          `&xl=${torrent.sizeBytes}&so=${first.index}` +
+          `&jst.file=${encodeURIComponent(first.name)}&jst.size=${first.lengthBytes}`,
+      ),
+    );
+    expect(exports(application).at(-1)).toEqual({
+      type: "export_magnet",
+      torrentId: DEMO_PRIMARY_TORRENT_ID,
+      options: { includeSize: true, fileIndices: [first.index] },
+    });
+    await findToast("Share link copied");
+
+    await user.click(
+      within(files).getByRole("checkbox", { name: `Select ${second.name}` }),
+    );
+    await user.click(screen.getByRole("button", { name: "More file actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Share files" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
+    const indices = [first.index, second.index].sort((left, right) => left - right);
+    expect(exports(application).at(-1)).toEqual({
+      type: "export_magnet",
+      torrentId: DEMO_PRIMARY_TORRENT_ID,
+      options: { includeSize: true, fileIndices: indices },
+    });
+    expect(writeText.mock.lastCall?.[0]).not.toContain("jst.");
+  });
+
+  it("offers no address choice on a released host that cannot add one", async () => {
+    const user = userEvent.setup();
+    clipboard();
+    const { snapshot } = seedingSnapshot();
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...snapshot,
+        session: { ...snapshot.session, hostCapabilities: released031Hello.capabilities },
+      },
+    });
+    shareExports(application, snapshot.torrents);
+    rememberPeerHint("include");
+    renderApplication(application);
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "General" }));
+    await user.click(screen.getByRole("button", { name: "Share" }));
+    const panel = await screen.findByRole("dialog", { name: "Share torrent" });
+    await within(panel).findByRole("textbox", { name: "Share link" });
+    expect(
+      within(panel).queryByRole("checkbox", { name: "Include my IP address" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the Share panel's link, QR code and address choice", async () => {
+    const user = userEvent.setup();
+    const writeText = clipboard();
+    const share = vi.fn<(data: ShareData) => Promise<void>>();
+    share.mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "share", { configurable: true, value: share });
+    try {
+      const { snapshot, current } = seedingSnapshot();
+      const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+      shareExports(application, snapshot.torrents);
+      rememberPeerHint("include");
+      renderApplication(application);
+      await user.click(
+        within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+          "button", { name: "Torrents" },
+        ),
+      );
+      await user.click(screen.getByRole("tab", { name: "General" }));
+      await user.click(screen.getByRole("button", { name: "Share" }));
+      const panel = await screen.findByRole("dialog", { name: "Share torrent" });
+      const address = within(panel).getByRole("checkbox", { name: "Include my IP address" });
+      expect(address).toBeChecked();
+      const hinted =
+        `https://jstorrent.com/share/#xt=urn:btih:${current.infoHash}&dn=Name` +
+        `&xl=${current.sizeBytes}&x.pe=${LAN_HINT}`;
+      const field = within(panel).getByRole("textbox", { name: "Share link" });
+      await waitFor(() => expect(field).toHaveValue(hinted));
+      expect(within(panel).getByRole("status")).toHaveTextContent(
+        `Includes your local network address ${LAN_HINT}. Only people on your network can use it.`,
+      );
+      const qr = within(panel).getByRole("img", { name: "QR code for the share link" });
+      expect(qr.querySelectorAll("rect").length).toBeGreaterThan(20);
+
+      await user.click(within(panel).getByRole("button", { name: "Share…" }));
+      expect(share).toHaveBeenCalledWith({ title: current.name, url: hinted });
+
+      // Unchecking re-exports without the hint and keeps the remembered choice.
+      await user.click(address);
+      const plainLink =
+        `https://jstorrent.com/share/#xt=urn:btih:${current.infoHash}&dn=Name&xl=${current.sizeBytes}`;
+      await waitFor(() => expect(field).toHaveValue(plainLink));
+      expect(exports(application).at(-1)).toEqual({
+        type: "export_magnet",
+        torrentId: current.id,
+        options: { includeSize: true },
+      });
+      expect(within(panel).getByRole("status")).toHaveTextContent("");
+      expect(rememberedPeerHint()).toBe("include");
+      await user.click(within(panel).getByRole("button", { name: "Copy" }));
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith(plainLink));
+      await user.click(within(panel).getByRole("button", { name: "Close" }));
+
+      Reflect.deleteProperty(navigator, "share");
+      await user.click(screen.getByRole("button", { name: "Share" }));
+      const reopened = await screen.findByRole("dialog", { name: "Share torrent" });
+      await waitFor(() =>
+        expect(within(reopened).getByRole("button", { name: "Copy" })).toBeEnabled(),
+      );
+      expect(within(reopened).queryByRole("button", { name: "Share…" })).toBeNull();
+    } finally {
+      Reflect.deleteProperty(navigator, "share");
+    }
+  });
+
+  it("labels a size from the link before metadata arrives", async () => {
+    const user = userEvent.setup();
+    const snapshot = {
+      ...buildScenarioSnapshot("stalled-metadata", 4_000, false, 1),
+      demo: null,
+    };
+    renderApplication(new RecordingLiveApplication({ type: "snapshot", snapshot }));
+    expect(
+      within(screen.getByRole("grid", { name: "Torrents" })).getByText("264 MB (link)"),
+    ).toHaveAttribute(
+      "title",
+      "Size from the link. It's confirmed once the torrent's details arrive.",
+    );
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "General" }));
+    expect(
+      screen.getByText("Size", { selector: "dt" }).parentElement,
+    ).toHaveTextContent("264 MB (from the link)");
+  });
+});
+
+/** The visible toast; its text is also mirrored in a hidden live region. */
+function toast(): HTMLElement {
+  return screen.getByRole("region", { name: "Notification" });
+}
+
+async function findToast(text: string | RegExp): Promise<HTMLElement> {
+  return waitFor(() => {
+    const region = toast();
+    expect(region).toHaveTextContent(text);
+    return region;
+  });
+}
+
+const DEFAULT_LIBRARY_REQUEST = libraryMediaRequest(DEFAULT_LIBRARY_BROWSE);
+
 function renderScenario(
   scenarioId: ConstructorParameters<typeof DemoApplication>[0]["scenarioId"],
   elapsedMs: number,
@@ -3540,9 +5381,10 @@ function renderScenario(
   updater?: DesktopUpdater,
   notifications?: DesktopNotifications,
   power?: DesktopPower,
+  mediaLibrary?: boolean,
 ) {
   return renderApplication(
-    new DemoApplication({ scenarioId, elapsedMs, running: false }),
+    new DemoApplication({ scenarioId, elapsedMs, running: false, mediaLibrary: mediaLibrary ?? true }),
     appearanceStorage,
     updater,
     undefined,
@@ -3562,6 +5404,7 @@ function renderApplication(
   hostedProduct?: HostedProduct,
   oneCurrentRoot?: boolean,
   remoteAccess?: DesktopRemoteAccess,
+  localPlayback?: LocalVideoPlayback,
 ) {
   const controller = new InspectionController(application, appearanceStorage);
   controllers.push(controller);
@@ -3577,6 +5420,7 @@ function renderApplication(
         hostedProduct={hostedProduct}
         oneCurrentRoot={oneCurrentRoot}
         remoteAccess={remoteAccess}
+        localPlayback={localPlayback}
       />
     </InspectionProvider>,
   );
@@ -3680,9 +5524,15 @@ class RecordingLiveApplication implements InspectionApplication {
   readonly commands: InspectionCommand[] = [];
   readonly views: DesiredInspectionViews[] = [];
   readonly magnetExports = new Map<string, MagnetExport>();
+  exportHandler:
+    | ((
+        command: Extract<InspectionCommand, { readonly type: "export_magnet" }>,
+      ) => CommandResult)
+    | undefined;
   rejectNextClientSettings = false;
   rejectNextExternal = false;
   rejectNextTorrentId: string | undefined;
+  reconnectRequests = 0;
   private listener: ((update: InspectionUpdate) => void) | null = null;
   private storage: DownloadStorageSettings;
   private clientSettings: ClientSettingsRuntimeView;
@@ -3776,6 +5626,7 @@ class RecordingLiveApplication implements InspectionApplication {
       };
     }
     if (command.type === "export_magnet") {
+      if (this.exportHandler !== undefined) return this.exportHandler(command);
       const configured = this.magnetExports.get(command.torrentId);
       if (configured !== undefined) {
         return {
@@ -3860,6 +5711,13 @@ class RecordingLiveApplication implements InspectionApplication {
         return { accepted: false, message: "Torrent is not present" };
       }
       const revision = this.nextDurableRevision();
+      const stop = torrent.seedStop ?? {
+        limits: {
+          ratio_percent: { type: "use_global" as const },
+          time_seconds: { type: "use_global" as const },
+        },
+        stopped: false,
+      };
       const updated = {
         ...torrent,
         transferLimits: {
@@ -3867,6 +5725,15 @@ class RecordingLiveApplication implements InspectionApplication {
             command.patch.upload_rate_limit ?? torrent.transferLimits.upload,
           download:
             command.patch.download_rate_limit ?? torrent.transferLimits.download,
+        },
+        seedStop: {
+          ...stop,
+          limits: {
+            ratio_percent:
+              command.patch.seed_stop_ratio_percent ?? stop.limits.ratio_percent,
+            time_seconds:
+              command.patch.seed_stop_time_seconds ?? stop.limits.time_seconds,
+          },
         },
       };
       this.torrents = { ...this.torrents, [command.torrentId]: updated };
@@ -3898,6 +5765,10 @@ class RecordingLiveApplication implements InspectionApplication {
       durableRevision: this.durableRevision.toString(),
       storage: this.storage,
     });
+  }
+
+  reconnectNow(): void {
+    this.reconnectRequests += 1;
   }
 
   async close(): Promise<void> {}

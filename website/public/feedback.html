@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JSTorrent - Feedback & Bug Reports</title>
+    <meta name="description" content="Report bugs or share feedback about JSTorrent." />
+
+    <!-- Open Graph for social sharing -->
+    <meta property="og:title" content="JSTorrent - Feedback" />
+    <meta property="og:description" content="Report bugs or share feedback about JSTorrent." />
+    <meta property="og:image" content="/cook/JSTorrent/js-512.png" />
+    <meta property="og:url" content="https://jstorrent.com/feedback.html" />
+    <meta property="og:type" content="website" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/cook/JSTorrent/js-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/cook/JSTorrent/js-16.png" />
+
+    <!-- Monospace font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* Theme variables - Dark (default) */
+      :root {
+        --bg-primary: #0d1117;
+        --bg-secondary: #161b22;
+        --bg-tertiary: #21262d;
+        --border: #30363d;
+        --text-primary: #e6edf3;
+        --text-secondary: #8b949e;
+        --text-muted: #6e7681;
+        --accent: #4a90d9;
+      }
+
+      /* Light theme */
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg-primary: #ffffff;
+          --bg-secondary: #f6f8fa;
+          --bg-tertiary: #eaeef2;
+          --border: #d0d7de;
+          --text-primary: #1f2328;
+          --text-secondary: #656d76;
+          --text-muted: #8c959f;
+          --accent: #0969da;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        min-height: 100vh;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 1rem;
+      }
+
+      @media (min-width: 600px) {
+        .container {
+          padding: 2rem;
+        }
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .logo {
+        width: 64px;
+        height: 64px;
+      }
+
+      .header-text h1 {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+
+      .header-text p {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+      }
+
+      .content {
+        margin-bottom: 2rem;
+      }
+
+      .context-disclosure {
+        padding: 1rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg-secondary);
+        overflow-wrap: anywhere;
+      }
+
+      .context-disclosure a {
+        color: var(--accent);
+      }
+
+      .content h2 {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 1.25rem;
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+      }
+
+      .content p {
+        color: var(--text-secondary);
+        margin-bottom: 1rem;
+      }
+
+      .system-info {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.875rem;
+      }
+
+      .system-info-title {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+      }
+
+      .system-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.5rem;
+      }
+
+      .info-item {
+        color: var(--text-secondary);
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .info-item span {
+        color: var(--accent);
+      }
+
+      .form-container {
+        overflow: hidden;
+        margin: 0 -1rem;
+      }
+
+      @media (min-width: 600px) {
+        .form-container {
+          margin: 0 -2rem;
+        }
+      }
+
+      .form-container iframe {
+        display: block;
+        min-height: 800px;
+      }
+
+      .github-link {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        text-align: center;
+      }
+
+      .github-link p {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .github-link a {
+        color: var(--accent);
+        text-decoration: none;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.875rem;
+      }
+
+      .github-link a:hover {
+        text-decoration: underline;
+      }
+
+      .footer {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border);
+        text-align: center;
+      }
+
+      .footer a {
+        color: var(--accent);
+        text-decoration: none;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.875rem;
+      }
+
+      .footer a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <img src="/cook/JSTorrent/js-128.png" alt="JSTorrent" class="logo" />
+        <div class="header-text">
+          <h1>Feedback & Bug Reports</h1>
+          <p>Help us improve JSTorrent</p>
+        </div>
+      </header>
+
+      <main class="content">
+        <p>
+          Found a bug or have a suggestion? We'd love to hear from you. Your feedback helps make
+          JSTorrent better for everyone.
+        </p>
+
+        <div style="display: none" class="system-info" id="system-info">
+          <div class="system-info-title">Context from the app</div>
+          <div class="system-info-grid" id="system-info-grid">
+            <!-- Populated by JavaScript from URL params -->
+          </div>
+        </div>
+
+        <h2>Send Feedback</h2>
+        <p class="context-disclosure">
+          Opening this page can share URL context with website logs, the embedded Google Form and
+          website analytics before you submit a form. Review any displayed context and your response
+          before submitting. <a href="/privacy.html">Privacy policy</a>.
+        </p>
+
+        <div class="form-container">
+          <iframe
+            id="feedback-form"
+            src="https://docs.google.com/forms/d/e/1FAIpQLSeIfq56PdO5Wq_dusk32gZpM2y9DaGQW7LYHO-yLqZjsL2YuA/viewform?embedded=true"
+            width="100%"
+            height="600"
+            frameborder="0"
+            marginheight="0"
+            marginwidth="0"
+            style="border: none"
+            >Loading...</iframe
+          >
+        </div>
+
+        <div class="github-link">
+          <p>For detailed bug reports or feature requests, you can also use GitHub:</p>
+          <a href="https://github.com/kzahel/jstorrent/issues/new" target="_blank"
+            >Open an issue on GitHub</a
+          >
+        </div>
+      </main>
+
+      <footer class="footer">
+        <a href="https://jstorrent.com">Back to JSTorrent</a>
+      </footer>
+    </div>
+
+    <script src="/product-context.js"></script>
+    <script>
+      ;(() => {
+        const entries = window.JSTorrentHostedContext.parse(window.location.search, 'feedback')
+        const container = document.getElementById('system-info')
+        window.JSTorrentHostedContext.render(
+          document.getElementById('system-info-grid'),
+          entries,
+          'info-item',
+        )
+        container.style.display = entries.length ? 'block' : 'none'
+        const form = document.getElementById('feedback-form')
+        const context = entries.map((item) => item.key + '=' + item.value).join(', ')
+        if (form && context) {
+          const query = new URLSearchParams({ embedded: 'true', 'entry.2074805438': context })
+          form.src =
+            'https://docs.google.com/forms/d/e/1FAIpQLSeIfq56PdO5Wq_dusk32gZpM2y9DaGQW7LYHO-yLqZjsL2YuA/viewform?' +
+            query
+        }
+      })()
+    </script>
+    <!-- Cloudflare Web Analytics -->
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "70816ac6e8564121b329ed89b3849dba"}'
+    ></script>
+    <!-- End Cloudflare Web Analytics -->
+  </body>
+</html>

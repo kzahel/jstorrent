@@ -1,3 +1,5 @@
+#[path = "experiment/diagnostics.rs"]
+mod diagnostics;
 use std::io::Write as _;
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::{Path, PathBuf};
@@ -11,7 +13,8 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use rstorrent_direct_file::{
-    DirectFileEndpoint, DirectFileEndpointFactory, DirectFileEndpointSnapshot, OfferAnswer,
+    DirectFileEndpoint, DirectFileEndpointFactory, DirectFileEndpointSnapshot, ExperimentSource,
+    OfferAnswer,
 };
 use rstorrent_session::{
     ApplicationConfig, ApplicationService, CONTROL_VERSION, Command, CommandResult,
@@ -73,7 +76,19 @@ struct ReadyView {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mode = parse_mode()?;
+    let Options {
+        mode,
+        send_window_bytes,
+        source_name,
+        raw_buffer_bytes,
+        delay_ms,
+        loss_every,
+        diagnostics,
+        rate_mib,
+    } = parse_mode()?;
+    if diagnostics {
+        self::diagnostics::enable();
+    }
     let fixture_mib = match &mode {
         ExperimentMode::Serve { fixture_mib }
         | ExperimentMode::PrepareProfile { fixture_mib, .. } => *fixture_mib,
@@ -86,11 +101,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         profile_root,
         payload_root,
         profile_id,
+        fixture_file,
         ..
     } = mode
     {
-        let (torrent_id, fixture) =
-            persist_fixture(&profile_root, &payload_root, &profile_id, fixture_length)?;
+        let (torrent_id, fixture) = persist_fixture(
+            &profile_root,
+            &payload_root,
+            &profile_id,
+            fixture_length,
+            fixture_file.as_deref(),
+        )?;
         println!(
             "RSTORRENT_DIRECT_FILE_PROFILE_READY {}",
             serde_json::to_string(&serde_json::json!({
@@ -114,7 +135,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         expected_host: Arc::from(address.to_string()),
         udp_ip,
         capability: Arc::from(token),
-        factory: DirectFileEndpointFactory::new(application.clone()),
+        factory: DirectFileEndpointFactory::with_experiment_source(
+            application.clone(),
+            send_window_bytes,
+            match source_name.as_str() {
+                "verified" if delay_ms > 0 || loss_every > 0 || rate_mib > 0 => {
+                    ExperimentSource::Network {
+                        delay_ms,
+                        loss_every,
+                        rate_mib,
+                    }
+                }
+                "verified" => ExperimentSource::Verified,
+                "generated" => ExperimentSource::GeneratedRanges,
+                "legacy" => ExperimentSource::LegacyVerified,
+                "raw" => ExperimentSource::Raw {
+                    length: fixture_length,
+                    buffer_bytes: raw_buffer_bytes,
+                },
+                _ => unreachable!(),
+            },
+        )
+        .ok_or("window must be 16, 32 or 64 KiB")?,
         endpoint: Arc::new(Mutex::new(None)),
         last_snapshot: Arc::new(Mutex::new(None)),
         fixture: fixture_view,
@@ -168,17 +210,89 @@ enum ExperimentMode {
         profile_root: PathBuf,
         payload_root: PathBuf,
         profile_id: String,
+        fixture_file: Option<PathBuf>,
     },
 }
 
-fn parse_mode() -> Result<ExperimentMode, Box<dyn std::error::Error>> {
+struct Options {
+    mode: ExperimentMode,
+    send_window_bytes: usize,
+    source_name: String,
+    raw_buffer_bytes: usize,
+    delay_ms: u64,
+    loss_every: u32,
+    diagnostics: bool,
+    rate_mib: u32,
+}
+fn parse_mode() -> Result<Options, Box<dyn std::error::Error>> {
     let mut arguments = std::env::args().skip(1);
     let mut fixture_mib = DEFAULT_FIXTURE_MIB;
+    let mut delay_ms = 0;
+    let mut diagnostics = false;
+    let mut rate_mib = 0;
+    let mut loss_every = 0;
+    let mut source_name = "verified".to_owned();
+    let mut raw_buffer_bytes = 512 * 1024;
+    let mut send_window_bytes = 64 * 1024;
     let mut profile_root = None;
     let mut payload_root = None;
     let mut profile_id = None;
+    let mut fixture_file = None;
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
+            "--fixture-file" => {
+                fixture_file = Some(PathBuf::from(
+                    arguments.next().ok_or("fixture file required")?,
+                ));
+            }
+            "--diagnostics" => diagnostics = true,
+            "--rate-mib" => {
+                rate_mib = arguments.next().ok_or("rate required")?.parse()?;
+                if rate_mib > 128 {
+                    return Err("rate must be <=128 MiB/s".into());
+                }
+            }
+            "--delay-ms" => {
+                delay_ms = arguments.next().ok_or("delay value required")?.parse()?;
+                if delay_ms > 250 {
+                    return Err("delay must be <=250 ms".into());
+                }
+            }
+            "--loss-every" => {
+                loss_every = arguments.next().ok_or("loss value required")?.parse()?;
+                if loss_every > 0 && loss_every < 20 {
+                    return Err("loss interval must be >=20".into());
+                }
+            }
+            "--raw-buffer-kib" => {
+                let kib: usize = arguments
+                    .next()
+                    .ok_or("--raw-buffer-kib requires a value")?
+                    .parse()?;
+                if !matches!(kib, 16 | 32 | 64 | 128 | 256 | 512) {
+                    return Err("raw buffer must be 16, 32, 64, 128, 256 or 512 KiB".into());
+                }
+                raw_buffer_bytes = kib * 1024;
+            }
+            "--source" => {
+                source_name = arguments.next().ok_or("--source requires a value")?;
+                if !matches!(
+                    source_name.as_str(),
+                    "verified" | "generated" | "raw" | "legacy"
+                ) {
+                    return Err("source must be verified, generated, raw or legacy".into());
+                }
+            }
+            "--window-kib" => {
+                let kib: usize = arguments
+                    .next()
+                    .ok_or("--window-kib requires a value")?
+                    .parse()?;
+                if !matches!(kib, 16 | 32 | 64) {
+                    return Err("window must be 16, 32 or 64 KiB".into());
+                }
+                send_window_bytes = kib * 1024;
+            }
             "--fixture-mib" => {
                 fixture_mib = arguments
                     .next()
@@ -203,21 +317,39 @@ fn parse_mode() -> Result<ExperimentMode, Box<dyn std::error::Error>> {
             _ => return Err(format!("unknown argument: {argument}").into()),
         }
     }
-    match (profile_root, payload_root, profile_id) {
-        (None, None, None) => Ok(ExperimentMode::Serve { fixture_mib }),
-        (Some(profile_root), Some(payload_root), Some(profile_id)) => {
-            Ok(ExperimentMode::PrepareProfile {
-                fixture_mib,
-                profile_root,
-                payload_root,
-                profile_id,
-            })
-        }
-        _ => Err(
-            "profile preparation requires --prepare-profile, --payload-root, and --profile-id"
-                .into(),
-        ),
+    if (delay_ms > 0 || loss_every > 0 || rate_mib > 0) && source_name != "verified" {
+        return Err("network impairment requires verified source".into());
     }
+    let mode =
+        match (profile_root, payload_root, profile_id) {
+            (None, None, None) => ExperimentMode::Serve { fixture_mib },
+            (Some(profile_root), Some(payload_root), Some(profile_id)) => {
+                ExperimentMode::PrepareProfile {
+                    fixture_mib,
+                    profile_root,
+                    payload_root,
+                    profile_id,
+                    fixture_file: fixture_file.clone(),
+                }
+            }
+            _ => return Err(
+                "profile preparation requires --prepare-profile, --payload-root, and --profile-id"
+                    .into(),
+            ),
+        };
+    if fixture_file.is_some() && matches!(mode, ExperimentMode::Serve { .. }) {
+        return Err("--fixture-file requires profile preparation".into());
+    }
+    Ok(Options {
+        mode,
+        send_window_bytes,
+        source_name,
+        raw_buffer_bytes,
+        delay_ms,
+        loss_every,
+        diagnostics,
+        rate_mib,
+    })
 }
 
 fn discover_private_ipv4() -> IpAddr {
@@ -239,7 +371,8 @@ async fn create_fixture(
     let profile_root = temporary.path().join("profile");
     let payload_root = temporary.path().join("payload");
     let profile_id = "webrtc-direct-file-experiment";
-    let (torrent_id, fixture) = persist_fixture(&profile_root, &payload_root, profile_id, length)?;
+    let (torrent_id, fixture) =
+        persist_fixture(&profile_root, &payload_root, profile_id, length, None)?;
     let roots = vec![ConfiguredStorageRoot::path("downloads", payload_root)];
     let config = ApplicationConfig::new(
         profile_root,
@@ -260,16 +393,33 @@ fn persist_fixture(
     payload_root: &Path,
     profile_id: &str,
     length: usize,
+    fixture_file: Option<&Path>,
 ) -> Result<(String, FixtureView), Box<dyn std::error::Error>> {
-    let payload = (0..length)
-        .map(|index| {
-            let mixed = index
-                .wrapping_mul(31)
-                .wrapping_add((index >> 8).wrapping_mul(17));
-            mixed as u8
-        })
-        .collect::<Vec<_>>();
-    let file_name = "webrtc-direct-file-fixture.bin";
+    let (file_name, payload) = if let Some(path) = fixture_file {
+        let size = std::fs::metadata(path)?.len();
+        if size == 0 || size > MAX_FIXTURE_BYTES as u64 {
+            return Err("fixture file must be 1..256 MiB".into());
+        }
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or("invalid fixture file name")?;
+        let payload = std::fs::read(path)?;
+        if payload.len() as u64 != size {
+            return Err("fixture changed while reading".into());
+        }
+        (name, payload)
+    } else {
+        let payload = (0..length)
+            .map(|index| {
+                index
+                    .wrapping_mul(31)
+                    .wrapping_add((index >> 8).wrapping_mul(17)) as u8
+            })
+            .collect();
+        ("webrtc-direct-file-fixture.bin", payload)
+    };
+    let length = payload.len();
     let raw_info = single_file_info(file_name, &payload, PIECE_LENGTH);
     let info_hash = hex(&Sha1::digest(&raw_info));
     std::fs::create_dir_all(payload_root)?;
@@ -281,7 +431,7 @@ fn persist_fixture(
     let mut store = SessionStore::open(profile_root, profile_id, &roots)?;
     let response = store.handle_durable(&RequestEnvelope {
         version: CONTROL_VERSION,
-        request_id: "add-webrtc-direct-file-fixture".to_owned(),
+        request_id: format!("add-direct-fixture-{info_hash}"),
         expected_revision: None,
         command: Command::AddMagnet {
             magnet: format!("magnet:?xt=urn:btih:{info_hash}"),
@@ -404,6 +554,7 @@ async fn offer(
     Json(offer): Json<RTCSessionDescription>,
 ) -> Result<Json<OfferAnswer>, (StatusCode, String)> {
     require_host(&state, &headers).map_err(|status| (status, String::new()))?;
+    diagnostics::reset();
     let mut endpoint = state.endpoint.lock().await;
     if endpoint.is_some() {
         return Err((
@@ -456,21 +607,24 @@ async fn close(
 async fn status(
     State(state): State<ExperimentState>,
     headers: HeaderMap,
-) -> Result<Json<DirectFileEndpointSnapshot>, StatusCode> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
     require_host(&state, &headers)?;
     let endpoint = state.endpoint.lock().await;
-    if let Some(endpoint) = endpoint.as_ref() {
-        return Ok(Json(endpoint.snapshot()));
-    }
-    drop(endpoint);
-    Ok(Json(
+    let snapshot = if let Some(endpoint) = endpoint.as_ref() {
+        endpoint.snapshot()
+    } else {
         state
             .last_snapshot
             .lock()
             .await
             .clone()
-            .unwrap_or_else(|| state.factory.idle_snapshot()),
-    ))
+            .unwrap_or_else(|| state.factory.idle_snapshot())
+    };
+    let mut value =
+        serde_json::to_value(snapshot).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    value["sctp_diagnostics"] = serde_json::to_value(diagnostics::snapshot())
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(value))
 }
 
 fn require_host(state: &ExperimentState, headers: &HeaderMap) -> Result<(), StatusCode> {

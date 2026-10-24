@@ -1,0 +1,99 @@
+{
+  "qualification": "Bounded physical ChromeOS ARCVM standalone Play upgrade; broader cutover rows remain open",
+  "verifiedDate": "2026-10-04",
+  "delivery": "Actual Google Play internal-test update, without uninstall or data clear",
+  "package": "com.jstorrent.app",
+  "launcher": "com.jstorrent.app.MainActivity",
+  "old": {
+    "versionName": "1.0.23",
+    "versionCode": 23,
+    "installer": "com.android.vending",
+    "independentlyInspectedBaseApk": {
+      "sha256": "b9feea76704b108521a7163ecce49e7064f3f9a3db4feab1ce6faba5fab31be8",
+      "bytes": 7644239,
+      "note": "Base APK only; not an invented full split-install artifact hash"
+    }
+  },
+  "new": {
+    "versionName": "1.0.25",
+    "versionCode": 25,
+    "installer": "com.android.vending",
+    "independentlyInspectedBaseApk": {
+      "sha256": "43ddd6c7d3ccd739ac279b9f2067a385e4994dab18b63c06fee87e6b82f8d920",
+      "bytes": 49638293,
+      "note": "Base APK only; not an invented full split-install artifact hash"
+    }
+  },
+  "playAppSigningCertificateSha256": "b2b421781fc40c632656d17c72c012a40f623d358e29837adad41cd5d835acd5",
+  "installationIdentity": {
+    "samePackageUid": true,
+    "sameFirstInstallTime": true
+  },
+  "cohort": {
+    "writers": "Ordinary standalone v1 writer creates two controlled torrents; no inherited library or storage root was present",
+    "rows": 2,
+    "beforePaused": 2,
+    "afterUpgradePaused": 2,
+    "beforePercent": [
+      100,
+      8
+    ],
+    "afterUpgradeVerifiedPercent": [
+      100,
+      0
+    ],
+    "settings": "Unmetered-only false-to-true in old app; true preserved by successor",
+    "storage": "One real picker-granted Android document tree"
+  },
+  "payloads": [
+    {
+      "kind": "completed",
+      "bytes": 262144,
+      "beforeUpgradeSha256": "8b666f88f7b033f647f9b5ae66d668b7bb88376630dbecfb0fba757f4f84334c",
+      "afterUpgradeSha256": "8b666f88f7b033f647f9b5ae66d668b7bb88376630dbecfb0fba757f4f84334c",
+      "afterResumeSha256": "8b666f88f7b033f647f9b5ae66d668b7bb88376630dbecfb0fba757f4f84334c"
+    },
+    {
+      "kind": "paused partial",
+      "bytes": 4194304,
+      "beforeUpgradeSha256": "a85b0bd39379452f09d010532e9a0e6cc83d6473b9621fa1b248f1b56c4bb822",
+      "afterUpgradeSha256": "a85b0bd39379452f09d010532e9a0e6cc83d6473b9621fa1b248f1b56c4bb822",
+      "afterResumeSha256": "9f9ebcb009f3b0e862abee7854531985d249ed511aa567e577b899851e090c02"
+    }
+  ],
+  "checks": {
+    "preUpdateHashesUnchanged": true,
+    "completedFileOfflineRecheck": true,
+    "partialBytesPreservedWithSourceOffline": true,
+    "partialResumedToIndependentlyVerifiedCompletion": true,
+    "forceStopRelaunchRowsAndHashesRetained": true
+  },
+  "brandingLimit": "Installed internal 1.0.25 displays RSTorrent Canary due to release resource override; source candidate 1.0.26 corrects it",
+  "otherPhysicalCohort": "Already Play-installed 1.0.25 before this task; no before/after upgrade attributed",
+  "unqualified": [
+    "Companion/browser-local legacy writers",
+    "Second tree, reboot, revoked/regranted or unavailable/removable provider",
+    "Actual upload serving and sustained lifecycle/network-loss soak",
+    "Production extension store update in place and all staggered store combinations",
+    "Fresh installation and Play-disabled/setup-unfinished conditions",
+    "Broader historical versions and unsupported-device guidance"
+  ],
+  "cleanup": {
+    "removedRowsKeepingData": true,
+    "emptyLibraryAfterForceStop": true,
+    "ownedSoleDefaultRootRetained": "UI has no forget action for current root; leave empty picker-granted fixture tree",
+    "ownedPayloadAndMetainfoRemoved": true,
+    "emptyFixtureTreeRetained": true,
+    "ownedUiDumpRemoved": true,
+    "matchingExclusiveMarkerReleased": true,
+    "finalDoctorPassed": true,
+    "ownedSeedAndTrackerStopped": true,
+    "legacySourcePreserved": "Existing migration source intentionally retained; removed destination rows do not resurrect on relaunch",
+    "unmeteredSettingRestoredToOriginalFalse": true
+  },
+  "auditCoverage": {
+    "privateControllerHistoryInspected": true,
+    "complete": false,
+    "limits": "Native adapter has no common target claims; matching marker and detailed shell fixture effects are directly observed, outside full audit coverage; no prior-user activity inferred"
+  }
+}

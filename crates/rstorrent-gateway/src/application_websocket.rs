@@ -10,9 +10,10 @@ use axum::response::{IntoResponse, Response};
 use futures_util::{SinkExt, StreamExt};
 use rstorrent_session::{
     API_VERSION, AcknowledgedViewStream, AcknowledgedViewStreamError, AddTorrentBytesRequest,
-    ApiEncoding, ApiHello, ApplicationCall, ApplicationCallError, ApplicationCallResult,
-    ApplicationService, Command, DeliveryMode, UpdateBatch, ViewSetError, ViewSetOwner,
-    application_error_response, validate_add_torrent_bytes_request,
+    ApiClientInfo, ApiEncoding, ApiHello, ApplicationCall, ApplicationCallError,
+    ApplicationCallResult, ApplicationService, Command, DeliveryMode, UpdateBatch, ViewSetError,
+    ViewSetOwner, application_error_response, deserialize_client_info,
+    validate_add_torrent_bytes_request,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -43,15 +44,16 @@ pub const TORRENT_UPLOAD_TIMEOUT_MILLIS: u64 = 120_000;
 
 const VIEW_STREAM_WAIT_MILLIS: u32 = 20_000;
 const DATA_RESERVATIONS: usize = 2;
-const CLIENT_FRAME_FAMILIES: [&str; 6] = [
+const CLIENT_FRAME_FAMILIES: [&str; 7] = [
     "connect",
     "call",
     "begin_torrent_upload",
     "attach",
     "ack",
     "detach",
+    "choose_download_root",
 ];
-const SERVER_FRAME_FAMILIES: [&str; 9] = [
+const SERVER_FRAME_FAMILIES: [&str; 10] = [
     "connected",
     "result",
     "call_error",
@@ -61,12 +63,27 @@ const SERVER_FRAME_FAMILIES: [&str; 9] = [
     "stream_error",
     "detached",
     "connection_error",
+    "download_root_chosen",
 ];
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct ApplicationFrameMetrics {
     pub messages: u64,
     pub bytes: u64,
+}
+
+/// Distinct client identities counted before the rest share one bucket.
+const MAX_CLIENT_IDENTITIES: usize = 32;
+const UNIDENTIFIED_CLIENT: &str = "unidentified";
+const OTHER_CLIENTS: &str = "other";
+
+/// Connections and refused calls from one client kind and version.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+pub struct ClientIdentityMetrics {
+    pub connections: u64,
+    /// Calls refused with `UNSUPPORTED_CALL_MESSAGE`: requests this host
+    /// predates.
+    pub unsupported_calls: u64,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
@@ -98,6 +115,9 @@ pub struct ApplicationConnectionMetricsSnapshot {
     pub pings: u64,
     pub pongs: u64,
     pub heartbeat_timeouts: u64,
+    /// Keyed by `kind version`, `unidentified` for clients that report no
+    /// identity, and `other` once `MAX_CLIENT_IDENTITIES` keys exist.
+    pub clients: BTreeMap<String, ClientIdentityMetrics>,
 }
 
 #[derive(Clone, Default)]
@@ -118,8 +138,8 @@ struct ApplicationConnectionMetricAtoms {
     handshake_micros_max: AtomicU64,
     pending_calls_high_water: AtomicUsize,
     attachments_high_water: AtomicUsize,
-    client_frames: [FrameMetricAtoms; 6],
-    server_frames: [FrameMetricAtoms; 9],
+    client_frames: [FrameMetricAtoms; CLIENT_FRAME_FAMILIES.len()],
+    server_frames: [FrameMetricAtoms; SERVER_FRAME_FAMILIES.len()],
     view_batches: AtomicU64,
     empty_view_batches: AtomicU64,
     acknowledgements: AtomicU64,
@@ -134,6 +154,7 @@ struct ApplicationConnectionMetricAtoms {
     pings: AtomicU64,
     pongs: AtomicU64,
     heartbeat_timeouts: AtomicU64,
+    clients: StdMutex<BTreeMap<String, ClientIdentityMetrics>>,
 }
 
 #[derive(Default)]
@@ -205,7 +226,39 @@ impl ApplicationConnectionMetrics {
             pings: self.inner.pings.load(Ordering::Relaxed),
             pongs: self.inner.pongs.load(Ordering::Relaxed),
             heartbeat_timeouts: self.inner.heartbeat_timeouts.load(Ordering::Relaxed),
+            clients: self
+                .inner
+                .clients
+                .lock()
+                .expect("client metrics lock poisoned")
+                .clone(),
         }
+    }
+
+    fn client_connected(&self, key: &str) {
+        self.update_client(key, |metrics| {
+            metrics.connections = metrics.connections.saturating_add(1);
+        });
+    }
+
+    fn unsupported_call(&self, key: &str) {
+        self.update_client(key, |metrics| {
+            metrics.unsupported_calls = metrics.unsupported_calls.saturating_add(1);
+        });
+    }
+
+    fn update_client(&self, key: &str, update: impl FnOnce(&mut ClientIdentityMetrics)) {
+        let mut clients = self
+            .inner
+            .clients
+            .lock()
+            .expect("client metrics lock poisoned");
+        let key = if clients.contains_key(key) || clients.len() < MAX_CLIENT_IDENTITIES {
+            key
+        } else {
+            OTHER_CLIENTS
+        };
+        update(clients.entry(key.to_owned()).or_default());
     }
 
     fn rejected_origin(&self) {
@@ -260,6 +313,7 @@ impl ApplicationConnectionMetrics {
             ApplicationClientFrame::Attach { .. } => 3,
             ApplicationClientFrame::Ack { .. } => 4,
             ApplicationClientFrame::Detach { .. } => 5,
+            ApplicationClientFrame::ChooseDownloadRoot { .. } => 6,
         };
         record_frame(&self.inner.client_frames[index], bytes);
         if matches!(frame, ApplicationClientFrame::Ack { .. }) {
@@ -289,6 +343,7 @@ impl ApplicationConnectionMetrics {
             }
             ApplicationServerFrame::Detached { .. } => 7,
             ApplicationServerFrame::ConnectionError { .. } => 8,
+            ApplicationServerFrame::DownloadRootChosen { .. } => 9,
         };
         record_frame(&self.inner.server_frames[index], bytes);
         observe_high_water(&self.inner.outbound_message_bytes_high_water, bytes);
@@ -371,12 +426,25 @@ impl Default for ApplicationConnectionLimits {
 #[derive(Clone, Serialize, Deserialize, JsonSchema, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ApplicationClientFrame {
+    ChooseDownloadRoot {
+        call_id: String,
+        request: super::ChooseDownloadRootRequest,
+    },
     Connect {
         api_version: u16,
         encoding: ApiEncoding,
         client_instance_id: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         token: Option<String>,
+        /// The client's own product identity. Hosts released before it
+        /// ignore it; a malformed identity is dropped, never fatal.
+        #[serde(
+            default,
+            deserialize_with = "deserialize_client_info",
+            skip_serializing_if = "Option::is_none"
+        )]
+        #[schemars(with = "Option<ApiClientInfo>")]
+        client: Option<ApiClientInfo>,
     },
     Call {
         call_id: String,
@@ -406,10 +474,14 @@ pub enum ApplicationClientFrame {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ApplicationServerFrame {
+    DownloadRootChosen {
+        call_id: String,
+        response: super::ChooseDownloadRootResponse,
+    },
     Connected {
         api_version: u16,
         encoding: ApiEncoding,
-        hello: ApiHello,
+        hello: Box<ApiHello>,
         connection_limits: ApplicationConnectionLimits,
     },
     Result {
@@ -597,6 +669,13 @@ impl ApplicationConnectionRegistry {
     }
 }
 
+fn desktop_control_connection(state: &GatewayState) -> bool {
+    state
+        .hello_backend
+        .as_ref()
+        .is_some_and(|backend| backend.kind == "desktop")
+}
+
 pub(crate) fn application_hello(service: &ApplicationService) -> ApiHello {
     let mut hello = service.api_hello();
     if !hello.deliveries.contains(&DeliveryMode::Stream) {
@@ -619,6 +698,9 @@ pub(crate) async fn upgrade_application_connection(
         .as_deref()
         .is_some_and(|origin| match state.authentication.as_ref() {
             GatewayAuthentication::ChromeOsCompanion(_) => {
+                super::CompanionPairingOwner::origin_allowed(origin)
+            }
+            GatewayAuthentication::Bearer { .. } if desktop_control_connection(&state) => {
                 super::CompanionPairingOwner::origin_allowed(origin)
             }
             _ => origin == state.allowed_origin.as_ref(),
@@ -726,6 +808,7 @@ async fn serve_application_connection(
             encoding,
             client_instance_id,
             token,
+            client,
         },
         connect_bytes,
     )) = connected
@@ -747,9 +830,11 @@ async fn serve_application_connection(
             encoding,
             client_instance_id: client_instance_id.clone(),
             token: None,
+            client: None,
         },
         connect_bytes,
     );
+    let client_key = client_metrics_key(client.as_ref());
     if api_version != API_VERSION || encoding != ApiEncoding::Json {
         state.connection_metrics.rejected_handshake();
         fatal_connection(
@@ -797,6 +882,11 @@ async fn serve_application_connection(
         state.http_owner_namespace
     );
     let owner = ViewSetOwner::trusted(owner_key.clone());
+    state
+        .service
+        .lock()
+        .await
+        .host_update_client_connected(&owner);
     let connection_generation = state.connection_registry.generation();
     let takeover = state
         .connection_registry
@@ -810,6 +900,7 @@ async fn serve_application_connection(
     state
         .connection_metrics
         .accepted(takeover, handshake_started.elapsed());
+    state.connection_metrics.client_connected(&client_key);
     let mut hello = {
         let service = state.service.lock().await;
         application_hello(&service)
@@ -818,17 +909,18 @@ async fn serve_application_connection(
     if matches!(
         state.authentication.as_ref(),
         GatewayAuthentication::ChromeOsCompanion(_)
-    ) {
+    ) || desktop_control_connection(&state)
+    {
         hello
             .capabilities
-            .retain(|capability| capability != "torrent_media");
+            .retain(|capability| capability != "torrent_media" && capability != "library_media");
     }
     if send_control(
         &control,
         ApplicationServerFrame::Connected {
             api_version: API_VERSION,
             encoding: ApiEncoding::Json,
-            hello,
+            hello: Box::new(hello),
             connection_limits: ApplicationConnectionLimits::default(),
         },
         None,
@@ -842,6 +934,7 @@ async fn serve_application_connection(
     let reservations = Arc::new(Semaphore::new(DATA_RESERVATIONS));
     let pending_ids = Arc::new(StdMutex::new(BTreeSet::<String>::new()));
     let mut calls = JoinSet::new();
+    let mut removal_calls = JoinSet::new();
     let mut uploads = JoinSet::new();
     let mut attachments = BTreeMap::<String, ConnectionAttachment>::new();
     let (pump_stopped, mut stopped_pumps) =
@@ -933,6 +1026,11 @@ async fn serve_application_connection(
                     break;
                 }
             }
+            joined = removal_calls.join_next(), if !removal_calls.is_empty() => {
+                if joined.is_some_and(|result| result.is_err()) {
+                    break;
+                }
+            }
             joined = uploads.join_next(), if !uploads.is_empty() => {
                 if joined.is_some_and(|result| result.is_err()) {
                     break;
@@ -973,6 +1071,18 @@ async fn serve_application_connection(
                     Message::Text(text) if text.len() <= MAX_INCOMING_MESSAGE_BYTES => {
                         let parsed = serde_json::from_str::<ApplicationClientFrame>(&text);
                         let Ok(frame) = parsed else {
+                            if let Some(call_id) = unsupported_call_id(&text)
+                                .filter(|call_id| !pending_contains(&pending_ids, call_id))
+                            {
+                                state.connection_metrics.unsupported_call(&client_key);
+                                send_call_error(
+                                    &control,
+                                    call_id,
+                                    ApplicationConnectionErrorCode::InvalidCall,
+                                    UNSUPPORTED_CALL_MESSAGE,
+                                ).await;
+                                continue;
+                            }
                             invalid_messages = invalid_messages.saturating_add(1);
                             if invalid_messages >= MAX_INVALID_MESSAGES {
                                 fatal_connection(
@@ -1119,6 +1229,7 @@ async fn serve_application_connection(
                             &reservations,
                             &pending_ids,
                             &mut calls,
+                            &mut removal_calls,
                             &mut attachments,
                             &pump_stopped,
                             &connection_cancel,
@@ -1215,7 +1326,18 @@ async fn serve_application_connection(
     }
     calls.abort_all();
     while calls.join_next().await.is_some() {}
+    // An executing removal has persisted intent and may already have deleted
+    // payload. Retain its owner through finalization even without a response
+    // consumer. The connection permit bounds this work until it is joined.
+    while removal_calls.join_next().await.is_some() {}
     while uploads.join_next().await.is_some() {}
+    // Desktop companion pages rebuild their views on attachment. A departed
+    // page cannot resume them, including sets whose open response was lost.
+    // Finish before connection_done permits a same-client replacement to open
+    // its sets. Headless/remote and ChromeOS retain their resumable leases.
+    if desktop_control_connection(&state) {
+        state.service.lock().await.close_owner_view_sets(&owner);
+    }
     state
         .connection_registry
         .release_connection(&owner_key, connection_generation)
@@ -1236,6 +1358,40 @@ async fn serve_application_connection(
     finish_writer(control, data, writer).await;
 }
 
+async fn choose_desktop_root(
+    state: &GatewayState,
+    request: super::ChooseDownloadRootRequest,
+    cancellation: &CancellationToken,
+) -> Result<Option<rstorrent_session::StorageRootSnapshot>, String> {
+    let starting = state
+        .service
+        .lock()
+        .await
+        .suggested_storage_root_path(request.repair_root.as_deref())
+        .map_err(|error| error.to_string())?
+        .or_else(super::home_directory)
+        .ok_or("no usable folder-picker starting directory is available")?;
+    let selected = state
+        .download_directory_picker
+        .choose(&starting)
+        .await
+        .map_err(|error| error.to_string())?;
+    let Some(selected) = selected else {
+        return Ok(None);
+    };
+    let mut service = state.service.lock().await;
+    if cancellation.is_cancelled() || state.gateway_shutdown.is_cancelled() {
+        return Err("folder request owner closed".into());
+    }
+    if let Some(root) = request.repair_root.as_deref() {
+        service.repair_path_storage_root(root, &selected)
+    } else {
+        service.install_path_storage_root(&selected)
+    }
+    .map(Some)
+    .map_err(|error| error.to_string())
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn handle_client_frame(
     frame: ApplicationClientFrame,
@@ -1247,11 +1403,69 @@ async fn handle_client_frame(
     reservations: &Arc<Semaphore>,
     pending_ids: &Arc<StdMutex<BTreeSet<String>>>,
     calls: &mut JoinSet<()>,
+    removal_calls: &mut JoinSet<()>,
     attachments: &mut BTreeMap<String, ConnectionAttachment>,
     pump_stopped: &mpsc::Sender<PumpStopped>,
     connection_cancel: &CancellationToken,
 ) {
     match frame {
+        ApplicationClientFrame::ChooseDownloadRoot { call_id, request } => {
+            let supported = state.hello_backend.as_ref().is_some_and(|backend| {
+                backend.kind == "desktop"
+                    && backend
+                        .capability_profile
+                        .iter()
+                        .any(|c| c == "desktop_root_picker_v1")
+            });
+            if !supported
+                || !valid_identifier(&call_id)
+                || request
+                    .repair_root
+                    .as_ref()
+                    .is_some_and(|id| id.len() > 128)
+            {
+                send_call_error(
+                    control,
+                    call_id,
+                    ApplicationConnectionErrorCode::InvalidCall,
+                    "native folder acquisition is unavailable or invalid",
+                )
+                .await;
+                return;
+            }
+            if !insert_pending(pending_ids, &call_id) {
+                send_call_error(
+                    control,
+                    call_id,
+                    ApplicationConnectionErrorCode::ResourceLimit,
+                    "call ID is pending or the pending call limit was reached",
+                )
+                .await;
+                return;
+            }
+            let state = state.clone();
+            let control = control.clone();
+            let pending_ids = pending_ids.clone();
+            let cancellation = connection_cancel.clone();
+            calls.spawn(async move {
+                let result = choose_desktop_root(&state, request, &cancellation).await;
+                let frame = match result {
+                    Ok(root) => ApplicationServerFrame::DownloadRootChosen {
+                        call_id: call_id.clone(),
+                        response: super::ChooseDownloadRootResponse { root },
+                    },
+                    Err(message) => ApplicationServerFrame::CallError {
+                        call_id: call_id.clone(),
+                        error: ApplicationConnectionError::new(
+                            ApplicationConnectionErrorCode::InvalidCall,
+                            message,
+                        ),
+                    },
+                };
+                let _ = send_control(&control, frame, None).await;
+                remove_pending(&pending_ids, &call_id);
+            });
+        }
         ApplicationClientFrame::Call { call_id, operation } => {
             if !valid_identifier(&call_id) {
                 send_call_error(
@@ -1273,18 +1487,17 @@ async fn handle_client_frame(
                 .await;
                 return;
             }
-            if matches!(
-                (&operation, state.authentication.as_ref()),
-                (
-                    ApplicationCall::CreateMediaUrl { .. },
+            if matches!(operation, ApplicationCall::CreateMediaUrl { .. })
+                && (matches!(
+                    state.authentication.as_ref(),
                     GatewayAuthentication::ChromeOsCompanion(_)
-                )
-            ) {
+                ) || desktop_control_connection(state))
+            {
                 send_call_error(
                     control,
                     call_id,
                     ApplicationConnectionErrorCode::InvalidCall,
-                    "media capabilities are unavailable on Android companion connections",
+                    "media capabilities are unavailable on this companion connection",
                 )
                 .await;
                 return;
@@ -1349,9 +1562,23 @@ async fn handle_client_frame(
                         }
                         _ => None,
                     });
-            calls.spawn(async move {
+            let removal = matches!(
+                &operation,
+                ApplicationCall::Dispatch { request }
+                    if matches!(request.command,
+                        Command::RemoveTorrent { .. } | Command::CancelPendingAdd { .. })
+            );
+            let cancellation = connection_cancel.clone();
+            let call = async move {
                 let reservation_started = Instant::now();
-                let reservation = reservations.acquire_owned().await.ok();
+                let reservation = tokio::select! {
+                    biased;
+                    () = cancellation.cancelled() => {
+                        remove_pending(&pending_ids, &call_id);
+                        return;
+                    }
+                    reservation = reservations.acquire_owned() => reservation.ok(),
+                };
                 metrics.reservation_wait(reservation_started.elapsed());
                 let result = if let Some((platform, request, cancellation)) = joined_removal {
                     platform
@@ -1362,9 +1589,15 @@ async fn handle_client_frame(
                         })
                         .map_err(companion_platform_call_error)
                 } else {
+                    let mut service = tokio::select! {
+                        biased;
+                        () = cancellation.cancelled() => {
+                            remove_pending(&pending_ids, &call_id);
+                            return;
+                        }
+                        service = service.lock() => service,
+                    };
                     service
-                        .lock()
-                        .await
                         .application_call(&owner, operation)
                         .await
                         .map_err(application_call_error)
@@ -1405,9 +1638,18 @@ async fn handle_client_frame(
                         error,
                     },
                 };
-                let _ = send_control(&control, frame, reservation).await;
+                tokio::select! {
+                    biased;
+                    () = cancellation.cancelled() => {}
+                    _ = send_control(&control, frame, reservation) => {}
+                }
                 remove_pending(&pending_ids, &call_id);
-            });
+            };
+            if removal {
+                removal_calls.spawn(call);
+            } else {
+                calls.spawn(call);
+            }
         }
         ApplicationClientFrame::Attach {
             call_id,
@@ -1862,6 +2104,39 @@ fn insert_pending(pending: &StdMutex<BTreeSet<String>>, call_id: &str) -> bool {
     true
 }
 
+fn pending_contains(pending: &StdMutex<BTreeSet<String>>, call_id: &str) -> bool {
+    pending
+        .lock()
+        .expect("pending call lock poisoned")
+        .contains(call_id)
+}
+
+fn client_metrics_key(client: Option<&ApiClientInfo>) -> String {
+    client.map_or_else(
+        || UNIDENTIFIED_CLIENT.to_owned(),
+        |client| format!("{} {}", client.kind, client.version),
+    )
+}
+
+/// Sent for a call this host cannot parse, typically a command or settings
+/// key from a newer client. See docs/topics/mixed-version-compatibility.md.
+pub const UNSUPPORTED_CALL_MESSAGE: &str =
+    "this JSTorrent version does not support this request; update it to use this feature";
+
+/// The call an unparseable frame belongs to. A newer client may send a
+/// command, settings key or frame this host predates; answering that call
+/// keeps the connection, where a protocol error would close it. Frames
+/// without a well-formed call ID, and `connect`, remain protocol errors.
+pub fn unsupported_call_id(text: &str) -> Option<String> {
+    let value = serde_json::from_str::<serde_json::Value>(text).ok()?;
+    let frame = value.as_object()?;
+    if frame.get("type")?.as_str()? == "connect" {
+        return None;
+    }
+    let call_id = frame.get("call_id")?.as_str()?;
+    valid_identifier(call_id).then(|| call_id.to_owned())
+}
+
 fn remove_pending(pending: &StdMutex<BTreeSet<String>>, call_id: &str) {
     pending
         .lock()
@@ -1911,7 +2186,9 @@ fn valid_application_call(call: &ApplicationCall) -> bool {
             torrent_id,
             file_index: _,
         } => valid_torrent_id(torrent_id),
-        ApplicationCall::Dispatch { .. } | ApplicationCall::OpenViewSet { .. } => true,
+        ApplicationCall::ProductUpdate { .. }
+        | ApplicationCall::Dispatch { .. }
+        | ApplicationCall::OpenViewSet { .. } => true,
     }
 }
 
@@ -2001,6 +2278,105 @@ fn acknowledged_stream_error(error: AcknowledgedViewStreamError) -> ApplicationC
 
 #[cfg(test)]
 mod tests {
+    use super::{ApiClientInfo, ApplicationConnectionMetrics};
+
+    fn connect_client(frame: &str) -> Option<ApiClientInfo> {
+        match serde_json::from_str::<ApplicationClientFrame>(frame).expect("connect parses") {
+            ApplicationClientFrame::Connect { client, .. } => client,
+            _ => panic!("not a connect frame"),
+        }
+    }
+
+    #[test]
+    fn connect_reads_a_client_identity_and_drops_a_malformed_one() {
+        let base = r#""type":"connect","api_version":1,"encoding":"json","client_instance_id":"00000000000000000000000000000001""#;
+        assert_eq!(connect_client(&format!("{{{base}}}")), None);
+        assert_eq!(
+            connect_client(&format!(
+                r#"{{{base},"client":{{"kind":"remote","version":"0.3.2","build_id":"abc","later":1}}}}"#
+            )),
+            Some(ApiClientInfo {
+                kind: "remote".into(),
+                version: "0.3.2".into(),
+                build_id: "abc".into(),
+            })
+        );
+        let long = "v".repeat(ApiClientInfo::MAX_VERSION_BYTES + 1);
+        for malformed in [
+            r#"null"#.to_owned(),
+            r#""remote""#.to_owned(),
+            r#"{"kind":"remote"}"#.to_owned(),
+            r#"{"kind":7,"version":"1","build_id":"b"}"#.to_owned(),
+            format!(r#"{{"kind":"remote","version":"{long}","build_id":"b"}}"#),
+            r#"{"kind":"re mote","version":"1","build_id":"b"}"#.to_owned(),
+            r#"{"kind":"","version":"1","build_id":"b"}"#.to_owned(),
+        ] {
+            assert_eq!(
+                connect_client(&format!(r#"{{{base},"client":{malformed}}}"#)),
+                None,
+                "{malformed}"
+            );
+        }
+    }
+
+    #[test]
+    fn connect_keeps_the_client_identity_when_forwarded() {
+        // The remote host bridge parses and re-serializes client frames.
+        let frame = r#"{"type":"connect","api_version":1,"encoding":"json","client_instance_id":"00000000000000000000000000000001","client":{"kind":"remote","version":"0.3.2","build_id":"abc"}}"#;
+        let parsed: ApplicationClientFrame = serde_json::from_str(frame).unwrap();
+        let forwarded = serde_json::to_string(&parsed).unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&forwarded).unwrap()["client"]["kind"],
+            "remote"
+        );
+    }
+
+    #[test]
+    fn client_metrics_bound_distinct_identities() {
+        let metrics = ApplicationConnectionMetrics::default();
+        for index in 0..40 {
+            metrics.client_connected(&format!("extension 1.1.{index}"));
+        }
+        metrics.unsupported_call("extension 1.1.0");
+        metrics.unsupported_call("extension 9.9.9");
+        let clients = metrics.snapshot().clients;
+        assert_eq!(clients.len(), super::MAX_CLIENT_IDENTITIES + 1);
+        assert_eq!(clients["other"].connections, 8);
+        assert_eq!(clients["other"].unsupported_calls, 1);
+        assert_eq!(clients["extension 1.1.0"].unsupported_calls, 1);
+    }
+
+    #[test]
+    fn only_a_well_formed_call_id_makes_a_call_unsupported() {
+        assert_eq!(
+            super::unsupported_call_id(
+                r#"{"type":"call","call_id":"c-1","operation":{"type":"future"}}"#
+            ),
+            Some("c-1".to_owned())
+        );
+        assert_eq!(
+            super::unsupported_call_id(r#"{"type":"future_frame","call_id":"c.2"}"#),
+            Some("c.2".to_owned())
+        );
+        for frame in [
+            r#"{}"#,
+            r#"not json"#,
+            r#"[]"#,
+            r#"{"type":"call","operation":{}}"#,
+            r#"{"type":"call","call_id":""}"#,
+            r#"{"type":"call","call_id":"has space"}"#,
+            r#"{"type":"call","call_id":7}"#,
+            r#"{"type":"connect","call_id":"c-3"}"#,
+            r#"{"call_id":"c-4"}"#,
+        ] {
+            assert_eq!(super::unsupported_call_id(frame), None, "{frame}");
+        }
+        let long = "a".repeat(super::MAX_IDENTIFIER_BYTES + 1);
+        assert_eq!(
+            super::unsupported_call_id(&format!(r#"{{"type":"call","call_id":"{long}"}}"#)),
+            None
+        );
+    }
     use super::{
         ApplicationClientFrame, ApplicationConnectionErrorCode, ApplicationConnectionRegistry,
         CLIENT_INSTANCE_ID_BYTES, MAX_PENDING_CALLS, insert_pending, valid_client_instance_id,

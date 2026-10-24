@@ -7,6 +7,11 @@ import type {
   TrackerSet,
   ViewMaterialization,
 } from "../model";
+import {
+  peerSourceSummaries,
+  type PeerSourceKind,
+  type PeerSourceStatus,
+} from "../peer-sources";
 import { VirtualTable, type VirtualColumn } from "./VirtualTable";
 import styles from "./TrackerTable.module.css";
 
@@ -20,11 +25,11 @@ export function TrackerTable({ torrentId }: { readonly torrentId: string }) {
   const interfaceSize = useInspectionStore(
     (state) => state.presentation.interfaceSize,
   );
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [nowMs, setNowMs] = useState(() => performance.now());
 
   useEffect(() => {
-    setNowMs(Date.now());
-    const timer = globalThis.setInterval(() => setNowMs(Date.now()), 1_000);
+    setNowMs(performance.now());
+    const timer = globalThis.setInterval(() => setNowMs(performance.now()), 1_000);
     return () => globalThis.clearInterval(timer);
   }, []);
 
@@ -35,20 +40,19 @@ export function TrackerTable({ torrentId }: { readonly torrentId: string }) {
         .filter((row): row is TrackerRow => row !== undefined),
     [trackerSet],
   );
-  const columns = useMemo(() => trackerColumns(nowMs), [nowMs]);
-  const announcing = rows.filter((row) => row.status === "announcing").length;
-  const waiting = rows.filter(
-    (row) => row.status === "retry_wait" || row.status === "reannounce_wait",
-  ).length;
+  const columns = useMemo(
+    () => trackerColumns(Math.max(nowMs, performance.now())),
+    [nowMs, trackerSet],
+  );
 
   return (
     <div className={styles.trackerPanel}>
-      <div className={styles.summary}>
-        <span>{rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.tracker.table.trackers")}</span>
-        <span>{announcing.toLocaleString()}{" "}{localizedMessage("inspection.components.tracker.table.announcing")}</span>
-        <span>{waiting.toLocaleString()}{" "}{localizedMessage("inspection.components.tracker.table.scheduled")}</span>
-      </div>
+      <PeerSourceList
+        torrentId={torrentId}
+        trackers={trackerSet === undefined ? undefined : rows}
+      />
       <VirtualTable
+        formatCount={(count) => localizedMessage("common.count.trackers", { count })}
         tableId="trackers"
         label={localizedMessage("inspection.components.tracker.table.torrent.trackers")}
         rows={rows}
@@ -62,10 +66,94 @@ export function TrackerTable({ torrentId }: { readonly torrentId: string }) {
   );
 }
 
+/** One line per way this torrent finds peers, trackers first, as qBittorrent lists them. */
+function PeerSourceList({
+  torrentId,
+  trackers,
+}: {
+  readonly torrentId: string;
+  readonly trackers: readonly TrackerRow[] | undefined;
+}) {
+  const torrent = useInspectionStore((state) => state.torrents[torrentId]);
+  const swarm = useInspectionStore((state) => state.swarmByTorrent[torrentId]);
+  const dht = useInspectionStore((state) => state.dht);
+  const settings = useInspectionStore((state) => state.clientSettings);
+  const sources = useMemo(
+    () => peerSourceSummaries(torrent, trackers, swarm, dht, settings),
+    [dht, settings, swarm, torrent, trackers],
+  );
+  return (
+    <div className={styles.sourcesPanel}>
+      <table
+        className={styles.sources}
+        aria-label={localizedMessage("inspection.components.tracker.table.peer.sources")}
+      >
+        <tbody>
+          {sources.map((source) => (
+            <tr key={source.kind}>
+              <th scope="row">{sourceLabel(source.kind)}</th>
+              <td>
+                <span className={styles.sourceStatus} data-status={source.status.type}>
+                  <span aria-hidden="true" />
+                  {sourceStatusLabel(source.status)}
+                </span>
+              </td>
+              <td>
+                {source.known === null
+                  ? "—"
+                  : localizedMessage("inspection.components.tracker.table.known.count", { count: source.known })}
+              </td>
+              <td>
+                {source.connected === null
+                  ? "—"
+                  : localizedMessage("inspection.components.tracker.table.connected.count", { count: source.connected })}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function sourceLabel(kind: PeerSourceKind): string {
+  switch (kind) {
+    case "tracker": return localizedMessage("inspection.components.tracker.table.source.trackers");
+    case "dht": return localizedMessage("inspection.components.tracker.table.source.dht");
+    case "peer_exchange": return localizedMessage("inspection.components.tracker.table.source.peer.exchange");
+    case "incoming": return localizedMessage("inspection.components.tracker.table.source.incoming");
+    case "local_discovery": return localizedMessage("inspection.components.tracker.table.source.local.network");
+  }
+}
+
+function sourceStatusLabel(status: PeerSourceStatus): string {
+  switch (status.type) {
+    case "unknown": return "—";
+    case "none": return localizedMessage("inspection.components.tracker.table.source.status.none");
+    case "off": return localizedMessage("inspection.components.tracker.table.source.status.off");
+    case "offline": return localizedMessage("inspection.components.tracker.table.source.status.not.available");
+    case "starting": return localizedMessage("inspection.components.tracker.table.source.status.starting");
+    case "idle": return localizedMessage("inspection.components.tracker.table.source.status.idle");
+    case "on": return localizedMessage("inspection.components.tracker.table.source.status.on");
+    case "listening":
+      return localizedMessage("inspection.components.tracker.table.source.status.listening", { port: String(status.port) });
+    case "searching":
+      return localizedMessage("inspection.components.tracker.table.source.status.searching", { found: status.found });
+    case "announcing": return localizedMessage("inspection.components.tracker.table.source.status.announcing");
+    case "failing": return localizedMessage("inspection.components.tracker.table.source.status.not.responding");
+    case "working":
+      return localizedMessage("inspection.components.tracker.table.source.status.working", {
+        working: status.working,
+        total: status.total,
+      });
+  }
+}
+
 function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
   return [
     {
       id: "url",
+      listRole: "title",
       label: localizedMessage("inspection.components.tracker.table.url"),
       width: 220,
       minimumWidth: 170,
@@ -79,6 +167,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
     },
     {
       id: "status",
+      listRole: "subtitle",
       label: localizedMessage("inspection.components.tracker.table.status"),
       width: 170,
       sortValue: (row) => row.status,
@@ -107,6 +196,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
     },
     {
       id: "peers",
+      listRole: "detail",
       label: localizedMessage("inspection.components.tracker.table.peers"),
       width: 70,
       align: "right",
@@ -116,6 +206,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
     },
     {
       id: "seeds",
+      listRole: "detail",
       label: localizedMessage("inspection.components.tracker.table.seeds"),
       width: 70,
       align: "right",
@@ -125,6 +216,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
     },
     {
       id: "leeches",
+      listRole: "detail",
       label: localizedMessage("inspection.components.tracker.table.leeches"),
       width: 76,
       align: "right",
@@ -134,10 +226,11 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
     },
     {
       id: "next",
+      listRole: "detail",
       label: localizedMessage("inspection.components.tracker.table.next.announce"),
       width: 132,
       sortKind: "number",
-      sortValue: (row) => nextDeadline(row),
+      sortValue: (row) => row.nextActionAtMs,
       render: (row) => formatNextAction(row, nowMs),
     },
     {
@@ -164,7 +257,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
           title={
             row.security === "encrypted_unauthenticated"
               ? localizedMessage("inspection.components.tracker.table.encrypted.certificate.and.hostname.not.validated")
-              : localizedMessage("inspection.components.tracker.table.unencrypted.tracker.transport")
+              : localizedMessage("inspection.components.tracker.table.not.encrypted")
           }
         >
           {row.transport.toUpperCase()}
@@ -237,8 +330,8 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
       align: "right",
       defaultVisible: false,
       sortKind: "number",
-      sortValue: (row) => row.lastSuccessAgeMs,
-      render: (row) => ageLabel(row.lastSuccessAgeMs, row, nowMs),
+      sortValue: (row) => row.lastSuccessAtMs === null ? null : -row.lastSuccessAtMs,
+      render: (row) => ageLabel(row.lastSuccessAtMs, nowMs),
     },
     {
       id: "lastFailure",
@@ -247,34 +340,27 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
       align: "right",
       defaultVisible: false,
       sortKind: "number",
-      sortValue: (row) => row.lastFailureAgeMs,
-      render: (row) => ageLabel(row.lastFailureAgeMs, row, nowMs),
+      sortValue: (row) => row.lastFailureAtMs === null ? null : -row.lastFailureAtMs,
+      render: (row) => ageLabel(row.lastFailureAtMs, nowMs),
     },
   ];
 }
 
-function nextDeadline(row: TrackerRow): number | null {
-  return row.nextActionInMs === null
-    ? null
-    : row.observedAtMs + row.nextActionInMs;
-}
-
 function formatNextAction(row: TrackerRow, nowMs: number): string {
   if (row.status === "announcing") return localizedMessage("inspection.components.tracker.table.now");
-  const deadline = nextDeadline(row);
+  const deadline = row.nextActionAtMs;
   if (deadline === null || row.nextAction === null) return "—";
   const action = row.nextAction === "retry" ? "Retry" : "Announce";
   return `${action} in ${formatDuration(Math.max(0, deadline - nowMs))}`;
 }
 
 function ageLabel(
-  ageMs: number | null,
-  row: TrackerRow,
+  atMs: number | null,
   nowMs: number,
 ): string {
-  return ageMs === null
+  return atMs === null
     ? "—"
-    : `${formatDuration(ageMs + Math.max(0, nowMs - row.observedAtMs))} ago`;
+    : `${formatDuration(Math.max(0, nowMs - atMs))} ago`;
 }
 
 function formatDuration(milliseconds: number | null): string {
@@ -302,13 +388,14 @@ function trackerEmptyMessage(
 ): string {
   switch (materialization.status) {
     case "not_requested":
-      return localizedMessage("inspection.components.tracker.table.tracker.inspection.is.not.requested");
+      return localizedMessage("inspection.components.tracker.table.nothing.to.show");
     case "loading":
-      return localizedMessage("inspection.components.tracker.table.loading.configured.trackers");
+      // Blank, like the peer table: a loading label only flickers.
+      return "";
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
       return catalogState === "torrent_missing"
         ? "The torrent is no longer present."

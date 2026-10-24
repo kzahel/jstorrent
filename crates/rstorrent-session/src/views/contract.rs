@@ -14,8 +14,15 @@ use ts_rs::TS;
 use crate::control::{RemovalState, StorageState, TorrentProtocolIdentities, TorrentState};
 use crate::diagnostics::{DiagnosticEvent, DiagnosticFilter, DiagnosticRetention};
 use crate::file_views::{FileCatalogState, FileView};
+use crate::library_views::{
+    DEFAULT_LIBRARY_PAGE_ROWS, LibraryFacetsView, LibraryGroupView, LibraryMediaItemView,
+    LibraryMediaQuery,
+};
 use crate::media_catalog_views::{MediaCatalogState, MediaItemView};
-use crate::settings::{ClientSettingsRuntimeView, StorageSettingsSnapshot, TorrentTransferLimits};
+use crate::settings::{
+    ClientSettingsRuntimeView, StorageSettingsSnapshot, TorrentSeedStopLimits,
+    TorrentTransferLimits,
+};
 use crate::speed::{
     SessionCurrentRatesView, SpeedHistoryAppend, SpeedHistoryView, SpeedMetric, SpeedRange,
 };
@@ -36,6 +43,10 @@ pub const MAX_VIEW_SET_QUEUE_BYTES: u32 = 512 * 1024;
 pub const MAX_VIEW_SET_SNAPSHOT_BYTES: u32 = 16 * 1024 * 1024;
 pub const MAX_VIEW_SET_WAIT_MILLIS: u32 = 20_000;
 pub const VIEW_SET_LEASE_MILLIS: u64 = 5 * 60 * 1_000;
+/// Client silence after which a set that is not being polled may be evicted
+/// early to admit a new set. Three maximum waits keep a live long-poller or
+/// stream safe between deliveries.
+pub const MIN_VIEW_SET_EVICTION_IDLE_MILLIS: u64 = 3 * MAX_VIEW_SET_WAIT_MILLIS as u64;
 pub const VIEW_SET_REAPER_INTERVAL_MILLIS: u64 = 5_000;
 pub const MAX_VIEW_DELIVERY_INTERVAL_MILLIS: u32 = 60_000;
 pub const MAX_CATALOG_PAGE_ROWS: u32 = 1_024;
@@ -136,7 +147,73 @@ pub struct ApiHello {
     pub capabilities: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub backend: Option<ApiBackendIdentity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub product: Option<ApiProductInfo>,
     pub limits: ApiLimits,
+}
+
+/// Facts the host product reports about itself and the profile it serves.
+/// They are fixed for the lifetime of the host process.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+pub struct ApiProductInfo {
+    /// `desktop`, `headless`, `android`, `crostini` or `gateway`.
+    pub kind: String,
+    pub version: String,
+    /// Source commit, or a local marker such as `development`.
+    pub build_id: String,
+    pub target: String,
+    /// Desktop or Android application identifier, when the host has one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identifier: Option<String>,
+    pub profile_id: String,
+    /// Durable profile directory; absent for an ephemeral profile.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_location: Option<String>,
+}
+
+/// What a client reports about itself when it connects. Informational
+/// only: hosts count and log it and never decide features from it. The
+/// strings are open so that a newer client kind or version format never
+/// breaks a host's handshake.
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, JsonSchema, TS)]
+pub struct ApiClientInfo {
+    /// `remote` (the hosted controller), `extension` (an extension page) or
+    /// `web` (a page the host serves); newer clients may report others.
+    pub kind: String,
+    pub version: String,
+    /// Source commit, or a local marker such as `development`.
+    pub build_id: String,
+}
+
+impl ApiClientInfo {
+    pub const MAX_KIND_BYTES: usize = 32;
+    pub const MAX_VERSION_BYTES: usize = 32;
+    pub const MAX_BUILD_ID_BYTES: usize = 64;
+
+    /// The identity if every field is printable ASCII within its bound.
+    pub fn validated(self) -> Option<Self> {
+        let valid = |value: &str, maximum: usize| {
+            !value.is_empty()
+                && value.len() <= maximum
+                && value.bytes().all(|byte| byte.is_ascii_graphic())
+        };
+        (valid(&self.kind, Self::MAX_KIND_BYTES)
+            && valid(&self.version, Self::MAX_VERSION_BYTES)
+            && valid(&self.build_id, Self::MAX_BUILD_ID_BYTES))
+        .then_some(self)
+    }
+}
+
+/// Reads an optional client identity without ever failing: a malformed or
+/// out-of-bounds identity becomes `None`, so the connection proceeds.
+pub fn deserialize_client_info<'de, D>(deserializer: D) -> Result<Option<ApiClientInfo>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(serde_json::from_value::<ApiClientInfo>(value)
+        .ok()
+        .and_then(ApiClientInfo::validated))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
@@ -166,14 +243,23 @@ impl Default for ApiHello {
                 "torrent_files".to_owned(),
                 "torrent_media".to_owned(),
                 "torrent_trackers".to_owned(),
+                "library_media".to_owned(),
                 "session_disk".to_owned(),
                 "session_dht".to_owned(),
                 "session_current_rates".to_owned(),
                 "session_speed_history".to_owned(),
                 "piece_activity".to_owned(),
                 "diagnostics".to_owned(),
-            ],
+            ]
+            .into_iter()
+            .chain(
+                crate::HOST_CAPABILITIES
+                    .iter()
+                    .map(|capability| capability.name.to_owned()),
+            )
+            .collect(),
             backend: None,
+            product: None,
             limits: ApiLimits {
                 max_view_sets_per_owner: MAX_VIEW_SETS_PER_OWNER as u16,
                 max_views_per_set: MAX_VIEWS_PER_SET as u16,
@@ -286,6 +372,17 @@ pub enum ViewSpec {
         #[serde(default)]
         delivery: ViewDeliveryPolicy,
     },
+    /// Video and audio across the profile's torrents (Tactical 363). A page
+    /// defaults to the first 100 rows.
+    LibraryMedia {
+        view_id: String,
+        #[serde(default)]
+        query: LibraryMediaQuery,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        page: Option<CatalogPageRequest>,
+        #[serde(default)]
+        delivery: ViewDeliveryPolicy,
+    },
     Diagnostics {
         view_id: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -314,6 +411,7 @@ impl ViewSpec {
             | Self::TorrentFiles { view_id, .. }
             | Self::TorrentMedia { view_id, .. }
             | Self::TorrentTrackers { view_id, .. }
+            | Self::LibraryMedia { view_id, .. }
             | Self::Diagnostics { view_id, .. } => view_id,
         }
     }
@@ -333,6 +431,7 @@ impl ViewSpec {
             | Self::TorrentFiles { delivery, .. }
             | Self::TorrentMedia { delivery, .. }
             | Self::TorrentTrackers { delivery, .. }
+            | Self::LibraryMedia { delivery, .. }
             | Self::Diagnostics { delivery, .. } => *delivery,
         }
     }
@@ -434,6 +533,17 @@ impl ViewSpec {
                 None,
                 Some(page.unwrap_or_default()),
             ),
+            Self::LibraryMedia { query, page, .. } => (
+                ViewSelector::Library {
+                    query: query.clone(),
+                },
+                ViewProjection::LibraryMedia,
+                None,
+                Some(page.unwrap_or(CatalogPageRequest {
+                    offset: 0,
+                    limit: DEFAULT_LIBRARY_PAGE_ROWS,
+                })),
+            ),
             Self::Diagnostics {
                 torrent_id, filter, ..
             } => (
@@ -510,8 +620,18 @@ impl ViewSetUpdate {
     }
 }
 
+fn legacy_server_now_millis() -> String {
+    "0".to_owned()
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 pub struct UpdateBatch {
+    /// Milliseconds on the current application instance's monotonic clock.
+    /// Refreshed at delivery; tracker *_at_millis fields use this same origin.
+    /// Hosts released before 0.3.1 omit it; they also omit the tracker
+    /// instants it anchors, so clients default it to "0".
+    #[serde(default = "legacy_server_now_millis")]
+    pub server_now_millis: String,
     pub api_version: u16,
     pub view_set_id: String,
     pub epoch: String,
@@ -534,6 +654,10 @@ pub struct OpenViewSetResponse {
 pub struct ViewSetOwner(Arc<str>);
 
 impl ViewSetOwner {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
     pub fn trusted(value: impl Into<Arc<str>>) -> Self {
         Self(value.into())
     }
@@ -620,6 +744,9 @@ pub enum ViewSelector {
         range: SpeedRange,
         metrics: Vec<SpeedMetric>,
     },
+    Library {
+        query: LibraryMediaQuery,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
@@ -639,6 +766,7 @@ pub enum ViewProjection {
     Media,
     Trackers,
     Diagnostics,
+    LibraryMedia,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
@@ -979,6 +1107,16 @@ impl Default for TorrentLifetimeView {
     }
 }
 
+/// A torrent's own seeding stop limits and whether a reached limit stopped
+/// it. Clients resolve `UseGlobal` against the session settings.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(deny_unknown_fields)]
+pub struct SeedStopView {
+    pub limits: TorrentSeedStopLimits,
+    pub stopped: bool,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(deny_unknown_fields)]
@@ -986,6 +1124,9 @@ pub struct TorrentSeedingView {
     pub admission: SeedAdmissionView,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub goal: Option<SeedGoalView>,
+    /// Absent while the torrent uses the session limits and is not stopped.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop: Option<SeedStopView>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
@@ -1232,6 +1373,8 @@ pub struct DiskPieceView {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct TorrentView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub safety_summary: Option<crate::FileSafetySummary>,
     #[schemars(regex(pattern = "^t1-[0-9a-f]{32}$"))]
     pub torrent_id: String,
     pub protocol_identities: TorrentProtocolIdentities,
@@ -1239,6 +1382,13 @@ pub struct TorrentView {
     pub display_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_display_name: Option<String>,
+    /// Total size in bytes claimed by the source magnet's `xl`, as a
+    /// decimal string, while metadata is not verified. Absent once
+    /// metadata is verified or when the magnet carries no acceptable `xl`.
+    /// A claim from the link, never a verified size.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(regex(pattern = "^[1-9][0-9]{0,18}$"))]
+    pub source_size_bytes: Option<String>,
     pub state: TorrentState,
     pub operational_state: TorrentOperationalState,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1248,6 +1398,11 @@ pub struct TorrentView {
     pub storage_state: StorageState,
     pub storage_root: String,
     pub metadata_available: bool,
+    /// The verified metainfo sets the BEP 27 `private` flag. False for
+    /// public torrents and for a magnet whose metadata is not verified
+    /// yet; it is never inferred from a magnet link.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub private_torrent: bool,
     #[serde(default)]
     pub awaiting_file_selection: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1626,6 +1781,13 @@ pub enum ViewSnapshot {
         events: Vec<DiagnosticEvent>,
         retention: DiagnosticRetention,
     },
+    /// Items without grouping, groups with it; the other list is empty.
+    LibraryMedia {
+        page: CatalogPageView,
+        facets: LibraryFacetsView,
+        items: Vec<LibraryMediaItemView>,
+        groups: Vec<LibraryGroupView>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
@@ -1716,6 +1878,11 @@ pub enum ViewPatch {
         events: Vec<DiagnosticEvent>,
         retention: DiagnosticRetention,
     },
+    /// Changed progress of items already on the delivered page. Membership,
+    /// order, totals and facets change only through a snapshot.
+    LibraryMedia {
+        upsert: Vec<LibraryMediaItemView>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
@@ -1762,6 +1929,7 @@ pub enum SubscriptionError {
     InvalidQueueBound { minimum: u32, maximum: u32 },
     InvalidProjection,
     InvalidCatalogPage { maximum: u32 },
+    InvalidQuery(String),
     SnapshotExceedsQueue { snapshot: usize, maximum: u32 },
     Closed,
     Internal(String),
@@ -1790,6 +1958,7 @@ impl fmt::Display for SubscriptionError {
                 formatter,
                 "catalog page limit must be within 1..={maximum} rows"
             ),
+            Self::InvalidQuery(message) => write!(formatter, "invalid query: {message}"),
             Self::SnapshotExceedsQueue { snapshot, maximum } => write!(
                 formatter,
                 "initial snapshot is {snapshot} bytes and exceeds the {maximum}-byte queue"

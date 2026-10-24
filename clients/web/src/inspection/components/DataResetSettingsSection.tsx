@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { message as localizedMessage } from "../../localization/runtime";
 
+import { useToast } from "./Toast";
 import styles from "./SettingsDialog.module.css";
 
 interface DataResetSettingsSectionProps {
@@ -9,6 +10,8 @@ interface DataResetSettingsSectionProps {
   readonly onRestoreDefaults: () => Promise<void>;
   readonly onClearAppData: (deleteData: boolean) => Promise<void>;
   readonly onBusyChange: (busy: boolean) => void;
+  /** Shown above the reset actions, such as the torrent list section. */
+  readonly children?: ReactNode;
 }
 
 export function DataResetSettingsSection({
@@ -17,35 +20,31 @@ export function DataResetSettingsSection({
   onRestoreDefaults,
   onClearAppData,
   onBusyChange,
+  children,
 }: DataResetSettingsSectionProps) {
   const [confirmation, setConfirmation] = useState<"restore" | "clear" | null>(null);
   const [deleteData, setDeleteData] = useState(false);
   const [pending, setPending] = useState(false);
-  const [status, setStatus] = useState<{
-    readonly error: boolean;
-    readonly text: string;
-  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   const run = async () => {
     if (confirmation === null || pending) return;
     setPending(true);
     onBusyChange(true);
-    setStatus(null);
+    setError(null);
     try {
       if (confirmation === "restore") {
         await onRestoreDefaults();
-        setStatus({ error: false, text: localizedMessage("inspection.components.data.reset.preferences.restored") });
+        toast.show({ message: localizedMessage("inspection.components.data.reset.preferences.restored") });
       } else {
         await onClearAppData(deleteData);
-        setStatus({ error: false, text: localizedMessage("inspection.components.data.reset.app.data.cleared") });
+        toast.show({ message: localizedMessage("inspection.components.data.reset.app.data.cleared") });
       }
       setConfirmation(null);
       setDeleteData(false);
-    } catch (error) {
-      setStatus({
-        error: true,
-        text: error instanceof Error ? error.message : String(error),
-      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setPending(false);
       onBusyChange(false);
@@ -55,16 +54,19 @@ export function DataResetSettingsSection({
   return (
     <div className={styles.dataReset}>
       <h3>{localizedMessage("inspection.components.data.reset.category")}</h3>
-      <section>
-        <h4>{localizedMessage("inspection.components.data.reset.restore.title")}</h4>
-        <p>{localizedMessage("inspection.components.data.reset.restore.description")}</p>
-        <button type="button" disabled={!manageable || pending} onClick={() => { setConfirmation("restore"); setStatus(null); }}>{localizedMessage("inspection.components.data.reset.restore.open")}</button>
-      </section>
-      <section>
-        <h4>{localizedMessage("inspection.components.data.reset.clear.title")}</h4>
-        <p>{localizedMessage("inspection.components.data.reset.clear.description")}</p>
-        <button type="button" disabled={!manageable || pending} onClick={() => { setConfirmation("clear"); setDeleteData(false); setStatus(null); }}>{localizedMessage("inspection.components.data.reset.clear.open")}</button>
-      </section>
+      {children}
+      <div className={styles.rows}>
+        <section>
+          <h4>{localizedMessage("inspection.components.data.reset.restore.title")}</h4>
+          <p>{localizedMessage("inspection.components.data.reset.restore.description")}</p>
+          <button type="button" disabled={!manageable || pending} onClick={() => { setConfirmation("restore"); setError(null); }}>{localizedMessage("inspection.components.data.reset.restore.open")}</button>
+        </section>
+        <section>
+          <h4>{localizedMessage("inspection.components.data.reset.clear.title")}</h4>
+          <p>{localizedMessage("inspection.components.data.reset.clear.description")}</p>
+          <button type="button" disabled={!manageable || pending} onClick={() => { setConfirmation("clear"); setDeleteData(false); setError(null); }}>{localizedMessage("inspection.components.data.reset.clear.open")}</button>
+        </section>
+      </div>
       {confirmation === null ? null : (
         <div className={styles.resetConfirmation} role="group" aria-label={confirmation === "restore" ? localizedMessage("inspection.components.data.reset.restore.confirm") : localizedMessage("inspection.components.data.reset.clear.confirm")}>
           <strong>{confirmation === "restore" ? localizedMessage("inspection.components.data.reset.restore.confirm") : localizedMessage("inspection.components.data.reset.clear.confirm")}</strong>
@@ -85,7 +87,7 @@ export function DataResetSettingsSection({
           </div>
         </div>
       )}
-      {status === null ? null : <p role={status.error ? "alert" : "status"} className={status.error ? styles.errorStatus : styles.successStatus}>{status.text}</p>}
+      {error === null ? null : <p role="alert" className={styles.errorStatus}>{error}</p>}
     </div>
   );
 }

@@ -1,0 +1,129 @@
+{
+  "qualification": "diagnostic only; production updater signatures rejected",
+  "runUrl": "https://github.com/kzahel/rstorrent/actions/runs/36824455228",
+  "originalUpdaterKeyId": "415D3DF4B3D0CFB8",
+  "actualUpdaterKeyId": "788A785131367096",
+  "downloadedReceiptHashesVerified": true,
+  "availablePayloadSignaturesVerified": 8,
+  "expectedCompletePayloadSignatures": 10,
+  "incubationRootVerification": true,
+  "originalRootVerification": false,
+  "missingLanes": [
+    "macos-aarch64",
+    "macos-x86_64"
+  ],
+  "missingLaneReason": "Apple notarization HTTP 403: required agreement missing or expired",
+  "published": false,
+  "legs": [
+    {
+      "product": "JSTorrent",
+      "lane": "linux-aarch64",
+      "version": "0.3.0",
+      "sourceSha": "fc95b0ead6745213f84adc21fa45b753f1bd10d3",
+      "runId": "36824455228",
+      "attempt": "1",
+      "assets": [
+        {
+          "name": "JSTorrent_0.3.0_aarch64.AppImage",
+          "size": 99912200,
+          "sha256": "d99023047992751baed34b8621e71b96673e2c4862e45193b8ce4516a0563721"
+        },
+        {
+          "name": "JSTorrent_0.3.0_aarch64.AppImage.sig",
+          "size": 424,
+          "sha256": "40db86060e0adab36fbe80188e3d935968275c8725f8f207dcc320c147d1b137"
+        },
+        {
+          "name": "JSTorrent_0.3.0_arm64.deb",
+          "size": 23921136,
+          "sha256": "dbdd66bd7db675a4492885b14454e21ba682fa53a279411df98b03694e4706c5"
+        },
+        {
+          "name": "JSTorrent_0.3.0_arm64.deb.sig",
+          "size": 416,
+          "sha256": "88493ab7ae6d4387d8156410b850aeb49c5ba2929498d786a609bb336d63d439"
+        },
+        {
+          "name": "JSTorrent-0.3.0-1.aarch64.rpm",
+          "size": 23920075,
+          "sha256": "100c9e0baf8f9e48b6b03625bf7f8b55b5265dc86bcd09dd93a27170fe9c9ad3"
+        },
+        {
+          "name": "JSTorrent-0.3.0-1.aarch64.rpm.sig",
+          "size": 420,
+          "sha256": "531fbdfb8a9f5aa7200e935d71d9591e51e3bc523ef139bb64d4cc6e872c25e5"
+        }
+      ]
+    },
+    {
+      "product": "JSTorrent",
+      "lane": "linux-x86_64",
+      "version": "0.3.0",
+      "sourceSha": "fc95b0ead6745213f84adc21fa45b753f1bd10d3",
+      "runId": "36824455228",
+      "attempt": "1",
+      "assets": [
+        {
+          "name": "JSTorrent_0.3.0_amd64.AppImage",
+          "size": 101636600,
+          "sha256": "30c47545fff7a959b785a97f6c81ed6d5311717cedfec2877390b6878d04f9b1"
+        },
+        {
+          "name": "JSTorrent_0.3.0_amd64.AppImage.sig",
+          "size": 420,
+          "sha256": "1890edb7d26156011467139bf3d1db004d0a0e12e1ed647ba397ca3a5f291712"
+        },
+        {
+          "name": "JSTorrent_0.3.0_amd64.deb",
+          "size": 23453636,
+          "sha256": "203ab6a6345b1f6585509e650a29e942a895634872f07394e5ee764f6c87676f"
+        },
+        {
+          "name": "JSTorrent_0.3.0_amd64.deb.sig",
+          "size": 416,
+          "sha256": "79f94cd02153fd70bf8ca26864c698b1965c719f1cbb699238ae604ffd61c5f2"
+        },
+        {
+          "name": "JSTorrent-0.3.0-1.x86_64.rpm",
+          "size": 23450225,
+          "sha256": "99d8aff89504cb603796d9734fd8ab800663ced7c1df14b4755086919d564a2d"
+        },
+        {
+          "name": "JSTorrent-0.3.0-1.x86_64.rpm.sig",
+          "size": 420,
+          "sha256": "c89823b5bd807ebc31493d0cc826a18e224367c8b71626180a1fe26263e46b3b"
+        }
+      ]
+    },
+    {
+      "product": "JSTorrent",
+      "lane": "windows-x86_64",
+      "version": "0.3.0",
+      "sourceSha": "fc95b0ead6745213f84adc21fa45b753f1bd10d3",
+      "runId": "36824455228",
+      "attempt": "1",
+      "assets": [
+        {
+          "name": "JSTorrent_0.3.0_x64-setup.exe",
+          "size": 14824448,
+          "sha256": "817f1ff210e4363aa9db5dd3dfd7fb2ab92293f48b685e15cd94a31ef9aa7e1d"
+        },
+        {
+          "name": "JSTorrent_0.3.0_x64-setup.exe.sig",
+          "size": 420,
+          "sha256": "1a0a3395be9781fbf98b2de107f96068a194bdd93bdd42640ae6eb7d0251d002"
+        },
+        {
+          "name": "JSTorrent_0.3.0_x64_en-US.msi",
+          "size": 21233664,
+          "sha256": "3ab8a9769a0c825889f3833a04e10d75756fac7b54b2ac1d27a5725ab3a047a1"
+        },
+        {
+          "name": "JSTorrent_0.3.0_x64_en-US.msi.sig",
+          "size": 420,
+          "sha256": "3b2037aee58b30ae9923ab0202b21d61c37163bef39b7799e3290cb6c03a10f5"
+        }
+      ]
+    }
+  ]
+}

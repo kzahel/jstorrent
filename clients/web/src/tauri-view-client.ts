@@ -17,6 +17,8 @@ import type {
   RequestEnvelope,
   ResponseEnvelope,
   StorageRootSnapshot,
+  TorrentListImportReport,
+  TorrentListImportTarget,
   UpdateBatch,
   UpdateViewSetRequest,
 } from "./api";
@@ -34,6 +36,7 @@ import {
   decodeMediaUrlResponse,
   decodeResponseEnvelope,
   decodeUpdateBatch,
+  validateTorrentListImportReport,
 } from "./validation";
 
 const MAX_STREAM_ID_BYTES = 128;
@@ -68,6 +71,10 @@ const defaultBridge: TauriViewBridge = {
 };
 
 export class TauriApplicationViewClient implements ApplicationViewClient {
+  readonly nativeUpdateUi = true;
+  async productUpdate(request: import("./api").HostUpdateRequest): Promise<import("./api").HostUpdateSnapshot> {
+    return this.bridge.invoke("desktop_update_request", { request });
+  }
   private readonly streams = new Set<TauriUpdateStream>();
   private closed = false;
 
@@ -245,6 +252,30 @@ export class TauriApplicationViewClient implements ApplicationViewClient {
   ): Promise<void> {
     this.ensureOpen();
     await this.invoke("application_view_close", { viewSetId });
+  }
+
+  /** Rust shows the save dialog and writes the file; no bytes cross IPC. */
+  public async exportTorrentList(): Promise<boolean> {
+    this.ensureOpen();
+    const saved = await this.invoke<unknown>("desktop_export_torrent_list");
+    if (typeof saved !== "boolean") {
+      throw new ContractError("Tauri torrent list export result is invalid");
+    }
+    return saved;
+  }
+
+  /** Rust shows the open dialog and reads the file, so `chooseFile` is unused. */
+  public async importTorrentBundle(
+    target: TorrentListImportTarget,
+  ): Promise<TorrentListImportReport | null> {
+    this.ensureOpen();
+    const report = await this.invoke<unknown>("desktop_import_torrent_bundle", {
+      target: {
+        storage_root: target.storage_root,
+        keep_matching_locations: target.keep_matching_locations,
+      },
+    });
+    return report === null ? null : validateTorrentListImportReport(report);
   }
 
   public async close(): Promise<void> {

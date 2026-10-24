@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage: ./scripts/desktop-bundle [--build-only | -- APP_ARGS...]
+
+Build a lightweight macOS debug .app and run it in the foreground.
+Uses the ordinary development library, separate from installed JSTorrent.
+Launching registers Chrome's JSTorrent native host for this development app.
+Quit it and open the installed app to switch that registration back.
+
+  --build-only  Prepare the bundle without launching or registering it.
+  --help        Show this help.
+  --            Forward remaining arguments to the desktop app.
+
+The bundle is kept under Cargo's target directory in desktop-bundle/.
+EOF
+}
+
+build_only=false
+case "${1:-}" in
+    --help|-h) usage; exit 0 ;;
+    --build-only) build_only=true; shift ;;
+    --) shift ;;
+    "") ;;
+    *) usage >&2; exit 2 ;;
+esac
+if "$build_only" && [[ $# -ne 0 ]]; then
+    usage >&2
+    exit 2
+fi
+if [[ "$(uname -s)" != Darwin ]]; then
+    echo "desktop-bundle is a macOS development launcher; use ./scripts/desktop on this platform." >&2
+    exit 1
+fi
+
+repository_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$repository_root/scripts/dev-env.sh"
+unset npm_config_recursive NPM_CONFIG_RECURSIVE
+
+bundle_executable="$(node "$repository_root/scripts/build-desktop-bundle.mjs")"
+bundle_app="$(dirname -- "$(dirname -- "$(dirname -- "$bundle_executable")")")"
+echo "Built $bundle_app" >&2
+if "$build_only"; then
+    exit 0
+fi
+echo "Starting development desktop; Ctrl+C or Quit stops it." >&2
+exec "$bundle_executable" "$@"

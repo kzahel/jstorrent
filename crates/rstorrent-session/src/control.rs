@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::settings::{
-    ClientSettings, ClientSettingsPatch, StorageSettingsSnapshot, TorrentSettingsPatch,
-    TorrentTransferLimits,
+    ClientSettings, ClientSettingsPatch, StorageSettingsSnapshot, TorrentSeedStopLimits,
+    TorrentSettingsPatch, TorrentTransferLimits,
 };
 
 pub const CONTROL_VERSION: u16 = 1;
@@ -143,9 +143,24 @@ pub enum Command {
         #[serde(default)]
         disable_future: bool,
     },
+    DownloadAllPendingAdd {
+        #[schemars(regex(pattern = "^t1-[0-9a-f]{32}$"))]
+        torrent_id: String,
+        #[serde(default)]
+        disable_future: bool,
+    },
     CancelPendingAdd {
         #[schemars(regex(pattern = "^t1-[0-9a-f]{32}$"))]
         torrent_id: String,
+    },
+    UpdateFileSafetySettings {
+        settings: crate::FileSafetySettings,
+    },
+    SetFileSafetyOverride {
+        #[schemars(regex(pattern = "^t1-[0-9a-f]{32}$"))]
+        torrent_id: String,
+        file_indices: Vec<u32>,
+        allowed: bool,
     },
     UpdateClientSettings {
         patch: ClientSettingsPatch,
@@ -163,6 +178,11 @@ pub enum Command {
     ExportMagnet {
         #[schemars(regex(pattern = "^t1-[0-9a-f]{32}$"))]
         torrent_id: String,
+        /// Share parameters. Absent, the export is the Tactical 107 magnet,
+        /// byte for byte; present, the engine owns every `xl`, `so` and
+        /// `x.pe` in the result.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        options: Option<MagnetExportOptions>,
     },
     Snapshot,
     Pause {
@@ -198,10 +218,13 @@ impl Command {
         matches!(
             self,
             Self::AddMagnet { .. }
+                | Self::UpdateFileSafetySettings { .. }
+                | Self::SetFileSafetyOverride { .. }
                 | Self::SetDefaultStorageRoot { .. }
                 | Self::SetShowAddOptions { .. }
                 | Self::SetShowFileSelection { .. }
                 | Self::ConfirmPendingFileSelection { .. }
+                | Self::DownloadAllPendingAdd { .. }
                 | Self::CancelPendingAdd { .. }
                 | Self::UpdateClientSettings { .. }
                 | Self::ResetClientSettings
@@ -307,6 +330,35 @@ impl RemovalState {
     }
 }
 
+/// Where imported torrents are saved (Tactical 348). With
+/// `keep_matching_locations`, a bundle torrent whose storage root label
+/// matches an existing root is saved there instead.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(deny_unknown_fields)]
+pub struct TorrentListImportTarget {
+    pub storage_root: String,
+    #[serde(default)]
+    pub keep_matching_locations: bool,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(deny_unknown_fields)]
+pub struct TorrentListImportReport {
+    pub added: u32,
+    pub already_present: u32,
+    pub failed: Vec<TorrentListImportFailure>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(deny_unknown_fields)]
+pub struct TorrentListImportFailure {
+    pub name: String,
+    pub reason: String,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct ResponseEnvelope {
@@ -378,12 +430,79 @@ pub enum MagnetExportSource {
     Synthesized,
 }
 
+/// Share parameters for [`Command::ExportMagnet`].
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+pub struct MagnetExportOptions {
+    /// Add `xl` with the verified total size. Omitted until metadata is
+    /// verified; never copied from a source magnet.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub include_size: bool,
+    /// Add BEP 53 `so` for these file indices, in the same index space as
+    /// `FileView::file_index`. Sorted, unique, at most 4096 entries; every
+    /// index must name a non-padding file of the verified file list.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schemars(length(max = 4096))]
+    pub file_indices: Vec<u32>,
+    /// Add BEP 9 `x.pe` for at most two of the sharer's endpoints; see
+    /// [`MagnetExportResult::peer_hints`].
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub peer_hint: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
+#[serde(rename_all = "snake_case")]
+pub enum MagnetPeerHintScope {
+    /// A public address on which an outside peer has reached this session.
+    Internet,
+    /// A private (RFC 1918) address of the listening port.
+    LocalNetwork,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+pub struct MagnetPeerHint {
+    /// The exported `x.pe` value: `ipv4:port` or `[ipv6]:port`.
+    #[schemars(length(max = 64))]
+    pub endpoint: String,
+    pub scope: MagnetPeerHintScope,
+}
+
+/// Why a requested peer hint was left out of the export.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
+#[serde(rename_all = "snake_case")]
+pub enum MagnetPeerHintOmission {
+    /// Verified metainfo sets BEP 27 `private`.
+    PrivateTorrent,
+    /// Metadata is not verified: the private flag is unknown and this
+    /// session has nothing to serve yet.
+    MetadataPending,
+    /// Incoming connections are off or no listener is bound.
+    IncomingDisabled,
+    /// The listener has a public address that no outside peer has reached
+    /// yet, and no private local-network address.
+    NotReachable,
+    /// The listener has no shareable address (loopback only).
+    NoAddress,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct MagnetExportResult {
     pub magnet: String,
+    /// Where the magnet came from before any share parameters were applied.
     pub source: MagnetExportSource,
     pub omitted_tracker_count: u32,
+    /// The `x.pe` values included in `magnet`, in order. Empty unless
+    /// `peer_hint` was requested.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schemars(length(max = 2))]
+    pub peer_hints: Vec<MagnetPeerHint>,
+    /// Set when `peer_hint` was requested and no hint was included.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peer_hint_omission: Option<MagnetPeerHintOmission>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
@@ -456,6 +575,8 @@ pub struct ServiceSnapshot {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct TorrentSnapshot {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub safety_summary: Option<crate::FileSafetySummary>,
     #[schemars(regex(pattern = "^t1-[0-9a-f]{32}$"))]
     pub torrent_id: String,
     pub protocol_identities: TorrentProtocolIdentities,
@@ -485,6 +606,11 @@ pub struct TorrentSnapshot {
     pub download_queue_position: Option<u32>,
     #[serde(default)]
     pub transfer_limits: TorrentTransferLimits,
+    #[serde(default)]
+    pub seed_stop_limits: TorrentSeedStopLimits,
+    /// Paused because a seeding stop limit was reached, not by the user.
+    #[serde(default)]
+    pub seed_limit_stopped: bool,
     pub skip_files: Vec<u32>,
     #[serde(default)]
     pub high_priority_files: Vec<u32>,
@@ -542,6 +668,29 @@ pub(crate) fn validate_request(request: &RequestEnvelope) -> Result<(), (ErrorCo
         parse_revision(revision)?;
     }
     match &request.command {
+        Command::UpdateFileSafetySettings { settings } => {
+            settings
+                .validate()
+                .map_err(|message| (ErrorCode::InvalidRequest, message.into()))?;
+        }
+        Command::SetFileSafetyOverride {
+            torrent_id,
+            file_indices,
+            ..
+        } => {
+            validate_torrent_id(torrent_id)?;
+            if file_indices.is_empty()
+                || file_indices.len() > MAX_FILE_SELECTION_ENTRIES
+                || file_indices
+                    .iter()
+                    .any(|index| *index as usize >= MAX_FILE_INDEX)
+            {
+                return Err((
+                    ErrorCode::InvalidRequest,
+                    "invalid safety override file indices".into(),
+                ));
+            }
+        }
         Command::AddMagnet {
             magnet,
             storage_root,
@@ -599,22 +748,7 @@ pub(crate) fn validate_request(request: &RequestEnvelope) -> Result<(), (ErrorCo
                     ),
                 ));
             }
-            let mut previous = None;
-            for index in file_indices {
-                if usize::try_from(*index).map_or(true, |index| index >= MAX_FILE_INDEX) {
-                    return Err((
-                        ErrorCode::InvalidRequest,
-                        "file selection index exceeds the supported file bound".to_owned(),
-                    ));
-                }
-                if previous.is_some_and(|previous| previous >= *index) {
-                    return Err((
-                        ErrorCode::InvalidRequest,
-                        "file selection indices must be sorted and unique".to_owned(),
-                    ));
-                }
-                previous = Some(*index);
-            }
+            validate_sorted_file_indices(file_indices)?;
         }
         Command::MoveDownloadToTop { torrent_id }
         | Command::MoveDownloadToBottom { torrent_id } => {
@@ -635,8 +769,25 @@ pub(crate) fn validate_request(request: &RequestEnvelope) -> Result<(), (ErrorCo
         | Command::RestoreArchive { torrent_id }
         | Command::RemoveTorrent { torrent_id, .. }
         | Command::CancelPendingAdd { torrent_id }
-        | Command::ExportMagnet { torrent_id } => {
+        | Command::DownloadAllPendingAdd { torrent_id, .. }
+        | Command::ExportMagnet {
+            torrent_id,
+            options: None,
+        } => {
             validate_torrent_id(torrent_id)?;
+        }
+        Command::ExportMagnet {
+            torrent_id,
+            options: Some(options),
+        } => {
+            validate_torrent_id(torrent_id)?;
+            if options.file_indices.len() > MAX_FILE_SELECTION_ENTRIES {
+                return Err((
+                    ErrorCode::InvalidRequest,
+                    format!("shared file selection exceeds {MAX_FILE_SELECTION_ENTRIES} entries"),
+                ));
+            }
+            validate_sorted_file_indices(&options.file_indices)?;
         }
         Command::ConfirmPendingFileSelection {
             torrent_id,
@@ -694,6 +845,26 @@ pub(crate) fn validate_request(request: &RequestEnvelope) -> Result<(), (ErrorCo
         Command::ResetClientSettings | Command::ClearAppData => {}
         Command::SetShowAddOptions { .. } | Command::SetShowFileSelection { .. } => {}
         Command::Snapshot | Command::Shutdown => {}
+    }
+    Ok(())
+}
+
+fn validate_sorted_file_indices(file_indices: &[u32]) -> Result<(), (ErrorCode, String)> {
+    let mut previous = None;
+    for index in file_indices {
+        if usize::try_from(*index).map_or(true, |index| index >= MAX_FILE_INDEX) {
+            return Err((
+                ErrorCode::InvalidRequest,
+                "file selection index exceeds the supported file bound".to_owned(),
+            ));
+        }
+        if previous.is_some_and(|previous| previous >= *index) {
+            return Err((
+                ErrorCode::InvalidRequest,
+                "file selection indices must be sorted and unique".to_owned(),
+            ));
+        }
+        previous = Some(*index);
     }
     Ok(())
 }

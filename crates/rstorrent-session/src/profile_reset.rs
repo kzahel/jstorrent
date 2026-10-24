@@ -1,43 +1,31 @@
-//! Crash-convergent replacement of recognized pre-release session catalogs.
+//! Session catalog files: how a stored catalog is opened, the copy kept
+//! before migrating it, and the user's explicit Clear app data. Nothing here
+//! discards a catalog that holds data on the application's own initiative.
 
-use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Write};
+use std::fs;
 use std::path::Path;
 use std::time::Duration;
 
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::{Connection, MAIN_DB, OpenFlags};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::store::StoreError;
-use crate::store_schema::SCHEMA_VERSION;
+use crate::store_schema::{BASELINE_SCHEMA_VERSION, SCHEMA_VERSION};
 
 pub(crate) const DATABASE_FILENAME: &str = "session.db";
 const METRICS_DATABASE_FILENAME: &str = "metrics.db";
-const WAL_FILENAME: &str = "session.db-wal";
+pub(crate) const WAL_FILENAME: &str = "session.db-wal";
 const SHM_FILENAME: &str = "session.db-shm";
-const RESET_MARKER_MAGIC: &[u8; 8] = b"RSTRST19";
-const RESET_MARKER_LENGTH: usize = 8 + 8 + 32;
+pub(crate) const PRE_MIGRATION_FILENAME: &str = "session.db.pre-migration";
+const PRE_MIGRATION_TEMPORARY_FILENAME: &str = "session.db.pre-migration.tmp";
 const INSPECTION_TIMEOUT: Duration = Duration::from_secs(2);
 
-const DISCARDED_CATEGORIES: [&str; 9] = [
-    "torrents",
-    "verified_piece_state",
-    "sources_and_receipts",
-    "storage_root_registry",
-    "client_and_storage_settings",
-    "dht_state",
-    "pending_removals",
-    "protocol_identity_aliases",
-    "product_milestone_outbox",
-];
-
-const DATABASE_BASENAMES: [&str; 3] = [DATABASE_FILENAME, WAL_FILENAME, SHM_FILENAME];
-
-const USER_CLEAR_FILES: [&str; 6] = [
+const USER_CLEAR_FILES: [&str; 8] = [
     "session.db-wal",
     "session.db-shm",
     DATABASE_FILENAME,
+    PRE_MIGRATION_TEMPORARY_FILENAME,
+    PRE_MIGRATION_FILENAME,
     "metrics.db-wal",
     "metrics.db-shm",
     METRICS_DATABASE_FILENAME,
@@ -71,6 +59,8 @@ pub(crate) fn clear_private_profile(profile_root: &Path) -> Result<(), StoreErro
     sync_directory(profile_root)
 }
 
+/// A reset that an earlier release performed on a pre-baseline catalog. No new
+/// reports are created; an unpublished one is still announced once.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProfileResetReport {
     pub previous_schema_version: i64,
@@ -79,31 +69,15 @@ pub struct ProfileResetReport {
     pub external_payload_modified: bool,
 }
 
-impl ProfileResetReport {
-    fn for_version(previous_schema_version: i64) -> Self {
-        Self {
-            previous_schema_version,
-            discarded_categories: DISCARDED_CATEGORIES
-                .into_iter()
-                .map(str::to_owned)
-                .collect(),
-            database_basenames_considered: DATABASE_BASENAMES
-                .into_iter()
-                .map(str::to_owned)
-                .collect(),
-            external_payload_modified: false,
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) enum CatalogPreparation {
     Current,
-    Create {
-        reset_report: Option<ProfileResetReport>,
-    },
+    Create,
+    Migrate { from: i64 },
 }
 
+/// Decides how to open the profile catalog without ever discarding one that
+/// holds data. Only the user's Clear app data removes a nonempty catalog.
 pub(crate) fn prepare_catalog(profile_root: &Path) -> Result<CatalogPreparation, StoreError> {
     let database_path = profile_root.join(DATABASE_FILENAME);
     let wal_path = profile_root.join(WAL_FILENAME);
@@ -111,125 +85,97 @@ pub(crate) fn prepare_catalog(profile_root: &Path) -> Result<CatalogPreparation,
     validate_fixed_file(&database_path, DATABASE_FILENAME)?;
     validate_fixed_file(&wal_path, WAL_FILENAME)?;
     validate_fixed_file(&shm_path, SHM_FILENAME)?;
+    validate_fixed_file(
+        &profile_root.join(PRE_MIGRATION_FILENAME),
+        PRE_MIGRATION_FILENAME,
+    )?;
+    validate_fixed_file(
+        &profile_root.join(PRE_MIGRATION_TEMPORARY_FILENAME),
+        PRE_MIGRATION_TEMPORARY_FILENAME,
+    )?;
 
-    let marker_version = read_reset_marker(&shm_path)?;
     if !database_path.exists() {
-        return match marker_version {
-            Some(version) => {
-                ensure_absent(&wal_path, WAL_FILENAME)?;
-                Ok(CatalogPreparation::Create {
-                    reset_report: Some(ProfileResetReport::for_version(version)),
-                })
-            }
-            None if wal_path.exists() || shm_path.exists() => Err(StoreError::UnsafeProfileFile {
+        if wal_path.exists() || shm_path.exists() {
+            return Err(StoreError::UnsafeProfileFile {
                 basename: DATABASE_FILENAME,
                 reason: "database is missing while SQLite auxiliary files remain".to_owned(),
-            }),
-            None => Ok(CatalogPreparation::Create { reset_report: None }),
-        };
+            });
+        }
+        return Ok(CatalogPreparation::Create);
     }
 
     let database_length = fs::metadata(&database_path)
         .map_err(|source| io_error("inspect session database", source))?
         .len();
     if database_length == 0 {
-        if let Some(version) = marker_version {
-            remove_fixed_file(&database_path, DATABASE_FILENAME)?;
-            sync_directory(profile_root)?;
-            return Ok(CatalogPreparation::Create {
-                reset_report: Some(ProfileResetReport::for_version(version)),
-            });
-        }
         if wal_path.exists() || shm_path.exists() {
             return Err(StoreError::UnsafeProfileFile {
                 basename: DATABASE_FILENAME,
                 reason: "empty database has SQLite auxiliary files".to_owned(),
             });
         }
+        // A zero-byte file holds no catalog, so replacing it loses nothing.
         remove_fixed_file(&database_path, DATABASE_FILENAME)?;
         sync_directory(profile_root)?;
-        return Ok(CatalogPreparation::Create { reset_report: None });
+        return Ok(CatalogPreparation::Create);
     }
 
-    let version = match inspect_user_version(&database_path) {
-        Ok(version) => version,
-        Err(_error) if marker_version.is_some() => {
-            remove_fixed_file(&database_path, DATABASE_FILENAME)?;
-            sync_directory(profile_root)?;
-            return Ok(CatalogPreparation::Create {
-                reset_report: Some(ProfileResetReport::for_version(
-                    marker_version.expect("checked marker"),
-                )),
-            });
-        }
-        Err(error) => return Err(error),
-    };
-    if version == SCHEMA_VERSION {
-        if let Some(previous) = marker_version {
-            validate_committed_report(&database_path, previous)?;
-            remove_fixed_file(&shm_path, SHM_FILENAME)?;
-            sync_directory(profile_root)?;
-        }
-        return Ok(CatalogPreparation::Current);
-    }
-    if version == 0 {
-        return Err(StoreError::UnsafeProfileFile {
-            basename: DATABASE_FILENAME,
-            reason: "nonempty database has no recognized schema version".to_owned(),
-        });
-    }
-    if !(0..=SCHEMA_VERSION).contains(&version) {
-        return Err(StoreError::UnsupportedSchema {
-            actual: version,
-            maximum: SCHEMA_VERSION,
-        });
-    }
-    if !(1..SCHEMA_VERSION).contains(&version) {
-        return Err(StoreError::UnsafeProfileFile {
-            basename: DATABASE_FILENAME,
-            reason: format!("schema version {version} is not a recognized reset source"),
-        });
-    }
-
-    if let Some(previous) = marker_version {
-        if previous == version {
-            ensure_absent(&wal_path, WAL_FILENAME)?;
-            remove_fixed_file(&database_path, DATABASE_FILENAME)?;
-            sync_directory(profile_root)?;
-            return Ok(CatalogPreparation::Create {
-                reset_report: Some(ProfileResetReport::for_version(version)),
-            });
-        }
-
-        // An older binary may have committed its fresh catalog and crashed
-        // before removing the reset marker. Validate that completed reset
-        // before beginning the newly required epoch replacement.
-        validate_committed_report(&database_path, previous)?;
-        ensure_absent(&wal_path, WAL_FILENAME)?;
-        remove_fixed_file(&shm_path, SHM_FILENAME)?;
-        sync_directory(profile_root)?;
-    }
-
-    exclusively_validate_reset_source(&database_path, version)?;
-    remove_fixed_file_if_present(&wal_path, WAL_FILENAME)?;
-    remove_fixed_file_if_present(&shm_path, SHM_FILENAME)?;
-    sync_directory(profile_root)?;
-    write_reset_marker(&shm_path, version)?;
-    sync_directory(profile_root)?;
-    remove_fixed_file(&database_path, DATABASE_FILENAME)?;
-    sync_directory(profile_root)?;
-    Ok(CatalogPreparation::Create {
-        reset_report: Some(ProfileResetReport::for_version(version)),
-    })
+    classify_catalog_version(
+        inspect_user_version(&database_path)?,
+        BASELINE_SCHEMA_VERSION,
+        SCHEMA_VERSION,
+    )
 }
 
-pub(crate) fn finish_catalog_creation(profile_root: &Path) -> Result<(), StoreError> {
-    let marker_path = profile_root.join(SHM_FILENAME);
-    if read_reset_marker(&marker_path)?.is_some() {
-        remove_fixed_file(&marker_path, SHM_FILENAME)?;
-        sync_directory(profile_root)?;
+pub(crate) fn classify_catalog_version(
+    version: i64,
+    baseline: i64,
+    current: i64,
+) -> Result<CatalogPreparation, StoreError> {
+    if version == current {
+        Ok(CatalogPreparation::Current)
+    } else if (baseline..current).contains(&version) {
+        Ok(CatalogPreparation::Migrate { from: version })
+    } else if (1..baseline).contains(&version) {
+        Err(StoreError::RetiredSchema {
+            actual: version,
+            minimum: baseline,
+        })
+    } else if version > current {
+        Err(StoreError::UnsupportedSchema {
+            actual: version,
+            maximum: current,
+        })
+    } else {
+        Err(StoreError::UnsafeProfileFile {
+            basename: DATABASE_FILENAME,
+            reason: "nonempty database has no recognized schema version".to_owned(),
+        })
     }
-    Ok(())
+}
+
+/// Copies the catalog beside itself before the first migration step, keeping
+/// only the most recent copy. A failure leaves the catalog untouched.
+pub(crate) fn write_pre_migration_copy(
+    connection: &Connection,
+    profile_root: &Path,
+) -> Result<(), StoreError> {
+    let temporary = profile_root.join(PRE_MIGRATION_TEMPORARY_FILENAME);
+    let destination = profile_root.join(PRE_MIGRATION_FILENAME);
+    remove_fixed_file_if_present(&temporary, PRE_MIGRATION_TEMPORARY_FILENAME)?;
+    connection
+        .backup(MAIN_DB, &temporary, None)
+        .map_err(profile_sqlite_error)?;
+    // Windows FlushFileBuffers requires write access.
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&temporary)
+        .and_then(|file| file.sync_all())
+        .map_err(|source| io_error("sync pre-migration copy", source))?;
+    validate_fixed_file(&destination, PRE_MIGRATION_FILENAME)?;
+    fs::rename(&temporary, &destination)
+        .map_err(|source| io_error("publish pre-migration copy", source))?;
+    sync_directory(profile_root)
 }
 
 fn inspect_user_version(database_path: &Path) -> Result<i64, StoreError> {
@@ -246,65 +192,7 @@ fn inspect_user_version(database_path: &Path) -> Result<i64, StoreError> {
         .map_err(profile_sqlite_error)
 }
 
-fn exclusively_validate_reset_source(
-    database_path: &Path,
-    expected: i64,
-) -> Result<(), StoreError> {
-    let connection = Connection::open_with_flags(
-        database_path,
-        OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )
-    .map_err(profile_sqlite_error)?;
-    connection
-        .busy_timeout(INSPECTION_TIMEOUT)
-        .map_err(profile_sqlite_error)?;
-    connection
-        .pragma_update(None, "locking_mode", "EXCLUSIVE")
-        .map_err(profile_sqlite_error)?;
-    connection
-        .execute_batch("PRAGMA wal_checkpoint(TRUNCATE); BEGIN EXCLUSIVE;")
-        .map_err(profile_sqlite_error)?;
-    let observed: i64 = connection
-        .pragma_query_value(None, "user_version", |row| row.get(0))
-        .map_err(profile_sqlite_error)?;
-    if observed != expected {
-        let _ = connection.execute_batch("ROLLBACK;");
-        return Err(StoreError::UnsafeProfileFile {
-            basename: DATABASE_FILENAME,
-            reason: "schema version changed while acquiring the reset lock".to_owned(),
-        });
-    }
-    connection
-        .execute_batch("COMMIT;")
-        .map_err(profile_sqlite_error)?;
-    connection
-        .close()
-        .map_err(|(_, error)| profile_sqlite_error(error))
-}
-
-fn validate_committed_report(database_path: &Path, previous: i64) -> Result<(), StoreError> {
-    let connection = Connection::open_with_flags(
-        database_path,
-        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )
-    .map_err(profile_sqlite_error)?;
-    let stored = connection
-        .query_row(
-            "SELECT previous_schema_version FROM profile_reset_report WHERE singleton = 1",
-            [],
-            |row| row.get::<_, i64>(0),
-        )
-        .map_err(profile_sqlite_error)?;
-    if stored != previous {
-        return Err(StoreError::UnsafeProfileFile {
-            basename: DATABASE_FILENAME,
-            reason: "committed reset report disagrees with recovery marker".to_owned(),
-        });
-    }
-    Ok(())
-}
-
-fn validate_fixed_file(path: &Path, basename: &'static str) -> Result<(), StoreError> {
+pub(crate) fn validate_fixed_file(path: &Path, basename: &'static str) -> Result<(), StoreError> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_symlink() => Err(StoreError::UnsafeProfileFile {
             basename,
@@ -320,65 +208,6 @@ fn validate_fixed_file(path: &Path, basename: &'static str) -> Result<(), StoreE
     }
 }
 
-fn read_reset_marker(path: &Path) -> Result<Option<i64>, StoreError> {
-    if !path.exists() {
-        return Ok(None);
-    }
-    let metadata = fs::metadata(path).map_err(|source| io_error("inspect reset marker", source))?;
-    if metadata.len() != RESET_MARKER_LENGTH as u64 {
-        return Ok(None);
-    }
-    let mut bytes = [0_u8; RESET_MARKER_LENGTH];
-    File::open(path)
-        .and_then(|mut file| file.read_exact(&mut bytes))
-        .map_err(|source| io_error("read reset marker", source))?;
-    if &bytes[..8] != RESET_MARKER_MAGIC {
-        return Ok(None);
-    }
-    let expected = Sha256::digest(&bytes[..16]);
-    if bytes[16..] != expected[..] {
-        return Err(StoreError::UnsafeProfileFile {
-            basename: SHM_FILENAME,
-            reason: "reset marker checksum is invalid".to_owned(),
-        });
-    }
-    let version = i64::from_be_bytes(bytes[8..16].try_into().expect("fixed version bytes"));
-    if !(1..SCHEMA_VERSION).contains(&version) {
-        return Err(StoreError::UnsafeProfileFile {
-            basename: SHM_FILENAME,
-            reason: "reset marker schema version is invalid".to_owned(),
-        });
-    }
-    Ok(Some(version))
-}
-
-fn write_reset_marker(path: &Path, version: i64) -> Result<(), StoreError> {
-    let mut bytes = [0_u8; RESET_MARKER_LENGTH];
-    bytes[..8].copy_from_slice(RESET_MARKER_MAGIC);
-    bytes[8..16].copy_from_slice(&version.to_be_bytes());
-    let digest = Sha256::digest(&bytes[..16]);
-    bytes[16..].copy_from_slice(&digest);
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)
-        .map_err(|source| io_error("create reset marker", source))?;
-    file.write_all(&bytes)
-        .map_err(|source| io_error("write reset marker", source))?;
-    file.sync_all()
-        .map_err(|source| io_error("sync reset marker", source))
-}
-
-fn ensure_absent(path: &Path, basename: &'static str) -> Result<(), StoreError> {
-    if path.exists() {
-        return Err(StoreError::UnsafeProfileFile {
-            basename,
-            reason: "unexpected file remains during reset recovery".to_owned(),
-        });
-    }
-    Ok(())
-}
-
 fn remove_fixed_file_if_present(path: &Path, basename: &'static str) -> Result<(), StoreError> {
     if path.exists() {
         remove_fixed_file(path, basename)?;
@@ -388,12 +217,12 @@ fn remove_fixed_file_if_present(path: &Path, basename: &'static str) -> Result<(
 
 fn remove_fixed_file(path: &Path, basename: &'static str) -> Result<(), StoreError> {
     validate_fixed_file(path, basename)?;
-    fs::remove_file(path).map_err(|source| io_error("remove reset database file", source))
+    fs::remove_file(path).map_err(|source| io_error("remove profile file", source))
 }
 
 #[cfg(unix)]
 fn sync_directory(profile_root: &Path) -> Result<(), StoreError> {
-    File::open(profile_root)
+    fs::File::open(profile_root)
         .and_then(|directory| directory.sync_all())
         .map_err(|source| io_error("sync profile directory", source))
 }
@@ -402,10 +231,10 @@ fn sync_directory(profile_root: &Path) -> Result<(), StoreError> {
 fn sync_directory(_profile_root: &Path) -> Result<(), StoreError> {
     // Windows does not offer a portable unprivileged directory-fsync
     // operation. Opening a directory as a regular File fails with access
-    // denied. The reset marker is flushed before removing the old catalog,
-    // and SQLite commits the replacement before the marker is removed.
-    // Those steps support process-interruption recovery; they do not promise
-    // Unix directory-barrier durability across arbitrary power loss.
+    // denied. The pre-migration copy is synced before its rename, and the
+    // migration itself is one SQLite transaction. Those steps support
+    // process-interruption recovery; they do not promise Unix
+    // directory-barrier durability across arbitrary power loss.
     Ok(())
 }
 
@@ -432,9 +261,14 @@ fn io_error(operation: &'static str, source: std::io::Error) -> StoreError {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+    use std::path::Path;
+
+    use rusqlite::Connection;
+
     use super::{
-        CatalogPreparation, DATABASE_FILENAME, RESET_MARKER_LENGTH, SHM_FILENAME,
-        clear_private_profile, finish_catalog_creation, prepare_catalog, write_reset_marker,
+        CatalogPreparation, DATABASE_FILENAME, PRE_MIGRATION_FILENAME, SHM_FILENAME, WAL_FILENAME,
+        classify_catalog_version, clear_private_profile, prepare_catalog, write_pre_migration_copy,
     };
     use crate::SessionStore;
     use crate::store::StoreError;
@@ -446,186 +280,225 @@ mod tests {
 
         let root = tempfile::tempdir().expect("temporary profile");
         let profile = root.path().join("profile");
-        std::fs::create_dir(&profile).expect("create profile");
+        fs::create_dir(&profile).expect("create profile");
         let session = profile.join(DATABASE_FILENAME);
-        std::fs::write(&session, b"session").expect("write session sentinel");
+        fs::write(&session, b"session").expect("write session sentinel");
         let outside = root.path().join("outside");
-        std::fs::write(&outside, b"external").expect("write outside sentinel");
+        fs::write(&outside, b"external").expect("write outside sentinel");
         symlink(&outside, profile.join("metrics.db")).expect("link metrics file");
         assert!(clear_private_profile(&profile).is_err());
-        assert_eq!(std::fs::read(session).unwrap(), b"session");
-        assert_eq!(std::fs::read(outside).unwrap(), b"external");
-    }
-    use rusqlite::Connection;
-    use std::fs;
-    use std::path::{Path, PathBuf};
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    static NEXT_TEST: AtomicU64 = AtomicU64::new(0);
-
-    fn root(name: &str) -> PathBuf {
-        let path = std::env::temp_dir().join(format!(
-            "rstorrent-reset-{name}-{}-{}",
-            std::process::id(),
-            NEXT_TEST.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir(&path).expect("test root");
-        path
-    }
-
-    fn legacy(root: &Path, version: i64) {
-        let connection = Connection::open(root.join(DATABASE_FILENAME)).expect("legacy database");
-        connection
-            .execute_batch("CREATE TABLE legacy(value INTEGER);")
-            .expect("legacy table");
-        connection
-            .pragma_update(None, "user_version", version)
-            .expect("legacy version");
+        assert_eq!(fs::read(session).unwrap(), b"session");
+        assert_eq!(fs::read(outside).unwrap(), b"external");
     }
 
     #[test]
-    fn recognized_catalog_is_replaced_without_touching_payload_sentinels() {
-        let root = root("recognized");
-        legacy(&root, 18);
-        let payload = root.join("payload-sentinel");
-        fs::write(&payload, b"keep").expect("payload sentinel");
-
-        let CatalogPreparation::Create { reset_report } =
-            prepare_catalog(&root).expect("prepare reset")
-        else {
-            panic!("legacy catalog must reset");
-        };
-        let report = reset_report.expect("reset report");
-        assert_eq!(report.previous_schema_version, 18);
-        assert!(!report.external_payload_modified);
-        assert_eq!(fs::read(&payload).expect("payload survives"), b"keep");
-        assert!(!root.join(DATABASE_FILENAME).exists());
-        assert_eq!(
-            fs::metadata(root.join(SHM_FILENAME)).expect("marker").len(),
-            RESET_MARKER_LENGTH as u64
-        );
-        finish_catalog_creation(&root).expect("finish reset");
-        assert!(!root.join(SHM_FILENAME).exists());
-        fs::remove_dir_all(root).expect("remove test root");
+    fn clear_private_profile_removes_the_pre_migration_copy() {
+        let root = tempfile::tempdir().expect("temporary profile");
+        fs::write(root.path().join(DATABASE_FILENAME), b"session").expect("session");
+        fs::write(root.path().join(PRE_MIGRATION_FILENAME), b"copy").expect("copy");
+        clear_private_profile(root.path()).expect("clear profile");
+        assert!(!root.path().join(DATABASE_FILENAME).exists());
+        assert!(!root.path().join(PRE_MIGRATION_FILENAME).exists());
     }
 
-    #[test]
-    fn recovery_marker_converges_after_database_removal() {
-        let root = root("recovery");
-        write_reset_marker(&root.join(SHM_FILENAME), 7).expect("marker");
-        let CatalogPreparation::Create { reset_report } =
-            prepare_catalog(&root).expect("resume reset")
-        else {
-            panic!("marker must resume reset");
-        };
-        assert_eq!(reset_report.expect("report").previous_schema_version, 7);
-        fs::remove_dir_all(root).expect("remove test root");
-    }
-
-    #[test]
-    fn recovery_converges_with_legacy_or_new_database_beside_marker() {
-        let legacy_root = root("legacy-marker");
-        legacy(&legacy_root, 12);
-        write_reset_marker(&legacy_root.join(SHM_FILENAME), 12).expect("marker");
-        let CatalogPreparation::Create { reset_report } =
-            prepare_catalog(&legacy_root).expect("resume beside legacy database")
-        else {
-            panic!("legacy database plus marker must resume reset");
-        };
-        assert_eq!(reset_report.expect("report").previous_schema_version, 12);
-        fs::remove_dir_all(legacy_root).expect("remove legacy root");
-
-        let current_root = root("current-marker");
-        legacy(&current_root, 18);
-        let store = SessionStore::open(&current_root, "default", &[]).expect("reset to current");
-        drop(store);
-        write_reset_marker(&current_root.join(SHM_FILENAME), 18).expect("recovery marker");
-        assert!(matches!(
-            prepare_catalog(&current_root).expect("finish committed reset"),
-            CatalogPreparation::Current
-        ));
-        assert!(!current_root.join(SHM_FILENAME).exists());
-        fs::remove_dir_all(current_root).expect("remove current root");
-
-        let prior_root = root("prior-committed-marker");
-        let connection =
-            Connection::open(prior_root.join(DATABASE_FILENAME)).expect("prior catalog");
+    fn catalog(root: &Path, version: i64) -> Vec<u8> {
+        let path = root.join(DATABASE_FILENAME);
+        let connection = Connection::open(&path).expect("catalog");
         connection
             .execute_batch(
-                "CREATE TABLE profile_reset_report (
-                    singleton INTEGER PRIMARY KEY,
-                    previous_schema_version INTEGER NOT NULL
-                 );
-                 INSERT INTO profile_reset_report VALUES (1, 18);
-                 PRAGMA user_version = 19;",
+                "CREATE TABLE torrents(value TEXT);
+                 INSERT INTO torrents VALUES ('user data');",
             )
-            .expect("represent prior committed epoch");
+            .expect("catalog rows");
+        connection
+            .pragma_update(None, "user_version", version)
+            .expect("catalog version");
         drop(connection);
-        write_reset_marker(&prior_root.join(SHM_FILENAME), 18).expect("older recovery marker");
-        let CatalogPreparation::Create { reset_report } =
-            prepare_catalog(&prior_root).expect("finish prior reset and begin current reset")
-        else {
-            panic!("prior committed catalog must reset again");
-        };
+        fs::read(path).expect("catalog bytes")
+    }
+
+    fn profile_files(root: &Path) -> Vec<String> {
+        let mut names: Vec<String> = fs::read_dir(root)
+            .expect("list profile")
+            .map(|entry| {
+                entry
+                    .expect("entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        names.sort();
+        names
+    }
+
+    #[test]
+    fn versions_classify_without_any_reset() {
         assert_eq!(
-            reset_report.expect("reset report").previous_schema_version,
-            19
+            classify_catalog_version(26, 26, 26).unwrap(),
+            CatalogPreparation::Current
         );
-        fs::remove_dir_all(prior_root).expect("remove prior root");
+        assert_eq!(
+            classify_catalog_version(26, 26, 28).unwrap(),
+            CatalogPreparation::Migrate { from: 26 }
+        );
+        assert_eq!(
+            classify_catalog_version(27, 26, 28).unwrap(),
+            CatalogPreparation::Migrate { from: 27 }
+        );
+        assert!(matches!(
+            classify_catalog_version(25, 26, 28),
+            Err(StoreError::RetiredSchema {
+                actual: 25,
+                minimum: 26
+            })
+        ));
+        assert!(matches!(
+            classify_catalog_version(29, 26, 28),
+            Err(StoreError::UnsupportedSchema {
+                actual: 29,
+                maximum: 28
+            })
+        ));
+        for version in [0, -1] {
+            assert!(matches!(
+                classify_catalog_version(version, 26, 28),
+                Err(StoreError::UnsafeProfileFile { .. })
+            ));
+        }
+    }
+
+    #[test]
+    fn retired_and_future_catalogs_are_refused_byte_for_byte_unchanged() {
+        for version in [1, 18, 19, 22, 25, crate::store_schema::SCHEMA_VERSION + 1] {
+            let root = tempfile::tempdir().expect("profile");
+            let bytes = catalog(root.path(), version);
+            let files = profile_files(root.path());
+            let error = SessionStore::open(root.path(), "default", &[])
+                .err()
+                .unwrap_or_else(|| panic!("schema {version} must be refused"));
+            assert!(
+                matches!(
+                    error,
+                    StoreError::RetiredSchema { .. } | StoreError::UnsupportedSchema { .. }
+                ),
+                "schema {version}: {error}"
+            );
+            assert_eq!(
+                fs::read(root.path().join(DATABASE_FILENAME)).expect("catalog"),
+                bytes,
+                "schema {version} catalog must be untouched"
+            );
+            assert_eq!(profile_files(root.path()), files);
+        }
+    }
+
+    #[test]
+    fn empty_or_absent_catalog_is_created_and_auxiliary_leftovers_fail_closed() {
+        let absent = tempfile::tempdir().expect("absent");
+        assert_eq!(
+            prepare_catalog(absent.path()).unwrap(),
+            CatalogPreparation::Create
+        );
+
+        let empty = tempfile::tempdir().expect("empty");
+        fs::write(empty.path().join(DATABASE_FILENAME), b"").expect("empty catalog");
+        assert_eq!(
+            prepare_catalog(empty.path()).unwrap(),
+            CatalogPreparation::Create
+        );
+        assert!(!empty.path().join(DATABASE_FILENAME).exists());
+
+        for leftover in [WAL_FILENAME, SHM_FILENAME] {
+            let root = tempfile::tempdir().expect("leftover");
+            fs::write(root.path().join(leftover), b"leftover").expect("leftover file");
+            assert!(matches!(
+                prepare_catalog(root.path()),
+                Err(StoreError::UnsafeProfileFile { .. })
+            ));
+            assert!(root.path().join(leftover).exists());
+        }
     }
 
     #[test]
     fn malformed_unversioned_and_unsafe_shapes_fail_closed() {
-        let malformed = root("malformed");
-        fs::write(malformed.join(DATABASE_FILENAME), b"not sqlite").expect("malformed");
+        let malformed = tempfile::tempdir().expect("malformed");
+        fs::write(malformed.path().join(DATABASE_FILENAME), b"not sqlite").expect("malformed");
         assert!(matches!(
-            prepare_catalog(&malformed),
+            prepare_catalog(malformed.path()),
             Err(StoreError::UnsafeProfileFile { .. })
         ));
-        fs::remove_dir_all(malformed).expect("remove malformed root");
+        assert_eq!(
+            fs::read(malformed.path().join(DATABASE_FILENAME)).unwrap(),
+            b"not sqlite"
+        );
 
-        let unversioned = root("unversioned");
-        let connection = Connection::open(unversioned.join(DATABASE_FILENAME)).expect("database");
-        connection
-            .execute_batch("CREATE TABLE unknown(value INTEGER);")
-            .expect("unknown table");
-        drop(connection);
+        let unversioned = tempfile::tempdir().expect("unversioned");
+        catalog(unversioned.path(), 0);
         assert!(matches!(
-            prepare_catalog(&unversioned),
+            prepare_catalog(unversioned.path()),
             Err(StoreError::UnsafeProfileFile { .. })
         ));
-        fs::remove_dir_all(unversioned).expect("remove unversioned root");
+        assert!(unversioned.path().join(DATABASE_FILENAME).exists());
 
-        let symlink = root("symlink");
-        let target = symlink.join("target");
-        fs::write(&target, b"target").expect("target");
         #[cfg(unix)]
-        {
-            std::os::unix::fs::symlink(&target, symlink.join(DATABASE_FILENAME))
-                .expect("database symlink");
+        for basename in [DATABASE_FILENAME, PRE_MIGRATION_FILENAME] {
+            let root = tempfile::tempdir().expect("symlink");
+            let target = root.path().join("target");
+            fs::write(&target, b"target").expect("target");
+            std::os::unix::fs::symlink(&target, root.path().join(basename)).expect("symlink");
             assert!(matches!(
-                prepare_catalog(&symlink),
+                prepare_catalog(root.path()),
                 Err(StoreError::UnsafeProfileFile { .. })
             ));
+            assert_eq!(fs::read(&target).unwrap(), b"target");
         }
-        fs::remove_dir_all(symlink).expect("remove symlink root");
     }
 
     #[test]
-    fn busy_legacy_catalog_fails_without_removing_it() {
-        let root = root("busy");
-        legacy(&root, 18);
-        let blocker = Connection::open(root.join(DATABASE_FILENAME)).expect("blocking connection");
+    fn busy_catalog_fails_without_changing_it() {
+        let root = tempfile::tempdir().expect("profile");
+        let bytes = catalog(root.path(), 25);
+        let blocker =
+            Connection::open(root.path().join(DATABASE_FILENAME)).expect("blocking connection");
         blocker
             .execute_batch("BEGIN EXCLUSIVE;")
             .expect("exclusive blocker");
         assert!(matches!(
-            prepare_catalog(&root),
+            prepare_catalog(root.path()),
             Err(StoreError::ProfileResetBusy)
         ));
-        assert!(root.join(DATABASE_FILENAME).exists());
         blocker.execute_batch("ROLLBACK;").expect("release blocker");
         drop(blocker);
-        fs::remove_dir_all(root).expect("remove test root");
+        assert_eq!(
+            fs::read(root.path().join(DATABASE_FILENAME)).unwrap(),
+            bytes
+        );
+    }
+
+    #[test]
+    fn pre_migration_copy_holds_the_catalog_and_keeps_only_the_latest() {
+        let root = tempfile::tempdir().expect("profile");
+        catalog(root.path(), 26);
+        let connection = Connection::open(root.path().join(DATABASE_FILENAME)).expect("catalog");
+        write_pre_migration_copy(&connection, root.path()).expect("first copy");
+        connection
+            .execute("INSERT INTO torrents VALUES ('second')", [])
+            .expect("change catalog");
+        write_pre_migration_copy(&connection, root.path()).expect("second copy");
+
+        let copy = Connection::open(root.path().join(PRE_MIGRATION_FILENAME)).expect("copy");
+        let rows: i64 = copy
+            .query_row("SELECT count(*) FROM torrents", [], |row| row.get(0))
+            .expect("copied rows");
+        let version: i64 = copy
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .expect("copied version");
+        assert_eq!((rows, version), (2, 26));
+        drop(copy);
+        assert_eq!(
+            profile_files(root.path()),
+            [DATABASE_FILENAME, PRE_MIGRATION_FILENAME]
+        );
     }
 }

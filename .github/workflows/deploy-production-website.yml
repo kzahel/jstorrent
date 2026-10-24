@@ -1,0 +1,65 @@
+name: Production Website
+
+on:
+  # Retained only as a manual rollback host. Cloudflare Website owns canonical
+  # marketing and the guarded remote controller after DNS consolidation.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: production-website-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the qualified website source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Install Node 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Set up Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+      - name: Install standalone website dependencies
+        run: npm ci --prefix website
+      - name: Verify production inventory and website guards
+        run: npm test --prefix website
+      - name: Check website
+        run: npm run check --prefix website
+      - name: Build the canonical marketing site
+        run: npm run build --prefix website
+      - name: Record website source provenance
+        env:
+          SOURCE_REPOSITORY: ${{ github.repository }}
+        run: |
+          node --input-type=module <<'JS'
+          import { execFileSync } from 'node:child_process';
+          import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+          const release = JSON.parse(readFileSync('website/src/data/production-release.json', 'utf8')).release;
+          if (typeof release?.version !== 'string') throw new Error('Missing qualified desktop version');
+          mkdirSync('website/dist/.well-known', {recursive:true});
+          writeFileSync('website/dist/.well-known/jstorrent-website.json', JSON.stringify({sourceRepository:process.env.SOURCE_REPOSITORY, sourceSha:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(), desktopVersion:release.version})+'\n');
+          JS
+      - name: Upload the website artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: website/dist
+          # Digital Asset Links and source provenance are under .well-known.
+          include-hidden-files: true
+      - name: Deploy the qualified website
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

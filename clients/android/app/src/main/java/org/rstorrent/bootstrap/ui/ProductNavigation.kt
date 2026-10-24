@@ -8,8 +8,9 @@ import org.rstorrent.session.uniffi.TorrentState
 import org.rstorrent.session.uniffi.TorrentView
 
 internal object ProductRoutes {
-    const val LIBRARY = "torrent_list"
-    const val DETAIL = "torrent_detail/{torrentId}"
+    const val TORRENTS = "torrent_list"
+    const val MEDIA_LIBRARY = "media_library"
+    const val DETAIL = "torrent_detail/{torrentId}?file={file}"
     const val SPEED = "speed_history"
     const val DHT = "dht_info"
     const val LOGS = "logs"
@@ -21,21 +22,34 @@ internal object ProductRoutes {
     const val SETTINGS_POWER = "settings/power"
     const val SETTINGS_ADVANCED = "settings/advanced"
 
-    fun detail(torrentId: String): String = "torrent_detail/$torrentId"
+    /** With [fileIndex], the detail opens on Files with that file shown. */
+    fun detail(
+        torrentId: String,
+        fileIndex: UInt? = null,
+    ): String =
+        if (fileIndex == null) "torrent_detail/$torrentId" else "torrent_detail/$torrentId?file=$fileIndex"
 }
 
-enum class LibraryFilter(
+enum class TorrentFilter(
     @StringRes val labelRes: Int,
 ) {
     ALL(R.string.library_filter_all),
     ACTIVE(R.string.library_filter_active),
     QUEUED(R.string.library_filter_queued),
     FINISHED(R.string.library_filter_finished),
+    ARCHIVED(R.string.library_filter_archived),
     ;
 
+    /** Archived torrents appear only in the Archived tab, never in All. */
     fun matches(torrent: TorrentView): Boolean =
         when (this) {
-            ALL -> true
+            ARCHIVED -> torrent.archived
+            else -> !torrent.archived && matchesUnarchived(torrent)
+        }
+
+    private fun matchesUnarchived(torrent: TorrentView): Boolean =
+        when (this) {
+            ALL, ARCHIVED -> true
             ACTIVE ->
                 torrent.operationalState in
                     setOf(
@@ -46,11 +60,11 @@ enum class LibraryFilter(
                         TorrentOperationalState.SEEDING,
                     )
             QUEUED -> torrent.operationalState == TorrentOperationalState.QUEUED
-            FINISHED -> torrent.state == TorrentState.COMPLETE || torrent.archived
+            FINISHED -> torrent.state == TorrentState.COMPLETE
         }
 }
 
-enum class LibrarySort(
+enum class TorrentSort(
     @StringRes val labelRes: Int,
 ) {
     STABLE(R.string.library_sort_stable),
@@ -60,19 +74,19 @@ enum class LibrarySort(
 
 internal fun filteredAndSortedTorrents(
     torrents: Collection<TorrentView>,
-    filter: LibraryFilter,
-    sort: LibrarySort,
+    filter: TorrentFilter,
+    sort: TorrentSort,
 ): List<TorrentView> {
     val comparator =
         when (sort) {
-            LibrarySort.STABLE ->
+            TorrentSort.STABLE ->
                 compareBy<TorrentView> { it.downloadQueuePosition ?: UInt.MAX_VALUE }
                     .thenBy(TorrentView::torrentId)
-            LibrarySort.NAME ->
+            TorrentSort.NAME ->
                 compareBy<TorrentView> {
                     torrentPresentationName(it).lowercase(Locale.ROOT)
                 }.thenBy(TorrentView::torrentId)
-            LibrarySort.DOWNLOAD_SPEED ->
+            TorrentSort.DOWNLOAD_SPEED ->
                 compareByDescending<TorrentView> {
                     it.payloadDownloadRateBytes.toULongOrNull() ?: 0UL
                 }.thenBy(::torrentPresentationName)

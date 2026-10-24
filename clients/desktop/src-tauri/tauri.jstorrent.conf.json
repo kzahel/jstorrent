@@ -1,0 +1,41 @@
+{
+  "productName": "JSTorrent",
+  "identifier": "com.jstorrent.desktop",
+  "bundle": {
+    "fileAssociations": [
+      {
+        "ext": [
+          "torrent"
+        ],
+        "name": "com.jstorrent.desktop.torrent",
+        "mimeType": "application/x-bittorrent",
+        "exportedType": {
+          "identifier": "com.jstorrent.desktop.torrent",
+          "conformsTo": [
+            "public.data"
+          ]
+        },
+        "description": "BitTorrent metainfo file"
+      }
+    ],
+    "shortDescription": "JSTorrent BitTorrent client",
+    "longDescription": "JSTorrent downloads and manages torrents on your desktop.",
+    "windows": {
+      "nsis": {
+        "installerHooks": "./nsis/jstorrent-hooks.nsh",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "sidebarImage": "./nsis/assets/sidebar.bmp",
+        "headerImage": "./nsis/assets/header.bmp"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://updates.jstorrent.com/tauri/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQxNUQzREY0QjNEMENGQjgKUldTNHo5Q3o5RDFkUWRwNnpxMTR2UnBiUFVGejlaYnpIU0t2bkJYanBTenBZMFR0a0J5WUU3SzIK"
+    }
+  }
+}

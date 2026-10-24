@@ -8,21 +8,31 @@ import {
   type RefObject,
 } from "react";
 
-import type { ClientSettingsPatch, ClientSettingsRuntimeView } from "../../api";
+import type {
+  ClientSettingsPatch,
+  ClientSettingsRuntimeView,
+  TorrentListImportReport,
+  TorrentListImportTarget,
+} from "../../api";
 import type { ColorTheme, DataUnits, InterfaceSize } from "../appearance";
-import type { CommandResult, DownloadRoot, DownloadStorageSettings } from "../model";
+import type { SettingsCategory } from "../navigation";
+import type { CommandAccepted, DownloadRoot, DownloadStorageSettings } from "../model";
 import { AppearanceSettingsSection } from "./AppearanceSettingsSection";
 import { AboutUpdatesSettingsSection } from "./AboutUpdatesSettingsSection";
 import { ConnectionSeedingSettingsSection } from "./ConnectionSeedingSettingsSection";
+import { FileSafetySettingsSection } from "./FileSafetySettingsSection";
 import { DownloadSettingsSection } from "./DownloadSettingsSection";
 import { DataResetSettingsSection } from "./DataResetSettingsSection";
 import { Icon } from "./Icon";
 import { NotificationsSettingsSection } from "./NotificationsSettingsSection";
 import { PowerSettingsSection } from "./PowerSettingsSection";
 import { RemoteAccessSettingsSection } from "./RemoteAccessSettingsSection";
+import { ShareSettingsSection } from "./ShareSettingsSection";
+import { TorrentListSettingsSection } from "./TorrentListSettingsSection";
 import { WebAccessSettingsSection } from "./WebAccessSettingsSection";
 import styles from "./SettingsDialog.module.css";
 import type { WebAuthClient } from "../../web-auth-client";
+import type { AboutFacts } from "../support/about";
 import type { DesktopUpdater, DesktopUpdaterSnapshot } from "../updater/types";
 import type { DesktopNotifications } from "../desktop-notifications/types";
 import type { DesktopPower } from "../desktop-power/types";
@@ -30,17 +40,7 @@ import type { DesktopRemoteAccess } from "../remote-access/types";
 import type { ProductPrivacyController } from "../product-privacy/types";
 import { ProductPrivacySettingsSection } from "./ProductPrivacy";
 
-export type SettingsCategory =
-  | "appearance"
-  | "downloads"
-  | "connection"
-  | "notifications"
-  | "power"
-  | "remote-access"
-  | "web-access"
-  | "privacy"
-  | "data-reset"
-  | "updates";
+export type { SettingsCategory } from "../navigation";
 
 export interface SettingsDialogProps {
   readonly colorTheme: ColorTheme;
@@ -52,14 +52,20 @@ export interface SettingsDialogProps {
   readonly showCrostiniStorageHelp: boolean;
   readonly oneCurrentRoot?: boolean;
   readonly clientSettingsManageable: boolean;
+  readonly clientSettingsLoading?: boolean;
   readonly notifications?: DesktopNotifications | undefined;
   readonly power?: DesktopPower | undefined;
   readonly remoteAccess?: DesktopRemoteAccess | undefined;
   readonly webAuth?: WebAuthClient | undefined;
   readonly updater?: DesktopUpdater | undefined;
   readonly updaterSnapshot?: DesktopUpdaterSnapshot | undefined;
+  readonly about?: AboutFacts | undefined;
   readonly productPrivacy?: ProductPrivacyController | undefined;
+  /** The shown category; without `onCategoryChange`, only the first one. */
   readonly initialCategory?: SettingsCategory;
+  readonly onCategoryChange?: (category: SettingsCategory) => void;
+  /** Reports a reset or import that must keep Settings open. */
+  readonly onBusyChange?: (busy: boolean) => void;
   readonly returnFocus: RefObject<HTMLButtonElement | null>;
   readonly onColorThemeChange: (colorTheme: ColorTheme) => void;
   readonly onInterfaceSizeChange: (interfaceSize: InterfaceSize) => void;
@@ -71,10 +77,17 @@ export interface SettingsDialogProps {
   readonly onShowAddOptionsChange: (show: boolean) => Promise<void>;
   readonly onShowFileSelectionChange: (show: boolean) => Promise<void>;
   readonly onRemoveRoot: (rootId: string) => Promise<void>;
-  readonly onClientSettingsSave: (patch: ClientSettingsPatch) => Promise<CommandResult>;
+  readonly onClientSettingsSave: (patch: ClientSettingsPatch) => Promise<CommandAccepted>;
   readonly onRestoreDefaults?: () => Promise<void>;
   readonly onClearAppData?: (deleteData: boolean) => Promise<void>;
   readonly deleteDataSupported?: boolean;
+  readonly onExportTorrentList?: (() => Promise<boolean>) | undefined;
+  readonly onImportTorrentBundle?:
+    | ((
+        target: TorrentListImportTarget,
+        chooseFile: () => Promise<ArrayBuffer | null>,
+      ) => Promise<TorrentListImportReport | null>)
+    | undefined;
   readonly onWebAuthSignedOut: () => void;
   readonly onClose: () => void;
 }
@@ -89,14 +102,18 @@ export function SettingsDialog({
   showCrostiniStorageHelp,
   oneCurrentRoot = false,
   clientSettingsManageable,
+  clientSettingsLoading = false,
   notifications,
   power,
   remoteAccess,
   webAuth,
   updater,
   updaterSnapshot,
+  about = {},
   productPrivacy,
   initialCategory = "appearance",
+  onCategoryChange,
+  onBusyChange,
   returnFocus,
   onColorThemeChange,
   onInterfaceSizeChange,
@@ -110,13 +127,21 @@ export function SettingsDialog({
   onRestoreDefaults,
   onClearAppData,
   deleteDataSupported = false,
+  onExportTorrentList,
+  onImportTorrentBundle,
   onWebAuthSignedOut,
   onClose,
 }: SettingsDialogProps) {
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const [category, setCategory] = useState<SettingsCategory>(initialCategory);
+  const [localCategory, setLocalCategory] = useState<SettingsCategory>(initialCategory);
   const [resetBusy, setResetBusy] = useState(false);
+  const [torrentListBusy, setTorrentListBusy] = useState(false);
+  // Settings stays open while a reset or an import runs.
+  const busy = resetBusy || torrentListBusy;
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
   const categories: readonly {
     readonly id: SettingsCategory;
     readonly label: string;
@@ -137,13 +162,23 @@ export function SettingsDialog({
     ...(productPrivacy === undefined
       ? []
       : [{ id: "privacy" as const, label: localizedMessage("product.privacy.settings.category") }]),
-    ...(updater === undefined || updaterSnapshot === undefined
-      ? []
-      : [{ id: "updates" as const, label: localizedMessage("inspection.components.settings.dialog.about.updates") }]),
     ...(onRestoreDefaults === undefined || onClearAppData === undefined
       ? []
       : [{ id: "data-reset" as const, label: localizedMessage("inspection.components.data.reset.category") }]),
+    {
+      id: "about",
+      label: updater === undefined || updaterSnapshot === undefined
+        ? localizedMessage("inspection.components.settings.dialog.about")
+        : localizedMessage("inspection.components.settings.dialog.about.updates"),
+    },
   ];
+  const requestedCategory =
+    onCategoryChange === undefined ? localCategory : initialCategory;
+  // A link may name a category this client does not offer.
+  const category = categories.some((item) => item.id === requestedCategory)
+    ? requestedCategory
+    : "appearance";
+  const setCategory = onCategoryChange ?? setLocalCategory;
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -151,7 +186,7 @@ export function SettingsDialog({
   }, [returnFocus]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key === "Escape" && !resetBusy) {
+    if (event.key === "Escape" && !busy) {
       event.preventDefault();
       onClose();
       return;
@@ -175,7 +210,7 @@ export function SettingsDialog({
   };
 
   const closeFromBackdrop = (event: MouseEvent<HTMLDivElement>) => {
-    if (event.target === event.currentTarget && !resetBusy) onClose();
+    if (event.target === event.currentTarget && !busy) onClose();
   };
 
   const moveCategory = (
@@ -210,20 +245,20 @@ export function SettingsDialog({
         ref={dialogRef}
         className={styles.sheet}
         role="dialog"
+        data-update-safe={category === "about" ? "true" : undefined}
         aria-modal="true"
         aria-labelledby="settings-title"
         onKeyDown={handleKeyDown}
       >
         <header className={styles.header}>
           <div>
-            <p>{localizedMessage("inspection.components.settings.dialog.application")}</p>
             <h2 id="settings-title">{localizedMessage("inspection.components.settings.dialog.settings")}</h2>
           </div>
           <button
             ref={closeRef}
             className={styles.close}
             type="button"
-            disabled={resetBusy}
+            disabled={busy}
             aria-label={localizedMessage("inspection.components.settings.dialog.close.settings")}
             onClick={onClose}
           >
@@ -242,7 +277,7 @@ export function SettingsDialog({
                 id={`settings-tab-${item.id}`}
                 key={item.id}
                 type="button"
-                disabled={resetBusy}
+                disabled={busy}
                 role="tab"
                 aria-selected={category === item.id}
                 aria-controls={`settings-panel-${item.id}`}
@@ -279,6 +314,7 @@ export function SettingsDialog({
               <DownloadSettingsSection
                 storage={storage}
                 manageable={downloadsManageable}
+                loading={clientSettingsLoading}
                 showCrostiniStorageHelp={showCrostiniStorageHelp}
                 oneCurrentRoot={oneCurrentRoot}
                 onChooseFolder={onChooseFolder}
@@ -287,6 +323,7 @@ export function SettingsDialog({
                 onShowFileSelectionChange={onShowFileSelectionChange}
                 onRemoveRoot={onRemoveRoot}
               />
+              <FileSafetySettingsSection settings={clientSettings.configured.file_safety} manageable={clientSettingsManageable && !clientSettingsLoading} />
             </div>
             <div
               id="settings-panel-connection"
@@ -297,8 +334,10 @@ export function SettingsDialog({
               <ConnectionSeedingSettingsSection
                 settings={clientSettings}
                 manageable={clientSettingsManageable}
+                loading={clientSettingsLoading}
                 onSave={onClientSettingsSave}
               />
+              <ShareSettingsSection />
             </div>
             {notifications === undefined ? null : (
               <div
@@ -343,19 +382,6 @@ export function SettingsDialog({
                 />
               </div>
             )}
-            {updater === undefined || updaterSnapshot === undefined ? null : (
-              <div
-                id="settings-panel-updates"
-                role="tabpanel"
-                aria-labelledby="settings-tab-updates"
-                hidden={category !== "updates"}
-              >
-                <AboutUpdatesSettingsSection
-                  updater={updater}
-                  snapshot={updaterSnapshot}
-                />
-              </div>
-            )}
             {productPrivacy === undefined ? null : (
               <div
                 id="settings-panel-privacy"
@@ -379,9 +405,29 @@ export function SettingsDialog({
                   onRestoreDefaults={onRestoreDefaults}
                   onClearAppData={onClearAppData}
                   onBusyChange={setResetBusy}
-                />
+                >
+                  <TorrentListSettingsSection
+                    roots={storage.roots}
+                    defaultRoot={storage.defaultRoot}
+                    onExport={onExportTorrentList}
+                    onImport={onImportTorrentBundle}
+                    onBusyChange={setTorrentListBusy}
+                  />
+                </DataResetSettingsSection>
               </div>
             )}
+            <div
+              id="settings-panel-about"
+              role="tabpanel"
+              aria-labelledby="settings-tab-about"
+              hidden={category !== "about"}
+            >
+              <AboutUpdatesSettingsSection
+                about={about}
+                updater={updater}
+                snapshot={updaterSnapshot}
+              />
+            </div>
           </div>
         </div>
       </section>

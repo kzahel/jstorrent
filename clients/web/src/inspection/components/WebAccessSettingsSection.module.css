@@ -6,7 +6,7 @@
 .statusCard,
 .section {
   border: 1px solid var(--border-soft);
-  border-radius: 0.7rem;
+  border-radius: var(--radius-lg);
   padding: var(--ui-space-md);
 }
 
@@ -34,14 +34,19 @@
 .section button {
   min-height: var(--ui-control-height);
   border: 1px solid var(--border-strong);
-  border-radius: 0.48rem;
+  border-radius: var(--radius-md);
   padding: 0 var(--ui-space-sm);
   color: var(--text-primary);
-  background: var(--surface-secondary);
+  background: var(--surface-primary);
   font: inherit;
   font-size: var(--ui-font-small);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
   cursor: pointer;
+}
+
+.statusCard button:hover:not(:disabled),
+.section button:hover:not(:disabled) {
+  background: var(--surface-hover);
 }
 
 .statusCard button:disabled,
@@ -72,13 +77,14 @@
   align-items: baseline;
   gap: var(--ui-space-md);
   margin-top: var(--ui-space-md);
-  border-radius: 0.6rem;
+  border-radius: var(--radius-md);
   padding: var(--ui-space-md);
   background: var(--selection);
 }
 
 .ticket strong {
-  font-size: 1.8rem;
+  font-size: calc(var(--ui-font-display) * 1.3);
+  font-weight: var(--weight-strong);
   letter-spacing: 0.3em;
 }
 
@@ -117,29 +123,27 @@
 }
 
 .current {
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   padding: 0.1rem 0.45rem;
   color: var(--accent-strong);
   background: var(--selection);
   font-size: var(--ui-font-caption);
-  font-weight: 750;
+  font-weight: var(--weight-medium);
 }
 
 .section .danger {
   margin-top: var(--ui-space-md);
   border-color: color-mix(in srgb, var(--danger) 55%, var(--border-strong));
-  color: var(--danger);
+  color: var(--danger-strong);
 }
 
-.success {
-  margin: 0;
-  color: var(--success);
-  font-size: var(--ui-font-small);
+.section .danger:hover:not(:disabled) {
+  background: var(--danger-soft);
 }
 
 .error {
   margin: 0;
-  color: var(--danger);
+  color: var(--danger-strong);
   font-size: var(--ui-font-small);
 }
 

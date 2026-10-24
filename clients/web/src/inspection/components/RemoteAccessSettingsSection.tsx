@@ -7,6 +7,7 @@ import type {
   RemoteAuthorizedClient,
   RemoteSecuritySnapshot,
 } from "../remote-access/types";
+import { useToast } from "./Toast";
 import styles from "./RemoteAccessSettingsSection.module.css";
 
 export interface RemoteAccessSettingsSectionProps {
@@ -18,7 +19,7 @@ export function RemoteAccessSettingsSection({
 }: RemoteAccessSettingsSectionProps) {
   const [state, setState] = useState<DesktopRemoteAccessState | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [passphrase, setPassphrase] = useState("");
@@ -36,12 +37,11 @@ export function RemoteAccessSettingsSection({
     operation: () => Promise<string | void>,
   ): Promise<void> => {
     setBusy(true);
-    setMessage(null);
     setError(null);
     try {
       const result = await operation();
       await refresh();
-      if (result !== undefined) setMessage(result);
+      if (result !== undefined) toast.show({ message: result });
     } catch (cause) {
       setError(asMessage(cause));
     } finally {
@@ -92,7 +92,7 @@ export function RemoteAccessSettingsSection({
       const revoked = await remoteAccess.changePassphrase(newPassphrase);
       setNewPassphrase("");
       setNewConfirmation("");
-      return `Password changed and ${revoked} browser authorization${revoked === 1 ? " was" : "s were"} revoked.`;
+      return localizedMessage("feedback.remote.password.changed", { count: revoked });
     });
   };
 
@@ -111,7 +111,7 @@ export function RemoteAccessSettingsSection({
             <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.host.identity")}</dt><dd><code>{security.host_pin}</code></dd></div>
           </dl>
         ) : (
-          <p>{localizedMessage("inspection.components.remote.access.settings.section.the.host.authority.is.absent.retained.entries")}</p>
+          <p>{localizedMessage("inspection.components.remote.access.settings.section.remote.access.is.off.history.only")}</p>
         )}
         <button type="button" disabled={busy} onClick={() => void perform(refresh)}>{localizedMessage("inspection.components.remote.access.settings.section.refresh.audit")}</button>
       </section>
@@ -187,7 +187,7 @@ export function RemoteAccessSettingsSection({
             <p className={styles.note}>{localizedMessage("inspection.components.remote.access.settings.section.the.relay.carries.encrypted.connection.setup.only")}</p>
             <dl className={styles.identity}>
               <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.active.circuit")}</dt><dd><code>{security.direct_file.active_circuit_id ?? localizedMessage("inspection.components.remote.access.settings.section.none")}</code></dd></div>
-              <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.payload.sent")}</dt><dd>{security.direct_file.bytes_sent.toLocaleString()}{" "}{localizedMessage("inspection.components.remote.access.settings.section.bytes")}</dd></div>
+              <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.data.sent")}</dt><dd>{security.direct_file.bytes_sent.toLocaleString()}{" "}{localizedMessage("inspection.components.remote.access.settings.section.bytes")}</dd></div>
               <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.candidate.class")}</dt><dd>{security.direct_file.candidate_class === null ? localizedMessage("inspection.components.remote.access.settings.section.none") : humanize(security.direct_file.candidate_class)}</dd></div>
               <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.resources")}</dt><dd>{security.direct_file.active_tasks}{" "}{localizedMessage("inspection.components.remote.access.settings.section.tasks")}{" "}{security.direct_file.open_sockets}{" "}{localizedMessage("inspection.components.remote.access.settings.section.sockets")}{" "}{security.direct_file.active_requests}{" "}{localizedMessage("inspection.components.remote.access.settings.section.range.requests")}{" "}{security.direct_file.queued_bytes.toLocaleString()}{" "}{localizedMessage("inspection.components.remote.access.settings.section.queued.bytes")}</dd></div>
             </dl>
@@ -198,7 +198,9 @@ export function RemoteAccessSettingsSection({
                 onClick={() => void perform(async () => {
                   const enabled = !security.direct_file.enabled;
                   await remoteAccess.setDirectFileTransfersEnabled(enabled);
-                  return `Direct file transfers ${enabled ? "enabled" : "disabled"}.`;
+                  return enabled
+                    ? localizedMessage("feedback.remote.direct.enabled")
+                    : localizedMessage("feedback.remote.direct.disabled");
                 })}
               >
                 {security.direct_file.enabled ? localizedMessage("inspection.components.remote.access.settings.section.disable.direct.file.transfers") : localizedMessage("inspection.components.remote.access.settings.section.enable.direct.file.transfers")}
@@ -221,21 +223,25 @@ export function RemoteAccessSettingsSection({
                 if (!window.confirm("Require the password again on every browser and close their authorized circuits?")) return;
                 void perform(async () => {
                   const revoked = await remoteAccess.requirePasswordEverywhere();
-                  return `Revoked ${revoked} browser authorization${revoked === 1 ? "" : "s"}.`;
+                  return localizedMessage("feedback.remote.authorizations.revoked", { count: revoked });
                 });
               }}>{localizedMessage("inspection.components.remote.access.settings.section.require.password.everywhere")}</button>
               {local ? <button className={styles.danger} type="button" disabled={busy} onClick={() => {
-                if (!window.confirm("Disable remote access, revoke every browser, and remove the host authority?")) return;
+                if (!window.confirm("Turn off remote access? Every browser is signed out and the remote access password is removed.")) return;
                 void perform(async () => {
                   const outcome = await remoteAccess.disable();
-                  return `Remote access disabled. Authority removed: ${yesNo(outcome.authority_file_removed)}; route released: ${yesNo(outcome.route_released)}.`;
+                  return outcome.authority_file_removed && outcome.route_released
+                    ? localizedMessage("feedback.remote.disabled")
+                    : localizedMessage("feedback.remote.disabled.incomplete", {
+                        authority: String(outcome.authority_file_removed),
+                        route: String(outcome.route_released),
+                      });
                 });
               }}>{localizedMessage("inspection.components.remote.access.settings.section.disable.remote.access")}</button> : null}
               {remoteAccess.signOutThisBrowser === undefined ? null : (
                 <button className={styles.danger} type="button" disabled={busy} onClick={() => {
                   if (!window.confirm("Sign out this browser and revoke its private authorization, if present?")) return;
                   setBusy(true);
-                  setMessage(null);
                   setError(null);
                   void remoteAccess.signOutThisBrowser?.().catch((cause: unknown) => {
                     setError(asMessage(cause));
@@ -261,19 +267,20 @@ export function RemoteAccessSettingsSection({
         busy={busy}
       />
       <AuditHistory
-        title={localizedMessage("inspection.components.remote.access.settings.section.retained.security.history")}
+        title={localizedMessage("inspection.components.remote.access.settings.section.security.history")}
         snapshot={security.retained_history}
         busy={busy}
         clear={() => {
-          if (!window.confirm("Clear retained remote security history? Current authorizations are not removed.")) return;
+          if (!window.confirm("Clear security history? Browsers that are signed in stay signed in.")) return;
           void perform(async () => {
             const cleared = await remoteAccess.clearHistory();
-            return cleared ? "Retained history was cleared." : "There was no retained history to clear.";
+            return cleared
+              ? localizedMessage("feedback.remote.history.cleared")
+              : localizedMessage("feedback.remote.history.empty");
           });
         }}
       />
 
-      {message === null ? null : <p className={styles.success} role="status">{message}</p>}
       {error === null ? null : <p className={styles.error} role="alert">{error}</p>}
     </div>
   );
@@ -321,14 +328,14 @@ function AuthorizationSection({ snapshot, busy, activeClientIds, currentClientId
                   if (!window.confirm(`Revoke every browser except ${client.label}?`)) return;
                   void perform(async () => {
                     const revoked = await remoteAccess.revokeAllOther(client.client_id);
-                    return `Revoked ${revoked} other browser${revoked === 1 ? "" : "s"}.`;
+                    return localizedMessage("feedback.browsers.revoked", { count: revoked });
                   });
                 }}>{localizedMessage("inspection.components.remote.access.settings.section.keep.only.this")}</button>
                 <button className={styles.danger} type="button" disabled={busy} onClick={() => {
                   if (!window.confirm(`Revoke ${client.label} and close all of its circuits?`)) return;
                   void perform(async () => {
                     await remoteAccess.revoke(client.client_id);
-                    return `${client.label} was revoked.`;
+                    return localizedMessage("feedback.browser.revoked", { name: client.label });
                   });
                 }}>{localizedMessage("inspection.components.remote.access.settings.section.revoke")}</button>
               </div>
@@ -382,10 +389,6 @@ function formatOptionalDate(value: number | null): string {
 
 function humanize(value: string): string {
   return value.replaceAll("_", " ");
-}
-
-function yesNo(value: boolean): string {
-  return value ? "yes" : "no";
 }
 
 function asMessage(error: unknown): string {

@@ -1,0 +1,58 @@
+---
+import '../index.css'
+
+interface Props {
+  title: string
+  description: string
+  ogType?: string
+  ogImage?: string
+  publishedTime?: string
+}
+
+const { title, description, ogType = 'website', ogImage, publishedTime } = Astro.props
+const canonicalURL = new URL(Astro.url.pathname, Astro.site)
+const ogImageURL = ogImage
+  ? new URL(ogImage, Astro.site)
+  : new URL('/og-image.png', Astro.site)
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalURL} />
+    <link rel="icon" type="image/png" sizes="32x32" href="/js-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/js-16.png" />
+    <!-- Open Graph -->
+    <meta property="og:type" content={ogType} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:image" content={ogImageURL} />
+    <meta property="og:site_name" content="JSTorrent" />
+    {publishedTime && <meta property="article:published_time" content={publishedTime} />}
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageURL} />
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="JSTorrent Dev Blog" href="/blog/rss.xml" />
+    <slot name="head" />
+    <!-- Theme: set before first paint to prevent flash -->
+    <script is:inline>
+      (function() {
+        var stored = localStorage.getItem('theme');
+        var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+  </head>
+  <body>
+    <slot />
+    <!-- Cloudflare Web Analytics --><script is:inline defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "70816ac6e8564121b329ed89b3849dba"}'></script><!-- End Cloudflare Web Analytics -->
+  </body>
+</html>

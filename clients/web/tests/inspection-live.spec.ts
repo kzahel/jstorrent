@@ -59,7 +59,7 @@ test("client settings apply live, persist, and recover bind failure", async ({
   await page.setViewportSize({ width: 1_024, height: 800 });
   await page.goto(liveUrl());
   await expect(
-    page.getByRole("grid", { name: "Transfer queue" }),
+    page.getByRole("grid", { name: "Torrents" }),
   ).toBeVisible();
 
   if (clientSettingsPhase === "configure") {
@@ -70,62 +70,48 @@ test("client settings apply live, persist, and recover bind failure", async ({
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Settings" });
   await dialog.getByRole("tab", { name: "Connection & seeding" }).click();
-  const runtime = dialog.getByLabel("Current runtime state");
+  const incoming = dialog.getByRole("group", { name: "Incoming connections" });
   await expect(dialog).toBeVisible();
 
   if (clientSettingsPhase === "configure") {
     await dialog
-      .getByRole("radio", { name: /^Automatic port/ })
+      .getByRole("radio", { name: "Automatic" })
       .check();
     await dialog
-      .getByRole("spinbutton", { name: "Peer connection limit" })
+      .getByRole("spinbutton", { name: "Max peer connections" })
       .fill("37");
     await dialog
-      .getByRole("spinbutton", { name: "Payload upload slots" })
+      .getByRole("spinbutton", { name: "Upload slots" })
       .fill("1");
     await dialog.getByRole("button", { name: "Save settings" }).click();
-    await expect(
-      dialog.getByText("Settings accepted and applying."),
-    ).toBeVisible();
-    await expect(runtime).toContainText(
-      /Effective listener policy: (?:automatic port|development-only loopback mode)\./,
-    );
-    await expect(runtime).toContainText("Effective peer connection limit: 37.");
-    await expect(runtime).toContainText("Effective payload upload slots: 1.");
-    await expect(runtime).not.toContainText("Transport: applying");
+    await expect(dialog.getByText("Saved", { exact: true })).toBeVisible();
+    await expect(incoming).toContainText(/Port \d+/);
+    await expect(dialog.getByText("Applying…")).toHaveCount(0);
+    await expect(dialog.getByText(/Couldn't apply|Limited to/)).toHaveCount(0);
   } else if (clientSettingsPhase === "observe") {
     await expect(
-      dialog.getByRole("radio", { name: /^Fixed port/ }),
+      dialog.getByRole("radio", { name: "Fixed" }),
     ).toBeChecked();
     await expect(
-      dialog.getByRole("spinbutton", { name: "Peer connection limit" }),
+      dialog.getByRole("spinbutton", { name: "Max peer connections" }),
     ).toHaveValue("37");
     await expect(
-      dialog.getByRole("spinbutton", { name: "Payload upload slots" }),
+      dialog.getByRole("spinbutton", { name: "Upload slots" }),
     ).toHaveValue("1");
-    await expect(runtime).toContainText(
-      /Effective listener policy: (?:fixed port|development-only loopback port)/,
-    );
-    await expect(runtime).toContainText("Effective peer connection limit: 37.");
-    await expect(runtime).toContainText("Effective payload upload slots: 1.");
+    await expect(incoming).toContainText(/Port \d+/);
+    await expect(dialog.getByText(/Couldn't apply|Limited to/)).toHaveCount(0);
   } else if (clientSettingsPhase === "recover") {
     await expect(
-      dialog.getByRole("radio", { name: /^Fixed port/ }),
+      dialog.getByRole("radio", { name: "Fixed" }),
     ).toBeChecked();
-    await expect(runtime).toContainText(/port already in use/i);
-    await expect(runtime).toContainText(/Transport: degraded/i);
+    await expect(incoming).toContainText("Port already in use");
     await dialog
-      .getByRole("radio", { name: /^Automatic port/ })
+      .getByRole("radio", { name: "Automatic" })
       .check();
     await dialog.getByRole("button", { name: "Save settings" }).click();
-    await expect(
-      dialog.getByText("Settings accepted and applying."),
-    ).toBeVisible();
-    await expect(runtime).toContainText(
-      /Effective listener policy: (?:automatic port|development-only loopback mode)\./,
-    );
-    await expect(runtime).not.toContainText(/Transport: degraded/i);
-    await expect(runtime).not.toContainText("Transport: applying");
+    await expect(dialog.getByText("Saved", { exact: true })).toBeVisible();
+    await expect(incoming).toContainText(/Port \d+/);
+    await expect(incoming).not.toContainText(/already in use|Couldn't apply|Applying…/);
   } else {
     throw new Error(`unknown client settings phase ${clientSettingsPhase}`);
   }
@@ -137,11 +123,8 @@ test("client settings apply live, persist, and recover bind failure", async ({
       violation.impact === "serious" || violation.impact === "critical",
   );
   expect(violations).toEqual([]);
-  const runtimeText = (await runtime.textContent()) ?? "";
-  const portMatch =
-    /(?:Listening on 127\.0\.0\.1:|Incoming TCP is using a development-only loopback listener at port |Incoming TCP is listening on all IPv4 interfaces at port )(\d+)/.exec(
-      runtimeText,
-    );
+  const incomingText = (await incoming.textContent()) ?? "";
+  const portMatch = /Port (\d+)/.exec(incomingText);
   console.log(
     `client_settings_live_milestone ${JSON.stringify({ phase: clientSettingsPhase, listenerPort: portMatch === null ? null : Number(portMatch[1]), axeViolations: violations.length })}`,
   );
@@ -184,7 +167,7 @@ test("live torrent file picker uses one WebSocket binary attachment", async ({
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(liveUrl());
-  const transfers = page.getByRole("grid", { name: "Transfer queue" });
+  const transfers = page.getByRole("grid", { name: "Torrents" });
   await expect(transfers).toBeVisible();
   await expect.poll(() => applicationUpgrades).toBe(1);
   if (expectTorrentFileRestart) {
@@ -193,10 +176,10 @@ test("live torrent file picker uses one WebSocket binary attachment", async ({
     await row.click();
     await page
       .getByRole("navigation", { name: "Primary" })
-      .getByRole("button", { name: "Workbench" })
+      .getByRole("button", { name: "Torrents" })
       .click();
     const torrentRow = page
-      .getByRole("grid", { name: "Torrent library" })
+      .getByRole("grid", { name: "Torrents" })
       .getByRole("row")
       .filter({ hasText: torrentName! });
     await expect(torrentRow).toContainText("complete");
@@ -226,15 +209,14 @@ test("live torrent file picker uses one WebSocket binary attachment", async ({
   await chooser.setFiles(torrentFile!);
 
   const dialog = page.getByRole("dialog", {
-    name: "Choose download options",
+    name: "Add torrent",
   });
   await expect(dialog).toBeVisible();
   const startContent = dialog.getByRole("checkbox", {
-    name: /Start downloading files when metadata is available/,
+    name: "Start downloading right away",
   });
   await startContent.uncheck();
   await dialog.getByRole("button", { name: "Add torrent" }).click();
-  await expect(page.getByRole("status")).toHaveText("Added");
   const row = transfers.getByRole("row").filter({ hasText: torrentName! });
   await expect(row).toContainText(torrentName!, { timeout: 10_000 });
   await expect.poll(() => binaryFrames).toBe(1);
@@ -245,10 +227,10 @@ test("live torrent file picker uses one WebSocket binary attachment", async ({
     await row.click();
     await page
       .getByRole("navigation", { name: "Primary" })
-      .getByRole("button", { name: "Workbench" })
+      .getByRole("button", { name: "Torrents" })
       .click();
     const torrentRow = page
-      .getByRole("grid", { name: "Torrent library" })
+      .getByRole("grid", { name: "Torrents" })
       .getByRole("row")
       .filter({ hasText: torrentName! });
     await expect(torrentRow).toBeVisible();
@@ -284,9 +266,8 @@ test("live torrent file picker uses one WebSocket binary attachment", async ({
       .getByRole("menu")
       .getByRole("menuitem", { name: "Force recheck", exact: true })
       .click();
-    await expect(
-      page.getByText(`Started recheck for ${torrentName!}`, { exact: true }),
-    ).toBeVisible();
+    // A started recheck shows in the row; only a failure raises a toast.
+    await expect(notification(page).getByRole("alert")).toHaveCount(0);
     await expect(torrentRow).toContainText("complete", { timeout: 30_000 });
   }
 
@@ -343,7 +324,7 @@ test("live v2 magnet lifecycle uses the production application", async ({
 
   await page.setViewportSize({ width: 1_440, height: 900 });
   await page.goto(liveUrl());
-  const transfers = page.getByRole("grid", { name: "Transfer queue" });
+  const transfers = page.getByRole("grid", { name: "Torrents" });
   await expect(transfers).toBeVisible();
   await expect.poll(() => applicationUpgrades).toBe(1);
   if (v2MagnetPhase === "add") {
@@ -353,13 +334,15 @@ test("live v2 magnet lifecycle uses the production application", async ({
     await input.fill(magnet!);
     await input.press("Enter");
     await confirmDefaultAddOptions(page);
-    await expect(page.getByRole("status")).toHaveText(/Added|Torrent added/);
+    // A successful add clears the input; a failure raises an error toast.
+    await expect(input).toHaveValue("");
     if (v2MagnetSecond !== undefined) {
       await input.fill(v2MagnetSecond);
       await input.press("Enter");
       await confirmDefaultAddOptions(page);
-      await expect(page.getByRole("status")).toHaveText(/Added|Torrent added/);
+      await expect(input).toHaveValue("");
     }
+    await expect(notification(page).getByRole("alert")).toHaveCount(0);
   }
 
   const transferRow = transfers
@@ -374,10 +357,10 @@ test("live v2 magnet lifecycle uses the production application", async ({
   await transferRow.click();
   await page
     .getByRole("navigation", { name: "Primary" })
-    .getByRole("button", { name: "Workbench" })
+    .getByRole("button", { name: "Torrents" })
     .click();
   const torrentRow = page
-    .getByRole("grid", { name: "Torrent library" })
+    .getByRole("grid", { name: "Torrents" })
     .getByRole("row")
     .filter({ hasText: torrentName! });
   await expect(torrentRow).toContainText("complete");
@@ -412,7 +395,7 @@ test("live v2 magnet lifecycle uses the production application", async ({
     .getByRole("menu")
     .getByRole("menuitem", { name: "Copy magnet link" })
     .click();
-  await expect(page.getByText("Magnet link copied", { exact: true })).toBeVisible();
+  await expect(notification(page)).toContainText("Magnet link copied");
   if (v2MagnetV1Hash !== undefined && v2MagnetV2Hash !== undefined) {
     const copied = await page.evaluate(() => navigator.clipboard.readText());
     expect(copied).toMatch(
@@ -443,7 +426,7 @@ test("live v2 magnet lifecycle uses the production application", async ({
     await removal
       .getByRole("button", { name: "Remove and delete data" })
       .click();
-    await expect(page.getByText(`Removed ${torrentName!}`, { exact: true })).toBeVisible();
+    await expect(notification(page)).toContainText(`Removed ${torrentName!}`);
   }
 
   expect(binaryFrames).toBe(0);
@@ -486,7 +469,7 @@ test("paired application transport throughput", async ({ page }) => {
       ? "/?transport=http&poll_ms=100"
       : "/";
   await page.goto(withGatewayToken(query));
-  const transfers = page.getByRole("grid", { name: "Transfer queue" });
+  const transfers = page.getByRole("grid", { name: "Torrents" });
   await expect(transfers).toBeVisible();
   const input = page
     .getByRole("form", { name: "Add torrent" })
@@ -496,7 +479,7 @@ test("paired application transport throughput", async ({ page }) => {
   await input.press("Enter");
   await confirmDefaultAddOptions(page);
   await expect(
-    page.getByRole("region", { name: "Transfers" }).getByRole("status"),
+    page.getByRole("region", { name: "Torrent collection" }).getByRole("status"),
   ).toHaveText("Added");
   const row = transfers.locator(`[data-row-id="${torrentId!}"]`);
   await expect(row).toContainText(/complete/i, { timeout: 180_000 });
@@ -648,7 +631,7 @@ test("live peer inspection follows a controlled verified transfer", async ({
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(liveUrl());
   const primary = page.getByRole("navigation", { name: "Primary" });
-  const transferGrid = page.getByRole("grid", { name: "Transfer queue" });
+  const transferGrid = page.getByRole("grid", { name: "Torrents" });
   await expect(primary).toBeVisible();
   await expect(transferGrid).toBeVisible();
   await expect.poll(() => applicationUpgrades).toBe(1);
@@ -662,15 +645,15 @@ test("live peer inspection follows a controlled verified transfer", async ({
   await torrentInput.press("Enter");
   await confirmDefaultAddOptions(page);
   await expect(
-    page.getByRole("region", { name: "Transfers" }).getByRole("status"),
+    page.getByRole("region", { name: "Torrent collection" }).getByRole("status"),
   ).toHaveText("Added");
   await expect(torrentInput).toHaveValue("");
 
   const transferRow = transferGrid.locator(`[data-row-id="${torrentId!}"]`);
   await expect(transferRow).toContainText(torrentName!, { timeout: 20_000 });
   await transferRow.click();
-  await primary.getByRole("button", { name: "Workbench" }).click();
-  const library = page.getByRole("grid", { name: "Torrent library" });
+  await primary.getByRole("button", { name: "Torrents" }).click();
+  const library = page.getByRole("grid", { name: "Torrents" });
   await expect(library).toBeVisible();
   const torrentRow = library.locator(`[data-row-id="${torrentId!}"]`);
   await expect(torrentRow).toBeVisible();
@@ -837,20 +820,26 @@ test("live Library media detail follows metadata through completion", async ({
   const settings = page.getByRole("dialog", { name: "Settings" });
   await settings.getByRole("tab", { name: "Connection & seeding" }).click();
   await settings
-    .getByRole("checkbox", { name: "All torrents download limit unlimited" })
-    .uncheck();
+    .getByRole("combobox", { name: "Download" })
+    .selectOption({ label: "Custom…" });
   await settings
     .getByRole("spinbutton", {
-      name: "All torrents download limit in KiB per second",
+      name: "Download, custom speed in KB per second",
     })
     .fill("32");
   await settings.getByRole("button", { name: "Save settings" }).click();
+  await expect(settings.getByText("Saved", { exact: true })).toBeVisible();
   await expect(
-    settings.getByText("Settings accepted and applying."),
-  ).toBeVisible();
-  await expect(settings.getByLabel("Current runtime state")).toContainText(
-    "Effective peer download limit: 32 KiB/s.",
-  );
+    settings.getByRole("region", { name: "Speed limits" }),
+  ).not.toContainText(/Applying…|Couldn't apply/);
+  // This flow adds without choosing files first, so it can stay paused.
+  await settings.getByRole("tab", { name: "Downloads" }).click();
+  const fileSelection = settings.getByRole("checkbox", {
+    name: /^Show file selection when adding torrents/,
+  });
+  // The host owns this preference, so the box clears when it confirms.
+  await fileSelection.click();
+  await expect(fileSelection).not.toBeChecked();
   await settings.getByRole("button", { name: "Close settings" }).click();
   const addForm = page.getByRole("form", { name: "Add torrent" });
   const input = addForm.getByRole("textbox", {
@@ -859,31 +848,28 @@ test("live Library media detail follows metadata through completion", async ({
   await input.fill(magnet!);
   await input.press("Enter");
   const addDialog = page.getByRole("dialog", {
-    name: "Choose download options",
+    name: "Add torrent",
   });
   await addDialog
     .getByRole("checkbox", {
-      name: /Start downloading files when metadata is available/,
+      name: "Start downloading right away",
     })
     .uncheck();
   await addDialog.getByRole("button", { name: "Add torrent" }).click();
   await expect(
-    page.getByRole("region", { name: "Transfers" }).getByRole("status"),
-  ).toHaveText("Added");
+    page.getByRole("grid", { name: "Torrents" }).getByRole("row"),
+  ).toHaveCount(2);
   await primary.getByRole("button", { name: "Library" }).click();
-  const card = page
-    .getByRole("list", { name: "Torrent-backed content" })
-    .getByRole("button")
-    .first();
-  await expect(card).toBeVisible();
+  // Before metadata the torrent has no Library items, only a pending count.
+  // A local seed can deliver metadata before the Library opens.
+  sawMetadataPending = await page
+    .getByText(/torrent is still getting file details from peers/)
+    .isVisible();
+  const items = page.getByRole("list", { name: "Library items" });
+  await expect(items.getByRole("listitem")).toHaveCount(6, { timeout: 20_000 });
+  const card = items.getByRole("button", { name: /in its torrent$/ }).first();
   await card.click();
-  const pending = page.getByText("Waiting for torrent metadata…");
-  await expect(pending).toBeVisible();
-  sawMetadataPending = true;
-
-  await expect(
-    page.getByRole("heading", { name: torrentName! }),
-  ).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("heading", { name: torrentName! })).toBeVisible();
   const media = page.getByRole("list", { name: "Recognized video files" });
   await expect(media).toBeVisible();
   expect(
@@ -900,10 +886,31 @@ test("live Library media detail follows metadata through completion", async ({
   await expect(media.getByText("README.nfo")).toHaveCount(0);
   await expect.poll(() => detailRequests.at(-1)).toBe("media");
 
+  // The cross-torrent Library (Tactical 363) on a live host.
   await page.getByRole("button", { name: "Back to Library" }).click();
-  await primary.getByRole("button", { name: "Workbench" }).click();
+  await expect(card).toBeFocused();
+  const libraryFilters = page.getByRole("navigation", { name: "Library filters" });
+  await libraryFilters.getByRole("button", { name: /^TV shows/ }).click();
+  const show = page
+    .getByRole("list", { name: "TV shows" })
+    .getByRole("button", { name: /North Shore Stories/ });
+  await expect(show).toContainText("5 episodes · 2 seasons");
+  await show.click();
+  await expect(items.getByRole("listitem")).toHaveCount(5);
+  await page.getByRole("button", { name: "Back to TV shows" }).click();
+  await libraryFilters.getByRole("button", { name: /^All media/ }).click();
+  const search = page.getByRole("searchbox", { name: "Search the library" });
+  await search.fill("s02");
+  await expect(items.getByRole("listitem")).toHaveCount(1);
+  await search.fill("");
+  await expect(items.getByRole("listitem")).toHaveCount(6);
+  await card.click();
+  await expect(media).toBeVisible();
+
+  await page.getByRole("button", { name: "Back to Library" }).click();
+  await primary.getByRole("button", { name: "Torrents" }).click();
   const torrentRow = page
-    .getByRole("grid", { name: "Torrent library" })
+    .getByRole("grid", { name: "Torrents" })
     .getByRole("row")
     .filter({ hasText: torrentName! });
   await torrentRow.click();
@@ -948,22 +955,26 @@ test("live Library media detail follows metadata through completion", async ({
     .getByRole("listitem")
     .filter({ hasText: "North.Shore.Stories.S01E10.1080p.WEB-DL.mkv" });
   const play = availableRow.getByRole("button", { name: /^Play / });
+  // The torrent is still downloading other files, so this verified file is
+  // streamable rather than available: Play opens it outside the page, and
+  // the in-page player is reserved for available files (Tactical 362).
+  await expect(availableRow.getByText("Downloaded", { exact: true })).toBeVisible();
   await expect(play).toBeEnabled();
   const popupPromise = page.context().waitForEvent("page");
   await play.click();
   const popup = await popupPromise;
   await expect.poll(() => popup.url()).toContain("/media/");
   await popup.close();
-  await expect(page.getByRole("status")).toContainText("Opening ");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await settings.getByRole("tab", { name: "Connection & seeding" }).click();
   await settings
-    .getByRole("checkbox", { name: "All torrents download limit unlimited" })
-    .check();
+    .getByRole("combobox", { name: "Download" })
+    .selectOption({ label: "Unlimited" });
   await settings.getByRole("button", { name: "Save settings" }).click();
-  await expect(settings.getByLabel("Current runtime state")).toContainText(
-    "Effective peer download limit: unlimited.",
-  );
+  await expect(settings.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(
+    settings.getByRole("region", { name: "Speed limits" }),
+  ).not.toContainText(/Applying…|Couldn't apply/);
   await settings.getByRole("button", { name: "Close settings" }).click();
 
   await page.getByRole("tab", { name: "All files" }).click();
@@ -1002,6 +1013,9 @@ test("live Library media detail follows metadata through completion", async ({
   ).toHaveCount(6);
   await page.keyboard.press("Escape");
   await expect(card).toBeFocused();
+  await libraryFilters.getByRole("button", { name: /^TV shows/ }).click();
+  await expect(show).toContainText("5 of 5 complete");
+  await libraryFilters.getByRole("button", { name: /^All media/ }).click();
 
   const payloadHash = createHash("sha1");
   for (const relative of JSON.parse(mediaPaths!) as string[]) {
@@ -1010,9 +1024,9 @@ test("live Library media detail follows metadata through completion", async ({
   expect(payloadHash.digest("hex")).toBe(mediaPayloadSha1);
   const unrelated = path.join(storage, "unrelated.keep");
   await fs.writeFile(unrelated, "preserve");
-  await primary.getByRole("button", { name: "Workbench" }).click();
+  await primary.getByRole("button", { name: "Torrents" }).click();
   const removableTorrentRow = page
-    .getByRole("grid", { name: "Torrent library" })
+    .getByRole("grid", { name: "Torrents" })
     .getByRole("row")
     .filter({ hasText: torrentName! });
   await removableTorrentRow.click({ button: "right" });
@@ -1028,7 +1042,7 @@ test("live Library media detail follows metadata through completion", async ({
   await removal
     .getByRole("button", { name: "Remove and delete data" })
     .click();
-  await expect(page.getByText(`Removed ${torrentName!}`, { exact: true })).toBeVisible();
+  await expect(notification(page)).toContainText(`Removed ${torrentName!}`);
   await expect.poll(() => pathExists(directRoot)).toBe(false);
   expect(await fs.readFile(unrelated, "utf8")).toBe("preserve");
   expect(applicationUpgrades).toBe(1);
@@ -1064,22 +1078,21 @@ test("live add-time file selection", async ({ page }) => {
   await addForm.getByRole("button", { name: "Add" }).click();
 
   const addDialog = page.getByRole("dialog", {
-    name: "Choose download options",
+    name: "Add torrent",
   });
   await expect(addDialog).toBeVisible();
-  await expect(addDialog.getByText("Choose files next")).toBeVisible();
   await expect(
     addDialog.getByRole("checkbox", {
-      name: /Start downloading files when metadata is available/,
+      name: "Start downloading right away",
     }),
   ).toHaveCount(0);
   await addDialog.getByRole("button", { name: "Continue" }).click();
   await expect(
-    page.getByRole("region", { name: "Transfers" }).locator("output"),
+    page.getByRole("region", { name: "Torrent collection" }).locator("output"),
   ).toHaveText("Added");
 
   const selection = page.getByRole("dialog").filter({
-    has: page.getByText("Choose files", { exact: true }),
+    has: page.getByText("Choose the files you want to download.", { exact: true }),
   });
   await expect(selection).toBeVisible();
   expect(await fs.readdir(storage)).toEqual([]);
@@ -1109,7 +1122,7 @@ test("live add-time file selection", async ({ page }) => {
   expect(await fs.readdir(storage)).toEqual([]);
   await selection.getByRole("button", { name: "Download" }).click();
 
-  const transfers = page.getByRole("grid", { name: "Transfer queue" });
+  const transfers = page.getByRole("grid", { name: "Torrents" });
   const transferRow = transfers
     .locator("[role=row][data-row-id]")
     .filter({ hasText: torrentName! });
@@ -1124,10 +1137,10 @@ test("live add-time file selection", async ({ page }) => {
   await transferRow.click();
   await page
     .getByRole("navigation", { name: "Primary" })
-    .getByRole("button", { name: "Workbench" })
+    .getByRole("button", { name: "Torrents" })
     .click();
   const torrentRow = page
-    .getByRole("grid", { name: "Torrent library" })
+    .getByRole("grid", { name: "Torrents" })
     .locator(`[data-row-id="${canonicalTorrentId!}"]`);
   await expect(torrentRow).toBeVisible();
   await torrentRow.click();
@@ -1174,7 +1187,7 @@ async function addAndOpenInWorkbench(
   liveMagnet: string,
 ): Promise<Locator> {
   const primary = page.getByRole("navigation", { name: "Primary" });
-  const transfers = page.getByRole("grid", { name: "Transfer queue" });
+  const transfers = page.getByRole("grid", { name: "Torrents" });
   await expect(primary).toBeVisible();
   await expect(transfers).toBeVisible();
   const existingIds = new Set(
@@ -1192,7 +1205,7 @@ async function addAndOpenInWorkbench(
   await input.press("Enter");
   await confirmDefaultAddOptions(page);
   await expect(
-    page.getByRole("region", { name: "Transfers" }).getByRole("status"),
+    page.getByRole("region", { name: "Torrent collection" }).getByRole("status"),
   ).toHaveText("Added");
   let canonicalTorrentId: string | null = null;
   await expect
@@ -1219,9 +1232,9 @@ async function addAndOpenInWorkbench(
     `[data-row-id="${canonicalTorrentId}"]`,
   );
   await transferRow.click();
-  await primary.getByRole("button", { name: "Workbench" }).click();
+  await primary.getByRole("button", { name: "Torrents" }).click();
   const torrentRow = page
-    .getByRole("grid", { name: "Torrent library" })
+    .getByRole("grid", { name: "Torrents" })
     .locator(`[data-row-id="${canonicalTorrentId}"]`);
   await expect(torrentRow).toBeVisible({ timeout: 10_000 });
   await torrentRow.click();
@@ -1235,8 +1248,13 @@ async function scrollToEnd(grid: Locator) {
   });
 }
 
+/** The transient toast that replaced inline action results (Tactical 346). */
+function notification(page: Page): Locator {
+  return page.getByRole("region", { name: "Notification" });
+}
+
 async function confirmDefaultAddOptions(page: Page) {
-  const dialog = page.getByRole("dialog", { name: "Choose download options" });
+  const dialog = page.getByRole("dialog", { name: "Add torrent" });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Add torrent" }).click();
 }

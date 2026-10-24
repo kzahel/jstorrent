@@ -1,34 +1,53 @@
+import { HostOwnedUpdater, reportUpdateActivity } from "../updater/host-owned";
 import { message as localizedMessage } from "../../localization/runtime";
-import {
-  DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW,
-  type AddTorrentBytesRequest,
-  type ApiHello,
-  type ClientSettingsRuntimeView,
-  type CheckingProgressView,
-  type DiagnosticEvent,
-  type FileView,
-  type MediaItemView,
-  type PeerSourceView,
-  type PeerView,
-  type RequestEnvelope,
-  type ResponseEnvelope,
-  type SessionCurrentRatesView,
-  type SpeedHistoryView,
-  type SpeedMetric,
-  type StorageRootSnapshot,
-  type StorageSettingsSnapshot,
-  type SwarmPeerView,
-  type TorrentState,
-  type TorrentPreparationView,
-  type TorrentView,
-  type TrackerView,
-  type ViewSnapshot,
-  type ViewSpec,
+import { markStartup } from "../../startup-timing";
+import type {
+  AddTorrentBytesRequest,
+  ApiHello,
+  ClientSettingsRuntimeView,
+  CheckingProgressView,
+  DiagnosticEvent,
+  FileView,
+  LibraryGroupView,
+  LibraryMediaItemView,
+  MagnetExportOptions,
+  MediaItemView,
+  PeerSourceView,
+  PeerView,
+  RequestEnvelope,
+  ResponseEnvelope,
+  SessionCurrentRatesView,
+  SpeedHistoryView,
+  SpeedMetric,
+  StorageRootSnapshot,
+  StorageSettingsSnapshot,
+  SwarmPeerView,
+  TorrentListImportReport,
+  TorrentListImportTarget,
+  TorrentState,
+  TorrentPreparationView,
+  TorrentView,
+  TrackerView,
+  ViewSnapshot,
+  ViewSpec,
 } from "../../api";
+import { DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW } from "../../api/generated/v1";
 import type { ApplicationViewClient } from "../../api/client";
-import { ViewController, type ViewControllerOptions } from "../../view-controller";
+import type {
+  ViewController,
+  ViewControllerOptions,
+} from "../../view-controller";
+import {
+  abortableDelay,
+  viewStopReason,
+  type ViewConnectionStatus,
+} from "../../view-connection";
 import type { ViewSetState } from "../../view-set-reducer";
 import type { InspectionApplication } from "../application";
+import { supportedCommand, supportedPatch } from "../host-capabilities";
+import { UNSUPPORTED_CALL_MESSAGE, type Command } from "../../api";
+import type { CompatibilityObservation } from "../../compatibility-observations";
+import { ApplicationViewError } from "../../api/errors";
 import type {
   CommandResult,
   DesiredInspectionViews,
@@ -41,15 +60,21 @@ import type {
   InspectionUpdate,
   FileRow,
   FileSet,
+  LibraryGroupRow,
+  LibraryItemRow,
+  LibraryMediaRequest,
+  LibraryMediaSet,
   MediaRow,
   MediaSet,
   LogRow,
+  MagnetShareOptions,
   PeerFlag,
   PeerRow,
   PeerSet,
   SwarmRow,
   SwarmSet,
   PieceMapSet,
+  SessionConnection,
   SpeedInspectionView,
   TorrentCheckingProgress,
   TorrentPreparation,
@@ -59,6 +84,8 @@ import type {
   ViewMaterialization,
 } from "../model";
 import { emptyDiskSet } from "../state";
+import { libraryMediaViewId, sameLibraryRequest } from "../library-browse";
+import { DEFAULT_SPEED_METRICS } from "../speed-preferences";
 import { mapPieceActivity, type MappedPieceActivity } from "./pieces";
 
 const LIBRARY_VIEW_ID = "library";
@@ -76,6 +103,16 @@ const SPEED_VIEW_ID = "session-speed";
 const SESSION_RATES_VIEW_ID = "session-rates";
 const LOGS_VIEW_ID = "logs";
 
+/**
+ * A client loaded on the first attach, so its transport and the generated
+ * validators stay off the first render (Tactical 352).
+ */
+export interface DeferredApplicationClient {
+  readonly load: () => Promise<ApplicationViewClient>;
+  /** Whether the loaded client exports and imports torrent list bundles. */
+  readonly torrentListBundles: boolean;
+}
+
 export interface LiveApplicationOptions extends ViewControllerOptions {
   readonly initialViews?: DesiredInspectionViews;
   readonly storagePolicy?: "portable" | "one_current_root";
@@ -89,6 +126,12 @@ export class LiveApplication implements InspectionApplication {
   private controller: ViewController | null = null;
   private desired: DesiredInspectionViews;
   private snapshot: InspectionSnapshot;
+  private connection: SessionConnection = { type: "connecting" };
+  private trackerClock: {
+    readonly viewSetId: string;
+    readonly epoch: string;
+    readonly offsetMs: number;
+  } | null = null;
   private mappedFiles: {
     readonly source: Extract<ViewSnapshot, { type: "files" }>;
     readonly value: FileSet;
@@ -97,49 +140,203 @@ export class LiveApplication implements InspectionApplication {
     readonly source: Extract<ViewSnapshot, { type: "media" }>;
     readonly value: MediaSet;
   } | null = null;
+  private mappedLibraryMedia: {
+    readonly source: Extract<ViewSnapshot, { type: "library_media" }>;
+    readonly value: LibraryMediaSet;
+  } | null = null;
   private mappedPieces: MappedPieceActivity | null = null;
   private hello: ApiHello | null = null;
+  updater: HostOwnedUpdater | undefined;
+  private stopUpdateActivity: ReturnType<typeof reportUpdateActivity> | undefined;
+  // The latest view-set batch had no server clock; see predatesDownloadAll.
+  private serverClockMissing = false;
+  // False after the connection drops, until hello is read again.
+  private helloCurrent = false;
+  private client: ApplicationViewClient | null;
+  private readonly loadClient: () => Promise<ApplicationViewClient>;
   private closed = false;
   private readonly lifetime = new AbortController();
   private readonly requestInstanceId = generateRequestInstanceId();
   private requestSequence = 1;
   private removeWakeHints: (() => void) | null = null;
+  // Settles once `hello` and the view set exist; rejects on close or stop.
+  private readonly attached: Promise<void>;
+  private settleAttached!: (error?: Error) => void;
+  private attaching: Promise<void> | null = null;
+  private attachWake: AbortController | null = null;
+  readonly exportTorrentList: (() => Promise<boolean>) | undefined;
+  readonly importTorrentBundle:
+    | ((
+        target: TorrentListImportTarget,
+        chooseFile: () => Promise<ArrayBuffer | null>,
+      ) => Promise<TorrentListImportReport | null>)
+    | undefined;
 
   private constructor(
-    private readonly client: ApplicationViewClient,
+    source: ApplicationViewClient | DeferredApplicationClient,
     initialViews: DesiredInspectionViews,
     private readonly storagePolicy: "portable" | "one_current_root",
   ) {
     this.desired = initialViews;
-    this.snapshot = emptyLiveSnapshot(initialViews, "offline");
+    this.snapshot = emptyLiveSnapshot(initialViews, this.connection);
+    this.attached = new Promise<void>((resolve, reject) => {
+      this.settleAttached = (error) => (error === undefined ? resolve() : reject(error));
+    });
+    // Commands await this; an unawaited rejection is not a startup failure.
+    this.attached.catch(() => {});
+    let exportSupported: boolean;
+    let importSupported: boolean;
+    if ("load" in source) {
+      this.client = null;
+      this.loadClient = source.load;
+      exportSupported = source.torrentListBundles;
+      importSupported = source.torrentListBundles;
+    } else {
+      this.client = source;
+      this.loadClient = async () => source;
+      exportSupported = source.exportTorrentList !== undefined;
+      importSupported = source.importTorrentBundle !== undefined;
+    }
+    this.exportTorrentList = !exportSupported
+      ? undefined
+      : async () => {
+          const client = await this.attachedClient();
+          if (client.exportTorrentList === undefined) {
+            throw new Error(localizedMessage("inspection.live.live.application.live.controller.is.unavailable"));
+          }
+          return client.exportTorrentList(this.lifetime.signal);
+        };
+    this.importTorrentBundle = !importSupported
+      ? undefined
+      : async (target, chooseFile) => {
+          const client = await this.attachedClient();
+          if (client.importTorrentBundle === undefined) {
+            throw new Error(localizedMessage("inspection.live.live.application.live.controller.is.unavailable"));
+          }
+          try {
+            return await client.importTorrentBundle(
+              target,
+              chooseFile,
+              this.lifetime.signal,
+            );
+          } finally {
+            this.controller?.requestImmediatePoll();
+          }
+        };
   }
 
+  /** Attaches before resolving and rejects if the first attempt fails. */
   static async open(
     client: ApplicationViewClient,
     options: LiveApplicationOptions = {},
   ): Promise<LiveApplication> {
-    const desired = options.initialViews ?? {
-      library: true,
-      torrentId: null,
-      detail: null,
-      logCapture: null,
-      speed: null,
-    };
-    const application = new LiveApplication(
+    const application = LiveApplication.create(client, options);
+    await application.attach(options);
+    return application;
+  }
+
+  /**
+   * Returns at once in `connecting` so a shell can render, then attaches in
+   * the background. Failed attempts retry with backoff as `reconnecting`;
+   * signed-out and contract failures stop.
+   */
+  static connect(
+    client: ApplicationViewClient | DeferredApplicationClient,
+    options: LiveApplicationOptions = {},
+  ): LiveApplication {
+    const application = LiveApplication.create(client, options);
+    application.attaching = application.attachWithRetry(options);
+    return application;
+  }
+
+  private static create(
+    client: ApplicationViewClient | DeferredApplicationClient,
+    options: LiveApplicationOptions,
+  ): LiveApplication {
+    return new LiveApplication(
       client,
-      desired,
+      options.initialViews ?? {
+        library: true,
+        torrentId: null,
+        detail: null,
+        logCapture: null,
+        speed: null,
+      },
       options.storagePolicy ?? "portable",
     );
-    application.hello = await client.hello();
-    const specs = application.viewSpecs(desired);
-    application.controller = await ViewController.open(
+  }
+
+  private async attach(options: ViewControllerOptions): Promise<void> {
+    const [client, { ViewController }] = await Promise.all([
+      this.client ?? this.loadClient(),
+      import("../../view-controller"),
+    ]);
+    // Owned from here, so close() releases it even if this attach fails.
+    this.client = client;
+    markStartup("client_loaded");
+    this.ensureOpen();
+    this.hello = await client.hello(this.lifetime.signal);
+    this.helloCurrent = true;
+    this.configureHostUpdates(client, this.hello);
+    markStartup("hello");
+    this.ensureOpen();
+    this.snapshot = withHost(this.snapshot, this.hello, this.serverClockMissing);
+    const opened = { ...this.desired };
+    const controller = await ViewController.open(
       client,
-      specs,
-      (state) => application.acceptState(state),
-      (error) => application.markReconnecting(error),
+      this.viewSpecs(opened),
+      (state) => this.acceptState(state),
+      (error) => this.markStale(error),
       options,
+      (status) => this.acceptStatus(status),
     );
-    return application;
+    if (this.closed) {
+      await controller.close().catch(() => {});
+      throw new Error("live application closed");
+    }
+    this.controller = controller;
+    markStartup("view_set_open");
+    this.acceptStatus({ type: "connected" });
+    this.settleAttached();
+    if (!sameViews(opened, this.desired)) {
+      await this.syncViews().catch(() => {});
+    }
+  }
+
+  private async attachWithRetry(options: ViewControllerOptions): Promise<void> {
+    const base = options.retryBaseMillis ?? 250;
+    const maximum = options.retryMaximumMillis ?? 30_000;
+    let retryMillis = base;
+    let since: number | null = null;
+    while (!this.closed) {
+      try {
+        await this.attach(options);
+        return;
+      } catch (error) {
+        if (this.closed) return;
+        const failure = asError(error);
+        console.warn("JSTorrent could not connect to its library:", failure);
+        const reason = viewStopReason(failure);
+        if (reason !== null) {
+          this.acceptStatus({ type: "stopped", reason });
+          this.settleAttached(failure);
+          return;
+        }
+        since ??= Date.now();
+        const wake = new AbortController();
+        this.attachWake = wake;
+        this.acceptStatus({
+          type: "retrying",
+          since,
+          nextAttemptAt: Date.now() + retryMillis,
+        });
+        await abortableDelay(retryMillis, this.lifetime.signal, wake.signal);
+        if (this.attachWake === wake) this.attachWake = null;
+        if (this.closed) return;
+        this.acceptStatus({ type: "retrying", since, nextAttemptAt: null });
+        retryMillis = Math.min(retryMillis * 2, maximum);
+      }
+    }
   }
 
   subscribe(listener: (update: InspectionUpdate) => void): () => void {
@@ -153,7 +350,15 @@ export class LiveApplication implements InspectionApplication {
     this.ensureOpen();
     if (sameViews(this.desired, views)) return;
     this.desired = { ...views };
+    // Before attaching, the view set opens with the latest desired views.
     if (this.controller === null) return;
+    await this.syncViews();
+  }
+
+  private async syncViews(): Promise<void> {
+    const controller = this.controller;
+    if (controller === null) return;
+    const views = this.desired;
     this.snapshot = transitionSnapshot(
       this.snapshot,
       this.desired,
@@ -161,18 +366,31 @@ export class LiveApplication implements InspectionApplication {
     );
     this.emit({ type: "snapshot", snapshot: this.snapshot });
     try {
-      await this.controller.setViews(this.viewSpecs(views));
+      await controller.setViews(this.viewSpecs(views));
     } catch (error) {
-      this.markReconnecting(asError(error));
+      this.markStale(asError(error));
       throw error;
     }
   }
 
   async dispatch(command: InspectionCommand): Promise<CommandResult> {
     this.ensureOpen();
+    // Commands issued while connecting wait. Once attached nothing awaits
+    // here, so open_file keeps its user activation.
+    if (this.controller === null) {
+      try {
+        await this.attached;
+      } catch (error) {
+        return { accepted: false, message: asError(error).message };
+      }
+    }
+    const client = this.client;
+    if (client === null) {
+      return { accepted: false, message: localizedMessage("inspection.live.live.application.live.controller.is.unavailable") };
+    }
     if (command.type === "open_file") {
-      const createMediaUrl = this.client.createMediaUrl?.bind(this.client);
-      const prepareMediaOpen = this.client.prepareMediaOpen?.bind(this.client);
+      const createMediaUrl = client.createMediaUrl?.bind(client);
+      const prepareMediaOpen = client.prepareMediaOpen?.bind(client);
       if (createMediaUrl === undefined || prepareMediaOpen === undefined) {
         return {
           accepted: false,
@@ -201,7 +419,7 @@ export class LiveApplication implements InspectionApplication {
           };
         }
         await target.open(response.outcome.url);
-        return { accepted: true, message: localizedMessage("inspection.live.live.application.opening.file") };
+        return { accepted: true };
       } catch (error) {
         target.cancel();
         return { accepted: false, message: asError(error).message };
@@ -209,7 +427,7 @@ export class LiveApplication implements InspectionApplication {
     }
     if (command.type === "choose_download_root") {
       try {
-        const root = await this.client.chooseDownloadRoot({
+        const root = await client.chooseDownloadRoot({
           ...(command.repairRoot === undefined
             ? {}
             : { repair_root: command.repairRoot }),
@@ -217,7 +435,6 @@ export class LiveApplication implements InspectionApplication {
         if (root === null) {
           return {
             accepted: true,
-            message: localizedMessage("inspection.live.live.application.folder.selection.canceled"),
             storageRoot: null,
           };
         }
@@ -239,7 +456,6 @@ export class LiveApplication implements InspectionApplication {
         this.emit({ type: "snapshot", snapshot: this.snapshot });
         return {
           accepted: true,
-          message: `Download folder ${mapped.label} is ready`,
           storageRoot: mapped,
         };
       } catch (error) {
@@ -247,7 +463,7 @@ export class LiveApplication implements InspectionApplication {
       }
     }
     if (command.type === "add_torrent_bytes") {
-      if (this.client.addTorrentBytes === undefined) {
+      if (client.addTorrentBytes === undefined) {
         return {
           accepted: false,
           message: localizedMessage("inspection.live.live.application.torrent.file.upload.is.unavailable.on.this"),
@@ -262,7 +478,7 @@ export class LiveApplication implements InspectionApplication {
         selection: { type: "all" },
         source_length: command.source.byteLength,
       };
-      const response = await this.client.addTorrentBytes(
+      const response = await client.addTorrentBytes(
         request,
         command.source,
         this.lifetime.signal,
@@ -279,13 +495,13 @@ export class LiveApplication implements InspectionApplication {
       return addCommandResult(response);
     }
     if (command.type === "add_external_torrent") {
-      if (this.client.addExternalTorrent === undefined) {
+      if (client.addExternalTorrent === undefined) {
         return {
           accepted: false,
           message: localizedMessage("inspection.live.live.application.external.torrent.intake.is.unavailable.on.this"),
         };
       }
-      const response = await this.client.addExternalTorrent(
+      const response = await client.addExternalTorrent(
         {
           activation_id: command.activationId,
           request_id: `desktop-${this.requestInstanceId}-${this.requestSequence++}`,
@@ -308,12 +524,15 @@ export class LiveApplication implements InspectionApplication {
     }
     if (
       command.type !== "add_magnet" &&
+      command.type !== "update_file_safety_settings" &&
+      command.type !== "set_file_safety_override" &&
       command.type !== "set_file_priority" &&
       command.type !== "download_files" &&
       command.type !== "set_default_download_root" &&
       command.type !== "set_show_add_options" &&
       command.type !== "set_show_file_selection" &&
       command.type !== "confirm_pending_file_selection" &&
+      command.type !== "download_all_pending_add" &&
       command.type !== "cancel_pending_add" &&
       command.type !== "update_client_settings" &&
       command.type !== "reset_client_settings" &&
@@ -335,15 +554,59 @@ export class LiveApplication implements InspectionApplication {
         message: localizedMessage("inspection.live.live.application.this.command.is.available.only.in.named"),
       };
     }
+    if (
+      command.type === "download_all_pending_add" &&
+      predatesDownloadAll(this.hello, this.serverClockMissing)
+    ) {
+      // Selecting every file in the loaded list does the same there.
+      this.client?.compatibility?.degradedAction("download_all_pending_add");
+      const catalogId = this.snapshot.torrents[command.torrentId]?.fileCatalogId;
+      if (catalogId === null || catalogId === undefined) {
+        return { accepted: false, message: localizedMessage("feedback.file.selection.not.ready") };
+      }
+      return this.dispatch({
+        type: "confirm_pending_file_selection",
+        torrentId: command.torrentId,
+        catalogId,
+        base: "all",
+        overrides: [],
+        disableFuture: command.disableFuture,
+      });
+    }
+    if (
+      (command.type === "update_client_settings" ||
+        command.type === "update_torrent_settings") &&
+      Object.keys(command.patch).length > 0 &&
+      Object.keys(
+        supportedPatch(
+          command.patch,
+          command.type === "update_client_settings"
+            ? "client_settings"
+            : "torrent_settings",
+          this.capabilities(),
+        ),
+      ).length === 0
+    ) {
+      this.client?.compatibility?.degradedAction(command.type);
+      return {
+        accepted: false,
+        message: localizedMessage("inspection.live.live.application.setting.needs.newer.host"),
+      };
+    }
+    if ((command.type === "update_file_safety_settings" || command.type === "set_file_safety_override") && !this.capabilities().has("file_safety")) {
+      return { accepted: false, message: localizedMessage("inspection.live.live.application.setting.needs.newer.host") };
+    }
     const request: RequestEnvelope = {
       version: 1,
       request_id: `web-${this.requestInstanceId}-${this.requestSequence++}`,
-      ...(command.type === "update_client_settings" ||
+      ...(command.type === "update_client_settings" || command.type === "update_file_safety_settings" ||
       command.type === "update_torrent_settings"
         ? { expected_revision: this.snapshot.durableRevision }
         : {}),
       command:
-        command.type === "add_magnet"
+        command.type === "update_file_safety_settings" ? { type: "update_file_safety_settings", settings: command.settings }
+        : command.type === "set_file_safety_override" ? { type: "set_file_safety_override", torrent_id: command.torrentId, file_indices: [...command.fileIndices], allowed: command.allowed }
+        : command.type === "add_magnet"
           ? {
               type: "add_magnet",
               magnet: command.magnet,
@@ -393,20 +656,37 @@ export class LiveApplication implements InspectionApplication {
                   })),
                   disable_future: command.disableFuture,
                 }
+            : command.type === "download_all_pending_add"
+              ? {
+                  type: "download_all_pending_add",
+                  torrent_id: command.torrentId,
+                  disable_future: command.disableFuture,
+                }
             : command.type === "cancel_pending_add"
               ? {
                   type: "cancel_pending_add",
                   torrent_id: command.torrentId,
                 }
               : command.type === "update_client_settings"
-                ? { type: "update_client_settings", patch: command.patch }
+                ? {
+                    type: "update_client_settings",
+                    patch: supportedPatch(
+                      command.patch,
+                      "client_settings",
+                      this.capabilities(),
+                    ),
+                  }
               : command.type === "reset_client_settings"
                 ? { type: "reset_client_settings" }
               : command.type === "update_torrent_settings"
                 ? {
                     type: "update_torrent_settings",
                     torrent_id: command.torrentId,
-                    patch: command.patch,
+                    patch: supportedPatch(
+                      command.patch,
+                      "torrent_settings",
+                      this.capabilities(),
+                    ),
                   }
               : command.type === "remove_download_root"
                 ? {
@@ -419,6 +699,9 @@ export class LiveApplication implements InspectionApplication {
                   ? {
                       type: "export_magnet",
                       torrent_id: command.torrentId,
+                      ...(command.options === undefined
+                        ? {}
+                        : { options: magnetExportOptions(command.options) }),
                     }
                 : command.type === "move_download_to_top" ||
                     command.type === "move_download_to_bottom"
@@ -440,18 +723,40 @@ export class LiveApplication implements InspectionApplication {
                       torrent_id: command.torrentId,
                     },
     };
-    const response = await this.controller?.dispatch(request);
+    const outgoing = supportedCommand(request.command, this.capabilities());
+    this.observeStripped(command, request.command, outgoing);
+    let response;
+    try {
+      response = await this.controller?.dispatch({ ...request, command: outgoing });
+    } catch (error) {
+      // A host may refuse one call, for example a command it predates,
+      // without closing the connection.
+      if (error instanceof ApplicationViewError && error.code === "invalid_call") {
+        return {
+          accepted: false,
+          message:
+            error.detail === UNSUPPORTED_CALL_MESSAGE
+              ? localizedMessage("inspection.live.live.application.request.needs.newer.host")
+              : error.detail,
+        };
+      }
+      throw error;
+    }
     if (response === undefined) {
       return { accepted: false, message: localizedMessage("inspection.live.live.application.live.controller.is.unavailable") };
     }
     if (response.status === "error") {
-      return { accepted: false, message: response.error.message };
+      return {
+        accepted: false,
+        message: response.error.message,
+        code: response.error.code,
+      };
     }
     if (command.type === "export_magnet") {
       return magnetCommandResult(response);
     }
     if (
-      command.type === "update_client_settings" ||
+      command.type === "update_client_settings" || command.type === "update_file_safety_settings" ||
       command.type === "update_torrent_settings"
     ) {
       this.controller?.requestImmediatePoll();
@@ -466,67 +771,49 @@ export class LiveApplication implements InspectionApplication {
     }
     return {
       accepted: true,
-      ...(command.type === "update_client_settings" ||
+      ...(command.type === "update_client_settings" || command.type === "update_file_safety_settings" ||
       command.type === "update_torrent_settings"
         ? {
             requestId: response.request_id,
             resultingRevision: response.revision,
           }
         : {}),
-      message:
-        command.type === "set_file_priority"
-          ? command.priority === "skip"
-            ? "Selected files skipped"
-            : "Selected files set to normal"
-          : command.type === "download_files"
-            ? command.fileIndices.length === 1
-              ? "File requested for download"
-              : "Selected files requested for download"
-          : command.type === "set_default_download_root"
-            ? "Default download folder changed"
-            : command.type === "set_show_add_options"
-              ? command.show
-                ? "Add options will be shown"
-                : "Add options will be skipped when a default is available"
-              : command.type === "set_show_file_selection"
-                ? command.show
-                  ? "File selection will be shown for new torrents"
-                  : "New torrents will start with all files"
-                : command.type === "confirm_pending_file_selection"
-                  ? "File selection confirmed"
-                  : command.type === "cancel_pending_add"
-                    ? "Pending torrent cancelled"
-              : command.type === "update_client_settings"
-                ? "Connection and seeding settings saved"
-              : command.type === "reset_client_settings"
-                ? "Connection and seeding settings restored"
-              : command.type === "update_torrent_settings"
-                ? "Torrent transfer limits saved"
-              : command.type === "remove_download_root"
-                ? "Download folder removed"
-              : command.type === "clear_app_data"
-                ? "Application profile cleared"
-                : command.type === "pause"
-                  ? "Torrent paused"
-                  : command.type === "resume"
-                    ? "Torrent resumed"
-                    : command.type === "move_download_to_top"
-                      ? "Torrent moved to the top of the download queue"
-                      : command.type === "move_download_to_bottom"
-                        ? "Torrent moved to the bottom of the download queue"
-                    : command.type === "force_recheck"
-                      ? "Torrent recheck started"
-                    : command.type === "archive"
-                      ? "Torrent archived"
-                      : command.type === "unarchive"
-                        ? "Torrent restored"
-                        : "Torrent removal started",
     };
+  }
+
+  /** Resolves a file-scoped media URL for in-page playback. */
+  async createMediaUrl(
+    torrentId: string,
+    fileIndex: number,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    this.ensureOpen();
+    if (this.controller === null) await this.attached;
+    const client = this.client;
+    const createMediaUrl = client?.createMediaUrl?.bind(client);
+    if (createMediaUrl === undefined) {
+      throw new Error(localizedMessage("inspection.live.live.application.opening.files.is.unavailable.on.this.connection"));
+    }
+    const response = await createMediaUrl(
+      { torrent_id: torrentId, file_index: fileIndex },
+      signal === undefined
+        ? this.lifetime.signal
+        : AbortSignal.any([signal, this.lifetime.signal]),
+    );
+    if (response.outcome.type === "unavailable") {
+      throw new Error(mediaUnavailableMessage(response.outcome.reason));
+    }
+    return response.outcome.url;
   }
 
   requestImmediatePoll(): void {
     if (this.closed) return;
+    this.attachWake?.abort("immediate attach requested");
     this.controller?.requestImmediatePoll();
+  }
+
+  reconnectNow(): void {
+    this.requestImmediatePoll();
   }
 
   installBrowserWakeHints(targetWindow: Window, targetDocument: Document): void {
@@ -549,33 +836,57 @@ export class LiveApplication implements InspectionApplication {
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
+    this.stopUpdateActivity?.();
+    this.updater?.close();
     this.lifetime.abort("live application closed");
     this.removeWakeHints?.();
     this.removeWakeHints = null;
     this.listeners.clear();
+    this.settleAttached(new Error("live application closed"));
+    await this.attaching?.catch(() => {});
     await this.controller?.close();
-    await this.client.close();
+    await this.client?.close();
   }
 
   private acceptState(state: ViewSetState): void {
     if (this.closed) return;
+    this.serverClockMissing = state.serverNowMillis === "0";
+    if (
+      this.trackerClock?.viewSetId !== state.viewSetId ||
+      this.trackerClock.epoch !== state.epoch
+    ) {
+      // One clock translation per epoch: retained/partial updates cannot move deadlines.
+      this.trackerClock = {
+        viewSetId: state.viewSetId,
+        epoch: state.epoch,
+        offsetMs: performance.now() - safeNumber(state.serverNowMillis),
+      };
+    }
     const files = projection(state, FILES_VIEW_ID, "files");
     const fileSet = this.mapFiles(files);
     const media = projection(state, MEDIA_VIEW_ID, "media");
     const mediaSet = this.mapMedia(media);
     const pieces = projection(state, PIECES_VIEW_ID, "piece_activity");
     const pieceSet = this.mapPieces(pieces, state.epoch);
+    const libraryMediaSet = this.mapLibraryMedia(state);
+    if (state.views[LIBRARY_VIEW_ID] !== undefined) {
+      markStartup("first_library");
+      this.client?.compatibility?.libraryAttached();
+    }
     this.snapshot = mapViewState(
       state,
       this.desired,
       this.capabilities(),
-      "connected",
+      this.connection,
       fileSet,
       mediaSet,
+      libraryMediaSet,
       pieceSet,
       this.snapshot.storage,
       this.snapshot.clientSettings,
+      this.trackerClock.offsetMs,
     );
+    this.snapshot = withHost(this.snapshot, this.hello, this.serverClockMissing);
     this.emit({ type: "snapshot", snapshot: this.snapshot });
   }
 
@@ -627,13 +938,101 @@ export class LiveApplication implements InspectionApplication {
     return value;
   }
 
-  private markReconnecting(error: Error): void {
+  /**
+   * The page answering the current Library request, or while it loads the
+   * last page shown, so a new search does not blank the Library.
+   */
+  private mapLibraryMedia(state: ViewSetState): LibraryMediaSet | null {
+    const request = this.desired.libraryMedia ?? null;
+    if (request === null) {
+      this.mappedLibraryMedia = null;
+      return null;
+    }
+    const source = projection(state, libraryMediaViewId(request), "library_media");
+    if (source === null) return this.mappedLibraryMedia?.value ?? null;
+    if (
+      this.mappedLibraryMedia?.source === source &&
+      sameLibraryRequest(this.mappedLibraryMedia.value.request, request)
+    ) {
+      return this.mappedLibraryMedia.value;
+    }
+    const value = mapLibraryMedia(source, request);
+    this.mappedLibraryMedia = { source, value };
+    return value;
+  }
+
+  private acceptStatus(status: ViewConnectionStatus): void {
+    if (this.closed) return;
+    if (status.type === "retrying") this.helloCurrent = false;
+    // A host can restart with another version or capabilities while the
+    // view set reconnects, so read its hello again.
+    if (status.type === "connected" && !this.helloCurrent && this.controller !== null) {
+      this.helloCurrent = true;
+      void this.refreshHello();
+    }
+    this.connection =
+      status.type === "retrying"
+        ? {
+            type: "reconnecting",
+            since: status.since,
+            nextAttemptAt: status.nextAttemptAt,
+          }
+        : status;
+    this.snapshot = {
+      ...this.snapshot,
+      session: { ...this.snapshot.session, connection: this.connection },
+    };
+    this.emit({ type: "snapshot", snapshot: this.snapshot });
+  }
+
+  private configureHostUpdates(client: ApplicationViewClient, hello: ApiHello): void {
+    if (client.productUpdate && !client.nativeUpdateUi && hello.capabilities.includes("desktop_auto_updates")) {
+      const request = client.productUpdate.bind(client);
+      if (!this.stopUpdateActivity) this.stopUpdateActivity = reportUpdateActivity(request);
+      else this.stopUpdateActivity.refresh();
+      const product = hello.product;
+      const info = { version: product?.version ?? "Not reported", buildId: product?.build_id ?? "unknown",
+        target: product?.target ?? "unknown", arch: "unknown", bundleType: "unknown" as const,
+        checkPrivacy: "preference-controlled" as const };
+      if (this.updater) this.updater.setInfo(info);
+      else this.updater = new HostOwnedUpdater(request, info);
+    } else {
+      this.stopUpdateActivity?.(); this.stopUpdateActivity = undefined;
+      this.updater?.close(); this.updater = undefined;
+    }
+  }
+
+  private async refreshHello(): Promise<void> {
+    const client = this.client;
+    if (client === null) return;
+    let hello: ApiHello;
+    try {
+      hello = await client.hello(this.lifetime.signal);
+    } catch (error) {
+      if (this.closed) return;
+      this.helloCurrent = false;
+      console.warn("JSTorrent could not refresh its host facts:", asError(error));
+      return;
+    }
+    if (this.closed) return;
+    const capabilitiesChanged = !sameStrings(this.hello?.capabilities ?? [], hello.capabilities);
+    this.hello = hello;
+    this.configureHostUpdates(client, hello);
+    this.snapshot = withHost(this.snapshot, hello, this.serverClockMissing);
+    this.emit({ type: "snapshot", snapshot: this.snapshot });
+    if (capabilitiesChanged) await this.syncViews().catch(() => {});
+  }
+
+  private markStale(error: Error): void {
     if (this.closed) return;
     this.snapshot = {
       ...this.snapshot,
-      session: { ...this.snapshot.session, connection: "reconnecting" },
       viewStatus: {
         library: staleIfMaterialized(this.snapshot.viewStatus.library, error),
+        libraryMedia: staleIfMaterialized(
+          this.snapshot.viewStatus.libraryMedia,
+          error,
+        ),
         torrentSummary: staleIfMaterialized(
           this.snapshot.viewStatus.torrentSummary,
           error,
@@ -656,6 +1055,38 @@ export class LiveApplication implements InspectionApplication {
     this.emit({ type: "snapshot", snapshot: this.snapshot });
   }
 
+  private async attachedClient(): Promise<ApplicationViewClient> {
+    this.ensureOpen();
+    await this.attached;
+    const client = this.client;
+    if (client === null) {
+      throw new Error(localizedMessage("inspection.live.live.application.live.controller.is.unavailable"));
+    }
+    return client;
+  }
+
+  /** What this application saw from each host version (Tactical 370). */
+  compatibilityObservations(): readonly CompatibilityObservation[] {
+    return this.client?.compatibility?.snapshot() ?? [];
+  }
+
+  /** Records command fields and settings keys dropped for this host. */
+  private observeStripped(command: InspectionCommand, built: Command, sent: Command): void {
+    const observations = this.client?.compatibility;
+    if (observations === undefined) return;
+    for (const key of Object.keys(built)) {
+      if (!(key in sent)) observations.strippedField(`${built.type}.${key}`);
+    }
+    if (
+      (command.type === "update_client_settings" || command.type === "update_torrent_settings") &&
+      "patch" in built
+    ) {
+      for (const key of Object.keys(command.patch)) {
+        if (!(key in built.patch)) observations.strippedField(`${command.type}.${key}`);
+      }
+    }
+  }
+
   private capabilities(): ReadonlySet<string> {
     return new Set(this.hello?.capabilities ?? []);
   }
@@ -663,16 +1094,21 @@ export class LiveApplication implements InspectionApplication {
   private viewSpecs(views: DesiredInspectionViews): ViewSpec[] {
     const capabilities = this.capabilities();
     const specs: ViewSpec[] = [];
-    const selectedSpeedMetrics = views.speed?.metrics ?? [
-      "payload_received",
-      "staged_write",
-      "payload_verified",
-    ];
+    const selectedSpeedMetrics = views.speed?.metrics ?? DEFAULT_SPEED_METRICS;
     if (views.library && capabilities.has("torrent_list")) {
       specs.push({
         type: "torrent_list",
         view_id: LIBRARY_VIEW_ID,
         delivery: { min_interval_millis: 100 },
+      });
+    }
+    if (views.libraryMedia != null && capabilities.has("library_media")) {
+      specs.push({
+        type: "library_media",
+        view_id: libraryMediaViewId(views.libraryMedia),
+        query: views.libraryMedia.query,
+        page: { offset: views.libraryMedia.offset, limit: views.libraryMedia.limit },
+        delivery: { min_interval_millis: 250 },
       });
     }
     if (views.torrentId !== null && capabilities.has("torrent_summary")) {
@@ -708,7 +1144,7 @@ export class LiveApplication implements InspectionApplication {
       });
     }
     if (
-      views.detail === "swarm" &&
+      wantsSwarm(views.detail) &&
       views.torrentId !== null &&
       capabilities.has("torrent_swarm")
     ) {
@@ -716,7 +1152,7 @@ export class LiveApplication implements InspectionApplication {
         type: "torrent_swarm",
         view_id: SWARM_VIEW_ID,
         torrent_id: views.torrentId,
-        delivery: { min_interval_millis: 100 },
+        delivery: { min_interval_millis: views.detail === "swarm" ? 100 : 1_000 },
       });
     }
     if (
@@ -775,11 +1211,11 @@ export class LiveApplication implements InspectionApplication {
         delivery: { min_interval_millis: 100 },
       });
     }
-    if (views.detail === "dht" && capabilities.has("session_dht")) {
+    if (wantsDht(views.detail) && capabilities.has("session_dht")) {
       specs.push({
         type: "session_dht",
         view_id: DHT_VIEW_ID,
-        delivery: { min_interval_millis: 500 },
+        delivery: { min_interval_millis: views.detail === "dht" ? 500 : 1_000 },
       });
     }
     if (
@@ -826,8 +1262,6 @@ export class LiveApplication implements InspectionApplication {
         "payload_uploaded",
       ]);
       if (views.detail === "speed") {
-        currentMetrics.add("staged_write");
-        currentMetrics.add("payload_verified");
         selectedSpeedMetrics.forEach((metric) => currentMetrics.add(metric));
       }
       specs.push({
@@ -861,13 +1295,12 @@ export class LiveApplication implements InspectionApplication {
 function addCommandResult(response: ResponseEnvelope): CommandResult {
   const result = response.result;
   if (result?.type !== "add_torrent") {
-    return { accepted: true, message: localizedMessage("inspection.live.live.application.added") };
+    return { accepted: true };
   }
   const disposition = result.result.disposition;
   if (disposition.type === "already_present") {
     return {
       accepted: true,
-      message: localizedMessage("inspection.live.live.application.already.in.your.session"),
       torrentId: result.result.torrent_id,
       addDisposition: { type: "already_present" },
     };
@@ -876,10 +1309,6 @@ function addCommandResult(response: ResponseEnvelope): CommandResult {
     const count = disposition.newly_wanted_count;
     return {
       accepted: true,
-      message:
-        count === undefined || count === null
-          ? "File selection expanded"
-          : `${count} additional ${count === 1 ? "file" : "files"} selected`,
       torrentId: result.result.torrent_id,
       addDisposition: {
         type: "selection_expanded",
@@ -889,7 +1318,6 @@ function addCommandResult(response: ResponseEnvelope): CommandResult {
   }
   return {
     accepted: true,
-    message: localizedMessage("inspection.live.live.application.added"),
     torrentId: result.result.torrent_id,
     addDisposition: { type: "added" },
   };
@@ -905,25 +1333,78 @@ function magnetCommandResult(response: ResponseEnvelope): CommandResult {
   }
   return {
     accepted: true,
-    message: localizedMessage("inspection.live.live.application.magnet.link.ready"),
     magnetExport: {
       magnet: result.result.magnet,
       source: result.result.source,
       omittedTrackerCount: result.result.omitted_tracker_count,
+      ...(result.result.peer_hints === undefined
+        ? {}
+        : { peerHints: result.result.peer_hints }),
+      ...(result.result.peer_hint_omission == null
+        ? {}
+        : { peerHintOmission: result.result.peer_hint_omission }),
     },
   };
+}
+
+function magnetExportOptions(options: MagnetShareOptions): MagnetExportOptions {
+  return {
+    ...(options.includeSize === true ? { include_size: true } : {}),
+    ...(options.fileIndices === undefined || options.fileIndices.length === 0
+      ? {}
+      : { file_indices: [...options.fileIndices] }),
+    ...(options.peerHint === true ? { peer_hint: true } : {}),
+  };
+}
+
+function withHost(
+  snapshot: InspectionSnapshot,
+  hello: ApiHello | null,
+  serverClockMissing: boolean,
+): InspectionSnapshot {
+  const host = hello?.product ?? null;
+  const hostCapabilities = hello?.capabilities ?? null;
+  const hostLacksDownloadAll = predatesDownloadAll(hello, serverClockMissing);
+  if (
+    (snapshot.session.host ?? null) === host &&
+    (snapshot.session.hostCapabilities ?? null) === hostCapabilities &&
+    (snapshot.session.hostLacksDownloadAll ?? false) === hostLacksDownloadAll
+  ) {
+    return snapshot;
+  }
+  return {
+    ...snapshot,
+    session: { ...snapshot.session, host, hostCapabilities, hostLacksDownloadAll },
+  };
+}
+
+/**
+ * Desktop 0.3.0 and Android 1.0.28 predate download_all_pending_add and
+ * close the connection on it. Their hello is the same as later released
+ * hosts', but they omit UpdateBatch.server_now_millis (decoded as "0"; a
+ * later host's clock is past 0 by the time it serves a view set). Every
+ * host released since reports its product in the hello.
+ */
+function predatesDownloadAll(hello: ApiHello | null, serverClockMissing: boolean): boolean {
+  return hello !== null && (hello.product ?? null) === null && serverClockMissing;
+}
+
+function sameStrings(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function mapViewState(
   state: ViewSetState,
   desired: DesiredInspectionViews,
   capabilities: ReadonlySet<string>,
-  connection: "connected" | "reconnecting" | "offline",
+  connection: SessionConnection,
   fileSet: FileSet | null,
   mediaSet: MediaSet | null,
+  libraryMediaSet: LibraryMediaSet | null,
   pieceSet: PieceMapSet | null,
   previousStorage: DownloadStorageSettings,
   previousClientSettings: ClientSettingsRuntimeView,
+  trackerClockOffsetMs: number,
 ): InspectionSnapshot {
   const library = projection(state, LIBRARY_VIEW_ID, "torrent_list");
   const summary = projection(state, SUMMARY_VIEW_ID, "torrent");
@@ -985,7 +1466,9 @@ function mapViewState(
     media?.torrent_id !== desired.torrentId
       ? {}
       : { [desired.torrentId]: mediaSet };
-  const trackerSet = trackers === null ? null : mapTrackers(trackers);
+  const trackerSet = trackers === null
+    ? null
+    : mapTrackers(trackers, trackerClockOffsetMs);
   const trackersByTorrent =
     trackerSet === null ||
     desired.torrentId === null ||
@@ -1037,6 +1520,7 @@ function mapViewState(
     swarmByTorrent,
     filesByTorrent,
     mediaByTorrent,
+    libraryMedia: libraryMediaSet,
     trackersByTorrent,
     piecesByTorrent,
     disk: disk === null ? emptyDiskSet() : mapDisk(disk),
@@ -1064,6 +1548,13 @@ function mapViewState(
         library !== null,
         "Torrent library is unavailable",
       ),
+      libraryMedia: materialization(
+        desired.libraryMedia != null,
+        capabilities.has("library_media"),
+        libraryMediaSet !== null &&
+          sameLibraryRequest(libraryMediaSet.request, desired.libraryMedia),
+        "The media library is unavailable",
+      ),
       torrentSummary: materialization(
         desired.torrentId !== null,
         capabilities.has("torrent_summary"),
@@ -1077,7 +1568,7 @@ function mapViewState(
         "Peer inspection is unavailable",
       ),
       swarm: materialization(
-        desired.detail === "swarm",
+        wantsSwarm(desired.detail),
         capabilities.has("torrent_swarm"),
         swarm?.torrent_id === desired.torrentId,
         "Swarm inspection is unavailable",
@@ -1113,7 +1604,7 @@ function mapViewState(
         "Disk inspection is unavailable",
       ),
       dht: materialization(
-        desired.detail === "dht",
+        wantsDht(desired.detail),
         capabilities.has("session_dht"),
         dht !== null,
         "DHT inspection is unavailable",
@@ -1206,6 +1697,7 @@ function transitionSnapshot(
     swarmByTorrent: {},
     filesByTorrent: {},
     mediaByTorrent: {},
+    libraryMedia: desired.libraryMedia == null ? null : current.libraryMedia,
     trackersByTorrent: {},
     piecesByTorrent: {},
     disk: current.disk,
@@ -1222,6 +1714,14 @@ function transitionSnapshot(
         capabilities.has("torrent_list"),
         current.viewStatus.library,
       ),
+      libraryMedia: transitionStatus(
+        desired.libraryMedia != null,
+        capabilities.has("library_media"),
+        current.libraryMedia !== null &&
+          sameLibraryRequest(current.libraryMedia.request, desired.libraryMedia)
+          ? current.viewStatus.libraryMedia
+          : undefined,
+      ),
       torrentSummary: transitionStatus(
         desired.torrentId !== null,
         capabilities.has("torrent_summary"),
@@ -1231,7 +1731,7 @@ function transitionSnapshot(
         capabilities.has("torrent_peers"),
       ),
       swarm: transitionStatus(
-        desired.detail === "swarm",
+        wantsSwarm(desired.detail),
         capabilities.has("torrent_swarm"),
       ),
       files: transitionStatus(
@@ -1256,7 +1756,7 @@ function transitionSnapshot(
         current.viewStatus.disk,
       ),
       dht: transitionStatus(
-        desired.detail === "dht",
+        wantsDht(desired.detail),
         capabilities.has("session_dht"),
         current.viewStatus.dht,
       ),
@@ -1299,7 +1799,7 @@ function mapTorrent(torrent: TorrentView): TorrentRow {
       torrent.display_name ??
       torrent.source_display_name ??
       `Torrent ${torrent.torrent_id.slice(0, 12)}`,
-    status: mapTorrentState(torrent.state),
+    status: mapTorrentState(torrent.state, torrent.progress),
     operationalState: torrent.operational_state,
     queuePosition: torrent.download_queue_position ?? null,
     transferLimits: torrent.transfer_limits,
@@ -1307,6 +1807,11 @@ function mapTorrent(torrent: TorrentView): TorrentRow {
       torrent.total_size_bytes === null
         ? null
         : safeNumber(torrent.total_size_bytes),
+    sourceSizeBytes:
+      torrent.source_size_bytes === undefined ||
+      torrent.source_size_bytes === null
+        ? null
+        : safeNumber(torrent.source_size_bytes),
     progress:
       pieceCount === 0 ? null : torrent.verified_piece_count / pieceCount,
     checking:
@@ -1332,15 +1837,18 @@ function mapTorrent(torrent: TorrentView): TorrentRow {
     shareRatioHundredths: torrent.lifetime.share_ratio_hundredths,
     seedAdmission: torrent.seeding.admission,
     seedGoal: torrent.seeding.goal ?? null,
+    seedStop: torrent.seeding.stop ?? null,
     addedAtMs: null,
     archived: torrent.archived,
     removalState: torrent.removal_state ?? null,
     deleteDataSupported: torrent.delete_data_supported,
     forceRecheckAvailable: torrent.force_recheck_available,
+    privateTorrent: torrent.private_torrent ?? false,
     awaitingFileSelection: torrent.awaiting_file_selection,
     pendingFileSelectionPosition:
       torrent.pending_file_selection_position ?? null,
     fileCatalogId: torrent.file_catalog_id ?? null,
+    safetySummary: torrent.safety_summary ?? null,
     selectableFileCount: torrent.selectable_file_count,
     selectedFileCount: torrent.selected_file_count,
     selectableFileBytes: torrent.selectable_file_bytes,
@@ -1437,7 +1945,10 @@ function mapStorageRoot(root: StorageRootSnapshot): DownloadRoot {
   };
 }
 
-function mapTorrentState(state: TorrentState): TorrentRow["status"] {
+function mapTorrentState(
+  state: TorrentState,
+  progress: TorrentView["progress"],
+): TorrentRow["status"] {
   switch (state) {
     case "awaiting_metadata":
       return "metadata";
@@ -1451,6 +1962,7 @@ function mapTorrentState(state: TorrentState): TorrentRow["status"] {
     case "error":
       return "error";
     case "awaiting_storage":
+      return progress.disposition === "blocked" ? "error" : "downloading";
     case "downloading":
       return "downloading";
   }
@@ -1711,6 +2223,7 @@ function mapFile(
     firstPiece: file.first_piece,
     lastPiece: file.last_piece,
     selection: file.selection,
+    safety: file.safety ?? null,
     padding: file.padding,
     doneBytes: file.done_bytes,
     verifiedBytes: file.verified_bytes,
@@ -1757,7 +2270,7 @@ function mediaUnavailableMessage(reason: import("../../api").MediaFileAvailabili
     case "streamable":
       return localizedMessage("inspection.live.live.application.the.file.is.ready.to.stream");
     case "metadata_unavailable":
-      return localizedMessage("inspection.live.live.application.file.metadata.is.unavailable");
+      return localizedMessage("inspection.live.live.application.file.list.not.available.yet");
     case "invalid_file":
       return localizedMessage("inspection.live.live.application.the.selected.file.no.longer.exists");
     case "padding":
@@ -1784,10 +2297,10 @@ function mediaUnavailableMessage(reason: import("../../api").MediaFileAvailabili
 
 function mapTrackers(
   snapshot: Extract<ViewSnapshot, { type: "trackers" }>,
+  clockOffsetMs: number,
 ): TrackerSet {
-  const observedAtMs = Date.now();
   const rows = snapshot.trackers.map((tracker) =>
-    mapTracker(tracker, snapshot.torrent_id, observedAtMs),
+    mapTracker(tracker, snapshot.torrent_id, clockOffsetMs),
   );
   return {
     state: "available",
@@ -1805,7 +2318,7 @@ function mapTrackers(
 function mapTracker(
   tracker: TrackerView,
   torrentId: string,
-  observedAtMs: number,
+  clockOffsetMs: number,
 ): TrackerRow {
   return {
     id: tracker.tracker_id,
@@ -1825,12 +2338,16 @@ function mapTracker(
     leechers: tracker.leechers,
     intervalSeconds: tracker.interval_seconds,
     nextAction: tracker.next_action,
-    nextActionInMs: safeNullableNumber(tracker.next_action_in_millis),
-    observedAtMs,
-    lastSuccessAgeMs: safeNullableNumber(tracker.last_success_age_millis),
-    lastFailureAgeMs: safeNullableNumber(tracker.last_failure_age_millis),
+    nextActionAtMs: trackerInstant(tracker.next_action_at_millis, clockOffsetMs),
+    lastSuccessAtMs: trackerInstant(tracker.last_success_at_millis, clockOffsetMs),
+    lastFailureAtMs: trackerInstant(tracker.last_failure_at_millis, clockOffsetMs),
     error: tracker.last_error,
   };
+}
+
+function trackerInstant(value: string | null, clockOffsetMs: number): number | null {
+  const instant = safeNullableNumber(value);
+  return instant === null ? null : clockOffsetMs + instant;
 }
 
 function mapPeer(peer: PeerView): PeerRow {
@@ -1939,9 +2456,69 @@ function safeNumber(value: string): number {
   }
 }
 
+function mapLibraryMedia(
+  source: Extract<ViewSnapshot, { type: "library_media" }>,
+  request: LibraryMediaRequest,
+): LibraryMediaSet {
+  return {
+    request,
+    page: {
+      offset: source.page.offset,
+      limit: source.page.limit,
+      total: source.page.total,
+      nextOffset: source.page.next_offset,
+    },
+    facets: source.facets,
+    items: source.items.map(mapLibraryItem),
+    groups: source.groups.map(mapLibraryGroup),
+  };
+}
+
+function mapLibraryItem(item: LibraryMediaItemView): LibraryItemRow {
+  return {
+    id: item.item_id,
+    torrentId: item.torrent_id,
+    torrentName: item.torrent_name,
+    fileIndex: item.file_index,
+    fileName: item.file_name,
+    title: item.title,
+    kind: item.kind,
+    role: item.role,
+    seriesTitle: item.series_title ?? null,
+    seriesId: item.series_id ?? null,
+    seasonNumber: item.season_number ?? null,
+    episodeNumber: item.episode_number ?? null,
+    endingEpisodeNumber: item.ending_episode_number ?? null,
+    albumTitle: item.album_title ?? null,
+    albumId: item.album_id ?? null,
+    discNumber: item.disc_number ?? null,
+    trackNumber: item.track_number ?? null,
+    year: item.year ?? null,
+    extension: item.extension,
+    lengthBytes: item.length_bytes,
+    verifiedBytes: item.verified_bytes,
+    offline: item.offline,
+    archived: item.archived,
+    mediaAvailability: item.media_availability,
+  };
+}
+
+function mapLibraryGroup(group: LibraryGroupView): LibraryGroupRow {
+  return {
+    id: group.group_id,
+    title: group.title,
+    itemCount: group.item_count,
+    offlineCount: group.offline_count,
+    totalBytes: group.total_bytes,
+    seasonCount: group.season_count,
+    torrentCount: group.torrent_count,
+    year: group.year ?? null,
+  };
+}
+
 function emptyLiveSnapshot(
   desired: DesiredInspectionViews,
-  connection: "offline" | "reconnecting",
+  connection: SessionConnection,
 ): InspectionSnapshot {
   return {
     revision: 0,
@@ -1962,6 +2539,7 @@ function emptyLiveSnapshot(
     swarmByTorrent: {},
     filesByTorrent: {},
     mediaByTorrent: {},
+    libraryMedia: null,
     trackersByTorrent: {},
     piecesByTorrent: {},
     disk: emptyDiskSet(),
@@ -1977,10 +2555,12 @@ function emptyLiveSnapshot(
     },
     viewStatus: {
       library: desired.library ? { status: "loading" } : { status: "not_requested" },
+      libraryMedia:
+        desired.libraryMedia == null ? { status: "not_requested" } : { status: "loading" },
       torrentSummary:
         desired.torrentId === null ? { status: "not_requested" } : { status: "loading" },
       peers: desired.detail === "peers" ? { status: "loading" } : { status: "not_requested" },
-      swarm: desired.detail === "swarm" ? { status: "loading" } : { status: "not_requested" },
+      swarm: wantsSwarm(desired.detail) ? { status: "loading" } : { status: "not_requested" },
       files: desired.detail === "files" ? { status: "loading" } : { status: "not_requested" },
       media: desired.detail === "media" ? { status: "loading" } : { status: "not_requested" },
       trackers:
@@ -1992,7 +2572,7 @@ function emptyLiveSnapshot(
           ? { status: "loading" }
           : { status: "not_requested" },
       disk: desired.detail === "disk" ? { status: "loading" } : { status: "not_requested" },
-      dht: desired.detail === "dht" ? { status: "loading" } : { status: "not_requested" },
+      dht: wantsDht(desired.detail) ? { status: "loading" } : { status: "not_requested" },
       speed:
         desired.detail === "speed"
           ? { status: "loading" }
@@ -2002,12 +2582,22 @@ function emptyLiveSnapshot(
   };
 }
 
+// The Trackers tab also lists peers by source and this torrent's DHT search.
+function wantsSwarm(detail: DesiredInspectionViews["detail"]): boolean {
+  return detail === "swarm" || detail === "trackers";
+}
+
+function wantsDht(detail: DesiredInspectionViews["detail"]): boolean {
+  return detail === "dht" || detail === "trackers";
+}
+
 function sameViews(
   left: DesiredInspectionViews,
   right: DesiredInspectionViews,
 ): boolean {
   return (
     left.library === right.library &&
+    sameLibraryRequest(left.libraryMedia, right.libraryMedia) &&
     left.torrentId === right.torrentId &&
     left.detail === right.detail &&
     left.logCapture?.profile === right.logCapture?.profile &&

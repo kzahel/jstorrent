@@ -1,5 +1,6 @@
 # Rust
 /target/
+/fast-ci-plan.json
 
 # JavaScript and web tooling
 /node_modules/
@@ -10,6 +11,7 @@
 
 # Android and Gradle
 .gradle/
+.kotlin/
 **/build/
 /clients/desktop/src-tauri/gen/
 /clients/desktop/src-tauri/binaries/
@@ -41,3 +43,7 @@ __pycache__/
 
 # Reproducible external source references
 /reference/*/
+
+# Local branding audit report, screenshots and evidence
+/docs/evidence/258-brand-audit/
+/docs/evidence/259-finish-line/

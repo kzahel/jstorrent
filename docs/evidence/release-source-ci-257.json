@@ -1,0 +1,72 @@
+{
+  "sourceSha": "f5860c99bbaf6b40c0ba40735071aff6a0b5527d",
+  "runUrl": "https://github.com/kzahel/rstorrent/actions/runs/37236977716",
+  "conclusion": "success",
+  "event": "push",
+  "jobs": [
+    {
+      "name": "Workflow and release tools",
+      "conclusion": "success"
+    },
+    {
+      "name": "Android dual ABI, lint, tests, and owned runtime",
+      "conclusion": "success"
+    },
+    {
+      "name": "Desktop Windows x86_64",
+      "conclusion": "success"
+    },
+    {
+      "name": "Extension tests and companion package",
+      "conclusion": "success"
+    },
+    {
+      "name": "Web type, unit, build, and deterministic E2E",
+      "conclusion": "success"
+    },
+    {
+      "name": "Desktop Linux x86_64",
+      "conclusion": "success"
+    },
+    {
+      "name": "iOS simulator tests and unsigned archive",
+      "conclusion": "success"
+    },
+    {
+      "name": "Rust and loopback interop",
+      "conclusion": "success"
+    },
+    {
+      "name": "Desktop Linux arm64",
+      "conclusion": "success"
+    },
+    {
+      "name": "Desktop macOS arm64",
+      "conclusion": "success"
+    },
+    {
+      "name": "verification-matrix",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "dependency-review",
+      "conclusion": "skipped"
+    }
+  ],
+  "executedPassed": 10,
+  "skipped": 2,
+  "website": {
+    "runUrl": "https://github.com/kzahel/rstorrent/actions/runs/37236977340",
+    "conclusion": "success"
+  },
+  "scope": "Exact product source presubmit; manual verification matrix/dependency-review jobs intentionally do not run on ordinary push",
+  "priorGreenSource": {
+    "sourceSha": "46c19b3abf77e0d9d5ab2fca467a3bc48cf533b4",
+    "runUrl": "https://github.com/kzahel/rstorrent/actions/runs/37232124959",
+    "conclusion": "success",
+    "website": {
+      "runUrl": "https://github.com/kzahel/rstorrent/actions/runs/37232124732",
+      "conclusion": "success"
+    }
+  }
+}

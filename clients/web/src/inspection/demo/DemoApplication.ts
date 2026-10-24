@@ -4,9 +4,11 @@ import type {
   ClientSettings,
   SpeedMetric,
   SpeedRange,
+  SeedStopView,
   TorrentTransferLimits,
 } from "../../api";
 import type {
+  CommandAccepted,
   CommandResult,
   DesiredInspectionViews,
   DemoScenarioId,
@@ -16,6 +18,8 @@ import type {
   InspectionUpdate,
   KeyedPatch,
   FileRow,
+  FileSet,
+  MagnetShareOptions,
   MediaRow,
   LogRow,
   PeerRow,
@@ -27,6 +31,8 @@ import type {
   TrackerRow,
 } from "../model";
 import { emptyDiskSet, emptyPieceMapSet } from "../state";
+import { sameLibraryRequest } from "../library-browse";
+import { demoLibraryMedia } from "./library-media";
 import {
   buildScenarioSnapshot,
   DEMO_BASE_TIME_MS,
@@ -39,6 +45,8 @@ export interface DemoApplicationOptions {
   readonly elapsedMs?: number;
   readonly running?: boolean;
   readonly tickMs?: number;
+  /** False presents the demo as a host without the Library projection. */
+  readonly mediaLibrary?: boolean;
 }
 
 export class DemoApplication implements InspectionApplication {
@@ -49,6 +57,7 @@ export class DemoApplication implements InspectionApplication {
   private elapsedMs: number;
   private running: boolean;
   private readonly tickMs: number;
+  private readonly mediaLibrary: boolean;
   private revision = 1;
   private readonly listeners = new Set<(update: InspectionUpdate) => void>();
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -57,6 +66,7 @@ export class DemoApplication implements InspectionApplication {
   private archived = new Set<string>();
   private removed = new Set<string>();
   private transferLimits = new Map<string, TorrentTransferLimits>();
+  private seedStops = new Map<string, SeedStopView>();
   private clientSettings: ClientSettings | null = null;
   private extraTorrentCount = 0;
   private commandLogs: LogRow[] = [];
@@ -74,6 +84,7 @@ export class DemoApplication implements InspectionApplication {
     this.elapsedMs = clamp(options.elapsedMs ?? 0, 0, scenario.durationMs);
     this.running = options.running ?? scenario.autoplay;
     this.tickMs = clamp(options.tickMs ?? 1_000, 250, 60_000);
+    this.mediaLibrary = options.mediaLibrary ?? true;
     this.snapshot = this.buildSnapshot();
   }
 
@@ -130,26 +141,43 @@ export class DemoApplication implements InspectionApplication {
         this.paused.add(command.torrentId);
         this.addCommandLog("lifecycle", "Torrent paused in demo mode", command.torrentId);
         this.advance(0);
-        return accepted("Torrent paused");
+        return accepted();
       case "resume":
         if (this.snapshot.torrents[command.torrentId] === undefined) return rejected("Torrent is not present");
+        if (this.archived.has(command.torrentId)) {
+          return rejected("Archived torrent must be restored before starting");
+        }
         this.paused.delete(command.torrentId);
+        {
+          // Resuming a torrent stopped by a seeding limit keeps it seeding:
+          // its own limits become No limit, as the engine does.
+          const stop =
+            this.seedStops.get(command.torrentId) ??
+            this.snapshot.torrents[command.torrentId]?.seedStop;
+          if (stop?.stopped === true) {
+            this.seedStops.set(command.torrentId, {
+              limits: { ratio_percent: { type: "off" }, time_seconds: { type: "off" } },
+              stopped: false,
+            });
+          }
+        }
         this.addCommandLog("lifecycle", "Torrent resumed in demo mode", command.torrentId);
         this.advance(0);
-        return accepted("Torrent resumed");
+        return accepted();
       case "move_download_to_top":
       case "move_download_to_bottom":
         return rejected("Queue movement is unavailable in demo scenarios");
       case "archive":
         this.archived.add(command.torrentId);
+        this.paused.add(command.torrentId);
         this.addCommandLog("lifecycle", "Torrent archived in demo mode", command.torrentId);
         this.advance(0);
-        return accepted("Torrent archived");
+        return accepted();
       case "unarchive":
         this.archived.delete(command.torrentId);
         this.addCommandLog("lifecycle", "Torrent restored from archive", command.torrentId);
         this.advance(0);
-        return accepted("Torrent restored");
+        return accepted();
       case "remove":
         if (this.snapshot.torrents[command.torrentId] === undefined) {
           return rejected("Torrent is not present");
@@ -163,12 +191,12 @@ export class DemoApplication implements InspectionApplication {
           command.torrentId,
         );
         this.advance(0);
-        return accepted(command.deleteData ? "Torrent and data removed" : "Torrent removed");
+        return accepted();
       case "add_demo_torrent":
         this.extraTorrentCount = Math.min(8, this.extraTorrentCount + 1);
         this.addCommandLog("lifecycle", "Generated demo transfer added", null);
         this.advance(0);
-        return accepted("Generated demo transfer added");
+        return accepted();
       case "add_magnet":
         return rejected("Live magnet add is unavailable in demo scenarios");
       case "add_torrent_bytes":
@@ -178,18 +206,14 @@ export class DemoApplication implements InspectionApplication {
       case "export_magnet": {
         const torrent = this.snapshot.torrents[command.torrentId];
         if (torrent === undefined) return rejected("Torrent is not present");
-        return {
-          accepted: true,
-          message: localizedMessage("inspection.demo.demo.application.magnet.link.ready"),
-          magnetExport: {
-            magnet:
-              `magnet:?xt=urn:btih:${torrent.infoHash}` +
-              `&dn=${encodeMagnetValue(torrent.name)}`,
-            source: "synthesized",
-            omittedTrackerCount: 0,
-          },
-        };
+        return demoMagnetExport(
+          torrent,
+          this.snapshot.filesByTorrent[command.torrentId],
+          command.options,
+        );
       }
+      case "update_file_safety_settings":
+      case "set_file_safety_override":
       case "set_file_priority":
       case "download_files":
         return rejected("File actions are unavailable in demo scenarios");
@@ -207,6 +231,21 @@ export class DemoApplication implements InspectionApplication {
             upload: command.patch.upload_rate_limit ?? current.upload,
             download: command.patch.download_rate_limit ?? current.download,
           });
+          const stop = this.seedStops.get(command.torrentId) ??
+            torrent.seedStop ?? {
+              limits: {
+                ratio_percent: { type: "use_global" },
+                time_seconds: { type: "use_global" },
+              },
+              stopped: false,
+            };
+          this.seedStops.set(command.torrentId, {
+            ...stop,
+            limits: {
+              ratio_percent: command.patch.seed_stop_ratio_percent ?? stop.limits.ratio_percent,
+              time_seconds: command.patch.seed_stop_time_seconds ?? stop.limits.time_seconds,
+            },
+          });
         }
         this.addCommandLog(
           "policy",
@@ -215,7 +254,7 @@ export class DemoApplication implements InspectionApplication {
         );
         this.advance(0);
         return {
-          ...accepted("Torrent transfer limits saved"),
+          ...accepted(),
           requestId: `demo-${this.revision}`,
           resultingRevision: String(this.revision),
         };
@@ -224,6 +263,7 @@ export class DemoApplication implements InspectionApplication {
       case "set_show_add_options":
       case "set_show_file_selection":
       case "confirm_pending_file_selection":
+      case "download_all_pending_add":
       case "cancel_pending_add":
       case "remove_download_root":
       case "clear_app_data":
@@ -240,7 +280,7 @@ export class DemoApplication implements InspectionApplication {
         );
         this.advance(0);
         return {
-          ...accepted("Connection and seeding settings saved"),
+          ...accepted(),
           requestId: `demo-${this.revision}`,
           resultingRevision: String(this.revision),
         };
@@ -248,6 +288,8 @@ export class DemoApplication implements InspectionApplication {
         return rejected("Settings reset is unavailable in demo scenarios");
     }
   }
+
+  reconnectNow(): void {}
 
   async close(): Promise<void> {
     if (this.closed) return;
@@ -290,9 +332,11 @@ export class DemoApplication implements InspectionApplication {
         this.extraTorrentCount,
         this.commandLogs,
         this.transferLimits,
+        this.seedStops,
         this.clientSettings,
       ),
       this.desiredViews,
+      this.mediaLibrary,
     );
   }
 
@@ -319,6 +363,7 @@ export class DemoApplication implements InspectionApplication {
     this.archived = new Set();
     this.removed = new Set();
     this.transferLimits = new Map();
+    this.seedStops = new Map();
     this.clientSettings = null;
     this.extraTorrentCount = 0;
     this.commandLogs = [];
@@ -353,6 +398,7 @@ function sameDesiredViews(
 ): boolean {
   return (
     left.library === right.library &&
+    sameLibraryRequest(left.libraryMedia, right.libraryMedia) &&
     left.torrentId === right.torrentId &&
     left.detail === right.detail &&
     left.logCapture?.profile === right.logCapture?.profile &&
@@ -365,6 +411,7 @@ function sameDesiredViews(
 function materializeDemoViews(
   source: InspectionSnapshot,
   desired: DesiredInspectionViews,
+  mediaLibrary: boolean,
 ): InspectionSnapshot {
   const selected =
     desired.torrentId === null ? undefined : source.torrents[desired.torrentId];
@@ -382,8 +429,11 @@ function materializeDemoViews(
           },
         }
       : {};
+  // Trackers also lists peers by source, as the live client does.
+  const wantsSwarm = desired.detail === "swarm" || desired.detail === "trackers";
+  const wantsDht = desired.detail === "dht" || desired.detail === "trackers";
   const swarmByTorrent =
-    desired.detail === "swarm" && desired.torrentId !== null
+    wantsSwarm && desired.torrentId !== null
       ? {
           [desired.torrentId]: source.swarmByTorrent[desired.torrentId] ?? {
             state: "inactive" as const,
@@ -454,10 +504,14 @@ function materializeDemoViews(
     swarmByTorrent,
     filesByTorrent,
     mediaByTorrent,
+    libraryMedia:
+      desired.libraryMedia == null || !mediaLibrary
+        ? null
+        : demoLibraryMedia(source, desired.libraryMedia),
     trackersByTorrent,
     piecesByTorrent,
     disk: desired.detail === "disk" ? source.disk : emptyDiskSet(),
-    dht: desired.detail === "dht" ? source.dht : null,
+    dht: wantsDht ? source.dht : null,
     speed:
       desired.detail === "speed"
         ? materializeDemoSpeed(source.speed, desired.speed)
@@ -477,6 +531,11 @@ function materializeDemoViews(
       library: desired.library
         ? { status: "ready" }
         : { status: "not_requested" },
+      libraryMedia: !mediaLibrary
+        ? source.viewStatus.libraryMedia
+        : desired.libraryMedia == null
+          ? { status: "not_requested" }
+          : { status: "ready" },
       torrentSummary:
         desired.torrentId === null
           ? { status: "not_requested" }
@@ -488,7 +547,7 @@ function materializeDemoViews(
           ? { status: "ready" }
           : { status: "not_requested" },
       swarm:
-        desired.detail === "swarm"
+        wantsSwarm
           ? { status: "ready" }
           : { status: "not_requested" },
       files:
@@ -512,7 +571,7 @@ function materializeDemoViews(
           ? { status: "ready" }
           : { status: "not_requested" },
       dht:
-        desired.detail === "dht"
+        wantsDht
           ? source.viewStatus.dht
           : { status: "not_requested" },
       speed:
@@ -641,6 +700,7 @@ function applyOverlays(
   extraTorrentCount: number,
   commandLogs: readonly LogRow[],
   transferLimits: ReadonlyMap<string, TorrentTransferLimits>,
+  seedStops: ReadonlyMap<string, SeedStopView>,
   clientSettings: ClientSettings | null,
 ): InspectionSnapshot {
   const torrents: Record<string, TorrentRow> = {};
@@ -648,17 +708,37 @@ function applyOverlays(
     if (removed.has(id)) continue;
     const row = source.torrents[id];
     if (row === undefined) continue;
+    const seedStop = seedStops.get(id) ?? row.seedStop ?? null;
+    // A limit-stopped scenario torrent that was resumed seeds again.
+    const keptSeeding =
+      row.seedStop?.stopped === true && seedStop?.stopped === false && !paused.has(id);
+    const base: TorrentRow = keptSeeding
+      ? {
+          ...row,
+          status: "complete",
+          operationalState: "seeding",
+          seedAdmission: "active",
+          seedGoal: row.seedGoal ?? {
+            status: "met",
+            share_ratio_met: true,
+            finished_download_ratio_met: false,
+            finished_time_met: false,
+          },
+          progressReason: "Seeding in demo mode",
+        }
+      : row;
     torrents[id] = {
-      ...row,
-      transferLimits: transferLimits.get(id) ?? row.transferLimits,
-      status: paused.has(id) ? "paused" : row.status,
-      operationalState: paused.has(id) ? "paused" : row.operationalState,
+      ...base,
+      seedStop,
+      transferLimits: transferLimits.get(id) ?? base.transferLimits,
+      status: paused.has(id) ? "paused" : base.status,
+      operationalState: paused.has(id) ? "paused" : base.operationalState,
       archived: archived.has(id),
-      downloadRate: paused.has(id) ? 0 : row.downloadRate,
-      uploadRate: paused.has(id) ? 0 : row.uploadRate,
-      etaDownloadRateBytes: paused.has(id) ? "0" : row.etaDownloadRateBytes,
-      eta: paused.has(id) ? { state: "unavailable" } : row.eta,
-      progressReason: paused.has(id) ? "Paused in demo mode" : row.progressReason,
+      downloadRate: paused.has(id) ? 0 : base.downloadRate,
+      uploadRate: paused.has(id) ? 0 : base.uploadRate,
+      etaDownloadRateBytes: paused.has(id) ? "0" : base.etaDownloadRateBytes,
+      eta: paused.has(id) ? { state: "unavailable" } : base.eta,
+      progressReason: paused.has(id) ? "Paused in demo mode" : base.progressReason,
     };
   }
 
@@ -703,6 +783,7 @@ function applyOverlays(
       removalState: null,
       deleteDataSupported: true,
       forceRecheckAvailable: false,
+      privateTorrent: false,
       infoHash,
       error: null,
       progressReason: "Generated by the demo adapter",
@@ -1029,6 +1110,9 @@ function diffSnapshots(
       ? { pieces: next.piecesByTorrent }
       : {}),
     ...(!sameDisk(previous.disk, next.disk) ? { disk: next.disk } : {}),
+    ...(JSON.stringify(previous.libraryMedia) === JSON.stringify(next.libraryMedia)
+      ? {}
+      : { libraryMedia: next.libraryMedia }),
     ...(appendedLogs.length === 0
       ? {}
       : {
@@ -1098,12 +1182,99 @@ function arraysEqual(
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
-function accepted(message: string): CommandResult {
-  return { accepted: true, message };
+/** Only scenario commands describe themselves, for the scenario bar. */
+function accepted(message?: string): CommandAccepted {
+  return message === undefined ? { accepted: true } : { accepted: true, message };
 }
 
 function rejected(message: string): CommandResult {
   return { accepted: false, message };
+}
+
+/**
+ * The demo's `export_magnet`, with Tactical 357 share options: `xl` from the
+ * size, `so` ranges checked against a published file list, and a fake
+ * local-network peer hint unless the torrent is private or has no metadata.
+ */
+function demoMagnetExport(
+  torrent: TorrentRow,
+  files: FileSet | undefined,
+  options: MagnetShareOptions | undefined,
+): CommandResult {
+  let magnet =
+    `magnet:?xt=urn:btih:${torrent.infoHash}` +
+    `&dn=${encodeMagnetValue(torrent.name)}`;
+  const result = {
+    accepted: true as const,
+    message: localizedMessage("inspection.demo.demo.application.magnet.link.ready"),
+  };
+  if (options === undefined) {
+    return {
+      ...result,
+      magnetExport: { magnet, source: "synthesized", omittedTrackerCount: 0 },
+    };
+  }
+  const metadata = torrent.sizeBytes !== null;
+  const indices = options.fileIndices ?? [];
+  if (indices.length > 0) {
+    if (!metadata) return rejected("Torrent metadata is not available yet");
+    if (indices.length > 4096) return rejected("Too many files selected");
+    const known =
+      files === undefined || files.state !== "available"
+        ? null
+        : new Set(
+            Object.values(files.rows)
+              .filter((row) => !row.padding)
+              .map((row) => row.index),
+          );
+    if (known !== null && indices.some((index) => !known.has(index))) {
+      return rejected("File index is not in this torrent");
+    }
+  }
+  if (options.includeSize === true && metadata) {
+    magnet += `&xl=${torrent.sizeBytes}`;
+  }
+  if (indices.length > 0) magnet += `&so=${selectOnlyRanges(indices)}`;
+  const hint = { endpoint: "192.168.1.20:6881", scope: "local_network" as const };
+  const peerHint =
+    options.peerHint !== true
+      ? {}
+      : torrent.privateTorrent === true
+        ? { peerHints: [], peerHintOmission: "private_torrent" as const }
+        : !metadata
+          ? { peerHints: [], peerHintOmission: "metadata_pending" as const }
+          : { peerHints: [hint] };
+  if ("peerHints" in peerHint && peerHint.peerHints.length > 0) {
+    magnet += `&x.pe=${hint.endpoint}`;
+  }
+  return {
+    ...result,
+    magnetExport: {
+      magnet,
+      source: "synthesized",
+      omittedTrackerCount: 0,
+      ...peerHint,
+    },
+  };
+}
+
+/** BEP 53 `so`: sorted indices as `0,2-4`. */
+function selectOnlyRanges(indices: readonly number[]): string {
+  const sorted = [...new Set(indices)].sort((left, right) => left - right);
+  const ranges: string[] = [];
+  let start = sorted[0]!;
+  let end = start;
+  for (const index of sorted.slice(1)) {
+    if (index === end + 1) {
+      end = index;
+      continue;
+    }
+    ranges.push(start === end ? `${start}` : `${start}-${end}`);
+    start = index;
+    end = index;
+  }
+  ranges.push(start === end ? `${start}` : `${start}-${end}`);
+  return ranges.join(",");
 }
 
 function encodeMagnetValue(value: string): string {

@@ -1,7 +1,7 @@
 # Reference Implementations And Provenance
 
 RSTorrent is independently implemented, but it uses specifications and other
-clients as sources of behavioral evidence.
+BitTorrent clients as sources of behavioral evidence.
 
 ## Reference Policy
 
@@ -74,8 +74,9 @@ This managed checkout is pinned to the exact upstream revision in
 generated from a May 2020 snapshot. The original reStructuredText retains
 document metadata, history, and each BEP's copyright section.
 
-Where deployed clients disagree with a specification, record the observed
-compatibility behavior rather than silently replacing the documented contract.
+Where deployed BitTorrent clients disagree with a specification, record the
+observed compatibility behavior rather than silently replacing the documented
+contract.
 
 ## Direct Remote Transport References
 
@@ -192,6 +193,10 @@ file before importing material.
   Boost Software License 1.0, while its optional `simulation/libsimulator`
   submodule is GPL-3.0.
 - JSTorrent is MIT.
+- qBittorrent source is GPL-2.0-or-later with GPL-3.0-or-later binary assets,
+  and Transmission is GPL-2.0 or GPL-3.0 (checked 2026-10-14). They are
+  behavior and test references only; no source, fixture, test data or asset
+  from either may enter RSTorrent.
 - The official BitTorrent BEP repository does not currently state a
   repository-wide license, and individual document statements vary. Cite and
   independently summarize protocol behavior rather than copying BEP prose or
@@ -254,6 +259,14 @@ its own state, ownership, and implementation.
 
 ## Chrome Extension And Native-Messaging References
 
+Tactical 253's dedicated-localhost route uses [RFC 6761 section 6.3](https://www.rfc-editor.org/rfc/rfc6761.html#section-6.3),
+Chromium's [localhost resolution change](https://codereview.chromium.org/938093003/),
+and the [ChromeOS forwarding contract](https://www.chromium.org/chromium-os/developer-library/reference/security/port-forwarding/).
+[RFC 6265 section 8.5](https://www.rfc-editor.org/rfc/rfc6265.html#section-8.5)
+explains why cookies do not isolate ports. A dedicated hostname with host-only
+cookies avoids bare-localhost sharing; it does not provide per-port isolation.
+Tests are independently authored; no source or fixtures are imported.
+
 Tactical
 [`166`](tactical/166-desktop-native-bootstrap-and-extension-scaffold.md) uses
 Chrome's official platform contracts:
@@ -289,11 +302,18 @@ or source is imported.
 
 ## JSTorrent
 
-Repository: [kzahel/jstorrent](https://github.com/kzahel/jstorrent)
+Tactical [245](tactical/245-android-legacy-inventory-and-import-contract.md)
+selects Android release `android-v1.0.24`, source
+`7b454be4410385f9c4f7f135cb6b16194a2b0409`, for the Android migration
+inventory. Its exact KV/native-store/root/preferences/manifest code and tests,
+public APK digest/certificate inspection, and independently authored fixture
+provenance are recorded in the tactical and
+[Android replacement topic](topics/android-jstorrent-replacement.md). No
+reference source, fixture or APK is imported into this repository.
 
-Typical local checkout: `~/code/jstorrent`
+Repository: [kzahel/jstorrent-typescript](https://github.com/kzahel/jstorrent-typescript)
 
-Managed reference entry: `../jstorrent`, first-party `main`
+Managed reference entry: `../jstorrent-typescript`, first-party `main`
 
 JSTorrent is the closest product reference because it captures the maintainer's
 existing torrent behavior and platform lessons. High-value areas include:
@@ -412,7 +432,7 @@ construction or a platform trust store.
 
 Accepted Tactical
 [`190`](tactical/190-opaque-wasm-relay-foundation.md) selects an account-free
-OPAQUE native-host/browser-Wasm proof through a controlled dumb relay. The
+OPAQUE host/browser-Wasm proof through a controlled dumb relay. The
 normative sources are [RFC 9807](https://www.rfc-editor.org/rfc/rfc9807.html)
 for OPAQUE, [RFC 9497](https://www.rfc-editor.org/rfc/rfc9497.html) for its
 VOPRF, and [RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html) for
@@ -598,8 +618,9 @@ Project: [rqbit](https://github.com/ikatson/rqbit)
 
 Library documentation: [librqbit](https://docs.rs/librqbit/)
 
-Managed source checkout: `reference/rqbit`, pinned to the exact current 9.0
-release-candidate development revision recorded in `reference/pins.toml`
+Managed source checkout: `reference/rqbit`, pinned to release `v9.0.1`
+(`a499d2f243d124e144aef137afe7cb304a6e3f36`). Tacticals before 2026-10-14 cite
+the earlier 9.0 development revision `4e5f94cbcf1d57ec500885c77cf1e24d70232d89`.
 
 rqbit is a BitTorrent client written natively in Rust. `librqbit` is its
 reusable engine crate and exposes torrent sessions, torrent and magnet inputs,
@@ -618,6 +639,26 @@ RSTorrent does not adopt librqbit as its engine. It remains useful for:
 
 If RSTorrent ever imports rqbit source or fixtures, review and record the exact
 license and provenance at that time.
+
+## qBittorrent And Transmission
+
+Sources: [qbittorrent/qBittorrent](https://github.com/qbittorrent/qBittorrent)
+and [transmission/transmission](https://github.com/transmission/transmission)
+
+Managed source checkouts: `reference/qbittorrent`, pinned to `release-5.2.4`,
+and `reference/transmission`, pinned to `4.1.3`. Both are required entries in
+`reference/pins.toml`.
+
+These mature clients are application-policy references, not protocol oracles.
+libtorrent's seed goals only rank the seed queue, so product behavior such as
+stopping a torrent at a share ratio or seeding time, per-torrent overrides,
+queue interaction and how a stopped-by-limit torrent is presented must come
+from clients. qBittorrent shows that policy layered over libtorrent;
+Transmission shows an independent engine's choices. Record exact paths,
+functions and tests in the owning tactical, as for libtorrent.
+
+Both are GPL. Read them for behavior and tests only and write RSTorrent's
+implementation and tests independently.
 
 ## MSE/PE References
 
@@ -677,3 +718,117 @@ executing either prospective reference as an oracle, pin its exact source and
 record the build recipe. Before copying, linking, vendoring, or distributing
 it, repeat the exact file-level license, notice, modification, dependency, and
 platform review required by the reference policy above.
+
+## Final AppImage Runtime Provenance
+
+Tactical259's final source8c AppImages embed
+[`type2-runtime` revision8f39b89](https://github.com/AppImage/type2-runtime/tree/8f39b89e2ac31e1640b3d3f7e9a5108e6ce805fa).
+Independent ELF-boundary and complete runtime-byte comparison binds both
+architectures to the upstream assets from
+[build36463736478](https://github.com/AppImage/type2-runtime/actions/runs/36463736478),
+allowing only the named16-byte `.digest_md5` payload-digest field.
+The pinned [license](https://github.com/AppImage/type2-runtime/blob/8f39b89e2ac31e1640b3d3f7e9a5108e6ce805fa/LICENSE),
+`BUILD.md`, `.github/workflows/build.yaml`, `src/runtime/Makefile`,
+`scripts/common/install-dependencies.sh` and `patches/libfuse/mount.c.diff`
+are inspected for provenance and static dependency/build inputs. The license
+lists separate static-library terms; dependency builds pin and patch libfuse
+3.15.0 and pin squashfuse0.5.2. Inspection does not establish complete
+corresponding-source/relink availability or per-package redistribution
+acceptance. R-05 retains those requirements. No upstream source or fixture is
+imported into the public repository by this inspection.
+
+Tactical282 independently matches both final8c `AppRun.wrapped` hashes with
+[Tauri's apprun-old mirror](https://github.com/tauri-apps/binary-releases/releases/tag/apprun-old)
+and the original [AppImageKit release](https://github.com/AppImage/AppImageKit/releases/tag/continuous).
+The upstream-declared source revision is
+`5735cc5bed206497cddfbd2a75e1982c2606c35d`;
+[`src/AppRun.c`](https://github.com/AppImage/AppImageKit/blob/5735cc5bed206497cddfbd2a75e1982c2606c35d/src/AppRun.c)
+and `src/CMakeLists.txt` are inspected for the original MIT notice and target.
+`distribution/licenses/apprun-source.json` binds the exact original1271-byte
+initial copyright/license comment, source/archive hashes and origin. Only that
+notice is imported, under its MIT terms, to preserve Simon Peter/RazZziel
+attribution. No implementation source is copied. The legacy upstream release
+is marked obsolete; archived build metadata returns404. Exact asset equality
+and source provenance do not establish a reproducible build, security support
+or complete native redistribution/source/relink acceptance; R-05 remains open.
+
+Tactical259 also inspects the original seven runtime/dependency source archives
+and ten root license/copyright files. Exact libfuse3.15.0/squashfuse0.5.2 archive
+hashes match the pinned dependency script. The official Alpine GitHub mirror
+recipes at the upstream build date bind musl1.2.5-r11
+(`8999cf56154b9bd09c995f293d8dfd3aa8001e3a`), zlib1.3.2-r0
+(`2b38f55109add14f4f99a974c2fdf421b6b9e9e9`), zstd1.5.6-r2
+(`5c2ddf18f193dafdd25ae7391d96c7e30766eecd`) and mimalloc2.1.7-r0
+(`5a1a5dc3216a69e3cd66a57ee07cb5ef01b8be39`). All original archive SHA-512s
+and16 auxiliary input hashes verify; twelve patches apply cleanly in temporary
+owned sources. The upstream runtime notice list omits mimalloc despite both
+logged static link commands. No implementation source is imported into Git.
+
+Alpine's subsequent zlib1.3.2-r1
+[backport](https://github.com/alpinelinux/aports/commit/c973d294927355eac1d2a6e97d86e41fbab8ffda)
+and the [upstream fix](https://github.com/madler/zlib/commit/df84af25dc1942490e1d1c899a07619152a46148)
+address CVE-2026-85091 in nonblocking gzip writes. The exact signed runtime
+prefixes' matching upstream debug assets verify official release SHA-256,
+GNU debuglink CRC and build-id bytes. No affected gzip-write symbols/object file
+appear among their2,056/1,881 defined functions; the selected109 C/header files
+also have no gzip-write calls. Treat this as a scoped absence inference, not
+full native vulnerability or source/build/reproducibility clearance. A separate
+owned x64 runtime build and object/archive relink prototype uses fixed1.3.2-r1,
+passes independently hashed exports/version/help and complete cleanup/off/claim
+release, but does not replace the original signed runtime or deliver a source
+or relink offer. R-05 and independent WebKit/OpenSSL/ABI holds remain open.
+
+## Unattended Desktop Updating
+
+Tactical [355](tactical/355-automatic-updates.md) inspects the locked
+`tauri-plugin-updater` 2.10.1 `src/updater.rs` download/signature, NSIS arguments
+and exit paths, `tauri-utils` 2.9.3 `src/config.rs::ToTokens for WindowsConfig`
+(which deliberately omits NSIS packaging options), and `tauri-build` 2.6.3's
+merged configuration input. These MIT/Apache-2.0 framework sources are read
+for integration semantics, not imported as an installer implementation.
+Synthetic payloads, signer vectors and native focus/input observers are
+independently authored. Disposable signing keys never enter the repository;
+only the public signature verification fixture is retained.
+
+Microsoft’s [application manifest documentation](https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests)
+and [ordinary-privilege execution guidance](https://learn.microsoft.com/en-us/windows/win32/secbp/running-with-administrator-privileges)
+explain explicit `asInvoker` execution and installer-detection heuristics. The
+qualification VM returned Win32 error 740 for the copied helper without that
+declaration; the executable now declares ordinary privileges explicitly.
+
+Windows visibility qualification also inspects locked Tao 0.35.3
+`platform_impl/windows/event_loop.rs::create_event_target_window` and
+`tauri-plugin-single-instance` 2.4.3 `platform_impl/windows.rs` message targets.
+Their non-presenting layered helper windows deliberately carry `WS_VISIBLE`;
+observer exclusions require exact classes and their complete extended styles.
+
+The [locked CLI 2.11.4 bundler](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.11.4/crates/tauri-bundler/src/bundle.rs)
+patches one `UNK` package marker to `NSS` for NSIS, then restores the unsigned
+build-cache executable. The Windows synthetic hash oracle applies exactly
+that one verified marker transformation in memory and compares every byte;
+it does not accept a version string or ignore arbitrary binary differences.
+
+Microsoft’s [ShowWindow](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow)
+and [ShowWindowAsync](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindowasync)
+contracts define minimized non-activation and asynchronous GUI delivery. The
+Windows minimized fixture verifies actual visible/iconic A/B windows and
+unchanged foreground, rather than accepting a successfully posted request.
+
+## Release security dependencies (Tactical 379)
+
+The workspace locks registry rustls 0.23.46 and ZIP 9.0.4; Cargo.lock owns
+checksums. ZIP and its typed-path 0.12.3 dependency retain permissive registry
+licenses; cargo-about generates exact-target notices. No upstream source or
+fixture is copied into first-party code. The ZIP-4 compatibility fixture is
+independently authored data with its own provenance README.
+
+Security behavior is checked against upstream rustls pull requests
+[3299](https://github.com/rustls/rustls/pull/3299),
+[3300](https://github.com/rustls/rustls/pull/3300),
+[3297](https://github.com/rustls/rustls/pull/3297) and
+[3355](https://github.com/rustls/rustls/pull/3355), and ZIP advisories
+[privileged mode bits](https://github.com/zip-rs/zip2/security/advisories/GHSA-vv5m-jxxh-4627),
+[symlink targets](https://github.com/zip-rs/zip2/security/advisories/GHSA-4v9h-p7m9-rh26)
+and [symlink permissions](https://github.com/zip-rs/zip2/security/advisories/GHSA-4684-h2q9-2vcp).
+The tauri-plugin-updater 2.10.1 source paths in Tactical 379 prove removing its
+optional ZIP feature preserves the shipped raw installers and macOS tar.gz.

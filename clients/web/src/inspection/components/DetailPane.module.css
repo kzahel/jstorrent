@@ -6,13 +6,31 @@
   background: var(--surface-primary);
 }
 
-.tabs {
+/* Tabs share their row with the open table's count and column controls. */
+.tabBar {
   display: flex;
   flex: 0 0 auto;
+  min-width: 0;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-primary);
+}
+
+.tabs {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
   overflow-x: auto;
-  border-bottom: 1px solid var(--border-strong);
-  background: var(--surface-secondary);
   scrollbar-width: thin;
+}
+
+.tableToolbarSlot {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+
+.tableToolbarSlot:empty {
+  display: none;
 }
 
 .tabs button {
@@ -29,14 +47,14 @@
   background: transparent;
   font: inherit;
   font-size: var(--ui-font-small);
-  font-weight: 600;
+  font-weight: var(--weight-medium);
   cursor: pointer;
 }
 
-.tabs button[data-tab-scope="session"]:first-of-type,
+/* Session views follow a divider. They are not pushed to the far end, so
+   the table controls beside the tabs never move a tab. */
 .tabs button[data-tab-id="disk"] {
-  margin-left: auto;
-  border-left: 1px solid var(--border-strong);
+  border-left: 1px solid var(--border-soft);
 }
 
 .tabs button::after {
@@ -69,108 +87,138 @@
   flex: 1;
 }
 
-.mobileHeading {
-  display: none;
-}
-
 .general {
   overflow: auto;
   height: 100%;
   padding: var(--ui-space-lg);
 }
 
-.summaryCard {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: calc(var(--ui-space-lg) * 1.5);
-  border: 1px solid var(--border-soft);
-  border-radius: 0.72rem;
-  padding: var(--ui-space-md) var(--ui-space-lg);
-  background: var(--surface-secondary);
+/* Stop-limit lines sit together, one per limit. */
+.seedStop {
+  display: grid;
+  gap: var(--ui-space-xs);
+  margin: 1em 0;
 }
 
-.summaryCard h2 {
-  margin: 0 0 0.38rem;
-  font-size: var(--ui-font-heading);
-}
-
-.summaryCard p {
+.seedStop p {
   margin: 0;
+}
+
+.generalHeader {
+  display: grid;
+  gap: var(--ui-space-xs);
+  margin-bottom: var(--ui-space-lg);
+}
+
+.generalTitle {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--ui-space-md);
+}
+
+.generalTitle h2 {
+  overflow: hidden;
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  font-size: var(--ui-font-heading);
+  font-weight: var(--weight-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copyActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ui-space-xs);
+}
+
+.privateHint {
+  margin: var(--ui-space-xs) 0 0;
   color: var(--text-secondary);
   font-size: var(--ui-font-small);
 }
 
-.eyebrow {
-  margin: 0 0 0.25rem !important;
-  color: var(--accent-strong) !important;
-  font-size: var(--ui-font-caption) !important;
-  font-weight: 750;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+.copyButton {
+  display: inline-grid;
+  flex: none;
+  width: var(--ui-control-height);
+  height: var(--ui-control-height);
+  place-items: center;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 0;
+  color: var(--text-secondary);
+  background: var(--surface-primary);
+  font-size: var(--ui-icon-size);
+  cursor: pointer;
 }
 
-.largeProgress {
-  display: grid;
-  flex: 0 0 12rem;
-  gap: 0.4rem;
+.copyButton:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
 }
 
-.largeProgress strong {
-  font-size: var(--ui-font-display);
+.copyButton:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.generalStatus {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ui-space-md);
+  color: var(--text-secondary);
+  font-size: var(--ui-font-small);
+}
+
+.generalStatus strong {
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
   font-variant-numeric: tabular-nums;
-  text-align: right;
 }
 
-.largeProgress > span {
+.generalProgress {
+  display: block;
   overflow: hidden;
-  height: 0.45rem;
-  border-radius: 999px;
+  height: 0.3rem;
+  border-radius: var(--radius-full);
   background: var(--progress-track);
 }
 
-.largeProgress > span > span {
+.generalProgress > span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--accent);
+  background: var(--water);
 }
 
-.largeProgress > span[data-indeterminate="true"] {
+.generalProgress[data-indeterminate="true"] {
   background: repeating-linear-gradient(
     135deg,
-    color-mix(in srgb, var(--accent) 55%, var(--progress-track)) 0 0.5rem,
+    color-mix(in srgb, var(--water) 55%, var(--progress-track)) 0 0.5rem,
     var(--progress-track) 0.5rem 1rem
   );
 }
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(8rem, 1fr));
-  gap: 0;
-  margin: 1rem 0;
-  border: 1px solid var(--border-soft);
-  border-radius: 0.72rem;
-  background: var(--surface-primary);
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--ui-space-md) var(--ui-space-lg);
+  margin: 0 0 var(--ui-space-lg);
 }
 
 .metrics > div {
   display: grid;
-  gap: 0.25rem;
-  border-right: 1px solid var(--border-soft);
-  border-bottom: 1px solid var(--border-soft);
-  padding: 0.78rem;
+  gap: 0.15rem;
+  min-width: 0;
 }
 
-.metrics > div:nth-child(4n) {
-  border-right: 0;
-}
-
-.metrics > div:nth-last-child(-n + 4) {
-  border-bottom: 0;
-}
-
-.metrics dt {
+.metrics dt,
+.identities dt {
   color: var(--text-muted);
   font-size: var(--ui-font-caption);
 }
@@ -178,36 +226,40 @@
 .metrics dd {
   margin: 0;
   font-size: var(--ui-font-body);
-  font-weight: 680;
+  font-weight: var(--weight-medium);
   font-variant-numeric: tabular-nums;
-  text-transform: capitalize;
 }
 
-.checkingMetrics {
-  grid-template-columns: repeat(5, minmax(8rem, 1fr));
-}
-
-.checkingMetrics > div {
-  border-bottom: 0;
-}
-
-.checkingMetrics > div:nth-child(5n) {
-  border-right: 0;
-}
-
-.identity {
+.identities {
   display: grid;
-  grid-template-columns: 6rem minmax(0, 1fr);
-  gap: 0.8rem;
-  color: var(--text-muted);
-  font-size: var(--ui-font-small);
+  gap: var(--ui-space-sm);
+  margin: 0;
+  border-top: 1px solid var(--border-soft);
+  padding-top: var(--ui-space-md);
 }
 
-.identity code {
+.identities > div {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ui-space-md);
+}
+
+.identities dd {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--ui-space-sm);
+  margin: 0;
+}
+
+.identities code {
   overflow: hidden;
   color: var(--text-secondary);
   font-family: var(--font-mono);
+  font-size: var(--ui-font-small);
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .error {
@@ -215,7 +267,7 @@
   gap: 0.2rem;
   margin-top: 1rem;
   border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border-soft));
-  border-radius: 0.6rem;
+  border-radius: var(--radius-md);
   padding: 0.75rem;
   color: var(--danger-strong);
   background: var(--danger-soft);
@@ -257,70 +309,71 @@
   height: 2.5rem;
   margin-bottom: 0.7rem;
   place-items: center;
-  border-radius: 0.72rem;
+  border-radius: var(--radius-lg);
   color: var(--accent-strong);
   background: var(--selection);
   font-size: var(--ui-font-heading);
 }
 
-@media (max-width: 900px) {
-  .metrics {
-    grid-template-columns: repeat(2, minmax(8rem, 1fr));
-  }
-
-  .metrics > div:nth-child(2n) {
-    border-right: 0;
-  }
-
-  .metrics > div:nth-last-child(-n + 4) {
-    border-bottom: 1px solid var(--border-soft);
-  }
-
-  .metrics > div:nth-last-child(-n + 2) {
-    border-bottom: 0;
-  }
-}
-
 @media (max-width: 760px) {
-  .mobileHeading {
+  /* The full-screen detail's app bar replaces the application header. */
+  .appBar {
     display: flex;
+    height: var(--ui-header-height);
+    flex: none;
     align-items: center;
-    gap: 0.65rem;
-    min-height: 44px;
-    border-bottom: 1px solid var(--border-strong);
-    padding: 0 0.55rem;
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--border-soft);
+    padding: 0 var(--ui-header-padding-inline);
+    background: var(--surface-secondary);
   }
 
-  .mobileHeading button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.28rem;
-    border: 0;
-    padding: 0.42rem;
-    color: var(--accent-strong);
-    background: transparent;
-    font: inherit;
-    font-size: var(--ui-font-small);
-    font-weight: 700;
-  }
-
-  .mobileHeading strong {
+  .appBar strong {
     overflow: hidden;
+    min-width: 0;
+    flex: 1;
+    margin-left: 0.25rem;
     color: var(--text-primary);
     font-size: var(--ui-font-body);
+    font-weight: var(--weight-strong);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-}
 
-@media (max-width: 700px) {
-  .summaryCard {
+  .appBarButton {
     display: grid;
-    gap: 1rem;
+    width: var(--ui-control-height);
+    height: var(--ui-control-height);
+    flex: none;
+    place-items: center;
+    border: 0;
+    border-radius: var(--radius-md);
+    padding: 0;
+    color: var(--text-secondary);
+    background: transparent;
+    font-size: var(--ui-icon-size);
+    cursor: pointer;
   }
 
-  .largeProgress {
-    width: 100%;
-    flex-basis: auto;
+  .appBarButton:hover {
+    color: var(--text-primary);
+    background: var(--surface-hover);
+  }
+
+  .appBarButton:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
+  }
+
+  .appBarButton svg {
+    width: calc(var(--ui-icon-size) * 1.15);
+    height: calc(var(--ui-icon-size) * 1.15);
+  }
+
+  /* Session views open from the drawer, so the tabs are torrent views only,
+     and a session view stands alone. */
+  .tabs button[data-tab-scope="session"],
+  .detail[data-session-view="true"] .tabBar {
+    display: none;
   }
 }

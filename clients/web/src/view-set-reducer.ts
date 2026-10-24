@@ -28,12 +28,15 @@ export interface ViewSetState {
   epoch: string;
   cursor: string;
   durableRevision: string;
+  serverNowMillis: string;
   views: Record<string, ViewSnapshot>;
   deliveryResetCount: number;
   lastDeliveryResetReason: string | null;
 }
 
-export class ViewSetContinuityError extends Error {}
+import { ViewSetContinuityError } from "./api/errors";
+
+export { ViewSetContinuityError };
 
 export function reduceOpenViewSet(response: OpenViewSetResponse): ViewSetState {
   if (response.initial.view_set_id !== response.view_set_id) {
@@ -86,6 +89,7 @@ export function reduceUpdateBatch(
     epoch: batch.epoch,
     cursor: batch.cursor,
     durableRevision: batch.durable_revision,
+    serverNowMillis: batch.server_now_millis,
     views: state?.epoch === batch.epoch ? { ...state.views } : {},
     deliveryResetCount:
       (state?.deliveryResetCount ?? 0) +
@@ -188,6 +192,13 @@ function cloneSnapshot(snapshot: ViewSnapshot): ViewSnapshot {
         ...snapshot,
         events: [...snapshot.events],
         retention: { ...snapshot.retention },
+      };
+    case "library_media":
+      return {
+        ...snapshot,
+        facets: { ...snapshot.facets },
+        items: [...snapshot.items],
+        groups: [...snapshot.groups],
       };
   }
 }
@@ -395,6 +406,25 @@ function applyPatch(snapshot: ViewSnapshot, patch: ViewPatch): ViewSnapshot {
         items: [...items.values()],
       };
     }
+    case "library_media": {
+      if (snapshot.type !== "library_media") throw new Error("unreachable");
+      // A patch only refreshes rows already on the delivered page; anything
+      // that changes membership or order arrives as a snapshot.
+      const positions = new Map(
+        snapshot.items.map((item, position) => [item.item_id, position]),
+      );
+      const items = [...snapshot.items];
+      for (const item of patch.upsert) {
+        const position = positions.get(item.item_id);
+        if (position === undefined) {
+          throw new ViewSetContinuityError(
+            "library patch refers to an item outside its page",
+          );
+        }
+        items[position] = item;
+      }
+      return { ...snapshot, items };
+    }
     case "trackers": {
       if (snapshot.type !== "trackers") throw new Error("unreachable");
       const trackers = new Map(
@@ -427,9 +457,9 @@ function requireUniqueFields(
   fields: ReadonlyArray<{ readonly field: string }>,
   row: string,
 ): void {
-  if (fields.length === 0) {
-    throw new ViewSetContinuityError(`${row} update has no fields`);
-  }
+  // Validation rejects an empty update from the host; one is empty here only
+  // when every field was of a kind this client does not know, which changes
+  // nothing it shows.
   const kinds = new Set(fields.map((field) => field.field));
   if (kinds.size !== fields.length) {
     throw new ViewSetContinuityError(`${row} update repeats a field`);
@@ -450,15 +480,18 @@ function applyTorrentUpdate(
       case "protocol_identities": next.protocol_identities = field.value; break;
       case "display_name": next.display_name = field.value; break;
       case "source_display_name": next.source_display_name = field.value; break;
+      case "source_size_bytes": next.source_size_bytes = field.value; break;
       case "state": next.state = field.value; break;
       case "operational_state": next.operational_state = field.value; break;
       case "download_queue_position": next.download_queue_position = field.value; break;
       case "transfer_limits": next.transfer_limits = field.value; break;
       case "storage_state": next.storage_state = field.value; break;
       case "metadata_available": next.metadata_available = field.value; break;
+      case "private_torrent": next.private_torrent = field.value; break;
       case "awaiting_file_selection": next.awaiting_file_selection = field.value; break;
       case "pending_file_selection_position": next.pending_file_selection_position = field.value; break;
       case "file_catalog_id": next.file_catalog_id = field.value; break;
+      case "safety_summary": next.safety_summary = field.value; break;
       case "selectable_file_count": next.selectable_file_count = field.value; break;
       case "selected_file_count": next.selected_file_count = field.value; break;
       case "selectable_file_bytes": next.selectable_file_bytes = field.value; break;
@@ -501,6 +534,7 @@ function applyFileUpdate(file: FileView, update: FileRowUpdate): FileView {
   for (const field of update.fields) {
     switch (field.field) {
       case "selection": next.selection = field.value; break;
+      case "safety": next.safety = field.value; break;
       case "done_bytes": next.done_bytes = field.value; break;
       case "verified_bytes": next.verified_bytes = field.value; break;
       case "media_availability": next.media_availability = field.value; break;

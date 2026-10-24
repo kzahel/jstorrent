@@ -7,6 +7,8 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
+use futures_util::{StreamExt, TryStreamExt, stream};
+
 use rstorrent_protocol::content::TorrentContent;
 use rstorrent_protocol::identity::{InfoHashes, SwarmKey};
 use rstorrent_protocol::metainfo::Metainfo;
@@ -28,6 +30,10 @@ use crate::storage_file_pool::{
 
 /// Maximum payload prepared by one verified logical-file read.
 pub const MAX_VERIFIED_FILE_READ_BYTES: usize = 64 * 1024;
+
+// Match the Android provider worker window without opening any descriptors.
+// These futures stay owned by the seed opener and are dropped on cancellation.
+const SEED_OBSERVATION_CONCURRENCY: usize = 4;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct VerifiedFileSnapshot {
@@ -661,44 +667,49 @@ impl SeedContent {
             ));
         }
 
-        let mut files = Vec::with_capacity(layout.files().len());
-        for ((file, logical), reference) in
-            layout.files().iter().zip(&artifact.files).zip(references)
-        {
-            if file.padding || !selection.is_wanted(logical.file_index) {
-                files.push(None);
-                continue;
-            }
-            let label = format!("payload file {}", logical.file_index);
-            let physical_length = completed.map_or(file.length, |proof| {
-                proof.expected_length(logical.file_index, file.length)
-            });
-            let observation = reference.observe().await;
-            let readable = observation.is_ok_and(|observation| {
-                observation.exists
-                    && observation.kind == Some(StorageObjectKind::File)
-                    && observation.length == Some(physical_length)
-            });
-            if !readable {
-                files.push(None);
-                continue;
-            }
-            let pieces = layout
-                .file_piece_range(logical.file_index)
-                .map_err(SeedContentError::Layout)?
-                .into_iter()
-                .flatten()
-                .map(|piece| {
-                    usize::try_from(piece).map_err(|_| SeedContentError::ArithmeticOverflow)
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            files.push(Some(SeedFile {
-                label,
-                expected_length: physical_length,
-                reference,
-                pieces,
-            }));
-        }
+        let files: Vec<_> = stream::iter(references.into_iter().enumerate())
+            .map(|(index, reference)| {
+                let file = &layout.files()[index];
+                let logical = &artifact.files[index];
+                let layout = &layout;
+                let selection = &selection;
+                async move {
+                    if file.padding || !selection.is_wanted(logical.file_index) {
+                        return Ok(None);
+                    }
+                    let label = format!("payload file {}", logical.file_index);
+                    let physical_length = completed.map_or(file.length, |proof| {
+                        proof.expected_length(logical.file_index, file.length)
+                    });
+                    let observation = reference.observe().await;
+                    let readable = observation.is_ok_and(|observation| {
+                        observation.exists
+                            && observation.kind == Some(StorageObjectKind::File)
+                            && observation.length == Some(physical_length)
+                    });
+                    if !readable {
+                        return Ok(None);
+                    }
+                    let pieces = layout
+                        .file_piece_range(logical.file_index)
+                        .map_err(SeedContentError::Layout)?
+                        .into_iter()
+                        .flatten()
+                        .map(|piece| {
+                            usize::try_from(piece).map_err(|_| SeedContentError::ArithmeticOverflow)
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Ok(Some(SeedFile {
+                        label,
+                        expected_length: physical_length,
+                        reference,
+                        pieces,
+                    }))
+                }
+            })
+            .buffered(SEED_OBSERVATION_CONCURRENCY)
+            .try_collect::<Vec<_>>()
+            .await?;
 
         let mut available = Vec::with_capacity(layout.piece_count());
         for (piece, verified) in verified.iter().copied().enumerate() {
@@ -1583,5 +1594,142 @@ mod tests {
         pool.shutdown().await.expect("shutdown");
         provider.abort();
         tokio::fs::remove_dir_all(root).await.expect("remove root");
+    }
+    fn startup_metainfo() -> Metainfo {
+        Metainfo {
+            info_hash: [7; 20],
+            piece_hashes: vec![[8; 20]; 10],
+            piece_length: 4,
+            total_length: 40,
+            name: "tree".to_owned(),
+            private: false,
+            mode: MetainfoMode::MultiFile,
+            files: (0..10)
+                .map(|index| MetainfoFile {
+                    path: vec![format!("file{index}")],
+                    length: 4,
+                    offset: index * 4,
+                    padding: index == 9,
+                })
+                .collect(),
+        }
+    }
+
+    async fn pending_startup() -> (
+        tokio::task::JoinHandle<Result<SeedContent, SeedContentError>>,
+        StorageFilePool,
+        Arc<crate::storage_file_pool::PlatformStorageBroker>,
+    ) {
+        let (client, broker) = platform_storage_channel();
+        let pool = StorageFilePool::new(1, Some(client)).expect("pool");
+        let owned_pool = pool.clone();
+        let open = tokio::spawn(async move {
+            SeedContent::open_verified_with_platform(
+                &PlatformStorageSpec {
+                    pool: owned_pool,
+                    root_id: "root".to_owned(),
+                    storage_id: "startup".to_owned(),
+                    content_name: "tree".to_owned(),
+                    content_shape: ContentShape::Tree,
+                    storage_generation: 1,
+                },
+                &startup_metainfo(),
+                &[true, true, true, true, true, false, true, true, true, true],
+                &[8],
+            )
+            .await
+        });
+        let root = broker.next_request().await.expect("root request");
+        assert_eq!(root.operation, PlatformStorageOperation::Observe);
+        broker.complete_observation(
+            root.request_id,
+            StorageObservation::present(StorageObjectKind::Directory, None, None).unwrap(),
+        );
+        (open, pool, broker)
+    }
+
+    async fn startup_batch(
+        broker: &crate::storage_file_pool::PlatformStorageBroker,
+    ) -> Vec<crate::storage_file_pool::PlatformStorageRequest> {
+        let mut requests = Vec::new();
+        for _ in 0..4 {
+            requests.push(
+                tokio::time::timeout(std::time::Duration::from_secs(2), broker.next_request())
+                    .await
+                    .expect("four observations must overlap")
+                    .expect("file request"),
+            );
+        }
+        requests
+    }
+
+    #[tokio::test]
+    async fn startup_observations_overlap_with_bounded_ordered_integrity() {
+        let (open, pool, broker) = pending_startup().await;
+        for batch in 0..2 {
+            let requests = startup_batch(&broker).await;
+            assert_eq!(pool.snapshot().platform_pending, 4);
+            assert!(
+                tokio::time::timeout(std::time::Duration::from_millis(10), broker.next_request())
+                    .await
+                    .is_err(),
+                "no fifth observation"
+            );
+            for (offset, request) in requests.into_iter().enumerate().rev() {
+                let index = batch * 4 + offset;
+                assert_eq!(request.path, ["tree", &format!("file{index}")]);
+                assert_eq!(request.operation, PlatformStorageOperation::Observe);
+                assert_eq!(request.access, StorageFileAccess::ReadExisting);
+                if index == 4 {
+                    broker.complete_error(
+                        request.request_id,
+                        PlatformStorageFailure::new(
+                            PlatformStorageFailureKind::ProviderRefused,
+                            "refused",
+                        ),
+                    );
+                } else {
+                    let observation = match index {
+                        1 => StorageObservation::missing(),
+                        2 => StorageObservation::present(StorageObjectKind::Directory, None, None)
+                            .unwrap(),
+                        3 => StorageObservation::present(StorageObjectKind::File, Some(3), None)
+                            .unwrap(),
+                        _ => StorageObservation::present(StorageObjectKind::File, Some(4), None)
+                            .unwrap(),
+                    };
+                    broker.complete_observation(request.request_id, observation);
+                }
+            }
+        }
+        let content = open.await.unwrap().unwrap();
+        assert_eq!(
+            content.availability(),
+            [
+                true, false, false, false, false, false, true, true, false, true
+            ]
+        );
+        let snapshot = pool.snapshot();
+        assert_eq!(snapshot.platform_pending_high_water, 4);
+        assert_eq!(snapshot.platform_pending, 0);
+        assert_eq!(snapshot.owned_high_water, 0);
+        pool.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancelling_startup_drops_all_observation_waiters() {
+        let (open, pool, broker) = pending_startup().await;
+        let requests = startup_batch(&broker).await;
+        open.abort();
+        assert!(open.await.unwrap_err().is_cancelled());
+        assert_eq!(pool.snapshot().platform_pending, 0);
+        for request in requests {
+            assert!(!broker.complete_observation(
+                request.request_id,
+                StorageObservation::present(StorageObjectKind::File, Some(4), None).unwrap()
+            ));
+        }
+        assert_eq!(pool.snapshot().owned_high_water, 0);
+        pool.shutdown().await.unwrap();
     }
 }

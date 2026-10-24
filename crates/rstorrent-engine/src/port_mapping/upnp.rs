@@ -39,7 +39,7 @@ pub const MAX_ERROR_DETAIL_BYTES: usize = 512;
 
 const WAN_IP_CONNECTION_V2: &str = "urn:schemas-upnp-org:service:WANIPConnection:2";
 const WAN_IPV6_FIREWALL_CONTROL_V1: &str = "urn:schemas-upnp-org:service:WANIPv6FirewallControl:1";
-const MAPPING_DESCRIPTION: &str = "RSTorrent";
+const MAPPING_DESCRIPTION: &str = "JSTorrent";
 const DISCOVERY_ATTEMPTS: usize = 3;
 const DISCOVERY_WINDOW: Duration = Duration::from_millis(900);
 const DISCOVERY_DEADLINE: Duration = Duration::from_secs(8);
@@ -2828,7 +2828,7 @@ mod tests {
                             "200 OK",
                             soap_response(
                                 action,
-                                "<NewInternalPort>42000</NewInternalPort><NewInternalClient>127.0.0.1</NewInternalClient><NewEnabled>1</NewEnabled><NewPortMappingDescription>RSTorrent</NewPortMappingDescription><NewLeaseDuration>3600</NewLeaseDuration>",
+                                "<NewInternalPort>42000</NewInternalPort><NewInternalClient>127.0.0.1</NewInternalClient><NewEnabled>1</NewEnabled><NewPortMappingDescription>JSTorrent</NewPortMappingDescription><NewLeaseDuration>3600</NewLeaseDuration>",
                             ),
                             false,
                         ),

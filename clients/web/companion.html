@@ -2,16 +2,27 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/src/assets/jstorrent.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
-    <title data-l10n-id="shell.companion.title">RSTorrent Android</title>
+    <title data-l10n-id="shell.companion.title">JSTorrent Android</title>
   </head>
   <body>
     <header id="companion-identity" hidden></header>
     <section id="companion-bootstrap">
-      <h1 data-l10n-id="shell.companion.title">RSTorrent Android</h1>
+      <img class="companion-logo" src="/src/assets/jstorrent.png" width="56" height="56" alt="" />
+      <h1 data-l10n-id="shell.companion.title">JSTorrent Android</h1>
       <p id="companion-status" role="status" data-l10n-id="shell.companion.loading">Starting the Android connection…</p>
+      <a id="companion-update-android" hidden href="https://play.google.com/store/apps/details?id=com.jstorrent.app" target="_blank" rel="noopener noreferrer" data-l10n-id="android.companion.open-update">Open JSTorrent in Google Play</a>
+      <a id="companion-update-extension" class="companion-action-link" hidden href="https://chromewebstore.google.com/detail/dbokmlpefliilbjldladbimlcfgbolhk" target="_blank" rel="noopener noreferrer" data-l10n-id="companion.open-extension-update">Open JSTorrent in Chrome Web Store</a>
+      <a id="companion-open-android" class="companion-action-link" href="intent://chromeos-companion#Intent;scheme=jstorrent;package=com.jstorrent.app;end" data-l10n-id="android.companion.open-android">Open JSTorrent Android</a>
+      <button id="companion-permission" type="button" hidden data-l10n-id="android.companion.grant-access">Allow Android connection</button>
       <button id="companion-cancel" type="button" data-l10n-id="shell.companion.cancel">Cancel</button>
+      <p><a id="companion-help" href="../crostini/setup.html#android" target="_blank" rel="noopener noreferrer" data-l10n-id="android.companion.help">Setup and troubleshooting</a></p>
+      <p><a id="companion-linux" href="../crostini/setup.html#linux" target="_blank" rel="noopener noreferrer" data-l10n-id="android.companion.linux">Use Linux instead</a></p>
+      <button id="companion-preview" type="button" data-l10n-id="android.companion.support-preview">Preview support info</button>
+      <p id="companion-context-privacy" hidden data-l10n-id="android.companion.support-privacy">Review before copying or sharing. This contains no file paths, accounts, passwords or torrent details. Nothing is uploaded.</p>
+      <textarea id="companion-context" hidden readonly aria-labelledby="companion-preview" rows="16"></textarea>
     </section>
     <main id="app"></main>
     <script type="module" src="/src/companion-main.ts"></script>

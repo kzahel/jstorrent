@@ -1,5 +1,6 @@
 .filePanel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-height: 0;
@@ -7,6 +8,7 @@
 
 .summary {
   display: flex;
+  align-items: center;
   min-width: 0;
   gap: 1rem;
   border-bottom: 1px solid var(--border-soft);
@@ -16,38 +18,24 @@
   font-size: var(--ui-font-caption);
 }
 
+.tableToolbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  margin-left: auto;
+}
+
 .storagePath {
   overflow: hidden;
-  margin-left: auto;
+  min-width: 0;
+  flex: 1 1 auto;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.commandStatus {
-  overflow: hidden;
-  max-width: 18rem;
-  color: var(--text-secondary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cancelSave {
-  min-height: var(--ui-control-height);
-  border: 1px solid var(--border-strong);
-  border-radius: 0.48rem;
-  padding: 0 var(--ui-space-sm);
-  color: var(--text-primary);
-  background: var(--surface-secondary);
-  font: inherit;
-  font-size: var(--ui-font-small);
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
 }
 
 .name {
   overflow: hidden;
-  font-weight: 620;
+  font-weight: var(--weight-medium);
   text-overflow: ellipsis;
 }
 
@@ -60,15 +48,15 @@
 }
 
 .priority[data-selection="high"] {
-  color: var(--accent-strong);
-  font-weight: 650;
+  color: var(--accent);
+  font-weight: var(--weight-medium);
 }
 
 .filePanel :global([role="row"][data-current="true"]) .priority[data-selection="skipped"],
 .filePanel :global([role="row"][data-selected="true"])
   .priority[data-selection="skipped"] {
   color: var(--text-primary);
-  font-weight: 650;
+  font-weight: var(--weight-medium);
 }
 
 .progress {
@@ -83,7 +71,7 @@
 .progress > span {
   overflow: hidden;
   height: 0.32rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--progress-track);
 }
 
@@ -91,7 +79,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--accent);
+  background: var(--water);
 }
 
 @media (max-width: 700px) {
@@ -99,3 +87,7 @@
     display: none;
   }
 }
+
+.safety { display: flex; align-items: center; gap: 0.5rem; min-width: 0; width: 100%; }
+.safety > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
+.safety > button { flex: none; font: inherit; color: var(--accent-strong); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); background: var(--surface-primary); }

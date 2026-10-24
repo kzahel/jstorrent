@@ -8,6 +8,8 @@ import {
   formatEta,
   formatExactBytes,
   formatRate,
+  torrentRemovalActive,
+  torrentRemovalLabel,
   torrentVisibleProgress,
 } from "./format";
 import type { TorrentCheckingPhase, TorrentRow } from "./model";
@@ -30,12 +32,12 @@ describe("byte formatting", () => {
   it.each([
     [0, "0 B", "0 B"],
     [1_023, "1023 B", "1023 B"],
-    [1_024, "1.0 KiB", "1.0 KiB"],
-    [1_048_575, "1024 KiB", "1023 KiB"],
-    [1_048_576, "1.0 MiB", "1.0 MiB"],
-    [1_073_741_824, "1.0 GiB", "1.0 GiB"],
-    [1_099_511_627_776, "1.0 TiB", "1.0 TiB"],
-    [1_125_899_906_842_624, "1.0 PiB", "1.0 PiB"],
+    [1_024, "1.0 KB", "1.0 KB"],
+    [1_048_575, "1024 KB", "1023 KB"],
+    [1_048_576, "1.0 MB", "1.0 MB"],
+    [1_073_741_824, "1.0 GB", "1.0 GB"],
+    [1_099_511_627_776, "1.0 TB", "1.0 TB"],
+    [1_125_899_906_842_624, "1.0 PB", "1.0 PB"],
   ])("formats %s bytes in binary units", (value, numberText, exactText) => {
     expect(formatBytes(value, "binary")).toBe(numberText);
     expect(formatExactBytes(String(value), "binary")).toBe(exactText);
@@ -47,17 +49,17 @@ describe("byte formatting", () => {
     expect(formatRate(0, "decimal")).toBe("—");
     expect(formatRate(null, "binary")).toBe("—");
     expect(formatRate(1_000, "decimal")).toBe("1.0 kB/s");
-    expect(formatRate(1_024, "binary")).toBe("1.0 KiB/s");
+    expect(formatRate(1_024, "binary")).toBe("1.0 KB/s");
   });
 
   it("keeps exact integer inputs precise above Number.MAX_SAFE_INTEGER", () => {
     expect(formatExactBytes("9007199254740993", "decimal")).toBe("9.0 PB");
-    expect(formatExactBytes("9007199254740993", "binary")).toBe("8.0 PiB");
+    expect(formatExactBytes("9007199254740993", "binary")).toBe("8.0 PB");
     expect(formatExactBytes("999999999999999999999999", "decimal")).toBe(
       "999999999 PB",
     );
     expect(formatExactBytes("999999999999999999999999", "binary")).toBe(
-      "888178419 PiB",
+      "888178419 PB",
     );
   });
 });
@@ -128,5 +130,20 @@ describe("checker formatting", () => {
   it("uses exact checker counters only while hashing", () => {
     expect(checkingStatusLabel(row("hashing"))).toBe("Checked 25.0%");
     expect(torrentVisibleProgress(row("hashing"))).toBe(0.25);
+  });
+});
+
+describe("removal formatting", () => {
+  const row = (removalState: TorrentRow["removalState"]): TorrentRow =>
+    ({ status: "downloading", removalState }) as TorrentRow;
+
+  it.each([
+    ["pending", true, "Removing…"],
+    ["awaiting_platform", true, "Removing…"],
+    ["failed", false, "Removal failed"],
+    [null, false, null],
+  ] as const)("labels %s removals", (state, active, label) => {
+    expect(torrentRemovalActive(row(state))).toBe(active);
+    expect(torrentRemovalLabel(row(state))).toBe(label);
   });
 });

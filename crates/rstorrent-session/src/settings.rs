@@ -23,9 +23,10 @@ pub use contract::{
     Ipv6PinholeFailureStage, Ipv6PinholeStatus, ListenerBindFailureReason, ListenerPolicy,
     ListenerStatus, MAX_ACTIVE_DOWNLOADS, MAX_ACTIVE_SEEDS, MAX_SEED_GOAL_VALUE,
     MIN_ACTIVE_DOWNLOADS, PortMappingFailureStage, PortMappingMechanism, PortMappingPolicy,
-    PortMappingStatus, SessionUdpStatus, StorageRootAvailability, StorageRootSnapshot,
-    StorageSettingsSnapshot, TorrentSettingsPatch, TorrentTransferLimits, TransferRateLimit,
-    TransportAddressFamily, TransportFamilyRuntimeView,
+    PortMappingStatus, SeedStopLimit, SessionUdpStatus, StorageRootAvailability,
+    StorageRootSnapshot, StorageSettingsSnapshot, TorrentSeedStopLimit, TorrentSeedStopLimits,
+    TorrentSettingsPatch, TorrentTransferLimits, TransferRateLimit, TransportAddressFamily,
+    TransportFamilyRuntimeView,
 };
 pub(crate) use convergence::{
     SettingsAttempt, SettingsConvergenceModel, SettingsDomain, SettingsDomainGeneration,

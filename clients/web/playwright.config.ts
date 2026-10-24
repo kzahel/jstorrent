@@ -1,7 +1,6 @@
 import { defineConfig } from "@playwright/test";
 
 const externalBaseUrl = process.env.RSTORRENT_PLAYWRIGHT_BASE_URL;
-const browserChannel = process.env.CI ? undefined : "chrome";
 
 export default defineConfig({
   testDir: "./tests",
@@ -11,7 +10,6 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL: externalBaseUrl ?? "http://127.0.0.1:4177",
-    channel: browserChannel,
     colorScheme: "light",
     headless: true,
     launchOptions: {

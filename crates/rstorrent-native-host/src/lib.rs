@@ -1,3 +1,6 @@
+pub mod control;
+pub mod legacy;
+
 use std::fmt;
 use std::fs;
 use std::io::{self, Read, Write};
@@ -79,6 +82,10 @@ impl LaunchConfig {
 
 pub trait DesktopLauncher {
     fn launch(&mut self) -> Result<(), String>;
+
+    fn control(&mut self, _start: bool) -> Result<control::ControlReady, String> {
+        Err("Desktop control is unavailable on this platform".to_owned())
+    }
 }
 
 #[derive(Debug)]
@@ -96,28 +103,108 @@ impl ConfiguredLauncher {
     }
 }
 
-impl DesktopLauncher for ConfiguredLauncher {
-    fn launch(&mut self) -> Result<(), String> {
+impl ConfiguredLauncher {
+    fn launch_with_intent(&mut self, background: bool) -> Result<(), String> {
         let config = LaunchConfig::read_from(&self.config_path)
-            .map_err(|_| "RSTorrent launch configuration is unavailable".to_owned())?;
+            .map_err(|_| "JSTorrent launch configuration is unavailable".to_owned())?;
         if !config.path.exists() {
-            return Err("installed RSTorrent application was not found".to_owned());
+            return Err("installed JSTorrent application was not found".to_owned());
         }
         let mut command = match config.kind {
             LaunchKind::Executable => Command::new(&config.path),
             LaunchKind::MacApp => {
                 let mut command = Command::new("/usr/bin/open");
+                if background {
+                    command.arg("-g");
+                }
                 command.arg("--").arg(&config.path);
+                if background {
+                    command.args(["--args", control::BACKGROUND_ARGUMENT]);
+                }
                 command
             }
         };
+        if background && config.kind == LaunchKind::Executable {
+            command.arg(control::BACKGROUND_ARGUMENT);
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            command.process_group(0);
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            // Native UI is created by Tauri; a debug executable must not add
+            // a console window to an extension's background launch.
+            command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+        }
         command
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
             .map(|_| ())
-            .map_err(|_| "RSTorrent launch request could not be started".to_owned())
+            .map_err(|_| "JSTorrent launch request could not be started".to_owned())
+    }
+}
+
+impl DesktopLauncher for ConfiguredLauncher {
+    fn launch(&mut self) -> Result<(), String> {
+        self.launch_with_intent(false)
+    }
+
+    fn control(&mut self, start: bool) -> Result<control::ControlReady, String> {
+        let directory = self
+            .config_path
+            .parent()
+            .ok_or("Desktop setup is unavailable")?;
+        let path = directory.join(control::SOCKET_NAME);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        #[cfg(target_os = "macos")]
+        let _start_lock = if start {
+            Some(
+                control::lock_start(directory, deadline)
+                    .map_err(|_| "Desktop startup is busy or unavailable".to_owned())?,
+            )
+        } else {
+            None
+        };
+        match control::read_ready(&path) {
+            Ok(ready) => return Ok(ready),
+            Err(error) if !control::is_stopped(&error) => {
+                eprintln!(
+                    "RSTorrent bootstrap attach refused: kind={:?} os={:?}",
+                    error.kind(),
+                    error.raw_os_error()
+                );
+                return Err("Desktop bootstrap was refused".to_owned());
+            }
+            Err(_) if !start => {
+                return Err("Desktop is stopped. Select Start to open it.".to_owned());
+            }
+            Err(_) => {}
+        }
+        if std::time::Instant::now() >= deadline {
+            return Err("Desktop startup did not become available in time".to_owned());
+        }
+        self.launch_with_intent(true)?;
+        while std::time::Instant::now() < deadline {
+            match control::read_ready(&path) {
+                Ok(ready) => return Ok(ready),
+                Err(error) if control::is_stopped(&error) => {}
+                Err(error) => {
+                    eprintln!(
+                        "RSTorrent bootstrap startup refused: kind={:?} os={:?}",
+                        error.kind(),
+                        error.raw_os_error()
+                    );
+                    return Err("Desktop bootstrap was refused".to_owned());
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        Err("Desktop did not become ready in time".to_owned())
     }
 }
 
@@ -165,7 +252,7 @@ struct Request {
     op: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Response {
     id: String,
@@ -177,7 +264,7 @@ struct Response {
     error: Option<ErrorBody>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum ResultBody {
     Hello {
@@ -190,7 +277,11 @@ enum ResultBody {
         current_protocol_version: u32,
         #[serde(rename = "callerOrigin")]
         caller_origin: String,
-        capabilities: [&'static str; 1],
+        capabilities: Vec<&'static str>,
+    },
+    Ready {
+        #[serde(flatten)]
+        ready: control::ControlReady,
     },
     Launch {
         status: &'static str,
@@ -260,9 +351,19 @@ fn dispatch<L: DesktopLauncher>(
                 minimum_protocol_version: MINIMUM_PROTOCOL_VERSION,
                 current_protocol_version: PROTOCOL_VERSION,
                 caller_origin: caller_origin.to_owned(),
-                capabilities: ["launch_desktop"],
+                capabilities: if cfg!(any(unix, windows)) {
+                    vec!["launch_desktop", "desktop_control_v1"]
+                } else {
+                    vec!["launch_desktop"]
+                },
             },
         ),
+        "start_control" | "attach_control" if control::origin_allowed(caller_origin) => {
+            match launcher.control(request.op == "start_control") {
+                Ok(ready) => Response::success(&request.id, ResultBody::Ready { ready }),
+                Err(message) => Response::error(&request.id, "control_unavailable", message),
+            }
+        }
         "launch" => match launcher.launch() {
             Ok(()) => Response::success(
                 &request.id,
@@ -358,6 +459,26 @@ pub fn decode_frames(bytes: &[u8]) -> Result<Vec<Value>, HostError> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn attach_does_not_wait_for_or_launch_a_pending_start() {
+        use super::*;
+        use std::os::unix::fs::PermissionsExt;
+        let directory = tempfile::tempdir().unwrap();
+        std::fs::set_permissions(directory.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+        let _lock = control::lock_start(directory.path(), std::time::Instant::now()).unwrap();
+        let mut launcher = ConfiguredLauncher::for_host_executable(&directory.path().join("host"));
+        // No launch config exists: attempting any launch would return a setup
+        // error instead of the expected attach-only stopped result.
+        assert!(
+            launcher
+                .control(false)
+                .err()
+                .unwrap()
+                .contains("Desktop is stopped")
+        );
+    }
+
     use super::*;
 
     const ORIGIN: &str = "chrome-extension://dbokmlpefliilbjldladbimlcfgbolhk/";
@@ -384,12 +505,56 @@ mod tests {
         bytes
     }
 
-    fn exchange(input: &[u8], origin: Option<&str>, launcher: &mut FakeLauncher) -> Value {
+    fn exchange(input: &[u8], origin: Option<&str>, launcher: &mut impl DesktopLauncher) -> Value {
         let mut output = Vec::new();
         run(&mut &input[..], &mut output, origin, launcher).expect("host exchange");
         let frames = decode_frames(&output).expect("decode output");
         assert_eq!(frames.len(), 1);
         frames.into_iter().next().unwrap()
+    }
+
+    #[test]
+    fn control_requires_exact_product_origins_and_preserves_launch_intent() {
+        #[derive(Default)]
+        struct ControlLauncher(Vec<bool>);
+        impl DesktopLauncher for ControlLauncher {
+            fn launch(&mut self) -> Result<(), String> {
+                panic!("control must not use ordinary window launch");
+            }
+            fn control(&mut self, start: bool) -> Result<control::ControlReady, String> {
+                self.0.push(start);
+                Ok(control::ControlReady {
+                    endpoint: "http://127.0.0.1:1234".to_owned(),
+                    credential: "ab".repeat(32),
+                    instance_id: "cd".repeat(16),
+                    profile_id: "default".to_owned(),
+                })
+            }
+        }
+        let mut launcher = ControlLauncher::default();
+        for (operation, starts) in [("start_control", true), ("attach_control", false)] {
+            let request = framed(&format!(
+                r#"{{"id":"control","protocolVersion":1,"op":"{operation}"}}"#
+            ));
+            for origin in [
+                "chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/",
+                "chrome-extension://dbokmlpefliilbjldladbimlcfgbolhk.attacker/",
+                "chrome-extension://dbokmlpefliilbjldladbimlcfgbolhk",
+                "chrome-extension://gcgoepclopkgijmclmlheafaglmbjlcc/extra",
+            ] {
+                let denied = exchange(&request, Some(origin), &mut launcher);
+                assert_eq!(denied["ok"], false, "{origin}");
+                assert!(launcher.0.is_empty());
+            }
+            for origin in [control::PRODUCTION_ORIGIN, control::BETA_ORIGIN] {
+                let ready = exchange(&request, Some(origin), &mut launcher);
+                assert_eq!(ready["ok"], true, "{origin}");
+                assert_eq!(ready["result"]["kind"], "ready");
+                assert_eq!(ready["result"]["profileId"], "default");
+                assert_eq!(launcher.0, [starts]);
+                launcher.0.clear();
+            }
+        }
     }
 
     #[test]

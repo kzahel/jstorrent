@@ -1,3 +1,4 @@
+import { DEFAULT_CLIENT_SETTINGS as FILE_SAFETY_DEFAULTS } from "./api";
 import { describe, expect, it } from "vitest";
 
 import type { DhtInspectionView, TorrentView, UpdateBatch } from "./api";
@@ -7,6 +8,7 @@ import {
   type ViewSetState,
 } from "./view-set-reducer";
 import { clientSettingsRuntimeFixture } from "./test-support/client-settings";
+import { libraryItemView, librarySnapshot } from "./test-support/library-media";
 
 const torrentId = "t1-000102030405060708090a0b0c0d0e0f";
 const v1InfoHash = "000102030405060708090a0b0c0d0e0f10111213";
@@ -143,6 +145,7 @@ function batch(
 ): UpdateBatch {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch,
     base_cursor: baseCursor,
@@ -207,6 +210,8 @@ describe("view-set reducer", () => {
                 fields: [
                   { field: "display_name", value: "Verified" },
                   { field: "total_size_bytes", value: "65536" },
+                  { field: "private_torrent", value: true },
+                  { field: "source_size_bytes", value: null },
                 ],
               },
             },
@@ -222,8 +227,18 @@ describe("view-set reducer", () => {
       }],
     });
     expect(state.views.summary).toMatchObject({
-      torrent: { display_name: "Verified", total_size_bytes: "65536" },
+      torrent: {
+        display_name: "Verified",
+        total_size_bytes: "65536",
+        private_torrent: true,
+        source_size_bytes: null,
+      },
     });
+    expect(
+      state.views.library!.type === "torrent_list"
+        ? state.views.library!.torrents[0]?.private_torrent
+        : null,
+    ).toBeUndefined();
     expect(
       state.views.summary!.type === "torrent"
         ? state.views.summary!.torrent?.download_queue_position
@@ -491,6 +506,7 @@ describe("view-set reducer", () => {
       ]),
     );
     const configured = {
+      file_safety: FILE_SAFETY_DEFAULTS.file_safety,
       listener: { type: "automatic_loopback" as const },
       preferred_listen_port: 6_881,
       port_mapping: "disabled" as const,
@@ -501,6 +517,8 @@ describe("view-set reducer", () => {
       share_ratio_limit_percent: 200,
       finished_download_ratio_limit_percent: 700,
       finished_time_limit_seconds: 86_400,
+      seed_stop_ratio_percent: { type: "off" as const },
+      seed_stop_time_seconds: { type: "off" as const },
       upload_rate_limit: { type: "unlimited" as const },
       download_rate_limit: { type: "unlimited" as const },
       encryption: "allow" as const,
@@ -698,6 +716,52 @@ describe("view-set reducer", () => {
       total_non_padding_files: 3,
       items: [{ media_id: "0", verified_bytes: "32768" }],
     });
+  });
+
+  it("refreshes Library rows in place and rejects rows outside the page", () => {
+    let state = reduceUpdateBatch(
+      undefined,
+      batch("0", "1", [
+        {
+          type: "snapshot",
+          view_id: "library-media",
+          snapshot: librarySnapshot([libraryItemView(0), libraryItemView(1)]),
+        },
+      ]),
+    );
+    state = reduceUpdateBatch(
+      state,
+      batch("1", "2", [
+        {
+          type: "patch",
+          view_id: "library-media",
+          patch: {
+            type: "library_media",
+            upsert: [libraryItemView(1, { verified_bytes: "500" })],
+          },
+        },
+      ]),
+    );
+    expect(state.views["library-media"]).toMatchObject({
+      type: "library_media",
+      page: { total: 2 },
+      items: [
+        { file_index: 0, verified_bytes: "0" },
+        { file_index: 1, verified_bytes: "500" },
+      ],
+    });
+    expect(() =>
+      reduceUpdateBatch(
+        state,
+        batch("2", "3", [
+          {
+            type: "patch",
+            view_id: "library-media",
+            patch: { type: "library_media", upsert: [libraryItemView(7)] },
+          },
+        ]),
+      ),
+    ).toThrow(ViewSetContinuityError);
   });
 
   it("replaces disk pipeline state and applies keyed piece changes", () => {
@@ -1166,6 +1230,7 @@ describe("view-set reducer", () => {
       epoch: "7",
       cursor: "1",
       durableRevision: "1",
+      serverNowMillis: "0",
       views: {},
       deliveryResetCount: 0,
       lastDeliveryResetReason: null,

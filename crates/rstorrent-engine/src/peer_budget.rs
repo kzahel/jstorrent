@@ -357,6 +357,28 @@ impl PeerBudget {
         outcome
     }
 
+    /// Retire one direction without changing the shared connection limit.
+    pub fn cancel_incoming(&self) {
+        let cancellations = {
+            let mut state = self.state_guard();
+            state
+                .entries
+                .values_mut()
+                .filter(|entry| {
+                    entry.direction == PeerBudgetDirection::Incoming
+                        && !entry.cancellation_requested
+                })
+                .map(|entry| {
+                    entry.cancellation_requested = true;
+                    entry.cancellation.clone()
+                })
+                .collect::<Vec<_>>()
+        };
+        for cancellation in cancellations {
+            cancellation.cancel();
+        }
+    }
+
     pub fn within_absolute_limit(&self) -> bool {
         let state = self.state_guard();
         state.total() <= state.absolute_limit()
@@ -459,6 +481,22 @@ mod tests {
             incoming_slack: slack,
             max_open_files: 10_000,
         })
+    }
+
+    #[test]
+    fn incoming_cancellation_preserves_outgoing_permits_and_limit() {
+        let budget = PeerBudget::system_default();
+        let inbound = budget.try_acquire(PeerBudgetDirection::Incoming).unwrap();
+        let mut established = budget.try_acquire(PeerBudgetDirection::Incoming).unwrap();
+        established.mark_established();
+        let outbound = budget.try_acquire(PeerBudgetDirection::Outgoing).unwrap();
+        let limit = budget.snapshot().effective_limit;
+        budget.cancel_incoming();
+        budget.cancel_incoming();
+        assert!(inbound.cancellation_token().is_cancelled());
+        assert!(established.cancellation_token().is_cancelled());
+        assert!(!outbound.cancellation_token().is_cancelled());
+        assert_eq!(budget.snapshot().effective_limit, limit);
     }
 
     #[test]

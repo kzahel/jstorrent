@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "qualification": "Signed CI packages installed by manual replacement; ordinary HTTPS automatic update not yet exercised",
+  "candidateSourceSha": "19eb3a88703088a2dfebb803342394938d305cb8",
+  "candidateRunId": "36845370571",
+  "candidateAttempt": 1,
+  "candidateVersion": "0.3.0",
+  "legacyVersion": "0.2.1",
+  "platforms": {
+    "linux": {
+      "platform": "linux",
+      "legacyPackageSha256": "1c35bb7dd5bdefcd780c19fc09e160dc7b0e6a5a2ada35f07007089d85e180df",
+      "candidatePackageSha256": "ed3ffbdaff48d97b3857b77038009cfe6fef2c95d70b48797303cd133a8b4eae",
+      "checks": [
+        "pre-handshake-host-blocks-before-catalog",
+        "registration-failure-blocks-before-catalog",
+        "four-record-import-and-paused-intent",
+        "valid-and-corrupt-reverification",
+        "missing-root-not-created",
+        "installed-refusal-routes",
+        "restart-identities-and-single-marker",
+        "source-and-payload-preserved"
+      ],
+      "legacyBinaries": [
+        "e7b93708c0c9f9218a2402efae373ce5c56b9d00463ae5c7944bbad15e9dfd63",
+        "eaf386835af15b140ff5f9c91680af198554cf9deb9480e571ed60ad2bf8bce1"
+      ],
+      "refusalRoutes": 6,
+      "imported": 4,
+      "status": "passed",
+      "restoration": "passed"
+    },
+    "windows": {
+      "platform": "windows",
+      "legacyPackageSha256": "55ce6c119e3ada6b66da3f706e4659aa50f0550fea84d56757ba7180f51047c3",
+      "candidatePackageSha256": "af393292ff4c9cbabd7cc7030146d7a89a149d852b96d423c349347225023dde",
+      "checks": [
+        "pre-handshake-host-blocks-before-catalog",
+        "registration-failure-blocks-before-catalog",
+        "four-record-import-and-paused-intent",
+        "valid-and-corrupt-reverification",
+        "missing-root-not-created",
+        "installed-refusal-routes",
+        "restart-identities-and-single-marker",
+        "source-and-payload-preserved"
+      ],
+      "legacyBinaries": [
+        "fb79545830c8aae032820100a0044c2a3ea29763aba2f1d35623025ae82af38c",
+        "6cd89eed30f417b97cb13d123280cdcf7138564d8630e29a1db14a8ed1346754"
+      ],
+      "refusalRoutes": 8,
+      "imported": 4,
+      "status": "passed",
+      "restoration": "passed"
+    },
+    "macos": {
+      "legacyArchiveSha256": "4bc5e979635fe9283d9ba60e43f86bfadcf619adf546cdbe4b68b27d424343f1",
+      "candidateArchiveSha256": "02431fc88e1790ee276f1e04405582ce9db8fefc6d3b996981b0c57f095a8516",
+      "checks": [
+        "pre-handshake-host-blocks-before-catalog",
+        "registration-failure-blocks-before-catalog",
+        "four-record-import-and-paused-intent",
+        "valid-and-corrupt-reverification",
+        "missing-root-not-created",
+        "nine-registered-refusal-routes",
+        "restart-identities-and-single-marker",
+        "source-and-payload-preserved"
+      ],
+      "legacyBinaries": {
+        "jstorrent-desktop": "f008e2d00e7e414e16096d1ea319d870807ddeddb25d459740b01a0727b019e7",
+        "jstorrent-host": "cc5faaefa59e72d6ac098251ea7cc7c9ec90b35711c342a1211faa01e04a0411",
+        "jstorrent-io-daemon": "57b77c713f4f6b09c955f73694bd3dce7731042093d215e1ec64871d15f88f56"
+      },
+      "candidateBinarySha256": "751fb1f4b25db1277334011567d160a040e0b313822f117a447337955e9a04fe",
+      "imported": 4,
+      "status": "passed"
+    }
+  },
+  "migratedSettings": {
+    "dhtEnabled": false,
+    "peerExchangeEnabled": false,
+    "peerConnectionLimit": 73,
+    "uploadSlots": 5,
+    "downloadRateLimitBytesPerSecond": 65536
+  },
+  "settingsVerification": "Closed imported catalogs on all three platforms, before and after restart",
+  "windowsFirewallRestoration": {
+    "removedTaskCreatedBlockRules": 4,
+    "baselineMatches": true
+  },
+  "macosRestoration": {
+    "inheritedBackupsEmpty": true,
+    "ownedProcessesJoined": true
+  },
+  "remaining": [
+    "actual HTTPS updater check/download/install/relaunch and GUI journey",
+    "wrong-signature and interrupted-download retry in the old client",
+    "controlled repair transfer",
+    "actual legacy/successor production extension pairs and launch journeys",
+    "native branding fix in a fresh signed candidate",
+    "Windows shortcut icon cache behavior on a fresh install"
+  ],
+  "windowsCandidateIcon": {
+    "method": "7z extraction of pinned NSIS payload followed by Windows ExtractAssociatedIcon; executable not launched",
+    "sizePixels": [
+      32,
+      32
+    ],
+    "rgbaSha256": "ce30cace4e2da0074add5ff8ab63dd21bc9fb74cd07e8e7346526933f6cf43a3",
+    "matchesPackagedSourcePixels": true,
+    "observation": "Installed shortcut on reused guest showed prior incubation icon; embedded candidate icon is JSTorrent blue box"
+  }
+}

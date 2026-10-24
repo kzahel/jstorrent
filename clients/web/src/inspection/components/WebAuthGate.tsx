@@ -1,3 +1,4 @@
+import jstorrentIcon from "../../assets/jstorrent.png";
 import { message as localizedMessage } from "../../localization/runtime";
 import { useEffect, useState, type FormEvent } from "react";
 
@@ -66,7 +67,7 @@ export function WebAuthGate({
   return (
     <main className={styles.page}>
       <section className={styles.card} aria-labelledby="web-auth-title">
-        <div className={styles.brand} aria-hidden="true">{localizedMessage("inspection.components.web.auth.gate.rs")}</div>
+        <img className={styles.brand} src={jstorrentIcon} width="40" height="40" alt="" />
         {status.state === "initial_window_open" ? (
           <>
             <p className={styles.eyebrow}>{localizedMessage("inspection.components.web.auth.gate.first.launch")}</p>
@@ -97,7 +98,7 @@ export function WebAuthGate({
           <>
             <p className={styles.eyebrow}>{localizedMessage("inspection.components.web.auth.gate.setup.closed")}</p>
             <h1 id="web-auth-title">{localizedMessage("inspection.components.web.auth.gate.restart.to.finish.setup")}</h1>
-            <p>{localizedMessage("inspection.components.web.auth.gate.initial.setup.was.available.for.10.minutes")}</p>
+            <p>{localizedMessage("inspection.components.web.auth.gate.setup.is.closed.restart")}</p>
           </>
         ) : status.state === "recovery_window_open" ? (
           <>
@@ -132,7 +133,7 @@ export function WebAuthGate({
               />
               <button className={styles.primary} type="submit" disabled={busy}>{localizedMessage("inspection.components.web.auth.gate.authorize.browser")}</button>
             </form>
-            <p className={styles.help}>{localizedMessage("inspection.components.web.auth.gate.if.every.approved.browser.profile.or.cookie")}{" "}<code>{localizedMessage("inspection.components.web.auth.gate.pairing.window")}</code>.
+            <p className={styles.help}>{localizedMessage("inspection.components.web.auth.gate.locked.out.restart.with")}{" "}<code>{localizedMessage("inspection.components.web.auth.gate.pairing.window")}</code>.
             </p>
           </>
         )}

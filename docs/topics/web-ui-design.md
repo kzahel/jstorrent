@@ -1,6 +1,507 @@
 # Web UI Design
 
+Tactical [375](../tactical/375-ci-reconciliation-and-ui-regressions.md)
+repairs the seeding-settings browser alignment check: inactive Settings panels
+remain mounted, so geometry assertions now measure visible controls only.
+All displayed fields already share their intended edge and width; no layout
+change is required. The full deterministic suite passes 72 cases locally,
+including phone overflow and pseudo-localization; 19 live-only cases stay opt-in.
+
+Tactical [373](../tactical/373-library-empty-state-icons.md) replaces the
+Library's oversized diamond text glyphs with the shared Library navigation
+icon at 2rem, using the same muted color in media, torrent-card and detail
+empty or status messages.
+
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+adds Downloads → File safety: enabled/preset/custom rules and the independent
+origin-label toggle, using the existing revision-aware draft owner. The Files
+Safety column explains skipped rules with explicit Download anyway/Undo actions;
+ordinary priority remains separate. Pending All keeps blocked rows unchecked,
+and totals reflect safety. Selection drafts use two bitmaps while retaining
+bounded cached pages and at most 4,096 normalized command ranges.
+
+Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
+updates deterministic browser checks for the current diagnostic-prefilled
+GitHub/website support links and URL-restored Settings after reload. All 71
+deterministic browser cases pass locally; the 18 live-only cases stay opt-in.
+
+Tactical [367](../tactical/367-encrypted-short-links.md) adds a remembered,
+initially off **Short link** choice to the web Share panel. It uploads only an
+encrypted copy, expires it after 30 days, and uses the returned link for the
+field, Copy, Share… and QR. Failure retains the full link. **Include my IP
+address** remains independent. Menus and file-share actions keep full links.
+Extension companion builds hide Short link to retain their local-only CSP.
+
+Tactical [365](../tactical/365-url-navigation-and-hot-reload.md) puts
+navigation in the URL fragment: `#/library[/<category>]` and
+`#/torrents[/<category>]`, with `torrent`, `tab` or `view=files`, `open=1`
+for the narrow detail, and `settings=<category>`. `route-history.ts` is the
+one owner of browser history. Openings (destination, category, a Library
+detail, the narrow detail, Settings) push an entry, refinements replace it,
+and closing goes Back to the entry it opened from. A deep link waits for the
+first library snapshot and drops an unknown torrent. Settings' open category
+is presentation state, and a busy Settings ignores Back. Selections, filters,
+Library search and page, scroll and pane sizes stay out of the URL. The dev
+server adds React Fast Refresh and recompiles the message catalog, which the
+localization runtime swaps in place.
+
+Tactical [364](../tactical/364-library-review-fixes.md) moves the add field
+into the header beside the brand on wide and compact layouts, so torrents can
+be added from every destination; narrow layouts keep it in the Torrents bar.
+`TorrentAddProvider` owns adding app-wide. The Library list is a
+`VirtualTable` whose headers set the host sort through `externalSort`, its
+toggles are the shared `SegmentedControl` that Settings also draws, cards show
+a film or music icon instead of initials, and availability reads All,
+Complete and Incomplete.
+
+Tactical [363](../tactical/363-library-media-index.md) gives the Library a
+`LibraryMediaView` over the host's `library_media` pages when the host offers
+them. The sidebar lists the All media, TV shows, Movies, Music and By torrent
+presets with facet counts; the toolbar holds a debounced search, Shows or
+Episodes (Albums or Tracks), Everything, Offline or Downloading, a sort menu
+with Reverse order, and Include archived; the heading switches Cards and
+List. Groups open in place with a Back button; an item's Play reuses the
+detail's playback through the shared `useMediaPlayback` hook, and its title
+opens the source torrent's Library detail. Pages hold 100 rows with Previous
+and Next. Preset, layout, sort, direction, archived scope and grouping are
+browser-local preferences; search and page are not. A page answering an
+earlier query stays dimmed until the new one arrives. Hosts without the
+projection, and the demo with `mediaLibrary: false`, keep the torrent cards.
+
+Tactical [357](../tactical/357-rich-share-links.md) turns the General link
+icon into a **Share** panel (link, Copy, Share… where `navigator.share`
+exists, QR code, Include my address). Files gains **Share file(s)**, menu
+share copies ask once about including your address, and Settings →
+Connection & seeding → Sharing changes that choice. A size known only from
+the link reads "(from the link)" in General and "(link)" in the list. QR
+colors use `--qr-dark`/`--qr-light`, dark on white in both themes.
+
+Tactical [353](../tactical/353-host-product-in-hello.md) shows what the host
+reports in its hello on About, so remote access and Crostini show the
+host's version, build, target, profile and **Library folder**. The client
+reads the hello again after each reconnect, so a host that restarted on a
+new version is shown correctly without a page reload. The desktop
+`getIdentifier()` lookup is gone; the hello carries the identifier.
+
+Tactical [352](../tactical/352-render-first-web-startup.md) renders the real
+shell before the engine connects, in the browser and in Tauri.
+`LiveApplication.connect()` starts in `connecting` and attaches in the
+background (transport, hello, view set), retrying as `reconnecting` behind
+the existing overlay; commands wait for the attach. Until the first library
+view, Torrents, Transfers and Library show placeholder rows or cards at the
+real geometry, sidebar and table counts stay hidden, and connection and
+download-folder settings are not editable. Before the bundle, the page is
+only the stored theme's background; the branded card is kept for failures.
+Transports, the generated validators, demo, Settings and the session panels
+load off the shell's critical path, and startup phases are `performance`
+marks reported as `startup_ms` in support diagnostics. The remote entry
+still attaches before rendering because its gate returns to sign-in on a
+failed first attach.
+
+Tactical [351](../tactical/351-narrow-web-lists-and-flat-chrome.md) moves
+Library and Torrents into the sidebar (the drawer at narrow widths, which
+also lists the session views), gives narrow details an app bar with a back
+arrow, Pause or Start and a ⋮ menu, and renders tables as stacked list items
+at 760 px and below through per-column `listRole`s in `VirtualTable`. On
+desktop only the header and sidebar stay tinted, and each table's count and
+Columns join the bar above it through `TableToolbarSlot`.
+
+Tactical [350](../tactical/350-share-links-and-private-hint.md) adds **Copy
+share link** beside Copy magnet link in the More and row menus. The General
+header's copy buttons run those same actions, so feedback is the shared
+toast, and a private torrent shows "Private torrent: magnet and share links
+only work for members of its tracker." under its status.
+
+Tactical [349](../tactical/349-general-tab-compact-header-and-links.md)
+replaces the General tab's summary card with one header line (name, copy
+magnet link, copy share link), one status line and a thin progress bar.
+Status, the Seeding row and the goals sentence collapse into that line and
+a `Seeding goals` metric; speeds and peers become one metric each, and
+Finished time shows only when it differs from Seeding time. Info hashes
+gain a copy button. Share links are
+`https://jstorrent.com/share/#<magnet query string>`, built from the
+engine's magnet export; the website page that reads them is a follow-up.
+
+Tactical [348](../tactical/348-torrent-list-export-import.md) adds a
+**Torrent list** card to Settings → Data & reset (export, Save to, keep
+matching folders, import with an inline summary) where the client supports
+bundles, and lets the toolbar add several `.torrent` files or pasted magnets
+with one progress and one summary toast.
+
+Tactical [344](../tactical/344-seeding-stop-limits.md) adds **Stop seeding**
+to Settings → Connection & seeding and to Torrent settings, renames the goal
+group **Seeding priority**, and replaces raw-seconds and free-number fields
+with preset pickers (`RatioPicker`, `DurationPicker`, `RateLimitPicker`) that
+share `PresetPicker.module.css` and a `NumberInput` that draws units inside
+the field. Every Settings control now ends on one right edge at one width.
+A limit-stopped torrent reads **Seeding limit reached** and its single-torrent
+start action reads **Keep seeding**.
+
+Tactical [347](../tactical/347-about-on-every-web-host.md) makes Settings →
+**About** universal. Every host shows how the page is connected, the version
+(or "Not reported"), the build, and support links with diagnostics. Desktop
+also shows its profile (build type and app ID), and the remote client shows
+its own build. The category is titled **About & updates**, with the Updates
+group, only where an updater exists. Diagnostics schema 2 adds connection,
+identity, flavor and page build under the same allowlist and 2 KiB bound.
+
+The header no longer shows a connection pill: the UI is connected unless it
+says otherwise. Download and upload rates appear only while one is nonzero.
+When the view stream to the engine has been down for 3 seconds, a blocking
+**Connection lost** dialog covers the inert app and shows the next attempt
+(**Trying again in N seconds**), **Retry now** and **Reload page**. The view
+controller retries from 250 ms doubling to a 30-second cap; Retry now and
+browser online/pageshow/visible wakes skip the wait. Authentication failure
+stops retrying and asks to sign in again; contract, continuity and API
+version failures stop and ask for a reload. Mounted state underneath is
+kept, so an open form survives reconnection. The app root carries
+`data-connection` (`connected`, `reconnecting`, `stopped`, `connecting`,
+`demo`) for verifier scripts. Companion pages still unmount on their own
+disconnect handling; this dialog covers in-app reconnects.
+
+Tactical [340](../tactical/340-windows-quiet-network-startup.md) qualifies the
+existing incoming/forwarding UI in the native Windows renderer. Forwarding's
+short disclosure now refers to the operating system rather than macOS alone.
+Collapsed Network details explains conditional firewall recovery after refusal
+and that downloads work with incoming Off; it never reports an inferred denial
+or grant. Full web tests/typecheck/localization/build pass. The CSS guard now
+converts file URLs with `fileURLToPath` so its checks also run on Windows.
+
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) presents **Accept incoming connections** and
+**Automatic port forwarding** in Connection & seeding. Ports appear only with
+incoming enabled. Turning incoming off also disables forwarding in one patch;
+enabling forwarding first shows a short explanation with **Not now / Enable**,
+then uses the ordinary Save settings action. Listener status owns its row;
+unavailable IPv6 is reported at IPv6 rather than as an incoming-setting failure.
+The actual Mac renderer, draft/cancel/atomic-save cases and full web suite pass.
+
+Tactical [334](../tactical/334-web-water-and-clay-visual-system.md) gives the
+UI one visual system taken from the icon, "water and clay": warm neutrals,
+one blue accent for selection and anything filling, clay for upload and
+settled data, light and dark palettes in `global.css`. Component CSS may use
+only those tokens, four radii and three weights; `src/style-guard.test.ts`
+enforces this. Settings are grouped rows with switches and segmented
+controls, and Library tiles are the icon's box filling with water to their
+progress. Decorative gradients and uppercase eyebrow labels are gone.
+
+Tactical [333](../tactical/333-web-settings-plain-copy.md) rewrites Settings,
+the Torrent settings dialog and the General tab in user vocabulary.
+Connection & seeding is grouped under Speed limits, Queue, Seeding goals,
+Connections and Network headers. Rows show nothing when a setting applied,
+`Applying…` while pending, and one localized line when it failed or the device
+caps it. The former "Current runtime" block becomes a collapsed **Network
+details** panel in whole sentences without engine detail. Speed limits use a
+shared preset picker (Unlimited, 100 KB/s to 10 MB/s, Custom KB/s), replacing
+the Unlimited-or-KiB/s field noted under Tactical 134; patches keep exact
+bytes per second. 1024-based KB/MB/GB is the default size unit, and Decimal
+remains an opt-in. Diagnostics tabs, Remote access, Web access and About copy
+are unchanged.
+
+Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) makes
+Android setup recoverable after cancel: Open JSTorrent Android is a direct
+production-targeted link, while Connect in Chrome and Retry connection attach
+only. The page exposes an explicit Allow Android connection action after denied
+permission. Android owns setup and exact HTTPS return; foreground notifications
+must be eligible before leaving Android. The credential-free website receives
+only a UI-open receipt and has local-only assets/CSP without analytics. Both
+physical candidate journeys, failure/expiry/restart and singleton checks pass;
+public hosted/store delivery remains separate.
+
+
+Tactical [313](../tactical/313-completed-remote-video-playback.md) adds a
+closeable, keyboard-accessible remote video dialog with native media controls
+and localized connection/buffering/error status. Files exposes **Play** for
+completed MP4/M4V files; Library uses the same dialog. Existing local Open is
+unchanged. Real Chromium decoded-frame/seek and visual capture evidence are
+recorded in the tactical; this does not claim other containers or general
+remote file opening. Tactical
+[362](../tactical/362-local-browser-inline-playback.md) reuses the dialog for
+local completed MP4/M4V/MKV in the browser-hosted UI. Files lists **Play**
+before **Open**, Open keeps its new-tab icon, and the dialog header offers
+Open in new tab as the fallback.
+
+Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
+reduces the shared first-use statistics dialog to a short explanation, plain
+checkbox and privacy link. The full recipient warning stays in feedback
+confirmation. Android separately presents folder-first setup and an explicit
+background-download action, using the existing permission/preference owner.
+
+Tactical [302](../tactical/302-desktop-external-links.md) repairs shared About
+support and release navigation. Browser clients retain native isolated-tab
+anchors; desktop bootstrap injects the official Tauri opener through a small
+shared link provider. Desktop URL permissions cover only the approved support
+and release destinations, and opening failures show generic localized retry
+feedback. Engine/API/media authority and native Android/iOS presentation are
+unchanged. Exact validation and native handoff evidence are in the tactical.
+
+Tactical [301](../tactical/301-remote-save-progress-presentation.md) corrects
+remote Save progress presentation in the shared Files surface. Save status,
+bar, fixed-width tabular percentage and cancellation occupy a separate row;
+narrow layouts put the phase label above the controls. Intermediate progress
+updates at most five times per second, while terminal outcomes appear
+immediately. Transport writes/acknowledgements, eligibility and remote Open/Play
+scope remain unchanged. Web checks and isolated browser geometry evidence are
+recorded in the tactical; deployment remains separate.
+
+Tactical [291](../tactical/291-companion-shutdown-recovery-copy.md) locally
+clarifies normal Android launch before attach-only Retry after Shutdown and
+fixes dim companion troubleshooting links with the existing foreground token.
+Full web typecheck/481 cases,56 extension cases, localization, companion/CSP
+build and exact local production1.1.3 packaging pass. Six320/390/1100 source
+renderer captures reproduce before contrast and pass after accessibility,
+keyboard/overflow/cleanup checks; transport/view dependencies are injected.
+Slice055 verifies actual managed27 Shutdown guidance/readable links, stopped
+service after Retry and normal app-launch retained reconnect. Exact package/
+grants/notification preference and scoped cleanup/zero tabs/windows pass; four
+report checks reap their browser/server. Slice057 uploads the exact1.1.3 to the
+existing draft; native Reload verifies draft1.1.3/public1.1.1. Listing/screenshots/
+privacy remain. Submission and installed-store delivery remain under259; signed
+desktop/Android retain their source bindings.
+
+Tactical [290](../tactical/290-windows-installer-brand-artwork.md) corrects the
+actual Windows NSIS generic artwork with original JSTorrent icons and blue/navy
+welcome/header assets. Pinned schema/bitmap checks and26 release/trust cases pass;
+actual non-installing native previews cancel normally with50-registry/seven-file
+preservation and VM-off/release. Slice025 clearly distinguishes its presentation
+harness from the signed a7 installer. Fresh original-signed Windows packaging
+and focused installed/updater requalification remain required for these new
+source inputs; old signed receipts retain their scope. No delivery occurs.
+
+Tactical [286](../tactical/286-connected-companion-layout-review.md) qualifies
+the actual controlled connected page at390/1100 and its narrow filter drawer.
+An initial clipped image was captured during the drawer transition; settled
+bounds show no page overflow or product-layout defect. The capture runner now
+uses reduced motion and awaits actual bounds. Product presentation stays
+unchanged; physical/store delivery remains a separate gate under259.
+
+Tactical [283](../tactical/283-companion-update-recovery-guidance.md) adds
+component-specific recovery links and plain connection guidance in the
+packaged extension, preserving attach-only retries and existing discovery/
+pairing authority. The local source/render checkpoint remains separate from
+actual store delivery and installed mixed-version acceptance under259. The
+new production payload supersedes the prior source13dde build and source03e
+extension upload proposals for final qualification; historical evidence stays
+bound to its own bytes. No new build/store publication occurs.
+
+Tactical [281](../tactical/281-managed-package-update-status.md) locally
+repairs the actual MSI About-screen automatic-update contradiction. MSI/DEB/RPM
+and unknown packages start and stay in existing manual package guidance, own
+no check timers, and show no in-app check/install or automatic-check privacy
+copy. Host policy, trust/routes and preference behavior remain unchanged.
+Full web typecheck/478 tests (two existing skips),20 focused bundled-Chromium
+render/accessibility cases and16 inspected managed/theme/width captures pass.
+The exact original-signed a7 MSI now passes actual native About & updates
+checks, tray Quit/reopen and independent cabinet/installed-byte reconciliation
+under259. Initial and reopened screens both show manual guidance without
+automatic-update controls. Independent100-registry/nine-file restoration,
+owned cleanup, VM-off and claim-release pass. Earlier harness failures remain
+recorded; installer wizard, historical MSI migration, associations and complete
+installed acceptance remain separate. Renderer fixtures and source8c captures
+retain their original scope.
+
+Tactical [278](../tactical/278-android-shutdown-window-lifecycle.md) follows a
+real code26 managed menu failure: the engine joins successfully, but the bound
+activity still displays Live. The next local candidate27 routes Shutdown
+through the activity owner, requesting the existing terminal stop then removing
+the task so its binding is released. Engine/network/background/privacy policy
+is unchanged. At application source68e247ad, all122 release JVM cases/lint,
+original-key APK/AAB and independent package checks pass. Actual physical
+isolated normal-menu Shutdown removes the task/service with joined successful
+cleanup; normal launch restores a fresh Live service, the same complete row,
+independent payload hash and SAF registry. Exact owned cleanup passes, with
+managed code26 installation metadata unchanged. Code27 internal delivery and
+revised-source hosted CI remain separate unperformed steps.
+
 Topic: `web-ui-design`
+
+Tactical [262](../tactical/262-android-network-status-presentation.md) removes
+actual Android Network Settings class-name leaks through exhaustive localized
+listener/router descriptions, retaining endpoints, ports, failure and uncertain
+lease facts. Message-less feedback failures use product copy. Actual owned
+API-35 before/after captures and all 24 navigation cases pass, including the new
+status regression. Internal namespaces, generated ABI and network policy remain
+unchanged. Original-key production release from `37673687` passes 121 JVM
+cases, lint and independent APK/AAB checks; its actual production APK also
+passes the corrected native screen capture. Source-184's Android capsule is
+superseded. Store/physical delivery gates remain Tactical 259.
+
+Tactical [261](../tactical/261-linux-native-brand-name.md) repairs GNOME's
+tray/accessibility fallback to the internal desktop executable name. The pinned
+GTK/GLib binding initializes the human-readable JSTorrent name before desktop
+or picker startup. Native Linux compilation, 73 tests and actual GNOME tray-name
+observation pass. Rebuilt final signed Linux artifacts remain open.
+
+The same historical signed ARM package repeats all eight manual migration
+assertions and six refusal routes with normal native Quit and complete restored
+state. Actual accessibility exposes four rows and an acknowledged disclosure,
+and JSTorrent tray menu pixels render, while populated/restarted and refusal-
+dialog captures remain unusable. Read-only alpha analysis finds zero RGBA
+throughout the actual migrated/restarted native frame bounds; the cache probe's
+active-window PNG is also entirely transparent. These captures cannot establish
+the actual display pixels or a product design/rendering defect. Populated visual
+acceptance remains open; the separate styled empty first-use probe cannot close
+it. Recorded GVfs/module warnings and a separate spice-vdagent crash do not
+establish its cause. Tactical259 retains original captures/adjudication plus the
+alpha follow-up, with no graphics override or product change.
+
+Tactical [274](../tactical/274-linux-arm-native-compositor-capture.md) checks
+GNOME46's installed native default-encoder recording route without graphics
+or permission overrides. Actual desktop/legacy window and native tray menus
+are legible; migrated/restarted and refusal-dialog recording regions remain
+almost uniformly black. The real old-writer helper repeats all eight assertions
+and six refusal routes with full source/payload preservation and restoration.
+This completes bounded capture investigation without closing visual acceptance
+or establishing its cause. Final cleanup removes eight exact owned recording
+URIs after delayed recent-file flush, verifies all recording roots absent and
+serializes verified off/claim release.
+
+Tactical [275](../tactical/275-linux-arm-signed-deb-visual-comparison.md) completes
+the same historical source's original-signed ARM Debian native-payload comparison
+using installed guest libraries and real old-writer fixtures. All eight migration
+assertions and six refusal routes pass; actual native recordings and PNGs render
+the populated/restarted JSTorrent library and both refusal dialogs. Four rows,
+verified good/corrupt outcomes, missing-folder warning and acknowledged disclosure
+persist. Source/payload preservation and full guest restoration pass. Exact owned
+recording roots and six delayed recent entries are removed; VM off/claim release
+are verified. This narrows the AppImage capture gap without establishing a cause
+or qualifying package-manager installation, final source or installed updating.
+The readable registration refusal exposes a raw filesystem error without a
+recovery step, retained as a design follow-up.
+
+Tactical [258](../tactical/258-cross-surface-branding-and-design-audit.md)
+completes the broader branded surface audit with an
+[audit execution record](../tactical/258-cross-surface-branding-and-design-audit.md). The website uses
+the original JSTorrent box and blue/navy palette; Linux setup follows system
+appearance, and the actual gateway handoff/bootstrap failure gain local branded
+styles. Remote sign-in uses shared appearance preferences/palette and a scrolling
+shell. Diagnostics use JSTorrent names; exact internal shell commands are
+clipboard actions, with an accessible stronger-color release link. The final
+53 browser capture states have no obsolete display brand, page-wide horizontal
+overflow, uncaught page errors or serious/critical Axe violations. Demo and
+mocked-platform rendering is distinguished from host/installed evidence.
+Eight design/coverage follow-ups remain, including phone settings-category
+discoverability, dense Linux help and native empty-state hierarchy.
+
+Tactical 253 now opens the Linux library through the dedicated loopback
+address `jstorrent.localhost:3030` by default. No alternate-connection choice is
+needed. The existing bounded connection page retains exact-host permission,
+service validation, Retry and Cancel. Setup explains the new address, paired
+Linux package/extension updates, retained library, origin-local preferences and
+preservation-safe troubleshooting. This replaces the earlier advice to use
+Android indefinitely when Baguette hostname registration fails.
+
+Tactical 253 implements portable pre-connection recovery: bounded discovery,
+manual Retry/Cancel, joined view/connection cleanup, offline stage-specific
+troubleshooting and explicit separate-library Linux guidance. A voluntary
+allowlisted context preview keeps Play/app/policy unknown and excludes raw
+errors and personal state. Six injected packaged-browser journeys, focused
+ownership tests and the full 462-test web suite pass. Cohort A adds real
+pairing rejection/retry/approval, shared-library recovery and offline guide
+rendering using isolated candidate assets. Connected Android identity remains
+visible. Reduced user-agent versions are labeled as such; actual browser/OS
+builds remain unknown in support context. Observed rejection and the bounded
+approval window have closed recovery categories. Pairing Cancel explains the
+separate Android request's expiry; canceled UI startup joins its authenticated
+client release before Retry. Final candidate assets also pass real declared-window
+expiry, terminal cancellation, foreground unavailable-service recovery and the
+explicit Linux guide link on cohort A. Full physical/store journeys remain
+open; see the tactical for artifact and per-device limits.
+
+Second-cohort physical Light/Spacious review found the connected Android
+identity touching its troubleshooting link because anonymous whitespace is
+collapsed between flex items. The existing companion header now has an explicit
+0.75-rem gap. Its height and connection behavior are unchanged; 320/390/1200-pixel
+headless layout checks preserve the 40-pixel header without horizontal overflow.
+The full web typecheck, 462-test suite (two skipped) and packaged CSP checks pass.
+After the full observation, the final packaged candidate also verifies the
+12-pixel gap and 40-pixel header on the physical second Chromebook.
+
+The same physical review exposed an unscrollable Speed panel in a short desktop
+viewport. Its content extended beneath the application's clipped boundary.
+Speed now owns scrolling within the existing detail-pane height, matching the
+adjacent session panels. A 1200-by-631 wheel-input regression fails before the
+fix and passes afterward, alongside the existing Speed selection/accessibility
+journey. Physical wheel input also reaches the lower series controls while the
+panel stays within the 631-pixel viewport. Data, series selection and
+subscription behavior are unchanged.
+
+The Linux follow-up adds a packaged offline connection page with a ten-second,
+4-KiB exact-host health bound, explicit optional browser access and joined manual
+Retry/Cancel. A failed fetch does not diagnose DNS or Linux/package/policy state.
+Help explains normal Terminal startup and preservation-safe Linux shutdown.
+Successful compatibility checks request fresh HTML to avoid an older installed
+build's cached asset references. Existing connected warm handoff stays focused
+without reload. Extension tests and injected packaged-browser/cache cases pass;
+current isolated ChromeOS Linux browser file-picker bytes verify independently.
+
+Accepted 2026-10-01, not yet qualified: Tactical
+[253](../tactical/253-chromeos-onboarding-recovery-and-physical-qualification.md)
+prioritizes ChromeOS troubleshooting from the pre-connection extension screen
+as well as the connected product. Show the known failed stage, one next action
+and manual Retry/Cancel. Unreachable Android is not proof Play is disabled or
+the app absent. Offer an explicit Linux setup route when Android installation
+or connection is unavailable, explain its separate library, and give an honest
+unsupported outcome when neither host is available. Both physical devices
+must qualify these journeys; existing popup rendering tests do not suffice.
+
+Tactical [249](../tactical/249-jstorrent-brand-and-extension-refresh.md) restores
+JSTorrent display names and the original blue-box icon in the shared header,
+authentication gates, browser favicons and packaged connection screen. The
+extension popup uses blue accents, system light/dark appearance, a primary
+Android Chromebook choice and an expandable separate Linux preview. Returning
+users expand privacy settings; first-use disclosure stays visible. Torrent list,
+detail/navigation structure, appearance preferences, commands and consent policy
+remain unchanged. Twelve isolated popup platform/theme/privacy states and four
+existing shared responsive/accessibility/appearance browser tests pass. A broader
+JSTorrent library/detail/settings design review remains a follow-up.
+
+
+Tactical [248](../tactical/248-chromeos-staggered-upgrade.md) adds actionable
+ChromeOS mixed-version guidance: an old Android service requires an app update
+with Google Play and Retry; an incompatible new protocol requires an extension
+update. Unavailable service guidance explains direct Android use while updates
+arrive. The packaged page never starts a legacy engine or old control fallback.
+Controlled API 28/35 browser rehearsals render and control the migrated Android
+library after fresh pairing; production store replacement remains separate.
+
+Tactical [244](../tactical/244-unavailable-storage-presentation.md) corrects
+shared React adaptation of `awaiting_storage`: blocked progress becomes Needs
+attention with a Storage unavailable table label; active storage preparation
+retains active membership. Existing typed progress and operational state remain
+authoritative. Application DTOs, persisted run intent, root health and checker
+behavior are unchanged. Adapter/category/component and migration regressions
+pass; Android Compose uses operational state and does not share this mapping.
+
+Tactical [`236`](../tactical/236-desktop-compatibility-refusal-and-recovery.md)
+shows update guidance and Retry connection after an incompatible desktop
+bootstrap/handshake. Authentication failures also require manual attach-only
+retry. Automatic retries stop, stale application controls are hidden/unmounted,
+and no internal error-code prefix appears. A stopped runtime still offers Start.
+The packaged Linux browser refusal/repair and beta compatibility matrix pass;
+this is not a signed installer or store-update qualification.
+
+Tactical [`234`](../tactical/234-desktop-user-intent-and-background-lifecycle.md)
+owns the accepted desktop lifetime follow-up: retain the tray/status-bar icon
+while the runtime runs, including idle/paused states; browser closure only
+detaches. Fresh toolbar, Start, or OS torrent-input intent may relaunch after
+Quit; page restoration, worker wake and retries only attach. Tray Open and
+OS magnet/file delivery always use the native window. No preferred surface,
+browser-profile routing, icon-hiding or automatic completion shutdown is added.
+Installed macOS/Windows/Linux debug builds pass the bounded lifecycle
+checkpoint: browser closure during a verified transfer, 64 reload/worker-stop
+cycles, actual tab discard, explicit relaunch and passive no-resurrection.
+Desktop disconnect retires only that client's abandoned view sets before
+admitting a replacement; native views and other transports retain their owners.
+Broader endurance and installer/update compatibility remain open.
+
+Tactical [`232`](../tactical/232-desktop-extension-control.md) mounts the same
+React library in the desktop extension with portable multi-root presentation.
+Its bootstrap shows Start when the desktop is stopped and offers Open desktop
+window. Reconnection only attaches; a disconnected application is unmounted
+and hidden so stale rows cannot accept actions. Qualified Linux, Windows and
+macOS builds expose the authenticated desktop-owned folder picker in this same
+UI. Cancellation adds no root; disconnect and Quit cancel its owned helper.
+The platform frame carries an optional opaque repair-root ID, never a path.
 
 Tactical [`229`](../tactical/229-web-desktop-data-reset.md) adds a Data & reset
 Settings category with separate confirmations for restoring default preferences
@@ -12,6 +513,30 @@ Tactical [`230`](../tactical/230-desktop-stable-latest-update-channels.md)
 adds a Stable/Latest selector to desktop About and Updates. It explains check
 cadence and shows when Stable must catch up after a newer Latest installation.
 The control is absent on browser/headless and package-manager surfaces.
+
+Tactical [`228`](../tactical/228-settings-category-selection-style.md)
+replaces the Settings category rail's selected edge bars with a simple
+full-item tint. The keyboard focus outline remains distinct from selection.
+
+Tactical [`227`](../tactical/227-stable-remove-dialog-controls.md) keeps the
+Remove torrents dialog and its footer controls stationary when the user
+toggles downloaded-data deletion. It reserves the conditional warning's
+space and the longest confirmation-label width while retaining the warning
+and destructive-action wording only when selected.
+
+Tactical [`226`](../tactical/226-live-webui-hot-reload.md) adds optional
+live UI hot reload to `./scripts/webui --reload`. Vite owns the visible
+loopback page and source updates; the gateway keeps the live application,
+persistent profile, and picker behind same-origin proxy routes. The ordinary
+launcher retains its production-built behavior.
+
+Tactical [`225`](../tactical/225-two-destination-torrent-navigation-first-pass.md)
+puts a Library/Torrents navigation first pass up for product review. Torrents
+uses the detailed Workbench surface and is the fresh-install default. Saved
+Transfers destinations open Torrents with their previous filter. At narrow
+widths, row activation opens detail, the checkbox stays in the list for
+batch actions, and detail has a prominent return button. The historical
+three-destination implementation record below is retained for context.
 
 Tactical [`216`](../tactical/216-local-support-diagnostics-and-release-baseline.md)
 adds the About support report with an explicit immutable preview, copy/manual
@@ -61,9 +586,32 @@ sorting, persistent table columns and widths, and a 4,096-row named scenario.
 Completed Tactical
 [`173`](../tactical/173-mobile-web-table-horizontal-scrolling.md) makes those
 configured columns authoritative at every viewport width and restores trusted
-touch horizontal scrolling across every shared table.
+touch horizontal scrolling across every shared table. Tactical
+[`256`](../tactical/256-swarm-touch-ci-stabilization.md) stabilizes the swarm
+layout CI journey with native touch-event timing, a stationary release and an
+observed `scrollend` before position/resize assertions. The current Linux
+headless probe acknowledges synthesized gestures without touch-move events;
+the native route is independently exercised there. Every scrolling,
+column-bounds and accessibility oracle remains. Pressured
+repeats and the full local browser suite pass. The tactical links its receipts.
+The subsequent desktop release source gate exposes a separate external-intake
+unit-test race: command submission precedes its asynchronous completion.
+Await the existing success message and empty-queue observations together;
+all 470 unit tests (two skipped) and typecheck pass locally. Final source
+f5860c99 passes all ten executed CI jobs and Website; application behavior
+is unchanged.
 Tactical `043` adds the responsive live Trackers table, local deadline
-countdowns, and a permanent tracker-recovery scenario. Tacticals `044`--`045`
+countdowns, and a permanent tracker-recovery scenario. Tactical
+[341](../tactical/341-trackers-tab-peer-sources.md) adds an **Other sources**
+list above it (DHT, Peer exchange, Incoming connections, and Local network
+when it supplied peers) with plain status and known/connected counts from the
+swarm and DHT views, which the Trackers tab now also subscribes at 1 s. Completed Tactical
+[`300`](../tactical/300-monotonic-tracker-view-deadlines.md) fixes countdown
+oscillation by translating stable application-monotonic deadlines once per
+view-set epoch. Component tests cover expiry, outcome ages and calendar-clock
+jumps; a permanent real-gateway/browser runner checks unrelated updates, tab
+reopen and reload with sampled countdown values and a reviewable screenshot.
+Tacticals `044`--`045`
 add the global Disk pipeline and selected-torrent bounded Canvas Pieces
 overview, including responsive and large-torrent fixtures. Completed Tactical
 [`187`](../tactical/187-compact-metadata-acquisition-progress.md) adds a
@@ -127,9 +675,9 @@ Completed Tactical
 [`072`](../tactical/072-derived-media-catalog.md) makes normal Library card
 activation open a responsive read-only torrent detail. Media defaults to
 recognized videos ordered by typed episode values; All files is an explicit
-fallback. Same-document history, Back, Escape, focus return, collection scroll,
-filter/removal repair, and visible-projection-only leasing remain local to the
-Library owner. Wide layout places source summary beside a virtual list;
+fallback. Back, Escape, focus return, collection scroll, filter/removal
+repair, and visible-projection-only leasing remain local to the Library owner;
+Tactical 365 moves its same-document history into the shared route owner. Wide layout places source summary beside a virtual list;
 compact and phone layouts stack and use smaller generated placeholders without
 claiming artwork. Thumbnails, playback, and Library-wide aggregation remain
 separate decisions.
@@ -232,7 +780,7 @@ Completed Tactical
 capability-gated **Remote access security** category rather than overloading
 that loopback **Web access** panel. This first implementation is exercised only
 from the release-built bundle at a distinct loopback HTTPS origin and does not
-become a published client surface. After the first successful remote password
+become a published surface. After the first successful remote password
 login, the browser offers an explicit primary **Private browser — stay
 authorized** choice and a secondary **Shared browser — this page only** choice.
 A returning private browser shows bounded connection progress while it attempts
@@ -322,7 +870,7 @@ client-derived eligibility.
 
 ## Purpose
 
-The shared browser and Tauri presentation should become RSTorrent's detailed
+The shared browser and Tauri client should become RSTorrent's detailed
 product and inspection surface without inheriting JSTorrent's frontend
 architecture. It must remain useful as a dense desktop torrent client while
 also adapting gracefully to small desktop windows, touch input, tablets, and
@@ -418,7 +966,9 @@ narrow layout, and light/dark accessibility.
 Completed Tactical [`066`](../tactical/066-smooth-session-speed-history.md)
 makes Speed a session-owned range-selected history rendered by local high-DPI
 Canvas code.
-Exact received, staged-write, and verified payload lead the chart; coarse
+Payload download and upload are the default solid series; staged-write,
+verified, and traffic-class series are opt-in, and a reset restores the
+default range and selection. Coarse
 rollups persist separately from correctness-critical session state, RAF smooths
 and pans only between exact live anchors, and no general chart dependency is
 selected.
@@ -449,10 +999,12 @@ The resulting conceptual hierarchy is:
 6. progressive detail for a peer, file, tracker, piece, or other selected row
    when useful.
 
-Archive is not deletion. Its exact relationship to pause, queue, content
-retention, and the default library view remains an application-state decision.
-Durable categories and labels belong above browser-local presentation state,
-even when Android does not initially expose them.
+Archive is not deletion. Tactical `316` decides its relationship to pause:
+an archived torrent is paused and cannot be started, queued or given Download
+now until it is restored, and Restore leaves it paused. Archived torrents
+appear only in the Archived category on every surface; All excludes them.
+Content retention and queue position are unchanged by archiving. Durable
+categories and labels belong above browser-local presentation state.
 
 ## Adaptive Navigation And Layout
 
@@ -479,6 +1031,34 @@ filter, sort, selection, and scroll position.
 Tactical [`224`](../tactical/224-workbench-detail-back-breakpoint.md) aligns
 that back control with the 760 px width where Workbench hides the list, so
 the 701–760 px range retains the return path.
+
+Tactical [`351`](../tactical/351-narrow-web-lists-and-flat-chrome.md) makes
+760 px the single narrow breakpoint (`NARROW_MAX_WIDTH` in `layout.ts`,
+repeated by stylesheets) for the store's `phone` layout, the drawer, the
+detail app bar and list rendering. The sidebar owns navigation at every
+width: Library and Torrents, then the current destination's categories, and
+in the narrow drawer the session views. Library and Torrents form a
+full-width segmented switch, styled like the Settings choices, so they read
+as a view toggle rather than as peers of the categories below. Switching
+destination keeps the drawer open because the categories it reveals are
+usually the next choice; choosing a category or session view closes it. The
+narrow header is one row (menu,
+logo, current place, Settings). A narrow torrent or Library detail replaces
+it with an app bar: back arrow, name, Pause or Start, and a ⋮ menu of the
+remaining torrent actions. Narrow torrent details show torrent tabs only;
+session views open from the drawer and stand alone.
+
+At narrow widths tables render as Android-style list items rather than
+sideways-scrolling grids. Each table declares which columns form the title,
+trailing value, subtitle, wide line (such as progress) and labelled details;
+other columns appear only at wider widths. Sorting moves to a Sort field.
+This deliberately narrows Tactical 173's narrow-width column guarantee: the
+complete columns stay available above 760 px.
+
+Content surfaces are one plane. Only the header and sidebar are tinted;
+column headers, the tab bar and the splitter use the content surface with
+soft borders. A table's count, selection status and Columns share the bar
+above it (action bar, tab bar or Files summary) instead of adding a row.
 
 The same torrent and detail components should serve docked and focused modes.
 Navigation state must remain understandable and restorable rather than being
@@ -523,14 +1103,32 @@ same font metrics, the underline is out of layout flow, and every tab has the
 same fixed footprint for the selected interface size. Navigation labels do not
 carry counts; the corresponding detail content owns row totals and summaries.
 The divider before Disk continues to distinguish torrent-scoped from
-session-scoped views. Selecting or evicting a detail view therefore cannot move
-neighboring tabs, while constrained layouts retain one horizontally scrolling
-row rather than shrinking or wrapping the tabs.
+session-scoped views; session tabs follow it rather than being pushed to the
+far end, so the table controls sharing the tab bar never move a tab.
+Selecting or evicting a detail view therefore cannot move neighboring tabs,
+while constrained layouts retain one horizontally scrolling row rather than
+shrinking or wrapping the tabs.
 
 The responsive web application does not replace the native Android Compose
 product or create automatic UI parity with it. Phone usability applies to the
 shared web surface itself, including small desktop windows and future browser
 access.
+
+## Action Feedback
+
+Tactical [`346`](../tactical/346-action-feedback-toasts.md) sets one rule
+for action results. A result already visible on screen (a priority column, a
+paused row, a ticked setting, a folder in the list) gets no words. A result
+that is off screen or otherwise unconfirmed uses one bottom-centre toast
+modelled on the Android snackbar: one slot, a new toast replaces the current
+one, info toasts close after 4 s (10 s with an action), and hovering or
+focusing pauses them. Errors stay until dismissed or replaced; form and field
+validation stays beside its control. Easy reversals offer an action on the
+toast: archive and restore offer Undo, and adding a torrent that is already
+archived offers Restore. Inline rows that appear only to report a result are
+not used, because they move surrounding content. Ongoing state such as
+waiting for Wi-Fi, an available update, or buffering is status, not a result,
+and stays where it is.
 
 ## Accessibility
 
@@ -808,8 +1406,27 @@ ordinary browser context behavior.
 
 The Add dialog now has one checked-by-default **Start downloading files when
 metadata is available** checkbox. Clearing it acquires metadata without
-creating content artifacts and directs the user to the Files tab; no file tree
-or second modal is introduced. Hiding add options continues to use the usable
+creating content artifacts; no file tree or second modal is introduced. The
+dialog carries only its title, the folder list with **Choose another
+folder…**, that checkbox, **Always use this folder**, and the request source
+for an external add, without explanatory paragraphs. **Always use this
+folder** makes the chosen folder the default before hiding add options.
+**Add all sample torrents** shows this same dialog once and applies its
+choices to the whole batch.
+
+The web file-selection dialog matches Android's Tactical
+[308](../tactical/308-android-optional-add-selection.md) consent: before
+magnet metadata arrives its **Download** button sends
+`download_all_pending_add`, honoring **Don’t show file selection again**;
+afterwards the same button confirms the checklist. Dialog buttons keep one
+label while busy and are disabled with `aria-busy`, so a click target never
+changes width or text under the pointer. The draft is keyed by torrent identity
+(Tactical [324](../tactical/324-release-queued-adds-on-skip-file-selection.md)),
+so confirming or cancelling a queued add gives the next torrent fresh controls,
+file choices, preference checkbox and cached pages. Component regressions cover
+both queue transitions; older desktop 0.3.0 reused the busy draft after Cancel.
+
+Hiding add options continues to use the usable
 default root and starts content normally. Tactical `083` reuses this exact
 dialog for a chosen `.torrent`. Empty or over-64-MiB files fail locally; a
 read or adapter failure remains visible, and a dialog-owned file can be
@@ -1040,7 +1657,8 @@ all stages as one slice.
 - the default wide-screen detail position and user-selectable layout modes;
 - inbox, category, label, and queue semantics; archive and removal retention
   semantics are implemented by Tactical `040`;
-- whether later navigation complexity justifies a router or icon dependency;
+- whether later navigation complexity justifies a router library (Tactical
+  365 routes the fragment without one) or an icon dependency;
 - exact columns, row-detail interactions, and further table customization
   outside the non-sortable Logs console;
 - the first supported browser and phone access posture beyond headless and
@@ -1054,3 +1672,77 @@ active-row membership, local endpoint posture, semantic view selection, and
 suspension recovery. The implemented view-set limits and remaining delivery
 choices are recorded in
 [`application-view-api.md`](application-view-api.md).
+
+
+## Public desktop cutover presentation, 2026-10-10
+
+Shipment295 activates exact public desktop0.3.0 downloads on the main website
+with phone/wide Windows, both Mac, both Linux and source-link captures. The
+project website and update guide now describe actual desktop availability
+while Android/extension store arrivals remain separate. Astro checks/build
+and phone/wide geometry pass; the original box and navy/blue design remain.
+
+Final Mac ARM capture079 retains narrow Storage Unavailable truncation and
+a horizontally scrolled details tab row as design follow-ups. Actual signed
+Android28 store capture084 retains a tight priority-button/file-name gap in
+the Files row. Current listing images use library/intake/details instead;
+these notes do not imply new package bytes or hidden runtime failures.
+
+## Known torrent-list scroll regression, 2026-10-11
+
+The maintainer reports that the updated desktop app returns a scrolled torrent
+list to the top about once a second. Source `c9d335f0` reproduces the behavior
+with the production shared React bundle, a real loopback-only gateway, a fresh
+temporary profile containing 120 independently generated stopped torrents, and
+bundled headless Playwright Chromium at 1280 by 800. With the first sorted row
+selected, mouse-wheel scrolling reaches `scrollTop = 1800`, then an application
+refresh sets it to zero. Repeating the scroll repeats the reset. Selecting a
+different row pulls the viewport back to that row instead. Clearing selection
+preserves the same 1800-pixel scroll across multiple one-second view batches.
+
+The existing 2,000-row `large-swarm` demo independently reproduces the reset
+with its clock running; `?demo=large-swarm&at=0&autoplay=0` preserves the scroll.
+`VirtualTable`'s current-row visibility effect depends on `sortedRows` and
+`getRowId`, so ordinary refreshes re-run its imperative `scrollTop` assignment
+even when the current row has not changed. This is a shared web presentation
+regression; the investigation does not qualify native Android/Compose behavior
+or the exact installed desktop package.
+
+Validation ran `cargo build --locked -p rstorrent-gateway --bin
+rstorrent-gateway`, the same-origin production `npm run build --prefix
+clients/web` including its CSP check, and a temporary Node/Playwright runner
+using real mouse-wheel input, 50-ms scroll samples, observed WebSocket batches,
+and instrumentation of programmatic scroll writes. Both corrected runner
+passes reproduced the reset. All gateway processes joined with exit
+zero, browsers closed, and temporary profiles, fixtures, runner and logs were
+removed. The installed profile and primary browser were not used.
+
+Completed Tactical [298](../tactical/298-torrent-list-refresh-scroll.md) fixes
+the shared component by revealing each current selection once when its row is
+available. Ordinary refreshes and reordering preserve manual scroll; cleared or
+changed selection and existing keyboard navigation still reveal the intended
+row. The new component and running-clock browser regressions fail before the
+fix and pass afterward. Web typecheck, 483 unit cases (two existing skips),
+all 31 inspection browser cases, and the production/CSP build pass. A fresh
+120-torrent gateway check preserves exact first/middle/reselected scroll
+positions across continued one-second view batches with zero programmatic
+writes. Installed-package delivery remains separate from this local fix.
+
+## Canonical repository links
+
+Tactical [305](../tactical/305-canonical-jstorrent-repository.md) retargets
+shared support/download navigation and the matching exact Tauri opener scopes
+to `kzahel/jstorrent`. Browser behavior and native opener ownership are retained.
+Headless release hints accept only the exact current/former Rust repository
+URLs for the same version, allowing already-installed hosts during cutover.
+
+## Seeding settings layout baseline, 2026-10-16
+
+During Tactical 360 qualification, CI run 38905842707 passes 71 deterministic
+browser cases and fails `seeding priority settings stay truthful across
+responsive layouts` at `inspection-demo.spec.ts:1046`: the form has two right
+edges where the test requires one. An isolated checkout of pre-cutover source
+bdc58e4a reproduces the identical assertion with bundled headless Chromium.
+This is a known presentation baseline gap, not a remote-origin regression;
+it remains open for a bounded settings-layout repair. The temporary baseline
+checkout, browser and server were removed after reproduction.

@@ -9,10 +9,16 @@ import {
   formatBytes,
   formatEta,
   formatRate,
+  torrentRemovalActive,
 } from "../format";
 import type { TorrentRow, ViewMaterialization } from "../model";
 import { torrentMatchesCategory } from "../state";
 import { TorrentStatus } from "./TorrentStatus";
+import {
+  ShowAllTorrentsButton,
+  categoryHidesTorrents,
+  torrentCategoryEmptyMessage,
+} from "./TorrentCategoryEmpty";
 import { TorrentContextMenu } from "./TorrentContextMenu";
 import {
   TorrentProgress,
@@ -26,12 +32,17 @@ const columns = (
 ): readonly VirtualColumn<TorrentRow>[] => [
   {
     id: "name",
+    listRole: "title",
     label: localizedMessage("inspection.components.torrent.table.name"),
     width: 330,
     sortable: true,
     sortValue: (row) => row.name,
     render: (row) => (
-      <span className={styles.name} title={row.name}>
+      <span
+        className={styles.name}
+        title={row.name}
+        data-removing={torrentRemovalActive(row) || undefined}
+      >
         <span
           className={styles.stateDot}
           data-status={row.status}
@@ -48,10 +59,24 @@ const columns = (
     align: "right",
     sortable: true,
     sortValue: (row) => row.sizeBytes,
-    render: (row) => formatBytes(row.sizeBytes, dataUnits),
+    render: (row) =>
+      row.sizeBytes === null && row.sourceSizeBytes != null ? (
+        // The magnet's claim until the torrent's details arrive.
+        <span
+          className={styles.sizeFromLink}
+          title={localizedMessage("inspection.components.torrent.table.size.from.link.title")}
+        >
+          {localizedMessage("inspection.components.torrent.table.size.from.link", {
+            size: formatBytes(row.sourceSizeBytes, dataUnits),
+          })}
+        </span>
+      ) : (
+        formatBytes(row.sizeBytes, dataUnits)
+      ),
   },
   {
     id: "progress",
+    listRole: "wide",
     label: localizedMessage("inspection.components.torrent.table.done"),
     width: 190,
     align: "right",
@@ -61,6 +86,7 @@ const columns = (
   },
   {
     id: "status",
+    listRole: "subtitle",
     label: localizedMessage("inspection.components.torrent.table.status"),
     width: 112,
     sortable: true,
@@ -69,6 +95,7 @@ const columns = (
   },
   {
     id: "down",
+    listRole: "detail",
     label: localizedMessage("inspection.components.torrent.table.down"),
     width: 100,
     align: "right",
@@ -78,6 +105,7 @@ const columns = (
   },
   {
     id: "up",
+    listRole: "detail",
     label: localizedMessage("inspection.components.torrent.table.up"),
     width: 92,
     align: "right",
@@ -87,6 +115,7 @@ const columns = (
   },
   {
     id: "peers",
+    listRole: "detail",
     label: localizedMessage("inspection.components.torrent.table.peers"),
     width: 72,
     align: "right",
@@ -99,6 +128,7 @@ const columns = (
   },
   {
     id: "eta",
+    listRole: "detail",
     label: localizedMessage("inspection.components.torrent.table.eta"),
     width: 84,
     align: "right",
@@ -158,6 +188,7 @@ export function TorrentTable() {
 
   return (
     <VirtualTable
+      formatCount={(count) => localizedMessage("common.count.torrents", { count })}
       tableId="torrents"
       label={localizedMessage("inspection.components.torrent.table.torrent.library")}
       rows={rows}
@@ -181,14 +212,21 @@ export function TorrentTable() {
         ),
       }}
       onActivate={(row) => openTorrentDetail(row.id)}
+      loading={materialization.status === "loading"}
       emptyMessage={
         materialization.status !== "ready"
           ? materializationMessage(materialization)
           : category === "all" && demo === null
-            ? localizedMessage("inspection.components.torrent.table.no.torrents.are.present.in.the.live")
+            ? localizedMessage("inspection.components.torrent.table.no.torrents.yet")
             : category === "all"
               ? localizedMessage("inspection.components.torrent.table.no.torrents.yet.add.a.generated.demo")
-              : `No torrents in ${category}.`
+              : torrentCategoryEmptyMessage(category)
+      }
+      emptyAction={
+        materialization.status === "ready" &&
+        categoryHidesTorrents(category, torrents) ? (
+          <ShowAllTorrentsButton />
+        ) : undefined
       }
       initialSort={{ columnId: "name", direction: "asc" }}
     />
@@ -198,14 +236,14 @@ export function TorrentTable() {
 function materializationMessage(materialization: ViewMaterialization): string {
   switch (materialization.status) {
     case "not_requested":
-      return localizedMessage("inspection.components.torrent.table.torrent.library.is.not.requested.in.this");
+      return localizedMessage("inspection.components.torrent.table.loading");
     case "loading":
       return localizedMessage("inspection.components.torrent.table.loading.torrent.library");
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
-      return localizedMessage("inspection.components.torrent.table.no.torrents.are.present");
+      return localizedMessage("inspection.components.torrent.table.no.torrents.in.this.view");
   }
 }

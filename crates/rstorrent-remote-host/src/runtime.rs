@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
-use rstorrent_gateway::{ApplicationClientFrame, ApplicationServerFrame};
+use rstorrent_gateway::{ApplicationClientFrame, ApplicationServerFrame, unsupported_call_id};
 use rstorrent_remote_access::{
     AuthenticationMethod, AuthorizationMetadata, AuthorizationRequest, FailedAttemptKind,
 };
@@ -562,8 +562,22 @@ async fn bridge_application(
                         }
                         let text = std::str::from_utf8(&opened.plaintext)
                             .map_err(|_| RemoteHostError::Protocol)?;
-                        let mut frame: ApplicationClientFrame = serde_json::from_str(text)
-                            .map_err(|_| RemoteHostError::Protocol)?;
+                        let mut frame: ApplicationClientFrame = match serde_json::from_str(text) {
+                            Ok(frame) => frame,
+                            // A newer client's call this host cannot parse. The
+                            // gateway parses the same types, so it cannot accept
+                            // the frame either; it answers that call alone
+                            // instead of this circuit closing.
+                            Err(_) if !first_application_frame
+                                && unsupported_call_id(text).is_some() =>
+                            {
+                                gateway.send(Message::Text(text.to_owned().into())).await
+                                    .map_err(|_| RemoteHostError::Gateway)?;
+                                touch(owner, circuit_id).await;
+                                continue;
+                            }
+                            Err(_) => return Err(RemoteHostError::Protocol),
+                        };
                         validate_client_frame(&frame)?;
                         if first_application_frame {
                             let ApplicationClientFrame::Connect { token, .. } = &mut frame else {

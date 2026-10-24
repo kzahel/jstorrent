@@ -12,6 +12,20 @@ import { PendingFileSelectionDialog } from "./PendingFileSelectionDialog";
 afterEach(cleanup);
 
 describe("pending file selection", () => {
+  it("keeps safety skips unchecked under All and shows safety-aware totals", async () => {
+    const user = userEvent.setup();
+    const blocked = { ...file(1, "movie.mkv.exe", "200"), selection: "skipped" as const, safety: { matched_extension: ".exe", preset: "recommended" as const, overridden: false, blocked: true } };
+    const safe = file(0, "movie.mkv", "1000");
+    const confirm = vi.fn(async () => {});
+    renderDialog({ torrent: { ...torrent(), selectedFileCount: 1, selectedFileBytes: "1000", safetySummary: { blocked_file_count: 1, blocked_file_bytes: "200" } }, files: filePage(0, 2, null, [safe, blocked]), onConfirm: confirm });
+    await user.click(screen.getByRole("button", { name: /^All$/ }));
+    const unsafe = screen.getByRole("checkbox", { name: /movie.mkv.exe/ });
+    expect(unsafe).not.toBeChecked(); expect(unsafe).toBeDisabled();
+    expect(unsafe).toHaveAccessibleDescription(/Skipped by safety settings.*.exe/);
+    await user.click(screen.getByRole("button", { name: /^Download$/ }));
+    expect(confirm).toHaveBeenCalledWith("all", [], false);
+  });
+
   it("uses normal-or-skip checkboxes and sends compact ranges", async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn(async () => undefined);
@@ -22,7 +36,7 @@ describe("pending file selection", () => {
     await user.click(
       screen.getByRole("checkbox", { name: /Don’t show file selection again/i }),
     );
-    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(screen.getByRole("button", { name: "Download" }));
 
     await waitFor(() => expect(onConfirm).toHaveBeenCalledOnce());
     expect(onConfirm).toHaveBeenCalledWith(
@@ -50,15 +64,73 @@ describe("pending file selection", () => {
     );
   });
 
-  it("waits for magnet metadata and offers explicit cancellation", async () => {
+  it.each(["Download", "Cancel"])("starts a fresh draft for the next queued torrent after %s", async (action) => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn(async () => undefined);
+    const onCancel = vi.fn(async () => undefined);
+    const view = renderDialog({ onConfirm, onCancel, queuedCount: 1 });
+
+    await user.click(screen.getByRole("checkbox", { name: /first\.mkv/i }));
+    await user.click(
+      screen.getByRole("checkbox", { name: /Don’t show file selection again/i }),
+    );
+    await user.click(screen.getByRole("button", { name: action }));
+    await waitFor(() =>
+      expect(action === "Download" ? onConfirm : onCancel).toHaveBeenCalledOnce(),
+    );
+    expect(action === "Download" ? onCancel : onConfirm).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Download" })).toBeDisabled();
+
+    view.rerender(
+      dialogElement({
+        onConfirm,
+        onCancel,
+        torrent: { ...torrent(), id: "t1-11111111111111111111111111111111", name: "Next" },
+      }),
+    );
+
+    expect(screen.getByRole("heading", { name: "Next" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    expect(
+      screen.getByRole("checkbox", { name: /Don’t show file selection again/i }),
+    ).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /first\.mkv/i })).toBeChecked();
+  });
+
+  it("downloads every file without waiting for magnet metadata", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn(async () => undefined);
+    const onDownloadAll = vi.fn(async () => undefined);
+    renderDialog({ files: metadataPendingFiles(), onConfirm, onDownloadAll });
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "You can download all files without waiting",
+    );
+    await user.click(
+      screen.getByRole("checkbox", { name: /Don’t show file selection again/i }),
+    );
+    await user.click(screen.getByRole("button", { name: "Download" }));
+
+    await waitFor(() => expect(onDownloadAll).toHaveBeenCalledWith(true));
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it("waits for the file list on a host that cannot download all before it", () => {
+    renderDialog({ files: metadataPendingFiles(), waitForFileList: true });
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "You can download once the file list loads",
+    );
+    expect(screen.getByRole("button", { name: "Download" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+  });
+
+  it("offers explicit cancellation while metadata is pending", async () => {
     const user = userEvent.setup();
     const onCancel = vi.fn(async () => undefined);
     renderDialog({ files: metadataPendingFiles(), onCancel });
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "No content files will download before you confirm",
-    );
-    expect(screen.getByRole("button", { name: "Download" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(onCancel).toHaveBeenCalledOnce());
   });
@@ -129,6 +201,7 @@ function dialogElement(
       dataUnits="decimal"
       onPage={() => undefined}
       onConfirm={async () => undefined}
+      onDownloadAll={async () => undefined}
       onCancel={async () => undefined}
       {...overrides}
     />

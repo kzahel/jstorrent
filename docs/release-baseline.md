@@ -1,8 +1,11 @@
 # First supported release baseline proposal
 
-Status: **Prepared, not selected or frozen (2026-09-12).** All `0.1.x` releases
-and current mobile/platform previews remain disposable incubation fixtures.
-This proposal creates no compatibility promise and selects no version number.
+Status: **Session catalog baseline declared (2026-10-14).** Tactical
+[345](tactical/345-supported-catalog-migrations.md) declares session catalog
+schema 26, shipped by every public release since `android-v0.1.0` and
+`desktop-v0.1.4`, the supported baseline. Shipped state is migrated forward and
+never reset automatically; downgrade is not supported. The remaining rows
+below are still a proposal.
 
 ## Decision record required before the declaration
 
@@ -20,8 +23,8 @@ the baseline record.
 ## Candidate contract inventory
 
 Freeze the candidate's actual fresh formats, not today's values by assumption.
-At this source checkpoint the profile catalog is schema 26, but a future
-candidate may legitimately differ before the support declaration.
+The session catalog baseline is schema 26; later versions migrate forward
+from it under Tactical 345.
 
 | Authority | What the candidate record must pin | Required evidence |
 | --- | --- | --- |
@@ -42,7 +45,7 @@ or an explicit non-supported scope for every row that reaches the candidate.
 | Transition or failure | Required outcome |
 | --- | --- |
 | Clean candidate install → reopen | Fresh state opens, root selection persists, one runtime owner, joined shutdown |
-| Recognized `0.1.x` catalog → first supported candidate | Bounded private reset or an explicitly selected migration; no incubation migration obligation; payloads preserved |
+| Pre-baseline incubation catalog (schema 19 or 22) | Fail closed, byte-for-byte unchanged; only the user's Clear app data replaces it |
 | Supported baseline → later supported version | Preserve declared durable intent through a reviewed forward migration and crash-recovery boundary |
 | Newer unsupported/future catalog → older binary | Fail closed with a recoverable explanation; no automatic downgrade or deletion |
 | Invalid, ambiguous, unsafe or busy private catalog | Refuse destructive guessing and preserve evidence/payloads |

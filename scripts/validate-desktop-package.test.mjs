@@ -17,6 +17,7 @@ const fileClass = `${identifier}.torrent`;
 test("accepts complete macOS activation metadata", () => {
   validateMacInfo({
     CFBundleIdentifier: identifier,
+    CFBundleExecutable: "jstorrent-client",
     CFBundleURLTypes: [
       {
         CFBundleURLName: `${identifier} magnet`,
@@ -46,7 +47,7 @@ test("accepts complete macOS activation metadata", () => {
 
 test("rejects incomplete macOS activation metadata", () => {
   assert.throws(
-    () => validateMacInfo({ CFBundleIdentifier: identifier }),
+    () => validateMacInfo({ CFBundleIdentifier: identifier, CFBundleExecutable: "jstorrent-client" }),
     /does not register magnet/,
   );
 });
@@ -68,8 +69,8 @@ test("requires an executable native host in the macOS application", () => {
 
 test("accepts a Linux handler that forwards one URL list", () => {
   validateLinuxDesktop(`[Desktop Entry]
-Name=RSTorrent
-Exec=rstorrent-desktop %U
+Name=JSTorrent Preview
+Exec=jstorrent-client %U
 Terminal=false
 Type=Application
 MimeType=application/x-bittorrent;x-scheme-handler/magnet;
@@ -80,8 +81,8 @@ test("rejects a Linux handler that advertises but drops activations", () => {
   assert.throws(
     () =>
       validateLinuxDesktop(`[Desktop Entry]
-Name=RSTorrent
-Exec=rstorrent-desktop
+Name=JSTorrent Preview
+Exec=jstorrent-client
 Terminal=false
 Type=Application
 MimeType=application/x-bittorrent;x-scheme-handler/magnet;
@@ -92,13 +93,13 @@ MimeType=application/x-bittorrent;x-scheme-handler/magnet;
 
 test("accepts exact quoted Windows association commands", () => {
   validateWindowsAssociations({
-    executable: "C:\\Users\\Test User\\AppData\\Local\\RSTorrent\\rstorrent-desktop.exe",
+    executable: "C:\\Users\\Test User\\AppData\\Local\\RSTorrent\\jstorrent-client.exe",
     torrentProgId: fileClass,
     torrentCommand:
-      '"C:\\Users\\Test User\\AppData\\Local\\RSTorrent\\rstorrent-desktop.exe" "%1"',
+      '"C:\\Users\\Test User\\AppData\\Local\\RSTorrent\\jstorrent-client.exe" "%1"',
     magnetUrlProtocol: "",
     magnetCommand:
-      '"C:\\Users\\Test User\\AppData\\Local\\RSTorrent\\rstorrent-desktop.exe" "%1"',
+      '"C:\\Users\\Test User\\AppData\\Local\\RSTorrent\\jstorrent-client.exe" "%1"',
   });
 });
 
@@ -106,12 +107,41 @@ test("rejects an unquoted Windows executable", () => {
   assert.throws(
     () =>
       validateWindowsAssociations({
-        executable: "C:\\Users\\Test User\\rstorrent-desktop.exe",
+        executable: "C:\\Users\\Test User\\jstorrent-client.exe",
         torrentProgId: fileClass,
-        torrentCommand: 'C:\\Users\\Test User\\rstorrent-desktop.exe "%1"',
+        torrentCommand: 'C:\\Users\\Test User\\jstorrent-client.exe "%1"',
         magnetUrlProtocol: "",
-        magnetCommand: '"C:\\Users\\Test User\\rstorrent-desktop.exe" "%1"',
+        magnetCommand: '"C:\\Users\\Test User\\jstorrent-client.exe" "%1"',
       }),
     /unexpected Windows torrent command/,
   );
+});
+
+test("production Windows and Linux metadata reject an incubation selector", () => {
+  const executable = 'C:\\Users\\Test User\\AppData\\Local\\JSTorrent\\jstorrent-client.exe';
+  const registry = {executable, torrentProgId:'com.jstorrent.desktop.torrent',
+    torrentCommand:`"${executable}" "%1"`,magnetCommand:`"${executable}" "%1"`,magnetUrlProtocol:''};
+  assert.doesNotThrow(()=>validateWindowsAssociations(registry,'JSTorrent'));
+  assert.throws(()=>validateWindowsAssociations(registry,'RSTorrent'),/torrent file class/u);
+  const entry='[Desktop Entry]\nName=JSTorrent\nExec=jstorrent-client %U\nTerminal=false\nType=Application\nMimeType=application/x-bittorrent;x-scheme-handler/magnet;\n';
+  assert.doesNotThrow(()=>validateLinuxDesktop(entry,'JSTorrent'));
+  assert.throws(()=>validateLinuxDesktop(entry,'RSTorrent'),/handler name/u);
+  assert.throws(()=>validateLinuxDesktop(entry,'OtherApp'),/unknown package product/u);
+  assert.throws(()=>validateMacInfo({CFBundleIdentifier:'com.jstorrent.rstorrent'},'JSTorrent'),/bundle identifier/u);
+});
+
+test("rejects obsolete desktop executable labels in installed packages", () => {
+  assert.throws(() => validateMacInfo({
+    CFBundleIdentifier: identifier, CFBundleExecutable: "rstorrent-desktop",
+  }), /unexpected macOS executable/u);
+  const executable = "C:\\Program Files\\JSTorrent\\rstorrent-desktop.exe";
+  assert.throws(() => validateWindowsAssociations({executable}, "JSTorrent"),
+    /unexpected Windows installed executable/u);
+  assert.throws(() => validateLinuxDesktop(`[Desktop Entry]
+Name=JSTorrent
+Exec=rstorrent-desktop %U
+Type=Application
+Terminal=false
+MimeType=application/x-bittorrent;x-scheme-handler/magnet;
+`, "JSTorrent"), /unexpected Linux installed executable/u);
 });

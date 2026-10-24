@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "surface": "android",
+  "version": "1.0.32",
+  "versionCode": 32,
+  "source": "071ada49f1c29cd10351dda619d5ab5029bdfda3",
+  "tag": "android-v1.0.32",
+  "firstPublic": "2026-10-22",
+  "publicUrl": "https://play.google.com/store/apps/details?id=com.jstorrent.app",
+  "submissionReceipt": "380-android-submission-receipt.json",
+  "play": {
+    "status": "Active; Available on Google Play",
+    "latestRelease": "32 (1.0.32)",
+    "releasedLocal": "2026-10-22 15:54 Europe/Berlin",
+    "targetCountries": 178,
+    "versionCodes": [
+      32
+    ],
+    "supportedDevices": 12266,
+    "unpublishedChanges": false,
+    "managedPublishing": false
+  },
+  "minimumExtension": "1.1.5",
+  "limits": [
+    "Play Console confirms public availability; this is not a Play-installed update or production stability rehearsal."
+  ]
+}

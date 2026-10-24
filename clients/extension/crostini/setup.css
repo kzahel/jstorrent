@@ -23,6 +23,20 @@ img {
   box-shadow: 0 18px 50px rgb(0 0 0 / 35%);
 }
 
+button {
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 1px solid #67e8f9;
+  border-radius: 8px;
+  background: #164e63;
+  color: #f8fafc;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled { opacity: 0.6; cursor: wait; }
+button:focus-visible { outline: 3px solid #67e8f9; outline-offset: 3px; }
+
 .eyebrow {
   margin: 28px 0 6px;
   color: #67e8f9;
@@ -88,6 +102,11 @@ dd {
   margin: 4px 0 0;
 }
 
+a { color: #93c5fd; }
+details { margin-top: 1rem; }
+summary { cursor: pointer; font-weight: 600; }
+:focus-visible { outline: 2px solid #93c5fd; outline-offset: 3px; }
+
 @media (max-width: 520px) {
   main {
     padding: 32px 16px 56px;
@@ -96,4 +115,16 @@ dd {
   section {
     padding: 18px;
   }
+}
+
+/* Follow the same system appearance as the extension popup. */
+@media (prefers-color-scheme: light) {
+  :root { background: #f5f7fa; color: #172333; }
+  body { background: #f5f7fa; }
+  section { border-color: #cfd7df; background: #fff; box-shadow: 0 8px 24px rgb(23 35 51 / 4%); }
+  h2 { color: #172333; }
+  .eyebrow, code, a { color: #145da8; }
+  .intro, dt { color: #536274; }
+  button { border-color: #145da8; background: #1769bd; color: #fff; }
+  button:focus-visible { outline-color: #087dcc; }
 }

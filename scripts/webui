@@ -7,16 +7,18 @@ installed_lock="$web_root/node_modules/.package-lock.json"
 data_root="${RSTORRENT_WEBUI_DATA_ROOT:-$repository_root/.local/webui}"
 web_port="${RSTORRENT_WEBUI_PORT:-4177}"
 open_browser=1
+reload=0
 
 usage() {
     printf '%s\n' \
-        "Usage: ./scripts/webui [--no-open]" \
+        "Usage: ./scripts/webui [--reload] [--no-open]" \
         "" \
-        "Build and run the live React inspection UI in a normal browser." \
+        "Run the live React inspection UI in a normal browser." \
         "State defaults to .local/webui and survives launcher restarts." \
         "No download folder is assumed; choose one when adding a torrent." \
         "" \
         "Options:" \
+        "  --reload   Serve UI source with Vite hot reload." \
         "  --no-open  Start the server without opening a browser tab." \
         "  --help     Show this help."
 }
@@ -25,6 +27,9 @@ while (($# > 0)); do
     case "$1" in
         --no-open)
             open_browser=0
+            ;;
+        --reload)
+            reload=1
             ;;
         --help|-h)
             usage
@@ -60,44 +65,107 @@ for required_command in cargo npm curl mktemp; do
 done
 
 gateway_pid=""
+vite_pid=""
 launcher_started=0
 runtime_root="$(mktemp -d "${TMPDIR:-/tmp}/rstorrent-webui.XXXXXX")"
 gateway_log="$runtime_root/gateway.log"
+vite_log="$runtime_root/vite.log"
 
-stop_process() {
-    local process_id="$1"
-    local initial_signal="$2"
-    local label="$3"
+interrupts=0
+relayed_lines=0
+
+# Sleeps in the background so a trapped Ctrl+C interrupts the wait at once.
+pause() {
+    sleep "$1" &
+    wait "$!" 2>/dev/null || true
+}
+
+line_count() {
+    if [[ -f "$1" ]]; then
+        echo $(($(wc -l <"$1")))
+    else
+        echo 0
+    fi
+}
+
+# Prints the gateway's new `shutdown:` progress lines.
+relay_gateway_shutdown() {
+    local total
+    total="$(line_count "$gateway_log")"
+    if ((total > relayed_lines)); then
+        sed -n "$((relayed_lines + 1)),${total}p" "$gateway_log" |
+            sed -n -e 's/signal again/press Ctrl+C again/' -e 's/^shutdown: /  /p'
+        relayed_lines=$total
+    fi
+}
+
+stop_vite() {
     local attempt
 
-    [[ -n "$process_id" ]] || return 0
-    if kill -0 "$process_id" 2>/dev/null; then
-        kill -s "$initial_signal" "$process_id" 2>/dev/null || true
-        for ((attempt = 0; attempt < 100; attempt++)); do
-            kill -0 "$process_id" 2>/dev/null || break
-            sleep 0.05
-        done
-    fi
-    if kill -0 "$process_id" 2>/dev/null; then
-        printf '%s did not stop promptly; sending TERM.\n' "$label" >&2
-        kill -TERM "$process_id" 2>/dev/null || true
+    [[ -n "$vite_pid" ]] || return 0
+    if kill -0 "$vite_pid" 2>/dev/null; then
+        kill -INT "$vite_pid" 2>/dev/null || true
         for ((attempt = 0; attempt < 40; attempt++)); do
-            kill -0 "$process_id" 2>/dev/null || break
-            sleep 0.05
+            kill -0 "$vite_pid" 2>/dev/null || break
+            pause 0.05
         done
     fi
-    if kill -0 "$process_id" 2>/dev/null; then
-        printf '%s did not join after TERM; sending KILL.\n' "$label" >&2
-        kill -KILL "$process_id" 2>/dev/null || true
+    if kill -0 "$vite_pid" 2>/dev/null; then
+        kill -KILL "$vite_pid" 2>/dev/null || true
     fi
-    wait "$process_id" 2>/dev/null || true
+    wait "$vite_pid" 2>/dev/null || true
+}
+
+# The gateway escalates on repeated INT: the first stops gracefully, the
+# second skips the remaining tracker and port-mapping cleanup. A third
+# Ctrl+C here kills it.
+stop_gateway() {
+    local forwarded=1
+    local started=$SECONDS
+
+    [[ -n "$gateway_pid" ]] || return 0
+    if ! kill -0 "$gateway_pid" 2>/dev/null; then
+        wait "$gateway_pid" 2>/dev/null || true
+        return 0
+    fi
+    relayed_lines="$(line_count "$gateway_log")"
+    kill -INT "$gateway_pid" 2>/dev/null || true
+    while kill -0 "$gateway_pid" 2>/dev/null; do
+        if ((launcher_started == 1)); then
+            relay_gateway_shutdown
+        fi
+        if ((interrupts >= 3)); then
+            printf 'Killing the application gateway; saved state is kept.\n'
+            kill -KILL "$gateway_pid" 2>/dev/null || true
+            break
+        fi
+        if ((interrupts >= 2 && forwarded < 2)); then
+            kill -INT "$gateway_pid" 2>/dev/null || true
+            forwarded=2
+        fi
+        if ((SECONDS - started >= 15)); then
+            printf 'Application gateway did not stop within 15 seconds; sending KILL.\n' >&2
+            kill -KILL "$gateway_pid" 2>/dev/null || true
+            break
+        fi
+        pause 0.05
+    done
+    wait "$gateway_pid" 2>/dev/null || true
+    if ((launcher_started == 1 && interrupts < 3)); then
+        relay_gateway_shutdown
+    fi
 }
 
 cleanup() {
     local status=$?
-    trap - EXIT INT TERM
-    stop_process "$gateway_pid" INT "application gateway"
-    rm -f -- "$gateway_log"
+    trap - EXIT
+    trap 'interrupts=$((interrupts + 1))' INT TERM
+    if ((launcher_started == 1)); then
+        printf '\nShutting down RSTorrent web UI...\n'
+    fi
+    stop_vite
+    stop_gateway
+    rm -f -- "$gateway_log" "$vite_log"
     rmdir -- "$runtime_root" 2>/dev/null || true
     if ((launcher_started == 1)); then
         printf 'RSTorrent web UI stopped.\n'
@@ -105,8 +173,8 @@ cleanup() {
     exit "$status"
 }
 
-trap 'exit 130' INT
-trap 'exit 143' TERM
+trap 'interrupts=1; exit 130' INT
+trap 'interrupts=1; exit 143' TERM
 trap cleanup EXIT
 
 mkdir -p -- "$data_root/profile"
@@ -121,11 +189,23 @@ if [[ ! -x "$web_root/node_modules/.bin/vite" ||
     )
 fi
 
-printf 'Building production web UI...\n' >&2
-(
-    cd "$web_root"
-    VITE_RSTORRENT_DEFAULT_LIVE=same-origin npm run build
-)
+if ((reload == 1)); then
+    printf 'Preparing hot-reload web UI...\n' >&2
+    (
+        cd "$web_root"
+        npm run predev
+    )
+    gateway_bind="127.0.0.1:0"
+    web_assets_root="$web_root"
+else
+    printf 'Building production web UI...\n' >&2
+    (
+        cd "$web_root"
+        VITE_RSTORRENT_DEFAULT_LIVE=same-origin npm run build:hosted
+    )
+    gateway_bind="127.0.0.1:$web_port"
+    web_assets_root="$web_root/dist"
+fi
 
 printf 'Building application gateway...\n' >&2
 (
@@ -144,18 +224,23 @@ if [[ ! -x "$gateway_binary" ]]; then
 fi
 
 origin="http://127.0.0.1:$web_port"
+# Job control gives each background server its own process group, so a
+# terminal Ctrl+C reaches only this launcher, which decides what each press
+# means.
+set -m
 (
     export RSTORRENT_PROFILE_ROOT="$data_root/profile"
     export RSTORRENT_GATEWAY_AUTH="unauthenticated_loopback_development"
-    export RSTORRENT_GATEWAY_BIND="127.0.0.1:$web_port"
+    export RSTORRENT_GATEWAY_BIND="$gateway_bind"
     export RSTORRENT_GATEWAY_ORIGIN="$origin"
-    export RSTORRENT_WEB_ROOT="$web_root/dist"
+    export RSTORRENT_WEB_ROOT="$web_assets_root"
     export RSTORRENT_BUILD_ID="local-webui"
     export RSTORRENT_NETWORK_POLICY="${RSTORRENT_NETWORK_POLICY:-online}"
     unset RSTORRENT_GATEWAY_TOKEN
     exec "$gateway_binary"
 ) >"$gateway_log" 2>&1 &
 gateway_pid=$!
+set +m
 
 gateway_address=""
 for ((attempt = 0; attempt < 200; attempt++)); do
@@ -173,10 +258,25 @@ if [[ -z "$gateway_address" ]]; then
     sed -n '1,120p' "$gateway_log" >&2
     exit 1
 fi
-if [[ "$gateway_address" != "127.0.0.1:$web_port" ]]; then
+if [[ "$gateway_address" != 127.0.0.1:* ]] ||
+    { ((reload == 0)) && [[ "$gateway_address" != "$gateway_bind" ]]; }; then
     printf 'Application gateway bound an unexpected address: %s.\n' \
         "$gateway_address" >&2
     exit 1
+fi
+
+if ((reload == 1)); then
+    set -m
+    (
+        cd "$web_root"
+        export VITE_RSTORRENT_DEFAULT_LIVE=same-origin
+        export RSTORRENT_WEBUI_PROXY_TARGET="http://$gateway_address"
+        export RSTORRENT_WEBUI_RELOAD=1
+        exec "$web_root/node_modules/.bin/vite" \
+            --host 127.0.0.1 --port "$web_port" --strictPort
+    ) >"$vite_log" 2>&1 &
+    vite_pid=$!
+    set +m
 fi
 
 application_ready=0
@@ -186,18 +286,28 @@ for ((attempt = 0; attempt < 200; attempt++)); do
         sed -n '1,120p' "$gateway_log" >&2
         exit 1
     fi
+    if ((reload == 1)) && ! kill -0 "$vite_pid" 2>/dev/null; then
+        printf 'Vite development server exited during startup.\n' >&2
+        sed -n '1,120p' "$vite_log" >&2
+        exit 1
+    fi
     if curl --silent --show-error --fail --max-time 0.25 "$origin/" \
         >/dev/null 2>&1 && \
         curl --silent --show-error --fail --max-time 0.25 "$origin/healthz" \
         >/dev/null 2>&1; then
-        application_ready=1
-        break
+        if ((reload == 0)) ||
+            curl --silent --show-error --fail --max-time 0.25 \
+                "$origin/@vite/client" >/dev/null 2>&1; then
+            application_ready=1
+            break
+        fi
     fi
     sleep 0.05
 done
 if ((application_ready == 0)); then
     printf 'Timed out waiting for the hosted web application.\n' >&2
     sed -n '1,120p' "$gateway_log" >&2
+    if ((reload == 1)); then sed -n '1,120p' "$vite_log" >&2; fi
     exit 1
 fi
 
@@ -207,7 +317,11 @@ launcher_started=1
 printf '\nRSTorrent live web UI is ready.\n'
 printf 'URL: %s\n' "$web_url"
 printf 'Data: %s\n' "$data_root"
-printf 'Press Ctrl+C to stop the hosted application.\n\n'
+if ((reload == 1)); then
+    printf 'Hot reload: React and CSS source changes update this page.\n'
+fi
+printf 'Press Ctrl+C to stop; press it again to skip tracker and port-mapping\n'
+printf 'cleanup, and a third time to kill the gateway.\n\n'
 
 if ((open_browser == 1)); then
     if [[ "$(uname -s)" == "Darwin" ]] && command -v open >/dev/null 2>&1; then
@@ -231,5 +345,12 @@ while true; do
         sed -n '1,120p' "$gateway_log" >&2
         exit 1
     fi
-    sleep 1
+    if ((reload == 1)) && ! kill -0 "$vite_pid" 2>/dev/null; then
+        wait "$vite_pid" || vite_status=$?
+        printf 'Vite development server exited unexpectedly with status %s.\n' \
+            "${vite_status:-0}" >&2
+        sed -n '1,120p' "$vite_log" >&2
+        exit 1
+    fi
+    pause 1
 done

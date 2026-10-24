@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "sourceRevision": "25e4b701433fd815398ba89526546f5e4f072e3f",
+  "desktop": {
+    "identifier": "com.jstorrent.desktop",
+    "productName": "JSTorrent",
+    "endpoint": "https://updates.jstorrent.com/tauri/{{target}}/{{arch}}/{{current_version}}",
+    "publicKey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQxNUQzREY0QjNEMENGQjgKUldTNHo5Q3o5RDFkUWRwNnpxMTR2UnBiUFVGejlaYnpIU0t2bkJYanBTenBZMFR0a0J5WUU3SzIK",
+    "baselineVersion": "0.2.1",
+    "fileClass": "com.jstorrent.desktop.torrent"
+  },
+  "android": {
+    "package": "com.jstorrent.app",
+    "baselineVersionCode": 24,
+    "uploadCertificateSha256": "ccb5af8e44d626e9aefb1f0fbd8496dbf23ad27da9347248e71fb3ce70044915",
+    "certificateSource": {
+      "url": "https://github.com/kzahel/jstorrent-typescript/releases/download/android-v1.0.24/app-release.apk",
+      "artifactSha256": "a938b46825157668e804d1efbf01a2cce461a8e23ce1028e909aa919145cfa84",
+      "sourceRevision": "7b454be4410385f9c4f7f135cb6b16194a2b0409"
+    },
+    "playSigning": "Must be confirmed separately in the existing Play Console app."
+  },
+  "extension": {
+    "id": "dbokmlpefliilbjldladbimlcfgbolhk",
+    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiKJWFm9ufwrqBIXFv1bteq6mGtsQTZz9MfW6LZdhUHCKlOV7pXqwtxdahp7C6MtywGLF4P9pWdmxmZDXJ/xTc2Oo+sR371qTGs9bFVI8F1BWYrM4f/I8HOItW08ST9mFBZjTDCPJ0FXa+QryvJtTeo07ERH85R51HQWJIEcjdWHU9h4q0KMKdimy3TBxTi+G8Ez0T7VW67EuR/hoLNA5QkewQbQBT8zMCwdL+9Zn/OMXuQ7n44nf1RYLc2VUJTad5ztga1zzui9TuTE7yeolZlwV2qflvNicDBsbt1m8l6Q6Ow04KqO7JFa0MC2deY+kEyo/VpggDmnw4nQXmm7i3wIDAQAB",
+    "baselineVersion": "1.1.1"
+  }
+}

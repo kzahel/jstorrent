@@ -2,7 +2,7 @@ import type { DataUnits } from "./appearance";
 import { formatBytes } from "./format";
 import type { SessionSummary } from "./model";
 
-export const APPLICATION_TITLE = "RSTorrent";
+export const APPLICATION_TITLE = "JSTorrent";
 export const TITLE_UPDATE_INTERVAL_MILLIS = 1_000;
 
 export class DocumentTitleThrottle {
@@ -91,7 +91,8 @@ export function documentTitleForSession(
   session: SessionSummary,
   dataUnits: DataUnits,
 ): string {
-  if (session.connection !== "connected" && session.connection !== "demo") {
+  const connection = session.connection.type;
+  if (connection !== "connected" && connection !== "demo") {
     return APPLICATION_TITLE;
   }
   const downloadRate = nonnegativeRate(session.downloadRate);

@@ -23,7 +23,8 @@ env:
 
 jobs:
   select:
-    if: github.ref == 'refs/heads/main'
+    # One-product cutover qualification: no automatic incubation publication.
+    if: github.ref == 'refs/heads/main' && vars.INCUBATION_PUBLICATION_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:

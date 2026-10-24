@@ -7,6 +7,7 @@ import type {
   WebAuthStatus,
   WebSession,
 } from "../../web-auth-client";
+import { useToast } from "./Toast";
 import styles from "./WebAccessSettingsSection.module.css";
 
 export interface WebAccessSettingsSectionProps {
@@ -23,7 +24,7 @@ export function WebAccessSettingsSection({
   const [ticket, setTicket] = useState<PairingTicket | null>(null);
   const [ticketRemaining, setTicketRemaining] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
@@ -51,7 +52,6 @@ export function WebAccessSettingsSection({
 
   const perform = async (operation: () => Promise<void>) => {
     setBusy(true);
-    setMessage(null);
     setError(null);
     try {
       await operation();
@@ -86,10 +86,10 @@ export function WebAccessSettingsSection({
             void perform(async () => {
               if (paired) {
                 await client.setPolicy("local_open");
-                setMessage(localizedMessage("inspection.components.web.access.settings.section.localhost.access.is.now.open"));
+                toast.show({ message: localizedMessage("inspection.components.web.access.settings.section.localhost.access.is.now.open") });
               } else {
                 await client.setPolicy("paired", browserLabel());
-                setMessage(localizedMessage("inspection.components.web.access.settings.section.this.browser.is.now.remembered"));
+                toast.show({ message: localizedMessage("inspection.components.web.access.settings.section.this.browser.is.now.remembered") });
               }
               setTicket(null);
               await refresh();
@@ -115,7 +115,6 @@ export function WebAccessSettingsSection({
                   void perform(async () => {
                     const next = await client.createPairingTicket();
                     setTicket(next);
-                    setMessage(localizedMessage("inspection.components.web.access.settings.section.a.new.pairing.code.is.ready"));
                   })
                 }
               >{localizedMessage("inspection.components.web.access.settings.section.generate.code")}</button>
@@ -147,7 +146,7 @@ export function WebAccessSettingsSection({
                   if (!window.confirm("Revoke every other authorized browser?")) return;
                   void perform(async () => {
                     const changed = await client.revokeOtherSessions();
-                    setMessage(`Revoked ${changed} other browser${changed === 1 ? "" : "s"}.`);
+                    toast.show({ message: localizedMessage("feedback.browsers.revoked", { count: changed }) });
                     await refresh();
                   });
                 }}
@@ -171,7 +170,7 @@ export function WebAccessSettingsSection({
                         if (!window.confirm(`Revoke ${session.label}?`)) return;
                         void perform(async () => {
                           await client.revokeSession(session.id);
-                          setMessage(`${session.label} was revoked.`);
+                          toast.show({ message: localizedMessage("feedback.browser.revoked", { name: session.label }) });
                           await refresh();
                         });
                       }}
@@ -184,7 +183,7 @@ export function WebAccessSettingsSection({
 
           <section className={styles.section}>
             <h3>{localizedMessage("inspection.components.web.access.settings.section.recovery.and.sign.out")}</h3>
-            <p className={styles.note}>{localizedMessage("inspection.components.web.access.settings.section.if.every.authorized.cookie.or.browser.profile")}{" "}<code>{localizedMessage("inspection.components.web.access.settings.section.pairing.window")}</code>{localizedMessage("inspection.components.web.access.settings.section.the.first.explicit.browser.approval.consumes.that")}</p>
+            <p className={styles.note}>{localizedMessage("inspection.components.web.access.settings.section.locked.out.restart.with")}{" "}<code>{localizedMessage("inspection.components.web.access.settings.section.pairing.window")}</code>{localizedMessage("inspection.components.web.access.settings.section.that.gives.you.10.minutes")}</p>
             <button
               className={styles.danger}
               type="button"
@@ -201,7 +200,6 @@ export function WebAccessSettingsSection({
         </>
       ) : null}
 
-      {message === null ? null : <p className={styles.success} role="status">{message}</p>}
       {error === null ? null : <p className={styles.error} role="alert">{error}</p>}
     </div>
   );

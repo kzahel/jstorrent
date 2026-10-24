@@ -4,6 +4,7 @@
 
 mod application_websocket;
 mod chromeos_companion;
+pub mod desktop_control;
 mod web_auth;
 mod web_auth_http;
 
@@ -11,6 +12,7 @@ pub use application_websocket::{
     ApplicationClientFrame, ApplicationConnectionError, ApplicationConnectionErrorCode,
     ApplicationConnectionLimits, ApplicationConnectionMetrics,
     ApplicationConnectionMetricsSnapshot, ApplicationFrameMetrics, ApplicationServerFrame,
+    UNSUPPORTED_CALL_MESSAGE, unsupported_call_id,
 };
 pub use chromeos_companion::{
     ANDROID_COMPANION_PORTS, ARC_COMPANION_HOST, BETA_EXTENSION_ORIGIN, CompanionPairingError,
@@ -73,7 +75,7 @@ pub const MAX_BUILD_ID_BYTES: usize = 128;
 pub const MAX_PRODUCT_ID_BYTES: usize = 128;
 pub const MAX_UPDATE_FIELD_BYTES: usize = 1024;
 pub const HTTP_OWNER_HEX_BYTES: usize = 32;
-pub const CROSTINI_HOST: &str = "penguin.linux.test";
+pub const CROSTINI_HOST: &str = "jstorrent.localhost";
 pub const CROSTINI_PRODUCT: &str = "rstorrent-crostini";
 pub const CROSTINI_LAUNCH_PROTOCOL_VERSION: u16 = 1;
 pub const JSTORRENT_BETA_EXTENSION_ID: &str = "gcgoepclopkgijmclmlheafaglmbjlcc";
@@ -783,14 +785,18 @@ async fn prepare_with_picker_and_assets(
         .await
         .map_err(GatewayError::Bind)?;
     let local_addr = listener.local_addr().map_err(GatewayError::Bind)?;
+    // Development pages may sit behind a proxy that forwards /media with the
+    // visible Host, so their media URLs use that origin too. In-page playback
+    // fetches ranges and needs the media route on the page's own origin.
     let media_origin = match &config.authentication {
         GatewayAuthentication::Basic(_)
         | GatewayAuthentication::PrivateLanNone
         | GatewayAuthentication::TailscaleServeNone
-        | GatewayAuthentication::Web(_) => config.allowed_origin.trim_end_matches('/').to_owned(),
-        GatewayAuthentication::Bearer { .. }
-        | GatewayAuthentication::ChromeOsCompanion(_)
+        | GatewayAuthentication::Web(_)
         | GatewayAuthentication::UnauthenticatedLoopbackDevelopment => {
+            config.allowed_origin.trim_end_matches('/').to_owned()
+        }
+        GatewayAuthentication::Bearer { .. } | GatewayAuthentication::ChromeOsCompanion(_) => {
             format!("http://{local_addr}")
         }
     };
@@ -965,7 +971,19 @@ impl GatewayServer {
                 self.state.clone(),
                 admit_torrent_upload,
             ));
+        let torrent_list_import = post(api_torrent_list_import)
+            .layer(axum::extract::DefaultBodyLimit::max(
+                rstorrent_session::MAX_TORRENT_LIST_BUNDLE_BYTES,
+            ))
+            .layer(middleware::from_fn_with_state(
+                self.state.clone(),
+                admit_torrent_list_import,
+            ));
         let mut router = Router::new()
+            // POST, not GET: browsers omit Origin on same-origin GETs, and
+            // every authenticated route requires it.
+            .route("/api/v1/torrent-list/export", post(api_torrent_list_export))
+            .route("/api/v1/torrent-list/import", torrent_list_import)
             .route(
                 "/api/v1/connect",
                 get(application_websocket::upgrade_application_connection),
@@ -1029,6 +1047,8 @@ impl GatewayServer {
                     Router::new()
                         .route("/launch-chromeos", get(chromeos_launch_page))
                         .route("/launch-chromeos.js", get(chromeos_launch_script))
+                        .route("/launch-chromeos.css", get(chromeos_launch_style))
+                        .route("/launch-chromeos.png", get(chromeos_launch_icon))
                         .with_state(self.state.clone()),
                 );
             }
@@ -1042,7 +1062,13 @@ impl GatewayServer {
                         .with_state(self.state.clone()),
                 );
             }
-            router = router.fallback_service(ServeDir::new(&assets.root));
+            // Tactical 356: `npm run build:hosted` writes `.br` and `.gz`
+            // copies; clients that accept neither get the plain file.
+            router = router.fallback_service(
+                ServeDir::new(&assets.root)
+                    .precompressed_br()
+                    .precompressed_gzip(),
+            );
             router = router.layer(middleware::from_fn(hosted_asset_cache_policy));
         }
         router = router.layer(middleware::from_fn_with_state(
@@ -1073,13 +1099,18 @@ async fn hosted_asset_cache_policy(request: Request, next: Next) -> Response {
         ),
         _ => None,
     };
+    let static_asset = cache_control.is_some();
     let mut response = next.run(request).await;
-    if response.status().is_success()
-        && let Some(cache_control) = cache_control
-    {
-        response
-            .headers_mut()
-            .insert(header::CACHE_CONTROL, cache_control);
+    if !response.status().is_success() {
+        return response;
+    }
+    let headers = response.headers_mut();
+    if let Some(cache_control) = cache_control {
+        headers.insert(header::CACHE_CONTROL, cache_control);
+    }
+    // Tactical 356: the same URL may be sent as brotli, gzip or plain.
+    if static_asset || headers.contains_key(header::CONTENT_ENCODING) {
+        headers.append(header::VARY, HeaderValue::from_static("accept-encoding"));
     }
     response
 }
@@ -1161,7 +1192,7 @@ fn basic_auth_rejection() -> Response {
     );
     response.headers_mut().insert(
         header::WWW_AUTHENTICATE,
-        HeaderValue::from_static("Basic realm=\"RSTorrent\", charset=\"UTF-8\""),
+        HeaderValue::from_static("Basic realm=\"JSTorrent\", charset=\"UTF-8\""),
     );
     response
 }
@@ -1260,12 +1291,16 @@ async fn chromeos_launch_page(State(state): State<GatewayState>) -> Response {
         "<!doctype html>\n\
          <html lang=\"en\"><head><meta charset=\"utf-8\">\
          <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
-         <title>Opening RSTorrent</title></head>\
+         <meta name=\"color-scheme\" content=\"light dark\">\
+         <link rel=\"stylesheet\" href=\"/launch-chromeos.css\">\
+         <link rel=\"icon\" href=\"/launch-chromeos.png\">\
+         <title>Opening JSTorrent</title></head>\
          <body data-extension-id=\"{}\" data-protocol-version=\"{}\">\
-         <main><h1>Opening RSTorrent…</h1>\
+         <main><img src=\"/launch-chromeos.png\" width=\"64\" height=\"64\" alt=\"\">\
+         <h1>Opening JSTorrent…</h1>\
          <p id=\"status\" role=\"status\">Connecting to JSTorrent Beta.</p>\
          <p>If this page stays open, install or enable JSTorrent Beta, then choose \
-         RSTorrent for ChromeOS Linux from the Launcher again.</p></main>\
+         JSTorrent for ChromeOS Linux from the Launcher again.</p></main>\
          <script src=\"/launch-chromeos.js\"></script></body></html>",
         handoff.extension_id, CROSTINI_LAUNCH_PROTOCOL_VERSION
     );
@@ -1273,13 +1308,29 @@ async fn chromeos_launch_page(State(state): State<GatewayState>) -> Response {
     response.headers_mut().insert(
         header::CONTENT_SECURITY_POLICY,
         HeaderValue::from_static(
-            "default-src 'none'; script-src 'self'; style-src 'none'; img-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'",
+            "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'",
         ),
     );
     response
         .headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     response
+}
+
+async fn chromeos_launch_style() -> Response {
+    (
+        [(header::CONTENT_TYPE, "text/css; charset=utf-8")],
+        include_str!("../resources/launch-chromeos.css"),
+    )
+        .into_response()
+}
+
+async fn chromeos_launch_icon() -> Response {
+    (
+        [(header::CONTENT_TYPE, "image/png")],
+        include_bytes!("../resources/jstorrent.png").as_slice(),
+    )
+        .into_response()
 }
 
 async fn chromeos_launch_script() -> Response {
@@ -1289,7 +1340,7 @@ async fn chromeos_launch_script() -> Response {
   const extensionId = body?.dataset.extensionId;
   const protocolVersion = Number(body?.dataset.protocolVersion);
   const fail = () => {
-    if (status) status.textContent = "JSTorrent Beta is unavailable. Enable it and launch RSTorrent for ChromeOS Linux again.";
+    if (status) status.textContent = "JSTorrent Beta is unavailable. Enable it and launch JSTorrent for ChromeOS Linux again.";
   };
   if (!extensionId || protocolVersion !== 1 || !globalThis.chrome?.runtime?.sendMessage) {
     fail();
@@ -1302,7 +1353,7 @@ async fn chromeos_launch_script() -> Response {
       if (chrome.runtime.lastError || response?.ok !== true) {
         fail();
       } else if (status) {
-        status.textContent = "RSTorrent is opening.";
+        status.textContent = "JSTorrent is opening.";
       }
     },
   );
@@ -1398,7 +1449,7 @@ fn valid_update_candidate(candidate: &HostedUpdateCandidate) -> bool {
     valid_final_release_version(&candidate.version)
         && candidate.release_url
             == format!(
-                "https://github.com/kzahel/rstorrent/releases/tag/headless-v{}",
+                "https://github.com/kzahel/jstorrent/releases/tag/headless-v{}",
                 candidate.version
             )
         && candidate.apply_command == "$HOME/.local/bin/rstorrent-headless update --apply"
@@ -1563,6 +1614,100 @@ async fn api_torrent_upload(
     json_response(StatusCode::OK, &response)
 }
 
+/// Tactical 348: the whole torrent list as a portable bundle.
+async fn api_torrent_list_export(
+    State(state): State<GatewayState>,
+    headers: HeaderMap,
+) -> Response {
+    if let Err(error) = authenticate_http(&state, &headers) {
+        return error.into_response();
+    }
+    let mut service = state.service.lock().await;
+    match service.export_torrent_list().await {
+        Ok(bundle) => (
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, "application/zip"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"jstorrent-torrents.zip\"",
+                ),
+            ],
+            bundle,
+        )
+            .into_response(),
+        Err(error) => api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            ApiErrorCode::Internal,
+            &error.to_string(),
+        ),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TorrentListImportQuery {
+    storage_root: String,
+    #[serde(default)]
+    keep_matching_locations: bool,
+}
+
+async fn admit_torrent_list_import(
+    State(state): State<GatewayState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if let Err(error) = authenticate_http(&state, request.headers()) {
+        return error.into_response();
+    }
+    if request
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        != Some("application/zip")
+    {
+        return invalid_request("torrent list import content type must be application/zip");
+    }
+    let Ok(permit) = state.torrent_uploads.clone().try_acquire_owned() else {
+        return api_error(
+            StatusCode::TOO_MANY_REQUESTS,
+            ApiErrorCode::ResourceLimit,
+            "another torrent upload is already in progress",
+        );
+    };
+    let response = next.run(request).await;
+    drop(permit);
+    response
+}
+
+async fn api_torrent_list_import(
+    State(state): State<GatewayState>,
+    headers: HeaderMap,
+    query: Result<Query<TorrentListImportQuery>, QueryRejection>,
+    body: Result<Bytes, axum::extract::rejection::BytesRejection>,
+) -> Response {
+    if let Err(error) = authenticate_http(&state, &headers) {
+        return error.into_response();
+    }
+    let Query(query) = match query {
+        Ok(query) => query,
+        Err(error) => return invalid_request(error.body_text()),
+    };
+    let body = match body {
+        Ok(body) => body,
+        Err(error) => return invalid_request(error.body_text()),
+    };
+    let target = rstorrent_session::TorrentListImportTarget {
+        storage_root: query.storage_root,
+        keep_matching_locations: query.keep_matching_locations,
+    };
+    let mut service = state.service.lock().await;
+    match service.import_torrent_bundle(body.into(), target).await {
+        Ok(report) => json_response(StatusCode::OK, &report),
+        Err(error) => invalid_request(error.to_string()),
+    }
+}
+
 fn parse_upload_selection(
     mode: Option<&str>,
     ranges: Option<&str>,
@@ -1679,7 +1824,7 @@ async fn choose_download_root(
 }
 
 fn home_directory() -> Option<PathBuf> {
-    std::env::var_os("HOME")
+    std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
         .map(PathBuf::from)
         .filter(|path| path.is_dir())
 }
@@ -1996,7 +2141,7 @@ mod tests {
             Box::pin(async {
                 Ok(Some(HostedUpdateCandidate {
                     version: "0.1.1".to_owned(),
-                    release_url: "https://github.com/kzahel/rstorrent/releases/tag/headless-v0.1.1"
+                    release_url: "https://github.com/kzahel/jstorrent/releases/tag/headless-v0.1.1"
                         .to_owned(),
                     apply_command: "$HOME/.local/bin/rstorrent-headless update --apply".to_owned(),
                 }))
@@ -2157,6 +2302,197 @@ mod tests {
             .expect("send application frame");
     }
 
+    #[test]
+    fn accepted_removal_finishes_after_websocket_disconnect() {
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .max_blocking_threads(1)
+            .enable_all()
+            .build()
+            .expect("runtime")
+            .block_on(removal_disconnect_scenario(true));
+    }
+
+    #[tokio::test]
+    async fn queued_removal_is_cancelled_before_entering_service() {
+        removal_disconnect_scenario(false).await;
+    }
+
+    async fn removal_disconnect_scenario(accepted: bool) {
+        let root = test_root(if accepted {
+            "accepted-removal-close"
+        } else {
+            "queued-removal-close"
+        });
+        let (service, torrent_id, payload) = verified_media_service(&root).await;
+        std::fs::write(root.join("payload/sentinel"), b"keep sibling").expect("sentinel");
+        let origin = "http://127.0.0.1:5173";
+        let server = bind(
+            GatewayConfig {
+                bind: "127.0.0.1:0".parse().expect("address"),
+                authentication: GatewayAuthentication::Bearer {
+                    token: "correct-token".into(),
+                },
+                allowed_origin: origin.into(),
+                max_connections: 2,
+            },
+            service.clone(),
+        )
+        .await
+        .expect("bind");
+        let address = server.local_addr();
+        let metrics = server.connection_metrics();
+        let shutdown = CancellationToken::new();
+        let server_task = tokio::spawn(server.serve(shutdown.clone()));
+        let mut request = format!("ws://{address}/api/v1/connect")
+            .into_client_request()
+            .expect("request");
+        request
+            .headers_mut()
+            .insert("Origin", origin.parse().expect("origin"));
+        let (mut socket, _) = connect_async(request).await.expect("connect");
+        send_application_message(
+            &mut socket,
+            &ApplicationClientFrame::Connect {
+                api_version: rstorrent_session::API_VERSION,
+                encoding: rstorrent_session::ApiEncoding::Json,
+                client_instance_id: "00000000000000000000000000000001".into(),
+                token: Some("correct-token".into()),
+                client: None,
+            },
+        )
+        .await;
+        assert!(matches!(
+            read_application_message(&mut socket).await,
+            ApplicationServerFrame::Connected { .. }
+        ));
+
+        let service_guard = if accepted {
+            None
+        } else {
+            Some(service.lock().await)
+        };
+        let (release, blocked) = std::sync::mpsc::channel();
+        let blocker = if accepted {
+            // Hold the only blocking worker so deletion cannot finish until
+            // the server has acknowledged the client's WebSocket Close.
+            let (started, ready) = tokio::sync::oneshot::channel();
+            let blocker = tokio::task::spawn_blocking(move || {
+                started.send(()).expect("worker started");
+                blocked
+                    .recv_timeout(Duration::from_secs(10))
+                    .expect("release worker");
+            });
+            ready.await.expect("blocking worker ready");
+            Some(blocker)
+        } else {
+            None
+        };
+        let database = rusqlite::Connection::open_with_flags(
+            root.join("profile/session.db"),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .expect("read-only database");
+        send_application_message(
+            &mut socket,
+            &ApplicationClientFrame::Call {
+                call_id: "remove".into(),
+                operation: ApplicationCall::Dispatch {
+                    request: Box::new(RequestEnvelope {
+                        version: rstorrent_session::CONTROL_VERSION,
+                        request_id: "remove-disconnect".into(),
+                        expected_revision: None,
+                        command: Command::RemoveTorrent {
+                            torrent_id,
+                            data: rstorrent_session::RemovalDataPolicy::DeleteData,
+                        },
+                    }),
+                },
+            },
+        )
+        .await;
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let ready = if accepted {
+                    database
+                        .query_row(
+                            "SELECT count(*) FROM removal_jobs WHERE state = 'pending'",
+                            [],
+                            |row| row.get::<_, u32>(0),
+                        )
+                        .expect("pending job")
+                        == 1
+                } else {
+                    metrics.snapshot().pending_calls_high_water == 1
+                };
+                if ready {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .expect("removal reached fence");
+        assert_eq!(
+            std::fs::read(root.join("payload/gateway.mp4")).expect("payload"),
+            payload
+        );
+        socket.close(None).await.expect("client close");
+        let response = tokio::time::timeout(Duration::from_secs(2), socket.next())
+            .await
+            .expect("close timed out")
+            .expect("close frame")
+            .expect("close response");
+        assert!(matches!(response, Message::Close(_)));
+        if let Some(blocker) = blocker {
+            release.send(()).expect("release deletion");
+            blocker.await.expect("blocking worker joined");
+        }
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while metrics.snapshot().active_connections != 0 {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .expect("connection joined");
+        assert_eq!(
+            database
+                .query_row("SELECT count(*) FROM removal_jobs", [], |row| row
+                    .get::<_, u32>(0))
+                .expect("terminal jobs"),
+            0
+        );
+        assert_eq!(
+            database
+                .query_row("SELECT count(*) FROM torrents", [], |row| row
+                    .get::<_, u32>(0))
+                .expect("catalog"),
+            u32::from(!accepted)
+        );
+        assert_eq!(root.join("payload/gateway.mp4").exists(), !accepted);
+        assert_eq!(
+            std::fs::read(root.join("payload/sentinel")).expect("sibling"),
+            b"keep sibling"
+        );
+        assert_eq!(metrics.snapshot().pending_calls_high_water, 1);
+        assert_eq!(metrics.snapshot().active_connections_high_water, 1);
+        drop(service_guard);
+        drop(database);
+        shutdown.cancel();
+        server_task
+            .await
+            .expect("server join")
+            .expect("server termination");
+        service
+            .lock()
+            .await
+            .shutdown()
+            .await
+            .expect("service shutdown");
+        drop(service);
+        std::fs::remove_dir_all(root).expect("remove test root");
+    }
+
     async fn http_request(
         address: SocketAddr,
         method: &str,
@@ -2301,11 +2637,23 @@ mod tests {
         host: &str,
         path: &str,
     ) -> (u16, String, Vec<u8>) {
+        raw_get_with_headers(address, host, path, "").await
+    }
+
+    /// `extra_headers` is zero or more complete `Name: value\r\n` lines.
+    async fn raw_get_with_headers(
+        address: SocketAddr,
+        host: &str,
+        path: &str,
+        extra_headers: &str,
+    ) -> (u16, String, Vec<u8>) {
         let host = host.to_owned();
         let path = path.to_owned();
+        let extra_headers = extra_headers.to_owned();
         tokio::task::spawn_blocking(move || {
-            let request =
-                format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
+            let request = format!(
+                "GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n{extra_headers}\r\n"
+            );
             let mut stream = TcpStream::connect(address).expect("connect HTTP gateway");
             stream
                 .set_read_timeout(Some(Duration::from_secs(3)))
@@ -2515,6 +2863,71 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn development_gateway_mints_media_urls_on_the_visible_origin() {
+        let root = test_root("gateway-development-media");
+        let (service, torrent_id, payload) = verified_media_service(&root).await;
+        let origin = "http://127.0.0.1:5173";
+        let server = bind(
+            GatewayConfig::unauthenticated_loopback_development(origin.to_owned()),
+            service.clone(),
+        )
+        .await
+        .expect("bind gateway");
+        let address = server.local_addr();
+        let shutdown = CancellationToken::new();
+        let task = tokio::spawn(server.serve(shutdown.clone()));
+        let (status, _, body) = raw_http_request(
+            address,
+            "POST",
+            "/api/v1/media-urls",
+            None,
+            Some(origin),
+            Some("00000000000000000000000000000001"),
+            None,
+            Some(serde_json::json!({ "torrent_id": torrent_id, "file_index": 0 }).to_string()),
+        )
+        .await;
+        assert_eq!(status, 200);
+        let response: MediaUrlResponse = serde_json::from_slice(&body).expect("media URL response");
+        let MediaUrlOutcome::Created { url, .. } = response.outcome else {
+            panic!("gateway media unavailable")
+        };
+        let path = url
+            .strip_prefix(origin)
+            .expect("visible-origin media URL")
+            .to_owned();
+        // A proxy that preserves the visible Host reaches the capability.
+        let (status, _, body) = raw_http_request_with_host(
+            address,
+            "127.0.0.1:5173",
+            "GET",
+            &path,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(body, payload);
+        let (status, _, _) =
+            raw_http_request(address, "GET", &path, None, None, None, None, None).await;
+        assert_eq!(status, 404);
+
+        shutdown.cancel();
+        task.await.expect("gateway task").expect("gateway shutdown");
+        service
+            .lock()
+            .await
+            .shutdown()
+            .await
+            .expect("shutdown service");
+        drop(service);
+        std::fs::remove_dir_all(root).expect("remove root");
+    }
+
+    #[tokio::test]
     async fn loopback_gateway_mounts_capability_media_without_api_bearer_or_cors() {
         let root = test_root("gateway-media");
         let (service, torrent_id, payload) = verified_media_service(&root).await;
@@ -2664,6 +3077,112 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn torrent_list_exports_and_imports_over_http() {
+        let root = test_root("http-torrent-list");
+        let service = test_service(&root).await;
+        let origin = "http://127.0.0.1:5173";
+        let server = bind(
+            GatewayConfig {
+                bind: "127.0.0.1:0".parse().expect("address"),
+                authentication: GatewayAuthentication::Bearer {
+                    token: "correct-token".to_owned(),
+                },
+                allowed_origin: origin.to_owned(),
+                max_connections: 2,
+            },
+            service.clone(),
+        )
+        .await
+        .expect("bind");
+        let address = server.local_addr();
+        let shutdown = CancellationToken::new();
+        let task = tokio::spawn(server.serve(shutdown.clone()));
+        let (status, _) = raw_torrent_request(
+            address,
+            "/api/v1/torrents?request_id=list-source&storage_root=downloads&start_content=false",
+            "correct-token",
+            origin,
+            "application/x-bittorrent",
+            torrent_source(1),
+        )
+        .await;
+        assert_eq!(status, 200);
+
+        let bundle = tokio::task::spawn_blocking(move || {
+            let mut stream = TcpStream::connect(address).expect("connect export route");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("timeout");
+            stream
+                .write_all(
+                    format!(
+                        "POST /api/v1/torrent-list/export HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\nContent-Length: 0\r\nAuthorization: Bearer correct-token\r\nOrigin: {origin}\r\nX-RSTorrent-Owner: 00000000000000000000000000000001\r\n\r\n"
+                    )
+                    .as_bytes(),
+                )
+                .expect("write export request");
+            let mut response = Vec::new();
+            stream.read_to_end(&mut response).expect("read export");
+            let split = response
+                .windows(4)
+                .position(|window| window == b"\r\n\r\n")
+                .expect("header terminator");
+            let headers = String::from_utf8_lossy(&response[..split]).to_ascii_lowercase();
+            assert!(headers.starts_with("http/1.1 200"), "{headers}");
+            assert!(headers.contains("content-type: application/zip"), "{headers}");
+            response[split + 4..].to_vec()
+        })
+        .await
+        .expect("export task");
+        assert_eq!(&bundle[..2], b"PK");
+
+        let import = "/api/v1/torrent-list/import?storage_root=downloads";
+        let (status, body) = raw_torrent_request(
+            address,
+            import,
+            "correct-token",
+            origin,
+            "application/zip",
+            bundle.clone(),
+        )
+        .await;
+        assert_eq!(status, 200, "{}", String::from_utf8_lossy(&body));
+        let report: rstorrent_session::TorrentListImportReport =
+            serde_json::from_slice(&body).expect("import report");
+        assert_eq!(report.already_present, 1);
+        assert_eq!(report.added, 0);
+
+        let (status, _) = raw_torrent_request(
+            address,
+            import,
+            "correct-token",
+            origin,
+            "application/octet-stream",
+            bundle,
+        )
+        .await;
+        assert_eq!(status, 400);
+        let (status, _) = raw_torrent_request(
+            address,
+            import,
+            "wrong-token",
+            origin,
+            "application/zip",
+            b"PK".to_vec(),
+        )
+        .await;
+        assert_eq!(status, 401);
+
+        shutdown.cancel();
+        task.await
+            .expect("server join")
+            .expect("server termination");
+        service.lock().await.shutdown().await.expect("shutdown");
+        drop(service);
+        std::fs::remove_dir_all(root).expect("remove root");
+    }
+
+    #[tokio::test]
     async fn websocket_torrent_upload_requires_ready_and_correlates_result() {
         let root = test_root("websocket-torrent-upload");
         let service = test_service(&root).await;
@@ -2698,6 +3217,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -2825,7 +3345,7 @@ mod tests {
         )
         .await;
         assert_eq!(status, 401);
-        assert!(headers.contains("www-authenticate: Basic realm=\"RSTorrent\""));
+        assert!(headers.contains("www-authenticate: Basic realm=\"JSTorrent\""));
         assert_eq!(
             raw_http_request_with_host(
                 address,
@@ -2927,6 +3447,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: None,
+                client: None,
             },
         )
         .await;
@@ -2995,6 +3516,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -3236,6 +3758,7 @@ mod tests {
                     encoding: rstorrent_session::ApiEncoding::Json,
                     client_instance_id: "00000000000000000000000000000001".to_owned(),
                     token: token.map(str::to_owned),
+                    client: None,
                 },
             )
             .await;
@@ -3282,6 +3805,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -3405,6 +3929,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -3582,6 +4107,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("wrong-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -3603,6 +4129,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000002".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -3870,7 +4397,22 @@ mod tests {
         .await;
         assert_eq!(status, 200);
         let replay: UpdateBatch = serde_json::from_slice(&body).expect("replay response");
-        assert_eq!(replay, opened.initial);
+        assert!(
+            replay
+                .server_now_millis
+                .parse::<u64>()
+                .expect("replay clock")
+                >= opened
+                    .initial
+                    .server_now_millis
+                    .parse::<u64>()
+                    .expect("initial clock")
+        );
+        let expected_replay = UpdateBatch {
+            server_now_millis: replay.server_now_millis.clone(),
+            ..opened.initial.clone()
+        };
+        assert_eq!(replay, expected_replay);
 
         let invalid_wait = format!(
             "/api/v1/view-sets/{}/updates?after={}&wait_ms=20001",
@@ -3992,13 +4534,13 @@ mod tests {
         let reservation = std::net::TcpListener::bind("127.0.0.1:0").expect("reserve port");
         let port = reservation.local_addr().expect("reserved address").port();
         drop(reservation);
-        let origin = format!("http://penguin.linux.test:{port}");
+        let origin = format!("http://jstorrent.localhost:{port}");
         let config = GatewayConfig {
             bind: format!("0.0.0.0:{port}").parse().expect("address"),
             authentication: GatewayAuthentication::Web(WebAuthenticationConfig {
                 database: root.join("profile/web-auth.sqlite3"),
                 pairing_window: false,
-                policy_override: Some(WebAccessPolicy::LocalOpen),
+                policy_override: None,
             }),
             allowed_origin: origin.clone(),
             max_connections: 2,
@@ -4011,13 +4553,103 @@ mod tests {
             .await
             .expect("bind Crostini gateway");
         let address = SocketAddr::from(([127, 0, 0, 1], server.local_addr().port()));
-        let host = format!("penguin.linux.test:{}", address.port());
+        let host = format!("jstorrent.localhost:{}", address.port());
         let shutdown = CancellationToken::new();
         let task = tokio::spawn(server.serve(shutdown.clone()));
 
         assert_eq!(
             raw_get_with_host(address, "attacker.example", "/").await.0,
             403
+        );
+        for rejected in [
+            format!("localhost:{port}"),
+            format!("127.0.0.1:{port}"),
+            format!("other.localhost:{port}"),
+            format!("penguin.linux.test:{port}"),
+            format!("jstorrent.localhost.evil:{port}"),
+        ] {
+            assert_eq!(raw_get_with_host(address, &rejected, "/").await.0, 403);
+        }
+        // Pair a browser at the dedicated origin. The cookie remains host-only;
+        // even possession of it does not permit a foreign Origin to mutate state.
+        let (status, headers, _) = raw_http_request_with_host(
+            address,
+            &host,
+            "POST",
+            "/api/v1/web-auth/policy",
+            None,
+            Some(&origin),
+            None,
+            None,
+            Some(r#"{"policy":"paired","label":"Crostini browser"}"#.to_owned()),
+        )
+        .await;
+        assert_eq!(status, 201);
+        let cookie_header = headers
+            .lines()
+            .find(|line| line.starts_with("set-cookie:"))
+            .expect("session cookie");
+        assert!(cookie_header.contains("HttpOnly; SameSite=Strict; Path=/"));
+        assert!(!cookie_header.to_ascii_lowercase().contains("domain="));
+        let cookie = cookie_header
+            .trim_start_matches("set-cookie: ")
+            .split(';')
+            .next()
+            .expect("cookie value");
+        for rejected in [
+            format!("http://localhost:{port}"),
+            format!("http://other.localhost:{port}"),
+            format!("http://penguin.linux.test:{port}"),
+            format!("http://jstorrent.localhost:{}", port ^ 1),
+        ] {
+            assert_eq!(
+                raw_http_request_with_host(
+                    address,
+                    &host,
+                    "POST",
+                    "/api/v1/web-auth/logout",
+                    None,
+                    Some(&rejected),
+                    None,
+                    Some(cookie),
+                    None
+                )
+                .await
+                .0,
+                403
+            );
+        }
+        assert_eq!(
+            raw_http_request_with_host(
+                address,
+                &host,
+                "GET",
+                "/api/v1/web-auth/sessions",
+                None,
+                Some(&origin),
+                None,
+                None,
+                None
+            )
+            .await
+            .0,
+            401
+        );
+        assert_eq!(
+            raw_http_request_with_host(
+                address,
+                &host,
+                "GET",
+                "/api/v1/web-auth/sessions",
+                None,
+                Some(&origin),
+                None,
+                Some(cookie),
+                None
+            )
+            .await
+            .0,
+            200
         );
         let (status, _, body) = raw_get_with_host(address, &host, "/healthz").await;
         assert_eq!(status, 200);
@@ -4036,6 +4668,23 @@ mod tests {
         let body = String::from_utf8(body).expect("handoff HTML");
         assert!(body.contains(JSTORRENT_BETA_EXTENSION_ID));
         assert!(body.contains("data-protocol-version=\"1\""));
+        assert!(body.contains("Opening JSTorrent"));
+        assert!(!body.contains("RSTorrent"));
+        assert!(headers.contains("style-src 'self'; img-src 'self'"));
+        let (style_status, style_headers, style) =
+            raw_get_with_host(address, &host, "/launch-chromeos.css").await;
+        assert_eq!(style_status, 200);
+        assert!(style_headers.contains("text/css"));
+        assert!(
+            String::from_utf8(style)
+                .unwrap()
+                .contains("prefers-color-scheme")
+        );
+        let (icon_status, icon_headers, icon) =
+            raw_get_with_host(address, &host, "/launch-chromeos.png").await;
+        assert_eq!(icon_status, 200);
+        assert!(icon_headers.contains("image/png"));
+        assert!(icon.starts_with(b"\x89PNG"));
         assert!(!body.contains("chrome-extension://"));
         let (status, _, script) = raw_get_with_host(address, &host, "/launch-chromeos.js").await;
         assert_eq!(status, 200);
@@ -4066,7 +4715,7 @@ mod tests {
                 pairing_window: false,
                 policy_override: Some(WebAccessPolicy::LocalOpen),
             }),
-            allowed_origin: "http://penguin.linux.test:3030".to_owned(),
+            allowed_origin: "http://jstorrent.localhost:3030".to_owned(),
             max_connections: 2,
         };
         assert!(valid().validate_crostini().is_ok());
@@ -4075,7 +4724,7 @@ mod tests {
         wrong_host.allowed_origin = "http://100.115.92.2:3030".to_owned();
         assert!(wrong_host.validate_crostini().is_err());
         let mut wrong_port = valid();
-        wrong_port.allowed_origin = "http://penguin.linux.test:4040".to_owned();
+        wrong_port.allowed_origin = "http://jstorrent.localhost:4040".to_owned();
         assert!(wrong_port.validate_crostini().is_err());
         let mut loopback = valid();
         loopback.bind = "127.0.0.1:3030".parse().expect("address");
@@ -4131,6 +4780,77 @@ mod tests {
                 .0,
             200
         );
+
+        shutdown.cancel();
+        task.await
+            .expect("server join")
+            .expect("server termination");
+        service.lock().await.shutdown().await.expect("shutdown");
+        drop(service);
+        std::fs::remove_dir_all(root).expect("remove root");
+    }
+
+    #[tokio::test]
+    async fn hosted_assets_serve_precompressed_copies_by_accept_encoding() {
+        let root = test_root("hosted-precompressed");
+        let web_root = root.join("web");
+        std::fs::create_dir_all(web_root.join("assets")).expect("create web root");
+        std::fs::write(web_root.join("index.html"), b"index").expect("write index");
+        std::fs::write(web_root.join("assets/app.js"), b"plain-asset").expect("write asset");
+        std::fs::write(web_root.join("assets/app.js.br"), b"brotli-asset").expect("write br");
+        std::fs::write(web_root.join("assets/app.js.gz"), b"gzip-asset").expect("write gz");
+        let service = test_service(&root).await;
+        let origin = "http://127.0.0.1:4177";
+        let mut config = GatewayConfig::unauthenticated_loopback_development(origin.to_owned());
+        config.bind = "127.0.0.1:0".parse().expect("address");
+        let server = bind_local_hosted(
+            config,
+            service.clone(),
+            HostedAssets::new(web_root, "local-build".to_owned()).expect("hosted assets"),
+        )
+        .await
+        .expect("bind local hosted gateway");
+        let address = server.local_addr();
+        let host = address.to_string();
+        let shutdown = CancellationToken::new();
+        let task = tokio::spawn(server.serve(shutdown.clone()));
+
+        for (accept, encoding, expected) in [
+            (
+                "Accept-Encoding: gzip, deflate, br\r\n",
+                Some("br"),
+                &b"brotli-asset"[..],
+            ),
+            (
+                "Accept-Encoding: gzip\r\n",
+                Some("gzip"),
+                &b"gzip-asset"[..],
+            ),
+            ("Accept-Encoding: identity\r\n", None, &b"plain-asset"[..]),
+            ("", None, &b"plain-asset"[..]),
+        ] {
+            let (status, headers, body) =
+                raw_get_with_headers(address, &host, "/assets/app.js", accept).await;
+            let headers = headers.to_ascii_lowercase();
+            assert_eq!(status, 200, "{accept}");
+            assert_eq!(body, expected, "{accept}");
+            match encoding {
+                Some(encoding) => assert!(
+                    headers.contains(&format!("content-encoding: {encoding}")),
+                    "{headers}"
+                ),
+                None => assert!(!headers.contains("content-encoding:"), "{headers}"),
+            }
+            assert!(
+                headers.contains("content-type: text/javascript"),
+                "{headers}"
+            );
+            assert!(headers.contains("vary: accept-encoding"), "{headers}");
+            assert!(
+                headers.contains("cache-control: public, max-age=31536000, immutable"),
+                "{headers}"
+            );
+        }
 
         shutdown.cancel();
         task.await
@@ -4275,6 +4995,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000009".to_owned(),
                 token: None,
+                client: None,
             },
         )
         .await;
@@ -4714,7 +5435,7 @@ mod tests {
             serde_json::from_slice::<serde_json::Value>(&candidate.1).expect("candidate JSON"),
             serde_json::json!({
                 "version": "0.1.1",
-                "release_url": "https://github.com/kzahel/rstorrent/releases/tag/headless-v0.1.1",
+                "release_url": "https://github.com/kzahel/jstorrent/releases/tag/headless-v0.1.1",
                 "apply_command": "$HOME/.local/bin/rstorrent-headless update --apply",
             })
         );
@@ -4788,6 +5509,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: None,
+                client: None,
             },
         )
         .await;

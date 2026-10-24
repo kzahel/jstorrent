@@ -1,6 +1,28 @@
 # Direct Filesystem Storage
 
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+adds default-on optional Windows/macOS internet-origin labels at writable
+payload-handle acquisition, plus macOS bundle labels bounded by the content
+root. It preserves existing labels, skips part files and read-only verification,
+and records marking failure separately from download integrity. Both path and
+platform magnets reload resolved safety/selection after durable metadata before
+payload admission. Explicit allowances queue verified part-file promotion even
+when paused. See [download safety](download-safety.md) for limits/evidence.
+
 Topic: `direct-filesystem-storage`
+
+Tactical 253 bounds completed-seed structural observations to four
+caller-owned futures. Files remain ordered, exact kind/length and verified
+piece authority are unchanged, and no descriptors are opened by these checks.
+Missing/failed/skipped/padding cases and cancellation pass deterministic tests;
+Android SAF physical startup evidence and limits belong to 253.
+
+Completed local Tactical [241](../tactical/241-atomic-legacy-desktop-import.md)
+uses this existing model for desktop legacy state conversion. It never copies
+or deletes payload, imports no foreign have evidence, and commits authenticated
+metadata with a pending ordinary full-check generation before an engine exists.
+Good/corrupt source-offline fixtures exercise the common checker and preserve
+paused intent and bytes. No path, Android SAF, or iOS adapter semantics change.
 
 Status: **Implemented on 2026-08-29 by Tactical
 [`191`](../tactical/191-direct-filesystem-storage.md).** Path, Android SAF,
@@ -224,7 +246,7 @@ Provider rename is no longer a correctness boundary. Grant/bookmark loss,
 provider replacement, exact-path ambiguity, and unsupported random-access or
 durability semantics still fail closed and enter the existing repair flow.
 Android remains a non-deferrable engine parity gate, and the maintained iOS
-client must remove its publication-specific coordination and presentation in
+app must remove its publication-specific coordination and presentation in
 the implementing tactical.
 
 ## Application And Presentation Contract

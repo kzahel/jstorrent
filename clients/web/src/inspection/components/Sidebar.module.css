@@ -1,18 +1,25 @@
 .sidebar {
   display: flex;
   flex-direction: column;
+  gap: var(--ui-space-sm);
   min-width: 0;
-  border-right: 1px solid var(--border-strong);
+  overflow-y: auto;
+  border-right: 1px solid var(--border-soft);
+  padding-block: var(--ui-space-sm);
   background: var(--surface-secondary);
 }
 
+/* Destinations, categories and session views are separate groups. */
+.sidebar > nav + nav {
+  border-top: 1px solid var(--border-soft);
+  padding-top: var(--ui-space-sm);
+}
+
 .heading {
-  margin: 1rem 0.85rem 0.45rem;
+  margin: 0.25rem 0.85rem 0.4rem;
   color: var(--text-muted);
-  font-size: var(--ui-font-caption);
-  font-weight: 750;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  font-size: var(--ui-font-small);
+  font-weight: var(--weight-medium);
 }
 
 .sidebar ul {
@@ -30,7 +37,7 @@
   gap: var(--ui-space-xs);
   width: 100%;
   border: 0;
-  border-radius: 0.42rem;
+  border-radius: var(--radius-md);
   padding: var(--ui-space-sm);
   color: var(--text-secondary);
   background: transparent;
@@ -48,7 +55,7 @@
 .sidebar button[aria-current="page"] {
   color: var(--accent-strong);
   background: var(--selection);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
 }
 
 .sidebar button:focus-visible {
@@ -56,11 +63,61 @@
   outline-offset: 1px;
 }
 
+.sidebar button[aria-current="page"] .symbol,
+.sidebar button[aria-current="page"] .count {
+  color: inherit;
+}
+
+/* Destinations: one full-width segmented switch, like the settings choices. */
+.sidebar .destinations {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  margin: 0 0.5rem;
+  border-radius: var(--radius-md);
+  padding: 2px;
+  background: var(--surface-tertiary);
+}
+
+.sidebar .destinations button {
+  display: flex;
+  min-height: calc(var(--ui-control-height) - 4px);
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--ui-space-xs) var(--ui-space-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.sidebar .destinations button:hover {
+  background: transparent;
+}
+
+.sidebar .destinations button[aria-current="page"] {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--surface-primary);
+}
+
+.sidebar .destinations svg {
+  flex: 0 0 auto;
+  width: var(--ui-icon-size);
+  height: var(--ui-icon-size);
+}
+
 .symbol {
+  display: grid;
+  place-items: center;
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--ui-icon-size);
   text-align: center;
+}
+
+.symbol > svg {
+  width: var(--ui-icon-size);
+  height: var(--ui-icon-size);
 }
 
 .count {

@@ -1,6 +1,130 @@
 # Application Connection Architecture
 
+Tactical [338](../tactical/338-macos-network-consent-research.md) researches
+macOS startup consent without changing application/bootstrap contracts. The
+actual incoming-TCP/UPnP/DHT-Off app retains native attach and loopback control
+without a local-network alert. Fresh-port follow-up validates incoming uTP
+BitTorrent handshakes with TCP Off and silent TCP-only/unused-port controls;
+payload probes stall in Off and On. Complete unsolicited uTP rejection and explicit
+local-network feature gating remain planned. Distinguish local-network privacy,
+incoming peer policy and OS firewall approval. Authorized Windows research now
+observes explicit TCP enable prompting and Cancel persisting inbound block
+rules across executable restart/retry; loopback control and non-loopback
+outgoing TCP/uTP hashes still pass. TCP Off admits verified incoming uTP payloads.
+The diagnostic's missing initial Fast Extension availability explains its
+stall; corrected independent wire clients pass. Bootstrap/defaults/UI are
+unchanged, and signed shipping qualification remains separate.
+
+Tactical [337](../tactical/337-lightweight-macos-development-bundle.md) provides
+a lightweight macOS debug `.app` through `scripts/desktop-bundle`, so existing
+MacApp native registration and LaunchServices start/open work in development.
+The raw `scripts/desktop` executable remains outside a bundle and cannot repair
+that registration. The application/bootstrap/authentication contract is
+unchanged. Launching the debug bundle selects it on Chrome's shared host route;
+opening the installed app later repairs the route back. Foreground and isolated
+production-ID extension lifecycle checks pass locally.
+
+Tactical [336](../tactical/336-production-desktop-extension-control.md) repairs
+desktop native bootstrap admission for the exact production extension origin.
+The helper previously advertised control but accepted start/attach only from
+the beta ID, producing misleading version guidance for production 1.1.4.
+Both reviewed IDs now reach the existing same-user bootstrap and authenticated
+WebSocket; lookalikes remain refused and attach remains passive. A real macOS
+candidate with the unpacked production extension passes cold/warm launch,
+singleton, native-window, reload/detach and Quit/manual-restart checks through
+Machine Control. Signed delivery to installed desktop releases remains open.
+
+Tactical [335](../tactical/335-removal-pieces-and-disconnect-lifetime.md)
+keeps executing `RemoveTorrent` and `CancelPendingAdd` calls joined through
+browser disconnection. Calls waiting for response reservations or service entry
+cancel before applying intent; after entry, the service finishes durable removal
+or records failure even without a response consumer. The connection retains its
+permit until removal calls finish, preserving existing admission bounds.
+Transient calls and native folder requests retain disconnect cancellation.
+
+Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) adds
+only setup/navigation around the existing same-device connection. An exact
+HTTPS, top-frame, closed-message website request can focus/open the packaged
+Android UI, but cannot launch the native service, request browser permission,
+supply endpoints or credentials, or approve pairing. Android explicitly enables
+its existing owner, verifies notification eligibility and renews one bounded
+bootstrap grace before browser return. Passive retries cannot renew that grace.
+The typed WebSocket and generated application contract are unchanged. Two
+isolated physical candidate cohorts pass; public hosted/store acceptance is
+still a release gate.
+
+
 Topic: `application-connection-architecture`
+
+Tactical 253 replaces Crostini's exact `penguin.linux.test` authority with
+`jstorrent.localhost` on the existing port 3030. Chromium's loopback resolution
+and ChromeOS forwarding replace the failing Linux DNS-registration dependency;
+no proxy, new listener or authentication protocol is added. Bare localhost,
+other localhost subdomains, the former hostname and wrong Origin/port remain
+rejected. Existing fixed local-open product policy and optional paired browser
+sessions are unchanged. Host-only HttpOnly cookies do not accompany requests
+to bare or unrelated localhost names; they still share authority across ports
+of the same dedicated hostname. This does not defend against malicious local
+processes impersonating that hostname. Actual Chromium tests cover paired
+session persistence and cross-origin refusal, while both hardware cohorts
+qualify the packaged product's local-open route. Browser approval/appearance
+may need reconfiguration at the new origin; the Linux profile is unchanged.
+
+Tactical [242](../tactical/242-legacy-desktop-handoff-rehearsal.md) adds the
+future production desktop's retirement of `com.jstorrent.native`. That name
+targets a refusal-only helper accepting bounded released frames and returning
+update guidance, without launching a desktop, IO daemon, listener or semantic
+capability. Production registration failures and already-running same-user
+legacy processes stop startup before import; a second quiescence check precedes
+the new engine. Incubation retains its existing name and exact beta control
+origin. This is managed-route fencing, not revocation of manually retained old
+binaries or a legacy protocol bridge.
+
+Tactical [`236`](../tactical/236-desktop-compatibility-refusal-and-recovery.md)
+classifies desktop bootstrap version/operation/response and handshake-schema
+failures as terminal. The page hides/unmounts its application, stops retries
+and offers attach-only Retry connection; a stopped runtime still offers Start.
+Fresh bootstrap and instance identity remain mandatory after replacement.
+The selected Linux beta old/new matrix and same-schema rollback pass;
+[237](../tactical/237-macos-windows-package-recovery.md) extends that result to
+installed macOS/Windows packages. 239 also proves attach-only browser restart
+onto the same transferring owner on macOS/Windows/Linux, followed by
+independently verified completion and Quit without passive resurrection. Signed
+current-source delivery and broader endurance remain separate gates.
+
+Tactical [`234`](../tactical/234-desktop-user-intent-and-background-lifecycle.md)
+owns the accepted desktop lifetime follow-up: retain the tray/status-bar icon
+while the runtime runs, including idle/paused states; browser closure only
+detaches. Fresh toolbar, Start, or OS torrent-input intent may relaunch after
+Quit; page restoration, worker wake and retries only attach. Tray Open and
+OS magnet/file delivery always use the native window. No preferred surface,
+browser-profile routing, icon-hiding or automatic completion shutdown is added.
+Installed macOS/Windows/Linux debug builds pass the bounded lifecycle
+checkpoint: browser closure during a verified transfer, 64 reload/worker-stop
+cycles, actual tab discard, explicit relaunch and passive no-resurrection.
+Desktop disconnect retires only that client's abandoned view sets before
+admitting a same-client replacement, after joining calls, uploads and pumps.
+Native views remain independent; other transports retain resumable leases.
+The 32-global/eight-owner view limits and wire contract are unchanged.
+Broader endurance and installer/update compatibility remain open.
+
+Tactical [`232`](../tactical/232-desktop-extension-control.md) adds the desktop
+composition of this same semantic connection. The sole native service owns a
+loopback-only listener; protected same-user native bootstrap supplies an
+in-memory, per-runtime bearer to the exact beta extension. Native Tauri remains
+in-process. HTTP admission, application connections, upload and shutdown are
+bounded separately. Automatic reconnection is attach-only; explicit toolbar Open or Start
+may create the desktop owner. Installed Linux,
+Windows and macOS debug-package checkpoints pass. macOS uses same-user
+`getpeereid`, a private bounded startup lock to serialize LaunchServices opens,
+and a bounded ready-socket lifetime that permits client timeout setup before
+peer closure. Broader browser endurance and update compatibility remain open.
+The capability-gated `choose_download_root` / `download_root_chosen`
+platform frames reuse this authenticated connection only for the desktop
+picker. Connection termination cancels the request; an aborted browser picker
+call closes its connection owner. Native Cancel preserves the connection.
+Other host compositions refuse the operation; Android's existing platform
+route and authority remain unchanged.
 
 Status: The direct loopback application connection is implemented by Tactical
 `060`. Ordinary browser use sends typed calls, commands, view-set mutations,
@@ -84,7 +208,7 @@ Completed Tactical
 separate first-party same-device adapter: the packaged extension React page
 attaches to the one Android-owned application service across ChromeOS's fixed
 ARC host. Exact extension Origin, Host, explicit Android-approved bearer
-pairing, backend/profile identity, optional host permission, current Local
+pairing, host/profile identity, optional host permission, current Local
 Network Access behavior, revocation, and physical non-LAN reachability surround
 the unchanged typed application WebSocket. Android serves no
 application assets, raw IO, filesystem, piece, or media endpoint in that
@@ -146,8 +270,10 @@ still requires its own bounded tactical and migration decision.
 
 ## Terminology
 
+The [glossary](../glossary.md) owns the shared terms.
+
 - An **application connection** is one client-side controller and its
-  authenticated relationship with one RSTorrent backend. It may survive more
+  authenticated relationship with one RSTorrent host. It may survive more
   than one physical connection generation through bounded reconnect.
 - A **connection generation** is one concrete WebSocket, Tauri window
   generation or comparable attachment lifetime.
@@ -159,7 +285,7 @@ still requires its own bounded tactical and migration decision.
 - A **view attachment** is the connection-local route and pump that delivers
   one view set from an applied cursor.
 - A **relay circuit** is an opaque end-to-end path for one authenticated client
-  to one backend through a relay. It may share a physical relay WebSocket with
+  to one host through a relay. It may share a physical relay WebSocket with
   other independently encrypted circuits.
 
 Do not use `session` as the general name for this boundary. It is already
@@ -247,7 +373,7 @@ Exact generated names and encoding belong to the implementing tactical. The
 protocol nevertheless has these stable frame families:
 
 ```text
-client -> backend
+client -> host
   client_hello
   call(call_id, typed operation)
   attach(stream_id, view_set_id, after_cursor)
@@ -256,7 +382,7 @@ client -> backend
   semantic lease acknowledgement
   connection ping/pong where the platform requires it
 
-backend -> client
+host -> client
   server_hello(capabilities, limits, selected codec)
   result(call_id, typed result)
   call_error(call_id, structured error)
@@ -310,13 +436,13 @@ old connection must never close or detach the replacement.
 WebSocket delivery preserves the existing view-set cursor contract:
 
 ```text
-backend next_updates(last applied cursor)
+host next_updates(last applied cursor)
   -> view_batch(base cursor, resulting cursor)
   -> runtime validation
   -> pure continuity reduction
   -> synchronous client-store commit
   -> ack(resulting cursor)
-  -> backend may request the next batch
+  -> host may request the next batch
 ```
 
 Receipt by the socket, transport decoder or JavaScript callback is not an
@@ -342,7 +468,7 @@ immediately destroy their view sets. The client reconnects, authenticates as
 the same logical owner and attempts to attach each retained set at its last
 successfully applied cursor.
 
-For each view set, the backend then:
+For each view set, the host then:
 
 - replays the retained unacknowledged batch when the supplied cursor is its
   base;
@@ -524,13 +650,13 @@ physical client <-> relay WebSocket
   |                 +-- view attachment 1
   |                 +-- view attachment 2
   |
-  +-- optional relay circuit B for another backend
+  +-- optional relay circuit B for another host
         +-- separately authenticated and encrypted records
               +-- independent RSTorrent application connection
 ```
 
-For one backend there is one circuit; every view set for that backend is
-multiplexed inside it. If a future client controls several backends through
+For one host there is one circuit; every view set for that host is
+multiplexed inside it. If a future client controls several hosts through
 one relay, an outer circuit identifier may share one client-to-relay socket
 while each circuit retains independent authentication, keys, resume state,
 queues and failure lifecycle.
@@ -576,7 +702,7 @@ traveled directly or through a relay.
 | Remote authorization registry | Bounded client proofs, resume generations, expiry/revocation and security ledger | Disable/reset removes authority; expiry or revocation fences proofs and closes every owned connection generation |
 | Logical client owner | Authenticated principal plus verified bounded client identity and authentication method | Explicit client close, authorization revocation or application shutdown |
 | Connection generation | Negotiation, call registry, attachment map, fresh record keys and global bounds | Socket/channel close, replacement generation, authorization revocation or application shutdown |
-| Call owner | Unique call ID, validated operation, result/error completion and timeout | Result, cancellation, disconnect or bounded timeout |
+| Call owner | Unique call ID, validated operation, result/error completion and timeout | Result, cancellation, disconnect or bounded timeout; executing torrent removals join through disconnect |
 | View attachment | Stream ID, view-set handle, applied cursor, pump, expected acknowledgement and queue accounting | Detach, takeover, view-set close, disconnect or shutdown |
 | Outbound scheduler | Fair per-stream queues, control lane and writer backpressure | Connection-generation cancellation and awaited writer join |
 | TypeScript connection adapter | Pending calls, attachments, validation, ack and reconnect | Client close aborts and joins all consumption before transport close |
@@ -740,7 +866,7 @@ update this topic before changing any of these accepted decisions:
 
 - one semantic API across HTTP, WebSocket, Tauri and future relay delivery;
 - WebSocket directly supports calls and view-set creation;
-- one WebSocket multiplexes all view sets for one frontend/backend connection;
+- one WebSocket multiplexes all view sets for one client/host connection;
 - an ordinary browser session uses that WebSocket for every semantic call and
   view update, with no automatic fallback or hybrid transport;
 - browser HTTP selection is explicit, loopback-only and diagnostic rather

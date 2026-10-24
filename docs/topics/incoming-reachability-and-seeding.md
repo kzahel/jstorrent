@@ -1,6 +1,138 @@
 # Incoming Reachability And Seeding
 
+Tactical [366](../tactical/366-bounded-host-shutdown.md) bounds UPnP mapping
+and pinhole removal during application shutdown. Removal shares a 2 s budget
+with tracker `stopped` announces and ends at once when the host hurries. A
+removal ended that way leaves the lease to expire on the router; shutdown
+reports it as progress and a warning diagnostic rather than as an error.
+Other delete failures remain shutdown errors.
+
+Tactical [357](../tactical/357-rich-share-links.md) reuses reachability for
+share-link peer hints. An internet address is offered only after an incoming
+connection from a public address reached the current advertised endpoint
+(UPnP mapping, public IPv4 listener or global IPv6 listener); otherwise the
+RFC 1918 listener address is offered as a local-network hint. Without
+NAT-PMP/PCP or BEP 10 `yourip`, a manually forwarded host behind NAT cannot
+learn its external address, so it gets no internet hint.
+
+Tactical [344](../tactical/344-seeding-stop-limits.md) adds seeding stop
+limits beside the priority-only seed goals of Tactical 201. A finished torrent
+stops when its share ratio (`max(downloaded, size)` base) or seeding (finished)
+time reaches the session limit or its own override; both default to off. The
+admission pass checks running and queued seeds with in-memory accounting and
+stops through the ordinary pause path with a durable `seed_limit_stopped`
+flag. Resume of a limit-stopped torrent means keep seeding and sets its own
+limits to No limit; a user pause is never a limit stop, and raising a limit
+restarts nothing. Seed goals still only rank the queue. Inactive/idle limits,
+remove-on-limit actions and force start remain deferred.
+
+Tactical [340](../tactical/340-windows-quiet-network-startup.md) selects incoming
+and UPnP Off for fresh and first-upgrade Windows desktop profiles. Native VM
+Off/On/TCP-only controls, zero Off uTP allocation, atomic Off with preserved UDP,
+independently hashed cross-VM outgoing uTP/TCP under persistent firewall denial,
+and retained-data migration pass. A listening port after Cancel is not firewall
+permission or external reachability. Signed shipping/regrant and unsolicited
+external inbound/WAN acceptance remain separate gates; no OS rule automation
+or common engine policy change is added.
+
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) makes incoming Off apply to TCP and unsolicited
+uTP SYNs, including retirement of existing inbound peers. An Off-only change
+retains the shared UDP generation and outgoing peers; explicit port/family
+changes retain their existing replacement rules. No listening endpoint is
+advertised while Off. Mac native outbound uTP and TCP fallback both complete
+with independent payload hashes; Android boundary rejection and builds pass.
+Fresh Mac defaults and first upgrade disable listener/UPnP. Windows follows
+340; Linux defaults and signed firewall/reachability qualification remain open.
+
+Tactical [332](../tactical/332-windows-listener-test-port-isolation.md) isolates
+the automatic repair preference in the fixed-listener application test. Source
+CI 38409973610 fails on Windows when the occupied preferred port's successor
+returns error 10013. An independent TCP/UDP-probed preference preserves the
+fixed-conflict, retained-listener and same-value retry assertions without
+changing production allocation policy. Local formatting, workspace Clippy,
+1,598 Rust tests (18 ignored), the 394-case session suite (two ignored), and
+40 focused runs across four concurrent processes pass. Native Windows ARM64
+with Rust 1.99 also passes 40 focused runs and its full 392-case session suite
+(two ignored). Hosted x86_64/Rust 1.97 CI has not been rerun; the original
+hosted failure remains failed.
+
+Tactical [277](../tactical/277-android-observer-listener-readiness.md) repairs
+qualification of269's asynchronous listener startup. Source8c CI and a focused
+local reproduction fail the immediate optional snapshot. The unchanged
+maintenance owner applies settings asynchronously; the test now observes actual
+readiness within five seconds. All15 Android Rust boundary cases, focused
+all-target clippy and workspace formatting pass. Protocol, generated boundary
+and shipping behavior are unchanged; the original hosted failure remains open
+until revised-source CI is authorized and run.
+
 Topic: `incoming-reachability-and-seeding`
+
+Tactical [269](../tactical/269-android-incoming-peer-diagnostic-evidence.md)
+is complete locally at application sourceaeaa72f9:15 Android Rust cases/clippy,
+normal original-key dual-ABI packaging,122 JVM cases/lint and actual bounded
+physical incoming snapshots pass. Full workspace1575 cases/fmt/clippy and
+web typecheck/470 cases also pass, with existing ignores/skips retained.
+The original failed probe observes zero then one native registration and two
+UnknownTorrent rejections for exactly its owned hash; it started before actual
+admission. Tactical270 is complete locally: fresh UID/exact-fixture registry
+readiness precedes independent upload. Both current-source original large
+fixtures verify/upload all28 MiB with120 empty files, retained diagnostic
+history/actual filters, joined shutdown and actual reopened Live/owned row,
+unchanged SAF registry/payload and cleanup. Readiness takes107.99/166.16 seconds.
+All48 portable cases pass; earlier failed receipts remain scoped and intact.
+Normal diagnostic warnings intentionally remain across category filters. No
+engine/network/admission/retry policy changes. Both full current-APK default
+runs subsequently pass under259/273; managed and broader physical acceptance
+remain separate.
+
+Both current-APK physical default runs now pass three cold repetitions, the
+3,600-second detached hour, full independent 40-MiB download/upload hashes,
+retained Warning/Info filters, joined actual Live/owned-row reopen, unchanged
+SAF registry/payload and cleanup. Both also pass all seven current-APK recovery
+cases. A retains its older fixed 120-second upload driver; B's fresh repeat loads
+source `840f421d`/driver `51883b67` with a 172-second upload and one native display wake
+inside the original 120-second reopen budget. B's first whole reopen failure
+remains recorded unchanged. No managed Play, physical reboot/provider/network/
+sleep or final signed desktop/store/public acceptance is inferred.
+
+
+Tactical272 keeps the measured28-MiB upload's120-second allowance and scales
+the40-MiB hourly fixture to172 seconds, below the existing300-second helper
+bound. Native admission still has180 seconds; independent file hashes and
+joined cleanup remain mandatory. All51 qualification/five transport cases pass.
+Both current-source full defaults subsequently pass at their recorded driver
+identities; no managed delivery is inferred.
+
+Both source0aa physical cohorts independently hash the installed APK and pass
+small foreground/background/reopened upload plus joined Live-library restart,
+retained SAF registry and cleanup. This closes Tactical260's bounded local
+shutdown evidence, not the failed large-metadata/hour or managed delivery gates.
+Tactical266's restored native retained history/Live-library component also passes
+both cohorts. Whole upload receipts remain failed; severity/category button
+changes alone cannot prove asynchronous filtering. Tactical267 now checks actual
+visible filtered rows, with26 passing portable driver cases.
+
+Tactical [267](../tactical/267-physical-upload-and-reopen-evidence.md) strengthens
+actual upload transport/readiness/counter and observed retained-settings
+navigation evidence. Both source-376 physical runs pass their full 3,600-second
+background transfer and whole 40-MiB hash; their subsequent upload phase fails.
+No complete end-to-end pass is inferred. Portable delayed-listener/failure
+ownership/refusal tests pass; short current-APK trials run before full retries.
+No engine/network/seeding policy changes or inherited app/data cleanup occurs.
+
+Tactical [260](../tactical/260-android-shutdown-failure-containment.md) preserves
+the existing uncertain IPv6 lease error while containing its propagation in the
+Android service after native shutdown. No mapping, pinhole, advertisement or
+engine ownership behavior changes. Adapter build/JVM evidence and both bounded physical small-fixture joined
+shutdown/Live restart pass;260 is complete locally. Current large-metadata/hour
+qualification subsequently passes; managed delivery remains open under259.
+
+Tactical 253's startup follow-up overlaps four read-only file observations
+before constructing completed-seed availability. No early seed is admitted;
+file order, exact lengths/kinds, padding/selection and verified-piece authority
+remain unchanged. Reversed replies, failure filtering and cancellation pass
+with four pending requests and zero opened descriptors. Physical Android
+startup and saved browser pairing are recorded in the tactical.
 
 September 12 hosted run `34682523287` passes Tactical 212's four application
 lifecycle cases and three topology/three checkpoint-crash cohorts with exact
@@ -330,7 +462,7 @@ incoming peers locally or through one proven UPnP-mapped public TCP endpoint:
   successfully written, and bounded snapshots expose exact totals and rates;
 - pure, storage, socket, lifecycle, application-restart, and simultaneous
   two-RSTorrent/two-libtorrent evidence passes for single-file and cross-file
-  content, with all four clients independently verifying 67,109,595 bytes and
+  content, with all four peers independently verifying 67,109,595 bytes and
   the seed recording the exact 268,438,380 uploaded payload bytes;
 - one schema-version-11 atomic settings group persists listener intent,
   explicit disabled-or-UPnP mapping policy, 1--2,000 ordinary peer
@@ -462,6 +594,12 @@ connections, and torrents without readable verified content are ordinary
 bounded rejection paths. Listener state must not retain a torrent after its
 application owner has completed removal or shutdown.
 
+Unregistration joins accepted peer tasks, so teardown must never wait on an
+accepted peer that is blocked on a queue the teardown has stopped draining.
+An active download closes its inbound content-event queue before it
+unregisters its route; Tactical 327 records the Android removal hang this
+prevented.
+
 ### Completion does not terminate seeding ownership accidentally
 
 Verified download completion and task termination are not synonymous once
@@ -511,7 +649,8 @@ joined shutdown indefinitely.
 UPnP IGD, PCP, and NAT-PMP mappings are volatile leases owned beneath one
 session reachability coordinator. They are created only for real bound
 protocol endpoints, renewed before expiry, replaced when the relevant
-interface or port changes, and removed on clean shutdown when practical.
+interface or port changes, and removed on clean shutdown when practical
+(within the shared shutdown cleanup budget of Tactical 366).
 Crash recovery relies on bounded lease expiry and fresh discovery rather than
 persisting a mapping as trusted state.
 
@@ -570,7 +709,8 @@ The campaign should use explicit settings rather than one ambiguous
 | Incoming-connection limit | Maximum established inbound peers, coordinated with total connection budgets. |
 | Upload-slot limit | Maximum peers currently allowed to receive requested payload. |
 | Upload bandwidth limit | Aggregate and, if evidence requires it, per-torrent payload rate. |
-| Seeding goal | Deliberate lifecycle policy such as until stopped, ratio target, or elapsed-time target. |
+| Seeding goal | Priority-only libtorrent-shaped thresholds (Tactical 201): meeting one lowers seed-queue rank and never stops the torrent. |
+| Seeding stop limit | Share ratio or seeding time at which a finished torrent is durably stopped (Tactical 344), session-wide with a per-torrent override. |
 | Automatic mapping policy | Whether supported gateway mapping mechanisms may expose real bound endpoints. |
 
 The first local slice may use conservative immutable configuration supplied
@@ -640,7 +780,7 @@ Grow from one useful incoming peer to a coherent bounded upload owner:
 - retain prompt pause, completion-policy, removal, and shutdown joins.
 
 Controlled simultaneous RSTorrent and libtorrent evidence now proves exact
-content, declared high-water marks, and cleanup. Two clients of each kind
+content, declared high-water marks, and cleanup. Two peers of each kind
 overlapped against one seed and independently verified the 67,109,595-byte
 fixture; exact physical upload was four copies, or 268,438,380 bytes. Scripted
 ten-peer evidence proves the eight-slot ceiling, one optimistic slot, fair
@@ -911,7 +1051,8 @@ After completed Tactical `084`, the campaign direction does not yet settle:
 - whether automatic port fallback is ever allowed after a fixed bind fails;
 - whether the temporary rule that a desired-running complete torrent seeds
   automatically should become a distinct durable seeding intent;
-- when ratio and elapsed-time goals become product settings;
+- whether inactive/idle stop limits or remove-on-limit actions are wanted
+  beyond Tactical 344's ratio and seeding-time stop limits;
 - how to choose among multiple interfaces or successful external mappings;
 - how VPN, metered networks, Android background lifecycle, and local-network
   permission affect listening and mapping;

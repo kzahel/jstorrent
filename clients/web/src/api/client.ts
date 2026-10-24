@@ -5,6 +5,8 @@ import type {
   CreateMediaUrlRequest,
   MediaUrlResponse,
   StorageRootSnapshot,
+  TorrentListImportReport,
+  TorrentListImportTarget,
   OpenViewSetRequest,
   OpenViewSetResponse,
   RequestEnvelope,
@@ -12,7 +14,13 @@ import type {
   UpdateBatch,
   UpdateViewSetRequest,
 } from "./generated/v1";
+import type { CompatibilityObservations } from "../compatibility-observations";
 import { JsonApiCodec, type ApiCodec } from "./codec";
+import {
+  isAbortError,
+  prepareBrowserFileSink,
+  type BrowserFileSink,
+} from "../browser-file-save";
 import {
   decodeApiErrorEnvelope,
   decodeApiHello,
@@ -20,12 +28,27 @@ import {
   decodeMediaUrlResponse,
   decodeOpenViewSetResponse,
   decodeResponseEnvelope,
+  decodeTorrentListImportReport,
   decodeUpdateBatch,
 } from "../validation";
 
+import {
+  ApplicationViewError,
+  HttpApiError,
+  MAX_TORRENT_LIST_BUNDLE_BYTES,
+} from "./errors";
+
+export { ApplicationViewError, HttpApiError, MAX_TORRENT_LIST_BUNDLE_BYTES };
+
 const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
+export const TORRENT_LIST_FILE_NAME = "jstorrent-torrents.zip";
 
 export interface ApplicationViewClient {
+  /** Native shell already supplies the update UI controller. */
+  readonly nativeUpdateUi?: boolean;
+  productUpdate?(request: import("./generated/v1").HostUpdateRequest): Promise<import("./generated/v1").HostUpdateSnapshot>;
+  /** Mismatch observations, on transports that keep them (Tactical 370). */
+  readonly compatibility?: CompatibilityObservations;
   hello(signal?: AbortSignal): Promise<ApiHello>;
   dispatch(
     request: RequestEnvelope,
@@ -70,6 +93,21 @@ export interface ApplicationViewClient {
     signal?: AbortSignal,
   ): Promise<ApplicationUpdateStream>;
   closeViewSet(viewSetId: string, signal?: AbortSignal): Promise<void>;
+  /**
+   * Saves the whole torrent list as a bundle where the user chooses.
+   * Resolves false when the user cancels. Call from a user activation.
+   */
+  exportTorrentList?(signal?: AbortSignal): Promise<boolean>;
+  /**
+   * Imports a bundle. `chooseFile` asks the user for the bundle bytes where
+   * the page reads the file itself; clients with a native picker ignore it.
+   * Resolves null when the user cancels.
+   */
+  importTorrentBundle?(
+    target: TorrentListImportTarget,
+    chooseFile: () => Promise<ArrayBuffer | null>,
+    signal?: AbortSignal,
+  ): Promise<TorrentListImportReport | null>;
   close(): Promise<void>;
 }
 
@@ -94,25 +132,6 @@ export type FetchImplementation = (
   input: RequestInfo | URL,
   init?: RequestInit,
 ) => Promise<Response>;
-
-export class ApplicationViewError extends Error {
-  public constructor(
-    public readonly code: string,
-    message: string,
-  ) {
-    super(`${code}: ${message}`);
-  }
-}
-
-export class HttpApiError extends ApplicationViewError {
-  public constructor(
-    public readonly status: number,
-    code: string,
-    message: string,
-  ) {
-    super(code, message);
-  }
-}
 
 export class HttpApplicationClient implements ApplicationViewClient {
   private closed = false;
@@ -283,6 +302,85 @@ export class HttpApplicationClient implements ApplicationViewClient {
     );
   }
 
+  public async exportTorrentList(signal?: AbortSignal): Promise<boolean> {
+    if (this.closed) throw new Error("gateway client is closed");
+    // The picker opens before the download, while the click still counts as
+    // a user activation.
+    let sink: BrowserFileSink;
+    try {
+      sink = await prepareBrowserFileSink(TORRENT_LIST_FILE_NAME, null, {
+        blobLimit: MAX_TORRENT_LIST_BUNDLE_BYTES,
+        tooLarge: () => new Error("torrent list exceeds the client bound"),
+        types: [
+          {
+            description: "ZIP",
+            accept: { "application/zip": [".zip"] },
+          },
+        ],
+      });
+    } catch (error) {
+      if (isAbortError(error)) return false;
+      throw error;
+    }
+    try {
+      const response = await this.fetchImplementation(
+        new URL("/api/v1/torrent-list/export", this.baseUrl),
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            Accept: "application/zip, application/json",
+            Origin: this.origin,
+            "X-RSTorrent-Owner": this.ownerId,
+            ...(this.token === null
+              ? {}
+              : { Authorization: `Bearer ${this.token}` }),
+          },
+          ...(signal === undefined ? {} : { signal }),
+        },
+      );
+      if (!response.ok) {
+        throw decodeHttpError(response.status, await boundedResponseText(response));
+      }
+      if (response.headers.get("content-type")?.split(";")[0]?.trim() !== "application/zip") {
+        throw new Error("torrent list export did not return a ZIP file");
+      }
+      await sink.write(
+        await boundedResponseBytes(response, MAX_TORRENT_LIST_BUNDLE_BYTES),
+      );
+      await sink.close();
+      return true;
+    } catch (error) {
+      await sink.abort();
+      throw error;
+    }
+  }
+
+  public async importTorrentBundle(
+    target: TorrentListImportTarget,
+    chooseFile: () => Promise<ArrayBuffer | null>,
+    signal?: AbortSignal,
+  ): Promise<TorrentListImportReport | null> {
+    if (this.closed) throw new Error("gateway client is closed");
+    const bundle = await chooseFile();
+    if (bundle === null) return null;
+    validateTorrentListBundle(bundle);
+    const query = new URLSearchParams({
+      storage_root: target.storage_root,
+      keep_matching_locations: String(target.keep_matching_locations),
+    });
+    const response = await this.sendRaw(
+      "POST",
+      `/api/v1/torrent-list/import?${query}`,
+      bundle,
+      signal,
+      "application/zip",
+    );
+    const source = await boundedResponseText(response);
+    if (!response.ok) throw decodeHttpError(response.status, source);
+    return this.codec.decodeResponse(source, decodeTorrentListImportReport);
+  }
+
   public async close(): Promise<void> {
     this.closed = true;
   }
@@ -344,6 +442,7 @@ export class HttpApplicationClient implements ApplicationViewClient {
     path: string,
     body: ArrayBuffer,
     signal: AbortSignal | undefined,
+    contentType = "application/x-bittorrent",
   ): Promise<Response> {
     if (this.closed) return Promise.reject(new Error("gateway client is closed"));
     return this.fetchImplementation(new URL(path, this.baseUrl), {
@@ -353,7 +452,7 @@ export class HttpApplicationClient implements ApplicationViewClient {
         Accept: "application/json",
         Origin: this.origin,
         "X-RSTorrent-Owner": this.ownerId,
-        "Content-Type": "application/x-bittorrent",
+        "Content-Type": contentType,
         ...(this.token === null
           ? {}
           : { Authorization: `Bearer ${this.token}` }),
@@ -407,6 +506,15 @@ export function validateTorrentByteUpload(
   }
 }
 
+export function validateTorrentListBundle(bundle: ArrayBuffer): void {
+  if (bundle.byteLength === 0 || bundle.byteLength > MAX_TORRENT_LIST_BUNDLE_BYTES) {
+    throw new ApplicationViewError(
+      "resource_limit",
+      "torrent list must contain 1..=268435456 bytes",
+    );
+  }
+}
+
 function generateOwnerId(): string {
   const bytes = new Uint8Array(16);
   globalThis.crypto.getRandomValues(bytes);
@@ -434,6 +542,37 @@ async function boundedResponseText(response: Response): Promise<string> {
     output += decoder.decode(chunk.value, { stream: true });
   }
   output += decoder.decode();
+  return output;
+}
+
+async function boundedResponseBytes(
+  response: Response,
+  maximum: number,
+): Promise<Uint8Array<ArrayBuffer>> {
+  const declared = response.headers.get("content-length");
+  if (declared !== null && Number(declared) > maximum) {
+    throw new Error("gateway response exceeds the client bound");
+  }
+  if (response.body === null) return new Uint8Array(0);
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const chunk = await reader.read();
+    if (chunk.done) break;
+    total += chunk.value.byteLength;
+    if (total > maximum) {
+      await reader.cancel();
+      throw new Error("gateway response exceeds the client bound");
+    }
+    chunks.push(chunk.value);
+  }
+  const output = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
   return output;
 }
 

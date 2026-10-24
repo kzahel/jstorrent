@@ -1,0 +1,453 @@
+{
+  "kind": "independently-authored-format-fixtures",
+  "source_commit": "7b454be4410385f9c4f7f135cb6b16194a2b0409",
+  "payload_recipe": {
+    "byte": 37,
+    "length": 16384,
+    "sha256": "cd06e276c0c948743f5812d5e6645edd3fe9b45ed75413bf60892051f9cd448f",
+    "corrupt_byte": 38
+  },
+  "cases": [
+    {
+      "roots": {
+        "roots": [
+          {
+            "key": "7cb70c3dd3163e0d",
+            "uri": "content://com.android.externalstorage.documents/tree/primary%3ADownload%2FGeneratedMigration",
+            "display_name": "Generated migration",
+            "last_stat_ok": true
+          }
+        ]
+      },
+      "preferences": {},
+      "kv": {
+        "session:torrents": "{\"version\": 2, \"torrents\": [{\"infoHash\": \"a4030a5da50bb7fa64a8cf260a29b228a9ac52d3\", \"source\": \"file\", \"addedAt\": 0}]}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:state": "{\"userState\": \"stopped\", \"storageKey\": \"7cb70c3dd3163e0d\", \"bitfield\": \"80\", \"pieceCount\": 1, \"filePriorities\": [0], \"uploaded\": 999, \"downloaded\": 999, \"updatedAt\": 0}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:torrentfile": "\"ZDQ6aW5mb2Q2Omxlbmd0aGkxNjM4NGU0Om5hbWUxMzpnZW5lcmF0ZWQuYmluMTI6cGllY2UgbGVuZ3RoaTE2Mzg0ZTY6cGllY2VzMjA64tPq5WyUZ/Xb1JBC2v+t6qPW0Is3OnByaXZhdGVpMWVlZQ==\"",
+        "config:defaultRootKey": "\"7cb70c3dd3163e0d\"",
+        "config:dhtEnabled": "false",
+        "config:pexEnabled": "false"
+      },
+      "expected": {
+        "records": 1,
+        "format_candidates": 1,
+        "metadata_requires_checking": 1,
+        "pending_magnets": 0,
+        "roots_require_runtime_grant_check": 1,
+        "requires_policy_review": false,
+        "verified_pieces": 0
+      },
+      "name": "intact_stopped",
+      "runtime_scenario": {
+        "grant": "read_write",
+        "payload": "intact"
+      }
+    },
+    {
+      "roots": {
+        "roots": [
+          {
+            "key": "7cb70c3dd3163e0d",
+            "uri": "content://com.android.externalstorage.documents/tree/primary%3ADownload%2FGeneratedMigration",
+            "display_name": "Generated migration",
+            "last_stat_ok": true
+          }
+        ]
+      },
+      "preferences": {},
+      "kv": {
+        "session:torrents": "{\"version\": 2, \"torrents\": [{\"infoHash\": \"a4030a5da50bb7fa64a8cf260a29b228a9ac52d3\", \"source\": \"file\", \"addedAt\": 0}]}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:state": "{\"userState\": \"active\", \"storageKey\": \"7cb70c3dd3163e0d\", \"bitfield\": \"80\", \"pieceCount\": 1, \"filePriorities\": [0], \"uploaded\": 999, \"downloaded\": 999, \"updatedAt\": 0}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:torrentfile": "\"ZDQ6aW5mb2Q2Omxlbmd0aGkxNjM4NGU0Om5hbWUxMzpnZW5lcmF0ZWQuYmluMTI6cGllY2UgbGVuZ3RoaTE2Mzg0ZTY6cGllY2VzMjA64tPq5WyUZ/Xb1JBC2v+t6qPW0Is3OnByaXZhdGVpMWVlZQ==\"",
+        "config:defaultRootKey": "\"7cb70c3dd3163e0d\"",
+        "config:dhtEnabled": "false",
+        "config:pexEnabled": "false"
+      },
+      "expected": {
+        "records": 1,
+        "format_candidates": 1,
+        "metadata_requires_checking": 1,
+        "pending_magnets": 0,
+        "roots_require_runtime_grant_check": 1,
+        "requires_policy_review": false,
+        "verified_pieces": 0
+      },
+      "name": "corrupt_active",
+      "runtime_scenario": {
+        "grant": "read_write",
+        "payload": "corrupt"
+      }
+    },
+    {
+      "roots": {
+        "roots": [
+          {
+            "key": "7cb70c3dd3163e0d",
+            "uri": "content://com.android.externalstorage.documents/tree/primary%3ADownload%2FGeneratedMigration",
+            "display_name": "Generated migration",
+            "last_stat_ok": true
+          }
+        ]
+      },
+      "preferences": {},
+      "kv": {
+        "session:torrents": "{\"version\": 2, \"torrents\": [{\"infoHash\": \"a4030a5da50bb7fa64a8cf260a29b228a9ac52d3\", \"source\": \"file\", \"addedAt\": 0}]}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:state": "{\"userState\": \"stopped\", \"storageKey\": \"7cb70c3dd3163e0d\", \"bitfield\": \"80\", \"pieceCount\": 1, \"filePriorities\": [0], \"uploaded\": 999, \"downloaded\": 999, \"updatedAt\": 0}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:torrentfile": "\"ZDQ6aW5mb2Q2Omxlbmd0aGkxNjM4NGU0Om5hbWUxMzpnZW5lcmF0ZWQuYmluMTI6cGllY2UgbGVuZ3RoaTE2Mzg0ZTY6cGllY2VzMjA64tPq5WyUZ/Xb1JBC2v+t6qPW0Is3OnByaXZhdGVpMWVlZQ==\"",
+        "config:defaultRootKey": "\"7cb70c3dd3163e0d\"",
+        "config:dhtEnabled": "false",
+        "config:pexEnabled": "false"
+      },
+      "expected": {
+        "records": 1,
+        "format_candidates": 1,
+        "metadata_requires_checking": 1,
+        "pending_magnets": 0,
+        "roots_require_runtime_grant_check": 1,
+        "requires_policy_review": false,
+        "verified_pieces": 0
+      },
+      "name": "revoked_grant",
+      "runtime_scenario": {
+        "grant": "revoked",
+        "payload": "intact"
+      }
+    },
+    {
+      "roots": {
+        "roots": [
+          {
+            "key": "7cb70c3dd3163e0d",
+            "uri": "content://com.android.externalstorage.documents/tree/primary%3ADownload%2FGeneratedMigration",
+            "display_name": "Generated migration",
+            "last_stat_ok": true
+          }
+        ]
+      },
+      "preferences": {},
+      "kv": {
+        "session:torrents": "{\"version\": 2, \"torrents\": [{\"infoHash\": \"a4030a5da50bb7fa64a8cf260a29b228a9ac52d3\", \"source\": \"magnet\", \"magnetUri\": \"magnet:?xt=urn:btih:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3\", \"addedAt\": 0}]}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:state": "{\"userState\": \"stopped\", \"storageKey\": \"7cb70c3dd3163e0d\", \"bitfield\": \"80\", \"pieceCount\": 1, \"filePriorities\": [0], \"uploaded\": 999, \"downloaded\": 999, \"updatedAt\": 0}",
+        "config:defaultRootKey": "\"7cb70c3dd3163e0d\"",
+        "config:dhtEnabled": "false",
+        "config:pexEnabled": "false",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:infodict": "\"ZDY6bGVuZ3Ro\\n aTE2Mzg0ZTQ6bmFtZTEzOmdlbmVyYXRlZC5iaW4xMjpwaWVjZSBsZW5ndGhpMTYzODRlNjpwaWVjZXMyMDri0+rlbJRn9dvUkELa/63qo9bQizc6cHJpdmF0ZWkxZWU=\""
+      },
+      "expected": {
+        "records": 1,
+        "format_candidates": 1,
+        "metadata_requires_checking": 1,
+        "pending_magnets": 0,
+        "roots_require_runtime_grant_check": 1,
+        "requires_policy_review": false,
+        "verified_pieces": 0
+      },
+      "name": "cached_magnet_whitespace",
+      "runtime_scenario": {
+        "grant": "read_write",
+        "payload": "intact"
+      }
+    },
+    {
+      "roots": {
+        "roots": [
+          {
+            "key": "7cb70c3dd3163e0d",
+            "uri": "content://com.android.externalstorage.documents/tree/primary%3ADownload%2FGeneratedMigration",
+            "display_name": "Generated migration",
+            "last_stat_ok": true
+          }
+        ]
+      },
+      "preferences": {},
+      "kv": {
+        "session:torrents": "{\"version\": 2, \"torrents\": [{\"infoHash\": \"1111111111111111111111111111111111111111\", \"source\": \"magnet\", \"magnetUri\": \"magnet:?xt=urn:btih:1111111111111111111111111111111111111111\", \"addedAt\": 0}]}",
+        "session:torrent:1111111111111111111111111111111111111111:state": "{\"userState\": \"stopped\", \"storageKey\": \"7cb70c3dd3163e0d\", \"magnetSelectOnly\": [], \"uploaded\": 0, \"downloaded\": 0, \"updatedAt\": 0}"
+      },
+      "expected": {
+        "records": 1,
+        "format_candidates": 1,
+        "metadata_requires_checking": 0,
+        "pending_magnets": 1,
+        "roots_require_runtime_grant_check": 1,
+        "requires_policy_review": false,
+        "verified_pieces": 0
+      },
+      "name": "pending_stopped",
+      "runtime_scenario": {
+        "grant": "read_write",
+        "payload": "intact"
+      }
+    },
+    {
+      "roots": {
+        "roots": [
+          {
+            "key": "7cb70c3dd3163e0d",
+            "uri": "content://com.android.externalstorage.documents/tree/primary%3ADownload%2FGeneratedMigration",
+            "display_name": "Generated migration",
+            "last_stat_ok": true
+          }
+        ]
+      },
+      "preferences": {},
+      "kv": {
+        "session:torrents": "{\"version\": 2, \"torrents\": [{\"infoHash\": \"a4030a5da50bb7fa64a8cf260a29b228a9ac52d3\", \"source\": \"file\", \"addedAt\": 0}]}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:state": "{\"userState\": \"awaitingFileSelection\", \"storageKey\": \"7cb70c3dd3163e0d\", \"bitfield\": \"80\", \"pieceCount\": 1, \"filePriorities\": [1], \"uploaded\": 999, \"downloaded\": 999, \"updatedAt\": 0}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:torrentfile": "\"ZDQ6aW5mb2Q2Omxlbmd0aGkxNjM4NGU0Om5hbWUxMzpnZW5lcmF0ZWQuYmluMTI6cGllY2UgbGVuZ3RoaTE2Mzg0ZTY6cGllY2VzMjA64tPq5WyUZ/Xb1JBC2v+t6qPW0Is3OnByaXZhdGVpMWVlZQ==\"",
+        "config:defaultRootKey": "\"7cb70c3dd3163e0d\"",
+        "config:dhtEnabled": "false",
+        "config:pexEnabled": "false"
+      },
+      "expected": {
+        "records": 1,
+        "format_candidates": 1,
+        "metadata_requires_checking": 1,
+        "pending_magnets": 0,
+        "roots_require_runtime_grant_check": 1,
+        "requires_policy_review": false,
+        "verified_pieces": 0
+      },
+      "name": "awaiting_selection",
+      "runtime_scenario": {
+        "grant": "read_write",
+        "payload": "intact"
+      }
+    },
+    {
+      "roots": {
+        "roots": [
+          {
+            "key": "7cb70c3dd3163e0d",
+            "uri": "content://com.android.externalstorage.documents/tree/primary%3ADownload%2FGeneratedMigration",
+            "display_name": "Generated migration",
+            "last_stat_ok": true
+          }
+        ]
+      },
+      "preferences": {},
+      "kv": {
+        "session:torrents": "{\"version\": 2, \"torrents\": [{\"infoHash\": \"a4030a5da50bb7fa64a8cf260a29b228a9ac52d3\", \"source\": \"file\", \"addedAt\": 0}]}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:state": "{\"userState\": \"stopped\", \"storageKey\": \"2222222222222222\", \"bitfield\": \"80\", \"pieceCount\": 1, \"filePriorities\": [0], \"uploaded\": 999, \"downloaded\": 999, \"updatedAt\": 0}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:torrentfile": "\"ZDQ6aW5mb2Q2Omxlbmd0aGkxNjM4NGU0Om5hbWUxMzpnZW5lcmF0ZWQuYmluMTI6cGllY2UgbGVuZ3RoaTE2Mzg0ZTY6cGllY2VzMjA64tPq5WyUZ/Xb1JBC2v+t6qPW0Is3OnByaXZhdGVpMWVlZQ==\"",
+        "config:defaultRootKey": "\"7cb70c3dd3163e0d\"",
+        "config:dhtEnabled": "false",
+        "config:pexEnabled": "false"
+      },
+      "expected": {
+        "records": 1,
+        "format_candidates": 0,
+        "metadata_requires_checking": 0,
+        "pending_magnets": 0,
+        "roots_require_runtime_grant_check": 0,
+        "requires_policy_review": false,
+        "verified_pieces": 0
+      },
+      "name": "missing_root",
+      "runtime_scenario": {
+        "grant": "read_write",
+        "payload": "intact"
+      }
+    },
+    {
+      "roots": {
+        "roots": [
+          {
+            "key": "7cb70c3dd3163e0d",
+            "uri": "content://com.android.externalstorage.documents/tree/primary%3ADownload%2FGeneratedMigration",
+            "display_name": "Generated migration",
+            "last_stat_ok": true
+          }
+        ]
+      },
+      "preferences": {},
+      "kv": {
+        "session:torrents": "{\"version\": 2, \"torrents\": [{\"infoHash\": \"a4030a5da50bb7fa64a8cf260a29b228a9ac52d3\", \"source\": \"file\", \"addedAt\": 0}]}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:state": null,
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:torrentfile": "\"ZDQ6aW5mb2Q2Omxlbmd0aGkxNjM4NGU0Om5hbWUxMzpnZW5lcmF0ZWQuYmluMTI6cGllY2UgbGVuZ3RoaTE2Mzg0ZTY6cGllY2VzMjA64tPq5WyUZ/Xb1JBC2v+t6qPW0Is3OnByaXZhdGVpMWVlZQ==\"",
+        "config:defaultRootKey": "\"7cb70c3dd3163e0d\"",
+        "config:dhtEnabled": "false",
+        "config:pexEnabled": "false"
+      },
+      "expected": {
+        "records": 1,
+        "format_candidates": 0,
+        "metadata_requires_checking": 0,
+        "pending_magnets": 0,
+        "roots_require_runtime_grant_check": 0,
+        "requires_policy_review": false,
+        "verified_pieces": 0
+      },
+      "name": "nullable_state",
+      "runtime_scenario": {
+        "grant": "read_write",
+        "payload": "intact"
+      }
+    },
+    {
+      "roots": {
+        "roots": [
+          {
+            "key": "7cb70c3dd3163e0d",
+            "uri": "content://com.android.externalstorage.documents/tree/primary%3ADownload%2FGeneratedMigration",
+            "display_name": "Generated migration",
+            "last_stat_ok": true
+          }
+        ]
+      },
+      "preferences": {},
+      "kv": {
+        "session:torrents": "{\"version\": 2, \"torrents\": [{\"infoHash\": \"a4030a5da50bb7fa64a8cf260a29b228a9ac52d3\", \"source\": \"file\", \"addedAt\": 0}]}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:state": "{\"userState\": \"stopped\", \"storageKey\": \"7cb70c3dd3163e0d\", \"bitfield\": \"80\", \"pieceCount\": 1, \"filePriorities\": [0], \"uploaded\": 999, \"downloaded\": 999, \"updatedAt\": 0}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:torrentfile": "\"not-base64!\"",
+        "config:defaultRootKey": "\"7cb70c3dd3163e0d\"",
+        "config:dhtEnabled": "false",
+        "config:pexEnabled": "false"
+      },
+      "expected": {
+        "records": 1,
+        "format_candidates": 0,
+        "metadata_requires_checking": 0,
+        "pending_magnets": 0,
+        "roots_require_runtime_grant_check": 0,
+        "requires_policy_review": false,
+        "verified_pieces": 0
+      },
+      "name": "invalid_binary",
+      "runtime_scenario": {
+        "grant": "read_write",
+        "payload": "intact"
+      }
+    },
+    {
+      "roots": {
+        "roots": [
+          {
+            "key": "7cb70c3dd3163e0d",
+            "uri": "content://com.android.externalstorage.documents/tree/primary%3ADownload%2FGeneratedMigration",
+            "display_name": "Generated migration",
+            "last_stat_ok": true
+          }
+        ]
+      },
+      "preferences": {
+        "vpn_only_enabled": true,
+        "wifi_only_enabled": true
+      },
+      "kv": {
+        "session:torrents": "{\"version\": 2, \"torrents\": [{\"infoHash\": \"a4030a5da50bb7fa64a8cf260a29b228a9ac52d3\", \"source\": \"file\", \"addedAt\": 0}]}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:state": "{\"userState\": \"queued\", \"storageKey\": \"7cb70c3dd3163e0d\", \"bitfield\": \"80\", \"pieceCount\": 1, \"filePriorities\": [0], \"uploaded\": 999, \"downloaded\": 999, \"updatedAt\": 0}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:torrentfile": "\"ZDQ6aW5mb2Q2Omxlbmd0aGkxNjM4NGU0Om5hbWUxMzpnZW5lcmF0ZWQuYmluMTI6cGllY2UgbGVuZ3RoaTE2Mzg0ZTY6cGllY2VzMjA64tPq5WyUZ/Xb1JBC2v+t6qPW0Is3OnByaXZhdGVpMWVlZQ==\"",
+        "config:defaultRootKey": "\"7cb70c3dd3163e0d\"",
+        "config:dhtEnabled": "false",
+        "config:pexEnabled": "false"
+      },
+      "expected": {
+        "records": 1,
+        "format_candidates": 1,
+        "metadata_requires_checking": 1,
+        "pending_magnets": 0,
+        "roots_require_runtime_grant_check": 1,
+        "requires_policy_review": true,
+        "verified_pieces": 0
+      },
+      "name": "vpn_and_unmetered",
+      "runtime_scenario": {
+        "grant": "read_write",
+        "payload": "intact"
+      }
+    },
+    {
+      "roots": {
+        "roots": [
+          {
+            "key": "7cb70c3dd3163e0d",
+            "uri": "content://com.android.externalstorage.documents/tree/primary%3ADownload%2FGeneratedMigration",
+            "display_name": "Generated migration",
+            "last_stat_ok": true
+          },
+          {
+            "key": "7cb70c3dd3163e0d",
+            "uri": "content://com.android.externalstorage.documents/tree/primary%3ADownload%2FGeneratedMigration",
+            "display_name": "Generated migration",
+            "last_stat_ok": true
+          }
+        ]
+      },
+      "preferences": {},
+      "kv": {
+        "session:torrents": "{\"version\": 2, \"torrents\": [{\"infoHash\": \"a4030a5da50bb7fa64a8cf260a29b228a9ac52d3\", \"source\": \"file\", \"addedAt\": 0}]}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:state": "{\"userState\": \"stopped\", \"storageKey\": \"7cb70c3dd3163e0d\", \"bitfield\": \"80\", \"pieceCount\": 1, \"filePriorities\": [0], \"uploaded\": 999, \"downloaded\": 999, \"updatedAt\": 0}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:torrentfile": "\"ZDQ6aW5mb2Q2Omxlbmd0aGkxNjM4NGU0Om5hbWUxMzpnZW5lcmF0ZWQuYmluMTI6cGllY2UgbGVuZ3RoaTE2Mzg0ZTY6cGllY2VzMjA64tPq5WyUZ/Xb1JBC2v+t6qPW0Is3OnByaXZhdGVpMWVlZQ==\"",
+        "config:defaultRootKey": "\"7cb70c3dd3163e0d\"",
+        "config:dhtEnabled": "false",
+        "config:pexEnabled": "false"
+      },
+      "expected": {
+        "records": 1,
+        "format_candidates": 0,
+        "metadata_requires_checking": 0,
+        "pending_magnets": 0,
+        "roots_require_runtime_grant_check": 0,
+        "requires_policy_review": false,
+        "verified_pieces": 0
+      },
+      "name": "ambiguous_root",
+      "runtime_scenario": {
+        "grant": "read_write",
+        "payload": "intact"
+      }
+    },
+    {
+      "roots": {
+        "roots": []
+      },
+      "preferences": {},
+      "kv": {
+        "session:torrents": "{\"version\":2,\"torrents\":[]}"
+      },
+      "expected": {
+        "records": 0,
+        "format_candidates": 0,
+        "metadata_requires_checking": 0,
+        "pending_magnets": 0,
+        "roots_require_runtime_grant_check": 0,
+        "requires_policy_review": false,
+        "verified_pieces": 0
+      },
+      "name": "empty",
+      "runtime_scenario": {
+        "grant": "read_write",
+        "payload": "intact"
+      }
+    },
+    {
+      "roots": {
+        "roots": []
+      },
+      "preferences": {},
+      "kv": {
+        "session:torrents": "{\"version\": 2, \"torrents\": [{\"infoHash\": \"a4030a5da50bb7fa64a8cf260a29b228a9ac52d3\", \"source\": \"file\", \"addedAt\": 0}]}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:state": "{\"userState\": \"stopped\", \"storageKey\": \"default\", \"bitfield\": \"80\", \"pieceCount\": 1, \"filePriorities\": [0], \"uploaded\": 999, \"downloaded\": 999, \"updatedAt\": 0}",
+        "session:torrent:a4030a5da50bb7fa64a8cf260a29b228a9ac52d3:torrentfile": "\"ZDQ6aW5mb2Q2Omxlbmd0aGkxNjM4NGU0Om5hbWUxMzpnZW5lcmF0ZWQuYmluMTI6cGllY2UgbGVuZ3RoaTE2Mzg0ZTY6cGllY2VzMjA64tPq5WyUZ/Xb1JBC2v+t6qPW0Is3OnByaXZhdGVpMWVlZQ==\"",
+        "config:defaultRootKey": "\"7cb70c3dd3163e0d\"",
+        "config:dhtEnabled": "false",
+        "config:pexEnabled": "false"
+      },
+      "expected": {
+        "records": 1,
+        "format_candidates": 0,
+        "metadata_requires_checking": 0,
+        "pending_magnets": 0,
+        "roots_require_runtime_grant_check": 0,
+        "requires_policy_review": false,
+        "verified_pieces": 0
+      },
+      "name": "private_default",
+      "runtime_scenario": {
+        "grant": "read_write",
+        "payload": "intact"
+      }
+    }
+  ]
+}

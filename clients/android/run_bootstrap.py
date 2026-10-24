@@ -966,19 +966,36 @@ class ChromeForwardTransport:
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            time.sleep(0.2)
+            deadline = time.monotonic() + 15
+            while time.monotonic() < deadline and process.poll() is None:
+                try:
+                    with socket.create_connection(("127.0.0.1", local_port), timeout=0.2):
+                        return cls(local_port, process)
+                except OSError:
+                    time.sleep(0.05)
             if process.poll() is None:
-                return cls(local_port, process)
+                cls(local_port, process).close()
+                raise BootstrapFailure("ChromeOS upload tunnel never opened its owned listener")
             last_detail = process.stderr.read() if process.stderr else ""
+            if process.stderr is not None:
+                process.stderr.close()
+            if "Address already in use" not in last_detail:
+                raise BootstrapFailure(f"ChromeOS forward SSH tunnel failed: {last_detail}")
         raise BootstrapFailure(f"ChromeOS forward SSH tunnel failed: {last_detail}")
 
-    def close(self) -> None:
+    def close(self) -> str:
         self.process.terminate()
         try:
             self.process.wait(timeout=5)
         except subprocess.TimeoutExpired:
             self.process.kill()
             self.process.wait(timeout=5)
+        finally:
+            detail = ""
+            if self.process.stderr is not None:
+                detail = self.process.stderr.read(65_536)
+                self.process.stderr.close()
+        return detail
 
 
 def clear_application(target: Any) -> None:
@@ -2869,7 +2886,7 @@ def run_product_unmetered_network_profile(
             raise BootstrapFailure(
                 f"metered Android network did not quiesce the engine: {blocked}"
             )
-        wait_product_text(target, probe, "Waiting for an unmetered network")
+        wait_product_text(target, probe, "Waiting for Wi-Fi")
         time.sleep(0.5)
         blocked_upload = int(fixture.handle.status().total_upload)
         time.sleep(1)
@@ -3112,6 +3129,27 @@ def wait_product_tracker_row(
     )
 
 
+def dismiss_owned_product_disclosure(target: Any, probe: ModuleType) -> None:
+    """Complete first use with statistics disabled in the owned test profile."""
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        nodes = probe.ui_nodes(target)
+        labels = {node.attrib.get("text", "") for node in nodes}
+        if "Save and continue" in labels:
+            checked = next((node for node in nodes
+                            if node.attrib.get("checkable") == "true"
+                            and node.attrib.get("checked") == "true"), None)
+            if checked is not None:
+                x, y = probe.parse_bounds(checked.attrib["bounds"])
+                target.shell(["input", "tap", str(x), str(y)])
+            else:
+                probe.click_from_nodes(target, nodes, ["Save and continue"])
+        elif "All" in labels:
+            return
+        time.sleep(0.2)
+    raise BootstrapFailure("owned product disclosure did not reach the All library")
+
+
 def prepare_product_saf(target: Any, probe: ModuleType, grant_storage: str) -> None:
     deadline = time.monotonic() + 15
     while True:
@@ -3175,6 +3213,7 @@ def prepare_product_saf(target: Any, probe: ModuleType, grant_storage: str) -> N
             else:
                 raise BootstrapFailure("SAF picker did not return to the resumed product activity")
             launch_product_lifecycle_evidence(target, "observe")
+            dismiss_owned_product_disclosure(target, probe)
             return
         time.sleep(0.2)
     raise BootstrapFailure("product service did not activate the persisted SAF tree")
@@ -3620,11 +3659,19 @@ def verify_product_upload(
     pure_v2: ModuleType | None = None,
     magnet_only: bool = False,
     expect_hybrid_upgrade: bool = False,
+    device_port: int = 6881,
+    leech_timeout_seconds: int = 30,
 ) -> int:
+    if (
+        not isinstance(leech_timeout_seconds, int)
+        or isinstance(leech_timeout_seconds, bool)
+        or not 1 <= leech_timeout_seconds <= 300
+    ):
+        raise BootstrapFailure("Android upload leech budget must be 1..300 seconds")
     import libtorrent as lt
 
     forwarded = target.run(
-        ["forward", "tcp:0", "tcp:6881"], timeout=20, check=False
+        ["forward", "tcp:0", f"tcp:{device_port}"], timeout=20, check=False
     )
     if forwarded.returncode != 0:
         raise BootstrapFailure(f"could not forward Android upload listener: {forwarded.stderr}")
@@ -3634,8 +3681,6 @@ def verify_product_upload(
     host_port = int(host_port_text)
     chrome_forward = None
     target_host = getattr(target, "host", None)
-    if isinstance(target_host, str):
-        chrome_forward = ChromeForwardTransport.create(target_host, host_port)
     output_root = Path(tempfile.mkdtemp(prefix="rstorrent-android-upload-"))
     session = lt.session(
         {
@@ -3651,12 +3696,18 @@ def verify_product_upload(
             "in_enc_policy": int(lt.enc_policy.pe_disabled),
             "out_enc_policy": int(lt.enc_policy.pe_disabled),
             "alert_queue_size": 1000,
+            "alert_mask": int(lt.alert.category_t.error_notification)
+            | int(lt.alert.category_t.status_notification)
+            | int(lt.alert.category_t.connect_notification)
+            | int(lt.alert.category_t.peer_notification),
         }
     )
     handle = None
     hash_proxy = None
     diagnostics: list[str] = []
     try:
+        if isinstance(target_host, str):
+            chrome_forward = ChromeForwardTransport.create(target_host, host_port)
         peer_port = (
             chrome_forward.local_port if chrome_forward is not None else host_port
         )
@@ -3704,10 +3755,24 @@ def verify_product_upload(
             parameters.flags &= ~lt.torrent_flags.auto_managed
             handle = session.add_torrent(parameters)
             handle.connect_peer(("127.0.0.1", peer_port))
-            deadline = time.monotonic() + 30
+            deadline = time.monotonic() + leech_timeout_seconds
+            next_sample = time.monotonic()
             while time.monotonic() < deadline:
                 diagnostics.extend(alert.message() for alert in session.pop_alerts())
+                diagnostics = diagnostics[-100:]
                 status = handle.status()
+                if time.monotonic() >= next_sample:
+                    print(
+                        json.dumps({
+                            "stage": "android_upload_leech",
+                            "payload_download": int(status.total_payload_download),
+                            "peers": int(status.num_peers),
+                            "complete": bool(status.is_seeding),
+                        }),
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    next_sample = time.monotonic() + 5
                 if status.errc.value() != 0:
                     raise BootstrapFailure(
                         f"Android upload leech failed: {status.errc.message()}"
@@ -3716,8 +3781,11 @@ def verify_product_upload(
                     break
                 time.sleep(0.02)
             else:
+                status = handle.status()
                 raise BootstrapFailure(
-                    "libtorrent did not complete from Android SAF storage\n"
+                    f"libtorrent did not complete from Android SAF storage within {leech_timeout_seconds}s; "
+                    f"payload={int(status.total_payload_download)} peers={int(status.num_peers)} "
+                    f"tunnel_exit={chrome_forward.process.poll() if chrome_forward else None}\n"
                     + "\n".join(diagnostics[-30:])
                 )
             downloaded = int(handle.status().total_payload_download)
@@ -3782,7 +3850,9 @@ def verify_product_upload(
             hash_proxy.close()
         target.run(["forward", "--remove", f"tcp:{host_port}"], timeout=15, check=False)
         if chrome_forward is not None:
-            chrome_forward.close()
+            tunnel_detail = chrome_forward.close()
+            if tunnel_detail:
+                print(json.dumps({"stage": "android_upload_tunnel_joined", "stderr": tunnel_detail}), file=sys.stderr, flush=True)
         shutil.rmtree(output_root)
 
 
@@ -7199,6 +7269,19 @@ def run_product_file_selection_profile(
     try:
         clear_application(target)
         prepare_product_saf(target, probe, grant_storage)
+        # The picker receipt can precede the storage projection consumed by
+        # Add. Fence the same visible readiness that a real user depends on.
+        wait_and_click_product_text(target, probe, "Add torrent")
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            if any(node.attrib.get("text") == "Browse .torrent files"
+                   and node.attrib.get("enabled") == "true"
+                   for node in probe.ui_nodes(target)):
+                break
+            time.sleep(0.1)
+        else:
+            raise BootstrapFailure("Add did not observe the selected download folder")
+        wait_and_click_product_text(target, probe, "Cancel")
         baseline_fds = product_fd_count(target)
         fd_high_water = baseline_fds
         memory_baseline = product_memory_kib(target)
@@ -7236,7 +7319,7 @@ def run_product_file_selection_profile(
         torrent_ids.append(torrent_id)
         wait_pending_file_selection(target, torrent_id, metadata=False)
         wait_pending_file_selection(target, torrent_id, metadata=True)
-        wait_product_text(target, probe, "Checked files use Normal priority")
+        wait_product_text(target, probe, "Choose the files you want to download.")
         sample_resources()
         if fixture.handle.status().total_payload_upload != 0:
             raise BootstrapFailure("pending selection uploaded content before confirmation")
@@ -7253,7 +7336,7 @@ def run_product_file_selection_profile(
         if "Error:" in relaunched.stdout or "Error:" in relaunched.stderr:
             raise BootstrapFailure("could not relaunch pending file selection")
         wait_pending_file_selection(target, torrent_id, metadata=True)
-        wait_product_text(target, probe, "Checked files use Normal priority")
+        wait_product_text(target, probe, "Choose the files you want to download.")
         recovery_pid = target.shell(["pidof", PACKAGE], check=False).stdout.strip()
         if not recovery_pid or recovery_pid == pre_restart_pid:
             raise BootstrapFailure(
@@ -7321,11 +7404,14 @@ def run_product_file_selection_profile(
         torrent_ids.append(local_id)
         wait_pending_file_selection(target, local_id, metadata=True)
         wait_and_click_product_text(target, probe, "Cancel")
-        wait_product_torrent_diagnostic(
+        # Cancellation removes the row before the diagnostic snapshot is
+        # projected, so its torrent field may already be `none`. Logcat was
+        # cleared after the previous fixture's joined cleanup; this is the
+        # sole pending add. Require cancellation and joined removal separately.
+        wait_product_log(
             target,
-            local_id,
-            diagnostic="pending_add_cancelled",
-            description="pending local torrent cancellation",
+            "diagnostic=pending_add_cancelled",
+            "pending local torrent cancellation",
         )
         wait_product_log(
             target,
@@ -7335,9 +7421,35 @@ def run_product_file_selection_profile(
         assert_no_payload_artifacts(local_id)
         sample_resources()
 
+        # Prove actual Compose -> UniFFI -> durable all consent while the seed
+        # is unavailable for metadata, then release it and verify every file.
+        fixture.handle.pause()
+        target.run(["logcat", "-c"], check=False)
+        all_count = product_add_count(target, fixture.info_hash)
+        target.shell([
+            "am", "start", "-n", ACTIVITY,
+            "--es", "product_magnet", shlex.quote(magnet + "&so=0"),
+            "--ez", "product_await_file_selection", "true",
+        ], timeout=30)
+        all_id = wait_product_torrent_id(target, fixture.info_hash, all_count)
+        torrent_ids.append(all_id)
+        wait_pending_file_selection(target, all_id, metadata=False)
+        assert_no_payload_artifacts(all_id)
+        wait_and_click_product_text(target, probe, "Download all")
+        wait_pending_file_selection(target, all_id, metadata=False, awaiting=False)
+        fixture.handle.resume()
+        all_metrics, all_fd_high_water = wait_product_completion(
+            target, all_id, baseline_fds, sample=sample_resources,
+        )
+        fd_high_water = max(fd_high_water, all_fd_high_water)
+        verify_external_fixture_files(target, fixture, output_root)
+        request_product_torrent_action(target, all_id, "remove")
+        wait_product_log(target, f"saf_removal_confirmed torrent={all_id}", "all selection cleanup")
+        assert_no_payload_artifacts(all_id)
+
         if fixture.handle.status().total_payload_upload <= 0:
             raise BootstrapFailure("file-selection oracle uploaded no selected payload")
-        if metrics["owned_high_water"] > metrics["limit"]:
+        if any(item["owned_high_water"] > item["limit"] for item in (metrics, all_metrics)):
             raise BootstrapFailure("file selection exceeded the SAF handle bound")
         if not all(memory_high_water.values()):
             raise BootstrapFailure(
@@ -7364,6 +7476,10 @@ def run_product_file_selection_profile(
                 "selectable_count": 6,
                 "skipped_files_absent": True,
             },
+            "download_all_before_metadata": "confirmed",
+            "download_all_source_selection": "explicit_all_overrides_so",
+            "download_all_files": "hash_verified",
+            "download_all_storage_metrics": all_metrics,
             "local_torrent_cancel": "joined_keep_payload",
             "catalog_page_high_water": 1,
             "draft_override_high_water": len(selected_paths),
@@ -7481,6 +7597,7 @@ def run_product_external_intake_profile(
         )
 
         presented_count = external_log_count(target, "phase=presented")
+        duplicate_count = external_log_count(target, "phase=duplicate")
         launch_external_fixture(
             target,
             test_package,
@@ -7489,7 +7606,6 @@ def run_product_external_intake_profile(
             repeat=2,
         )
         wait_external_log(target, presented_count, "phase=presented")
-        duplicate_count = external_log_count(target, "phase=duplicate")
         wait_external_log(
             target,
             duplicate_count,
@@ -7497,7 +7613,7 @@ def run_product_external_intake_profile(
             "disposition=coalesced",
         )
         success_count = external_log_count(target, "phase=success")
-        wait_and_click_product_text(target, probe, "Add")
+        wait_and_click_product_text(target, probe, "Choose files…")
         wait_external_log(
             target,
             success_count,
@@ -7521,7 +7637,7 @@ def run_product_external_intake_profile(
             "disposition=already_present",
         )
         launch_external_fixture(target, test_package, "valid", payload=source)
-        wait_and_click_product_text(target, probe, "Add")
+        wait_and_click_product_text(target, probe, "Download all")
         wait_external_log(
             target,
             already_count,
@@ -7537,14 +7653,13 @@ def run_product_external_intake_profile(
 
         success_count = external_log_count(target, "phase=success")
         launch_external_fixture(target, test_package, "valid", payload=source)
-        wait_and_click_product_text(target, probe, "Add")
+        wait_and_click_product_text(target, probe, "Download all")
         wait_external_log(
             target,
             success_count,
             "phase=success",
             "disposition=added",
         )
-        wait_and_click_product_text(target, probe, "Download")
         started_id = wait_product_view_torrent_id(
             target,
             fixture.info_hash,
@@ -7575,7 +7690,7 @@ def run_product_external_intake_profile(
                 terminal_reason,
             )
             launch_external_fixture(target, test_package, fixture_case)
-            wait_and_click_product_text(target, probe, "Add")
+            wait_and_click_product_text(target, probe, "Download all")
             wait_external_log(
                 target,
                 terminal_count,
@@ -7601,7 +7716,7 @@ def run_product_external_intake_profile(
             "reason=invalid_or_engine_failure",
         )
         launch_external_fixture(target, test_package, "near-limit")
-        wait_and_click_product_text(target, probe, "Add")
+        wait_and_click_product_text(target, probe, "Download all")
         wait_external_log(
             target,
             terminal_count,
@@ -7625,7 +7740,7 @@ def run_product_external_intake_profile(
         for fixture_case in ("denied", "failing"):
             retry_count = external_log_count(target, "phase=retry")
             launch_external_fixture(target, test_package, fixture_case)
-            wait_and_click_product_text(target, probe, "Add")
+            wait_and_click_product_text(target, probe, "Download all")
             wait_external_log(target, retry_count, "phase=retry")
             terminal_count = external_log_count(target, "phase=terminal")
             wait_and_click_product_text(target, probe, "Retry")
@@ -7638,7 +7753,7 @@ def run_product_external_intake_profile(
             "delayed-once",
             payload=source,
         )
-        wait_and_click_product_text(target, probe, "Add")
+        wait_and_click_product_text(target, probe, "Download all")
         time.sleep(0.5)
         wait_and_click_product_text(target, probe, "Cancel")
         wait_external_log(target, cancelled_count, "phase=cancelled")
@@ -7650,7 +7765,7 @@ def run_product_external_intake_profile(
             "delayed-once",
             payload=source,
         )
-        wait_and_click_product_text(target, probe, "Add")
+        wait_and_click_product_text(target, probe, "Download all")
         wait_external_log(
             target,
             retry_count,
@@ -7661,7 +7776,6 @@ def run_product_external_intake_profile(
         success_count = external_log_count(target, "phase=success")
         wait_and_click_product_text(target, probe, "Retry")
         wait_external_log(target, success_count, "phase=success")
-        wait_and_click_product_text(target, probe, "Download")
         retried_id = wait_product_view_torrent_id(
             target,
             fixture.info_hash,

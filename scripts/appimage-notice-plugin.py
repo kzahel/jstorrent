@@ -8,6 +8,7 @@ import platform
 import sys
 
 from native_notices import collect, sha
+from linux_native import install, verify_known_gpl_absent
 
 
 def main():
@@ -32,7 +33,12 @@ def main():
     spec.loader.exec_module(prepare)
     if options.delegate.stat().st_size > 128 * 1024**2 or sha(options.delegate) != prepare.PLUGINS[platform.machine()]:
         raise ValueError('AppImage output plugin digest differs from reviewed asset')
-    report = collect(options.appdir)
+    build = os.environ.get('JSTORRENT_LINUX_NATIVE_BUILD')
+    if not build:
+        raise ValueError('AppImage requires the reviewed MIT-compatible native source build')
+    install(options.appdir, Path(build))
+    report = collect(options.appdir, custom_build=Path(build))
+    verify_known_gpl_absent(options.appdir)
     print(f"Embedded native notices for {len(report['packages'])} distro packages", flush=True)
     # Replace this process so linuxdeploy remains the one owner of completion,
     # cancellation and errors. Tauri signs only once this output step returns.

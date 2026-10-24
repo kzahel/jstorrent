@@ -6,8 +6,11 @@ import process from "node:process";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const IDENTIFIER = "com.jstorrent.rstorrent";
-const TORRENT_FILE_CLASS = `${IDENTIFIER}.torrent`;
+function activationIdentity(product) {
+  if (!["RSTorrent", "JSTorrent"].includes(product)) fail("unknown package product");
+  const identifier = product === "JSTorrent" ? "com.jstorrent.desktop" : "com.jstorrent.rstorrent";
+  return { IDENTIFIER: identifier, TORRENT_FILE_CLASS: `${identifier}.torrent` };
+}
 const TORRENT_MIME = "application/x-bittorrent";
 const MAGNET_MIME = "x-scheme-handler/magnet";
 
@@ -21,9 +24,13 @@ function exactArray(value, expected, label) {
   }
 }
 
-export function validateMacInfo(info) {
+export function validateMacInfo(info, product = "RSTorrent") {
+  const { IDENTIFIER, TORRENT_FILE_CLASS } = activationIdentity(product);
   if (info.CFBundleIdentifier !== IDENTIFIER) {
     fail(`unexpected macOS bundle identifier ${info.CFBundleIdentifier}`);
+  }
+  if (info.CFBundleExecutable !== "jstorrent-client") {
+    fail(`unexpected macOS executable ${info.CFBundleExecutable}`);
   }
   const urlType = info.CFBundleURLTypes?.find((candidate) =>
     candidate.CFBundleURLSchemes?.includes("magnet"),
@@ -98,11 +105,12 @@ function desktopEntry(contents) {
   return entries;
 }
 
-export function validateLinuxDesktop(contents) {
+export function validateLinuxDesktop(contents, product = "RSTorrent") {
+  const { IDENTIFIER, TORRENT_FILE_CLASS } = activationIdentity(product);
   const entries = desktopEntry(contents);
   if (entries.get("Type") !== "Application") fail("Linux handler is not an application");
   if (entries.get("Terminal") !== "false") fail("Linux handler must not open a terminal");
-  if (entries.get("Name") !== "RSTorrent") fail(`unexpected Linux handler name ${entries.get("Name")}`);
+  if (entries.get("Name") !== (product === "RSTorrent" ? "JSTorrent Preview" : product)) fail(`unexpected Linux handler name ${entries.get("Name")}`);
   const mimes = entries
     .get("MimeType")
     ?.split(";")
@@ -115,13 +123,17 @@ export function validateLinuxDesktop(contents) {
   if (!exec.endsWith(" %U") || JSON.stringify(fieldCodes) !== JSON.stringify(["%U"])) {
     fail(`Linux handler must forward one URL/file list with %U: ${exec}`);
   }
+  if (exec !== "jstorrent-client %U") {
+    fail(`unexpected Linux installed executable ${exec}`);
+  }
 }
 
-export function validateWindowsAssociations(registry) {
+export function validateWindowsAssociations(registry, product = "RSTorrent") {
+  const { IDENTIFIER, TORRENT_FILE_CLASS } = activationIdentity(product);
   if (!path.win32.isAbsolute(registry.executable ?? "")) {
     fail("Windows installed executable must be absolute");
   }
-  if (path.win32.basename(registry.executable).toLowerCase() !== "rstorrent-desktop.exe") {
+  if (path.win32.basename(registry.executable).toLowerCase() !== "jstorrent-client.exe") {
     fail(`unexpected Windows installed executable ${registry.executable}`);
   }
   if (registry.torrentProgId !== TORRENT_FILE_CLASS) {
@@ -146,6 +158,11 @@ function usage() {
 }
 
 function main(argv) {
+  let product = "RSTorrent";
+  if (argv.length === 4 && argv[2] === "--product") {
+    product = argv[3]; argv = argv.slice(0, 2);
+  }
+  activationIdentity(product);
   if (argv.length !== 2) usage();
   const [mode, source] = argv;
   if (mode === "--mac-app") {
@@ -153,18 +170,18 @@ function main(argv) {
     const json = execFileSync("plutil", ["-convert", "json", "-o", "-", plist], {
       encoding: "utf8",
     });
-    validateMacInfo(JSON.parse(json));
+    validateMacInfo(JSON.parse(json), product);
     validateMacNativeHost(source);
     console.log(`Validated macOS activation metadata in ${path.basename(source)}`);
     return;
   }
   if (mode === "--linux-desktop") {
-    validateLinuxDesktop(fs.readFileSync(source, "utf8"));
+    validateLinuxDesktop(fs.readFileSync(source, "utf8"), product);
     console.log(`Validated Linux activation metadata in ${path.basename(source)}`);
     return;
   }
   if (mode === "--windows-registry-json") {
-    validateWindowsAssociations(JSON.parse(fs.readFileSync(source, "utf8")));
+    validateWindowsAssociations(JSON.parse(fs.readFileSync(source, "utf8")), product);
     console.log("Validated installed Windows activation registry");
     return;
   }

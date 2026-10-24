@@ -200,15 +200,23 @@ test("portal appearance follows every density and color theme", async ({ page })
           colorTheme: document.documentElement.dataset.colorTheme,
           itemMinHeight: itemStyle.minHeight,
           overlayBackground: overlayStyle.backgroundColor,
-          rootBackground: getComputedStyle(document.body).backgroundColor,
+          raisedBackground: resolvedBackground("var(--surface-raised)"),
         };
+        function resolvedBackground(value: string): string {
+          const probe = document.createElement("div");
+          probe.style.background = value;
+          document.body.append(probe);
+          const color = getComputedStyle(probe).backgroundColor;
+          probe.remove();
+          return color;
+        }
       });
       expect(metrics.interfaceSize).toBe(size);
       expect(metrics.colorTheme).toBe(theme);
       expect(metrics.itemMinHeight).toBe(
         size === "compact" ? "30px" : size === "standard" ? "36px" : "44px",
       );
-      expect(metrics.overlayBackground).toBe(metrics.rootBackground);
+      expect(metrics.overlayBackground).toBe(metrics.raisedBackground);
       if (size === "standard" && theme === "light") {
         const violations = (
           await new AxeBuilder({ page }).analyze()

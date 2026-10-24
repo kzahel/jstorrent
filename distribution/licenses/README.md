@@ -37,3 +37,20 @@ component reuses the existing checksum-bound Cargo license supplement. Missing
 or changed native AAR evidence requires review. Final APK/AAB verification
 covers embedded text integrity and the exact native-library name inventory;
 it does not replace corresponding-source delivery or legal review.
+
+`apprun-source.json` records the exact initial MIT copyright/license comment
+from AppImageKit `src/AppRun.c` at the upstream-declared revision5735cc5.
+`apprun-5735cc5-MIT.txt` preserves both Simon Peter and RazZziel attribution
+and the complete original terms. The AppImage native collector packages it
+for the independently matched x64/ARM Tauri mirror launcher hashes; inspection
+refuses omitted or altered notice/provenance. No launcher implementation is
+imported. Exact upstream/mirror byte equality and a source locator do not
+establish a reproducible build or complete native redistribution clearance.
+
+Tactical 377 repairs notice generation for fourteen existing archive omissions
+in the default-feature desktop graph (including the older PHF/html parser
+family pulled by native dialog dependencies). Their exact registry manifests
+and available VCS revisions are recorded in `cargo-sources.json`. These entries
+use the existing explicit declaration-only policy: identify the original
+package/manifest grant and standard terms, without inventing an upstream
+copyright notice. No implementation source or new dependency is imported.

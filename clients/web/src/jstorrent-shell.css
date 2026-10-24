@@ -1,0 +1,60 @@
+/* Available before the application bundle, including a failed bootstrap. */
+/* Literal water-and-clay values: global.css tokens are not loaded yet. */
+/* Tactical 352: the page is the application's background in the stored */
+/* theme; the branded card is only for failures. */
+html { background: #ffffff; }
+html[data-color-theme="dark"] { background: #181614; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-color-theme]), html[data-color-theme="auto"] { background: #181614; }
+}
+
+/* Loading: nothing for the first second, then a quiet centred mark. */
+#rstorrent-boot-status:not([role="alert"]) {
+  position: fixed; inset: 0; margin: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  color: #6b645c;
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  opacity: 0;
+  animation: rstorrent-boot-reveal 240ms ease-out 1s forwards;
+}
+#rstorrent-boot-status:not([role="alert"])::before {
+  content: ""; width: 48px; height: 48px;
+  background: url("./assets/jstorrent.png") center / contain no-repeat;
+}
+@keyframes rstorrent-boot-reveal { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  #rstorrent-boot-status:not([role="alert"]) { animation-duration: 0s; }
+}
+html[data-color-theme="dark"] #rstorrent-boot-status:not([role="alert"]) { color: #b3aaa0; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-color-theme]) #rstorrent-boot-status:not([role="alert"]),
+  html[data-color-theme="auto"] #rstorrent-boot-status:not([role="alert"]) { color: #b3aaa0; }
+}
+
+/* Failure: the branded card. */
+body:has(#rstorrent-boot-status[role="alert"], #app > [role="alert"]:only-child, #app > noscript) {
+  background: #f7f5f2;
+}
+#rstorrent-boot-status[role="alert"], #app > [role="alert"]:only-child, #app > noscript {
+  box-sizing: border-box;
+  display: block;
+  width: min(480px, calc(100% - 48px));
+  margin: 12vh auto 24px;
+  padding: 32px;
+  border: 1px solid #d9d2c9;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1d1b18;
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow-wrap: anywhere;
+}
+#rstorrent-boot-status[role="alert"]::before, #app > [role="alert"]:only-child::before {
+  display: block; content: ""; width: 64px; height: 64px; margin-bottom: 24px;
+  background: url("./assets/jstorrent.png") center / contain no-repeat;
+}
+html[data-color-theme="dark"] body:has(#rstorrent-boot-status[role="alert"], #app > [role="alert"]:only-child, #app > noscript) { background: #181614; }
+html[data-color-theme="dark"] :is(#rstorrent-boot-status[role="alert"], #app > [role="alert"]:only-child, #app > noscript) { background: #1f1c19; color: #f3eee8; border-color: #423c35; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-color-theme="light"]) body:has(#rstorrent-boot-status[role="alert"], #app > [role="alert"]:only-child, #app > noscript) { background: #181614; }
+  html:not([data-color-theme="light"]) :is(#rstorrent-boot-status[role="alert"], #app > [role="alert"]:only-child, #app > noscript) { background: #1f1c19; color: #f3eee8; border-color: #423c35; }
+}

@@ -2,6 +2,21 @@
 
 Topic: `download-root-acquisition`
 
+Tactical [`232`](../tactical/232-desktop-extension-control.md) implements
+extension-triggered native picking for Linux, Windows and macOS. An authenticated
+platform frame carries only an optional opaque repair-root ID. A desktop-owned,
+short-lived helper runs the native `rfd` backend without creating a webview or
+another application service. A single permit covers both views; bounded pipes,
+a five-minute deadline and joined kill/wait retain explicit ownership.
+
+Installed claimed-guest selection, Cancel, tab-disconnect and Quit cleanup pass
+with fresh controlled roots on all three platforms. macOS completes AppKit
+accessory launch before activating NSOpenPanel; helper termination dismisses
+the system-hosted panel. Native-window selection retains its parented panel.
+The macOS application Quit menu uses the existing joined shutdown owner instead
+of AppKit's immediate predefined termination action. Broader browser lifecycle
+and update compatibility remain Tactical 232 gates.
+
 Status: Current behavior researched on 2026-08-29. Packaged desktop, local
 browser gateway, Crostini, and Linux headless use distinct platform adapters
 despite sharing the React storage UI. Windows packaged-desktop picker evidence
@@ -22,19 +37,19 @@ pass.
 ## Conclusion
 
 The browser's operating system does not decide which folders can be selected.
-The backend process owns payload I/O, so acquisition follows the backend
+The host process owns payload I/O, so acquisition follows the host
 runtime and its session:
 
 - packaged Tauri opens a native dialog in the desktop application's graphical
   session;
-- a local browser gateway asks its same-machine backend to launch a native
+- a local browser gateway asks its same-machine host to launch a native
   helper, not the browser;
 - a browser controlling a remote Linux headless service cannot select a
   client-machine folder and must not cause the server to launch a dialog;
 - the exact Linux headless product should instead accept and validate an
   absolute path in the server's namespace, such as `/srv/media/torrents`; and
-- the exact ChromeOS Android companion presentation should ask its authenticated
-  Android backend to launch the system SAF picker and receive only the
+- the exact ChromeOS Android companion client should ask its authenticated
+  Android host to launch the system SAF picker and receive only the
   resulting opaque root snapshot.
 
 An opaque root ID remains the portable application value after acquisition.
@@ -43,7 +58,7 @@ records, relay records, or browser-local persistence.
 
 ## Scope And Ownership
 
-This topic owns how a backend locator or platform capability is initially
+This topic owns how a host locator or platform capability is initially
 acquired or repaired across product runtimes, including:
 
 - which current picker implementation each operating system and runtime uses;
@@ -59,22 +74,27 @@ default and per-torrent selection, availability, repair semantics, and removal.
 owns process, service-manager, listener, and deployment policy.
 [`android-saf-storage.md`](android-saf-storage.md) owns Android SAF capability
 lifetime. This topic does not move payload I/O into a browser, add a generic
-filesystem API, or authorize a presentation to enumerate the backend machine.
+filesystem API, or authorize a client to enumerate the host machine.
 
 ## Current Behavior Matrix
 
-| Product surface | Backend operating system and session | Current acquisition operation | Current user-visible result |
+| Product surface | Host operating system and session | Current acquisition operation | Current user-visible result |
 | --- | --- | --- | --- |
 | Packaged Tauri desktop | macOS graphical login | `tauri-plugin-dialog` backed by the native macOS folder panel and parented to the invoking window | Native folder picker; choose and cancel flow through Tauri IPC |
 | Packaged Tauri desktop | Windows graphical login | `tauri-plugin-dialog`/`rfd` backed by the Windows Common Item Dialog and parented to the invoking window | Native folder picker; installed choose, cancel, default, repair, and restart evidence passes |
 | Packaged Tauri desktop | Linux graphical login | The exact dependency feature set selects the `rfd` GTK3 backend | Native GTK folder picker; no Zenity or KDialog runtime dependency; installed interaction is not yet claimed |
 | Local `scripts/webui` | macOS graphical login | The gateway runs `/usr/bin/osascript` with AppleScript `choose folder` | Unparented native folder panel; source and focused tests pass, but the manual chooser/restart smoke remains open |
 | Local `scripts/webui` | Linux graphical session | The gateway launches `zenity --file-selection --directory`; only command-not-found falls through to `kdialog --getexistingdirectory` | Best effort. Cancel is clean; no helper gives an actionable error; another helper failure is an error rather than fallback |
+
 | Local gateway/browser | Windows | The native adapter is compiled as unsupported for every operating system except macOS and Linux | Clicking **Add folder...** reaches the HTTP platform route and returns `501` with “download folder picker is not implemented on this platform” |
-| ChromeOS Linux/Crostini | Linux user service, ChromeOS browser presentation | Crostini injects the same Linux native helper adapter as local WebUI | `~/Downloads` is preconfigured, so first use does not require a picker. Additional selection is conditional on a usable Linux graphical session and Zenity or KDialog; exact installed interaction is unproved |
+| ChromeOS Linux/Crostini | Linux user service, ChromeOS browser client | Crostini injects the same Linux native helper adapter as local WebUI | `~/Downloads` is preconfigured, so first use does not require a picker. Additional selection is conditional on a usable Linux graphical session and Zenity or KDialog; exact installed interaction is unproved |
 | Hosted Linux headless | Linux service with or without a display | `rstorrent-headless` uses the hosted gateway preparation that injects `UnavailableDownloadDirectoryPicker` | TOML supplies at least one root. The shared UI still renders native-picker add/repair controls, but those calls return `501` |
-| Android/ChromeOS Android | Android activity/foreground service | Compose and the packaged shared React presentation launch Android Storage Access Framework tree selection through one foreground owner | Tactical `194` physically proves multiple bounded grants, one current root for new downloads, durable old-torrent binding, independent repair, opaque-root-only Rust/React values, exact ARC-address extension connection, and same-LAN refusal. |
+| Android/ChromeOS Android | Android activity/foreground service | Compose and the packaged shared React client launch Android Storage Access Framework tree selection through one foreground owner | Tactical `194` physically proves multiple bounded grants, one current root for new downloads, durable old-torrent binding, independent repair, opaque-root-only Rust/React values, exact ARC-address extension connection, and same-LAN refusal. |
 | iOS/iPadOS | First-party iOS application | System directory picker followed by a qualified security-scoped bookmark | System picker; accepted local roots retain opaque identity and platform-owned reopening state |
+
+The `--reload` launcher mode retains this same gateway-owned picker and
+profile. Vite only serves and updates the browser client, forwarding
+the picker request through its API proxy.
 
 “Web UI on Windows” is ambiguous and must be qualified:
 
@@ -135,7 +155,7 @@ not used by current RSTorrent code:
 
 The browser File System Access API is also not a substitute. A browser call to
 `showDirectoryPicker()` returns a handle to the browser client's local
-filesystem after a user gesture. It cannot give a remote Rust backend a native
+filesystem after a user gesture. It cannot give a remote Rust host a native
 server path or move torrent payload I/O out of the engine:
 
 - [File System Access specification](https://wicg.github.io/file-system-access/)
@@ -193,10 +213,10 @@ exist.
 
 ## Accepted Linux Headless Direction
 
-The exact `rstorrent-headless` presentation should replace native-picker
-actions with a text field labeled **Path on this Linux server** and an example
-such as `/srv/media/torrents`. The field accepts a Linux server path, not a path
-on the browser machine.
+The web UI of the exact `rstorrent-headless` product should replace
+native-picker actions with a text field labeled **Path on this Linux server**
+and an example such as `/srv/media/torrents`. The field accepts a Linux server
+path, not a path on the browser machine.
 
 The first implementation should provide typed add and repair for UI-managed
 roots without building a server directory browser. A generic browser would
@@ -211,7 +231,7 @@ Typed path registration is a headless platform operation, not a portable
 application command:
 
 - only the exact Linux headless runtime may advertise server-path entry;
-- the backend validates and installs the locator, then returns the ordinary
+- the host validates and installs the locator, then returns the ordinary
   root snapshot;
 - existing add flows continue to select the returned opaque root ID;
 - the operation follows the deployment endpoint's storage-management

@@ -1,21 +1,10 @@
 .trackerPanel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-width: 0;
   min-height: 0;
-}
-
-.summary {
-  display: flex;
-  gap: 1rem;
-  min-width: 0;
-  border-bottom: 1px solid var(--border-soft);
-  padding: 0.42rem 0.72rem;
-  color: var(--text-muted);
-  background: var(--surface-primary);
-  font-size: var(--ui-font-caption);
-  font-variant-numeric: tabular-nums;
 }
 
 .url,
@@ -54,7 +43,7 @@
 }
 
 .status[data-status="announcing"] > span {
-  background: var(--accent-strong);
+  background: var(--water);
 }
 
 .status[data-status="retry_wait"] {
@@ -66,13 +55,86 @@
 }
 
 .status[data-status="reannounce_wait"] > span {
-  background: var(--success, #35a46f);
+  background: var(--success);
 }
 
-@media (max-width: 520px) {
-  .summary {
-    gap: 0.65rem;
-    overflow: hidden;
-    white-space: nowrap;
-  }
+/* Summary of where this torrent's peers come from, above the tracker table. */
+.sourcesPanel {
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-primary);
 }
+
+.sources {
+  border-collapse: collapse;
+  font-size: var(--ui-font-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.sources tr:first-child > * {
+  padding-top: 0.5rem;
+}
+
+.sources tr:last-child > * {
+  padding-bottom: 0.5rem;
+}
+
+.sources th,
+.sources td {
+  padding: 0.2rem 0.72rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sources th {
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+.sources td:nth-child(2) {
+  padding-right: 1.5rem;
+}
+
+.sources td:nth-child(3),
+.sources td:nth-child(4) {
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.sourceStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  color: var(--text-secondary);
+}
+
+.sourceStatus > span {
+  width: 0.42rem;
+  height: 0.42rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.sourceStatus[data-status="on"] > span,
+.sourceStatus[data-status="listening"] > span,
+.sourceStatus[data-status="working"] > span {
+  background: var(--success);
+}
+
+.sourceStatus[data-status="searching"] > span,
+.sourceStatus[data-status="announcing"] > span {
+  background: var(--water);
+}
+
+.sourceStatus[data-status="offline"],
+.sourceStatus[data-status="failing"] {
+  color: var(--warning-strong);
+}
+
+.sourceStatus[data-status="offline"] > span,
+.sourceStatus[data-status="failing"] > span,
+.sourceStatus[data-status="starting"] > span {
+  background: var(--warning-strong);
+}
+

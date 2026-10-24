@@ -15,7 +15,7 @@ rstorrent-engine = { path = "../rstorrent-engine" }
 rstorrent-media-catalog = { path = "../rstorrent-media-catalog" }
 rstorrent-protocol = { path = "../rstorrent-protocol" }
 getrandom = { workspace = true }
-rusqlite = { workspace = true }
+rusqlite = { workspace = true, features = ["backup"] }
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -27,8 +27,10 @@ ts-rs = { workspace = true }
 uniffi = { version = "=0.31.0", default-features = false, optional = true }
 url = { workspace = true }
 uuid = { workspace = true }
+# Portable torrent list bundles; kept independent of native update extraction.
+zip = { version = "=9.0.4", default-features = false, features = ["deflate-flate2"] }
+tempfile = { workspace = true }
 
 [dev-dependencies]
 rstorrent-engine = { path = "../rstorrent-engine", features = ["test-platform-root"] }
-tempfile = { workspace = true }
 tokio-rustls = "0.26.4"

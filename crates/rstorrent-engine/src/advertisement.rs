@@ -236,6 +236,9 @@ pub struct DiscoveryAdvertisementOwnerCounts {
     pub command_queue_high_water: usize,
     pub dht_operations: usize,
     pub dht_operations_high_water: usize,
+    /// Registrations whose `stopped` announces had not all finished when the
+    /// session shutdown deadline passed or was hurried.
+    pub stops_cut_short: usize,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -491,10 +494,33 @@ impl DiscoveryAdvertisementService {
     }
 
     pub async fn shutdown(
+        self,
+    ) -> Result<DiscoveryAdvertisementOwnerCounts, DiscoveryAdvertisementError> {
+        self.shutdown_within(
+            Instant::now() + TRACKER_STOP_TIMEOUT,
+            CancellationToken::new(),
+        )
+        .await
+    }
+
+    /// Sends `stopped` announces until they finish, `deadline` passes or
+    /// `hurry` is cancelled, whichever comes first.
+    pub async fn shutdown_within(
         mut self,
+        deadline: Instant,
+        hurry: CancellationToken,
     ) -> Result<DiscoveryAdvertisementOwnerCounts, DiscoveryAdvertisementError> {
         let (sender, receiver) = oneshot::channel();
-        if self.handle.send(Command::Shutdown(sender)).await.is_err() {
+        if self
+            .handle
+            .send(Command::Shutdown {
+                deadline,
+                hurry,
+                response: sender,
+            })
+            .await
+            .is_err()
+        {
             return self
                 .task
                 .take()
@@ -602,7 +628,11 @@ enum Command {
         response: oneshot::Sender<Result<(), DiscoveryAdvertisementError>>,
     },
     Snapshot(oneshot::Sender<DiscoveryAdvertisementRuntimeSnapshot>),
-    Shutdown(oneshot::Sender<Result<(), DiscoveryAdvertisementError>>),
+    Shutdown {
+        deadline: Instant,
+        hurry: CancellationToken,
+        response: oneshot::Sender<Result<(), DiscoveryAdvertisementError>>,
+    },
     ShutdownImmediately(oneshot::Sender<Result<(), DiscoveryAdvertisementError>>),
 }
 
@@ -782,6 +812,21 @@ enum DhtOperationSuccess {
     Announce(DhtAnnounceResult),
 }
 
+/// Peers a DHT operation reported before finishing, applied by the owner.
+#[derive(Debug)]
+struct DhtPeerBatch {
+    owner_info_hash: [u8; 20],
+    swarm_key: SwarmKey,
+    registration_generation: u64,
+    dht_epoch: u64,
+    peers: Vec<std::net::SocketAddr>,
+}
+
+/// Batches each DHT operation may hold before the DHT drops early copies.
+const DHT_OPERATION_PEER_BATCHES: usize = 8;
+/// Batches queued for the owner across all operations; overflow waits for the final result.
+const DHT_OWNER_PEER_BATCHES: usize = 64;
+
 #[derive(Debug)]
 struct DhtOperationResult {
     owner_info_hash: [u8; 20],
@@ -815,19 +860,22 @@ async fn run_service(
     let mut entries = BTreeMap::<[u8; 20], TorrentEntry>::new();
     let mut operations = JoinSet::new();
     let mut dht_operations = JoinSet::new();
+    let (dht_peer_sender, mut dht_peer_batches) = mpsc::channel(DHT_OWNER_PEER_BATCHES);
     let mut operation_high_water = 0_usize;
     let mut dht_operation_high_water = 0_usize;
     let mut shutting_down = false;
     let mut immediate_shutdown = false;
     let mut shutdown_response = None;
     let mut shutdown_deadline = None;
+    let mut shutdown_hurry: Option<CancellationToken> = None;
+    let mut stops_cut_short = 0_usize;
 
     loop {
         if cancellation.is_cancelled() {
             entries.clear();
             break;
         }
-        finish_stopped_entries(
+        stops_cut_short += finish_stopped_entries(
             &mut entries,
             shutdown_deadline,
             desired_https_authentication,
@@ -852,6 +900,7 @@ async fn run_service(
                     &mut entries,
                     &mut dht_operations,
                     dht.clone(),
+                    &dht_peer_sender,
                     network.policy,
                     endpoint,
                 )
@@ -874,6 +923,7 @@ async fn run_service(
             .unwrap_or(Duration::from_secs(24 * 60 * 60));
         let sleep = tokio::time::sleep(next_wait);
         tokio::pin!(sleep);
+        let hurry = shutdown_hurry.clone().unwrap_or_default();
 
         tokio::select! {
             biased;
@@ -882,10 +932,18 @@ async fn run_service(
                 immediate_shutdown = true;
                 entries.clear();
             }
+            () = hurry.cancelled(), if shutdown_hurry.is_some() => {
+                shutdown_hurry = None;
+                shutdown_deadline = Some(Instant::now());
+            }
             command = receiver.recv(), if !shutting_down => {
                 let Some(command) = command else {
                     shutting_down = true;
-                    begin_session_shutdown(&mut entries, &mut shutdown_deadline);
+                    begin_session_shutdown(
+                        &mut entries,
+                        &mut shutdown_deadline,
+                        Instant::now() + TRACKER_STOP_TIMEOUT,
+                    );
                     for swarm_key in discovery_swarm_keys(&entries) {
                         let _ = dht.cancel_lookup(swarm_key.into_bytes()).await;
                     }
@@ -1051,10 +1109,16 @@ async fn run_service(
                                 .unwrap_or(usize::MAX),
                         });
                     }
-                    Command::Shutdown(response) => {
+                    Command::Shutdown { deadline, hurry, response } => {
                         shutting_down = true;
                         shutdown_response = Some(response);
-                        begin_session_shutdown(&mut entries, &mut shutdown_deadline);
+                        let deadline = if hurry.is_cancelled() {
+                            Instant::now()
+                        } else {
+                            shutdown_hurry = Some(hurry);
+                            deadline
+                        };
+                        begin_session_shutdown(&mut entries, &mut shutdown_deadline, deadline);
                         for swarm_key in discovery_swarm_keys(&entries) {
                             let _ = dht.cancel_lookup(swarm_key.into_bytes()).await;
                         }
@@ -1163,6 +1227,9 @@ async fn run_service(
                     apply_dht_result(&mut entries, operation, network.policy, endpoint);
                 }
             }
+            Some(batch) = dht_peer_batches.recv() => {
+                apply_dht_peer_batch(&mut entries, batch, network.policy);
+            }
             _ = &mut sleep => {}
         }
         if immediate_shutdown {
@@ -1188,6 +1255,7 @@ async fn run_service(
             .unwrap_or(usize::MAX),
         dht_operations: dht_operations.len(),
         dht_operations_high_water: dht_operation_high_water,
+        stops_cut_short,
     })
 }
 
@@ -1320,28 +1388,33 @@ fn apply_registration_with_cancellation(
 fn begin_session_shutdown(
     entries: &mut BTreeMap<[u8; 20], TorrentEntry>,
     shutdown_deadline: &mut Option<Instant>,
+    deadline: Instant,
 ) {
-    *shutdown_deadline = Some(Instant::now() + TRACKER_STOP_TIMEOUT);
+    *shutdown_deadline = Some(deadline);
     for entry in entries.values_mut() {
         entry.begin_stop(None);
     }
 }
 
+/// Retires stopping entries and returns how many the session shutdown
+/// deadline retired before their `stopped` announces finished.
 fn finish_stopped_entries(
     entries: &mut BTreeMap<[u8; 20], TorrentEntry>,
     shutdown_deadline: Option<Instant>,
     https_authentication: TrackerHttpsAuthentication,
-) -> Result<(), DiscoveryAdvertisementError> {
+) -> Result<usize, DiscoveryAdvertisementError> {
     let now = Instant::now();
+    let shutdown_expired = shutdown_deadline.is_some_and(|deadline| now >= deadline);
+    let mut cut_short = 0;
     let finished = entries
         .iter_mut()
         .filter_map(|(info_hash, entry)| {
-            let removal = entry.removal.as_ref()?;
             let exhausted = entry.lanes.iter().all(|lane| lane.schedule.stop_complete());
-            (exhausted
-                || now >= removal.deadline
-                || shutdown_deadline.is_some_and(|deadline| now >= deadline))
-            .then_some(*info_hash)
+            if shutdown_expired && !exhausted {
+                cut_short += 1;
+            }
+            let removal = entry.removal.as_ref()?;
+            (exhausted || now >= removal.deadline || shutdown_expired).then_some(*info_hash)
         })
         .collect::<Vec<_>>();
     for info_hash in finished {
@@ -1361,10 +1434,10 @@ fn finish_stopped_entries(
             }
         }
     }
-    if shutdown_deadline.is_some_and(|deadline| now >= deadline) {
+    if shutdown_expired {
         entries.clear();
     }
-    Ok(())
+    Ok(cut_short)
 }
 
 fn fill_tracker_operations(
@@ -1537,6 +1610,7 @@ fn fill_dht_operations(
     entries: &mut BTreeMap<[u8; 20], TorrentEntry>,
     operations: &mut JoinSet<DhtOperationResult>,
     dht: DhtHandle,
+    peer_batches: &mpsc::Sender<DhtPeerBatch>,
     policy: NetworkPolicy,
     endpoint: PeerAdvertisementEndpoint,
 ) -> Option<Duration> {
@@ -1570,6 +1644,7 @@ fn fill_dht_operations(
             let dht_epoch = entry.dht_epoch;
             let endpoint_generation = endpoint.generation;
             let operation_dht = dht.clone();
+            let peer_batches = peer_batches.clone();
             lane.dht_inflight = true;
             entry.control.emit(DownloadActivityEvent::DiscoveryLane {
                 protocol: swarm_key.protocol(),
@@ -1579,15 +1654,35 @@ fn fill_dht_operations(
             entry.control.emit(DownloadActivityEvent::DhtLookupStarted);
             operations.spawn(async move {
                 let info_hash = swarm_key.into_bytes();
-                let result = match announce_ports {
-                    Some(ports) => operation_dht
-                        .lookup_and_announce_ports(info_hash, ports)
-                        .await
-                        .map(DhtOperationSuccess::Announce),
-                    None => operation_dht
-                        .lookup(info_hash)
-                        .await
-                        .map(DhtOperationSuccess::Lookup),
+                let (progress, mut progress_batches) = mpsc::channel(DHT_OPERATION_PEER_BATCHES);
+                let lookup = async move {
+                    match announce_ports {
+                        Some(ports) => operation_dht
+                            .lookup_and_announce_ports_with_progress(info_hash, ports, progress)
+                            .await
+                            .map(DhtOperationSuccess::Announce),
+                        None => operation_dht
+                            .lookup_with_progress(info_hash, progress)
+                            .await
+                            .map(DhtOperationSuccess::Lookup),
+                    }
+                };
+                tokio::pin!(lookup);
+                // Forward peers as replies arrive, like libtorrent's get_peers
+                // data callback. A full owner queue drops only the early copy.
+                let result = loop {
+                    tokio::select! {
+                        result = &mut lookup => break result,
+                        Some(peers) = progress_batches.recv() => {
+                            let _ = peer_batches.try_send(DhtPeerBatch {
+                                owner_info_hash,
+                                swarm_key,
+                                registration_generation,
+                                dht_epoch,
+                                peers,
+                            });
+                        }
+                    }
                 };
                 DhtOperationResult {
                     owner_info_hash,
@@ -1602,6 +1697,50 @@ fn fill_dht_operations(
         }
     }
     minimum_wait
+}
+
+fn observe_dht_peers(
+    entry: &TorrentEntry,
+    swarm_key: SwarmKey,
+    peers: Vec<std::net::SocketAddr>,
+    policy: NetworkPolicy,
+) {
+    for address in peers {
+        if !policy.allows(address) {
+            continue;
+        }
+        let Ok(endpoint) = PeerEndpoint::new(address) else {
+            continue;
+        };
+        let _ = entry.registration.peers.observe_discovered_peer_on_swarm(
+            PeerObservation::dialable(endpoint, PeerSource::Dht),
+            swarm_key,
+        );
+    }
+}
+
+/// Early peers from a running DHT operation. Peers from an earlier operation
+/// on the same lane remain valid for that swarm, so only a replaced
+/// registration or a new DHT epoch makes a batch stale.
+fn apply_dht_peer_batch(
+    entries: &mut BTreeMap<[u8; 20], TorrentEntry>,
+    batch: DhtPeerBatch,
+    policy: NetworkPolicy,
+) {
+    let Some(entry) = entries.get(&batch.owner_info_hash) else {
+        return;
+    };
+    if entry.registration.generation != batch.registration_generation
+        || entry.dht_epoch != batch.dht_epoch
+        || entry.removal.is_some()
+        || !entry
+            .lanes
+            .iter()
+            .any(|lane| lane.swarm_key == batch.swarm_key)
+    {
+        return;
+    }
+    observe_dht_peers(entry, batch.swarm_key, batch.peers, policy);
 }
 
 fn apply_dht_result(
@@ -1669,18 +1808,7 @@ fn apply_dht_result(
                 }
             };
             let peer_count = peers.len().try_into().unwrap_or(u32::MAX);
-            for address in peers {
-                if !policy.allows(address) {
-                    continue;
-                }
-                let Ok(endpoint) = PeerEndpoint::new(address) else {
-                    continue;
-                };
-                let _ = entry.registration.peers.observe_discovered_peer_on_swarm(
-                    PeerObservation::dialable(endpoint, PeerSource::Dht),
-                    operation.swarm_key,
-                );
-            }
+            observe_dht_peers(entry, operation.swarm_key, peers, policy);
             entry
                 .control
                 .emit(DownloadActivityEvent::DhtLookupSucceeded { peer_count });
@@ -2312,6 +2440,144 @@ mod tests {
     }
 
     #[test]
+    fn early_dht_peer_batches_apply_only_to_the_current_epoch() {
+        let peers = TorrentPeerHandle::new(Arc::new(NoopSink)).expect("peer registry");
+        let mut registration = test_registration(1, 41002);
+        registration.peers = peers.clone();
+        let mut entries = BTreeMap::new();
+        apply_registration(
+            &mut entries,
+            registration,
+            TrackerHttpsAuthentication::SystemTrust,
+        )
+        .expect("registration");
+        let swarm_key = entries[&[4; 20]].lanes[0].swarm_key;
+        let batch = |dht_epoch, port: u16| DhtPeerBatch {
+            owner_info_hash: [4; 20],
+            swarm_key,
+            registration_generation: 1,
+            dht_epoch,
+            peers: vec![std::net::SocketAddr::from(([127, 0, 0, 1], port))],
+        };
+
+        apply_dht_peer_batch(&mut entries, batch(1, 44_101), NetworkPolicy::LoopbackOnly);
+        apply_dht_peer_batch(&mut entries, batch(2, 44_102), NetworkPolicy::LoopbackOnly);
+
+        let records = peers.registry_snapshot(true).records;
+        assert_eq!(records.len(), 1, "a later DHT epoch's batch is stale");
+        assert_eq!(records[0].endpoint.address().port(), 44_101);
+        assert!(records[0].sources.contains(PeerSource::Dht));
+    }
+
+    #[tokio::test]
+    async fn dht_peers_reach_the_swarm_before_the_lookup_finishes() {
+        use crate::dht::test_support::{loopback_peer, scripted_peer_node};
+
+        let node_a = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let node_b = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let a_address = node_a.local_addr().unwrap();
+        let b_contact = rstorrent_protocol::dht::NodeContact {
+            id: rstorrent_protocol::dht::NodeId([0x22; 20]),
+            address: rstorrent_protocol::dht::DhtEndpoint::new(
+                rstorrent_protocol::dht::DhtIp::V4([127, 0, 0, 1]),
+                node_b.local_addr().unwrap().port(),
+            ),
+        };
+        let (release_b, hold_b) = tokio::sync::oneshot::channel();
+        let a = tokio::spawn(scripted_peer_node(
+            node_a,
+            rstorrent_protocol::dht::NodeId([0x11; 20]),
+            vec![b_contact],
+            vec![loopback_peer(50_101)],
+            None,
+        ));
+        let b = tokio::spawn(scripted_peer_node(
+            node_b,
+            b_contact.id,
+            Vec::new(),
+            vec![loopback_peer(50_102)],
+            Some(hold_b),
+        ));
+        let client = crate::dht::DhtService::start(crate::dht::DhtConfig {
+            enabled: true,
+            network_policy: NetworkPolicy::LoopbackOnly,
+            bind_address: "127.0.0.1:0".parse().expect("bind address"),
+            bootstrap_nodes: vec![crate::dht::BootstrapNode::Address(a_address)],
+            initial_snapshot: None,
+            query_timeout: Duration::from_secs(5),
+            lookup_timeout: Duration::from_secs(10),
+            bootstrap_retry_interval: Duration::from_secs(60),
+            routing_refresh_interval: Duration::from_secs(60),
+            peer_ttl: Duration::from_secs(30 * 60),
+            read_only: false,
+            byte_metric_sink: None,
+        })
+        .await
+        .expect("start DHT client");
+        let (_endpoint_sender, endpoint_receiver) = watch::channel(ipv4_endpoint(
+            7,
+            "127.0.0.1:55011",
+            PeerAdvertisementEndpointScope::Loopback,
+        ));
+        let network = NetworkConfig::new(
+            NetworkPolicy::LoopbackOnly,
+            Duration::from_secs(1),
+            Duration::from_secs(1),
+        );
+        let service =
+            DiscoveryAdvertisementService::start(network, endpoint_receiver, client.handle());
+        let peers = TorrentPeerHandle::new(Arc::new(NoopSink)).expect("peer registry");
+        service
+            .handle()
+            .upsert(DiscoveryAdvertisementRegistration {
+                generation: 1,
+                info_hash: [13; 20],
+                info_hashes: InfoHashes::v1([13; 20].into()),
+                trackers: Vec::new(),
+                desired_running: true,
+                complete: false,
+                incoming_routable: false,
+                privacy: TorrentPrivacy::Public,
+                counters: TrackerCounters::unknown_metadata(),
+                peers: peers.clone(),
+                activity_sink: Arc::new(NoopSink),
+            })
+            .await
+            .expect("register torrent");
+
+        let ports = |peers: &TorrentPeerHandle| {
+            peers
+                .registry_snapshot(true)
+                .records
+                .iter()
+                .map(|record| record.endpoint.address().port())
+                .collect::<std::collections::BTreeSet<_>>()
+        };
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while !ports(&peers).contains(&50_101) {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("node A's peer arrives while node B still withholds its reply");
+        assert!(!ports(&peers).contains(&50_102));
+
+        release_b.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while !ports(&peers).contains(&50_102) {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("node B's peer follows");
+
+        drop(service);
+        client.shutdown().await.unwrap();
+        a.abort();
+        b.abort();
+    }
+
+    #[test]
     fn transfer_counters_saturate_and_left_is_current() {
         let counters = TrackerCounters::unknown_metadata();
         counters.add_downloaded(u64::MAX - 1);
@@ -2549,6 +2815,108 @@ mod tests {
         assert_eq!(terminal.registrations, 0);
         assert_eq!(terminal.tracker_operations, 0);
         assert_eq!(terminal.dht_operations, 0);
+    }
+
+    /// Runs one registration against a tracker that answers `started` and
+    /// never answers `stopped`, then shuts down with `deadline_after` and
+    /// cancels `hurry` once the stalled `stopped` request arrives when
+    /// `hurry_on_stopped` is set. Returns the counts and the time from the
+    /// shutdown call to its return.
+    async fn shutdown_against_stalled_stopped_tracker(
+        deadline_after: Duration,
+        hurry_on_stopped: bool,
+    ) -> (DiscoveryAdvertisementOwnerCounts, Duration) {
+        let tracker = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind HTTP tracker");
+        let tracker_address = tracker.local_addr().expect("HTTP tracker address");
+        let (stopped_sender, stopped_receiver) = oneshot::channel();
+        let tracker_task = tokio::spawn(async move {
+            let (mut started_stream, _) = tracker.accept().await.expect("accept started announce");
+            read_http_tracker_request(&mut started_stream).await;
+            started_stream
+                .write_all(empty_http_tracker_response())
+                .await
+                .expect("write started response");
+            let (mut stopped_stream, _) = tracker.accept().await.expect("accept stopped announce");
+            let stopped = read_http_tracker_request(&mut stopped_stream).await;
+            let _ = stopped_sender.send(stopped);
+            // Hold the connection open without answering.
+            let mut byte = [0_u8; 1];
+            let _ = stopped_stream.read(&mut byte).await;
+        });
+        let endpoint = PeerAdvertisementEndpoint::outbound_only(1);
+        let (_endpoint_sender, endpoint_receiver) = watch::channel(endpoint);
+        let network = NetworkConfig::new(
+            NetworkPolicy::LoopbackOnly,
+            Duration::from_secs(1),
+            Duration::from_secs(1),
+        );
+        let mut dht_config = crate::dht::DhtConfig::for_network(NetworkPolicy::Offline);
+        dht_config.bootstrap_nodes.clear();
+        let dht = crate::dht::DhtService::start(dht_config)
+            .await
+            .expect("start offline DHT");
+        let service =
+            DiscoveryAdvertisementService::start(network, endpoint_receiver, dht.handle());
+        let activity = Arc::new(RecordingActivity::default());
+        service
+            .handle()
+            .upsert(http_registration(
+                [32; 20],
+                format!("http://{tracker_address}/announce"),
+                activity.clone(),
+            ))
+            .await
+            .expect("register tracker");
+        activity.wait_for_successes(1).await;
+
+        let hurry = CancellationToken::new();
+        let hurry_trigger = hurry.clone();
+        let hurry_task = tokio::spawn(async move {
+            let stopped = stopped_receiver.await.expect("stopped announce report");
+            assert!(stopped.contains("event=stopped"));
+            if hurry_on_stopped {
+                hurry_trigger.cancel();
+            }
+        });
+        let started = Instant::now();
+        let terminal = tokio::time::timeout(
+            Duration::from_secs(10),
+            service.shutdown_within(started + deadline_after, hurry),
+        )
+        .await
+        .expect("bounded shutdown returns")
+        .expect("bounded shutdown");
+        let elapsed = started.elapsed();
+        hurry_task.await.expect("stopped announce was sent");
+        dht.shutdown().await.expect("shutdown DHT");
+        tracker_task.abort();
+        (terminal, elapsed)
+    }
+
+    #[tokio::test]
+    async fn shutdown_deadline_bounds_a_stalled_stopped_announce() {
+        let (terminal, elapsed) =
+            shutdown_against_stalled_stopped_tracker(Duration::from_millis(300), false).await;
+
+        assert!(elapsed >= Duration::from_millis(300), "{elapsed:?}");
+        assert!(elapsed < Duration::from_secs(2), "{elapsed:?}");
+        assert_eq!(terminal.stops_cut_short, 1);
+        assert_eq!(terminal.registrations, 0);
+        assert_eq!(terminal.tracker_operations, 0);
+        assert_eq!(terminal.tasks, 0);
+    }
+
+    #[tokio::test]
+    async fn hurry_ends_a_stalled_stopped_announce_before_its_deadline() {
+        let (terminal, elapsed) =
+            shutdown_against_stalled_stopped_tracker(Duration::from_secs(30), true).await;
+
+        assert!(elapsed < Duration::from_secs(2), "{elapsed:?}");
+        assert_eq!(terminal.stops_cut_short, 1);
+        assert_eq!(terminal.registrations, 0);
+        assert_eq!(terminal.tracker_operations, 0);
     }
 
     #[tokio::test]
@@ -2880,6 +3248,7 @@ mod tests {
         assert_eq!(terminal.tasks, 0);
         assert_eq!(terminal.registrations, 0);
         assert_eq!(terminal.tracker_operations, 0);
+        assert_eq!(terminal.stops_cut_short, 0);
         assert_eq!(terminal.tracker_operations_high_water, 1);
         assert_eq!(terminal.command_queue_high_water, 1);
     }

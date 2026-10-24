@@ -9,11 +9,17 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { VirtualTable, type VirtualColumn } from "./VirtualTable";
+import {
+  TableToolbarSlot,
+  VirtualTable,
+  type VirtualColumn,
+} from "./VirtualTable";
 
 interface Row {
   readonly id: string;
@@ -72,12 +78,118 @@ afterAll(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   if (typeof globalThis.localStorage?.clear === "function") {
     globalThis.localStorage.clear();
   }
 });
 
 describe("VirtualTable", () => {
+  it("shows hidden placeholder rows only while loading with no rows", () => {
+    const table = (rows: readonly Row[], loading: boolean) => (
+      <VirtualTable
+        tableId="placeholder-test"
+        label="Loading rows"
+        rows={rows}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="Loading rows…"
+        loading={loading}
+      />
+    );
+    const rendered = render(table([], true));
+    const grid = screen.getByRole("grid", { name: "Loading rows" });
+    const placeholders = screen.getByTestId("table-placeholders");
+    expect(grid).toHaveAttribute("aria-busy", "true");
+    expect(placeholders.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThanOrEqual(3);
+    expect(screen.queryAllByRole("row")).toHaveLength(1);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading rows…");
+
+    rendered.rerender(table([{ id: "a", value: "1" }], true));
+    expect(screen.queryByTestId("table-placeholders")).not.toBeInTheDocument();
+    expect(grid).not.toHaveAttribute("aria-busy");
+    expect(screen.getAllByRole("row")).toHaveLength(2);
+
+    rendered.rerender(table([], false));
+    expect(screen.queryByTestId("table-placeholders")).not.toBeInTheDocument();
+    expect(screen.getByText("Loading rows…")).toBeVisible();
+  });
+
+  it("preserves manual scrolling across refreshed and reordered rows", () => {
+    const rows = Array.from({ length: 100 }, (_, index) => ({
+      id: `row-${index}`,
+      value: String(index),
+    }));
+    const table = (currentRowId: string | null, values = rows) => (
+      <VirtualTable
+        tableId="refresh-scroll-test"
+        label="Refreshing rows"
+        rows={values}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        currentRowId={currentRowId}
+        emptyMessage="empty"
+      />
+    );
+    const rendered = render(table("row-0"));
+    const grid = screen.getByRole("grid", { name: "Refreshing rows" });
+    Object.defineProperty(grid, "clientHeight", { value: 360 });
+    grid.scrollTop = 1800;
+    fireEvent.scroll(grid);
+    rendered.rerender(
+      table("row-0", rows.map((row) => ({ ...row, value: "updated" }))),
+    );
+    expect(grid.scrollTop).toBe(1800);
+    rendered.rerender(table("row-0", [...rows].reverse()));
+    expect(grid.scrollTop).toBe(1800);
+
+    rendered.rerender(table("row-90"));
+    expect(grid.scrollTop).toBeGreaterThan(1800);
+    rendered.rerender(table(null));
+    grid.scrollTop = 1800;
+    fireEvent.scroll(grid);
+    rendered.rerender(table("row-90"));
+    expect(grid.scrollTop).toBeGreaterThan(1800);
+    rendered.rerender(table("row-0"));
+    expect(grid.scrollTop).toBe(0);
+    grid.scrollTop = 1800;
+    fireEvent.scroll(grid);
+    rendered.rerender(table("not-yet-loaded"));
+    expect(grid.scrollTop).toBe(1800);
+    rendered.rerender(table("row-0"));
+    expect(grid.scrollTop).toBe(0);
+  });
+
+  it("reveals a pending selection when its row arrives, then preserves scrolling", () => {
+    const rows = Array.from({ length: 100 }, (_, index) => ({
+      id: `row-${index}`,
+      value: String(index),
+    }));
+    const table = (values: readonly Row[]) => (
+      <VirtualTable
+        tableId="pending-selection-scroll-test"
+        label="Pending rows"
+        rows={values}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        currentRowId="row-90"
+        emptyMessage="empty"
+      />
+    );
+    const rendered = render(table([]));
+    const grid = screen.getByRole("grid", { name: "Pending rows" });
+    Object.defineProperty(grid, "clientHeight", { value: 360 });
+    rendered.rerender(table(rows));
+    expect(grid.scrollTop).toBeGreaterThan(1800);
+    grid.scrollTop = 1800;
+    fireEvent.scroll(grid);
+    rendered.rerender(table(rows.map((row) => ({ ...row }))));
+    expect(grid.scrollTop).toBe(1800);
+  });
+
   it("keeps table shortcuts on the grid after clearing selection in empty space", () => {
     function Table() {
       const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
@@ -119,7 +231,7 @@ describe("VirtualTable", () => {
       metaKey: true,
     })).toBe(false);
     expect(checkedRowNames()).toEqual(["all rows", "one", "two"]);
-    expect(screen.getByText("2 selected for actions")).toBeVisible();
+    expect(screen.getByText("2 selected")).toBeVisible();
 
     fireEvent.click(grid);
     expect(grid).toHaveFocus();
@@ -149,6 +261,57 @@ describe("VirtualTable", () => {
     expect(rowIds(container)).toEqual(["ten", "large", "null"]);
     fireEvent.click(value);
     expect(rowIds(container)).toEqual(["large", "ten", "null"]);
+  });
+
+  it("re-sorts live updates except while the user interacts with the table", () => {
+    vi.useFakeTimers();
+    const table = (values: readonly [string, string, string]) => (
+      <VirtualTable
+        tableId="live-sort-test"
+        label="Live sorting"
+        rows={["a", "b", "c"].map((id, index) => ({ id, value: values[index]! }))}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="empty"
+        initialSort={{ columnId: "value", direction: "asc" }}
+      />
+    );
+    const rendered = render(table(["1", "2", "3"]));
+    const grid = screen.getByRole("grid", { name: "Live sorting" });
+    const indicator = () =>
+      rendered.container.querySelector<HTMLElement>("[data-held]")!;
+    expect(rowIds(rendered.container)).toEqual(["a", "b", "c"]);
+
+    rendered.rerender(table(["3", "2", "1"]));
+    expect(rowIds(rendered.container)).toEqual(["c", "b", "a"]);
+    expect(indicator()).toHaveAttribute("data-held", "false");
+
+    fireEvent.pointerMove(grid, { pointerType: "mouse" });
+    rendered.rerender(table(["1", "2", "3"]));
+    expect(rowIds(rendered.container)).toEqual(["c", "b", "a"]);
+    expect(indicator()).toHaveAttribute("data-held", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Value" }));
+    expect(rowIds(rendered.container)).toEqual(["c", "b", "a"]);
+    expect(indicator()).toHaveAttribute("data-held", "false");
+    fireEvent.click(screen.getByRole("button", { name: "Value" }));
+    expect(rowIds(rendered.container)).toEqual(["a", "b", "c"]);
+    rendered.rerender(table(["3", "2", "1"]));
+    expect(rowIds(rendered.container)).toEqual(["a", "b", "c"]);
+    expect(indicator()).toHaveAttribute("data-held", "true");
+
+    fireEvent.pointerLeave(grid, { pointerType: "mouse" });
+    expect(rowIds(rendered.container)).toEqual(["c", "b", "a"]);
+    expect(indicator()).toHaveAttribute("data-held", "false");
+
+    fireEvent.pointerDown(grid, { pointerType: "touch" });
+    fireEvent.pointerLeave(grid, { pointerType: "touch" });
+    rendered.rerender(table(["1", "2", "3"]));
+    expect(rowIds(rendered.container)).toEqual(["c", "b", "a"]);
+    act(() => vi.advanceTimersByTime(2000));
+    expect(rowIds(rendered.container)).toEqual(["a", "b", "c"]);
+    vi.useRealTimers();
   });
 
   it("opens column help without sorting and restores focus on Escape", async () => {
@@ -247,6 +410,63 @@ describe("VirtualTable", () => {
     );
   });
 
+  it("never writes a layout the user has not changed", () => {
+    render(
+      <VirtualTable
+        tableId="untouched-test"
+        label="Untouched layout"
+        rows={[{ id: "one", value: "1" }]}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="empty"
+      />,
+    );
+    expect(storedValues.has("rstorrent.table.untouched-test")).toBe(false);
+  });
+
+  it("reads another version's layout and keeps what it does not know", () => {
+    const newer = JSON.stringify({
+      version: 2,
+      hiddenColumns: ["future"],
+      widths: { value: 200, future: 90 },
+      sort: null,
+      density: "tight",
+    });
+    storedValues.set("rstorrent.table.version-test", newer);
+    render(
+      <VirtualTable
+        tableId="version-test"
+        label="Other version layout"
+        rows={[{ id: "one", value: "1" }]}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="empty"
+      />,
+    );
+    // The known width applies, and nothing is rewritten on load.
+    expect(screen.getByRole("separator", { name: "Resize Value column" })).toHaveAttribute(
+      "aria-valuenow",
+      "200",
+    );
+    expect(storedValues.get("rstorrent.table.version-test")).toBe(newer);
+
+    // A real change is saved without losing the newer version's data.
+    fireEvent.click(screen.getByRole("button", { name: "Columns" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Optional" }));
+    const saved = JSON.parse(storedValues.get("rstorrent.table.version-test")!) as {
+      version: number;
+      hiddenColumns: string[];
+      widths: Record<string, number>;
+      density: string;
+    };
+    expect(saved.version).toBe(2);
+    expect(saved.hiddenColumns).toEqual(["optional", "future"]);
+    expect(saved.widths).toEqual({ value: 200, future: 90 });
+    expect(saved.density).toBe("tight");
+  });
+
   it("updates absolute row geometry with the selected interface size", () => {
     const table = (interfaceSize: "compact" | "spacious") => (
       <VirtualTable
@@ -329,7 +549,7 @@ describe("VirtualTable", () => {
     );
     expect(screen.getByRole("checkbox", { name: "Deselect two" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Deselect one" })).toBeChecked();
-    expect(screen.getByText("2 selected for actions")).toBeVisible();
+    expect(screen.getByText("2 selected")).toBeVisible();
     const masterSelection = screen.getByRole("checkbox", {
       name: "Deselect all rows",
     });
@@ -342,12 +562,12 @@ describe("VirtualTable", () => {
       "aria-current",
       "true",
     );
-    expect(screen.queryByText("2 selected for actions")).not.toBeInTheDocument();
+    expect(screen.queryByText("2 selected")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("row", { name: /Select one/ }), {
       ctrlKey: true,
     });
-    expect(screen.getByText("2 selected for actions")).toBeVisible();
+    expect(screen.getByText("2 selected")).toBeVisible();
     expect(screen.getByRole("row", { name: /2/ })).toHaveAttribute(
       "aria-current",
       "true",
@@ -484,11 +704,11 @@ describe("VirtualTable", () => {
     expect(checkedRowNames()).toEqual(["one", "two", "three"]);
 
     fireEvent.keyDown(grid, { key: "a", metaKey: true });
-    expect(screen.getByText("5 selected for actions")).toBeVisible();
+    expect(screen.getByText("5 selected")).toBeVisible();
     fireEvent.keyDown(grid, { key: "ArrowDown" });
     expect(current()).toHaveAttribute("data-row-id", "two");
     expect(checkedRowNames()).toEqual(["two"]);
-    expect(screen.queryByText("5 selected for actions")).not.toBeInTheDocument();
+    expect(screen.queryByText("5 selected")).not.toBeInTheDocument();
     fireEvent.keyDown(grid, { key: "Enter" });
     expect(checkedRowNames()).toEqual(["two"]);
     fireEvent.keyDown(grid, { key: "Escape" });
@@ -504,11 +724,11 @@ describe("VirtualTable", () => {
       "0",
     );
     expect(
-      screen.queryByText("5 selected for actions"),
+      screen.queryByText("5 selected"),
     ).not.toBeInTheDocument();
 
     fireEvent.keyDown(grid, { key: "a", ctrlKey: true });
-    expect(screen.getByText("5 selected for actions")).toBeVisible();
+    expect(screen.getByText("5 selected")).toBeVisible();
   });
 
   it("selects offscreen logical rows and discloses hidden targets", () => {
@@ -545,11 +765,11 @@ describe("VirtualTable", () => {
 
     render(<LargeTable />);
     const grid = screen.getByRole("grid", { name: "Logical rows" });
-    expect(screen.getByText("2 selected for actions (1 outside this view)")).toBeVisible();
+    expect(screen.getByText("2 selected (1 not shown)")).toBeVisible();
     expect(grid.querySelectorAll('[role="row"]').length).toBeLessThan(100);
     grid.querySelector<HTMLElement>('[data-row-id="row-0"]')?.focus();
     fireEvent.keyDown(grid, { key: "a", ctrlKey: true });
-    expect(screen.getByText("200 selected for actions")).toBeVisible();
+    expect(screen.getByText("200 selected")).toBeVisible();
     expect(grid.querySelectorAll('[role="row"]').length).toBeLessThan(100);
   });
 
@@ -646,6 +866,197 @@ describe("VirtualTable", () => {
     act(() => vi.advanceTimersByTime(500));
     expect(change).toHaveBeenCalledWith(["one"], "one");
     vi.useRealTimers();
+  });
+});
+
+interface Item {
+  readonly id: string;
+  readonly name: string;
+  readonly state: string;
+  readonly size: number;
+  readonly note: string | null;
+}
+
+const ITEMS: readonly Item[] = [
+  { id: "a", name: "Alpha", state: "Seeding", size: 3, note: null },
+  { id: "b", name: "Bravo", state: "Paused", size: 9, note: "slow" },
+];
+
+const LIST_COLUMNS: readonly VirtualColumn<Item>[] = [
+  {
+    id: "state",
+    label: "State",
+    width: 100,
+    listRole: "subtitle",
+    sortValue: (item) => item.state,
+    render: (item) => item.state,
+  },
+  {
+    id: "name",
+    label: "Name",
+    width: 200,
+    listRole: "title",
+    sortValue: (item) => item.name,
+    render: (item) => item.name,
+  },
+  {
+    id: "size",
+    label: "Size",
+    width: 80,
+    listRole: "detail",
+    sortValue: (item) => item.size,
+    render: (item) => `${item.size} MB`,
+  },
+  {
+    id: "note",
+    label: "Note",
+    width: 80,
+    listRole: "detail",
+    sortValue: (item) => item.note,
+    render: (item) => item.note ?? "—",
+  },
+  {
+    id: "hidden",
+    label: "Hidden",
+    width: 80,
+    render: () => "table only",
+  },
+];
+
+describe("VirtualTable external sort", () => {
+  it("reports header sorts and keeps the caller's order", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <VirtualTable
+        tableId="external"
+        label="External rows"
+        rows={[
+          { id: "b", value: "2" },
+          { id: "a", value: "10" },
+        ]}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="No rows"
+        externalSort={{ sort: { columnId: "value", direction: "asc" }, onChange }}
+      />,
+    );
+    const grid = screen.getByRole("grid", { name: "External rows" });
+    expect(
+      within(grid)
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => row.textContent),
+    ).toEqual(["2", "10"]);
+    await user.click(within(grid).getByRole("button", { name: /^Value/ }));
+    expect(onChange).toHaveBeenCalledWith({ columnId: "value", direction: "desc" });
+  });
+});
+
+describe("VirtualTable narrow list", () => {
+  const originalMatchMedia = window.matchMedia;
+
+  beforeAll(() => {
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes("max-width"),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+  });
+
+  afterAll(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it("stacks role columns into one item and sorts from the toolbar", () => {
+    const { container } = render(
+      <VirtualTable
+        tableId="list-test"
+        label="Items"
+        rows={ITEMS}
+        getRowId={(item) => item.id}
+        columns={LIST_COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="None"
+      />,
+    );
+
+    expect(screen.queryAllByRole("columnheader")).toEqual([]);
+    expect(screen.queryByRole("button", { name: "Columns" })).toBeNull();
+    const [alpha, bravo] = screen.getAllByRole("gridcell");
+    expect(alpha).toHaveTextContent(/^AlphaSeedingSize 3 MB$/);
+    expect(bravo).toHaveTextContent(/^BravoPausedSize 9 MBNote slow$/);
+    expect(container).not.toHaveTextContent("table only");
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Sort by" }), {
+      target: { value: "size" },
+    });
+    expect(rowIds(container)).toEqual(["a", "b"]);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Sorted ascending; switch to descending" }),
+    );
+    expect(rowIds(container)).toEqual(["b", "a"]);
+  });
+
+  it("opens a row, or toggles it while several are selected", () => {
+    const activate = vi.fn();
+    const change = vi.fn();
+    const table = (selected: readonly string[]) => (
+      <VirtualTable
+        tableId="list-selection"
+        label="Items"
+        rows={ITEMS}
+        getRowId={(item) => item.id}
+        columns={LIST_COLUMNS}
+        interfaceSize="standard"
+        currentRowId="a"
+        selection={{
+          selectedIds: new Set(selected),
+          getRowLabel: (item) => item.name,
+          onChange: change,
+        }}
+        onActivate={activate}
+        emptyMessage="None"
+      />
+    );
+    const { rerender } = render(table(["a"]));
+    expect(screen.queryAllByRole("checkbox")).toEqual([]);
+    fireEvent.click(screen.getByRole("row", { name: /Bravo/ }));
+    expect(activate).toHaveBeenCalledTimes(1);
+
+    activate.mockClear();
+    change.mockClear();
+    rerender(table(["a", "b"]));
+    expect(checkedRowNames()).toEqual(["Alpha", "Bravo"]);
+    fireEvent.click(screen.getByRole("row", { name: /Bravo/ }));
+    expect(activate).not.toHaveBeenCalled();
+    expect(change).toHaveBeenCalledWith(["a"], "a");
+  });
+});
+
+describe("VirtualTable toolbar slot", () => {
+  it("moves its count and controls into the provided bar", () => {
+    const slot = document.createElement("div");
+    document.body.append(slot);
+    render(
+      <TableToolbarSlot.Provider value={slot}>
+        <VirtualTable
+          tableId="slot-test"
+          label="Items"
+          rows={ITEMS}
+          getRowId={(item) => item.id}
+          columns={LIST_COLUMNS}
+          interfaceSize="standard"
+          formatCount={(count) => `${count} items`}
+          emptyMessage="None"
+        />
+      </TableToolbarSlot.Provider>,
+    );
+    expect(slot).toHaveTextContent("2 items");
+    expect(slot).toContainElement(screen.getByRole("button", { name: "Columns" }));
+    slot.remove();
   });
 });
 

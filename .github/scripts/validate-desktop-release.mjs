@@ -44,6 +44,10 @@ export function validateDesktopRelease({ release, latest, tag, repository }) {
     }
   }
   requireAsset(assetNames, "latest.json");
+  const production = [...assetNames].some(name => /^JSTorrent_[0-9]/.test(name));
+  if (production && [...assetNames].some(name => /\.(?:deb|rpm)(?:\.sig)?$/.test(name))) {
+    fail("production Linux release excludes DEB/RPM assets");
+  }
 
   for (const [pattern, label] of [
     [/_\d+\.\d+\.\d+_aarch64\.dmg$/, "macOS Apple-silicon DMG"],
@@ -57,6 +61,7 @@ export function validateDesktopRelease({ release, latest, tag, repository }) {
     [/_\d+\.\d+\.\d+_arm64\.deb$/, "Linux ARM64 DEB"],
     [/-\d+\.\d+\.\d+-1\.aarch64\.rpm$/, "Linux ARM64 RPM"],
   ]) {
+    if (production && /DEB|RPM/.test(label)) continue;
     requireMatchingAsset(assetNames, pattern, label);
   }
 
@@ -83,8 +88,13 @@ export function validateDesktopRelease({ release, latest, tag, repository }) {
     "windows-x86_64-nsis": "-setup.exe",
     "windows-x86_64-msi": ".msi",
   };
+  if (production) {
+    for (const key of Object.keys(requiredPlatforms)) {
+      if (/^linux-.*-(?:deb|rpm)$/.test(key)) delete requiredPlatforms[key];
+    }
+  }
   if (JSON.stringify(Object.keys(latest.platforms).sort()) !== JSON.stringify(Object.keys(requiredPlatforms).sort())) {
-    fail("latest.json must contain exactly the 15 desktop updater keys");
+    fail(`latest.json must contain exactly the ${Object.keys(requiredPlatforms).length} desktop updater keys`);
   }
   const expectedUrlPrefix =
     `https://github.com/${repository}/releases/download/${tag}/`;
@@ -150,7 +160,7 @@ if (fileURLToPath(import.meta.url) === process.argv[1]) {
       tag: args.tag,
       repository: args.repository,
     });
-    console.log(`Validated complete RSTorrent desktop release ${result.version}`);
+    console.log(`Validated complete desktop release ${result.version}`);
   } catch (error) {
     console.error(`Desktop release validation failed: ${error.message}`);
     process.exitCode = 1;

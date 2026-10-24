@@ -19,7 +19,7 @@ describe("inspection store", () => {
     store.getState().selectTorrentCategory("paused");
     store.getState().revealTorrent("added");
     expect(store.getState().presentation.pendingRevealTorrentId).toBe("added");
-    expect(store.getState().presentation.currentTorrentId).toBe("first");
+    expect(store.getState().presentation.currentTorrentId).toBeNull();
 
     store.getState().applyUpdate({
       type: "patch",
@@ -107,6 +107,32 @@ describe("inspection store", () => {
     expect(store.getState().presentation.currentPeerId).toBeNull();
   });
 
+  it("opens session views alone and keeps narrow torrent details on torrent tabs", () => {
+    const store = createInspectionStore(null);
+    store.getState().applyUpdate({
+      type: "snapshot",
+      snapshot: snapshot([row("first", "downloading")]),
+    });
+    store.getState().selectDestination("library");
+    store.getState().setLayout("phone");
+    store.getState().openSessionView("speed");
+    expect(store.getState().presentation).toMatchObject({
+      destination: "workbench",
+      activeTab: "speed",
+      detailOpen: true,
+      sidebarOpen: false,
+    });
+
+    store.getState().closeDetail();
+    store.getState().openTorrentDetail("first");
+    expect(store.getState().presentation.activeTab).toBe("general");
+
+    store.getState().setLayout("wide");
+    store.getState().selectTab("logs");
+    store.getState().openTorrentDetail("first");
+    expect(store.getState().presentation.activeTab).toBe("logs");
+  });
+
   it("clears a removed singleton selection without inventing a fallback", () => {
     const store = createInspectionStore();
     store.getState().applyUpdate({
@@ -192,6 +218,53 @@ describe("inspection store", () => {
     expect(store.getState().presentation.selectedTorrentIds).toEqual([]);
   });
 
+  it("drops selected torrents a newly chosen category hides", () => {
+    const store = createInspectionStore(null);
+    store.getState().applyUpdate({
+      type: "snapshot",
+      snapshot: snapshot([
+        row("first", "downloading"),
+        row("second", "paused"),
+        row("third", "complete"),
+      ]),
+    });
+    store.getState().openTorrentDetail("first");
+    store.getState().setTorrentSelection(["first", "second", "third"], "first");
+
+    store.getState().selectTorrentCategory("paused");
+    expect(store.getState().presentation).toMatchObject({
+      workbenchCategory: "paused",
+      currentTorrentId: "second",
+      selectedTorrentIds: ["second"],
+      detailOpen: true,
+    });
+
+    store.getState().selectTorrentCategory("completed");
+    expect(store.getState().presentation).toMatchObject({
+      currentTorrentId: null,
+      selectedTorrentIds: [],
+      detailOpen: false,
+    });
+
+    store.getState().setTorrentSelection(["third"], "third");
+    store.getState().selectTorrentCategory("all");
+    expect(store.getState().presentation).toMatchObject({
+      currentTorrentId: "third",
+      selectedTorrentIds: ["third"],
+    });
+  });
+
+  it("keeps the drawer open across destinations and closes it on a category", () => {
+    const store = createInspectionStore(null);
+    store.getState().toggleSidebar();
+
+    store.getState().selectDestination("library");
+    expect(store.getState().presentation.sidebarOpen).toBe(true);
+
+    store.getState().selectLibraryCategory("recent");
+    expect(store.getState().presentation.sidebarOpen).toBe(false);
+  });
+
   it("keeps destination filters independent and persists navigation", () => {
     const values = new Map<string, string>();
     const storage = {
@@ -199,7 +272,9 @@ describe("inspection store", () => {
       setItem: (key: string, value: string) => values.set(key, value),
     };
     const store = createInspectionStore(storage);
-    expect(store.getState().presentation.destination).toBe("transfers");
+    expect(store.getState().presentation.destination).toBe("workbench");
+
+    store.getState().selectDestination("transfers");
 
     store.getState().selectTorrentCategory("paused");
     store.getState().selectDestination("workbench");
@@ -325,26 +400,26 @@ describe("inspection store", () => {
     const store = createInspectionStore(storage);
     expect(store.getState().presentation.interfaceSize).toBe("standard");
     expect(store.getState().presentation.colorTheme).toBe("auto");
-    expect(store.getState().presentation.dataUnits).toBe("decimal");
+    expect(store.getState().presentation.dataUnits).toBe("binary");
 
     store.getState().setColorTheme("dark");
-    store.getState().setDataUnits("binary");
+    store.getState().setDataUnits("decimal");
     store.getState().setInterfaceSize("spacious");
     expect(store.getState().presentation.interfaceSize).toBe("spacious");
     expect(store.getState().presentation.colorTheme).toBe("dark");
-    expect(store.getState().presentation.dataUnits).toBe("binary");
+    expect(store.getState().presentation.dataUnits).toBe("decimal");
     expect(
       JSON.parse(values.get("rstorrent.presentation.appearance") ?? "null"),
     ).toEqual({
       version: 3,
       interfaceSize: "spacious",
       colorTheme: "dark",
-      dataUnits: "binary",
+      dataUnits: "decimal",
     });
     const restored = createInspectionStore(storage).getState().presentation;
     expect(restored.interfaceSize).toBe("spacious");
     expect(restored.colorTheme).toBe("dark");
-    expect(restored.dataUnits).toBe("binary");
+    expect(restored.dataUnits).toBe("decimal");
   });
 
   it("keeps live data-unit changes when browser storage writes fail", () => {
@@ -355,8 +430,8 @@ describe("inspection store", () => {
       },
     });
 
-    expect(() => store.getState().setDataUnits("binary")).not.toThrow();
-    expect(store.getState().presentation.dataUnits).toBe("binary");
+    expect(() => store.getState().setDataUnits("decimal")).not.toThrow();
+    expect(store.getState().presentation.dataUnits).toBe("decimal");
   });
 });
 
@@ -403,6 +478,7 @@ function row(id: string, status: TorrentRow["status"]): TorrentRow {
     removalState: null,
     deleteDataSupported: true,
     forceRecheckAvailable: true,
+    privateTorrent: false,
     infoHash: id,
     error: null,
     progressReason: "test",
@@ -448,7 +524,7 @@ function snapshot(
     revision: 1,
     durableRevision: "1",
     session: {
-      connection: "demo",
+      connection: { type: "demo" },
       downloadRate: 0,
       uploadRate: 0,
       dhtNodes: 0,
@@ -463,6 +539,7 @@ function snapshot(
     swarmByTorrent: {},
     filesByTorrent: {},
     mediaByTorrent: {},
+    libraryMedia: null,
     trackersByTorrent: {},
     piecesByTorrent: {},
     disk: emptyDiskSet(),
@@ -478,6 +555,7 @@ function snapshot(
     },
     viewStatus: {
       library: { status: "ready" },
+      libraryMedia: { status: "not_requested" },
       torrentSummary: { status: "not_requested" },
       peers: { status: "not_requested" },
       swarm: { status: "not_requested" },

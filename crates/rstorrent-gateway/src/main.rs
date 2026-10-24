@@ -3,7 +3,7 @@ use std::error::Error;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use rstorrent_gateway::{
     CROSTINI_HOST, GatewayAuthentication, GatewayConfig, HostedAssets, JSTORRENT_BETA_EXTENSION_ID,
@@ -12,7 +12,8 @@ use rstorrent_gateway::{
 };
 use rstorrent_session::{
     ApplicationConfig, ApplicationService, ConfiguredStorageRoot, DownloadResourceLimits,
-    NetworkConfig, NetworkPolicy, PeerTransportPolicy,
+    NetworkConfig, NetworkPolicy, PeerTransportPolicy, ProductIdentity, ShutdownOptions,
+    ShutdownProgress,
 };
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
@@ -196,6 +197,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .build_id
         .clone()
         .or_else(|| env::var("RSTORRENT_BUILD_ID").ok());
+    let mut product = ProductIdentity::for_this_build(
+        if cli.chromeos_crostini {
+            "crostini"
+        } else {
+            "gateway"
+        },
+        env!("CARGO_PKG_VERSION"),
+    );
+    if let Some(build_id) = &build_id {
+        product.build_id = build_id.clone();
+    }
     let hosted_assets = match (web_root, build_id) {
         (Some(web_root), Some(build_id)) => {
             let assets = HostedAssets::new(web_root, build_id)?;
@@ -226,7 +238,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Duration::from_secs(60),
         ),
     )
-    .with_fresh_profile_defaults();
+    .with_fresh_profile_defaults()
+    .with_product(product);
     if let Some(lease_millis) = test_view_set_lease {
         application_config.view_set_lease = Duration::from_millis(lease_millis);
         application_config.view_set_reaper_interval =
@@ -287,12 +300,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     let connection_metrics = server.connection_metrics();
     let shutdown = CancellationToken::new();
-    let signal_shutdown = shutdown.clone();
-    tokio::spawn(async move {
-        wait_for_shutdown_signal().await;
-        signal_shutdown.cancel();
-    });
-    server.serve(shutdown).await?;
+    let hurry = CancellationToken::new();
+    tokio::spawn(escalate_shutdown_signals(shutdown.clone(), hurry.clone()));
+    let mut serving = tokio::spawn(server.serve(shutdown.clone()));
+    let served_before_signal = tokio::select! {
+        served = &mut serving => Some(served),
+        () = shutdown.cancelled() => None,
+    };
+    let shutdown_began = Instant::now();
+    match served_before_signal {
+        Some(served) => served??,
+        None => tokio::select! {
+            served = &mut serving => served??,
+            () = hurry.cancelled() => {
+                serving.abort();
+                report_shutdown(shutdown_began, "stopped waiting for HTTP connections to close");
+            }
+        },
+    }
+    report_shutdown(shutdown_began, "HTTP server stopped");
     eprintln!(
         "gateway_connection_metrics {}",
         serde_json::to_string(&connection_metrics.snapshot())?
@@ -300,7 +326,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut application = application.lock().await;
     let incoming_before_shutdown = application.incoming_peer_snapshot();
     let storage_before_shutdown = application.storage_file_pool_snapshot();
-    application.shutdown().await?;
+    application
+        .shutdown_with(ShutdownOptions {
+            hurry,
+            progress: Some(Arc::new(move |progress| {
+                report_shutdown(shutdown_began, &describe_shutdown_progress(&progress));
+            })),
+            ..ShutdownOptions::default()
+        })
+        .await?;
     let storage_after_shutdown = application.storage_file_pool_snapshot();
     let incoming_metrics = incoming_before_shutdown.map_or(serde_json::Value::Null, |snapshot| {
         serde_json::json!({
@@ -434,7 +468,7 @@ fn print_help() {
            --bearer-token-file PATH    Bearer automation token file\n\
            --web-root PATH             Production web bundle directory\n\
            --build-id ID               Hosted build identity\n\
-           --chromeos-crostini         Exact penguin.linux.test product mode\n\
+           --chromeos-crostini         Exact jstorrent.localhost product mode\n\
            --open | --no-open          Open or do not open the browser\n\
            -h, --help                  Show this help\n\n\
          Secret values are accepted from files, not literal command arguments."
@@ -460,20 +494,91 @@ fn browser_application_url(address: SocketAddr) -> String {
     format!("http://{address}/")
 }
 
-async fn wait_for_shutdown_signal() {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ShutdownTier {
+    Graceful,
+    Hurry,
+    Exit,
+}
+
+/// The first Ctrl+C or SIGTERM stops gracefully, the second skips the
+/// remaining tracker and port-mapping cleanup, and any later one exits.
+fn shutdown_tier(signals_received: usize) -> ShutdownTier {
+    match signals_received {
+        0 | 1 => ShutdownTier::Graceful,
+        2 => ShutdownTier::Hurry,
+        _ => ShutdownTier::Exit,
+    }
+}
+
+async fn escalate_shutdown_signals(shutdown: CancellationToken, hurry: CancellationToken) {
     #[cfg(unix)]
-    {
-        let mut terminate =
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-                .expect("install terminate signal handler");
+    let (mut interrupt, mut terminate) = {
+        use tokio::signal::unix::{SignalKind, signal};
+        (
+            signal(SignalKind::interrupt()).expect("install interrupt signal handler"),
+            signal(SignalKind::terminate()).expect("install terminate signal handler"),
+        )
+    };
+    let mut began = Instant::now();
+    for signals_received in 1.. {
+        #[cfg(unix)]
         tokio::select! {
-            _ = tokio::signal::ctrl_c() => {}
+            _ = interrupt.recv() => {}
             _ = terminate.recv() => {}
         }
+        #[cfg(not(unix))]
+        if tokio::signal::ctrl_c().await.is_err() {
+            return;
+        }
+        match shutdown_tier(signals_received) {
+            ShutdownTier::Graceful => {
+                began = Instant::now();
+                eprintln!(
+                    "shutdown: stopping; signal again to skip tracker and port-mapping cleanup"
+                );
+                shutdown.cancel();
+            }
+            ShutdownTier::Hurry => {
+                report_shutdown(
+                    began,
+                    "skipping remaining network cleanup; signal again to exit immediately",
+                );
+                hurry.cancel();
+            }
+            ShutdownTier::Exit => {
+                report_shutdown(
+                    began,
+                    "exiting immediately; saved state is kept, unsaved progress is lost",
+                );
+                std::process::exit(130);
+            }
+        }
     }
-    #[cfg(not(unix))]
-    {
-        let _ = tokio::signal::ctrl_c().await;
+}
+
+fn report_shutdown(began: Instant, message: &str) {
+    eprintln!("shutdown: {message} (+{} ms)", began.elapsed().as_millis());
+}
+
+fn describe_shutdown_progress(progress: &ShutdownProgress) -> String {
+    match progress {
+        ShutdownProgress::StoppingTorrents { count: 0 } => "no active torrents".to_owned(),
+        ShutdownProgress::StoppingTorrents { count: 1 } => "stopping 1 torrent".to_owned(),
+        ShutdownProgress::StoppingTorrents { count } => format!("stopping {count} torrents"),
+        ShutdownProgress::NetworkCleanup { budget } => format!(
+            "announcing stop to trackers and removing port mappings (up to {} ms)",
+            budget.as_millis()
+        ),
+        ShutdownProgress::TrackerStopsCutShort { torrents } => format!(
+            "tracker stop announces for {torrents} torrent(s) did not finish; trackers will time them out"
+        ),
+        ShutdownProgress::PortMappingLeft { detail } => {
+            format!("port mapping left on the router: {detail}")
+        }
+        ShutdownProgress::NetworkStopped => "network stopped".to_owned(),
+        ShutdownProgress::SavingState => "saving state".to_owned(),
+        ShutdownProgress::Finished => "stopped".to_owned(),
     }
 }
 
@@ -534,7 +639,7 @@ fn read_secret_file(
 mod tests {
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-    use super::{CliOptions, browser_application_url};
+    use super::{CliOptions, ShutdownTier, browser_application_url, shutdown_tier};
 
     #[test]
     fn product_cli_parses_listener_auth_and_recovery() {
@@ -571,6 +676,14 @@ mod tests {
         .err()
         .expect("reject literal password");
         assert!(error.to_string().contains("unknown gateway argument"));
+    }
+
+    #[test]
+    fn repeated_signals_escalate_from_graceful_to_hurry_to_exit() {
+        assert_eq!(shutdown_tier(1), ShutdownTier::Graceful);
+        assert_eq!(shutdown_tier(2), ShutdownTier::Hurry);
+        assert_eq!(shutdown_tier(3), ShutdownTier::Exit);
+        assert_eq!(shutdown_tier(4), ShutdownTier::Exit);
     }
 
     #[test]

@@ -2,6 +2,7 @@
 distribution/licenses/*.txt -text -whitespace
 # Unified diff context includes an intentional single-space blank line.
 distribution/patches/*.patch text eol=lf -whitespace
+distribution/linux-native/*.patch text eol=lf -whitespace
 
 # Preserve published vendored source and its checksum inventory on all hosts.
 vendor/glib-0.18.5/** -text -whitespace

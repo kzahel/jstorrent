@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "packages": [
+    {
+      "source_package": "libayatana-appindicator",
+      "source_version": "0.5.93-1build3",
+      "descriptor": "libayatana-appindicator_0.5.93-1build3.dsc",
+      "files": [
+        {
+          "name": "libayatana-appindicator_0.5.93-1build3.debian.tar.xz",
+          "bytes": 17880,
+          "sha256": "90b6052050df827a82dfd7c875d933a828d67cf8c8712a924f415bf7b84e958a",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libayatana-appindicator/0.5.93-1build3/libayatana-appindicator_0.5.93-1build3.debian.tar.xz"
+        },
+        {
+          "name": "libayatana-appindicator_0.5.93-1build3.dsc",
+          "bytes": 3145,
+          "sha256": "580c7a756453b08bc24791411e9198a546862c961dc2767647df10063dc44ccb",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libayatana-appindicator/0.5.93-1build3/libayatana-appindicator_0.5.93-1build3.dsc"
+        },
+        {
+          "name": "libayatana-appindicator_0.5.93.orig.tar.gz",
+          "bytes": 123649,
+          "sha256": "1bce1c7ca71e26aa1a39b20a1bcbe3d7cc230ec048e579316885967d809cbacc",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libayatana-appindicator/0.5.93-1build3/libayatana-appindicator_0.5.93.orig.tar.gz"
+        },
+        {
+          "name": "libayatana-appindicator_0.5.93.orig.tar.gz.asc",
+          "bytes": 833,
+          "sha256": "080ba6153fdcd8c7cce224659befb76fd7137dfc848c9f9988b73ca6e55cf838",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libayatana-appindicator/0.5.93-1build3/libayatana-appindicator_0.5.93.orig.tar.gz.asc"
+        }
+      ]
+    },
+    {
+      "source_package": "tiff",
+      "source_version": "4.5.1+git230720-4ubuntu2.5",
+      "descriptor": "tiff_4.5.1+git230720-4ubuntu2.5.dsc",
+      "files": [
+        {
+          "name": "tiff_4.5.1+git230720-4ubuntu2.5.debian.tar.xz",
+          "bytes": 33152,
+          "sha256": "e3106320d41790b741b0db9a7fccf72b6a8d425743b6407e9a9dd369d958be76",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/tiff/4.5.1+git230720-4ubuntu2.5/tiff_4.5.1+git230720-4ubuntu2.5.debian.tar.xz"
+        },
+        {
+          "name": "tiff_4.5.1+git230720-4ubuntu2.5.dsc",
+          "bytes": 2309,
+          "sha256": "46e2765124bce104413733352d548117c5e9cee73953758a2040df613f3d6b9c",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/tiff/4.5.1+git230720-4ubuntu2.5/tiff_4.5.1+git230720-4ubuntu2.5.dsc"
+        },
+        {
+          "name": "tiff_4.5.1+git230720.orig.tar.xz",
+          "bytes": 1781896,
+          "sha256": "0e51bcf3a3ffa5fc76ea6aeb74a797f95c84544fcc8b6a1ec5def967a78e9e12",
+          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/tiff/4.5.1+git230720-4ubuntu2.5/tiff_4.5.1+git230720.orig.tar.xz"
+        }
+      ]
+    }
+  ]
+}

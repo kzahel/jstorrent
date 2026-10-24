@@ -1,6 +1,9 @@
 use super::super::*;
 use super::*;
 use crate::diagnostics::{MAX_DIAGNOSTIC_PATCH_EVENTS, category};
+use crate::views::contract::{
+    MAX_VIEW_SETS, MAX_VIEW_SETS_PER_OWNER, MIN_VIEW_SET_EVICTION_IDLE_MILLIS,
+};
 use crate::{
     DiagnosticCategory, DiagnosticEvent, DiagnosticFilter, DiagnosticRetention, DiagnosticSeverity,
     FileCatalogState, FileSelectionView, FileView, MediaCatalogState, MediaFileAvailability,
@@ -19,6 +22,67 @@ use rstorrent_engine::{
 const TORRENT_ID: &str = "t1-000102030405060708090a0b0c0d0e0f";
 const V1_INFO_HASH: &str = "000102030405060708090a0b0c0d0e0f10111213";
 
+#[tokio::test]
+async fn removed_torrent_piece_view_replays_empty_snapshot_and_reappears() {
+    let hub = ViewHub::new(&service_snapshot(0, 0)).expect("hub");
+    let owner = ViewSetOwner::trusted("owner");
+    let opened = hub
+        .open_view_set(
+            owner.clone(),
+            open_request(vec![ViewSpec::PieceActivity {
+                view_id: "pieces".into(),
+                torrent_id: TORRENT_ID.into(),
+                delivery: ViewDeliveryPolicy::default(),
+            }]),
+        )
+        .expect("open pieces");
+    let set = hub.view_set(&owner, &opened.view_set_id).expect("set");
+    hub.record_pieces_durable(TORRENT_ID, &[0, 2], 1)
+        .expect("durable pieces");
+    hub.record_activity(
+        TORRENT_ID,
+        TorrentActivity::PieceStarted {
+            piece_index: 1,
+            piece_length: 16384,
+            attempt: 1,
+        },
+    )
+    .expect("active attempt");
+    let mut removed = service_snapshot(2, 0);
+    removed.torrents.clear();
+    hub.replace_durable(&removed, &BTreeMap::new())
+        .expect("remove torrent");
+    let batch = set
+        .next_updates(&opened.initial.cursor, 0)
+        .await
+        .expect("removed");
+    assert_eq!(batch.durable_revision, "2");
+    assert!(
+        matches!(batch.updates.as_slice(), [ViewSetUpdate::Snapshot {
+        view_id, snapshot: ViewSnapshot::PieceActivity {
+            piece_count: 0, verified, active, ..
+        }
+    }] if view_id == "pieces" && verified.is_empty() && active.is_empty())
+    );
+    assert_eq!(
+        set.next_updates(&opened.initial.cursor, 0)
+            .await
+            .expect("replay"),
+        batch
+    );
+    hub.replace_durable(&service_snapshot(3, 0), &BTreeMap::new())
+        .expect("reappear");
+    let reappeared = set
+        .next_updates(&batch.cursor, 0)
+        .await
+        .expect("new geometry");
+    assert!(
+        matches!(reappeared.updates.as_slice(), [ViewSetUpdate::Snapshot {
+        snapshot: ViewSnapshot::PieceActivity { piece_count: 3, verified, active, .. }, ..
+    }] if verified.is_empty() && active.is_empty())
+    );
+}
+
 fn protocol_identities() -> crate::TorrentProtocolIdentities {
     crate::TorrentProtocolIdentities {
         v1: Some(V1_INFO_HASH.to_owned()),
@@ -28,10 +92,12 @@ fn protocol_identities() -> crate::TorrentProtocolIdentities {
 
 fn torrent_view(id: &str, verified: u32) -> TorrentView {
     TorrentView {
+        safety_summary: None,
         torrent_id: id.to_owned(),
         protocol_identities: protocol_identities(),
         display_name: Some("Fixture torrent".to_owned()),
         source_display_name: None,
+        source_size_bytes: None,
         state: TorrentState::Downloading,
         operational_state: TorrentOperationalState::Downloading,
         download_queue_position: None,
@@ -39,6 +105,7 @@ fn torrent_view(id: &str, verified: u32) -> TorrentView {
         storage_state: StorageState::Available,
         storage_root: "downloads".to_owned(),
         metadata_available: true,
+        private_torrent: false,
         awaiting_file_selection: false,
         pending_file_selection_position: None,
         file_catalog_id: None,
@@ -90,6 +157,7 @@ fn service_snapshot(revision: u64, verified: u32) -> ServiceSnapshot {
         storage: Default::default(),
         client_settings: Default::default(),
         torrents: vec![TorrentSnapshot {
+            safety_summary: None,
             torrent_id: TORRENT_ID.to_owned(),
             protocol_identities: protocol_identities(),
             storage_root: "downloads".to_owned(),
@@ -108,6 +176,8 @@ fn service_snapshot(revision: u64, verified: u32) -> ServiceSnapshot {
             desired_running: true,
             download_queue_position: None,
             transfer_limits: Default::default(),
+            seed_stop_limits: Default::default(),
+            seed_limit_stopped: false,
             skip_files: Vec::new(),
             high_priority_files: Vec::new(),
             selection_default: Default::default(),
@@ -134,6 +204,7 @@ fn inner(now: Instant) -> Arc<ViewSetInner> {
         "vs_test".to_owned(),
         ViewSetOwner::trusted("owner"),
         ViewSetInitialState {
+            clock_origin: now,
             revision: 7,
             views,
             queue_bytes_limit: DEFAULT_VIEW_SET_QUEUE_BYTES,
@@ -169,6 +240,7 @@ fn multi_view_inner(now: Instant) -> Arc<ViewSetInner> {
         "vs_multi".to_owned(),
         ViewSetOwner::trusted("owner"),
         ViewSetInitialState {
+            clock_origin: now,
             revision: 7,
             views: BTreeMap::from([
                 ("library".to_owned(), library),
@@ -278,6 +350,7 @@ fn maximum_file_page_is_separate_from_steady_queue_pressure() {
     let now = Instant::now();
     let files = (0..1_024_u32)
         .map(|index| FileView {
+            safety: None,
             file_id: index.to_string(),
             file_index: index,
             path: vec![format!("directory-{index:04}"), "x".repeat(128)],
@@ -319,6 +392,7 @@ fn maximum_file_page_is_separate_from_steady_queue_pressure() {
         "vs_files".to_owned(),
         ViewSetOwner::trusted("owner"),
         ViewSetInitialState {
+            clock_origin: now,
             revision: 7,
             views: BTreeMap::from([("files".to_owned(), spec)]),
             queue_bytes_limit: DEFAULT_VIEW_SET_QUEUE_BYTES,
@@ -337,6 +411,7 @@ fn maximum_file_page_is_separate_from_steady_queue_pressure() {
             ViewPatch::Files {
                 torrent_id: TORRENT_ID.to_owned(),
                 upsert: vec![FileView {
+                    safety: None,
                     file_id: "0".to_owned(),
                     file_index: 0,
                     path: vec!["updated".to_owned()],
@@ -404,6 +479,7 @@ fn maximum_media_catalog_is_separate_from_steady_queue_pressure() {
         "vs_media".to_owned(),
         ViewSetOwner::trusted("owner"),
         ViewSetInitialState {
+            clock_origin: now,
             revision: 7,
             views: BTreeMap::from([("media".to_owned(), spec)]),
             queue_bytes_limit: DEFAULT_VIEW_SET_QUEUE_BYTES,
@@ -485,6 +561,7 @@ fn nonzero_delivery_interval_defers_accumulated_patch_without_a_task() {
         "vs_delayed".to_owned(),
         ViewSetOwner::trusted("owner"),
         ViewSetInitialState {
+            clock_origin: now,
             revision: 7,
             views: BTreeMap::from([("library".to_owned(), delayed)]),
             queue_bytes_limit: DEFAULT_VIEW_SET_QUEUE_BYTES,
@@ -611,6 +688,7 @@ fn speed_history_appends_coalesce_without_losing_completed_buckets() {
         "vs_speed".to_owned(),
         ViewSetOwner::trusted("owner"),
         ViewSetInitialState {
+            clock_origin: now,
             revision: 7,
             views: BTreeMap::from([("speed".to_owned(), speed_spec)]),
             queue_bytes_limit: DEFAULT_VIEW_SET_QUEUE_BYTES,
@@ -1010,6 +1088,117 @@ fn expired_sets_are_pruned_from_owner_capacity() {
         .expect("expired capacity is reclaimed");
 }
 
+#[test]
+fn abandoned_sets_are_evicted_least_recent_first_at_the_application_limit() {
+    let hub = ViewHub::new(&service_snapshot(0, 0)).expect("hub");
+    let start = Instant::now();
+    let opened = (0..MAX_VIEW_SETS)
+        .map(|index| {
+            let owner = ViewSetOwner::trusted(format!("page-{index}"));
+            let at = start + Duration::from_millis(index as u64);
+            let set = hub
+                .open_view_set_at(owner.clone(), open_request(vec![spec()]), at)
+                .expect("view set");
+            (owner, set.view_set_id)
+        })
+        .collect::<Vec<_>>();
+    let newcomer = ViewSetOwner::trusted("reloaded page");
+    let floor = Duration::from_millis(MIN_VIEW_SET_EVICTION_IDLE_MILLIS);
+
+    assert!(matches!(
+        hub.open_view_set_at(
+            newcomer.clone(),
+            open_request(vec![spec()]),
+            start + floor - Duration::from_millis(1),
+        ),
+        Err(ViewSetError::ResourceLimit)
+    ));
+    hub.open_view_set_at(
+        newcomer,
+        open_request(vec![spec()]),
+        start + floor + Duration::from_millis(1),
+    )
+    .expect("oldest abandoned set yields capacity");
+
+    let (oldest_owner, oldest) = &opened[0];
+    assert!(matches!(
+        hub.view_set(oldest_owner, oldest),
+        Err(ViewSetError::UnknownViewSet)
+    ));
+    for (owner, id) in &opened[1..] {
+        assert!(hub.view_set(owner, id).is_ok());
+    }
+}
+
+#[test]
+fn owner_limit_evicts_only_that_owners_abandoned_sets() {
+    let hub = ViewHub::new(&service_snapshot(0, 0)).expect("hub");
+    let start = Instant::now();
+    let bystander = ViewSetOwner::trusted("other page");
+    let retained = hub
+        .open_view_set_at(bystander.clone(), open_request(vec![spec()]), start)
+        .expect("bystander set");
+    let owner = ViewSetOwner::trusted("page");
+    let opened = (1..=MAX_VIEW_SETS_PER_OWNER)
+        .map(|index| {
+            hub.open_view_set_at(
+                owner.clone(),
+                open_request(vec![spec()]),
+                start + Duration::from_millis(index as u64),
+            )
+            .expect("owner set")
+            .view_set_id
+        })
+        .collect::<Vec<_>>();
+
+    let later = start + Duration::from_millis(MIN_VIEW_SET_EVICTION_IDLE_MILLIS + 1_000);
+    hub.open_view_set_at(owner.clone(), open_request(vec![spec()]), later)
+        .expect("owner's oldest set yields capacity");
+
+    assert!(hub.view_set(&bystander, &retained.view_set_id).is_ok());
+    assert!(matches!(
+        hub.view_set(&owner, &opened[0]),
+        Err(ViewSetError::UnknownViewSet)
+    ));
+    for id in &opened[1..] {
+        assert!(hub.view_set(&owner, id).is_ok());
+    }
+}
+
+#[tokio::test]
+async fn polled_and_recently_active_sets_are_never_evicted() {
+    let hub = ViewHub::new(&service_snapshot(0, 0)).expect("hub");
+    let start = Instant::now();
+    let owner = ViewSetOwner::trusted("page");
+    let polled = hub
+        .open_view_set_at(owner.clone(), open_request(vec![spec()]), start)
+        .expect("polled set");
+    let handle = hub.view_set(&owner, &polled.view_set_id).expect("handle");
+    let waiting = handle.clone();
+    let cursor = polled.initial.cursor.clone();
+    let waiter = tokio::spawn(async move { waiting.next_updates(&cursor, 20_000).await });
+    while !handle.inner.polling.load(Ordering::Acquire) {
+        tokio::task::yield_now().await;
+    }
+    let floor = Duration::from_millis(MIN_VIEW_SET_EVICTION_IDLE_MILLIS);
+    let later = start + floor + Duration::from_secs(1);
+    for _ in 1..MAX_VIEW_SETS_PER_OWNER {
+        hub.open_view_set_at(owner.clone(), open_request(vec![spec()]), later)
+            .expect("recent set");
+    }
+
+    // The only silent set is being polled; the rest are recent.
+    assert!(matches!(
+        hub.open_view_set_at(owner.clone(), open_request(vec![spec()]), later),
+        Err(ViewSetError::ResourceLimit)
+    ));
+    assert!(hub.view_set(&owner, &polled.view_set_id).is_ok());
+
+    hub.close_view_set(&owner, &polled.view_set_id)
+        .expect("close polled set");
+    let _ = waiter.await;
+}
+
 #[tokio::test]
 async fn close_wakes_a_waiting_long_poll() {
     let hub = ViewHub::new(&service_snapshot(0, 0)).expect("hub");
@@ -1037,6 +1226,51 @@ async fn close_wakes_a_waiting_long_poll() {
         .expect("waiter timed out")
         .expect("waiter task");
     assert_eq!(result, Err(ViewSetError::Closed));
+}
+
+#[tokio::test]
+async fn retiring_one_owner_reclaims_all_sets_and_wakes_only_its_waiter() {
+    let hub = ViewHub::new(&service_snapshot(0, 0)).unwrap();
+    let owner = ViewSetOwner::trusted("departed page");
+    let other = ViewSetOwner::trusted("native window");
+    let retained = hub
+        .open_view_set(other.clone(), open_request(vec![spec()]))
+        .unwrap();
+    let mut opened = Vec::new();
+    for _ in 0..MAX_VIEW_SETS_PER_OWNER {
+        opened.push(
+            hub.open_view_set(owner.clone(), open_request(vec![spec()]))
+                .unwrap(),
+        );
+    }
+    let handle = hub.view_set(&owner, &opened[0].view_set_id).unwrap();
+    let waiting = handle.clone();
+    let cursor = opened[0].initial.cursor.clone();
+    let waiter = tokio::spawn(async move { waiting.next_updates(&cursor, 20_000).await });
+    while !handle.inner.polling.load(Ordering::Acquire) {
+        tokio::task::yield_now().await;
+    }
+    hub.close_owner_view_sets(&owner);
+    assert_eq!(
+        tokio::time::timeout(Duration::from_secs(1), waiter)
+            .await
+            .unwrap()
+            .unwrap(),
+        Err(ViewSetError::Closed)
+    );
+    for set in opened {
+        assert!(matches!(
+            hub.view_set(&owner, &set.view_set_id),
+            Err(ViewSetError::UnknownViewSet)
+        ));
+    }
+    assert!(hub.view_set(&other, &retained.view_set_id).is_ok());
+    // Repeated cleanup cannot retire another owner, and capacity is immediate.
+    hub.close_owner_view_sets(&owner);
+    for _ in 0..MAX_VIEW_SETS_PER_OWNER {
+        hub.open_view_set(owner.clone(), open_request(vec![spec()]))
+            .unwrap();
+    }
 }
 
 #[tokio::test]
@@ -1460,4 +1694,25 @@ fn sixty_active_peer_snapshot_stays_inside_default_queue_bound() {
         stats.queue_high_water,
         stats.reset_count,
     );
+}
+
+#[test]
+fn replay_refreshes_server_clock_without_changing_cursor_or_updates() {
+    let now = Instant::now();
+    let inner = inner(now);
+    let initial = inner.open_response().expect("open").initial;
+    assert_eq!(initial.server_now_millis, "0");
+    let PollState::Ready(replay) = inner
+        .poll_state(0, now + Duration::from_secs(5))
+        .expect("replay")
+    else {
+        panic!("initial retained batch must replay");
+    };
+    assert_eq!(replay.server_now_millis, "5000");
+    assert_eq!(replay.cursor, initial.cursor);
+    assert_eq!(replay.updates, initial.updates);
+    let empty = inner
+        .empty_batch(1, now + Duration::from_secs(6))
+        .expect("empty");
+    assert_eq!(empty.server_now_millis, "6000");
 }

@@ -13,6 +13,7 @@ const diskColumns = (
 ): readonly VirtualColumn<DiskPieceRow>[] => [
   {
     id: "torrent",
+    listRole: "title",
     label: localizedMessage("inspection.components.disk.panel.torrent"),
     width: 210,
     minimumWidth: 130,
@@ -22,6 +23,7 @@ const diskColumns = (
   },
   {
     id: "piece",
+    listRole: "subtitle",
     label: localizedMessage("inspection.components.disk.panel.piece"),
     width: 76,
     align: "right",
@@ -31,6 +33,7 @@ const diskColumns = (
   },
   {
     id: "stage",
+    listRole: "trailing",
     label: localizedMessage("inspection.components.disk.panel.state"),
     width: 112,
     sortValue: (row) => row.stage,
@@ -54,6 +57,7 @@ const diskColumns = (
   },
   {
     id: "requested",
+    listRole: "detail",
     label: localizedMessage("inspection.components.disk.panel.requested"),
     width: 96,
     align: "right",
@@ -63,6 +67,7 @@ const diskColumns = (
   },
   {
     id: "received",
+    listRole: "detail",
     label: localizedMessage("inspection.components.disk.panel.received"),
     width: 92,
     align: "right",
@@ -72,6 +77,7 @@ const diskColumns = (
   },
   {
     id: "stored",
+    listRole: "detail",
     label: localizedMessage("inspection.components.disk.panel.stored"),
     width: 88,
     align: "right",
@@ -150,7 +156,6 @@ export function DiskPanel() {
         <div className={styles.tableHeading}>
           <div>
             <h2 id="active-disk-pieces">{localizedMessage("inspection.components.disk.panel.active.storage.pieces")}</h2>
-            <p>{localizedMessage("inspection.components.disk.panel.piece.level.work.only.16.kib.block")}</p>
           </div>
           <span>{rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.disk.panel.active")}</span>
         </div>
@@ -276,7 +281,7 @@ function DiskSummary({
           }
         />
         <Metric
-          label={localizedMessage("inspection.components.disk.panel.payload.sync")}
+          label={localizedMessage("inspection.components.disk.panel.disk.sync")}
           value={formatMicros(pipeline.checkpointSyncServiceMaxMicros)}
           detail={`${formatMicros(pipeline.checkpointSyncServiceMicros)} cumulative · ${pipeline.checkpointSyncOperationsCompleted.toLocaleString()} targets`}
         />
@@ -330,11 +335,12 @@ function diskEmptyMessage(materialization: ViewMaterialization): string {
     case "not_requested":
       return localizedMessage("inspection.components.disk.panel.disk.state.is.not.requested");
     case "loading":
-      return localizedMessage("inspection.components.disk.panel.loading.disk.state");
+      // Blank, like the peer table: a loading label only flickers.
+      return "";
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
       return localizedMessage("inspection.components.disk.panel.no.pieces.are.waiting.on.storage");
   }

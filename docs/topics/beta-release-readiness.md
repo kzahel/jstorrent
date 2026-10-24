@@ -1,6 +1,990 @@
 # Beta Release Readiness
 
+The October 23 Dependabot cleanup retains the verified GLib 0.18.5 backport
+and the feature-guarded rand 0.7.3 review; alerts #1 and #18 are dismissed with
+that evidence. The November 12 warning-review expiry is unchanged. The
+non-shipping iOS storage probe now selects rustls 0.23.46, rustls-webpki
+0.103.16, webpki-root-certs 1.0.10, quinn-proto 0.11.18 and chacha20 0.10.2.
+Fresh audit of that previously uncovered lockfile found five Quinn advisories
+and a yanked ChaCha dependency after the TLS refresh; the targeted updates
+clear all probe vulnerabilities and warnings without changing production
+dependencies. Its obsolete storage-key field name is aligned with the current
+engine API so the probe compiles for the iOS simulator again.
+
+Daily, pull-request and release advisory collection now includes the probe
+lockfile. Review requires its exact digest, a fresh advisory database, zero
+vulnerabilities and zero unreviewed warnings; bounded CI receipts include the
+probe result and findings on failure. Local validation passes 36 distribution
+review tests, ten GLib backport tests, workflow actionlint, workspace/probe
+formatting, the locked iOS simulator compile check and fresh strict review
+of both Cargo and both npm lockfiles. This cleanup does not publish a release
+or repeat physical probe qualification.
+
+Tactical [380](../tactical/380-product-release.md) completes the October 22
+release: desktop Stable 0.3.4 and Android 1.0.32 are public, requiring extension
+1.1.5+. Extension 1.1.6 and remote controller 0.3.3 were already verified.
+Android's exact signed dual-ABI/16-KiB artifacts and physical ChromeOS
+pairing/folder selection pass; Play confirms availability in all 178 countries.
+Desktop exact-source full CI and all five signed native jobs pass at ecd65fe4.
+The collector's corresponding-source inventory failure is recovered separately
+with reviewed tooling/pins at 9bc0b3ef, retaining every original signed native
+byte and CI-signed metadata. Thirteen source-helper tests and all 39,249 source
+carrier members verify. Both Mac native hosts execute; Intel uses Rosetta.
+
+Unchanged-byte Stable promotion passes. All seventeen public assets in each
+channel, six payload signatures, signed database facts and live update offers
+verify; equal/newer callers receive no update. Four automatic targets remain
+enabled and Linux ARM remains manual. The canonical website deploy passes,
+and public provenance/download links select 0.3.4 at bdd9c4e9. Final web
+validation is 886 passed/three existing skips plus typecheck; the fifteen-delivery
+ledger and database-history checks pass. The
+[desktop receipt](../tactical/evidence/380-desktop-release-receipt.json) records
+exact source, recovery and public evidence. This does not repeat 377's installed
+update cohorts or establish production stability. These current decisions
+supersede historical publication holds below.
+
+The October 21 Latest 0.3.4 source check at `52067935` failed its fresh
+dependency audit before packaging or publication. Earlier dependency fixes had
+passed advisory review on October 20. The lockfiles now select rustls-webpki
+0.103.16, webpki-roots 1.0.10, webpki-root-certs 1.0.10 and Vite 8.1.6 within
+its existing minor series. Upstream documents the certificate distrust fixes
+([0382](https://rustsec.org/advisories/RUSTSEC-2026-0382.html),
+[0381](https://rustsec.org/advisories/RUSTSEC-2026-0381.html),
+[0383](https://rustsec.org/advisories/RUSTSEC-2026-0383.html)) and the
+[Vite editor-command issue](https://github.com/advisories/GHSA-587h-7wmj-h5pm).
+Fresh Cargo and both npm audits now have zero vulnerabilities, and the strict
+release-ready review passes with the existing warning inventory, independently
+verified GLib backport and unchanged November 12 expiry. Independent advisory
+review now runs daily at 05:31 UTC, retaining the fresh publication gate.
+GitHub Dependabot alerts and automatic security updates are enabled; these
+findings were absent from its open alerts at inspection, so that service remains
+an additional signal.
+
+Local validation passes: `cargo fmt --all -- --check`,
+`cargo clippy --workspace --locked -- -D warnings` and
+`cargo test --workspace --locked` (1,749 passed, 20 ignored);
+`npm run typecheck --prefix clients/web`, `npm run test --prefix clients/web`
+(870 passed, three skipped) and `npm run build --prefix clients/web`, including
+CSP validation. `actionlint .github/workflows/dependency-review.yml` and
+`python3 -m unittest discover -s scripts -p test_distribution_review.py`
+(30 tests) pass. `clients/android/build.sh` completes both release ABIs and
+Kotlin binding generation; packaging initially stops on local disk exhaustion.
+After space is available, `clients/android/gradlew -p clients/android
+assembleDebug testDebugUnitTest` passes, followed by
+`python3 scripts/inspect-android-notices.py --archive
+clients/android/app/build/outputs/apk/debug/app-debug.apk --variant debug`
+(84 Maven and 207 Rust packages). This patch does not publish a release.
+
+The October 18 Latest collector failure is in source extraction: Ubuntu 24.04's
+7-Zip cannot read the Zstandard SquashFS used by the signed AppImages. Source
+packagers now use `unsquashfs` at the reviewed runtime boundary without executing
+either architecture. Full CI and release source checks install squashfs-tools
+and exercise a synthetic Zstandard filesystem with an outer runtime, selective
+notice extraction and invalid-offset refusals. Ubuntu extraction of both exact
+0.3.3 AppImages verifies all 141 x64 and 140 ARM64 notice hashes. Hosted CI for
+this repair is recorded by its commit checks; the failed 0.3.3 draft remains
+private until publication is separately authorized.
+
+Tactical [379](../tactical/379-release-security-dependencies.md) repairs the
+fresh-audit blocker found during 378 publication: rustls 0.23.46 and ZIP 9.0.4,
+with optional ZIP extraction disabled on the unchanged updater 2.10.1. Raw
+Windows installers/Linux AppImages and unconditional macOS tar.gz remain.
+No vulnerability is waived. Five source-reviewed warning additions retain the
+existing November 12 expiry. Full source CI, all five signed native builds
+and all 17 public Latest 0.3.2 assets pass qualification. The Linux source
+carrier is completed with the corrected 7-Zip lookup after the collector
+stops with its draft private; original signed native bytes are retained.
+
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md) adds
+authenticated database admission, one increasing Stable/Latest release train,
+source-bearing Latest publication and immutable Stable promotion. Actual signed
+macOS ARM, Windows x64 and Linux x64 installations pass real 900/60 cycles,
+higher-version/older-schema refusal and compatible Stable catch-up with retained
+identities and channel choice. Background typing and transfer hashes/intent
+pass; a real uncommitted SQLite migration crash rolls back and recovers on an
+explicit relaunch. Exact package/source and sanitized result receipts are in
+[377 evidence](../tactical/evidence/377-compatible-updates.json). Intel macOS under Rosetta also passes the full real-idle late-focus test and
+manual compatible Stable catch-up. Both channels now permit unattended install
+on macOS ARM/x64, Windows x64 and Linux x64. Linux ARM remains manual; no
+physical Intel claim is inferred. Public Stable retains the strict-companion
+hold; service permission alone publishes no package. Tactical
+[378](../tactical/378-public-latest-and-nightly.md) authorizes Latest publication
+and a daily changed-main release, accepting only the eight current field
+exposures with extension 1.1.5 or newer required. Latest 0.3.2 and all five live
+update offers verify, including authenticated metadata and unchanged Stable
+bodies. Stable publication is not authorized.
+
+Tactical [355](../tactical/355-automatic-updates.md) narrows the automatic
+update plan to desktop app/NSIS/AppImage. The accepted goal is unattended
+restart after 15 minutes without interaction, with transfer intent and user
+data preserved. Native scheduling, verified staging and joined shutdown are implemented;
+production activation awaits signed qualification on every enabled target.
+The required gate is a repeatable synthetic signed A-to-B VM update through
+Machine Control, checking real executable replacement, preserved transfer/data
+intent and no foreground activation during background use. macOS ARM64 passes repeated presentation matrices, real 900/60-second
+hidden and unfocused intervals, five feed/download failures, and controlled
+download/seeding resumption. Windows/Linux ARM64 synthetic presentation matrices also pass. See 355 for
+exact source receipts and the remaining shipping qualification gates.
+Android in-app updates and the self-updating Linux CLI are separate follow-ups;
+377 records the additional signed installed evidence and bounded rollout.
+
+Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
+repairs desktop notice generation for npm's SSH spelling of the exact reviewed
+mediabunny Git commit. HTTPS and SSH map to the same public preferred-source
+archive; other origins, revisions and license declarations remain refused. The
+production-lockfile regression, 29 distribution tests and actual macOS notice
+generation (462 Rust / 35 npm packages) pass locally. Hosted package verification
+is tracked by the submitted commit's CI checks.
+
+Tactical [330](../tactical/330-android-1-0-31-production-release.md) submits
+Android 1.0.31/code 31 for production at 100%, automatically publishing after
+approval. Exact tagged signed APK/AAB checks and source Android/SAF integration
+pass. At 14:37 UTC on October 13, Play shows only 31 Start full rollout in
+Changes in review; quick checks are running and managed publishing is off.
+Production remains 1.0.30 until approval. Installed delivery and stability
+remain separate. Full source CI has one Windows socket-bind test failure;
+all other applicable jobs, including Rust/web/Android, pass.
+
+Tactical [326](../tactical/326-full-product-release.md) publishes desktop 0.3.1
+from tagged 5fa018ff after full source/signed CI and independent package/source
+qualification. All 17 public assets, the live website and 11 production updater
+selectors verify; frozen incubation offers remain unchanged. Original-key Android
+1.0.30/code 30 is available on Google Play at 100% in all 178 targeted countries.
+Exact tagged artifacts and source Android/SAF checks pass. Extension 1.1.4 is
+pending review with automatic publication after approval, preserving public
+visibility, all regions and existing permissions.
+Extension approval, installed acceptance and stability remain separate.
+
+
+## Android 1.0.29 submission, 2026-10-12
+
+Tactical [315](../tactical/315-android-1-0-29-production-release.md) records the
+original-key signed 1.0.29/code 29 production submission from tagged 8ddf2e8b.
+Full source/signed CI, independent APK/AAB gates and 29 owned navigation/shutdown
+cases each on API 28/35 pass. At 07:01 UTC Play shows only 29, Start full rollout,
+Changes in review, with managed publishing off. By 15:34 UTC quick checks have
+completed and Play explicitly confirms changes are now in review. Automatic
+100% publication follows approval. Approval and installed stability are not
+inferred.
+
+## Store delivery, 2026-10-11
+
+Extension 1.1.3 is approved and published to the existing production Web Store
+item. Separate ignored receipt089 confirms the physical live listing, fresh
+store installation/source/version, Android28 pairing and empty-library
+connection, retained pairing on reload and normal Shutdown/relaunch/Retry
+reconnect. Package, persisted grants and notification preference are preserved;
+individual tabs/windows close and the installed extension remains for canaries.
+This supersedes the pending-review state in the historical paragraphs below.
+An existing-extension update, Android production-installed canary and real
+24-hour observation remain under [297](../tactical/297-staged-store-delivery-and-soak.md).
+The maintainer explicitly directs Android 1.0.28/code 28 to 100% at 19:52 UTC;
+Play confirms full availability and ignored report090 preserves the state.
+This supersedes the 5% hold. The tested Android28 predates production
+publication; production-installed migration and stability evidence remain open.
+
+## Release identity, 2026-10-11
+
+JSTorrent is the sole active release lane; desktop 0.3.0 already ships with its
+original identity, signing key and updater endpoint. The RSTorrent incubation
+release track is frozen. Earlier instructions to resume that flavor's package
+or updater campaign are superseded by the
+[owning release policy](product-surfaces-and-migration.md#jstorrent-only-release-policy-2026-10-11).
+Historical validation remains evidence for its exact artifacts; retained
+debug identities and legacy routes do not constitute an active release lane.
+
+Hosted CI38056213798 passes every applicable job at37a09a68, including both
+Linux extracted native/MIT packaging gates and Windows. Workflow preparation
+corrects the earlier unsigned Linux failures without changing signedff632
+candidate bytes. Separate081 preserves the actual hosted result.
+
+Tactical296 separates overlapping production/preview desktop tag prefixes with
+an exact package-family asset rule and isolated qualified caches/notes. Server
+6013309 passes92 tests/typecheck/build; repository27 release/candidate checks
+pass, including missing/wrong marker refusals. Actual rebuilt/restarted deployment retains
+preview0.1.4/0.2.801 and byte-identical production0.2.1 offers under077.
+
+Extension1.1.3 is submitted to the existing Web Store item with automatic
+publication disabled and is actually pending review. Public privacy bytes now
+match website52bfe325. Android28 is available internally and managed publishing
+is on; production remains23. The exact desktop0.3.0 private draft retains all17
+verified assets, including corresponding sources, and its tag pinsff632f45.
+No asynchronous review or public cutover is inferred from a prepared draft.
+
+Separate071 now qualifies exact signedff632 Linux x64 normal HTTPS updating from
+released0.2.1: ten checks/six refusals, four-record native Quit/reopen, preserved
+payload/source and persisted disclosure opt-out. Scoped restoration, VM-off/
+release and private-trial removal pass; ordinary routes remain unchanged.
+Separate072 prepares adjacent Linux source/rebuild links with30 website guards,
+frozen enabled/disabled builds and four responsive captures. Real metadata stays
+inactive pending actual public assets; publication remains a distinct gate.
+
+Current authorized finish-line scope includes staged publication. Separate068
+qualifies actual internal Play27-to28 delivery, preserved installation/grants and
+paused/running Repair with independent hashes, cold reopens, managed signer and
+clean Chromebook workspace. Production Play remains unchanged. Separate069 binds
+a complete local source carrier to signedff632 AppImages;38,866 members and both
+offline metadata graphs verify. Original-r0 ARM runtime build/relink now executes
+under070, complementing x64;24 exports/AArch64 checks and VM-off/release pass.
+Public source delivery, proportional new Linux installed evidence and live
+cutover remain next. Historical paragraphs below retain their original scope.
+
+Explicitly authorized main push and artifact-only signed rebuilds now pass at
+`ff632f45`: Android run38050769738 and desktop run38050770001. Independent
+Android28 APK/AAB identity/original-upload certificate, dual ABI,16-KiB and notice
+checks pass. Normal release-APK Repair/whole hashes/cold reopens pass in an owned
+API35 emulator; final14 frame/brand captures and emulator/AVD cleanup pass.
+The failed ADB attempt and corrected verifier setup remain recorded. All five desktop
+lanes/collector,15 hashes, six original-root signatures/wrong-root refusals,
+11 selectors, both Mac trust/staples and native Windows NSIS/MSI trust pass.
+Five independent inventories include both Linux custom-source/native guards.
+Windows staging/server is removed, VM off and claim released. Separate066/067
+own exact evidence. Store delivery, source offer, installed qualification and
+publication retain their separate gates; no tag/release/feed/store is activated.
+
+Tactical294 completes its bounded native packaging slice. Both native x64 and
+ARM source builds pass130 TIFF tests/all240 original exports, relocation,
+codec/original-loader, offscreen GTK and source/notice/MIT package gates.
+Separate064 also passes actual x64 window, background, Show, normal Quit and
+loaded-library observations with reviewed unchanged branding;065 owns ARM
+native evidence. Original frozen packages are refused by the new gate. Both
+Linux lanes prepare custom libraries before signing and repeat extracted checks.
+Owned units/processes/roots/mounts/captures are removed, both VMs off/released.
+Fresh original-signed candidates/source delivery, ARM product UI and ARM outer
+runtime relink remain separate. No push or publication occurs.
+
+The maintainer explicitly retains MIT on2026-10-10. Tactical294 supersedes the
+pending combined-GPL proposal with bounded native GPL-only dependency removal
+and new Linux package qualification. LGPL notice/source/relink and public source
+delivery remain separate requirements. Existing2b83 signed Linux receipts stay
+bound to their old bytes, not the future rebuilt package.
+
+Tactical [293](../tactical/293-appimage-source-delivery.md) adds a verified local
+frozen2b83 application source supplement:733 Cargo inputs,27 exact npm
+distributions and14 preferred archives/16 bindings. Offline metadata for both
+Linux targets and frozen web build/CSP pass; owned mutable staging is removed.
+Actual TIFF dependencies in both images confirm GPL-2+ JBIG. The maintainer has selected dependency removal under294.
+Separate062 also confirms GPL-3 Ayatana indicator through the tray library;
+the full174/173 component hashes and173/172 ELF inventories pass. The frozen
+loader source verifies. Removing JBIG alone is insufficient; 294 removes both identified library chains; the earlier combined-GPL
+proposal is superseded. Owned extraction is removed; no license changes.
+Original-r0 x64 source-build/relink executes successfully with24 exports/seven
+static libraries verified; rebuilt bytes differ from the shipped runtime beyond
+its named digest. VM off/release and owned cleanup pass. ARM, final per-package
+disposition, complete native instructions and public source delivery stay open.
+
+Finish-line059 prepares1.0.28/code28 containing Tactical292's paused-intent
+Repair correction. Exact debug/API35 normal paused/running repair, source-offline
+hashes and cold reopens pass; build/122 JVM/lint/script/notice checks and owned
+AVD cleanup pass. Original-signed hosted APK/AAB, managed delivery and repair
+remain open. Managed27 and frozen desktop2b83 receipts retain their bindings.
+No push, tag, store upload or production publication occurs.
+
+Fresh exact2b83 Mac ARM ordinary GUI and Linux x64 automatic HTTPS updates
+also qualify in053/054: ten checks each, nine/six refusals, four-record native
+Quit/reopen and privacy opt-out. Exact restoration/owned cleanup, VM-off/release
+and private trial removal pass; ordinary routes remain unchanged. Actual report
+images retain clipping/pre-existing OS overlays; source/package/relink and
+public delivery remain separate. No production publication occurs.
+
+Fresh2b83 Windows qualification now passes actual signed NSIS wizard/cancel,
+populated manual replacement and released0.2.1 ordinary HTTPS updater retry
+after an interrupted download. Eleven updater assertions/eight refusals and
+four-record native Quit/reopen pass; exact restoration/off/release and private
+trial removal verify. Read-only native fresh MSI Authenticode also passes in
+the same owned session; MSI installation/associations remain separate.
+
+Slice048 binds the fresh AppImages to all89 exact Ubuntu source versions,
+descriptor/archive/patch hashes and129/128 original notices. A new local
+530,073,600-byte exact2b83 review packet independently verifies736 members.
+Both outer runtimes match previously inspected pinned8f39b89 bytes except their
+named payload digest. Historical packets stay intact. Per-package disposition,
+ARM relink qualification and a real public source delivery route
+remain open; no source packet is published. Tactical259 owns exact evidence.
+
+Fresh production-identity candidate2b83ed91 now passes all five signed lanes and
+collector in run38029276220 with publication disabled. Independent15 asset
+hashes/sizes, six original JSTorrent-root signatures/six incubation-root refusals,
+11 selectors, both Mac strict signatures/Gatekeeper/app-and-DMG staples/ticket
+CDHash binding, and five extracted package/notice inventories pass. Exact source,
+proofs and corrected pre-staple/final-DMG verifier scope belong to Tactical259's
+separate Slice043 report. Fresh Windows wizard/install/updater evidence is now
+recorded in separate047/049 reports. Earlier A7 receipts remain exact-byte history;
+corresponding-source/relink, public delivery and complete installed acceptance
+remain open. No release, tag, feed, store review or publication occurs.
+
+Tactical290 changes Windows installer artwork after the frozen a7 signed build.
+Its bounded local native preview passes; final Windows identity/signature gates
+reopen for fresh production packaging. Earlier a7/non-Windows proofs retain
+their exact-byte scope. Slice024 now passes x64 updating under existing Rosetta,
+with physical Intel hardware and DMG installation kept separate.
+
+Slice020 collects the final A7 AppImages' exact89 Ubuntu Noble source versions,
+every SHA-256-bound descriptor/source file and original128/129 notice files.
+A local529.8MB review capsule includes frozen first-party source, selected
+runtime material and provenance; all736 covered members verify independently.
+Owned extraction is removed, no signed byte or public route changes. The older
+Jammy matrix stays historical. Public delivery, per-package disposition and
+complete runtime relink/native review remain open; slice016 caveats are retained.
+
+Slice016 prepares a concrete10.95MB current outer-runtime review capsule:
+seven verified upstream source archives, original notices, pinned Alpine
+recipes/patches and the independently exercised x64 relink prototype. All43
+archive entries verify internal checksums; supplemental notices include the
+original mimalloc MIT copyright/license. Signed A7 bytes remain unchanged.
+It is local selected runtime material, not a complete public source offer;
+Ubuntu bundled-library sources/notices, distribution-ready instructions and
+architecture review remain open. No VM or public upload occurs. Slice020 now
+collects the exact Ubuntu sources; public delivery/per-package disposition
+remains separate.
+
+## Current execution checkpoint: 2026-10-09
+
+The reviewed Android27 AAB is delivered to the existing internal track. Play
+reports **27 (1.0.27), Available to internal testers**; production remains23,
+and existing testers and all supported-device counts are unchanged. Its exact
+AAB SHA-256 remains `383379eeb05363e6a361e02a9a1250fb6e72c8dc595b6267bb897b17f34156d8`.
+The downloaded Play-generated universal APK independently verifies the existing
+managed signing certificate, package identity, API28 minimum, target36, both
+native ABIs and16-KiB ZIP/ELF alignment. Store availability and download checks
+are separate from complete preserved-library and Shutdown/reopen acceptance.
+
+D-03 now closes its bounded identity/version/signing contract: current27 exceeds
+fresh Play pre-upload maximum26 and selected GitHub code24; original AAB upload
+certificate and actual downloaded/installed Play certificates independently
+verify. The managed upgrade retains its installation identity without clear or
+uninstall. A-01–08 data/lifecycle/mixed-store and production shipment remain open.
+
+One retained physical Chromebook now updates26-to27 through the actual Play
+Update control without sideload, uninstall or clear. UID, first-install time,
+Play installer and exact URI grants remain unchanged; both owned observations
+clean up successfully. Later slice002 saves actual statistics opt-out and
+qualifies normal Shutdown/task/service removal and Live reopen with exact
+grants retained. Populated-library/reboot acceptance remains open. The other
+device's documented ADB connection attempt refuses; no reboot, rootfs repair
+or power-policy change is performed. Private receipts/screenshots stay ignored.
+
+Original-root desktop candidate `a7ee65ed` now completes all five signed lanes
+and collector in run37958746928; main CI37958695272 also succeeds. Independent
+checks reconcile15 core sizes/hashes, six original-root signatures/six wrong-
+root refusals and11 selectors. Both actual Noble AppImages carry the reviewed
+WebKit2.52.6/OpenSSL3.0.13-0ubuntu3.16 floors. Five extracted formats reconcile
+first-party binaries and notice manifests; owned extractions are removed.
+
+Both Mac archives independently pass strict/deep Developer ID signatures,
+original team, original icons and local ARM-host Gatekeeper. Both DMGs pass
+stapling; Accepted Apple ticket CDHashes match each delivered app/main/host/DMG.
+Native Windows x64 independently observes valid Kyle Graehl NSIS/MSI signatures
+and Microsoft timestamps, with exact package hashes and read-only MSI identity.
+Two harness errors stay failed: COM table methods initially emitted null and a
+subsequent assertion incorrectly required manufacturer capitalization. Corrected
+independent checks reconcile retained native observations; no package bytes
+change. Windows staging is removed, VM off and claim released.
+
+D-01/D-02 now close their bounded final identity/signature contracts alongside
+D-03. Native installed/automatic-update/launcher, complete native security and
+corresponding-source/relink acceptance remain separate P/R requirements. The
+collector has exactly15 core assets; a production draft adds a separately
+verified SHA256SUMS support file. Its synthetic draft metadata is not a live
+GitHub draft, release, tag or updater feed.
+
+Current signed Linux x64 AppImage and Mac ARM archive each pass eight real
+old-writer migration assertions, valid/corrupt reverification, missing-root
+preservation and stable four-row native Quit/restart. Refusal routes pass six
+on Linux/nine on Mac. Actual native captures are visually reviewed; current
+product titles/icons/menus show JSTorrent. The owned fresh profiles opt out of
+statistics through real native input; independent persisted-state checks pass.
+Inherited scoped state is restored, owned staging/capture copies removed, VMs
+off, claims released and transfer servers reaped. Manual archive/AppImage
+replacement does not qualify automatic updater, Intel native launch, FUSE or
+all associations. Technical registration-failure copy and default tab/status
+clipping remain recorded design findings.
+
+## Current signed Windows NSIS, 2026-10-09
+
+Exact a7 per-user NSIS manually replaces pinned0.2.1 and passes eight migration/
+payload assertions, eight legacy refusal routes and stable four-row native
+tray Quit/reopen. Nine actual captures are reviewed, including the correctly
+branded firewall prompt. Independent50-registry/seven-file restoration, owned
+firewall/staging cleanup and off/release pass. Earlier runner failures remain
+failed; automatic updater and complete launcher/cohort acceptance stay open.
+See Tactical259 for the byte-bound private receipt and design findings.
+
+## Current signed native MSI qualification, 2026-10-09
+
+Exact original-signed a7ee65ed MSI now passes quiet per-machine installation,
+actual native About & updates checks and ordinary tray Quit/reopen. Both
+initial and reopened screens show Windows MSI, Manual update required and Open
+release downloads, without automatic-check status or check/install controls.
+Three real captures are visually reviewed; build/package facts and JSTorrent
+window/header/shortcut branding are consistent. Owned synthetic empty session
+and version1/statistics-off fixtures do not change an inherited privacy choice.
+
+Independent cabinet extraction matches both actually installed first-party
+binary hashes and both notice hashes. NSIS/MSI main hashes correctly differ:
+after excluding PE checksum/certificate fields, only the expected locked Tauri
+bundle-type marker differs. No whole-binary equivalence is assumed. The initial
+comparison harness incorrectly expected equality, then three changed bytes;
+corrected evidence observes the two differing positions within NSS/MSI.
+
+Independent restoration matches100 registry scopes/nine file scopes. Owned
+MSI registration/staging/capture copies are removed; no unrelated firewall rule
+is removed. Windows is off and the claim released. The first native attempt's
+already-open-settings assumption and command-size cleanup failure stay failed;
+separate exact-owned cleanup confirms restoration and staging removal before
+the corrected repeat. This qualifies current native presentation/restart,
+not installer wizard, legacy MSI migration, full associations or automatic
+updater acceptance. Detailed receipts/screenshots remain ignored under259.
+
+The exact extension draft upload remains authorized and blocked on the user's
+Google passkey verification. Production publication and website deployment
+remain outside the current instruction.
+
+Ignored finish-line evidence retains delivery screenshots, exact artifact and
+execution receipts, and each physical/build attempt. Nothing above closes the
+whole installed/store acceptance checklist.
+
+The maintainer authorizes the reviewed next candidate actions on 2026-10-09:
+nonpublishing signed desktop build, exact production extension draft ZIP only,
+and unchanged Android 27 delivery only to existing internal testers. No production
+publication or sibling website deployment is included. Sourcefe30d273 is pushed;
+attempt 37957327863 proves the original updater root, then is cancelled when a
+remaining final signature CLI still expects ten payloads. Tactical285 corrects
+it to six production/ten preview with 20 passing focused cases; replacement
+qualification follows that tool-only commit. Store/installed acceptance remains
+separate; current Web Store account verification requires a passkey.
+
+Tactical [283](../tactical/283-companion-update-recovery-guidance.md) adds
+component-specific recovery links and plain connection guidance in the
+packaged extension, preserving attach-only retries and existing discovery/
+pairing authority. The local source/render checkpoint remains separate from
+actual store delivery and installed mixed-version acceptance under259. The
+new production payload supersedes the prior source13dde build and source03e
+extension upload proposals for final qualification; historical evidence stays
+bound to its own bytes. No new build/store publication occurs.
+
+Linux first-release scope is narrowed by maintainer direction on 2026-10-09:
+best-effort AppImage desktop support, maintained bundled libraries, no older-
+distro WebKit backport campaign, and CLI/headless fallback. Tactical 285 locally
+applies production AppImage-only packaging on Ubuntu 24.04, with a reviewed
+vendor WebKit build floor. Production now requires 15 core assets, six updater
+signatures and 11 selectors; preview retains23/ten/15. Fresh signed inventories,
+runtime/source review and representative launch evidence are still needed. Broader
+Linux historical rows are scoped by this decision, not marked passed; final
+candidate security, source obligations and representative installed checks
+remain open. See the [accepted scope](product-direction.md#linux-release-scope-accepted-2026-10-09).
+
+The frozen production-code build proposal is `13dde7a1`; shared web/extension
+validation below was executed at source `03e63443`. New AppRun notice inputs
+are locally qualified; revised hosted/signed qualification remains pending.
+
+Runtime redistribution review has advanced under259 without product changes.
+Seven source archives and ten original license files are inspected; pinned
+libfuse/squashfuse archive hashes and all four exact Alpine recipe/archive
+checksums plus16 auxiliary input hashes verify. Twelve source patches apply
+sequentially in owned temporary extractions, which are removed.
+
+A native x64 owned Alpine chroot builds runtime8f39b89 with patched libfuse3.15.0
+and squashfuse0.5.2, using verified fixed zlib1.3.2-r1 packages. A separate
+application-object/static-library relink runs version/help successfully.
+Independent19-entry export hashes, seven libraries, ELF architecture and pinned
+package/version facts verify. Both preliminary shell-path failures remain
+failed; all three attempts remove their owned files/mounts, verify VM off and
+release claims. No product profile, installed candidate or visible UI is used.
+This prototype is not the original signed runtime, ARM validation or a delivered
+source/relink offer. Complete native attribution/redistribution remains open;
+the upstream runtime notice list also omits its statically linked mimalloc.
+
+Original8c runtimes use Alpine zlib1.3.2-r0, while current1.3.2-r1 backports
+[CVE-2026-85091](https://github.com/madler/zlib/commit/df84af25dc1942490e1d1c899a07619152a46148)
+in nonblocking gzip writes. Both exact upstream debug assets verify release
+SHA-256, original signed runtime GNU debuglink CRC and build-id bytes. Their
+2,056/1,881 defined function tables contain no gzip-write functions or gzwrite.c;
+109 C/header files across runtime/libfuse/squashfuse also have no such calls.
+This supports a scoped absence inference, not complete security/exploitability
+clearance. Maintained WebKit/accepted ABI, OpenSSL rebuild and R-05 remain open.
+
+Tactical [282](../tactical/282-apprun-license-attribution.md) locally fixes
+missing AppRun MIT copyright attribution in the exact signed8c AppImage notice
+inspection. Both reviewed mirror launchers independently match upstream bytes;
+the collector packages the original Simon Peter/RazZziel notice with exact
+hash/source revision/origin/architecture checks. All26 distribution cases and
+both actual launcher controlled-notice round trips pass. No implementation code
+is imported. Fresh signed inputs change again after03e; earlier pending build
+proposals are superseded. The upstream legacy release is marked obsolete and
+archived build metadata is unavailable; reproducible build, all native source/
+relink/security obligations and maintained WebKit/accepted ABI remain open.
+
+The following shared-web/extension checks used source03e63443. The full default bundled
+Chromium suite now passes62 cases with14 existing live/opt-in skips; focused
+managed-package captures pass separately. Current branding2037 display values/
+40 original assets and all maintained localization catalogs pass. Fresh exact-
+lock Rust/npm review passes the unchanged seven-warning/backport policy and
+2026-10-12 expiry; native WebKit/OpenSSL/source/relink holds remain separate.
+The rebuilt production extension1.1.2 is400105 bytes/SHA-256
+`38be77fd4237f8f09218dc69a1618b0cfdc8aa6143bbfe36346809edc2c93bfb`,
+retains the existing item ID, and passes54 extension cases, exact19-entry ZIP/
+13-bundle CSP validation and17 injected packaged onboarding/cache scenarios.
+No device/store acceptance is inferred from injected cases. Authenticated
+read-only store refresh remains Web Store published/draft1.1.1 with three
+legacy screenshots/privacy text, and Play internal26/production23. No new
+upload/draft save/certification/submission occurs. Frozen13dde push/nonpublishing
+signed-build review supersedes pending681/b0b/932/03e proposals; explicit action
+instruction remains pending. D-01/D-02 reopen for changed final package inputs;
+immutable source8c signature/identity evidence remains valid for its own bytes.
+
+Tactical [281](../tactical/281-managed-package-update-status.md) locally
+repairs the actual MSI About-screen automatic-update contradiction. MSI/DEB/RPM
+and unknown packages start and stay in existing manual package guidance, own
+no check timers, and show no in-app check/install or automatic-check privacy
+copy. Host policy, trust/routes and preference behavior remain unchanged.
+Full web typecheck/478 tests (two existing skips),20 focused bundled-Chromium
+render/accessibility cases and16 inspected managed/theme/width captures pass.
+Fresh exact-source signed native MSI evidence remains open under259; renderer
+fixtures are labeled separately from unchanged source8c before-fix captures.
+
+The exact signed source8c Windows x64 MSI now passes quiet per-machine
+fresh installation, both installed native publisher/timestamp checks,
+five-entry distribution/notice inspection, native empty-library launch and
+Quit/restart with a synthetic loopback/mapping-off/DHT-off/PEX-off fixture.
+All four new native screenshots are visually inspected. Its owned
+version1/statistics-off fixture and clean-shutdown marker persist. Normal
+uninstall and independent100 HKCU/HKLM scopes/nine file-scope comparisons
+pass; no owned process, firewall rule, candidate/related MSI or uninstall
+key remains. All26 staging files are hash-bound and removed; VM off and
+exact claim release pass. Installer wizard, legacy MSI migration and full
+OS association dispatch remain unqualified. MSI uses its advertised
+`JSTorrent.torrent` class and quoted short magnet path, recorded separately
+from the private NSIS class; no NSIS-validator pass is inferred.
+
+The real MSI About screen initially claims automatic updates are enabled.
+Manual Check correctly changes to package-channel guidance, but automatic
+schedule/privacy copy and the check button remain. Tactical281 repairs this
+presentation/controller initialization issue; the desktop host already
+refuses managed-package checks and replacement. Source8c screenshots are
+unchanged before-fix evidence. The empty detail panel's implementation-oriented
+copy is an additional design note, rather than an unstyled page.
+
+Tactical [280](../tactical/280-desktop-executable-display-brand.md) locally
+corrects the desktop output to `jstorrent-client`, preventing the observed
+advanced-firewall filename from retaining the old display brand. The distinct
+name preserves released old-writer process detection. All41 Node/23 native
+distribution/85 Rust cases, clippy/fmt/workflow lint and the actual unsigned
+Mac bundle/inventory pass. Identifiers, host, profiles, networking and updater
+trust/routes remain intact. Fresh signed Windows system-label, migration and
+updater evidence remains required under259; source8c receipts are unchanged.
+
+The final signed source8c Windows x64 NSIS candidate now passes actual
+per-user legacy0.2.1-to-successor0.3.0 installation: eight assertions, eight
+registered refusal routes, four imported records, valid100%/corrupt0% recheck,
+retained unavailable root, stable native Quit/restart and source/payload
+preservation. All eleven new native captures are visually inspected. The
+owned disclosure saves statistics off and remains version1/off after restart.
+Independent checks compare48 HKCU scopes and seven restored file scopes;
+exactly four newly created program-bound firewall Block rules are removed,
+unrelated OS rules are preserved, no owned process remains, and35 hash-bound
+staging files are removed. The VM is verified off and its claim released.
+The separate MSI installation checkpoint above now passes its bounded scope.
+Windows automatic/GUI updating and full launch/association cohorts remain open.
+The advanced firewall inventory exposes `rstorrent-desktop.exe`; Tactical280
+corrects the output name locally, with fresh signed system-label evidence still
+required. This finding is separate from the branded product screenshots. The raw native-host
+registration error also confirms the existing actionable-copy design gap.
+
+The authorized native Windows x64 appliance rebuild is handed off with verified
+AMD64 Windows11, real Python3.13 sqlite3/winreg, native semantic/capture/input
+readiness and a real cold locked-to-unlocked stored-password login. Credential
+bytes stay in a private0600 file/0700 parent; the registry stores its locator.
+Native login delivery is confirmed while its effect field says no_effect;
+independent unlocked state is recorded separately. Seed/staging cleanup and
+restored inventory pass; VM off/claim available at handoff. One timed-out
+factory-status journal intent lacks a result, so ready-close remains incomplete
+without history alteration. Parent signed product qualification now resumes;
+no product acceptance row is closed by rebuilding a machine.
+
+Both exact signed source8c AppImages additionally bundle WebKitGTK
+`2.50.4-0ubuntu0.22.04.1`. [Upstream WSA-2026-0003](https://webkitgtk.org/security/WSA-2026-0003.html)
+lists affected versions before2.52.4, including CSP enforcement. Ubuntu's
+[CVE-2026-43742 status](https://ubuntu.com/security/CVE-2026-43742) marks Jammy
+Ignored and says current WebKit cannot be built on Jammy and earlier; Noble
+has a fixed2.52.6 package. R-05 holds Linux shipment pending maintained runtime
+and compatibility disposition; no product exploitability is asserted. T279's
+OpenSSL floor does not resolve this separate WebKit gap or authorize a silent
+minimum-OS change. Both bundled GLib versions meet the specific USN-8794-1
+floor; this selected review is not a full native vulnerability inventory.
+
+Tactical [279](../tactical/279-appimage-openssl-security-floor.md) records a
+new native security shipment blocker: the exact signed source8c ARM AppImage
+bundles OpenSSL `3.0.2-0ubuntu1.29`, below Ubuntu USN-8847-1's Jammy fixed
+revision `3.0.2-0ubuntu1.30`. The x64 candidate contains the fixed revision.
+A local packaging/extraction guard now refuses the ARM manifest, and Linux
+builders explicitly refresh OpenSSL development/runtime packages. All 21
+focused distribution cases and workflow lint pass locally. Rebuilding and
+qualifying new signed bytes remain required; this is one advisory floor, not
+complete native security clearance, and product exploitability is unestablished.
+Original trust/integrity and functional receipts remain scoped to their bytes.
+
+
 Topic: `beta-release-readiness`
+
+
+Current finish-line checkpoint259 supersedes the historical candidate and store
+statuses below. Approved desktop source8c/run37735081504 passes all five signed
+lanes/collector,23 independent hashes/sizes,15 selectors and10 original-root
+signatures and ten wrong-incubation-root refusals. Both Mac code signatures,
+Accepted notarization receipts, DMG staples and local ARM Gatekeeper pass.
+Final Mac ARM manual migration passes eight assertions/nine refusal routes,
+with actual settled/restarted JSTorrent pixels, independent inherited-tree
+restoration and off/released cleanup. Final signed ARM Debian extracted native payload
+passes8 migration assertions/6 refusal routes, actual populated/restarted
+pixels, source/payload preservation and restored/off/released cleanup. A
+separate actual ARM Debian dpkg installation and installed native run also pass
+eight migration assertions/six refusal routes, readable settled/restart pixels
+and exact owned package/cache/profile restoration with VM off/claim released.
+Updater and broader installed qualification remain separate. Approved private preview8c
+is deployed and actually verified.
+
+The final ARM Mac DMG also passes actual read-only mounting and standard app
+bundle installation into the controlled guest's normal Applications location.
+DMG SHA-256 is `8d2d1bba23d47f744f2feda4dcb9fd0f6af1c50eb7bbfb669ebd509f4a0a1373`;
+strict/deep source and copied-bundle signatures pass and the mount is detached.
+Eight migration assertions, nine refusal routes, stable four-row restart and
+source/payload preservation pass. Settled/restarted native screenshots are
+visually inspected for JSTorrent menu/title/icon/header and the styled library.
+Independent inherited trees match; exact owned captures/staging are removed,
+the transfer server is joined, VM is off and its claim released. This qualifies
+DMG-mounted bundle installation, not GUI drag/drop or automatic updating.
+
+The failed Linux launch probe remains failed. A bounded exact-owned cleanup
+checks the actual apport crash-report backend for only that driver's command;
+no retained matching report exists and zero files are removed. Unrelated crash
+reports, markers and journals remain intact. Cleanup verifies VM off and claim
+release. The first incorrect backend assumption stays failed.
+
+The maintainer authorizes destruction/recreation of the rejected-login native
+Windows x64 test appliance. A delegated YepAnywhere session now owns that
+bounded provisioning task; canonical private credential-file/registry handoff,
+real cold-boot stored-password login and native readiness are required before
+resuming product qualification. This does not qualify Windows execution yet.
+
+The final original-signed Linux x64 AppImage also passes its native
+extract-and-run migration: eight assertions, six refusal routes, stable four-row
+restart and exact source/payload preservation. Candidate SHA-256 is
+`21d73341845fc1d93f45ae47ed393279a9f250407bfcfe0c22f5a63d75adcce7`.
+All six native captures are visually inspected; settled/restarted JSTorrent
+renders with its original icon/title/header and the owned disclosure choice
+independently persists. The old 0.2.1 window remains blank. A system crash-report
+dialog behind the refusal alert has unestablished ownership and is preserved;
+raw registration recovery copy remains a design gap. The transient cgroup unit
+is already collected at cleanup (stop reports not loaded). Guest/controller
+roots and six hash-bound guest captures are absent; VM off and claim release
+verify. FUSE, normal association delivery and automatic/GUI updating remain
+separate. This is final source8c evidence, superseding historical manual x64
+candidate scope without rewriting those receipts.
+
+Actual final signed Linux x64 Debian installation now passes separately from
+AppImage extraction. Exact candidate `0a71e2a3` installs `js-torrent` 0.3.0 amd64
+with package-absence/file-collision guards; installed desktop/native-host hashes
+match the signed package inventory. Eight migration assertions, six refusal
+routes, source/payload preservation and readable settled/restarted JSTorrent
+pass. Native owned disclosure input independently persists statistics false.
+Cleanup purges only the owned package/files, restores inherited directory modes,
+icon/application cache bytes and profile scopes, removes six exact exported
+guest captures and guest/controller staging, then verifies VM off/claim release.
+Bounded before/after apport metadata checks find no report tied to either exact
+owned root; unrelated reports/markers/journals/dialogs remain intact. This does
+not qualify normal launcher/associations or automatic updating.
+
+Final signed Linux x64 controlled native launch also passes all twelve driver
+cases in a fresh owned catalog with DHT/PEX off, loopback networking and queried
+owned XDG associations. Twelve post-Quit IPC requests return Retry; busy-owner
+retry and an 8.093-second bounded refusal pass. Native/background/magnet/file
+replacement, both OS association paths with spaces/Unicode, twelve simultaneous
+contenders with one owner, warm activation and 35-second no-resurrection pass.
+The collected cgroup unit reports not loaded at stop; production singleton and
+owned guest/controller roots are absent, VM off and claim release verify. This
+qualifies controlled activation/ownership, not inherited pins, content intake or
+browser/store updating. No product or graphics source change occurs.
+
+Independent Git object/mode comparison finds 736 selected desktop/common Rust,
+web, extension, website, distribution, packaging-script and release-workflow
+inputs unchanged from signed source8c to the proposed CI/Android source681.
+The sole Android Rust change is inside its test module; its runtime prefix is
+identical. Android27's task-lifecycle/version changes remain separately scoped.
+This does not prove new binary reproducibility, replace the signed8c identity,
+or turn the failed8c/unperformed681 hosted CI results green.
+
+Final signed desktop identity/signature gates D-01/D-02 now qualify. Native
+Windows ARM verifies the exact installer hashes, accepted publisher and valid
+Microsoft-timestamped Authenticode without login/install; both Mac archives
+pass local ARM-host Gatekeeper policy (no Intel execution). Nine exact signed
+formats pass independent binary/notice integrity/provenance inspection. Existing
+native redistribution/source obligations stay under R-05. Final ARM AppImage
+passes migration/refusal/owned acknowledgement/restoration, but native foreground
+pixels stay unavailable and outer UI is prohibited. Final signed ARM native
+controlled launch/OS associations, spaces/Unicode, 12-way one-owner concurrency
+and stopped-after-Quit checks pass; inherited pins/browser/store and other
+architectures remain open. Every completed session cleans up/off/releases.
+Fresh exact-lock strict dependency review passes on 2026-10-08 with the existing
+seven-warning policy, verified GLib backport and unchanged 2026-10-12 expiry.
+
+Both final AppImage outer runtimes independently match upstream
+`type2-runtime` revision `8f39b89e2ac31e1640b3d3f7e9a5108e6ce805fa` byte for
+byte except each named 16-byte `.digest_md5` payload-digest section. The exact
+upstream asset digests, ELF boundaries and pinned license/build/dependency inputs
+are recorded in 259. This is runtime provenance, not complete corresponding-source
+or redistribution acceptance; static dependency/relink and per-package review
+remain under R-05.
+
+Internal Play26 is delivered and both preserved managed packages update25-to26
+through Play. The populated cohort retains complete/partial bytes and rows,
+settings and durable SAF grant across engine restart. The other cohort retains
+its inherited disclosure unchanged. Owned managed fixture records/files are
+subsequently removed with installation metadata and inherited grant preserved.
+Production remains23. Local Android27
+fixes the real stale Live task after Shutdown and passes original-key packaging,
+122 JVM cases/lint and actual isolated menu shutdown/reopen/hash/SAF/cleanup.
+Code27 upload and revised-source hosted CI are unperformed. Original hosted8c
+CI's Android listener test fails;277's test-only readiness correction and the
+revised local fmt/clippy/1,575 cases pass. Web Store remains1.1.1; its native
+inspection is complete read-only. No production release/feed/site publication
+is performed; unavailable installed cohorts and owner policy remain open.
+
+
+Tactical [271](../tactical/271-manual-production-desktop-publisher.md) prepares
+an explicitly manual Stable JSTorrent publication path. Branch candidates and
+stable tag pushes never publish; manual publication requires the exact stable
+tag, no overrides and candidate mode disabled. Original-root signatures,
+same-source/run/attempt legs and a complete private draft remain gates. The
+production title uses JSTorrent, and all23 core assets/ten signature sidecars
+remain, plus the24th SHA256SUMS support asset. Tag source is rechecked before
+draft creation and publication. Local contract/refusal/shell tests, actionlint
+and historical original-signed capsule assembly pass; this is not final signed
+CI, installed qualification, a public release or updater/site activation.
+
+Tactical [265](../tactical/265-production-website-release-handoff.md) prepares
+sibling `0e935e75`'s disabled production website handoff. Its closed 23-asset
+inventory, original updater root and curated immutable links pass 22 guards,
+focused TypeScript and phone/wide actual/controlled views. Enabled links use
+actual DMGs/direct Linux packages and cannot be replaced by legacy discovery.
+Source/CI pointers follow the selected implementation; support recipients remain.
+The real descriptor stays disabled/null. Final signed qualification, final production
+publisher CI and public deployment remain separate gates; no external state changes.
+
+Tactical [264](../tactical/264-hosted-website-dependency-qualification.md)
+qualifies sibling hosted website commit `56dc2299` locally. Frozen Astro 7.3.6
+build, eight hosted security/four migration cases, client typecheck/112 cases
+and 18 responsive captures pass. Actual `/app` logo/phone header defects are
+fixed. Version-scoped website advisories are zero; inherited module links,
+other workspace importers and unrelated findings remain intact. Static-image
+cache source-behavior limits remain explicit. No public deployment occurs.
+
+Tactical [263](../tactical/263-finish-line-web-dependency-patches.md) updates
+compatible web/website transitive dependencies after fresh npm advisories.
+Web type/unit/build/CSP, 46 configured E2E cases (14 existing skips), 54 extension
+cases, both byte-identical ZIP lanes and website static build pass. Fresh Cargo,
+web and website reports pass strict release review with unchanged warning policy
+and verified GLib provenance. Desktop notice generation passes. The cache
+library's upstream max-stale behavior still reproduces in 4.3.0 despite registry
+range clearance; exact Astro static-image call-path assessment and limits remain
+explicit. Final signed desktop rebuilding/publication gates remain open.
+
+
+Finish-line Tactical [259](../tactical/259-jstorrent-finish-line-checks.md)
+owns the current source/artifact and installed gate execution, excluding iOS.
+The `a35934d2` desktop capsule independently verifies 23 hashes, 15 updater
+selections and ten original-root signatures; all five packaging legs pass.
+Signed macOS ARM, Linux ARM and Linux x64 manual migration pass eight assertions;
+current Linux x64 pixels render, while ARM black captures and the old x64 blank
+window retain visual gaps. Tactical 261's exact fixed source passes 73 native
+Linux tests and GNOME tray-name observation; final signed packages need a rebuild.
+Original-key Android 1.0.26/code 26 is rebuilt at `37673687f15235840f3ac47ab044f2cd3e2f2445`
+after Tactical 262's actual Network-status branding correction
+with 121 passing JVM tests, lint and independent package validation. Fixed-source
+physical B passes a full-hash 600-second detached background check. Full background
+hours and broader physical/store gates remain open. Latest local checks pass
+branding (2,036 display values / 40 assets), localization, extension tests/CSP/ZIP,
+shared-web typecheck / 470 tests (two skipped), 46 browser E2E tests (14 skipped),
+and website check/build. These use bundled Chromium and reap owned processes.
+Authenticated Play remains production 23/internal 25/max uploaded 25. Explicit
+internal upload and source push/nonpublishing candidate-build decisions are
+pending. The prepared push also deploys the preview website update guide through
+its existing workflow; production feeds/stores remain unchanged. No publication
+has occurred. Native Windows x64 reaches its protected login route, but its stored
+password fails verification; no product test starts. The guest is stopped and
+claim released. Owned VMs remain off between ready checks.
+
+Tactical [257](../tactical/257-play-upgrade-and-fresh-signed-candidates.md)
+completes bounded current-source qualification at f5860c99: all ten executed
+CI jobs and Website, signed JSTorrent desktop 0.3.0 on all five targets, all ten
+original-root updater payload signatures and 23 independently matched receipt
+hashes. Android 1.0.26/code 26 passes original upload signing and full package
+validation, including the resolved JSTorrent label. The tactical links exact
+receipts and a bounded actual Play 1.0.23-to-1.0.25 standalone migration.
+Code 26 is not Play-uploaded or installed through Play; internal code 25 and
+production code 23 remain. Fresh installed desktop, production extension,
+broader SAF/lifecycle and product/soak gates stay open in the
+[cutover checklist](../jstorrent-cutover-checklist.md).
+
+Tactical [255](../tactical/255-android-play-internal-replacement.md) completes
+the authorized Android internal Play release on 2026-10-04. The original upload
+key matches Play and the retained public certificate; the existing CI inputs
+are corrected. Local source `42a11817` produces validated 1.0.25/code 25 APK/AAB
+with both ABIs, 116 passing release JVM tests and passing lint. Play reports the
+replacement **Available to internal testers** on the existing `com.jstorrent.app`
+property. Production remains 1.0.23. This supersedes the Android signing blocker
+in the historical 251 account below; broader Play-installed cohorts and production cutover remain open. See the [artifact and publication receipt](../evidence/android-play-internal-255.json).
+
+Tactical [254](../tactical/254-ci-candidate-and-pages-validation.md) repairs
+the latest CI candidate-identity check for the isolated ChromeOS qualification
+override and Pages assembly for the hashed JSTorrent PNG. All 63 affected
+release/assembly tests, actual remote/website builds and local assembly pass
+under Node 22.23.3. Debug isolation, production trust and immutable-asset guards
+remain enforced. Hosted runs `36941113343`/`36941112964` remain failed until
+new changes are pushed and rerun; no deployment or release gate is closed.
+
+Tactical
+[253](../tactical/253-chromeos-onboarding-recovery-and-physical-qualification.md)
+adds host-built isolated Android/extension artifacts and a native x86_64 Ubuntu
+22.04 Crostini package. The exact unsigned package resolves dependencies and
+passes controlled runtime byte/restart checks in cohort A's Debian 12
+container. Android candidate-page pairing/recovery and byte-checked file intake
+pass bounded slices. Both hosts finish controlled 60-minute byte-verified
+observations and three recovery repetitions; owned test state is restored.
+Normal Terminal startup restores Linux registration; the final offline connection
+page and isolated current-package browser pass real file-picker intake and
+source-offline completed-row/byte retention after VM restart. Current signed
+installation/candidate Launcher, real fresh Play installation, store pairs,
+cohort B and full lifecycle acceptance remain open. Native ARM64 retains its
+separate release build lane. Nothing is published and no desktop cutover gate
+is closed.
+
+Tactical [251](../tactical/251-jstorrent-ci-candidates-and-installed-update.md)
+completes bounded production-identity CI attempts using existing signing inputs,
+with nonce identity proof, exact product receipts and retained-public-root
+signature verification. Automatic incubation publication is paused; candidate
+builds cannot publish. The successor update-service descriptor is prepared but
+its live routing/feed is unchanged. Signed installed updating remains unqualified
+until the exact candidate authenticates and an owned old-release guest passes.
+
+Initial CI updater inputs are positively identified as the incubation key,
+not JSTorrent's original key. Package attempts retain diagnostic evidence,
+but cannot qualify old-app updating. The owned macOS 0.2.1 endpoint check
+passes; production delivery rows remain open.
+The Android retry passes signed APK/AAB construction, JVM tests and release lint,
+then rejects the wrong original-APK certificate at staging. The first macOS
+arm64 CI app independently passes original-team Developer ID signing,
+notarization/stapling and Gatekeeper. Its updater signature is still wrong-root;
+the manual installed handoff does not reach import before UI access ends.
+Both Linux production package lanes pass the repaired source. Fresh macOS
+notarization initially fails Apple's missing/expired agreement gate; the fresh
+recheck below passes. Ordinary CI passes every executed job at 19eb3a88.
+The Windows release lane also passes NSIS/MSI, expected-publisher and installed
+signatures, silent installation and activation checks. Mac failures correctly
+prevent complete collection; no production update or release is qualified.
+The maintainer-supplied original key subsequently replaces the existing desktop
+secret. Fresh nonce proof passes original-root verification with the unchanged
+password. Run 36831643488 completes Windows/Linux package lanes and independent
+verification passes all eight available original-key payload signatures and
+16 receipt hashes. Attempt 1 fails Apple's agreement gate; complete-matrix
+and installed gates remain open.
+
+Fresh attempt 2 of run 36831643488 now passes both macOS jobs: Apple accepts
+both apps and outer DMGs, with no DMG issues; signing, stapling and Gatekeeper
+checks pass. The agreement error is no longer blocking CI. The collector refuses
+the failed-only retry because it has only two current-attempt legs. Fresh complete
+non-publishing run [36845370571](https://github.com/kzahel/rstorrent/actions/runs/36845370571) now passes at the same
+source SHA: all five lanes, exact release collection and all ten original-root
+updater payload signatures. See [Apple recheck evidence](../evidence/jstorrent-ci-candidate-251-apple-recheck.json). Complete candidate collection passes;
+installed migration remains open. No production feed/store change is made.
+
+Accepted
+[252](../tactical/252-jstorrent-opt-in-upgrade-rehearsal.md) records a pinned,
+opt-in installed trial.
+
+Server commit `f45885c` implements the opt-in route and passes 86 tests plus
+lint/typecheck/build. The maintainer authorizes its push and isolated deployment.
+Twenty-seven live HTTPS checks preserve ordinary response bytes while selecting
+the pinned candidate only for three generated test IDs. After qualification,
+the private manifest/drop-in and owned assets are removed; 24 live HTTPS
+response comparisons and five asset GET refusals prove normal routing restored. Exact signed CI packages
+pass manual installed replacement on Linux x64, Windows x64 and macOS arm64:
+four records from two profiles, supported settings, rechecking, startup fences,
+registered legacy refusal, stable restart and source/payload preservation. See
+[manual evidence](../evidence/jstorrent-upgrade-trial-252-manual-migration.json).
+Original released HTTPS automatic upgrading passes on Linux x64 and macOS
+arm64, including the migration/restart checks; Linux signature refusal and
+interrupted-download retries also pass. macOS signature refusal preserves the
+old executable hash and valid retry passes. macOS ordinary Check for Updates /
+Install & Restart passes with the active legacy writer accounted for. See
+[installed evidence](../evidence/jstorrent-upgrade-trial-252-installed.json).
+Windows x64 automatic updating now passes the same installed migration/restart
+oracles and eight registry refusal routes, with file/registry/firewall restoration.
+Windows ordinary Check for Updates / Install & Restart also passes; a portable
+source-snapshot path fix preserves the inactive-profile guard on Windows.
+Expected-publisher Authenticode and original-path uninstaller continuity pass.
+Windows signature refusal and interrupted-download retries also pass with the
+exact old executable preserved. The one-ID trial is disabled; final ordinary
+responses match, assets return 404 and the restored VM is off with claim released. The old Linux release
+renders blank in this VM under three tested configurations, leaving its ordinary
+UI path open. Controlled repair and real extension journeys remain open. Native catalog branding is corrected after
+the candidate source and needs a fresh signed build.
+
+The October 1 monthly rebuild of the unchanged upstream AppImage output plugin
+invalidated its byte pins. Tactical 251 reviews the source/build provenance and
+updates both architecture digests; hash refusal and final attribution checks
+remain enforced. Both hosted native package lanes pass the repaired source.
+
+## JSTorrent Production Candidates, 2026-10-01
+
+Tactical [250](../tactical/250-jstorrent-production-identity-candidates.md)
+prepares explicit JSTorrent desktop and extension candidate lanes while retaining
+the incubation configurations. Android release now targets the existing
+`com.jstorrent.app` app, code 25, and requires original-key secrets under
+the existing `ANDROID_UPLOAD_*` names after Tactical 251's one-product
+simplification; the separate canary certificate is retained only
+as historical evidence. Earlier canary setup/publication records below do not
+qualify this new production lane. No private secret provisioning or release
+operation has run. [The cutover checklist](../jstorrent-cutover-checklist.md)
+owns production graduation and installed delivery evidence.
+
+Tactical [240](../tactical/240-signed-desktop-control-qualification.md) completes
+signed current-source delivery with [Latest 0.2.801](../evidence/desktop-latest-v0.2.801.md).
+Exact-source CI, five signed package lanes, public signatures/checksums and both
+macOS notarized/stapled DMGs pass. Claimed macOS arm64 and Windows/Linux x64
+installations pass native 701-to-801 updating, signed/registered helper checks,
+background control, shared views, fresh browser-closed verified transfers,
+picker cleanup, explicit/passive relaunch and bounded registration repair.
+The Mac also installs the exact public DMG and recreates its bundled host.
+Physical sleep/wake, interrupted updates, broader endurance, Intel/minimum-macOS
+installed coverage and production graduation remain open. No importer has started.
+
+Preflight corrects stale package/cancellation harness expectations, the macOS
+CFT discovery path and the transitive Undici advisory. Fresh release audits and
+exact-source main CI pass without changing the reviewed GLib warning policy.
+Independent 701 testing finds the app notarized but its outer DMG only signed;
+801 adds explicit DMG notarization, stapling and Gatekeeper open assessment
+before final artifact hashes. Historical notarization evidence below concerns
+the app bundle unless explicitly stated otherwise. Published assets remain
+immutable; Stable, product identities and signing/update keys are unchanged.
+
+Tactical [238](../tactical/238-signed-desktop-channel-recovery.md) now passes
+installed signed 0.2.301 → 0.2.501 selection/replacement/relaunch on macOS arm64
+and Windows/Linux x86_64. Native Stable selection retains Latest and reports
+waiting for Stable to catch up; controlled roots and external sentinel bytes survive.
+Linux passes on the explicitly recreated guest with verified registry-located
+credentials. The selected published source predates desktop extension control,
+so that tactical does not qualify current-source delivery; 240 supplies that
+evidence. Interrupted replacement remains unqualified. 237 separately completes
+selected macOS/Windows beta package repair/rollback, with exact inherited-state
+cleanup.
+
+Tactical [`237`](../tactical/237-macos-windows-package-recovery.md) updates
+release source guards for the platform singleton factory and macOS Opened
+handoff introduced by 234/235. All 21 release/package/input tests and checked
+source validation pass; ordering, missing singleton and dropped OS-input
+negative fixtures remain enforced. Installed package/update evidence is tracked
+separately in that tactical.
 
 Desktop channel publication checkpoint (2026-09-27): Tactical
 [`230`](../tactical/230-desktop-stable-latest-update-channels.md) adds a
@@ -12,10 +996,10 @@ channels. The first signed Latest prerelease
 exact-source main CI, source/build/finalizer gates, and all five production
 updater routes. The parallel release pipeline then published
 [`desktop-latest-v0.2.401`](../evidence/desktop-parallel-release-2026-09-27.md)
-after five overlapping signed builds and one collector. Latest now resolves
-`0.2.401`; Stable remains `0.1.4` for
-explicit and old channel-less requests. Installed old-to-new selection,
-replacement/relaunch, and return-to-Stable behavior remain open.
+after five overlapping signed builds and one collector. At that checkpoint Latest resolved
+`0.2.401`; Stable remained `0.1.4` for explicit and old channel-less requests.
+238 records the September 29 live 0.2.501 offer and macOS/Windows/Linux
+installed selection, replacement/relaunch and return-to-Stable evidence.
 
 Maintenance checkpoint (2026-09-26): Tactical
 [`219`](../tactical/219-dependency-and-ci-maintenance.md) repairs the newly
@@ -114,7 +1098,7 @@ explicit release findings, not a zero-issues claim from the audit exit code.
 
 Current checkpoint (2026-09-26): public signed desktop `0.1.4` passed its
 source, five package, and publication jobs. All five production routes offer
-signed `0.1.4` metadata to `0.1.1` clients. Native Windows 11 x86_64
+signed `0.1.4` metadata to `0.1.1` apps. Native Windows 11 x86_64
 fresh-default `0.1.1` NSIS updated through the app's production route,
 automatically reset and relaunched into exact build `691143b6db1c`, retained
 expected Authenticode trust, and left an unrelated pre-update Documents
@@ -275,7 +1259,7 @@ extension-control Tactical
 [`194`](../tactical/194-chromeos-android-extension-control.md) alongside
 Tactical `158`. It is the first migration-critical JSTorrent Android parity
 slice: Android retains the only Rust engine/profile owner and the extension is
-a detachable shared React presentation. It includes Android's
+a detachable shared React client. It includes Android's
 extension-triggered SAF picker and retained-root semantics so changing the
 current root for new downloads does not discard grants used by older torrents.
 It does not authorize store publication or turn other missing Android features
@@ -330,9 +1314,9 @@ Store review, and mobile beta is not implied by a desktop tag:
 
 | Lane | Intended beta channel | Current release state |
 | --- | --- | --- |
-| macOS desktop | signed/notarized DMG plus in-app updates | public `0.1.2` Developer ID-signed, notarized, and stapled app/DMG packages pass for arm64 and x86_64; its exact public arm64 DMG launches and repairs native-host registration in a bounded spot check; an exact `0.1.0`-to-`0.1.1` replacement/relaunch also passes; Intel installed testing is deliberately omitted |
-| Windows desktop | signed per-user NSIS plus in-app updates | public `0.1.2` NSIS and MSI packages contain the completed desktop repairs and have valid expected-publisher Authenticode signatures plus installed activation-registry validation; public per-user NSIS replacement/relaunch passes only for `0.1.0`-to-`0.1.1` under an automatic-loopback profile, while the repaired clean-profile update remains open |
-| Linux desktop | AppImage plus in-app updates; DEB/RPM remain package-manager channels | public `0.1.2` AppImage, DEB, and RPM packages plus updater artifacts pass for x86_64 and arm64, including extracted activation metadata; exact arm64 AppImage `0.1.0`-to-`0.1.1` replacement/relaunch and the current installed lifecycle/icon campaign pass, while x86_64 installed evidence remains absent |
+| macOS desktop | signed/notarized DMG plus in-app updates | public `0.1.2` Developer ID-signed, notarized, and stapled app/DMG packages pass for arm64 and x86_64; its exact public arm64 DMG launches and repairs native-host registration in a bounded spot check; exact arm64 `0.1.0`-to-`0.1.1` replacement/relaunch and 238's fresh-profile signed `0.2.301`-to-`0.2.501` update/Stable catch-up pass; Intel installed testing remains omitted |
+| Windows desktop | signed per-user NSIS plus in-app updates | public `0.1.2` NSIS and MSI packages contain the completed desktop repairs and have valid expected-publisher Authenticode signatures plus installed activation-registry validation; public per-user NSIS `0.1.0`-to-`0.1.1` replacement/relaunch passes under an automatic-loopback profile; 238 additionally passes fresh-profile signed x86_64 `0.2.301`-to-`0.2.501` updating and Stable catch-up |
+| Linux desktop | AppImage plus in-app updates; DEB/RPM remain package-manager channels | public `0.1.2` AppImage, DEB, and RPM packages plus updater artifacts pass for x86_64 and arm64, including extracted activation metadata; exact arm64 AppImage `0.1.0`-to-`0.1.1` replacement/relaunch and the installed lifecycle/icon campaign pass; 238 adds fresh-profile signed x86_64 `0.2.301`-to-`0.2.501` update/relaunch and Stable catch-up |
 | Linux headless | signed non-latest `headless-v*` GitHub Release plus pinned website bootstrap and explicit CLI apply | strict native x86_64/ARM64 workflow, signed manifest/bootstrap/check/apply source gates, and an exact enabled x86_64 trusted-LAN install pass; no public candidate or stable manifest is promoted, and native ARM64 install/update evidence is absent |
 | Android, including ChromeOS | signed Android App Bundle through a closed testing channel | maintained Compose/in-process Rust/SAF app and hosted dual-ABI debug/test APK gates pass; release identity, signed AAB, emulator/store, and upgrade evidence absent |
 | ChromeOS Linux | signed non-latest `crostini-v*` GitHub Release selected by the pinned website bootstrap | public `crostini-v0.1.0`, the deployed pinned bootstrap, production-key manifest, native x86_64/ARM64 packages, independent exact-asset validation, and physical x86_64 website install/Launcher/relaunch pass; physical native ARM64, full reboot, suspend, and installed update/rollback evidence remain absent |
@@ -359,13 +1343,14 @@ workflow may create a draft release, but only a final validation job may make
 it public. Tags, publication, store submission, and production-route changes
 remain explicit maintainer actions.
 
-Every `0.1.x` package and current platform preview may reset or replace
-application-owned state rather than migrate it. Current application
-identifiers, updater keys, and routes are operational values, not a promise
-that an older incubation installation remains supported. Recognized obsolete
-state may use a bounded documented reset; malformed, ambiguous, busy, or future
-state fails closed. Reset never includes user-selected payload roots or
-published content and never converts old records into verified authority.
+Tactical [345](../tactical/345-supported-catalog-migrations.md) (2026-10-14)
+ends automatic resets: shipped application state is migrated forward, never
+reset or replaced, and only the user's Clear app data discards it. Schema 26,
+shipped by every public release, is the supported session-catalog baseline;
+pre-baseline incubation catalogs and future, malformed, ambiguous or busy state
+fail closed unchanged. Current application identifiers, updater keys, and
+routes remain operational values, not a promise that an older incubation
+installation remains supported.
 
 The first version explicitly declared the supported beta or release freezes
 its fresh application identifiers, updater trust, route, and persistence/API
@@ -385,13 +1370,13 @@ compatibility and rollback policy declared with that baseline.
   the general later goal: graduate the proven implementation through a normal
   JSTorrent update retaining JSTorrent branding, `com.jstorrent.desktop`, and
   its existing updater trust root. Exact timing and best-effort state migration
-  are later scope; released RSTorrent routes and clients do not silently change
+  are later scope; released RSTorrent routes and apps do not silently change
   identity.
 - [ ] **REL-002 — Freeze application identifiers.** Desktop currently uses
   the accepted operational `com.jstorrent.rstorrent`, and release validation
   rejects accidental drift.
   Android still uses the unreleased `org.rstorrent.bootstrap`, and iOS uses
-  `org.rstorrent.ios.dev`. Incubation clients do not inherit an existing
+  `org.rstorrent.ios.dev`. Incubation apps do not inherit an existing
   JSTorrent application/store identity, and no `0.1.x` value constrains the
   future supported release. The shared gate remains open for those mobile
   lanes and for explicit reconfirmation at each lane's support boundary.
@@ -402,14 +1387,13 @@ compatibility and rollback policy declared with that baseline.
 - [x] **REL-004 — Add a changelog and release-note policy.** `CHANGELOG.md` and
   the desktop release runbook require supported behavior, known limitations,
   data reset/migration, and security/privacy changes for each release.
-- [ ] **REL-005 — Declare the first supported persistence baseline.** Choose
-  the first explicitly supported version and freeze only its fresh database
-  and application-owned formats. No `0.1.x` migration is required. Exercise
-  fresh creation, recognized-incubation reset, interrupted reset,
-  corrupt/ambiguous/busy/future state, root loss, payload preservation, and the
-  forward/rollback policy that begins with that release. The concrete
-  [candidate inventory and matrix](../release-baseline.md) are prepared; no
-  version or schema has been selected or frozen.
+- [ ] **REL-005 — Declare the first supported persistence baseline.**
+  Session catalog: done by Tactical 345, which declares schema 26 the
+  supported baseline, removes automatic reset, adds the forward migration
+  runner and released-catalog fixtures, and leaves downgrade unsupported.
+  Remaining: the other application-owned formats in the
+  [candidate inventory](../release-baseline.md) and the audit follow-ups
+  recorded in Tactical 345.
 - [ ] **REL-006 — Define support, privacy, and legal presentation.** Ship
   license/notices, a privacy statement for network behavior and any update
   installation ID, support/report instructions, and a safe diagnostics export
@@ -428,6 +1412,33 @@ compatibility and rollback policy declared with that baseline.
   and verify the live recipient pages before inviting outside testers.
 
 ### CI and repository health
+
+Tactical [304](../tactical/304-fast-pr-feedback-and-ci-benchmarks.md) separates
+early PR feedback from full qualification using only standard free hosted
+runners. `Fast CI` lints affected portable crates and dependents, tests changed
+libraries, restores the ordinary CI cache, and exposes **Fast PR feedback**
+check. Its successful PR runs can trigger the isolated agent reviewer before
+full CI finishes; failed/cancelled fast runs cannot. The 3--5 minute warm-run
+duration remains a target: the initial broad, cache-miss hosted qualification
+passes in 14m02s, and the parallel-contract layout passes in 14m23s. The contract
+now runs alongside unit execution; compiler variation offsets that scheduling
+saving in this pair. PR 26 subsequently passes full qualification and merges.
+The first focused warm-dependency probe passes 603 engine tests with a 4m01s
+Rust job, but takes 9m34s overall, including 4m55s waiting for its Rust runner.
+The disposable probe's full matrix is cancelled to isolate build latency; this
+does not establish ordinary 3--5 minute end-to-end feedback. Automatic review
+is enabled and its first exact-head Fast CI trigger publishes a successful
+review, including offline focused Rust tests, in 6m03s. Trusted-main reviewer
+cache warming compiles locked workspace tests in 23m05s and saves a 2.25 GB
+cache. The focused repeat passes Fast CI in 4m00s with another dependency-cache
+hit and 603 passing tests. Its redundant full/performance runs are cancelled
+early; the initial queueing result remains relevant to ordinary concurrency.
+The second automatic review restores the reviewer cache in 37s and publishes
+against the exact repeat head in 7m21s; this verifies reuse without demonstrating
+a review-duration improvement. Existing
+qualification jobs, platform evidence, release gates and branch-protection
+policy are preserved. Queue contention and reviewer format/lint tooling are
+bounded follow-ups recorded in the owning topics.
 
 Tactical [`211`](../tactical/211-presubmit-signal-and-build-measurements.md)
 repairs the companion FormatJS diagnostic-link rejection and two test-owned
@@ -813,7 +1824,7 @@ operation; [`android-jstorrent-replacement.md`](android-jstorrent-replacement.md
 owns its package/state handoff, production-extension rollout, and explicit
 disposition of current JSTorrent Android features.
 
-- [x] **AND-001 — Maintain a real first-party product client.** Compose,
+- [x] **AND-001 — Maintain a real first-party product.** Compose,
   in-process Rust, foreground-service lifecycle, SAF storage, generated UniFFI
   contract, dual ABI packaging, AVD, ChromeOS, and physical Android evidence
   exist. Tactical `157` graduates the complete module from `experiments/` to
@@ -847,7 +1858,7 @@ disposition of current JSTorrent Android features.
   device proves persistence, acquisition through screen-off Dozing, absence of
   a Wi-Fi lock, service-stop release, and exact data/root cleanup.
 - [x] **AND-008 — Qualify ChromeOS Android extension control.** Tactical `194`
-  carries the release-built shared React presentation through explicit
+  carries the release-built shared React client through explicit
   Android-approved pairing to the one foreground-service application/engine/
   profile owner. Physical ChromeOS 150 now passes pairing, identity, packaged
   React control, Compose convergence, extension-triggered retained SAF roots,
@@ -916,7 +1927,7 @@ disposition of current JSTorrent Android features.
 
 ## iOS/iPadOS Beta Checklist
 
-- [x] **IOS-001 — Maintain a real first-party product client.** SwiftUI,
+- [x] **IOS-001 — Maintain a real first-party product.** SwiftUI,
   in-process Rust/UniFFI, app Documents and qualified selected roots,
   simulator/physical lifecycle evidence, system preview, and reproducible
   unsigned/development archives exist.
@@ -967,7 +1978,7 @@ These useful gaps are **not automatic beta blockers** when disclosed:
   priorities, ratio/time seed goals, and durable transfer totals;
 - production remote access, relay, third-party pairing, and migration from
   legacy JSTorrent. Extension control remains required only for the explicitly
-  advertised ChromeOS Android companion-presentation lane under `AND-008`;
+  advertised ChromeOS Android companion-client lane under `AND-008`;
 - VPN-only, proxy, interface-specific, and broader power policy. Android
   metered-network safety is separately promoted to `AND-010`;
 - local service discovery (BEP 14), HTTP web seeds (BEP 17/19), tracker scrape
@@ -1064,7 +2075,7 @@ concurrently when directed, without demoting other active work.
    engine evidence but no longer displaces the explicit beta-readiness
    campaign.
 15. **Complete — Tactical `167`: ChromeOS Crostini bundled web launcher.** The
-    bundled Rust backend and React UI, static user service, registered Linux
+    bundled Rust host and React UI, static user service, registered Linux
     Launcher, and exact beta-extension handoff pass source gates and the
     available warm, twice-stopped-VM, detachable-transfer, preservation, and
     purge matrix on the physical Chromebook. The conditional full reboot was
@@ -1132,3 +2143,56 @@ into a version-specific release candidate record with the exact commit,
 versions, artifacts, checksums, CI runs, installed/update evidence, known
 issues, and final publication decision. This living topic remains the backlog;
 it is not itself a release attestation.
+
+
+## Qualified production desktop activation, 2026-10-10
+
+Shipment295 publishes exact signedff632 desktop0.3.0 with independently
+verified corresponding sources. All17 actual public downloads pass whole-file
+hashes. Exact candidate Linux x64 updater and Mac ARM manual populated
+replacement/reopen checks pass, with state restoration and VMs off/released.
+Websitee0cb8a3c deploy38059186510 and actual phone/wide public links pass.
+Server46b3b35 activates production0.3.0 with11 exact URL/signature selectors,
+current/newer204, empty production Latest204 and unchanged preview hashes.
+Original updater roots are retained. Separate079–083 own ignored receipts.
+
+Renewed Web Store sign-in confirms extension 1.1.3 still Pending review.
+Play approves all 92 changes and publishes Android 28 at 5% on October 10 at
+16:51 UTC, with managed publishing still on. Separate088 records actual
+approval and production rollout; production-channel installed canaries and the
+24-hour observation remain open. The earliest observation end is October 11
+at 16:51 UTC; unavailable Console metrics do not establish no failures.
+The stated first-release default preserves ARM64/x86_64/API28+;
+affected older devices retain their previous app. Exact managed28 detached hour,
+hidden whole hash and independent three-reopen continuation pass under074.
+The original text-only Pause harness failure and brief peer gap remain recorded.
+Managed28 source-absent foreground upload passes under087 with original
+listener setting, installed identity/grants and scoped cleanup. All VMs are off
+and both Chromebook inventories empty under086. Dependency alerts retain the
+existing source-verified GLib remediation and production rustls0.23.45; the
+unreleased iOS probe remains outside release scope. Shipment295's bounded
+stopping condition is complete; actual store delivery/soak continues under297.
+
+Saved privacy/access/optional feedback Diagnostics and actual signed listing
+assets are included under078/084. All29 text localizations are audited; Hindi
+name retains JSTorrent spelling. Actual 5% publication is recorded under088;
+production-channel installed delivery, 24-hour observation, physical Intel and
+unrun reboot/sleep/background-upload gates remain unqualified.
+
+## Compatible unattended channels (377)
+
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md)
+adds authenticated per-release database compatibility to the existing
+Stable/Latest choice. New public JSTorrent builds use one numeric version
+train across both channels; equal-version promotion does not reinstall.
+Stable selection saves the preference immediately and waits for a newer
+compatible offer. Native admission authenticates the metadata, binds it to
+the exact product/version/platform/payload, and checks all existing stores
+before download and again before shutdown. Missing metadata fails closed.
+The production code supports both channels only when the service explicitly
+permits that native target; Stable permission remains false during qualification.
+Latest is the first rollout lane. Promotion preserves tested native/source
+bytes and checks its predecessor and source/digests again before publication.
+The frozen incubation lane stays frozen. The shared service extension is
+deployed with unchanged ordinary Stable bodies; public publication retains the
+strict-companion hold, and private signed VM qualification remains in progress.

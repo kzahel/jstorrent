@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# RSTorrent Headless verified per-user installer.
+# JSTorrent Headless verified per-user installer.
 # Usage: curl -fsSL https://rstorrent.com/install-headless.sh | bash
 
 PINNED_TAG="headless-v0.1.0"
-REPOSITORY="kzahel/rstorrent"
+REPOSITORY="kzahel/jstorrent"
+# Immutable signed v1 identity is retained across the GitHub rename.
+MANIFEST_REPOSITORY="kzahel/rstorrent"
 MANIFEST_NAME="rstorrent-headless-release.manifest"
 SIGNATURE_NAME="rstorrent-headless-release.manifest.minisig"
 INSTALL_PROTOCOL_VERSION="1"
@@ -124,7 +126,7 @@ signature_asset'
     signature_asset=$(manifest_value signature_asset "$manifest") || return 1
     if [[ ! "$RELEASE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] ||
        [ "$RELEASE_TAG" != "headless-v${RELEASE_VERSION}" ] ||
-       [ "$RELEASE_REPOSITORY" != "$REPOSITORY" ] ||
+       [ "$RELEASE_REPOSITORY" != "$MANIFEST_REPOSITORY" ] ||
        [[ ! "$source_commit" =~ ^[0-9a-f]{40}$ ]] ||
        [ "$install_protocol" != "$INSTALL_PROTOCOL_VERSION" ] ||
        [ "$runtime" != "$RUNTIME" ] ||
@@ -290,7 +292,7 @@ installer_main() (
     if [ -n "$requested_version" ] && [ "$RELEASE_VERSION" != "$requested_version" ]; then
         error "Requested ${requested_version}, but the signed manifest is ${RELEASE_VERSION}."; return 1
     fi
-    info "Verified signed RSTorrent Headless ${RELEASE_VERSION} manifest."
+    info "Verified signed JSTorrent Headless ${RELEASE_VERSION} manifest."
     local installed_binary="${HOME}/.local/bin/rstorrent-headless"
     if [ -x "$installed_binary" ]; then
         local installed_output installed_version
@@ -306,7 +308,7 @@ installer_main() (
         fi
     fi
     local asset="$temp_dir/$RELEASE_ASSET"
-    local asset_url="https://github.com/${RELEASE_REPOSITORY}/releases/download/${RELEASE_TAG}/${RELEASE_ASSET}"
+    local asset_url="https://github.com/${REPOSITORY}/releases/download/${RELEASE_TAG}/${RELEASE_ASSET}"
     info "Downloading ${RELEASE_ASSET}..."
     download_release_asset "$asset_url" "$asset" "$RELEASE_SIZE" || return 1
     verify_release_asset "$asset" "$RELEASE_SIZE" "$RELEASE_SHA256" || return 1
@@ -318,10 +320,10 @@ installer_main() (
     validate_extracted_bundle "$bundle" "$RELEASE_VERSION" "$ARCH" || return 1
     "$bundle/install.sh" || return 1
     if [ "$("$installed_binary" --version)" != "rstorrent-headless ${RELEASE_VERSION}" ]; then
-        error "Installed RSTorrent Headless version does not match the signed release."; return 1
+        error "Installed JSTorrent Headless version does not match the signed release."; return 1
     fi
     printf '\n'
-    info "RSTorrent Headless ${RELEASE_VERSION} is installed."
+    info "JSTorrent Headless ${RELEASE_VERSION} is installed."
     printf '%s\n' "Follow the printed configuration and systemd user-service steps."
     printf '%s\n' "Updates always require: rstorrent-headless update --apply"
 )

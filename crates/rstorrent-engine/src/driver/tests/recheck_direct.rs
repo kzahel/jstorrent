@@ -1398,6 +1398,186 @@ async fn accepted_connection_uploads_and_downloads_before_torrent_completion() {
         .expect("remove incoming duplex fixture");
 }
 
+/// Handshakes as an accepted peer, then announces pieces at a steady pace
+/// that stays within the per-read message bound. Every Have becomes one
+/// forwarded content event for the active download.
+async fn announce_incoming_haves(
+    address: SocketAddr,
+    info_hash: [u8; 20],
+    piece_count: u32,
+    sent: Arc<AtomicUsize>,
+) {
+    let mut stream = TcpStream::connect(address)
+        .await
+        .expect("connect announcing peer");
+    stream
+        .write_all(&encode_handshake(info_hash, [73; 20]))
+        .await
+        .expect("send announcing handshake");
+    let mut handshake = [0; HANDSHAKE_LENGTH];
+    stream
+        .read_exact(&mut handshake)
+        .await
+        .expect("read announcing handshake");
+    decode_handshake(&handshake, info_hash).expect("valid announcing handshake");
+    let (mut reader, mut writer) = stream.into_split();
+    let drain = tokio::spawn(async move {
+        let mut sink = vec![0; 64 * 1024];
+        while matches!(reader.read(&mut sink).await, Ok(read) if read > 0) {}
+    });
+    let mut index = 0_u32;
+    loop {
+        let mut batch = Vec::new();
+        for _ in 0..32 {
+            batch.extend_from_slice(&[0, 0, 0, 5, 4]);
+            batch.extend_from_slice(&index.to_be_bytes());
+            index = (index + 1) % piece_count;
+        }
+        if writer.write_all(&batch).await.is_err() {
+            break;
+        }
+        sent.fetch_add(32, Ordering::Relaxed);
+        sleep(Duration::from_millis(2)).await;
+    }
+    drain.abort();
+}
+
+#[tokio::test]
+async fn cancelling_backpressured_download_does_not_wait_on_incoming_peer() {
+    const PIECES: usize = 32;
+    let payload = (0..(PIECES * MIN_PAYLOAD_ALLOWANCE))
+        .map(|index| ((index * 53 + index / 31) & 0xff) as u8)
+        .collect::<Vec<_>>();
+    let raw_info = single_file_info_with_piece_length(&payload, MIN_PAYLOAD_ALLOWANCE);
+    let metainfo = Metainfo::from_info_bytes(&raw_info).expect("announcing peer metainfo");
+    let pieces = Arc::new(
+        payload
+            .chunks(MIN_PAYLOAD_ALLOWANCE)
+            .map(<[u8]>::to_vec)
+            .collect::<Vec<_>>(),
+    );
+    let root = test_path("incoming-backpressure-cancel");
+    tokio::fs::create_dir(&root)
+        .await
+        .expect("create announcing peer storage root");
+
+    let source_listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind content source");
+    let source_address = source_listener
+        .local_addr()
+        .expect("content source address");
+    let source_task = tokio::spawn(serve_content_peer_with_timeout(
+        source_listener,
+        metainfo.info_hash,
+        pieces,
+        vec![true; PIECES],
+        Duration::from_secs(30),
+    ));
+
+    let peer_budget = PeerBudget::system_default();
+    let mse_dh = crate::MseDhWorkOwner::new();
+    let service = IncomingPeerService::bind(
+        IncomingPeerServiceConfig::new(IncomingTcpBootstrap::AutomaticLoopback)
+            .with_peer_budget(peer_budget.clone())
+            .with_mse_dh(mse_dh.clone()),
+    )
+    .await
+    .expect("bind announcing incoming service")
+    .expect("announcing incoming service enabled");
+    let control = DownloadControl::new();
+    control.set_incoming_peer_handle(service.handle());
+    // Slow writes hold the storage pipeline backpressured, which stops the
+    // driver from polling inbound content events, as on a slow SAF provider.
+    control.set_storage_write_delay(Duration::from_millis(400));
+    let torrent_peers =
+        TorrentPeerHandle::new(Arc::new(control.clone())).expect("announcing torrent peers");
+    let checkpoints = Arc::new(RecordingCheckpointSink::default());
+    let download_task = tokio::spawn(resume_magnet_with_control(
+        ResumableMagnetDownloadConfig {
+            identity: test_identity(metainfo.info_hash),
+            magnet: format!(
+                "magnet:?xt=urn:btih:{}&x.pe={source_address}",
+                hex(&metainfo.info_hash)
+            ),
+            storage_root: root.clone(),
+            network: loopback_network(Duration::from_secs(3)),
+            peer_budget,
+            mse_dh,
+            encryption: crate::PeerEncryptionPolicyHandle::default(),
+            peer_exchange: crate::PeerExchangePolicyHandle::default(),
+            torrent_peers: Some(torrent_peers),
+            resource_limits: resource_limits(4 * MIN_PAYLOAD_ALLOWANCE),
+            skip_files: Vec::new(),
+            high_priority_files: Vec::new(),
+            verified_info: Some(raw_info),
+            verified_pieces: vec![false; PIECES],
+            resume_validation: ResumeValidationIntent::Full,
+            download_missing: true,
+            dht: None,
+            trackers: None,
+        },
+        checkpoints,
+        control.clone(),
+    ));
+
+    timeout(Duration::from_secs(3), async {
+        while service.snapshot().registrations != 1 {
+            sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("active incoming registration");
+    let sent = Arc::new(AtomicUsize::new(0));
+    let announce_task = tokio::spawn(announce_incoming_haves(
+        service.listen_address(),
+        metainfo.info_hash,
+        u32::try_from(PIECES).expect("piece count"),
+        sent.clone(),
+    ));
+    timeout(Duration::from_secs(5), async {
+        while control.snapshot().storage_jobs_pending == 0
+            || sent.load(Ordering::Relaxed)
+                < 4 * crate::torrent_peer::INCOMING_CONTENT_EVENT_CAPACITY
+        {
+            sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("storage backpressure while the inbound peer announces");
+    sleep(Duration::from_millis(200)).await;
+    assert_eq!(
+        service.snapshot().established,
+        1,
+        "inbound peer stays attached"
+    );
+
+    // Removal pauses through this path. Teardown used to join the inbound
+    // peer while it was parked on a full content-event queue nobody read.
+    control.cancel_when_safe();
+    let result = timeout(Duration::from_secs(15), download_task)
+        .await
+        .expect("cancelled download must not wait on the inbound peer")
+        .expect("join cancelled download");
+    assert!(
+        matches!(result, Err(DownloadError::Cancelled)),
+        "unexpected cancellation result {result:?}"
+    );
+    assert_eq!(service.snapshot().registrations, 0);
+    timeout(Duration::from_secs(5), service.shutdown())
+        .await
+        .expect("bounded incoming service shutdown")
+        .expect("shutdown incoming service");
+    timeout(Duration::from_secs(5), announce_task)
+        .await
+        .expect("announcing peer observes disconnect")
+        .expect("announcing peer task");
+    source_task.abort();
+    tokio::fs::remove_dir_all(root)
+        .await
+        .expect("remove announcing peer fixture");
+}
+
 #[tokio::test]
 async fn incoming_contributor_survives_disconnect_until_delayed_hash_finishes() {
     let payload = Arc::new(

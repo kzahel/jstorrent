@@ -225,7 +225,7 @@ fn acquire_platform_inhibitor() -> Result<keepawake::KeepAwake, String> {
         .display(false)
         .sleep(false)
         .reason(desktop_localization::text("power.active-transfer-reason"))
-        .app_name("RSTorrent")
+        .app_name("JSTorrent")
         .app_reverse_domain("com.jstorrent.rstorrent")
         .create()
         .map_err(|error| error.to_string())
@@ -296,7 +296,7 @@ fn acquire_gnome_inhibitor(
             &(
                 "com.jstorrent.rstorrent",
                 0_u32,
-                "RSTorrent is downloading or checking content",
+                "JSTorrent is downloading or checking content",
                 SUSPEND,
             ),
         )
@@ -352,7 +352,7 @@ fn acquire_linux_portal_inhibitor(
     options.insert("handle_token", Value::from(token.as_str()));
     options.insert(
         "reason",
-        Value::from("RSTorrent is downloading or checking content"),
+        Value::from("JSTorrent is downloading or checking content"),
     );
     let handle: OwnedObjectPath = proxy
         .call("Inhibit", &("", SUSPEND, options))

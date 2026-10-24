@@ -20,7 +20,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RSTorrent"
+            "value" : "JSTorrent"
           }
         }
       }
@@ -32,7 +32,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RSTorrent"
+            "value" : "JSTorrent"
           }
         }
       }
@@ -62,13 +62,13 @@
       }
     },
     "NSLocalNetworkUsageDescription" : {
-      "comment" : "Explains why RSTorrent requests local-network access.",
+      "comment" : "Explains why JSTorrent requests local-network access.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "RSTorrent connects directly to peers on your local network."
+            "value" : "JSTorrent connects directly to peers on your local network."
           }
         }
       }

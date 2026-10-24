@@ -1,6 +1,61 @@
 # Direct Remote File Streaming
 
+Tactical [313](../tactical/313-completed-remote-video-playback.md) adds remote
+completed MP4/M4V **Play** in Files and Library through playsvideo 0.4.7,
+authenticated v2 range reads and HLS/MSE. Local Open and remote Save retain
+their existing paths. Source reads, read-ahead/cache, parser work, segment output
+and player buffers have separate bounds; seeking aborts and drains native
+release barriers before the next source read. The player and authenticated
+circuit own teardown, with a 12-hour native peer maximum and unchanged request
+inactivity/authority limits. The existing media capability still expires after
+30 minutes idle or 24 hours absolute. No general Open, partial-file playback,
+other-container/transcode qualification, service worker, HTTP gateway or media
+relay is added. Chromium local BBB decoded playback, seeking, EOF and cleanup
+pass; branded Edge/other browsers, high-bitrate movies and independent-network
+qualification remain separate. Exact sources, patches, provenance, limits and
+measured evidence are recorded in 313. This supersedes earlier blanket Play
+deferrals only within this completed-MP4 scope.
+
+Tactical [312](../tactical/312-reliable-credit-range-streams.md) implements
+reliable ordered v2 range streams with cumulative consumption credit, a shared
+8-MiB receive budget, independent bounded transport admission, batched writes,
+cancellation/release barriers and v1 compatibility. Matched 100-ms-RTT,
+16-MiB/s shaped local saves improve from 0.58 to 7.94 MiB/s. Packet-loss saves
+retain exact hashes; high-rate bursts and lossy throughput remain limits to
+qualify. Rust/web gates and the full authenticated product verifier pass.
+General Open, automatic resume, real WAN/picker and mobile hosting remain separate.
+
+Completed local Tactical [309](../tactical/309-direct-file-transport-ceiling.md)
+measures 51.77 MiB/s for normal 256-MiB disk saves, 51.11 with generated
+ranges and a stable 68.50 raw RTC operating point at 64-KiB outstanding.
+Removing reads does not reveal a major disk-save gain. Larger raw buffers are
+slower/variable; no universal WebRTC ceiling or library ranking is established.
+Production algorithm/limits remain unchanged. Next study targets controlled
+RTT/loss, transport diagnostics and a throughput/memory target before further
+credit or writer tuning; external-picker/WAN qualification remains with 196.
+
 Topic: `direct-remote-file-streaming`
+
+Completed local Tactical [307](../tactical/307-direct-file-save-throughput.md)
+improves completed-file Save with a four-chunk/64-KiB producer window and
+independently bounded browser receive work. Repeated local 256-MiB disk saves
+improve from 36.82 to 51.70 MiB/s; exact bytes, concurrent/adversarial requests,
+actual inactivity, previous-consumer compatibility, authenticated product
+verification and Rust/web checks pass. This does not qualify a WAN or external
+save picker. Large remote saves target Chrome/Edge's streaming file
+writer; Firefox/Safari large-file support is deferred by maintainer direction.
+The existing 32-MiB Blob fallback remains. OPFS is a disk-backed benchmark
+destination only, not a production save policy. Open/Play stays deferred.
+
+Tactical [301](../tactical/301-remote-save-progress-presentation.md) repairs the
+Files Save presentation after an owner reports a successful remote save with
+rapid percentage/layout movement. A separate bounded progress row gates
+display updates to five per second without throttling DataChannel reads,
+writes or acknowledgements. The owner's successful save is useful anecdotal
+evidence, not recorded independent-network qualification. Open/Play remains
+outside the completed-file Save slice: the range protocol already exists, but
+a seeking browser media-consumption adapter still needs implementation and
+cross-browser evidence.
 
 Status: Active Tactical
 [`196`](../tactical/196-remote-direct-file-product-integration.md) has landed
@@ -98,7 +153,7 @@ not silently send file bytes through the control relay as a fallback.
   DTLS fingerprints, protocol negotiation, and transfer grants are typed and
   bounded messages protected by the existing owner-authenticated channel. No
   new unauthenticated signaling endpoint is introduced.
-- **The native host embeds the other peer.** Desktop and headless builds
+- **The host embeds the other peer.** Desktop and headless builds
   contain a Rust WebRTC endpoint when compiled with the feature. A hidden
   desktop WebView, browser extension, companion daemon, and Google libwebrtc
   process are not the selected architecture.
@@ -131,9 +186,10 @@ not silently send file bytes through the control relay as a fallback.
   public endpoint/timing metadata but no file or account identity, and cannot
   relay payload. Outage degrades to other direct candidates or a truthful
   unavailable result.
-- **No new mobile-host claim.** The first investigation targets the already
-  implemented desktop and configured headless remote hosts. Android and iOS
-  hosting, background policy, and platform file presentation remain separate.
+- **No new mobile-host claim.** The first investigation targets the desktop
+  and configured headless hosts that already implement remote access. Android
+  and iOS hosting, background policy, and platform file presentation remain
+  separate.
 
 ## Leading WebRTC Shape
 
@@ -217,7 +273,7 @@ HTTPS remote page, and make router state part of file authority.
 
 ## Rust Dependency Investigation
 
-The browser supplies its WebRTC peer. The native host still needs a conforming
+The browser supplies its WebRTC peer. The host still needs a conforming
 implementation of ICE/STUN, UDP connectivity checks, SDP negotiation, DTLS,
 SCTP/DataChannel, retransmission, timers, flow control, and shutdown. This is
 substantial protocol code even when no audio/video feature is used; RSTorrent
@@ -330,10 +386,45 @@ application/profile owner
                       -> DataChannel backpressure
 ```
 
-The first slice uses one reliable ordered channel, one sequential request, and
-16-KiB maximum chunks because the retained SCTP stack does not expose RFC 8260
-message interleaving. Browser writes complete before acknowledgements advance
-the host, and both sides bound messages and queued bytes.
+The default Save consumer negotiates v2: one reliable ordered control channel
+and one reliable ordered bulk channel, one whole-file u64 range, cumulative
+write-consumption credit and separately batched writes. A shared 8-MiB receive
+budget can be divided among up to four arbitrary/overlapping range owners;
+callers choose their windows when concurrent ranges are needed. The transport
+ceiling is independently bounded at 8 MiB and admits 64 KiB through 2-ms RTT,
+then a bounded bandwidth-delay-product allowance. Wire messages are <=16 KiB,
+verified reads <=64 KiB and default sink batches 128 KiB. See
+[Tactical 312](../tactical/312-reliable-credit-range-streams.md) for the exact
+wire layout, limits, generation semantics, API options and measurements.
+
+END/CANCELLED/ERROR follow data on bulk. RELEASED acknowledges owner join on
+control; receivers require both barriers before recycling a reservation.
+Cancellation rejects the caller promptly while accounting for already-sent
+bytes until they drain. Stale credit does not extend inactivity; invalid future
+consumption closes the peer. Browser payload, frame count, transient copies,
+native preparation and transport queues each have independent bounds. The
+8-MiB credit budget is not a promise about total browser/process RSS or the
+separately bounded Blob destination. Saved content succeeds only after writer
+close. Peer failure cancels and joins all range owners; automatic resume is
+not implemented. The opaque version identifies capability generation, not a
+payload digest.
+
+The compatibility Save consumer uses one reliable ordered channel and one
+sequential range request. Tactical 307 permits four 16-KiB chunks (64 KiB) of unacknowledged
+payload per range, overlapping reads/delivery with browser writes while
+preserving v1 frames and older consumers' per-chunk ACKs. The retained SCTP
+stack does not expose RFC 8260 message interleaving, so chunk size is unchanged.
+Only completed browser writes release producer credit, and RangeComplete waits
+for final credit. The host accepts only forward ACKs at produced boundaries,
+bounds the ACK mailbox to five entries, and rejects floods rather than dropping
+credit. The existing 512-KiB application and transport ceilings still apply.
+
+The browser separately caps pending receive frames at 16 and encoded bytes at
+128 KiB, rejects oversized frames before conversion, and discards queued work
+after failure or cancellation. One current payload copy and any Blob conversion
+are additional bounded chunk allocations; these limits are not a ceiling on
+the browser's internal SCTP buffers or process RSS. Saved content is committed
+only by writer close. The 32-MiB Blob fallback remains intentionally separate.
 
 Cancellation flows from file-request cancel, capability or authorization
 revocation, direct-peer replacement, timeout, profile replacement,
@@ -344,23 +435,27 @@ queued byte terminates and joins before terminal cleanup is reported.
 
 ## File-Range Protocol
 
-DataChannel is message-oriented, not an HTTP URL. A narrow typed binary
-protocol should preserve the useful media contract without tunneling arbitrary
-HTTP:
+DataChannel is message-oriented, not an HTTP URL. The landed v2 binary protocol
+preserves a narrow file contract:
 
-- negotiate one protocol version, chunk limit, request ceiling, and supported
-  operations;
-- open an opaque capability bound to profile generation, authorization,
-  direct-peer generation, torrent, and file index;
-- request metadata, a complete representation, or one byte range with a
-  caller-generated bounded request ID;
-- return exact length, MIME hint, availability, accepted range, binary chunks
-  with exact offsets, terminal success, or a closed typed error;
-- cancel or replace a request promptly after seek or consumer abandonment;
-- enforce global, per-peer, per-capability, request, read, queued-byte, and idle
-  limits before allocating or touching storage; and
-- preserve the existing wait-for-verification, publication handoff, storage
-  generation, and no-progress behavior for active files.
+- authenticate one file-scoped capability and negotiate the optional v2 dialect
+  inside its DTLS peer, retaining legacy fallback;
+- expose length and opaque capability generation without granting another file;
+- accept monotonic, never-reused IDs and arbitrary half-open u64 byte ranges;
+- reserve fixed range windows within shared receive credit, independently of
+  wire/read/write batch sizes;
+- carry exact DATA offsets and ordered END/CANCELLED/ERROR markers, plus a
+  joined RELEASED acknowledgement;
+- grant credit only after consumption, ignore stale absolute updates and reject
+  future consumption or excess admission;
+- provide bounded urgent/bulk fairness without claiming preemption of already
+  transmitted ordered bytes; and
+- preserve global/per-peer/per-capability read, queue, idle and revocation
+  limits and the existing verified-reader storage-generation fencing.
+
+Only completed verified files are qualified in this slice. MIME metadata,
+active-file wait/demand, URL/media adapters and reconnect/resume semantics need
+separately bounded consumer work and evidence.
 
 The protocol never accepts a filesystem path, URL, HTTP header map, method
 string, storage root, SAF identifier, or arbitrary application command. DTLS
@@ -526,8 +621,9 @@ cost and success-rate evidence.
   torrent bytes.
 - Publishing the existing loopback HTTP listener through UPnP or exposing an
   unauthenticated LAN/public file server.
-- Bundling camera, microphone, capture, render, codec, transcoding, SFU, RTP
-  media-track, or screen-control functionality.
+- Bundling camera, microphone, capture, codec, transcoding, SFU, RTP
+  media-track or screen-control functionality in the host. Browser MP4
+  demux/remux and rendering are separately accepted in Tactical 313.
 - Sharing a wildcard TLS private key among RSTorrent hosts.
 - Claiming that WebRTC always establishes a direct path without TURN.
 - Enabling, deploying, or supporting a new feature merely because this design

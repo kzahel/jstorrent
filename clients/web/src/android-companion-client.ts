@@ -16,6 +16,8 @@ import type {
   ApplicationUpdateStream,
   ApplicationViewClient,
 } from "./api/client";
+import { ApplicationViewError } from "./api/client";
+import { clientIdentity, extensionVersion } from "./client-identity";
 import { decodeChooseDownloadRootResponse } from "./validation";
 import {
   WebSocketApplicationViewClient,
@@ -31,6 +33,8 @@ const ENDPOINTS = [
   "http://100.115.92.2:3034",
 ] as const;
 const API_ROOT = "/rstorrent/companion/v1";
+// Discovery only: never pair with, authenticate to or control the legacy daemon.
+const LEGACY_PORTS = [7800, 7805, 7814, 7827, 7844] as const;
 const STORAGE_KEY = "rstorrentAndroidCompanionV1";
 const EXTENSION_ORIGINS = [
   "chrome-extension://gcgoepclopkgijmclmlheafaglmbjlcc",
@@ -38,6 +42,7 @@ const EXTENSION_ORIGINS = [
 ] as const;
 const PROBE_TIMEOUT_MILLIS = 2_000;
 const PROBE_INTERVAL_MILLIS = 2_000;
+const DISCOVERY_TIMEOUT_MILLIS = 20_000;
 const MAX_BOOTSTRAP_RESPONSE_BYTES = 64 * 1024;
 const REQUIRED_PROFILE = [
   "android_saf_acquisition",
@@ -89,7 +94,30 @@ export interface AndroidCompanionConnection {
   readonly disconnected: Promise<void>;
 }
 
-export type AndroidCompanionStatus = (message: string) => void;
+export type AndroidConnectionStage = "discovery" | "pairing" | "authentication";
+export type AndroidCompanionStatus = (message: string, stage?: AndroidConnectionStage) => void;
+
+export class AndroidCompanionUnavailable extends Error {
+  public constructor() {
+    super(localizedMessage("android.companion.unreachable"));
+  }
+}
+
+export class AndroidCompanionPairingFailed extends Error {
+  public constructor(public readonly outcome: "rejected" | "expired") {
+    super(outcome === "rejected"
+      ? localizedMessage("android.companion.pairing-rejected")
+      : localizedMessage("android.companion.pairing-expired"));
+  }
+}
+
+export class AndroidCompanionUpdateRequired extends Error {
+  public constructor(public readonly component: "android" | "extension") {
+    super(component === "android"
+      ? localizedMessage("android.companion.update-android")
+      : localizedMessage("android.companion.update-extension"));
+  }
+}
 
 export async function connectAndroidCompanion(
   status: AndroidCompanionStatus,
@@ -97,7 +125,15 @@ export async function connectAndroidCompanion(
 ): Promise<AndroidCompanionConnection> {
   const stored = await readStoredCompanion();
   const installationId = stored?.installationId ?? randomIdentifier();
-  const endpoint = await probeUntilAvailable(installationId, status, signal);
+  const discovery = AbortSignal.timeout(DISCOVERY_TIMEOUT_MILLIS);
+  let endpoint: string;
+  try {
+    endpoint = await probeUntilAvailable(installationId, status,
+      signal === undefined ? discovery : AbortSignal.any([signal, discovery]));
+  } catch (error) {
+    if (!signal?.aborted && discovery.aborted) throw new AndroidCompanionUnavailable();
+    throw error;
+  }
   let credential = stored?.credential;
   if (credential === undefined) {
     credential = await pair(endpoint, installationId, status, signal);
@@ -108,6 +144,7 @@ export async function connectAndroidCompanion(
     readonly disconnected: Promise<void>;
   };
   try {
+    status(localizedMessage("android.companion.authenticating"), "authentication");
     connected = await openApplication(
       endpoint,
       installationId,
@@ -116,6 +153,10 @@ export async function connectAndroidCompanion(
     );
   } catch (error) {
     if (signal?.aborted) throw error;
+    // Lost transport, busy services and invalid frames do not establish that
+    // saved authority was rejected. Keep them retryable without a new prompt.
+    if (stored?.credential === undefined || !(error instanceof ApplicationViewError) ||
+        error.code !== "authentication_failed") throw error;
     status(localizedMessage("android.companion.client.the.saved.pairing.is.no.longer.accepted"));
     credential = await pair(endpoint, installationId, status, signal);
     connected = await openApplication(endpoint, installationId, credential, signal);
@@ -142,14 +183,32 @@ async function probeUntilAvailable(
   signal?: AbortSignal,
 ): Promise<string> {
   while (!signal?.aborted) {
-    status(localizedMessage("android.companion.client.looking.for.the.rstorrent.android.service"));
-    for (const endpoint of ENDPOINTS) {
-      try {
-        await hello(endpoint, installationId, signal);
-        return endpoint;
-      } catch (error) {
-        if (signal?.aborted) throw error;
-      }
+    status(localizedMessage("android.companion.unavailable-guidance"), "discovery");
+    const current = await Promise.allSettled(ENDPOINTS.map(async (endpoint) => {
+      await hello(endpoint, installationId, signal);
+      return endpoint;
+    }));
+    if (signal?.aborted) throw signal.reason;
+    // A usable current service takes precedence over any stale listener.
+    const available = current.find((result) => result.status === "fulfilled");
+    if (available?.status === "fulfilled") return available.value;
+    for (const result of current) {
+      if (result.status === "rejected" && result.reason instanceof AndroidCompanionUpdateRequired) throw result.reason;
+    }
+    const legacy = await Promise.allSettled(LEGACY_PORTS.map(async (port) => {
+        const timeout = AbortSignal.timeout(PROBE_TIMEOUT_MILLIS);
+        const response = await companionText(new URL(`http://100.115.92.2:${port}/status`), {
+          method: "POST",
+          credentials: "omit",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+          signal: signal === undefined ? timeout : AbortSignal.any([signal, timeout]),
+        });
+        return isLegacyAndroidStatus(JSON.parse(response), port);
+    }));
+    if (signal?.aborted) throw signal.reason;
+    if (legacy.some((result) => result.status === "fulfilled" && result.value)) {
+      throw new AndroidCompanionUpdateRequired("android");
     }
     await delay(PROBE_INTERVAL_MILLIS, signal);
   }
@@ -176,11 +235,17 @@ async function pair(
       ...(signal === undefined ? {} : { signal }),
     })) as PairingPending;
   boundedIdentifier(pending.request_id, "pairing request ID");
-  status(localizedMessage("android.companion.client.approve.the.jstorrent.beta.pairing.request.in"));
+  if (!Number.isInteger(pending.expires_in_seconds) || pending.expires_in_seconds < 1 || pending.expires_in_seconds > 120) {
+    throw new Error("Invalid Android pairing expiration");
+  }
+  const approvalExpires = performance.now() + pending.expires_in_seconds * 1000;
+  status(localizedMessage("android.companion.client.approve.the.jstorrent.beta.pairing.request.in"), "pairing");
   while (!signal?.aborted) {
-    await delay(500, signal);
-    const poll =
-      (await companionJson(endpoint, "/pairing/poll", {
+    await delay(Math.min(500, Math.max(0, approvalExpires - performance.now())), signal);
+    if (performance.now() >= approvalExpires) throw new AndroidCompanionPairingFailed("expired");
+    let poll: PairingPoll;
+    try {
+      poll = (await companionJson(endpoint, "/pairing/poll", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -190,16 +255,19 @@ async function pair(
         }),
         ...(signal === undefined ? {} : { signal }),
       })) as PairingPoll;
+    } catch (error) {
+      if (!signal?.aborted && performance.now() >= approvalExpires) throw new AndroidCompanionPairingFailed("expired");
+      throw error;
+    }
     if (poll.status === "pending") continue;
     if (poll.status === "approved" && typeof poll.credential === "string") {
       boundedCredential(poll.credential);
       return poll.credential;
     }
-    throw new Error(
-      poll.status === "rejected"
-        ? "The Android pairing request was rejected."
-        : "The Android pairing request expired.",
-    );
+    if (poll.status === "rejected" || poll.status === "expired") {
+      throw new AndroidCompanionPairingFailed(poll.status);
+    }
+    throw new Error("Invalid Android pairing response");
   }
   throw signal.reason ?? new Error("Android pairing canceled");
 }
@@ -214,20 +282,35 @@ async function hello(
     signal === undefined ? timeout : AbortSignal.any([signal, timeout]);
   const value =
     (await companionJson(endpoint, "/hello", {
-      headers: { "X-RSTorrent-Installation": installationId },
+      headers: { "X-JSTorrent-Installation": installationId },
       signal: combined,
     })) as CompanionHello;
-  if (
-    value.product !== "rstorrent" ||
-    value.backend !== "android" ||
-    value.protocol_min > 1 ||
-    value.protocol_max < 1 ||
-    !PORTS.includes(value.port as (typeof PORTS)[number])
-  ) {
-    throw new Error("The ARC endpoint is not a compatible RSTorrent Android service");
+  if (value.product !== "rstorrent" || value.backend !== "android" ||
+      !Number.isSafeInteger(value.protocol_min) || value.protocol_min < 1 ||
+      !Number.isSafeInteger(value.protocol_max) || value.protocol_max < value.protocol_min ||
+      !PORTS.includes(value.port as (typeof PORTS)[number]) ||
+      value.port !== Number(new URL(endpoint).port) || typeof value.paired !== "boolean") {
+    throw new Error("The ARC endpoint is not a compatible JSTorrent Android service");
   }
   boundedIdentifier(value.nonce, "hello nonce");
+  if (value.protocol_min > 1 || value.protocol_max < 1) {
+    throw new AndroidCompanionUpdateRequired("extension");
+  }
   return value;
+}
+
+export function isLegacyAndroidStatus(value: unknown, port: number): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  const record = value as Record<string, unknown>;
+  const capabilities = record.capabilities as Record<string, unknown> | null;
+  return LEGACY_PORTS.includes(port as (typeof LEGACY_PORTS)[number]) &&
+    record.port === port && record.protocolVersion === 1 &&
+    record.behaviorVersion === 1 && typeof record.version === "string" &&
+    record.version.length > 0 && record.version.length <= 64 &&
+    typeof record.paired === "boolean" &&
+    typeof capabilities === "object" && capabilities !== null &&
+    capabilities.ioWebSocket === true && capabilities.controlEvents === true &&
+    capabilities.rootsRead === true && capabilities.fileOps === true;
 }
 
 async function openApplication(
@@ -257,6 +340,7 @@ async function openApplication(
     installationId,
     {
       connectPath: `${API_ROOT}/connect`,
+      client: clientIdentity("extension", { version: extensionVersion() }),
       platformClient: platform,
       onConnectionState: (active) => {
         if (active) {
@@ -277,7 +361,7 @@ async function openApplication(
   }
 }
 
-class AndroidPlatformClient implements ApplicationWebSocketPlatformClient {
+export class AndroidPlatformClient implements ApplicationWebSocketPlatformClient {
   public constructor(
     private readonly endpoint: string,
     private readonly installationId: string,
@@ -297,12 +381,17 @@ class AndroidPlatformClient implements ApplicationWebSocketPlatformClient {
           Accept: "application/json",
           Authorization: `Bearer ${this.credential}`,
           "Content-Type": "application/json",
-          "X-RSTorrent-Installation": this.installationId,
+          "X-JSTorrent-Installation": this.installationId,
         },
         body: JSON.stringify(request),
         ...(signal === undefined ? {} : { signal }),
       },
-    );
+    ).catch((error: unknown) => {
+      if (error instanceof CompanionHttpError && error.status === 408) {
+        throw new Error(localizedMessage("android.companion.folder-selection-timeout"));
+      }
+      throw error;
+    });
     return decodeChooseDownloadRootResponse(source).root;
   }
 
@@ -409,23 +498,47 @@ async function companionJson(
 ): Promise<unknown> {
   const source = await companionText(new URL(`${API_ROOT}${path}`, endpoint), {
     ...init,
+    signal: init.signal == null ? AbortSignal.timeout(PROBE_TIMEOUT_MILLIS)
+      : AbortSignal.any([init.signal, AbortSignal.timeout(PROBE_TIMEOUT_MILLIS)]),
     credentials: "omit",
     headers: { Accept: "application/json", ...init.headers },
   });
   return JSON.parse(source) as unknown;
 }
 
+class CompanionHttpError extends Error {
+  public constructor(public readonly status: number) {
+    super(`Android companion request failed (${status})`);
+  }
+}
+
 async function companionText(url: URL, init: RequestInit): Promise<string> {
   const response = await fetch(
     url,
-    withCompanionOrigin(init, globalThis.location.origin),
+    withCompanionOrigin({ ...init, redirect: "error" }, globalThis.location.origin),
   );
-  const source = await response.text();
-  if (new TextEncoder().encode(source).byteLength > MAX_BOOTSTRAP_RESPONSE_BYTES) {
-    throw new Error("Android companion response exceeds its bound");
+  if (response.body === null) throw new Error("Android companion response is empty");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let source = "";
+  let bytes = 0;
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      bytes += chunk.value.byteLength;
+      if (bytes > MAX_BOOTSTRAP_RESPONSE_BYTES) {
+        await reader.cancel();
+        throw new Error("Android companion response exceeds its bound");
+      }
+      source += decoder.decode(chunk.value, { stream: true });
+    }
+    source += decoder.decode();
+  } finally {
+    reader.releaseLock();
   }
   if (!response.ok) {
-    throw new Error(`Android companion request failed (${response.status})`);
+    throw new CompanionHttpError(response.status);
   }
   return source;
 }

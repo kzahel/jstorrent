@@ -1,6 +1,8 @@
 import { message as localizedMessage } from "../localization/runtime";
 import type { IconName } from "./components/Icon";
+import { torrentRemovalActive } from "./format";
 import type { TorrentRow } from "./model";
+import { seedLimitReached } from "./seed-stop";
 
 export type TorrentActionId =
   | "start"
@@ -9,6 +11,7 @@ export type TorrentActionId =
   | "move_to_bottom"
   | "force_recheck"
   | "copy_magnet"
+  | "copy_share_link"
   | "settings"
   | "archive"
   | "restore"
@@ -24,7 +27,7 @@ export type TorrentActionPlacement = "direct" | "overflow";
 
 export interface TorrentActionDefinition {
   readonly id: TorrentActionId;
-  readonly label: (targetCount: number) => string;
+  readonly label: (targets: readonly TorrentRow[]) => string;
   readonly pendingLabel: string;
   readonly icon: IconName;
   readonly group: TorrentActionGroup;
@@ -42,7 +45,11 @@ const label = (value: string) => () => value;
 export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
   {
     id: "start",
-    label: label("Start"),
+    // Starting one torrent stopped by a seeding limit keeps it seeding.
+    label: (targets) =>
+      targets.length === 1 && seedLimitReached(targets[0]!)
+        ? localizedMessage("inspection.torrent.actions.keep.seeding")
+        : "Start",
     pendingLabel: "Starting",
     icon: "play",
     group: "transfer",
@@ -87,10 +94,22 @@ export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
   },
   {
     id: "copy_magnet",
-    label: (targetCount) =>
-      targetCount === 1 ? "Copy magnet link" : "Copy magnet links",
+    label: (targets) =>
+      targets.length === 1 ? "Copy magnet link" : "Copy magnet links",
     pendingLabel: "Copying magnet links",
-    icon: "copy",
+    icon: "magnet",
+    group: "sharing",
+    placement: "overflow",
+    destructive: false,
+  },
+  {
+    id: "copy_share_link",
+    label: (targets) =>
+      targets.length === 1
+        ? localizedMessage("inspection.torrent.actions.copy.share.link")
+        : localizedMessage("inspection.torrent.actions.copy.share.links"),
+    pendingLabel: localizedMessage("inspection.torrent.actions.copying.share.links"),
+    icon: "link",
     group: "sharing",
     placement: "overflow",
     destructive: false,
@@ -165,15 +184,15 @@ export function torrentActionAvailability(
     return { disabled: true, reason: localizedMessage("inspection.torrent.actions.select.a.torrent.to.use.this.action") };
   }
 
-  if (actionId === "copy_magnet") return { disabled: false };
+  if (actionId === "copy_magnet" || actionId === "copy_share_link") {
+    return { disabled: false };
+  }
 
   if (actionId === "settings" && targets.length !== 1) {
     return { disabled: true, reason: localizedMessage("inspection.torrent.actions.select.one.torrent.to.edit.settings") };
   }
 
-  const activeRemovalCount = targets.filter(
-    (row) => row.removalState === "pending" || row.removalState === "awaiting_platform",
-  ).length;
+  const activeRemovalCount = targets.filter(torrentRemovalActive).length;
   if (activeRemovalCount > 0) {
     return {
       disabled: true,
@@ -190,6 +209,23 @@ export function torrentActionAvailability(
       disabled: true,
       reason: localizedMessage("inspection.torrent.actions.a.selected.torrent.has.a.failed.removal"),
     };
+  }
+
+  // Archived torrents stay paused; the engine rejects starting or queueing
+  // them until they are restored.
+  if (actionId === "start" || actionId === "move_to_top" || actionId === "move_to_bottom") {
+    const archived = targets.filter((row) => row.archived === true).length;
+    if (archived > 0) {
+      return {
+        disabled: true,
+        reason:
+          archived === 1
+            ? localizedMessage("inspection.torrent.actions.restore.archived.torrent.first")
+            : localizedMessage("inspection.torrent.actions.restore.archived.torrents.first", {
+                count: archived.toLocaleString(),
+              }),
+      };
+    }
   }
 
   switch (actionId) {
@@ -231,6 +267,12 @@ export function torrentActionAvailability(
         return {
           disabled: true,
           reason: localizedMessage("inspection.torrent.actions.archive.state.is.unavailable.for.a.selected"),
+        };
+      }
+      if (actionId === "archive" && targets.some((row) => row.awaitingFileSelection === true)) {
+        return {
+          disabled: true,
+          reason: localizedMessage("inspection.torrent.actions.choose.files.before.archiving"),
         };
       }
       const alreadySatisfied = targets.every((row) =>

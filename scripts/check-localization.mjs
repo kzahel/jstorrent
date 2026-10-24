@@ -139,6 +139,45 @@ async function checkWebCatalog() {
       fail(`web message ${id} has invalid ICU syntax: ${error.message}`);
     }
   }
+  // Tactical 333: settings, torrent settings and General tab copy uses user
+  // vocabulary and whole messages. Diagnostics tabs are not covered.
+  const plainCopyPrefixes = [
+    "inspection.components.appearance.settings.section.",
+    "inspection.components.connection.seeding.settings.section.",
+    "inspection.components.data.reset.",
+    "inspection.components.detail.pane.",
+    "inspection.components.download.settings.section.",
+    "inspection.components.notifications.settings.section.",
+    "inspection.components.power.settings.section.",
+    "inspection.components.rate.limit.picker.",
+    "inspection.components.settings.dialog.",
+    "inspection.components.torrent.list.",
+    "inspection.components.torrent.settings.dialog.",
+    "inspection.seed.stop.",
+    "inspection.transfer.rate.",
+  ];
+  const webMaintainerVocabulary =
+    /\b(?:effective|applied|genuinely|durable|payload|registrations?|registered|fresh-profile|inactive-exempt|desired-running|root|KiB|MiB|GiB|engine|runtime|snapshot|projection|scaffold|converged|edge-triggered|IGD|MSE\/PE|pinhole|gateway|admitted|choked)\b|Not available yet/i;
+  for (const [id, entry] of Object.entries(catalog)) {
+    if (!plainCopyPrefixes.some((prefix) => id.startsWith(prefix))) continue;
+    const term = entry.defaultMessage.match(webMaintainerVocabulary);
+    if (term) fail(`web message ${id} uses maintainer vocabulary "${term[0]}"`);
+    if (/^[\s:;,.)·-]|\($/.test(entry.defaultMessage)) {
+      fail(`web message ${id} is a sentence fragment: "${entry.defaultMessage}"`);
+    }
+  }
+  for (const relative of [
+    "clients/web/src/inspection/components/ConnectionSeedingSettingsSection.tsx",
+    "clients/web/src/inspection/components/DetailPane.tsx",
+    "clients/web/src/inspection/components/TorrentSettingsDialog.tsx",
+  ]) {
+    for (const line of fs.readFileSync(path.join(repositoryRoot, relative), "utf8").split("\n")) {
+      if (/\.replaceAll\("_", " "\)/.test(line)) {
+        fail(`raw enum name shown as product copy in ${relative}: ${line.trim()}`);
+      }
+    }
+  }
+
   const compiledOrphans = Object.keys(compiled).filter((id) => !(id in catalog));
   if (compiledOrphans.length > 0) fail(`compiled web catalog has orphaned IDs: ${compiledOrphans.join(", ")}`);
 
@@ -263,6 +302,13 @@ function checkAndroidCatalog() {
     }
   }
   if (resources.size === 0) fail("Android English catalog is empty");
+  // Tactical 331: product copy uses user vocabulary, not engine or policy terms.
+  const maintainerVocabulary =
+    /\b(?:effective|applied|genuinely|durable|payload|registrations?|fresh-profile|inactive-exempt|desired-running|root|KiB|MiB|GiB)\b|Not available yet/i;
+  for (const [name, { body }] of resources) {
+    const term = body.match(maintainerVocabulary);
+    if (term) fail(`Android resource ${name} uses maintainer vocabulary "${term[0]}"`);
+  }
 
   const referenced = new Set();
   const sourceFiles = walkFiles("clients/android/app/src/main/java").filter((file) => file.endsWith(".kt"));
@@ -272,6 +318,15 @@ function checkAndroidCatalog() {
       referenced.add(match[1]);
     }
     const relative = path.relative(repositoryRoot, file);
+    // Settings and torrent detail copy must map enums to catalog labels. Log
+    // severity and profile names in the Logs screen are verbatim diagnostics.
+    if (/ui\/Product(?:App|Formatting|SettingsScreens)\.kt$/.test(relative)) {
+      for (const line of kotlin.split("\n")) {
+        if (/\.name\.lowercase\(\)/.test(line) && !/\b(?:severity|profile)\.name/.test(line)) {
+          fail(`raw enum name shown as product copy in ${relative}: ${line.trim()}`);
+        }
+      }
+    }
     for (const [pattern, interpolationAware] of [
       [/\bText\(\s*"([^"\n]*)"/, true],
       [/contentDescription\s*=\s*"([^"\n]*)"/, false],
@@ -392,13 +447,13 @@ function checkIOSCatalog() {
   const info = fs.readFileSync(path.join(repositoryRoot, "clients/ios/App/Info.plist"), "utf8");
   const requiredInfo = {
     "BitTorrent metainfo": { plistKey: "UTTypeDescription", value: "BitTorrent metainfo" },
-    CFBundleDisplayName: { plistKey: "CFBundleDisplayName", value: "RSTorrent" },
-    CFBundleName: { plistKey: "CFBundleName", value: "RSTorrent", source: "$(PRODUCT_NAME)" },
+    CFBundleDisplayName: { plistKey: "CFBundleDisplayName", value: "JSTorrent" },
+    CFBundleName: { plistKey: "CFBundleName", value: "JSTorrent" },
     CFBundleTypeName: { plistKey: "CFBundleTypeName", value: "BitTorrent metainfo" },
     CFBundleURLName: { plistKey: "CFBundleURLName", value: "Magnet link" },
     NSLocalNetworkUsageDescription: {
       plistKey: "NSLocalNetworkUsageDescription",
-      value: "RSTorrent connects directly to peers on your local network.",
+      value: "JSTorrent connects directly to peers on your local network.",
     },
   };
   const infoIds = Object.keys(infoCatalog.strings).sort();

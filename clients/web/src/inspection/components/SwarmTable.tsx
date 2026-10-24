@@ -11,6 +11,7 @@ import styles from "./SwarmTable.module.css";
 const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
   {
     id: "state",
+    listRole: "trailing",
     label: localizedMessage("inspection.components.swarm.table.state"),
     width: 132,
     sortable: true,
@@ -33,6 +34,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
   },
   {
     id: "endpoint",
+    listRole: "title",
     label: localizedMessage("inspection.components.swarm.table.address"),
     width: 192,
     minimumWidth: 150,
@@ -47,6 +49,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
   },
   {
     id: "sources",
+    listRole: "subtitle",
     label: localizedMessage("inspection.components.swarm.table.sources"),
     width: 136,
     sortable: true,
@@ -59,6 +62,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
   },
   {
     id: "lastSeen",
+    listRole: "detail",
     label: localizedMessage("inspection.components.swarm.table.last.seen"),
     width: 92,
     align: "right",
@@ -79,6 +83,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
   },
   {
     id: "downloaded",
+    listRole: "detail",
     label: localizedMessage("inspection.components.swarm.table.downloaded"),
     width: 104,
     align: "right",
@@ -86,12 +91,13 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
     sortKind: "decimal",
     sortValue: (row) => row.payloadDownloadedBytes,
     headerHelp: (
-      <p>{localizedMessage("inspection.components.swarm.table.useful.payload.received.from.this.peer.across")}</p>
+      <p>{localizedMessage("inspection.components.swarm.table.file.data.received.from.this.peer")}</p>
     ),
     render: (row) => formatExactBytes(row.payloadDownloadedBytes, dataUnits),
   },
   {
     id: "uploaded",
+    listRole: "detail",
     label: localizedMessage("inspection.components.swarm.table.uploaded"),
     width: 104,
     align: "right",
@@ -99,7 +105,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
     sortKind: "decimal",
     sortValue: (row) => row.payloadUploadedBytes,
     headerHelp: (
-      <p>{localizedMessage("inspection.components.swarm.table.payload.sent.to.this.peer.across.every")}</p>
+      <p>{localizedMessage("inspection.components.swarm.table.file.data.sent.to.this.peer")}</p>
     ),
     render: (row) => formatExactBytes(row.payloadUploadedBytes, dataUnits),
   },
@@ -207,6 +213,7 @@ export function SwarmTable({ torrentId }: { readonly torrentId: string }) {
     <div className={styles.panel}>
       <SwarmSummary swarm={swarm} />
       <VirtualTable
+        formatCount={(count) => localizedMessage("common.count.peers", { count })}
         tableId="swarm"
         label={localizedMessage("inspection.components.swarm.table.known.swarm.peers")}
         rows={rows}
@@ -276,13 +283,14 @@ function swarmEmptyMessage(
 ): string {
   switch (materialization.status) {
     case "not_requested":
-      return localizedMessage("inspection.components.swarm.table.swarm.inspection.is.not.requested");
+      return localizedMessage("inspection.components.swarm.table.nothing.to.show");
     case "loading":
-      return localizedMessage("inspection.components.swarm.table.loading.known.swarm.peers");
+      // Blank, like the peer table: a loading label only flickers.
+      return "";
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
       return state === "inactive"
         ? "The peer registry is inactive."

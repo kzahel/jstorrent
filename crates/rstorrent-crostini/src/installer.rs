@@ -166,8 +166,8 @@ mod unix {
             reload_user_service_manager()?;
             refresh_desktop_caches(paths);
         }
-        println!("Installed RSTorrent for ChromeOS Linux {version}.");
-        println!("Open RSTorrent for ChromeOS Linux from the Chromebook Launcher.");
+        println!("Installed JSTorrent for ChromeOS Linux {version}.");
+        println!("Open JSTorrent for ChromeOS Linux from the Chromebook Launcher.");
         Ok(())
     }
 
@@ -213,7 +213,7 @@ mod unix {
             reload_user_service_manager()?;
             refresh_desktop_caches(paths);
         }
-        println!("Removed RSTorrent for ChromeOS Linux application files.");
+        println!("Removed JSTorrent for ChromeOS Linux application files.");
         if purge {
             println!("The Crostini profile was also removed. Downloads were preserved.");
         } else {
@@ -438,7 +438,7 @@ mod unix {
         let output = Command::new("systemctl")
             .args(["--user", "stop", SERVICE_NAME])
             .output()
-            .map_err(|error| format!("could not stop RSTorrent service: {error}"))?;
+            .map_err(|error| format!("could not stop JSTorrent service: {error}"))?;
         if output.status.success() {
             return Ok(());
         }
@@ -447,7 +447,7 @@ mod unix {
             Ok(())
         } else {
             Err(format!(
-                "could not stop RSTorrent service: {}",
+                "could not stop JSTorrent service: {}",
                 detail.trim()
             ))
         }
@@ -583,7 +583,7 @@ mod unix {
 
         #[test]
         fn templates_and_owned_paths_remain_exact() {
-            assert!(DESKTOP_TEMPLATE.contains("Name=RSTorrent for ChromeOS Linux"));
+            assert!(DESKTOP_TEMPLATE.contains("Name=JSTorrent for ChromeOS Linux"));
             assert!(SERVICE_TEMPLATE.contains("Restart=on-failure"));
             assert!(!SERVICE_TEMPLATE.contains("systemctl --user enable"));
             let paths = InstallPaths::for_roots(

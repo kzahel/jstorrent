@@ -3,6 +3,35 @@
 use super::support::*;
 
 #[tokio::test]
+async fn removed_torrent_replaces_queued_piece_changes_with_empty_snapshot() {
+    let id = "t1-000102030405060708090a0b0c0d0e0f";
+    let hub = ViewHub::new(&snapshot(0, 4)).expect("hub");
+    let subscription = hub.subscribe(piece_spec(4096)).expect("subscribe");
+    subscription.next_update().await.expect("initial snapshot");
+    hub.record_pieces_durable(id, &[1, 3], 1)
+        .expect("durable pieces");
+    hub.record_activity(
+        id,
+        TorrentActivity::PieceStarted {
+            piece_index: 0,
+            piece_length: 16384,
+            attempt: 1,
+        },
+    )
+    .expect("active attempt");
+    let mut removed = snapshot(2, 4);
+    removed.torrents.clear();
+    hub.replace_durable(&removed, &BTreeMap::new())
+        .expect("remove torrent");
+    let update = subscription.next_update().await.expect("removal snapshot");
+    assert_eq!(update.revision, "2");
+    assert!(matches!(update.payload,
+        ViewUpdatePayload::Snapshot { snapshot: ViewSnapshot::PieceActivity {
+            piece_count: 0, verified, active, ..
+        }} if verified.is_empty() && active.is_empty()));
+}
+
+#[tokio::test]
 async fn starts_with_snapshot_and_keeps_large_indices() {
     let hub = ViewHub::new(&snapshot(7, 1_000_000)).expect("hub");
     let subscription = hub.subscribe(piece_spec(4096)).expect("subscribe");
@@ -248,7 +277,29 @@ async fn diagnostics_filter_before_queue_and_report_ring_drops() {
         )
         .expect("record bounded event");
     }
-    let snapshot = hub
+    // Android previously requested 256 KiB even though retained history can
+    // exceed it. Prove the real bounded snapshot refuses that old budget.
+    let old_budget = hub.subscribe(SubscriptionSpec {
+        selector: ViewSelector::TorrentList,
+        projection: ViewProjection::Diagnostics,
+        delivery: DeliveryPolicy {
+            min_interval_millis: 0,
+            max_queue_bytes: 256 * 1024,
+        },
+        diagnostics: Some(DiagnosticFilter {
+            profile: DiagnosticProfile::Normal,
+            minimum_severity: DiagnosticSeverity::Info,
+            categories: Vec::new(),
+        }),
+        catalog_page: None,
+    });
+    assert!(matches!(
+        old_budget,
+        Err(crate::SubscriptionError::SnapshotExceedsQueue { snapshot, maximum })
+            if snapshot > maximum as usize && maximum == 256 * 1024
+    ));
+
+    let subscription = hub
         .subscribe(SubscriptionSpec {
             selector: ViewSelector::TorrentList,
             projection: ViewProjection::Diagnostics,
@@ -263,10 +314,14 @@ async fn diagnostics_filter_before_queue_and_report_ring_drops() {
             }),
             catalog_page: None,
         })
-        .expect("bounded subscription")
-        .next_update()
-        .await
-        .expect("bounded snapshot");
+        .expect("bounded subscription");
+    let snapshot = subscription.next_update().await.expect("bounded snapshot");
+    let high_water = subscription.stats().expect("stats").queue_high_water;
+    assert!(high_water > 256 * 1024 && high_water <= 4 * 1024 * 1024);
+    subscription.resync().expect("full retained-history resync");
+    let replacement = subscription.next_update().await.expect("resync snapshot");
+    assert_eq!(snapshot.payload, replacement.payload);
+    println!("bounded diagnostic snapshot high-water: {high_water} bytes");
     let ViewUpdatePayload::Snapshot {
         snapshot: ViewSnapshot::Diagnostics { events, retention },
     } = snapshot.payload

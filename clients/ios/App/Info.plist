@@ -5,7 +5,7 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleDisplayName</key>
-  <string>RSTorrent</string>
+  <string>JSTorrent</string>
   <key>CFBundleExecutable</key>
   <string>$(EXECUTABLE_NAME)</string>
   <key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>$(PRODUCT_NAME)</string>
+  <string>JSTorrent</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
@@ -69,7 +69,7 @@
   <key>LSSupportsOpeningDocumentsInPlace</key>
   <true/>
   <key>NSLocalNetworkUsageDescription</key>
-  <string>RSTorrent connects directly to peers on your local network.</string>
+  <string>JSTorrent connects directly to peers on your local network.</string>
   <key>UIApplicationSceneManifest</key>
   <dict>
     <key>UIApplicationSupportsMultipleScenes</key>

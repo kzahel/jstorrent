@@ -1,6 +1,8 @@
 import { message as localizedMessage } from "../../localization/runtime";
 import type { FileActionId, ResolvedFileAction } from "../file-actions";
+import { Icon } from "./Icon";
 import { ActionMenuItem, ActionMenuSeparator } from "./overlays/AnchoredOverlay";
+import styles from "./FileActionMenuItems.module.css";
 
 export function FileActionMenuItems({
   actions,
@@ -16,6 +18,7 @@ export function FileActionMenuItems({
   const open = actions.filter((action) => action.group === "open");
   const download = actions.filter((action) => action.group === "download");
   const priority = actions.filter((action) => action.group === "priority");
+  const share = actions.filter((action) => action.group === "share");
   return (
     <>
       {open.map((action) => (
@@ -26,9 +29,12 @@ export function FileActionMenuItems({
           onAction={() => onAction(action.id)}
         >
           {action.label}
+          {action.external ? (
+            <Icon name="openExternal" className={styles.trailingIcon} />
+          ) : null}
         </ActionMenuItem>
       ))}
-      {open.length === 0 || directSave === undefined || onDirectSave === undefined ? null : (
+      {directSave === undefined || onDirectSave === undefined ? null : (
         <ActionMenuItem
           isDisabled={directSave.disabled}
           aria-description={directSave.disabledReason}
@@ -52,6 +58,19 @@ export function FileActionMenuItems({
         ? <ActionMenuSeparator />
         : null}
       {priority.map((action) => (
+        <ActionMenuItem
+          key={action.id}
+          isDisabled={action.disabled}
+          aria-description={action.disabledReason}
+          onAction={() => onAction(action.id)}
+        >
+          {action.label}
+        </ActionMenuItem>
+      ))}
+      {share.length > 0 && open.length + download.length + priority.length > 0
+        ? <ActionMenuSeparator />
+        : null}
+      {share.map((action) => (
         <ActionMenuItem
           key={action.id}
           isDisabled={action.disabled}

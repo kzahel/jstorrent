@@ -458,6 +458,12 @@ and makes feedback/uninstall query handling use the same closed allowlists and
 safe text presentation. That is source evidence only: no website was deployed
 and no form was submitted.
 
+Finish-line Tactical `259` reconciles this historical reference on 2026-10-07:
+that commit is unavailable in the current sibling checkout, whose source and
+live policy retain the old behavior. Replacement source preparation and its
+independent security/visual checks are recorded there; the reference above
+cannot establish deployable current source or public qualification.
+
 The desktop and Android constants named `HOSTED_PRODUCT_CONTEXT_READY` and the
 extension's equivalent hosted gate remain `false`. Consequently the shipped
 code can collect and display local state, and base feedback retains only its

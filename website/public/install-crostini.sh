@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# RSTorrent ChromeOS Linux installer.
+# JSTorrent ChromeOS Linux installer.
 # Usage: curl -fsSL https://rstorrent.com/install-crostini.sh | bash
 #
-# The HTTPS bootstrap carries the RSTorrent beta release public key. It
+# The HTTPS bootstrap carries the JSTorrent beta release public key. It
 # verifies a detached Minisign signature over the canonical release manifest,
 # then verifies the selected package's signed size and SHA-256 before extracting
 # or executing any package byte.
 
 PINNED_TAG="crostini-v0.1.0"
-REPOSITORY="kzahel/rstorrent"
+REPOSITORY="kzahel/jstorrent"
+# Immutable signed v1 identity is retained across the GitHub rename.
+MANIFEST_REPOSITORY="kzahel/rstorrent"
 MANIFEST_NAME="rstorrent-crostini-release.manifest"
 SIGNATURE_NAME="rstorrent-crostini-release.manifest.minisig"
 LAUNCH_PROTOCOL_VERSION="1"
@@ -156,7 +158,7 @@ signature_asset'
     signature_asset=$(manifest_value signature_asset "$manifest") || return 1
     if [[ ! "$RELEASE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] ||
        [ "$RELEASE_TAG" != "crostini-v${RELEASE_VERSION}" ] ||
-       [ "$RELEASE_REPOSITORY" != "$REPOSITORY" ] ||
+       [ "$RELEASE_REPOSITORY" != "$MANIFEST_REPOSITORY" ] ||
        [[ ! "$source_commit" =~ ^[0-9a-f]{40}$ ]] ||
        [ "$launch_protocol" != "$LAUNCH_PROTOCOL_VERSION" ] ||
        [ "$extension_id" != "$EXTENSION_ID" ] ||
@@ -381,17 +383,17 @@ installer_main() (
         error "Requested ${requested_version}, but the signed manifest is ${RELEASE_VERSION}."
         return 1
     fi
-    info "Verified signed release manifest for RSTorrent ${RELEASE_VERSION}."
+    info "Verified signed release manifest for JSTorrent ${RELEASE_VERSION}."
 
     local installed_binary="${HOME}/.local/bin/rstorrent-crostini"
     if [ -x "$installed_binary" ]; then
         local installed_output installed_version
         installed_output=$("$installed_binary" --version) || {
-            error "The installed RSTorrent launcher failed its version self-test."
+            error "The installed JSTorrent launcher failed its version self-test."
             return 1
         }
         if [[ ! "$installed_output" =~ ^rstorrent-crostini\ ((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$ ]]; then
-            error "The installed RSTorrent launcher reported an invalid version."
+            error "The installed JSTorrent launcher reported an invalid version."
             return 1
         fi
         installed_version="${BASH_REMATCH[1]}"
@@ -402,7 +404,7 @@ installer_main() (
     fi
 
     local asset="$temp_dir/$RELEASE_ASSET"
-    local asset_url="https://github.com/${RELEASE_REPOSITORY}/releases/download/${RELEASE_TAG}/${RELEASE_ASSET}"
+    local asset_url="https://github.com/${REPOSITORY}/releases/download/${RELEASE_TAG}/${RELEASE_ASSET}"
     info "Downloading ${RELEASE_ASSET}..."
     download_release_asset "$asset_url" "$asset" "$RELEASE_SIZE" || return 1
     verify_release_asset "$asset" "$RELEASE_SIZE" "$RELEASE_SHA256" || return 1
@@ -416,13 +418,13 @@ installer_main() (
     validate_extracted_bundle "$bundle" "$RELEASE_VERSION" || return 1
     "$bundle/install.sh" || return 1
     if [ "$("$installed_binary" --version)" != "rstorrent-crostini ${RELEASE_VERSION}" ]; then
-        error "Installed RSTorrent version does not match the signed release."
+        error "Installed JSTorrent version does not match the signed release."
         return 1
     fi
 
     printf '\n'
-    info "RSTorrent for ChromeOS Linux ${RELEASE_VERSION} is installed."
-    printf '%s\n' "Open ‘RSTorrent for ChromeOS Linux’ from the Chromebook Launcher."
+    info "JSTorrent for ChromeOS Linux ${RELEASE_VERSION} is installed."
+    printf '%s\n' "Open ‘JSTorrent for ChromeOS Linux’ from the Chromebook Launcher."
     printf '%s\n' "Useful commands:"
     printf '%s\n' "  rstorrent-crostini status"
     printf '%s\n' "  rstorrent-crostini uninstall"

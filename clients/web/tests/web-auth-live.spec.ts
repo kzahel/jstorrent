@@ -151,7 +151,7 @@ test("explicit restart recovery approves one cookie-less browser", async ({
 });
 
 async function expectApplication(page: Page): Promise<void> {
-  await expect(page.getByRole("grid", { name: "Transfer queue" })).toBeVisible({
+  await expect(page.getByRole("grid", { name: "Torrents" })).toBeVisible({
     timeout: 30_000,
   });
 }

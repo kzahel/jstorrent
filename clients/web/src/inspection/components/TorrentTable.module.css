@@ -10,6 +10,10 @@
   text-overflow: ellipsis;
 }
 
+.name[data-removing="true"] {
+  color: var(--text-muted);
+}
+
 .stateDot {
   flex: 0 0 auto;
   width: 0.48rem;
@@ -20,12 +24,11 @@
 
 .stateDot[data-status="downloading"],
 .stateDot[data-status="metadata"] {
-  background: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 13%, transparent);
+  background: var(--water);
 }
 
 .stateDot[data-status="complete"] {
-  background: var(--success);
+  background: var(--clay);
 }
 
 .stateDot[data-status="error"] {
@@ -48,7 +51,7 @@
 .progressTrack {
   overflow: hidden;
   height: 0.28rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--progress-track);
 }
 
@@ -56,13 +59,13 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--accent);
+  background: var(--water);
 }
 
 .progressTrack[data-indeterminate="true"] {
   background: repeating-linear-gradient(
     135deg,
-    color-mix(in srgb, var(--accent) 55%, var(--progress-track)) 0 0.4rem,
+    color-mix(in srgb, var(--water) 55%, var(--progress-track)) 0 0.4rem,
     var(--progress-track) 0.4rem 0.8rem
   );
 }
@@ -71,16 +74,20 @@
   overflow: hidden;
   color: var(--text-secondary);
   text-overflow: ellipsis;
-  text-transform: capitalize;
 }
 
 .status[data-status="error"] {
   color: var(--danger);
-  font-weight: 650;
+  font-weight: var(--weight-medium);
+}
+
+.status[data-status="removing"] {
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .status[data-status="complete"] {
-  color: var(--success-strong);
+  color: var(--clay-strong);
 }
 
 .statusButton {
@@ -89,7 +96,7 @@
   align-items: center;
   gap: 0.32rem;
   border: 0;
-  border-radius: 0.28rem;
+  border-radius: var(--radius-sm);
   padding: 0.12rem 0.24rem;
   background: transparent;
   font: inherit;
@@ -115,4 +122,8 @@
 .statusButton:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
+}
+
+.sizeFromLink {
+  color: var(--text-muted);
 }

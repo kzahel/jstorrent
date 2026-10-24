@@ -40,5 +40,5 @@ assert.equal(response.ok, true);
 assert.equal(response.protocolVersion, 1);
 assert.equal(response.result?.kind, "hello");
 assert.equal(response.result?.callerOrigin, origin);
-assert.deepEqual(response.result?.capabilities, ["launch_desktop"]);
+assert.deepEqual(response.result?.capabilities, ["launch_desktop", "desktop_control_v1"]);
 console.log(`Native host package hello passed: ${path.basename(hostPath)}`);

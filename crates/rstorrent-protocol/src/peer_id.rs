@@ -68,7 +68,7 @@ const AZUREUS_CLIENT_NAMES: &[([u8; 2], &str)] = &[
     (*b"PD", "Pando"),
     (*b"QD", "QQDownload"),
     (*b"QT", "Qt Torrent"),
-    (*b"RS", "RSTorrent"),
+    (*b"RS", "JSTorrent"),
     (*b"RT", "Retriever"),
     (*b"RZ", "RezTorrent"),
     (*b"SB", "Swiftbit"),
@@ -298,7 +298,7 @@ mod tests {
             (b"-UW1020-".as_slice(), "µTorrent Web 1.0.2"),
             (b"-WW0100-".as_slice(), "WebTorrent 0.1.0"),
             (b"-JS0100-".as_slice(), "JSTorrent 0.1.0"),
-            (b"-RS0001-".as_slice(), "RSTorrent 0.0.0.1"),
+            (b"-RS0001-".as_slice(), "JSTorrent 0.0.0.1"),
             (b"-rQAFa.-".as_slice(), "rqbit 10.15.36.62"),
         ] {
             assert_eq!(identify_client(&peer_id(prefix)).as_deref(), Some(expected));

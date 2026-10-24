@@ -1,0 +1,6 @@
+{
+  "session:torrent:0d74acfbd2fc27f15db895585d9edff9583f240c:torrentfile": "\"ZDQ6aW5mb2Q2Omxlbmd0aGkzMjc2OGU0Om5hbWUxMDrni6znq4suYmluMTI6cGllY2UgbGVuZ3RoaTE2Mzg0ZTY6cGllY2VzNDA6E5PxWHNoVBODF4kvuGh8YdD5N8ETk/FYc2hUE4MXiS+4aHxh0Pk3wTc6cHJpdmF0ZWkxZWVl\"",
+  "session:torrents": "{\"version\":2,\"torrents\":[{\"infoHash\":\"0d74acfbd2fc27f15db895585d9edff9583f240c\",\"source\":\"file\",\"addedAt\":1790653098693},{\"infoHash\":\"1234567890abcdef1234567890abcdef12345678\",\"source\":\"magnet\",\"addedAt\":1790653098699,\"magnetUri\":\"magnet:?xt=urn:btih:1234567890abcdef1234567890abcdef12345678&dn=pending\"}]}",
+  "session:torrent:0d74acfbd2fc27f15db895585d9edff9583f240c:state": "{\"userState\":\"stopped\",\"storageKey\":\"6d55d45c4d2439e2\",\"bitfield\":\"c0\",\"pieceCount\":2,\"uploaded\":0,\"downloaded\":0,\"updatedAt\":1790653098701,\"filePriorities\":[0]}",
+  "session:torrent:1234567890abcdef1234567890abcdef12345678:state": "{\"userState\":\"stopped\",\"storageKey\":\"6d55d45c4d2439e2\",\"uploaded\":0,\"downloaded\":0,\"updatedAt\":1790653098701}"
+}

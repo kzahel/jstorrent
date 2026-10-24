@@ -18,9 +18,10 @@ export type MessageId = keyof typeof compiledEnglish;
 export type ProductLocale = "en" | "en-XA" | "ar-XB";
 export type MessageValues = Readonly<Record<string, PrimitiveType>>;
 
-const englishMessages = compiledEnglish as Record<MessageId, MessageFormatElement[]>;
+let englishMessages = compiledEnglish as Record<MessageId, MessageFormatElement[]>;
 const cache = createIntlCache();
 const diagnostics = new Set<string>();
+const catalogListeners = new Set<() => void>();
 let current: LocaleState;
 
 export interface LocaleState {
@@ -203,6 +204,28 @@ const ACCENTS: Readonly<Record<string, string>> = {
 };
 
 current = createLocaleState(preferredLocales());
+
+/**
+ * Calls `listener` after the development server replaces the message catalog,
+ * so the caller can render again. Returns the unsubscribe.
+ */
+export function onMessageCatalogReplaced(listener: () => void): () => void {
+  catalogListeners.add(listener);
+  return () => catalogListeners.delete(listener);
+}
+
+// Tactical 365: a copy edit swaps the catalog and re-renders instead of
+// reloading the page. Strings computed at import keep their old text.
+if (import.meta.hot) {
+  import.meta.hot.accept("./generated/en.json", (module) => {
+    if (module === undefined) return;
+    englishMessages = (module as unknown as { default: typeof compiledEnglish })
+      .default as Record<MessageId, MessageFormatElement[]>;
+    current = createLocaleState([current.locale], true);
+    diagnostics.clear();
+    for (const listener of catalogListeners) listener();
+  });
+}
 
 function applyDocumentLocale(state: LocaleState): void {
   if (typeof document === "undefined") return;

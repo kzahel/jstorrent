@@ -117,6 +117,8 @@ jobs:
 
       - name: Build and validate the native package
         shell: bash
+        env:
+          RSTORRENT_BUILD_ID: ${{ github.sha }}
         run: |
           ./scripts/build-headless-package.sh
           VERSION=$(sed -n '/^\[package\]/,/^\[/s/^version = "\([^"]*\)"/\1/p' crates/rstorrent-headless/Cargo.toml)

@@ -1,0 +1,12 @@
+{
+  "component": "AppImageKit AppRun",
+  "license": "MIT",
+  "source_revision": "5735cc5bed206497cddfbd2a75e1982c2606c35d",
+  "origin": "https://github.com/AppImage/AppImageKit/blob/5735cc5bed206497cddfbd2a75e1982c2606c35d/src/AppRun.c",
+  "source_archive_sha256": "65ce93060bb5d662fcff878ab5c63b530af16f2a4c86ae1c93f3dc7bf55e4e12",
+  "upstream_file_sha256": "79c8a946886f7966f8b3a54bb7e8f81c46828625552db7b33a8d6d28a03e4268",
+  "extraction": "Exact initial C copyright/license comment including terminating newline; no implementation source imported",
+  "file": "apprun-5735cc5-MIT.txt",
+  "sha256": "8140ac4cb0d9abbe27044503b1554666f8a11b60ea03b4d350cf05c677338d47",
+  "bytes": 1271
+}

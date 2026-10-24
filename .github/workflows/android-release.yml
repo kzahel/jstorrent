@@ -36,6 +36,20 @@ jobs:
             scripts/release-android.sh --check > "$RUNNER_TEMP/release-notes.md"
           fi
 
+      - name: Keep released extension companions working
+        env:
+          RELEASE: ${{ github.ref_name }}
+          ENFORCE: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/android-v') }}
+        run: node scripts/check-release-compatibility.mjs --surface android --release "$RELEASE" --enforce "$ENFORCE"
+
+      - name: Require captures for every supported delivery
+        env:
+          RELEASE: ${{ github.ref_name }}
+          ENFORCE: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/android-v') }}
+        run: |
+          git fetch --force --tags --depth=1 origin
+          node scripts/compat-ledger.mjs --release "$RELEASE" || [ "$ENFORCE" != true ]
+
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
@@ -49,7 +63,7 @@ jobs:
         with:
           shared-key: android-release-ubuntu-24.04
 
-      - uses: gradle/actions/setup-gradle@f236b35da9d031e13b1005234ebe4392ed54c580 # v5.0.0
+      - uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5.0.0
 
       - name: Install pinned Android tooling
         run: |
@@ -76,6 +90,12 @@ jobs:
           export UPLOAD_KEYSTORE_PATH="$RUNNER_TEMP/android-upload.keystore"
           trap 'rm -f "$UPLOAD_KEYSTORE_PATH"' EXIT
           printf '%s' "$UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$UPLOAD_KEYSTORE_PATH"
+          # Export only a public certificate for a current-input proof.
+          keytool -exportcert -rfc -keystore "$UPLOAD_KEYSTORE_PATH" \
+            -storepass:env UPLOAD_KEYSTORE_PASSWORD -alias "$UPLOAD_KEY_ALIAS" \
+            -file "$RUNNER_TEMP/candidate-upload-certificate.pem"
+          openssl x509 -in "$RUNNER_TEMP/candidate-upload-certificate.pem" \
+            -noout -fingerprint -sha256
           clients/android/build.sh release
 
       - name: Verify and stage release artifacts
@@ -83,8 +103,8 @@ jobs:
           python3 scripts/validate-android-release.py --bundletool "$RUNNER_TEMP/bundletool.jar"
           VERSION=$(python3 -c 'import re; from pathlib import Path; print(re.search(r"versionName = \"([^\"]+)\"", Path("clients/android/app/build.gradle.kts").read_text())[1])')
           mkdir -p "$RUNNER_TEMP/android-release"
-          cp clients/android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/android-release/rstorrent-android-$VERSION.apk"
-          cp clients/android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/android-release/rstorrent-android-$VERSION.aab"
+          cp clients/android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/android-release/jstorrent-android-$VERSION.apk"
+          cp clients/android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/android-release/jstorrent-android-$VERSION.aab"
           cp "$RUNNER_TEMP/release-notes.md" "$RUNNER_TEMP/android-release/RELEASE-NOTES.md"
           cd "$RUNNER_TEMP/android-release"
           sha256sum ./*.apk ./*.aab > SHA256SUMS
@@ -97,6 +117,17 @@ jobs:
           retention-days: 14
           overwrite: true
 
+      - name: Retain unqualified signed candidate outputs
+        if: failure() && github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android-unqualified-candidate-${{ github.run_id }}
+          path: |
+            clients/android/app/build/outputs/apk/release/*.apk
+            clients/android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Retain failure reports
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -106,7 +137,7 @@ jobs:
           retention-days: 7
 
   publish:
-    if: startsWith(github.ref, 'refs/tags/android-v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/android-v')
     needs: build
     runs-on: ubuntu-24.04
     permissions:
@@ -116,7 +147,7 @@ jobs:
         with:
           name: android-release-${{ github.run_id }}
           path: release
-      - name: Publish downloadable canary prerelease
+      - name: Publish downloadable JSTorrent candidate prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
@@ -126,5 +157,5 @@ jobs:
           cd release
           sha256sum --check SHA256SUMS
           gh release create "$RELEASE_TAG" --verify-tag --prerelease --latest=false \
-            --title "RSTorrent Android ${RELEASE_TAG#android-v}" \
+            --title "JSTorrent Android ${RELEASE_TAG#android-v}" \
             --notes-file RELEASE-NOTES.md ./*.apk ./*.aab SHA256SUMS

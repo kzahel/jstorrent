@@ -1,0 +1,96 @@
+.addForm {
+  display: flex;
+  min-width: 10rem;
+  max-width: 30rem;
+  flex: 1 1 24rem;
+  align-items: center;
+  gap: var(--ui-space-xs);
+}
+
+.addInput {
+  min-width: 7rem;
+  height: var(--ui-control-height);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 0 var(--ui-space-sm);
+  flex: 1 1 auto;
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+  font: inherit;
+  font-size: var(--ui-font-small);
+}
+
+.addInput::placeholder {
+  color: var(--text-muted);
+}
+
+.addInput:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--focus) 42%, transparent);
+  outline-offset: 0;
+}
+
+.addInput[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.addButton,
+.primaryAction {
+  display: inline-flex;
+  height: var(--ui-control-height);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--ui-space-xs);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 0 var(--ui-space-sm);
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+  font: inherit;
+  font-size: var(--ui-font-small);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.addButton:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.addButton:focus-visible,
+.primaryAction:focus-visible {
+  outline: 2px solid var(--focus);
+}
+
+.addButton:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.primaryAction {
+  border-color: transparent;
+  color: var(--on-accent);
+  background: var(--accent-action);
+}
+
+.primaryAction:hover {
+  background: var(--accent-action-hover);
+}
+
+.primaryAction > svg {
+  width: var(--ui-icon-size);
+  height: var(--ui-icon-size);
+  flex: 0 0 auto;
+}
+
+/* Narrow bars keep one row: the field shrinks to fit icon actions. */
+@media (max-width: 760px) {
+  .addForm {
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 8rem;
+  }
+
+  .addInput {
+    min-width: 0;
+  }
+}

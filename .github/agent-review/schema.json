@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "findings", "validation", "limitations"],
+  "properties": {
+    "summary": {"type": "string"},
+    "findings": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["title", "body", "priority", "path", "line"],
+      "properties": {
+        "title": {"type": "string"}, "body": {"type": "string"},
+        "priority": {"type": "integer"}, "path": {"type": "string"},
+        "line": {"type": "integer"}
+      }
+    }},
+    "validation": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["command", "result"],
+      "properties": {"command": {"type": "string"}, "result": {"type": "string"}}
+    }},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  }
+}

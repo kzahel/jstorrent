@@ -39,7 +39,7 @@ This topic owns:
 [`application-view-api.md`](application-view-api.md) owns `ViewSpec`, view-set
 lifecycle, cursor, snapshot, patch, reset and transport-neutral delivery
 semantics. [`client-surfaces.md`](client-surfaces.md) owns platform lifecycle
-and host adapters. [`web-ui-design.md`](web-ui-design.md) owns settings
+and shell adapters. [`web-ui-design.md`](web-ui-design.md) owns settings
 presentation and paint scheduling.
 [`performance-and-live-evidence.md`](performance-and-live-evidence.md) owns
 hardware-specific throughput and observer-cost measurement.

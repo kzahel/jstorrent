@@ -1,0 +1,39 @@
+{
+  "id": "jstorrent",
+  "displayName": "JSTorrent",
+  "hostnames": [
+    "updates.jstorrent.com"
+  ],
+  "githubRepo": "kzahel/jstorrent",
+  "tagPrefix": "desktop-v",
+  "tauriUpdates": true,
+  "channels": {
+    "stable": {
+      "displayName": "Stable",
+      "tagPrefix": "desktop-v",
+      "releaseKind": "release",
+      "requiredAsset": "JSTorrent_x64.app.tar.gz",
+      "automaticInstall": true,
+      "automaticInstallTargets": [
+        "darwin-aarch64",
+        "darwin-x86_64",
+        "windows-x86_64",
+        "linux-x86_64"
+      ]
+    },
+    "latest": {
+      "displayName": "Latest",
+      "tagPrefix": "desktop-latest-v",
+      "releaseKind": "prerelease",
+      "requiredAsset": "JSTorrent_x64.app.tar.gz",
+      "automaticInstall": true,
+      "automaticInstallTargets": [
+        "darwin-aarch64",
+        "darwin-x86_64",
+        "windows-x86_64",
+        "linux-x86_64"
+      ]
+    }
+  },
+  "compatibilityRequiredFrom": "0.3.2"
+}

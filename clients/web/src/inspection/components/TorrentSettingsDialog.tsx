@@ -7,8 +7,14 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 
-import type { TorrentSettingsPatch, TransferRateLimit } from "../../api";
+import type {
+  TorrentSeedStopLimit,
+  TorrentSeedStopLimits,
+  TorrentSettingsPatch,
+  TransferRateLimit,
+} from "../../api";
 import { useInspectionCommand, useInspectionStore } from "../context";
+import { hostSupports, SEED_STOP_LIMITS } from "../host-capabilities";
 import type { TorrentRow } from "../model";
 import {
   settingsDraftFields,
@@ -19,11 +25,23 @@ import {
   type SettingsDraftState,
 } from "../settings-draft";
 import {
-  RATE_LIMIT_MAXIMUM_BYTES,
-  rateLimitDraftValue,
-  validateRateLimit,
-} from "../transfer-rate";
+  durationLimitDraft,
+  ratioLimitDraft,
+  sameDurationLimitDraft,
+  sameRatioLimitDraft,
+  sessionDurationLabel,
+  sessionRatioLabel,
+  torrentSeedStopLimits,
+  validateDurationLimit,
+  validateRatioLimit,
+  type DurationLimitDraft,
+  type RatioLimitDraft,
+} from "../seed-stop";
+import { rateLimitDraftValue, validateRateLimit } from "../transfer-rate";
 import { useSettingsDraft } from "../use-settings-draft";
+import { DurationPicker } from "./DurationPicker";
+import { RateLimitPicker, type RateLimitDraft } from "./RateLimitPicker";
+import { RatioPicker } from "./RatioPicker";
 import styles from "./TorrentSettingsDialog.module.css";
 
 export function TorrentSettingsDialog({
@@ -52,7 +70,7 @@ export function TorrentSettingsDialog({
     if (event.key !== "Tab") return;
     const controls = Array.from(
       dialogRef.current?.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), input:not(:disabled)',
+        'button:not(:disabled), input:not(:disabled), select:not(:disabled)',
       ) ?? [],
     );
     const first = controls[0];
@@ -67,14 +85,24 @@ export function TorrentSettingsDialog({
   };
   const execute = useInspectionCommand();
   const durableRevision = useInspectionStore((state) => state.durableRevision);
+  const sessionRatio = useInspectionStore(
+    (state) => state.clientSettings.configured.seed_stop_ratio_percent,
+  );
+  const sessionTime = useInspectionStore(
+    (state) => state.clientSettings.configured.seed_stop_time_seconds,
+  );
+  const stopLimitsSupported = useInspectionStore((state) =>
+    hostSupports(state.session, SEED_STOP_LIMITS),
+  );
   const transportPending = useRef(false);
   const [acceptedMessage, setAcceptedMessage] = useState<string | null>(null);
-  const authority = torrentRateDraft(torrent.transferLimits);
+  const seedStopLimits = torrentSeedStopLimits(torrent);
+  const authority = torrentSettingsDraft(torrent.transferLimits, seedStopLimits);
   const [draftState, dispatchDraft] = useSettingsDraft(
     torrent.id,
     durableRevision,
     authority,
-    TORRENT_RATE_COMPARATORS,
+    TORRENT_SETTINGS_COMPARATORS,
   );
   const draft = settingsDraftValue(draftState) ?? authority;
   const upload = validateRateLimit(draft.upload.unlimited, draft.upload.valueKiB);
@@ -82,8 +110,15 @@ export function TorrentSettingsDialog({
     draft.download.unlimited,
     draft.download.valueKiB,
   );
+  const seedStopRatio = validateRatioLimit(draft.seedStopRatio);
+  const seedStopTime = validateDurationLimit(draft.seedStopTime);
   const dirtyFields = settingsDraftFields(draftState);
-  const patch = torrentRatePatch(dirtyFields, upload.limit, download.limit);
+  const patch = torrentSettingsPatch(dirtyFields, {
+    upload: upload.limit,
+    download: download.limit,
+    seedStopRatio: seedStopRatio.limit,
+    seedStopTime: seedStopTime.limit,
+  });
   const phase = settingsDraftPhase(draftState);
   const pending = phase === "submitting" || phase === "awaiting_view";
 
@@ -102,9 +137,9 @@ export function TorrentSettingsDialog({
         patch,
       });
       if (result.resultingRevision === undefined) {
-        throw new Error("Settings response did not include a durable revision.");
+        throw new Error(localizedMessage("inspection.components.torrent.settings.dialog.save.not.confirmed"));
       }
-      setAcceptedMessage(localizedMessage("inspection.components.detail.pane.torrent.peer.transfer.limits.saved"));
+      setAcceptedMessage(localizedMessage("inspection.components.torrent.settings.dialog.saved"));
       dispatchDraft({ type: "accept", revision: result.resultingRevision });
     } catch (error) {
       setAcceptedMessage(null);
@@ -137,53 +172,76 @@ export function TorrentSettingsDialog({
         </h2>
         <p className={styles.torrentName}>{torrent.name}</p>
         <p id="torrent-settings-description">
-          {localizedMessage("inspection.components.detail.pane.these.caps.combine.with.the.all.torrents")}
+          {localizedMessage("inspection.components.torrent.settings.dialog.description")}
         </p>
         <h3>
-          {localizedMessage("inspection.components.detail.pane.peer.transfer.limits")}
+          {localizedMessage("inspection.components.torrent.settings.dialog.speed.limits")}
         </h3>
-        <TorrentRateField
-          direction="upload"
-          unlimited={draft.upload.unlimited}
-          value={draft.upload.valueKiB}
-          error={upload.error}
-          disabled={false}
-          onUnlimited={(unlimited) =>
-            dispatchDraft({
-              type: "edit",
-              field: "upload",
-              value: { ...draft.upload, unlimited },
-            })
-          }
-          onValue={(valueKiB) =>
-            dispatchDraft({
-              type: "edit",
-              field: "upload",
-              value: { ...draft.upload, valueKiB },
-            })
-          }
-        />
-        <TorrentRateField
-          direction="download"
-          unlimited={draft.download.unlimited}
-          value={draft.download.valueKiB}
-          error={download.error}
-          disabled={false}
-          onUnlimited={(unlimited) =>
-            dispatchDraft({
-              type: "edit",
-              field: "download",
-              value: { ...draft.download, unlimited },
-            })
-          }
-          onValue={(valueKiB) =>
-            dispatchDraft({
-              type: "edit",
-              field: "download",
-              value: { ...draft.download, valueKiB },
-            })
-          }
-        />
+        <div className={styles.rateLimitFields}>
+          <RateLimitPicker
+            id="torrent-upload-rate"
+            label={localizedMessage("inspection.components.torrent.settings.dialog.upload")}
+            unlimited={draft.upload.unlimited}
+            valueKiB={draft.upload.valueKiB}
+            error={upload.error}
+            disabled={false}
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "upload", value })
+            }
+          />
+          <RateLimitPicker
+            id="torrent-download-rate"
+            label={localizedMessage("inspection.components.torrent.settings.dialog.download")}
+            unlimited={draft.download.unlimited}
+            valueKiB={draft.download.valueKiB}
+            error={download.error}
+            disabled={false}
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "download", value })
+            }
+          />
+        </div>
+        {stopLimitsSupported ? (
+          <>
+            <h3>
+              {localizedMessage("inspection.components.torrent.settings.dialog.stop.seeding")}
+            </h3>
+            <div className={styles.rateLimitFields}>
+              <RatioPicker
+                id="torrent-seed-stop-ratio"
+                label={localizedMessage("inspection.components.torrent.settings.dialog.share.ratio")}
+                useGlobalLabel={localizedMessage("inspection.components.torrent.settings.dialog.use.global", {
+                  limit: sessionRatioLabel(sessionRatio),
+                })}
+                offLabel={localizedMessage("inspection.components.torrent.settings.dialog.no.limit")}
+                draft={draft.seedStopRatio}
+                error={seedStopRatio.error}
+                disabled={false}
+                onChange={(value) =>
+                  dispatchDraft({ type: "edit", field: "seedStopRatio", value })
+                }
+              />
+              <DurationPicker
+                id="torrent-seed-stop-time"
+                label={localizedMessage("inspection.components.torrent.settings.dialog.seeding.time")}
+                useGlobalLabel={localizedMessage("inspection.components.torrent.settings.dialog.use.global", {
+                  limit: sessionDurationLabel(sessionTime),
+                })}
+                offLabel={localizedMessage("inspection.components.torrent.settings.dialog.no.limit")}
+                draft={draft.seedStopTime}
+                secondsUnit={
+                  seedStopLimits.time_seconds.type === "limited" &&
+                  seedStopLimits.time_seconds.value % 60 !== 0
+                }
+                error={seedStopTime.error}
+                disabled={false}
+                onChange={(value) =>
+                  dispatchDraft({ type: "edit", field: "seedStopTime", value })
+                }
+              />
+            </div>
+          </>
+        ) : null}
         <div className={styles.rateLimitActions}>
           <button
             ref={cancelRef}
@@ -195,8 +253,8 @@ export function TorrentSettingsDialog({
           </button>
           <button type="submit" disabled={patch === null || pending}>
             {pending
-              ? localizedMessage("inspection.components.detail.pane.saving")
-              : localizedMessage("inspection.components.detail.pane.save.torrent.limits")}
+              ? localizedMessage("inspection.components.torrent.settings.dialog.saving")
+              : localizedMessage("inspection.components.torrent.settings.dialog.save")}
           </button>
           {status === null ? null : (
             <output aria-live="polite">{status}</output>
@@ -207,25 +265,27 @@ export function TorrentSettingsDialog({
   );
 }
 
-interface TorrentRateDraftField {
-  readonly unlimited: boolean;
-  readonly valueKiB: string;
+interface TorrentSettingsDraft {
+  readonly upload: RateLimitDraft;
+  readonly download: RateLimitDraft;
+  readonly seedStopRatio: RatioLimitDraft;
+  readonly seedStopTime: DurationLimitDraft;
 }
 
-interface TorrentRateDraft {
-  readonly upload: TorrentRateDraftField;
-  readonly download: TorrentRateDraftField;
-}
-
-const TORRENT_RATE_COMPARATORS: SettingsDraftComparators<TorrentRateDraft> = {
-  upload: sameTorrentRateDraftField,
-  download: sameTorrentRateDraftField,
+const TORRENT_SETTINGS_COMPARATORS: SettingsDraftComparators<TorrentSettingsDraft> = {
+  upload: sameRateLimitDraft,
+  download: sameRateLimitDraft,
+  seedStopRatio: sameRatioLimitDraft,
+  seedStopTime: sameDurationLimitDraft,
 };
 
-function torrentRateDraft(limits: {
-  readonly upload: TransferRateLimit;
-  readonly download: TransferRateLimit;
-}): TorrentRateDraft {
+function torrentSettingsDraft(
+  limits: {
+    readonly upload: TransferRateLimit;
+    readonly download: TransferRateLimit;
+  },
+  seedStop: TorrentSeedStopLimits,
+): TorrentSettingsDraft {
   return {
     upload: {
       unlimited: limits.upload.type === "unlimited",
@@ -235,87 +295,60 @@ function torrentRateDraft(limits: {
       unlimited: limits.download.type === "unlimited",
       valueKiB: rateLimitDraftValue(limits.download, "4096"),
     },
+    seedStopRatio: ratioLimitDraft(seedStop.ratio_percent),
+    seedStopTime: durationLimitDraft(seedStop.time_seconds),
   };
 }
 
-function sameTorrentRateDraftField(
-  left: TorrentRateDraftField,
-  right: TorrentRateDraftField,
+function sameRateLimitDraft(
+  left: RateLimitDraft,
+  right: RateLimitDraft,
 ): boolean {
   return left.unlimited === right.unlimited &&
     (left.unlimited || left.valueKiB === right.valueKiB);
 }
 
-function torrentRatePatch(
-  fields: readonly (keyof TorrentRateDraft)[],
-  upload: TransferRateLimit | null,
-  download: TransferRateLimit | null,
+/** Only changed fields are sent; any invalid field blocks the whole save. */
+function torrentSettingsPatch(
+  fields: readonly (keyof TorrentSettingsDraft)[],
+  values: {
+    readonly upload: TransferRateLimit | null;
+    readonly download: TransferRateLimit | null;
+    readonly seedStopRatio: TorrentSeedStopLimit | null;
+    readonly seedStopTime: TorrentSeedStopLimit | null;
+  },
 ): TorrentSettingsPatch | null {
-  if (upload === null || download === null || fields.length === 0) return null;
+  const { upload, download, seedStopRatio, seedStopTime } = values;
+  if (
+    upload === null ||
+    download === null ||
+    seedStopRatio === null ||
+    seedStopTime === null ||
+    fields.length === 0
+  ) {
+    return null;
+  }
   return {
     ...(fields.includes("upload") ? { upload_rate_limit: upload } : {}),
     ...(fields.includes("download") ? { download_rate_limit: download } : {}),
+    ...(fields.includes("seedStopRatio")
+      ? { seed_stop_ratio_percent: seedStopRatio }
+      : {}),
+    ...(fields.includes("seedStopTime")
+      ? { seed_stop_time_seconds: seedStopTime }
+      : {}),
   };
 }
 
 function draftStatus(
-  state: SettingsDraftState<TorrentRateDraft>,
+  state: SettingsDraftState<TorrentSettingsDraft>,
   phase: SettingsDraftPhase,
 ): string | null {
-  if (phase === "submitting") return localizedMessage("inspection.components.detail.pane.saving.torrent.limits");
-  if (phase === "awaiting_view") return localizedMessage("inspection.components.detail.pane.saved.waiting.for.the.live.view");
+  if (phase === "submitting" || phase === "awaiting_view") {
+    return localizedMessage("inspection.components.torrent.settings.dialog.saving");
+  }
   if (phase === "conflict") {
-    return localizedMessage("inspection.components.detail.pane.these.limits.changed.elsewhere.your.draft.is");
+    return localizedMessage("inspection.components.torrent.settings.dialog.changed.elsewhere");
   }
   return state.failure;
-}
-
-function TorrentRateField({
-  direction,
-  unlimited,
-  value,
-  error,
-  disabled,
-  onUnlimited,
-  onValue,
-}: {
-  readonly direction: "upload" | "download";
-  readonly unlimited: boolean;
-  readonly value: string;
-  readonly error: string | null;
-  readonly disabled: boolean;
-  readonly onUnlimited: (value: boolean) => void;
-  readonly onValue: (value: string) => void;
-}) {
-  const label = `Torrent ${direction} limit`;
-  const id = `torrent-${direction}-rate`;
-  return (
-    <fieldset className={styles.rateLimitField}>
-      <legend>{label}</legend>
-      <label>
-        <input
-          type="checkbox"
-          aria-label={`${label} unlimited`}
-          checked={unlimited}
-          disabled={disabled}
-          onChange={(event) => onUnlimited(event.currentTarget.checked)}
-        />{localizedMessage("inspection.components.detail.pane.unlimited")}</label>
-      <label htmlFor={id}>{localizedMessage("inspection.components.detail.pane.kib.s")}</label>
-      <input
-        id={id}
-        aria-label={`${label} in KiB per second`}
-        type="number"
-        inputMode="decimal"
-        min={1}
-        max={RATE_LIMIT_MAXIMUM_BYTES / 1_024}
-        step={1 / 1_024}
-        value={value}
-        required={!unlimited}
-        disabled={disabled || unlimited}
-        aria-invalid={error !== null}
-        onChange={(event) => onValue(event.currentTarget.value)}
-      />
-      {error === null ? null : <small role="alert">{error}</small>}
-    </fieldset>
-  );
 }

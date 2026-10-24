@@ -1,43 +1,104 @@
+/*
+ * Water and clay (Tactical 334): the JSTorrent icon is sky, water and deep
+ * water over clay. Neutrals are slightly warm so the clay belongs; blue is
+ * the single accent and marks anything being filled; clay is used sparingly
+ * for upload, seeding and settled data. Component CSS uses only these tokens.
+ */
 :root {
   color-scheme: light;
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --font-mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  /* Brand constants, identical in both themes. */
+  --brand-sky: #80c7ff;
+  --brand-water: #48acfb;
+  --brand-deep: #1f8eee;
+  --brand-clay: #ad8d70;
+
   --surface-primary: #ffffff;
-  --surface-secondary: #f5f7fa;
-  --surface-tertiary: #edf1f5;
-  --surface-hover: #f0f5fb;
-  --text-primary: #172333;
-  --text-secondary: #536274;
-  --text-muted: #596674;
-  --border-strong: #cfd7df;
-  --border-soft: #e5e9ee;
-  --accent: #2477d1;
-  --accent-strong: #145da8;
-  --accent-action: #2477d1;
-  --accent-action-hover: #145da8;
-  --focus: #087dcc;
-  --selection: #e4f1ff;
-  --progress-track: #dbe3eb;
-  --success: #2c9b69;
-  --success-strong: #1b744d;
-  --warning: #d3982e;
-  --warning-strong: #946511;
-  --danger: #d84d4d;
-  --danger-strong: #ad3030;
-  --danger-soft: #fff2f2;
-  --demo: #f3c46e;
-  --demo-soft: #fff7e7;
-  --demo-border: #e4c48b;
-  --demo-control-border: #d8b97e;
-  --demo-text: #5f441e;
-  --demo-strong: #5b3b0b;
-  --demo-muted: #72542a;
-  --demo-message: #816232;
-  --demo-control: #fffaf0;
-  --demo-control-hover: #fff4d8;
-  --demo-control-text: #4c3514;
+  --surface-secondary: #f7f5f2;
+  --surface-tertiary: #efebe6;
+  --surface-hover: #f1ede8;
+  --surface-raised: #ffffff;
+  --text-primary: #1d1b18;
+  --text-secondary: #57504a;
+  --text-muted: #6b635a;
+  --border-strong: #d9d2c9;
+  --border-soft: #ebe6e0;
+  /* Outlines of checkboxes and radios: 4:1 or better on every surface. */
+  --control-border: #7d756c;
+  --control-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%2357504a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+  /* Text-safe accent; fills that need not carry text use --water. */
+  --accent: #1373d0;
+  --accent-strong: #0b63b6;
+  --accent-action: #1373d0;
+  --accent-action-hover: #0f62b3;
+  --on-accent: #ffffff;
+  --focus: #1f8eee;
+  --selection: #e6f2fd;
+  --water: #1f8eee;
+  --water-light: #80c7ff;
+  --water-soft: #d6ebfd;
+  --clay: #ad8d70;
+  --clay-strong: #7a5f45;
+  --clay-soft: #f3ece4;
+  --progress-track: #e9e4dd;
+
+  --success: #2b7a4b;
+  --success-strong: #1f6139;
+  --success-soft: #e8f3ec;
+  --warning: #b7791f;
+  --warning-strong: #8a5a12;
+  --warning-soft: #fbf2e2;
+  --danger: #b3402f;
+  --danger-strong: #962f20;
+  --danger-soft: #fbefec;
+
+  /* Data visualization. Received data is water, settled data is clay. */
+  --viz-received: var(--water);
+  --viz-staged: #5fa8e8;
+  --viz-verified: var(--clay);
+  --viz-sent: #c26b4f;
+  --viz-wire-sent: #a8577a;
+  --viz-protocol: #3c8f8a;
+  --viz-metadata: #6f7fc4;
+  --viz-discovery: #8a7a3a;
+  --viz-hash: #9a6aa8;
+  --viz-neutral: #9a9187;
+  --viz-failed: var(--danger);
+  --viz-requested: #d39a3a;
+
+  --media-stage: #11100e;
+  /* QR codes stay dark on light in both themes so every scanner reads them. */
+  --qr-dark: #1d1b18;
+  --qr-light: #ffffff;
+  --overlay-scrim: rgb(29 27 24 / 36%);
+  --shadow-overlay: 0 1px 2px rgb(29 27 24 / 8%), 0 6px 20px rgb(29 27 24 / 12%);
+  --shadow-dialog: 0 2px 6px rgb(29 27 24 / 8%), 0 18px 48px rgb(29 27 24 / 18%);
+
+  --demo: #e8d8c4;
+  --demo-soft: var(--clay-soft);
+  --demo-border: #e3d5c4;
+  --demo-control-border: #d6c4ae;
+  --demo-text: #5a4632;
+  --demo-strong: #3f2f1f;
+  --demo-muted: #6f5944;
+  --demo-message: #6f5944;
+  --demo-control: #fffdfa;
+  --demo-control-hover: #f6efe6;
+  --demo-control-text: #4a3825;
+
+  --radius-sm: 4px;
+  --radius-md: 7px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-strong: 600;
+
   --ui-font-caption: 0.75rem;
   --ui-font-small: 0.8125rem;
   --ui-font-body: 0.875rem;
@@ -45,7 +106,14 @@
   --ui-font-display: 1.375rem;
   --ui-icon-size: 1.125rem;
   --ui-control-height: 2.25rem;
+  /* One width for every select and number field in a settings row, so all
+     controls share one right edge; it follows the density's body text. */
+  --ui-setting-control-width: calc(var(--ui-font-body) * 12.5);
+  --ui-check-size: 1.125rem;
   --ui-header-height: 52px;
+  /* Top header row; Settings' close button sits where the gear does. */
+  --ui-header-row-height: var(--ui-header-height);
+  --ui-header-padding-inline: 0.8rem;
   --ui-actionbar-height: 46px;
   --ui-tab-height: 42px;
   --ui-detail-tab-width: 6.25rem;
@@ -67,6 +135,7 @@
   --ui-font-display: 1.25rem;
   --ui-icon-size: 1rem;
   --ui-control-height: 1.875rem;
+  --ui-check-size: 1rem;
   --ui-header-height: 48px;
   --ui-actionbar-height: 40px;
   --ui-tab-height: 38px;
@@ -86,6 +155,7 @@
   --ui-font-display: 1.5rem;
   --ui-icon-size: 1.25rem;
   --ui-control-height: 2.75rem;
+  --ui-check-size: 1.25rem;
   --ui-header-height: 60px;
   --ui-actionbar-height: 56px;
   --ui-tab-height: 48px;
@@ -121,6 +191,159 @@ input {
   font: inherit;
 }
 
+h1,
+h2,
+h3,
+h4,
+strong,
+b,
+th {
+  font-weight: var(--weight-strong);
+}
+
+progress {
+  accent-color: var(--accent);
+}
+
+/*
+ * Form controls share one look at zero specificity (`:where`), so component
+ * CSS sets layout and width and may still override details. Fields and
+ * dropdowns match the buttons and segmented controls; a checkbox is the
+ * icon's box and fills with water when checked.
+ */
+:where(
+    select,
+    textarea,
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"])
+  ) {
+  min-height: var(--ui-control-height);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 0 var(--ui-space-sm);
+  color: var(--text-primary);
+  background-color: var(--surface-primary);
+  font: inherit;
+  font-size: var(--ui-font-body);
+  transition: border-color 120ms ease;
+}
+
+:where(textarea) {
+  padding-block: var(--ui-space-xs);
+}
+
+:where(select) {
+  padding-right: calc(var(--ui-space-sm) + 1.25rem);
+  background-image: var(--control-chevron);
+  background-position: right var(--ui-space-sm) center;
+  background-repeat: no-repeat;
+  background-size: 0.75rem;
+  cursor: pointer;
+  appearance: none;
+}
+
+:where(select, textarea, input):hover:not(:disabled) {
+  border-color: var(--control-border);
+}
+
+:where(select, textarea, input:not([type="checkbox"], [type="radio"])):focus-visible {
+  border-color: var(--focus);
+  outline: 2px solid color-mix(in srgb, var(--focus) 35%, transparent);
+  outline-offset: 0;
+}
+
+:where(select, textarea, input):disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+:where(input[type="checkbox"], input[type="radio"]) {
+  position: relative;
+  display: inline-grid;
+  inline-size: var(--ui-check-size);
+  block-size: var(--ui-check-size);
+  flex: 0 0 auto;
+  place-content: center;
+  margin: 0;
+  border: 1.5px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-primary);
+  vertical-align: middle;
+  cursor: pointer;
+  appearance: none;
+  transition: border-color 120ms ease, background-size 180ms ease;
+}
+
+:where(input[type="checkbox"]) {
+  background-image: linear-gradient(var(--accent-action), var(--accent-action));
+  background-position: bottom;
+  background-repeat: no-repeat;
+  background-size: 100% 0%;
+}
+
+:where(input[type="checkbox"])::after {
+  inline-size: calc(var(--ui-check-size) * 0.3);
+  block-size: calc(var(--ui-check-size) * 0.55);
+  border: solid var(--on-accent);
+  border-width: 0 2px 2px 0;
+  content: "";
+  transform: translateY(-10%) rotate(45deg) scale(0);
+  transition: transform 120ms ease 60ms;
+}
+
+:where(input[type="checkbox"]:checked, input[type="checkbox"]:indeterminate) {
+  border-color: var(--accent-action);
+  background-size: 100% 100%;
+}
+
+:where(input[type="checkbox"]:checked)::after {
+  transform: translateY(-10%) rotate(45deg) scale(1);
+}
+
+:where(input[type="checkbox"]:indeterminate)::after {
+  inline-size: calc(var(--ui-check-size) * 0.5);
+  block-size: 0;
+  border-width: 0 0 2px;
+  transform: none;
+}
+
+:where(input[type="radio"]) {
+  border-radius: 50%;
+}
+
+:where(input[type="radio"])::after {
+  inline-size: calc(var(--ui-check-size) * 0.45);
+  block-size: calc(var(--ui-check-size) * 0.45);
+  border-radius: 50%;
+  background: var(--accent-action);
+  content: "";
+  transform: scale(0);
+  transition: transform 120ms ease;
+}
+
+:where(input[type="radio"]:checked) {
+  border-color: var(--accent-action);
+}
+
+:where(input[type="radio"]:checked)::after {
+  transform: scale(1);
+}
+
+:where(input[type="checkbox"], input[type="radio"]):hover:not(:disabled, :checked, :indeterminate) {
+  border-color: var(--text-secondary);
+}
+
+:where(input[type="checkbox"], input[type="radio"]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(select, textarea, input),
+  :where(input[type="checkbox"], input[type="radio"])::after {
+    transition: none;
+  }
+}
+
 button,
 select {
   touch-action: manipulation;
@@ -135,92 +358,143 @@ input:focus-visible {
 
 :root[data-color-theme="dark"] {
   color-scheme: dark;
-  --surface-primary: #151b22;
-  --surface-secondary: #1b222b;
-  --surface-tertiary: #222b35;
-  --surface-hover: #222d39;
-  --text-primary: #e5ebf2;
-  --text-secondary: #aeb9c5;
-  --text-muted: #7e8b98;
-  --border-strong: #36414d;
-  --border-soft: #28323c;
-  --accent: #3d91e8;
-  --accent-strong: #70b3f4;
-  --accent-action: #2369a8;
-  --accent-action-hover: #195887;
-  --focus: #6db7ff;
-  --selection: #183d61;
-  --progress-track: #34404c;
-  --success: #55bd8b;
-  --success-strong: #72cba0;
-  --warning: #d9a64b;
-  --warning-strong: #f0bf67;
-  --danger: #e16a6a;
-  --danger-strong: #ff8d8d;
-  --danger-soft: #3a2427;
-  --demo: #d2a348;
-  --demo-soft: #332b1c;
-  --demo-border: #6f5730;
-  --demo-control-border: #75613e;
-  --demo-text: #efd8ad;
-  --demo-strong: #2d210c;
-  --demo-muted: #cbb58b;
-  --demo-message: #d8c39b;
-  --demo-control: #2a251c;
-  --demo-control-hover: #393124;
-  --demo-control-text: #f4e6ca;
+  --surface-primary: #181614;
+  --surface-secondary: #1f1c19;
+  --surface-tertiary: #282420;
+  --surface-hover: #2b2723;
+  --surface-raised: #24211d;
+  --text-primary: #f3eee8;
+  --text-secondary: #c2b9ae;
+  --text-muted: #a59b90;
+  --border-strong: #423c35;
+  --border-soft: #2e2a26;
+  --control-border: #8f867c;
+  --control-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23c2b9ae' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --accent: #48acfb;
+  --accent-strong: #80c7ff;
+  --accent-action: #80c7ff;
+  --accent-action-hover: #a6d8ff;
+  --on-accent: #0a2540;
+  --focus: #80c7ff;
+  --selection: #1e3348;
+  --water: #48acfb;
+  --water-light: #9dd4ff;
+  --water-soft: #1c3a55;
+  --clay: #c4a283;
+  --clay-strong: #dcc2a6;
+  --clay-soft: #2b241e;
+  --progress-track: #35302b;
+  --success: #6cc58f;
+  --success-strong: #8fd6aa;
+  --success-soft: #1d2b22;
+  --warning: #e0ae5a;
+  --warning-strong: #f0c67c;
+  --warning-soft: #33291a;
+  --danger: #ef8576;
+  --danger-strong: #ffa699;
+  --danger-soft: #3a2421;
+  --viz-staged: #6fb3e8;
+  --viz-sent: #e39478;
+  --viz-wire-sent: #d993b3;
+  --viz-protocol: #6cc2bb;
+  --viz-metadata: #9fadeb;
+  --viz-discovery: #cdb86a;
+  --viz-hash: #c79ad6;
+  --viz-neutral: #8a8178;
+  --viz-requested: #e0ae5a;
+  --overlay-scrim: rgb(0 0 0 / 50%);
+  --shadow-overlay: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 40%);
+  --shadow-dialog: 0 2px 6px rgb(0 0 0 / 30%), 0 20px 56px rgb(0 0 0 / 50%);
+  --demo: #4a3b2c;
+  --demo-soft: var(--clay-soft);
+  --demo-border: #3d3329;
+  --demo-control-border: #54473a;
+  --demo-text: #ead9c4;
+  --demo-strong: #f6eadb;
+  --demo-muted: #cdb9a2;
+  --demo-message: #cdb9a2;
+  --demo-control: #241e19;
+  --demo-control-hover: #312921;
+  --demo-control-text: #f2e4d2;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-color-theme]),
   :root[data-color-theme="auto"] {
     color-scheme: dark;
-    --surface-primary: #151b22;
-    --surface-secondary: #1b222b;
-    --surface-tertiary: #222b35;
-    --surface-hover: #222d39;
-    --text-primary: #e5ebf2;
-    --text-secondary: #aeb9c5;
-    --text-muted: #7e8b98;
-    --border-strong: #36414d;
-    --border-soft: #28323c;
-    --accent: #3d91e8;
-    --accent-strong: #70b3f4;
-    --accent-action: #2369a8;
-    --accent-action-hover: #195887;
-    --focus: #6db7ff;
-    --selection: #183d61;
-    --progress-track: #34404c;
-    --success: #55bd8b;
-    --success-strong: #72cba0;
-    --warning: #d9a64b;
-    --warning-strong: #f0bf67;
-    --danger: #e16a6a;
-    --danger-strong: #ff8d8d;
-    --danger-soft: #3a2427;
-    --demo: #d2a348;
-    --demo-soft: #332b1c;
-    --demo-border: #6f5730;
-    --demo-control-border: #75613e;
-    --demo-text: #efd8ad;
-    --demo-strong: #2d210c;
-    --demo-muted: #cbb58b;
-    --demo-message: #d8c39b;
-    --demo-control: #2a251c;
-    --demo-control-hover: #393124;
-    --demo-control-text: #f4e6ca;
+    --surface-primary: #181614;
+    --surface-secondary: #1f1c19;
+    --surface-tertiary: #282420;
+    --surface-hover: #2b2723;
+    --surface-raised: #24211d;
+    --text-primary: #f3eee8;
+    --text-secondary: #c2b9ae;
+    --text-muted: #a59b90;
+    --border-strong: #423c35;
+    --border-soft: #2e2a26;
+    --control-border: #8f867c;
+    --control-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23c2b9ae' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --control-border: #8f867c;
+  --control-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23c2b9ae' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --accent: #48acfb;
+    --accent-strong: #80c7ff;
+    --accent-action: #80c7ff;
+    --accent-action-hover: #a6d8ff;
+    --on-accent: #0a2540;
+    --focus: #80c7ff;
+    --selection: #1e3348;
+    --water: #48acfb;
+    --water-light: #9dd4ff;
+    --water-soft: #1c3a55;
+    --clay: #c4a283;
+    --clay-strong: #dcc2a6;
+    --clay-soft: #2b241e;
+    --progress-track: #35302b;
+    --success: #6cc58f;
+    --success-strong: #8fd6aa;
+    --success-soft: #1d2b22;
+    --warning: #e0ae5a;
+    --warning-strong: #f0c67c;
+    --warning-soft: #33291a;
+    --danger: #ef8576;
+    --danger-strong: #ffa699;
+    --danger-soft: #3a2421;
+    --viz-staged: #6fb3e8;
+    --viz-sent: #e39478;
+    --viz-wire-sent: #d993b3;
+    --viz-protocol: #6cc2bb;
+    --viz-metadata: #9fadeb;
+    --viz-discovery: #cdb86a;
+    --viz-hash: #c79ad6;
+    --viz-neutral: #8a8178;
+    --viz-requested: #e0ae5a;
+    --overlay-scrim: rgb(0 0 0 / 50%);
+    --shadow-overlay: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 40%);
+    --shadow-dialog: 0 2px 6px rgb(0 0 0 / 30%), 0 20px 56px rgb(0 0 0 / 50%);
+    --demo: #4a3b2c;
+    --demo-soft: var(--clay-soft);
+    --demo-border: #3d3329;
+    --demo-control-border: #54473a;
+    --demo-text: #ead9c4;
+    --demo-strong: #f6eadb;
+    --demo-muted: #cdb9a2;
+    --demo-message: #cdb9a2;
+    --demo-control: #241e19;
+    --demo-control-hover: #312921;
+    --demo-control-text: #f2e4d2;
   }
 }
 
 @media (max-width: 760px) {
   :root[data-interface-size] {
-    --ui-header-height: 100px;
+    --ui-header-padding-inline: 0.55rem;
   }
 }
 
 @media (pointer: coarse) {
   :root[data-interface-size] {
     --ui-control-height: 44px;
+    --ui-check-size: 1.375rem;
     --ui-actionbar-height: 54px;
     --ui-tab-height: 44px;
   }

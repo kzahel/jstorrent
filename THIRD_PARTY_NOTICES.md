@@ -59,6 +59,11 @@ upstream packages and artifacts contain their applicable license texts.
 
 Notable distribution considerations in the current dependency graph include:
 
+- Desktop external links use `tauri-plugin-opener` and its JavaScript bindings
+  2.5.3 under MIT OR Apache-2.0. Its resolved `open` 5.4.4 dependency is MIT;
+  `is-wsl` 0.4.0 and `is-docker` 0.2.0 are MIT. Release notices must include
+  these exact lockfile-resolved components. No upstream implementation source
+  is copied into this repository.
 - `dontfrag` 1.0.1 is used only on macOS under its dual MIT OR Apache-2.0
   license to access the IPv4 don't-fragment socket policy through a safe API.
 - `keepawake` 0.6.1 is used only on macOS and Windows under its MIT license to
@@ -101,3 +106,69 @@ corresponding-source obligations remain separate review items. Distribution revi
 reconcile those platform components against the saved package inventories
 before a supported release. See `distribution/dependency-review.json` for
 currently unresolved advisory blockers and its expiring review date.
+
+## JSTorrent Brand Assets
+
+Original desktop, Android adaptive/launcher/store, iOS app/header, extension,
+shared web, gateway and website icon assets are copied unchanged from `kzahel/jstorrent-typescript` revision
+`25e4b701433fd815398ba89526546f5e4f072e3f` under its MIT license, copyright
+2025 Kyle Graehl. Reuse preserves the established first-party product identity
+for in-place succession. `distribution/branding/jstorrent-assets.json` records
+each exact source path, destination and SHA-256; the original permission and
+copyright text lives in `distribution/branding/JSTorrent-LICENSE.txt`. Desktop
+and Android generated binary notices include that text, and the extension
+packages it as `LICENSE.jstorrent.txt`. The iOS app bundles
+`App/Branding/JSTorrent-LICENSE.txt`; the website serves
+`LICENSE.jstorrent.txt`, and the gateway retains the original license beside
+its embedded image. No third-party logo is substituted.
+
+## JSTorrent Marketing Website
+
+Astro marketing components, layouts, CSS, historical blog posts, download
+presentation, bounded hosted-context helper and compatibility assets are
+adapted from `kzahel/jstorrent-typescript` revision
+`e0cb8a3c2ff578f8ca65b1ee820321891789e5b7`, copyright 2025 Kyle Graehl,
+under its MIT license. The complete original notice is served at
+`website/public/LICENSE.jstorrent-website.txt`. The old TypeScript torrent
+engine and shared application packages are not included in this website.
+Existing brand-asset notices above remain applicable.
+
+## Legacy installed-client search plugin
+
+`search-plugins/internet-archive.js` retains the self-contained Internet Archive
+plugin fetched by older TypeScript clients from the canonical repository path.
+It is reused from the MIT-licensed previous implementation; its complete Kyle
+Graehl copyright and license are retained in the file. No TypeScript engine is
+imported. Source and exact revision are recorded in the file header.
+
+## Remote Video Playback
+
+The lazy browser playback integration uses **playsvideo 0.4.7** (MIT,
+Copyright (c) 2026 Kyle Graehl), **hls.js 1.7.3** (Apache-2.0), and the
+**mediabunny** integration fork at
+`cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0` (MPL-2.0). Exact archive integrity
+and dependency revisions are retained in `clients/web/package-lock.json`.
+The checksum-checked playsvideo adaptation is independently authored in
+`clients/web/scripts/patch-playsvideo.mjs`; it bounds playback, restricts this
+consumer to MP4 and Matroska and disables worker/transcoding paths. No FFmpeg code or
+WebAssembly is included in this integration's distribution.
+
+Preferred sources and licenses:
+
+- https://github.com/kzahel/playsvideo (npm 0.4.7 sources/source maps and MIT
+  license retained by its published package)
+- https://github.com/video-dev/hls.js/tree/v1.7.3 and its `LICENSE`
+- https://github.com/kzahel/mediabunny/tree/cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0
+  and its `LICENSE`; unmodified MPL-covered source is publicly available at
+  this exact revision. Local playsvideo changes do not modify mediabunny.
+
+The playsvideo MIT license permits use, copying, modification, distribution,
+sublicensing and sale, provided its copyright and permission notice are
+retained. Its full license is shipped alongside this source record at
+`distribution/licenses/playsvideo-MIT.txt`.
+
+**Big Buck Bunny**, © 2008 Blender Foundation, https://peach.blender.org,
+is used only by opt-in disposable browser qualification under Creative Commons
+Attribution 3.0 (https://creativecommons.org/licenses/by/3.0/). Media bytes are
+not distributed in this repository or product. Tactical 313 records the exact
+fixture provenance, checksum and validation; Tactical 362 reuses it.

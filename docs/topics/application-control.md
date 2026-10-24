@@ -1,5 +1,58 @@
 # Application Control
 
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+adds capability-owned UpdateFileSafetySettings (one complete bounded settings
+domain) and SetFileSafetyOverride (up to 4,096 explicit file indices). Expected
+revision and durable receipt replay apply as usual. Ordinary selection and
+Download all preserve the captured safety mask; Download now refuses a blocked
+file with the existing InvalidRequest code. An explicit allowance selects while
+preserving High/paused intent, and queues part-file promotion across restart.
+See [download safety](download-safety.md).
+
+Tactical [344](../tactical/344-seeding-stop-limits.md) adds the first
+application-initiated durable pause: a reached seeding stop limit commits
+paused intent with `seed_limit_stopped`, which only Resume (meaning keep
+seeding, with the torrent's own limits set to No limit) or another
+running-intent command clears. User Pause never sets it.
+
+Tactical [340](../tactical/340-windows-quiet-network-startup.md) applies the same
+one-time hold to Windows. The desktop startup helper keeps catalog mutation,
+marker persistence and shutdown-on-failure in one testable path. A persisted
+marker is not rewritten on ordinary launches. Running and paused intent are
+preserved independently; native Windows retains completed verified bytes and
+unrelated v3 shell choices. No command, DTO or Android behavior changes.
+
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) applies the one-time Mac network-default hold
+transaction before networking, preserving torrent intent, verified state and
+port preference. Desktop persists its defaults-version marker before exposing
+control. Subsequent explicit choices survive restart; the marker is not an OS
+grant. Common incoming-Off reconciliation cancels inbound work and removes its
+advertisement while retaining outgoing UDP/replies and loopback control.
+
+Tactical [335](../tactical/335-removal-pieces-and-disconnect-lifetime.md)
+preserves the durable removal contract through WebSocket disconnection: an
+executing removal retains its caller until finalization or recorded failure,
+while a queued call cancels before service entry. Payload deletion can no longer
+leave a pending job solely because its browser response consumer closed.
+Process interruption still resumes pending jobs on startup; Android SAF retains
+its existing service-owned matching-generation confirmation.
+
+Tactical [308](../tactical/308-android-optional-add-selection.md) adds explicit
+`DownloadAllPendingAdd` consent without a catalog. One transaction clears pending
+selection and source-derived ranges, installs Normal for all ordinary files,
+sets running intent and queue order, then the existing metadata/content owners
+reconcile. Non-pending, removal and repair fences remain; no metadata is treated
+as verified before validation. This per-add action leaves future selection
+preferences unchanged unless its `disable_future` flag
+([323](../tactical/323-pre-metadata-skip-file-selection.md)) clears
+`show_file_selection` in the same transaction, as confirmation already can.
+Tactical [324](../tactical/324-release-queued-adds-on-skip-file-selection.md)
+makes that flag also release every other queued add with its existing
+selection, in add order, except removing or quarantined torrents; the web
+dialog draft is keyed by torrent. Typed rejected mutations now roll back to a command
+savepoint before their error receipt is committed, preventing partial intent
+or revision changes on a failed write.
+
 Topic: `application-control`
 
 Active Tactical
@@ -307,11 +360,11 @@ Storage roots and platform capabilities are installed when an application
 service instance is constructed or through a later platform-specific
 capability operation. A remotely meaningful command selects an established
 root identity; it never supplies an ambient local path or open descriptor. The
-accepted first-add, default-root, local picker, and remote-presentation behavior
+accepted first-add, default-root, local picker, and remote-client behavior
 is recorded in [`download-roots.md`](download-roots.md).
 
 Tactical [`194`](../tactical/194-chromeos-android-extension-control.md) applies that
-split to the same-device ChromeOS Android presentation. The authenticated
+split to the same-device ChromeOS Android companion client. The authenticated
 platform client may request Android's SAF picker with only an optional opaque
 repair-root ID and receives only the resulting root snapshot. The application
 service remains authoritative for the single current/default root, retained
@@ -325,7 +378,7 @@ guest address; ChromeOS extension connection and same-LAN refusal pass.
 
 Tactical `062` keeps publication naming behind this boundary. Verified
 metainfo and the selected root resolve a durable relative publication
-component inside the application/engine layers; no presentation command gains
+component inside the application/engine layers; no client command gains
 a local path, proposed filename, or infohash-layout switch.
 
 Tactical `063` keeps file selection semantic as well. The command carries a
@@ -347,7 +400,7 @@ terminal stopped announces, paused final state, and no payload artifacts.
 
 Force recheck is likewise semantic. A replayed successful request cannot
 start another generation, and a stale request mutates neither runtime nor
-durable state. During checking, presentation exposes no old verified total as
+durable state. During checking, clients expose no old verified total as
 current authority. Valid paused content may return to complete; invalid paused
 content retains its exact replacement bitmap without admitting peer repair,
 while running intent downloads only the missing or corrupt wanted pieces.
@@ -365,7 +418,7 @@ Android application request IDs now include a process-random namespace before
 their monotonic suffix, matching the browser contract and preventing a
 restarted process from reusing `android-1` for different durable intent.
 The torrent application view now also projects whether current durable managed
-content can accept Force recheck. Presentation uses that semantic value only
+content can accept Force recheck. Clients use that semantic value only
 to derive exact-selection availability; dispatch and durable request handling
 remain authoritative if state races after activation.
 
@@ -486,6 +539,16 @@ adapter. Failed cleanup stays visible and can be retried with either retention
 policy. Android SAF plans and confirmations are in-process operations keyed by
 the matching generation; browser commands never carry paths or document URIs.
 
+Tactical [`316`](../tactical/316-archived-torrents-and-android-selection-actions.md)
+replaces the orthogonal archive rule: archived means shelved and inactive.
+Archive persists paused intent in the same revision and joins active work
+through the ordinary pause path; Restore leaves the torrent paused. Resume,
+Download now and queue moves reject archived torrents with
+`InvalidTorrentState`, and a torrent awaiting add-time file selection cannot
+be archived. Opening a profile normalizes older archived rows that are running
+or awaiting selection, without a schema version change. Force recheck, file
+priorities, magnet export and removal remain available while archived.
+
 Tactical `046` corrects the ordinary pause join beneath that application
 contract. The application still persists paused intent first, requests safe
 cancellation, and awaits the active task. Engine wrappers no longer race and
@@ -493,7 +556,7 @@ drop the metadata/content supervisor; the supervisor publishes disconnecting
 and final removal observations after joining child owners. A deterministic
 session test proves the pause response follows TCP close, and the same leased
 view set receives the peer removal plus zero active-peer and payload-rate
-summary fields without another command or a presentation-side clear. A
+summary fields without another command or a client-side clear. A
 terminal owner-cleanup failure is recorded and propagated through pause rather
 than being accepted as successful joined cleanup.
 
@@ -540,7 +603,7 @@ mutations, serially observes the existing per-torrent removal jobs, and does
 not advance to private-profile reset or captured-grant release until those jobs
 reach authoritative terminal states. A separate value-free
 `ResetClientSettings` command now installs the application configuration's
-complete fresh-profile setting set atomically; presentations do not reconstruct
+complete fresh-profile setting set atomically; clients do not reconstruct
 defaults. Store/application/workspace and API 28/35 service evidence passes;
 the owned API 35 two-root Keep/DeleteData profile also passes exact sentinel
 preservation, re-add/recheck, bounded descriptors, and genuine mid-delete
@@ -561,7 +624,7 @@ that value to `unencrypted`, `encrypted_system_trust`, and
 `encrypted_unauthenticated`, and extends the existing complete settings
 command with a default-secure policy plus one advanced compatibility value.
 It adds no certificate route, tracker credential command, environment
-side-channel, or presentation-owned success rule.
+side-channel, or client-owned success rule.
 
 The application-owned content supervisor also retains a cancellation-owned
 external discovery sender from metadata transition through content startup.
@@ -615,7 +678,7 @@ background task was added.
 
 [`../tactical/075-ephemeral-application-state.md`](../tactical/075-ephemeral-application-state.md)
 adds an immutable persistence-mode choice at the same service-lifetime
-boundary. Presentation and transport detachment do not close or clear an
+boundary. Client and transport detachment do not close or clear an
 ephemeral service; joined service shutdown remains the owner of final DHT and
 speed-history flushes. Durable open or write failure never falls back to the
 ephemeral mode.

@@ -1,5 +1,11 @@
 # Tactical 167: ChromeOS Crostini Bundled Web Launcher
 
+Current route amendment: Tactical [253](253-chromeos-onboarding-recovery-and-physical-qualification.md#primary-localhost-route-authorized-2026-10-04)
+replaces the historical `penguin.linux.test:3030` authority below with the exact
+`jstorrent.localhost:3030` loopback authority. Ownership, listener and browser
+authentication policy are unchanged. The original execution record remains
+historical evidence for the named-host route.
+
 Status: **Complete as of 2026-08-26.** The exact local x86_64 package and beta
 extension passed deterministic gates and the available physical Chromebook
 matrix. The conditional full-reboot path was not exercised because the

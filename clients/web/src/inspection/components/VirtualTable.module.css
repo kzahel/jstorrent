@@ -36,6 +36,15 @@
   );
 }
 
+.container[data-toolbar-slotted="true"] {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.container[data-toolbar-slotted="true"]::before,
+.container[data-toolbar-slotted="true"]::after {
+  top: 0;
+}
+
 .container[data-overflow-left="true"]::before,
 .container[data-overflow-right="true"]::after {
   opacity: 1;
@@ -72,8 +81,8 @@
   top: 0;
   display: grid;
   height: var(--ui-table-header-height);
-  border-bottom: 1px solid var(--border-strong);
-  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-primary);
 }
 
 .headerCell {
@@ -81,7 +90,6 @@
   display: flex;
   align-items: stretch;
   min-width: 0;
-  border-right: 1px solid var(--border-soft);
 }
 
 .selectionHeaderCell,
@@ -94,10 +102,7 @@
 }
 
 .selectionCheckbox {
-  width: 1rem;
-  height: 1rem;
   margin: 0;
-  accent-color: var(--accent);
   cursor: pointer;
 }
 
@@ -121,9 +126,16 @@
   font-size: var(--ui-font-caption);
 }
 
+.toolbar[data-slotted="true"] {
+  height: auto;
+  border-bottom: 0;
+  background: transparent;
+}
+
 .columnMenu > button {
+  margin-top: 0.35rem;
   border: 1px solid var(--border-soft);
-  border-radius: 0.32rem;
+  border-radius: var(--radius-sm);
   padding: 0.2rem 0.48rem;
   color: var(--text-secondary);
   background: var(--surface-secondary);
@@ -134,7 +146,7 @@
 .toolbar > button,
 .toolbar > [data-rac] {
   border: 1px solid var(--border-soft);
-  border-radius: 0.32rem;
+  border-radius: var(--radius-sm);
   padding: 0.2rem 0.48rem;
   color: var(--text-secondary);
   background: var(--surface-secondary);
@@ -149,9 +161,9 @@
 }
 
 .selectionStatus {
-  color: var(--accent-strong);
+  color: var(--accent);
   font-size: var(--ui-font-caption);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
 }
 
 .columnMenu {
@@ -175,11 +187,6 @@
   padding: 0 0.2rem;
 }
 
-.liveSort {
-  margin-top: 0.35rem;
-  border-top: 1px solid var(--border-soft);
-  padding-top: 0.45rem !important;
-}
 
 .resizeHandle {
   position: absolute;
@@ -226,7 +233,7 @@
   background: transparent;
   font: inherit;
   font-size: var(--ui-font-small);
-  font-weight: 650;
+  font-weight: var(--weight-medium);
   text-align: inherit;
   cursor: pointer;
 }
@@ -241,6 +248,12 @@
 
 .sortButton:disabled {
   cursor: default;
+}
+
+/* Rows keep their order while the user interacts; a dim arrow shows the
+   column's values have moved out of order meanwhile. */
+.sortIndicator[data-held="true"] {
+  opacity: 0.4;
 }
 
 .sortButton:focus-visible,
@@ -262,7 +275,7 @@
   background: var(--surface-primary);
   font: inherit;
   font-size: var(--ui-font-caption);
-  font-weight: 750;
+  font-weight: var(--weight-medium);
   line-height: 1;
   cursor: help;
 }
@@ -356,4 +369,183 @@
   padding: 2rem;
   color: var(--text-muted);
   text-align: center;
+}
+
+.emptyContent {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+}
+
+/* Narrow viewports render each row as a stacked list item. */
+.viewport[data-list="true"] .row {
+  min-width: 0;
+}
+
+.listCell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  align-content: center;
+  gap: 0.1rem;
+  padding: 0 var(--ui-space-md);
+  overflow: hidden;
+}
+
+.listTitleLine {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--ui-space-sm);
+}
+
+.listTitle {
+  overflow: hidden;
+  min-width: 0;
+  flex: 1;
+  font-size: var(--ui-font-body);
+  font-weight: var(--weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listTitle > * {
+  max-width: 100%;
+}
+
+.listTrailing {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: var(--ui-font-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.listLine {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--ui-font-caption);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listLine > span + span::before {
+  color: var(--text-muted);
+  content: " · ";
+}
+
+.listDetailLabel {
+  color: var(--text-muted);
+}
+
+/* The subtitle shares its line with a full-width value such as progress. */
+.listSubtitleLine {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--ui-space-md);
+}
+
+/* A fixed share keeps progress bars aligned from row to row. */
+.listSubtitleLine > .listLine:not(:only-child) {
+  flex: 0 0 36%;
+}
+
+.listWide {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+}
+
+.listWide > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.listSort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.listSort select,
+.listSort button {
+  height: 1.75rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 0 0.4rem;
+  color: var(--text-secondary);
+  background: var(--surface-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.listSort button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.listSort select:focus-visible,
+.listSort button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* Tactical 352: rows that have not arrived yet. */
+.placeholders {
+  min-width: max-content;
+}
+
+.viewport[data-list="true"] .placeholders {
+  min-width: 0;
+}
+
+.placeholderRow {
+  display: grid;
+  height: var(--ui-table-row-height);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-primary);
+}
+
+.viewport[data-list="true"] .placeholderRow {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.viewport[data-list="true"] .placeholderRow .listCell {
+  gap: var(--ui-space-sm);
+}
+
+.placeholderBar {
+  display: block;
+  height: 0.6em;
+  border-radius: var(--radius-sm);
+  background: var(--surface-tertiary);
+  animation: placeholder-pulse 1.6s ease-in-out 0.4s infinite;
+}
+
+.placeholderBar[data-secondary="true"] {
+  height: 0.5em;
+}
+
+@keyframes placeholder-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .placeholderBar {
+    animation: none;
+  }
 }

@@ -1,0 +1,82 @@
+---
+import '../styles/global.css'
+const title = 'JSTorrent — Update guide'
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site)
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="description" content="What to expect from the JSTorrent replacement update: supported devices, your library, folder access and browser pairing." />
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="icon" type="image/png" href="/jstorrent.png" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <main class="update-guide">
+      <a class="guide-brand" href="/"><img src="/jstorrent.png" width="48" height="48" alt="" />JSTorrent</a>
+      <header>
+        <p class="status"><span></span> Desktop 0.3.0 is available</p>
+        <h1>Your JSTorrent update</h1>
+        <p class="lead">The familiar JSTorrent, with a new Rust engine underneath.</p>
+        <p class="description">Desktop 0.3.0 is now available from the JSTorrent website and through desktop updates. Android and extension store updates may arrive separately. Keep your downloaded files and follow the recovery steps below if access needs repair.</p>
+      </header>
+
+      <section aria-labelledby="devices">
+        <h2 id="devices">Your device and browser</h2>
+        <div class="guide-cards">
+          <article><h3>Desktop</h3><p>Desktop 0.3.0 is an ordinary JSTorrent update for Windows, macOS and Linux. Linux desktop support is best effort; AppImage and headless setup from source are described on the JSTorrent website. Desktop works on its own; the Chrome extension adds a browser view of the same library.</p></article>
+          <article><h3>Android and ChromeOS</h3><p>The Android replacement is rolling out gradually on Google Play. It requires Android 9 or newer and a supported 64-bit ARM or x86 device. If no update is available yet, keep using your installed app. Older 32-bit devices and Android 7 or 8 retain the old app; use a supported OS and device to move to the replacement. An unavailable store update is not a failed download to retry.</p></article>
+          <article><h3>ChromeOS Linux</h3><p>Choose the Linux setup explicitly when it is supported on your Chromebook. Android and Linux keep separate libraries. Switching backends does not automatically transfer torrents, files or folder access.</p></article>
+        </div>
+        <p>iOS is outside this release. Preview builds remain experimental and are separate from production updates.</p>
+      </section>
+
+      <section aria-labelledby="library">
+        <h2 id="library">Keep your library and folder access</h2>
+        <p>Existing torrents and matching settings are imported best effort. Retained content is checked before it is treated as verified. A completed torrent may briefly show checking after the update.</p>
+        <p>If a download folder is unavailable, restore access or use the app’s repair action. Keep the downloaded files. Removing the app, clearing its storage or deleting a folder is not the normal repair procedure.</p>
+        <p>Quit the old desktop app before a manual replacement. If migration is blocked, follow the displayed recovery step and preserve the old library for a retry.</p>
+      </section>
+
+      <section aria-labelledby="pairing">
+        <h2 id="pairing">App and extension updates can arrive separately</h2>
+        <p>If the connection page asks for an app or extension update, update that component through its usual store or update route. Fresh pairing may be needed after replacement. Open the native app and approve the new connection when prompted.</p>
+        <p>Android can still be used on its own while a companion update is unavailable. Repeated pairing attempts cannot install a missing store update.</p>
+      </section>
+
+      <section aria-labelledby="features">
+        <h2 id="features">Check features you depend on</h2>
+        <p>The replacement does not promise every legacy feature. Old VPN-only, low-battery stop, search-plugin, locale or theme-override settings do not imply equivalent restrictions or behavior in the new app.</p>
+        <p>The replacement does not claim VPN confinement or SOCKS5 privacy guarantees. Review the release notes before updating if you rely on those features.</p>
+      </section>
+
+      <section aria-labelledby="help">
+        <h2 id="help">Privacy and support</h2>
+        <p>Review usage-statistics preferences and the exact context before opening feedback. Website requests and embedded forms can receive information before you submit a response.</p>
+        <p>Support diagnostics are prepared locally for you to review and share voluntarily. Screenshots and public issue attachments can contain private information.</p>
+        <p><a href="/support/">Help and support</a> · <a href="https://jstorrent.com/privacy.html">Privacy policy</a> · <a href="https://github.com/kzahel/jstorrent/issues/new">Report a replacement problem</a> · <a href="https://jstorrent.com/">Current JSTorrent website</a></p>
+      </section>
+    </main>
+    <footer><p>JSTorrent by Kyle Graehl. Open source under the MIT License.</p></footer>
+  </body>
+</html>
+
+<style>
+  .update-guide { display: block; max-width: 1100px; margin: auto; padding-top: 2rem; }
+  .guide-brand { display: inline-flex; align-items: center; gap: .75rem; color: #f6fbfc; font-size: 1.25rem; font-weight: 700; text-decoration: none; }
+  header { margin: 3rem 0; }
+  h1 { font-size: clamp(2.3rem, 6vw, 3.8rem); letter-spacing: -.04em; line-height: 1.1; }
+  h2 { color: #f6fbfc; font-size: 1.5rem; }
+  h3 { color: #cfdee3; margin-top: 0; }
+  section { margin: 2rem 0; padding: 1.5rem; border: 1px solid #334155; border-radius: 1rem; background: #172338; }
+  section p { max-width: 75ch; color: #c1cedb; line-height: 1.75; }
+  .guide-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; }
+  a { color: #93c5fd; text-underline-offset: .2em; overflow-wrap: anywhere; }
+  a:focus-visible { outline: 3px solid #93c5fd; outline-offset: 4px; }
+  @media (max-width: 760px) { .guide-cards { grid-template-columns: 1fr; } section { padding: 1rem; } }
+</style>

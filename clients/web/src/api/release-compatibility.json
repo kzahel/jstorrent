@@ -1,0 +1,92 @@
+{
+  "$comment": "Read by contract-compatibility.test.ts and scripts/check-release-compatibility.mjs. See docs/topics/mixed-version-compatibility.md.",
+  "strictClients": {
+    "supported": true,
+    "description": "JSTorrent extension 1.1.4 and older, which validate host data strictly,",
+    "tolerantSince": {
+      "extension": "1.1.5",
+      "remote": "0.3.1"
+    },
+    "controlledSurfaces": [
+      "android",
+      "desktop"
+    ]
+  },
+  "reviewedClientExposure": {
+    "ClientSettings.seed_stop_ratio_percent": {
+      "kind": "field",
+      "reason": "seed_stop_limits; hosts may ship it once tolerant clients are out (354 release order)"
+    },
+    "ClientSettings.seed_stop_time_seconds": {
+      "kind": "field",
+      "reason": "seed_stop_limits; hosts may ship it once tolerant clients are out (354 release order)"
+    },
+    "TorrentSeedingView.stop": {
+      "kind": "field",
+      "reason": "seed_stop_limits; hosts may ship it once tolerant clients are out (354 release order)"
+    },
+    "TorrentFieldUpdate.oneOf[field=private_torrent]": {
+      "kind": "field",
+      "reason": "row delta for TorrentView.private_torrent; needs tolerant clients before a host release"
+    },
+    "TorrentFieldUpdate.oneOf[field=source_size_bytes]": {
+      "kind": "field",
+      "reason": "row delta for the source size; needs tolerant clients before a host release"
+    },
+    "ViewPatch.oneOf[type=library_media]": {
+      "kind": "value",
+      "reason": "library_media view (363); sent only to clients that lease it, which no released client does",
+      "requestedBy": "ViewSpec.oneOf[type=library_media]"
+    },
+    "ViewSnapshot.oneOf[type=library_media]": {
+      "kind": "value",
+      "reason": "library_media view (363); sent only to clients that lease it, which no released client does",
+      "requestedBy": "ViewSpec.oneOf[type=library_media]"
+    },
+    "ViewSpec.oneOf[type=library_media]": {
+      "kind": "value",
+      "reason": "library_media view (363); echoed only to clients that lease it, which no released client does",
+      "requestedBy": "ViewSpec.oneOf[type=library_media]"
+    },
+    "ApplicationCallResult.oneOf[type=product_update]": {
+      "kind": "value",
+      "reason": "Desktop updater (355); emitted only in response to the capability-gated product_update call.",
+      "requestedBy": "ApplicationCall.oneOf[type=product_update]"
+    },
+    "ApplicationCall.oneOf[type=product_update]": {
+      "kind": "value",
+      "reason": "Desktop updater (355); a new call sent only after desktop_auto_updates is advertised; no released client sends it.",
+      "requestedBy": "ApplicationCall.oneOf[type=product_update]"
+    },
+    "ClientSettings.file_safety": {
+      "kind": "field",
+      "reason": "373 download safety; release tolerant clients before hosts"
+    },
+    "FileFieldUpdate.oneOf[field=safety]": {
+      "kind": "field",
+      "reason": "373 file safety delta; release tolerant clients before hosts"
+    },
+    "TorrentFieldUpdate.oneOf[field=safety_summary]": {
+      "kind": "field",
+      "reason": "373 safety-aware All selection totals; release tolerant clients before hosts"
+    }
+  },
+  "acceptedBreaks": {
+    "desktop-v0.3.4": "Maintainer authorized publication on 2026-10-22 after extension 1.1.5 and 1.1.6 became public. Requires extension 1.1.5 or newer; older strict extensions may fail to connect. Accepts the eight currently reviewed field additions only (seeding limits, private_torrent, source_size_bytes and file safety); no new enum or unsolicited view variant is authorized. No extension-adoption measurement is inferred.",
+    "android-v1.0.32": "Maintainer authorized publication on 2026-10-22 after extension 1.1.5 and 1.1.6 became public. Requires extension 1.1.5 or newer; older strict extensions may fail to connect. Accepts the eight currently reviewed field additions only (seeding limits, private_torrent, source_size_bytes and file safety); no new enum or unsolicited view variant is authorized. No extension-adoption measurement is inferred."
+  },
+  "acceptedLatestDesktopFields": {
+    "minimumExtension": "1.1.5",
+    "reason": "Maintainer authorized public Latest and nightly publication on 2026-10-17 after disclosure of older-extension failures. Stable and Android remain guarded; only these reviewed fields are accepted.",
+    "fields": [
+      "ClientSettings.seed_stop_ratio_percent",
+      "ClientSettings.seed_stop_time_seconds",
+      "TorrentSeedingView.stop",
+      "TorrentFieldUpdate.oneOf[field=private_torrent]",
+      "TorrentFieldUpdate.oneOf[field=source_size_bytes]",
+      "ClientSettings.file_safety",
+      "FileFieldUpdate.oneOf[field=safety]",
+      "TorrentFieldUpdate.oneOf[field=safety_summary]"
+    ]
+  }
+}

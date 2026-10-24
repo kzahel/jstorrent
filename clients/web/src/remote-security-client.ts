@@ -102,6 +102,12 @@ export function createRemoteSecurityClient(
         sink,
       );
     },
+    playCompletedFile: async request => {
+      const transport = options.transport();
+      if (!transport) throw new Error("Remote file connection is unavailable.");
+      const { playDirectFile } = await import("./direct-file-playback");
+      return playDirectFile(transport, request);
+    },
     clearHistory: async () => {
       expectComplete(await control({ type: "clear_history" }));
       return true;

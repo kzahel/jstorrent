@@ -205,7 +205,7 @@ def click_labeled(
     )
 
 
-def select_controlled_tree(adb: Adb) -> None:
+def select_controlled_tree(adb: Adb, *, recover_picker=None) -> None:
     deadline = time.monotonic() + 15
     control: ET.Element | None = None
     while time.monotonic() < deadline:
@@ -235,12 +235,11 @@ def select_controlled_tree(adb: Adb) -> None:
                 tap_bounds(adb, retry.attrib["bounds"])
                 time.sleep(0.4)
                 continue
-        if any(
+        entered = any(
             node.attrib.get("text") == GRANT_FOLDER
             and node.attrib.get("resource-id", "").endswith(":id/breadcrumb_text")
             for node in nodes
-        ):
-            entered = True
+        )
         if not entered:
             entries = [
                 node
@@ -250,12 +249,22 @@ def select_controlled_tree(adb: Adb) -> None:
             ]
             if entries:
                 tap_bounds(adb, entries[0].attrib["bounds"])
-                entered = True
                 time.sleep(0.4)
                 continue
         if entered and not accepted:
-            use = click_labeled(nodes, {"Use this folder", "Select"})
+            use = click_labeled(
+                [node for node in nodes if node.attrib.get("enabled") != "false"],
+                {"Use this folder", "Select"},
+            )
             if use is not None:
+                if bounds_area(use.attrib["bounds"]) == 0:
+                    if recover_picker is None:
+                        raise ScenarioFailure("SAF confirmation is clipped; no usable touch bounds")
+                    recover_picker()
+                    recover_picker = None
+                    # Native window recovery invalidates Android geometry.
+                    # Rediscover rather than tapping the previous snapshot.
+                    continue
                 tap_bounds(adb, use.attrib["bounds"])
                 accepted = True
                 time.sleep(0.4)

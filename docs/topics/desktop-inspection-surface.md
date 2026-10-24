@@ -133,8 +133,8 @@ the same components. This direction does not make a local socket service or
 remote daemon part of the desktop architecture.
 
 For eventual JSTorrent graduation, the browser extension is also an accepted
-first-class desktop presentation preference. It should attach to the same
-native desktop backend and profile as a Tauri webview rather than take over a
+first-class desktop client preference. It should attach to the same
+desktop host and profile as a Tauri webview rather than take over a
 second engine. The future lifecycle, native-messaging, handoff, and security
 work is owned by
 [`product-surfaces-and-migration.md`](product-surfaces-and-migration.md); it
@@ -203,7 +203,7 @@ surface, not the RSTorrent application-view architecture.
   remain usable while the detailed shell is introduced.
 - The shared web application remains headlessly exercisable without launching
   or focusing the Tauri window. Interactive desktop testing and automated
-  validation use different hosts for the same presentation.
+  validation run the same web UI in different shells.
 - Empty scaffolding is acceptable when it is honest. Controls that cannot act
   must not appear to succeed.
 
@@ -267,8 +267,12 @@ Tactical `043` makes the Trackers tab a live product and debugging surface
 without scraping tracker log messages. A delayed controlled announce proves
 that an in-flight operation is visible before its response, then shows the
 accepted swarm counts and next deadline while the torrent completes. Table
-columns and widths share the existing versioned preferences, exact sorting,
-and optional live re-sorting behavior. The phone detail keeps the URL and
+columns and widths share the existing versioned preferences and exact sorting.
+Shared tables re-sort on live updates, holding the current row order for two
+seconds after pointer, scroll, or keyboard activity in the table, until a
+mouse leaves it, or while a row menu is open; the sort arrow dims while the
+held order differs from the live sort. This replaced the earlier opt-in
+re-sort checkbox. The phone detail keeps the URL and
 status useful while fully hiding the inactive library pane.
 
 The surface is therefore useful for live peer, retained-swarm, file, tracker,
@@ -285,4 +289,4 @@ surface. A production-preview headless Chrome run traverses estimated,
 warming, unavailable, and stalled rows at wide and Compact presentation sizes,
 then verifies the phone-width ETA column rule and empty serious/critical axe
 results. The proof launches neither a visible Tauri window nor a second ETA
-owner; the same generated state drives browser and embedded desktop hosts.
+owner; the same generated state drives browser and embedded desktop shells.

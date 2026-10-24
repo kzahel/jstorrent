@@ -1,0 +1,210 @@
+{
+  "sourceSha": "f5860c99bbaf6b40c0ba40735071aff6a0b5527d",
+  "runUrl": "https://github.com/kzahel/rstorrent/actions/runs/37239152531",
+  "runId": 37239152531,
+  "attempt": 1,
+  "product": "JSTorrent",
+  "version": "0.3.0",
+  "published": false,
+  "independentVerification": {
+    "receiptHashes": 23,
+    "expectedPayloadSignatures": 10,
+    "originalUpdaterRoot": "415D3DF4B3D0CFB8",
+    "allPayloadSignaturesPassed": true,
+    "updaterMetadataPassed": true
+  },
+  "packageGates": [
+    {
+      "lane": "macOS arm64",
+      "passedSteps": [
+        "Verify macOS signing and notarization",
+        "Stage exact signed release leg"
+      ]
+    },
+    {
+      "lane": "macOS x86_64",
+      "passedSteps": [
+        "Verify macOS signing and notarization",
+        "Stage exact signed release leg"
+      ]
+    },
+    {
+      "lane": "Windows x86_64",
+      "passedSteps": [
+        "Verify Windows Authenticode signatures",
+        "Stage exact signed release leg",
+        "Verify installed Windows activation registry"
+      ]
+    },
+    {
+      "lane": "Linux x86_64",
+      "passedSteps": [
+        "Verify Linux bundle matrix",
+        "Stage exact signed release leg"
+      ]
+    },
+    {
+      "lane": "Linux arm64",
+      "passedSteps": [
+        "Verify Linux bundle matrix",
+        "Stage exact signed release leg"
+      ]
+    }
+  ],
+  "jobs": [
+    {
+      "name": "release-input",
+      "conclusion": "success"
+    },
+    {
+      "name": "Release source checks",
+      "conclusion": "success"
+    },
+    {
+      "name": "Prove current CI updater signing identity",
+      "conclusion": "success"
+    },
+    {
+      "name": "Signed macOS arm64 packages",
+      "conclusion": "success"
+    },
+    {
+      "name": "Signed macOS x86_64 packages",
+      "conclusion": "success"
+    },
+    {
+      "name": "Signed Linux x86_64 packages",
+      "conclusion": "success"
+    },
+    {
+      "name": "Signed Windows x86_64 packages",
+      "conclusion": "success"
+    },
+    {
+      "name": "Signed Linux arm64 packages",
+      "conclusion": "success"
+    },
+    {
+      "name": "Collect and validate desktop release",
+      "conclusion": "success"
+    }
+  ],
+  "assets": [
+    {
+      "name": "JSTorrent_0.3.0_aarch64.dmg",
+      "size": 19325748,
+      "digest": "sha256:74fdd8c5321492676a889b9f19db58e7e597941a6e96ba7456f0ad2e89001f8e"
+    },
+    {
+      "name": "JSTorrent_aarch64.app.tar.gz",
+      "size": 19931825,
+      "digest": "sha256:1b4b2a6a4ba62e6b46263f684dbc5089491bdb82d0ab3efa45b92be53e328828"
+    },
+    {
+      "name": "JSTorrent_aarch64.app.tar.gz.sig",
+      "size": 408,
+      "digest": "sha256:b18be1d85ae7b052eb8385f2e488fa1f49576a26d29ca3a70284a58bd6eaed1e"
+    },
+    {
+      "name": "JSTorrent_0.3.0_x64.dmg",
+      "size": 20941226,
+      "digest": "sha256:4a60dfd2ecc8d41a74ff8b53e1d96e1a6b2734cdfc7fe7e23bb5e8296fe6665a"
+    },
+    {
+      "name": "JSTorrent_x64.app.tar.gz",
+      "size": 21359984,
+      "digest": "sha256:2f813f1fd187d1ed462e8a4835a72c722046de248207bb8d5e4b4be1946d7fc3"
+    },
+    {
+      "name": "JSTorrent_x64.app.tar.gz.sig",
+      "size": 408,
+      "digest": "sha256:2c9037364e7444cc0642767837af48804778342a6257c1dcde1517c32b075588"
+    },
+    {
+      "name": "JSTorrent_0.3.0_aarch64.AppImage",
+      "size": 99883528,
+      "digest": "sha256:06221410d8d602354e3e327f946ffdda3f4a015776937667195af33067162a0f"
+    },
+    {
+      "name": "JSTorrent_0.3.0_aarch64.AppImage.sig",
+      "size": 424,
+      "digest": "sha256:c95aef324df318ca2714fcbf1c54e780324cd0fb49efbb35ea7524c78420f649"
+    },
+    {
+      "name": "JSTorrent_0.3.0_arm64.deb",
+      "size": 23912400,
+      "digest": "sha256:5f4b6fe2c4f902590b8b559519db382c80f652bdda0b760774cc650fda74e54e"
+    },
+    {
+      "name": "JSTorrent_0.3.0_arm64.deb.sig",
+      "size": 416,
+      "digest": "sha256:56ea6b21abc716ff6e40f23736289803a74558ca671bef572ede344e73ef43cf"
+    },
+    {
+      "name": "JSTorrent-0.3.0-1.aarch64.rpm",
+      "size": 23909811,
+      "digest": "sha256:1f2c67f133b7dc14a8148b7d0c433bd6f4e7b1baa4b827dea832e80960e4aa7c"
+    },
+    {
+      "name": "JSTorrent-0.3.0-1.aarch64.rpm.sig",
+      "size": 420,
+      "digest": "sha256:57e81cc7f407301b07347a99e6cccab1e06ee53bf74018f7c1892ed604e6229c"
+    },
+    {
+      "name": "JSTorrent_0.3.0_amd64.AppImage",
+      "size": 101640696,
+      "digest": "sha256:518304e77ebe3d81061021cdac02a1df2ef8f0e6f21e4e1751e11f388d6bc72e"
+    },
+    {
+      "name": "JSTorrent_0.3.0_amd64.AppImage.sig",
+      "size": 420,
+      "digest": "sha256:364f727ef56de03248dde233f058ff0b9566841f3c4f637c96b0ac75793f4d1b"
+    },
+    {
+      "name": "JSTorrent_0.3.0_amd64.deb",
+      "size": 23460214,
+      "digest": "sha256:6457fecb17d4139ebd1efc21bc9f244191202231e10c3690f3d529e35741960f"
+    },
+    {
+      "name": "JSTorrent_0.3.0_amd64.deb.sig",
+      "size": 416,
+      "digest": "sha256:8f76f0e677efcc7a80863811fed1ae6bbca5609e4ddda2cadef98b6dd4a9d712"
+    },
+    {
+      "name": "JSTorrent-0.3.0-1.x86_64.rpm",
+      "size": 23456255,
+      "digest": "sha256:f880bdc50716da3e32076dff76ac4edf151e6acc3e711cd71ff1618db2199822"
+    },
+    {
+      "name": "JSTorrent-0.3.0-1.x86_64.rpm.sig",
+      "size": 420,
+      "digest": "sha256:3ab67a3dae03d7bee490d4aacfed94e5521e1e0cf11ee02e76e748d418fe2653"
+    },
+    {
+      "name": "JSTorrent_0.3.0_x64-setup.exe",
+      "size": 14693936,
+      "digest": "sha256:e7e245f9a0d72506b7bacc2524f8fbe6fd432610e11c7f1dffdfb16a06c5f907"
+    },
+    {
+      "name": "JSTorrent_0.3.0_x64-setup.exe.sig",
+      "size": 420,
+      "digest": "sha256:a3ad67d7dd7fb7dcf26d127d6abe0b663dff7c2fd410e166d9d19fa2ff1ac66e"
+    },
+    {
+      "name": "JSTorrent_0.3.0_x64_en-US.msi",
+      "size": 21073920,
+      "digest": "sha256:36b63cf2b21045465bae536e95343024794331e63cd4db89640252cd80f0ea55"
+    },
+    {
+      "name": "JSTorrent_0.3.0_x64_en-US.msi.sig",
+      "size": 420,
+      "digest": "sha256:7d4c7bd75d58be27511ad805e80806592a4edd0c8fc0e768eb0f051cfdca09ea"
+    },
+    {
+      "name": "latest.json",
+      "size": 8942,
+      "digest": "sha256:9def9e565fab93da9cd445cd1ef098622dc472472d8e5278ff74020f8f43aff6"
+    }
+  ],
+  "qualification": "Complete current-source signed packages; installed evidence remains separately pinned to its own source and hashes"
+}

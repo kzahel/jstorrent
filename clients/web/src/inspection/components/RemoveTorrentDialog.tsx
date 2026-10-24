@@ -136,8 +136,13 @@ export function RemoveTorrentDialog({
             {unsupportedDeleteCount === 1 ? localizedMessage("inspection.components.remove.torrent.dialog.torrent.does") : localizedMessage("inspection.components.remove.torrent.dialog.torrents.do")}
             {" "}{localizedMessage("inspection.components.remove.torrent.dialog.not.support.downloaded.data.deletion.keep.downloaded")}</p>
         ) : null}
-        {deleteData ? (
-          <p className={styles.warning} role="alert">{localizedMessage("inspection.components.remove.torrent.dialog.this.permanently.deletes.this.torrent.s.downloaded")}</p>
+        {deleteDataSupported ? (
+          <p
+            className={styles.warning}
+            data-visible={deleteData}
+            role={deleteData ? "alert" : undefined}
+            aria-hidden={!deleteData}
+          >{localizedMessage("inspection.components.remove.torrent.dialog.this.permanently.deletes.this.torrent.s.downloaded")}</p>
         ) : null}
         {error === "" ? null : (
           <p className={styles.error} role="alert">{error}</p>
@@ -150,13 +155,18 @@ export function RemoveTorrentDialog({
             type="submit"
             disabled={pending}
           >
-          {pending
-            ? `Removing ${targets.length.toLocaleString()}…`
-            : error === ""
-              ? deleteData
-                ? localizedMessage("inspection.components.remove.torrent.dialog.remove.and.delete.data")
-                : localizedMessage("inspection.components.remove.torrent.dialog.remove")
-              : localizedMessage("inspection.components.remove.torrent.dialog.retry.failed")}
+            <span className={styles.removeSizer} aria-hidden="true">
+              {localizedMessage("inspection.components.remove.torrent.dialog.remove.and.delete.data")}
+            </span>
+            <span className={styles.removeLabel}>
+              {pending
+                ? `Removing ${targets.length.toLocaleString()}…`
+                : error === ""
+                  ? deleteData
+                    ? localizedMessage("inspection.components.remove.torrent.dialog.remove.and.delete.data")
+                    : localizedMessage("inspection.components.remove.torrent.dialog.remove")
+                  : localizedMessage("inspection.components.remove.torrent.dialog.retry.failed")}
+            </span>
           </button>
         </div>
       </form>

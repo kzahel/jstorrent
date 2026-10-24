@@ -1,6 +1,584 @@
 # Android JSTorrent Replacement Readiness
 
+Tactical [380](../tactical/380-product-release.md) prepares Android 1.0.32
+and repairs companion HTTP header compatibility: accept both released
+X-JSTorrent-Installation and legacy X-RSTorrent-Installation in hello, folder
+authentication and CORS. Origin, credential and ARC-interface limits remain.
+Production 1.0.31 is confirmed active on October 20; new delivery is pending.
+
+Tactical [357](../tactical/357-rich-share-links.md) adds **Share…** (system
+chooser) and **Show QR code** beside Copy share link, Files **Share file(s)**,
+the include-my-address prompt with Remember my choice, a Settings → Network &
+privacy → Share links row, and "(from the link, not verified)" sizes. ZXing
+core 3.5.4 renders QR codes. Not yet exercised on a device.
+
+Tactical [350](../tactical/350-share-links-and-private-hint.md) adds Copy
+share link beside Copy magnet link (detail menu and single-selection More),
+building `https://jstorrent.com/share/#<magnet query>` like the web client.
+Details shows a Private torrent row, and copying a private torrent's link
+says it only works for members of its tracker.
+
+Tactical [331](../tactical/331-android-settings-plain-copy.md) brings
+Settings closer to the original app: section headers on every page, speed
+limits first with presets, one row per download folder, plain network status,
+and no "Not available yet" rows. Seeding-goal controls leave the Android UI;
+engine values are unchanged. Presentation only.
+
+Tactical [330](../tactical/330-android-1-0-31-production-release.md) submits
+Android 1.0.31/code 31 for production at 100%, automatically publishing after
+approval. Exact tagged signed APK/AAB checks and source Android/SAF integration
+pass. At 14:37 UTC on October 13, Play shows only 31 Start full rollout in
+Changes in review; quick checks are running and managed publishing is off.
+Production remains 1.0.30 until approval. Installed delivery and stability
+remain separate. Full source CI has one Windows socket-bind test failure;
+all other applicable jobs, including Rust/web/Android, pass.
+
+Tactical [326](../tactical/326-full-product-release.md) submits original-key
+Android 1.0.30/code 30, now available on Google Play at 100% in all 178
+targeted countries. Exact
+tagged APK/AAB, dual-ABI/JVM/lint and owned API 35 SAF lifecycle checks pass.
+Play confirms publication at October 13 01:24 local time; version 29 is
+deactivated and no bundles are retained. No cancellation is needed. Extension
+1.1.4 is pending review with automatic publication after approval, preserving
+public visibility, all regions and existing permissions. Installed production
+acceptance and stability remain separate.
+
+
+Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) adds
+ChromeOS-only Settings → Advanced → Connect Chrome extension and a new JSTorrent
+launch scheme, retaining the old scheme as input compatibility. Setup gates
+browser return on existing notification eligibility, offers permission/settings
+recovery and renews the fixed bootstrap grace only on explicit native preparation.
+Standalone background/seeding preferences and terminal-stop precedence remain.
+Both API-33 physical cohorts pass isolated candidate setup, pairing expiry and
+approval, saved reconnect and process restart; notification/channel Compose
+regressions pass on each. Play-installed packages/data are preserved and public
+hosted/store delivery remains separately qualified.
+
+
+Tactical [315](../tactical/315-android-1-0-29-production-release.md) submits
+signed 1.0.29/code 29 from 8ddf2e8b for production review at 100%, automatically
+publishing after approval. Full source/signed CI, independent artifact checks
+and 29 owned navigation/shutdown cases each on API 28/35 pass. Play quick checks
+complete by 15:34 UTC; review/approval and installed production stability remain
+pending. This does not establish migration or vitals success.
+
+October 12 production monitoring finds one version-28 foreground crash on a
+Pixelbook/API 33 in torrent-detail subscription setup. Tactical
+[314](../tactical/314-android-presentation-shutdown-race.md) maps the exact
+generated line to a destroyed client and locally repairs the presentation
+closure fence, setup error boundary and partial-owner cleanup. Thirteen new
+regressions, all 136 debug JVM cases, regenerated Kotlin and both native ABIs
+pass. This is a local repair; production remains 1.0.28/code 28, with customer
+trigger reproduction and delivery/soak evidence separate.
+
+Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
+simplifies first launch: concise statistics choice, folder setup, then an
+optional background-download offer. Library Enable now requests notifications
+and enables continuation through the existing Power Management action; granting
+notifications alone does not enable background or dismiss the offer. Not now
+keeps foreground use available; background seeding remains a separate opt-in.
+
+Tactical [308](../tactical/308-android-optional-add-selection.md) simplifies
+Android add-time UX: Download all can proceed before magnet metadata, Choose
+files is optional, and external intake uses one Add torrent confirmation rather
+than source-mechanism and future-flow explanations. Explicit all consent is
+durable; selection, cancellation, storage repair and duplicate authority remain
+owned by the existing application. Source/local validation and generated build
+evidence are recorded in the tactical; store delivery is separate.
+Tactical [328](../tactical/328-android-add-before-download-folder.md) lets
+in-app adds made before a usable download folder exists wait in the intake
+dialog, which asks for the folder and then continues the add with its
+original choice instead of rejecting it.
+
+Finish-line059 prepares1.0.28/code28 containing Tactical292's paused-intent
+Repair correction. Exact debug/API35 normal paused/running repair, source-offline
+hashes and cold reopens pass; build/122 JVM/lint/script/notice checks and owned
+AVD cleanup pass. Original-signed hosted APK/AAB, managed delivery and repair
+remain open. Managed27 and frozen desktop2b83 receipts retain their bindings.
+No push, tag, store upload or production publication occurs.
+
+## Current execution checkpoint: 2026-10-09
+
+The reviewed Android27 AAB is delivered to the existing internal track. Play
+reports **27 (1.0.27), Available to internal testers**; production remains23,
+and existing testers and all supported-device counts are unchanged. Its exact
+AAB SHA-256 remains `383379eeb05363e6a361e02a9a1250fb6e72c8dc595b6267bb897b17f34156d8`.
+The downloaded Play-generated universal APK independently verifies the existing
+managed signing certificate, package identity, API28 minimum, target36, both
+native ABIs and16-KiB ZIP/ELF alignment. Store availability and download checks
+are separate from complete preserved-library and Shutdown/reopen acceptance.
+
+D-03 now closes its bounded identity/version/signing contract: current27 exceeds
+fresh Play pre-upload maximum26 and selected GitHub code24; original AAB upload
+certificate and actual downloaded/installed Play certificates independently
+verify. The managed upgrade retains its installation identity without clear or
+uninstall. A-01–08 data/lifecycle/mixed-store and production shipment remain open.
+
+One retained physical Chromebook now updates26-to27 through the actual Play
+Update control without sideload, uninstall or clear. UID, first-install time,
+Play installer and exact URI grants remain unchanged; both owned observations
+clean up successfully. Its disclosure is now saved with statistics opted out through the real checkbox.
+Managed27 normal Shutdown removes the task/service; normal reopen returns Live
+without the disclosure, with unchanged identity and exact grants. Its library is
+empty after prior owned-fixture cleanup; populated payload-row acceptance and
+reboot remain separate. All observed tabs/application windows close after this
+slice; browser page targets and Close controls are empty. The other
+device's documented ADB connection attempt refuses; no reboot, rootfs repair
+or power-policy change is performed. Private receipts/screenshots stay ignored.
+
+Original-root nonpublishing desktop qualification now runs at `a7ee65ed` in
+[37958746928](https://github.com/kzahel/rstorrent/actions/runs/37958746928).
+The first attempt37957327863 proved the original signing root and was cancelled
+before package qualification because the final signature CLI still requiredten.
+The tool-only correction requires six production/ten preview signatures;20
+focused cases pass. Production publication and website deployment remain outside
+this instruction. The exact extension draft upload is authorized but waiting
+for the user's Google passkey verification; no new Web Store upload is claimed.
+
+Ignored finish-line evidence retains delivery screenshots, exact artifact and
+execution receipts, and each physical/build attempt. Nothing above closes the
+whole installed/store acceptance checklist.
+
+Tactical [284](../tactical/284-owned-upgrade-scenario-captures.md) repeats the
+current-source API35 ordinary extension-writer upgrade successfully, retaining
+actual four-pair and native before/after captures. Three existing upgrade,
+restart and successor-control assertions pass with independent payload hashes.
+Failed fixture attempts are retained; owned browser/emulator state is removed.
+This uses disposable signing and explicitly granted extracted-beta permission,
+so physical/Play delivery remains open. Tactical286 qualifies settled narrow
+presentation; the first clipped capture caught drawer motion.
+
+Tactical [278](../tactical/278-android-shutdown-window-lifecycle.md) follows a
+real code26 managed menu failure: the engine joins successfully, but the bound
+activity still displays Live. The next local candidate27 routes Shutdown
+through the activity owner, requesting the existing terminal stop then removing
+the task so its binding is released. Engine/network/background/privacy policy
+is unchanged. At application source68e247ad, all122 release JVM cases/lint,
+original-key APK/AAB and independent package checks pass. Actual physical
+isolated normal-menu Shutdown removes the task/service with joined successful
+cleanup; normal launch restores a fresh Live service, the same complete row,
+independent payload hash and SAF registry. Exact owned cleanup passes, with
+managed code26 installation metadata unchanged. Code27 internal delivery and
+revised-source hosted CI remain separate unperformed steps.
+
 Topic: `android-jstorrent-replacement`
+
+The maintainer explicitly approves exact sourceaeaa original-key code26
+internal-track delivery. Play now reports1.0.26 Available to internal testers
+on the existing track; production23 and existing testers remain unchanged.
+Supported-device counts do not change from internal25. The original AAB
+rehashes to19f9c358 before upload. Managed ordinary/companion installation
+acceptance remains open; availability alone does not qualify an upgrade.
+Native Web Store inspection resumes without changing its published/draft1.1.1
+item or disclosures. Tactical259 owns receipts and continuing qualification.
+
+Current application sourceaeaa72f9 passes normal original-key packaging, 122
+JVM cases/lint, all independent package checks and both exact isolated
+physical installs. Tactical269/270 completes locally with actual fresh
+native registry readiness and independently verified28-MiB
+upload/Live/SAF/cleanup on both cohorts. Both current-APK physical default
+runs now pass three cold repetitions, the 3,600-second detached hour, full
+independent 40-MiB download/upload hashes, retained Warning/Info filters,
+joined actual Live/owned-row reopen, unchanged SAF registry/payload and
+cleanup. Both also pass all seven current-APK recovery cases. A retains its
+older fixed 120-second upload driver; B's fresh repeat loads source
+`840f421d`/driver `51883b67` with a 172-second upload and one native display
+wake inside the original 120-second reopen budget. B's first whole reopen
+failure remains recorded unchanged. No managed Play, physical
+reboot/provider/network/ sleep or final signed desktop/store/public
+acceptance is inferred.
+
+Tactical [269](../tactical/269-android-incoming-peer-diagnostic-evidence.md)
+adds a bounded read-only native incoming observer for the unresolved physical
+large-fixture refusal. Fifteen Android Rust cases/clippy, generated original-key/isolated builds
+and actual bounded native snapshots pass. No engine/network policy is changed.
+Both source0aa physical cohorts independently hash the installed APK and pass
+small foreground/background/reopened upload plus joined Live-library restart,
+retained SAF registry and cleanup. This closes Tactical260's bounded local
+shutdown evidence, not the failed large-metadata/hour or managed delivery gates.
+Tactical266's restored native retained history/Live-library component also passes
+both cohorts. Whole upload receipts remain failed; severity/category button
+changes alone cannot prove asynchronous filtering. Tactical267 now checks actual
+visible filtered rows, with26 passing portable driver cases.
+
+Tactical [266](../tactical/266-android-diagnostic-history-resynchronization.md)
+repairs Android's diagnostic-only queue after a real 581,079-byte history cannot
+resynchronize through 256 KiB. Source `2adf2eb1` requests the existing 4-MiB
+subscription bound for retained history (2 MiB / 2,048 events); Kotlin still
+retains 512 rows. The real retention regression rejects the old budget, delivers
+473,255 bytes and resynchronizes unchanged history. Normal original-signed and
+isolated dual-ABI builds, 121 release JVM cases, lint and independent package
+checks pass. Full session checks pass 387 cases with two existing ignores.
+Bounded physical retained-history/Live return passes; large-fixture upload
+and managed delivery remain open under259/267. No store upload occurs.
+
+Tactical [267](../tactical/267-physical-upload-and-reopen-evidence.md) strengthens
+actual upload transport/readiness/counter and observed retained-settings
+navigation evidence. Both source-376 physical runs pass their full 3,600-second
+background transfer and whole 40-MiB hash; their subsequent upload phase fails.
+No complete end-to-end pass is inferred. Portable delayed-listener/failure
+ownership/refusal tests pass; short current-APK trials run before full retries.
+No engine/network/seeding policy changes or inherited app/data cleanup occurs.
+
+Tactical [260](../tactical/260-android-shutdown-failure-containment.md) contains
+an observed physical Android shutdown exception at the client adapter boundary.
+Typed native cleanup errors remain visible after releasing the client; other
+failures and cancellation propagate. Both ABI builds, generated Kotlin and
+121 JVM tests pass. Physical shutdown/restart and endurance remain pending;
+engine, mapping leases and background policy are unchanged.
+
+Finish-line Tactical [259](../tactical/259-jstorrent-finish-line-checks.md)
+now freezes original-key Android 1.0.26/code 26 at `37673687f15235840f3ac47ab044f2cd3e2f2445`
+after shutdown containment and Tactical 262's Network-status branding repair.
+Actual old/new Network captures, the original-signed APK capture and all 24
+API-35 navigation cases pass. Normal release, 121 JVM tests, lint and independent
+upload-certificate, launcher/API 28, both-ABI, 16-KiB and notice checks pass.
+Authenticated Play reconfirms production 23, internal 25 and uploaded maximum 25;
+code 26 awaits explicit internal-track delivery authorization. Both physical
+production installations are preserved. Earlier isolated cohort A passes a
+foreground hour and seven SAF/source cases. Fixed-source cohort B passes three
+byte/offline-restart repetitions and a full-hash 600-second detached background
+check; later setup/intake failures are retained. Fresh full background runs
+on both cohorts are in progress; cohort B enables real background policy
+before observation intake. Its failed foreground observation
+is retained: Android stops the activity, the default-off lifecycle joins idle
+shutdown, and read-only ARC power state records a timeout. Device power policy
+is unchanged. These results do not qualify managed Play replacement or completed
+file upload. Final-source cohort A and broader recovery checks continue.
+
+Current-source controlled ordinary and companion writer upgrades pass on API
+28/35, including actual old writers, two SAF roots, running replacement,
+verified partial completion and restart. Ordinary mode also passes emulator
+reboot. Companion mode exercises both mixed-version refusals and fresh successor
+pairing/control. Settled Live library captures are retained separately from
+first-use disclosure. Old-picker and old-download setup failures remain recorded;
+no production-store identity or managed signer is inferred from disposable
+certificates and the unpacked beta extension. Tactical 259 owns exact receipts.
+
+Final Android application source 37673687 passes all seven isolated physical
+SAF/source recovery cases on both cohorts, with independent payload hashes and
+successful owned cleanup. Earlier shared-identity attempts remain failed or
+intentionally interrupted. Corrected unique-identity full background-hour,
+actual completed-upload and joined Live-reopen runs are active. Physical Play,
+removable providers and broader reboot/sleep/network-loss remain separate gates.
+
+Tactical [257](../tactical/257-play-upgrade-and-fresh-signed-candidates.md)
+qualifies a bounded physical Play 1.0.23-to-1.0.25 standalone upgrade: original
+managed signer, unchanged installation identity, two retained paused rows and
+payload hashes, retained unmetered policy, source-offline completed-file recheck,
+partial-file verified completion and force-stop/relaunch. Broader store, companion,
+SAF and lifecycle cohorts remain open. The observed release-only Canary label is
+corrected in source candidate 1.0.26/code 26, with final APK/AAB label validation.
+Fresh original-key APK/AAB signing and independent package validation pass at
+f5860c99; see the [candidate receipt](../evidence/android-fresh-candidate-257.json).
+Internal Play code 25 and production code 23 are unchanged; code 26 is neither
+Play-uploaded nor installed as a Play upgrade. The tactical owns exact evidence
+and cleanup limits.
+
+Tactical [255](../tactical/255-android-play-internal-replacement.md) completes
+the authorized Android internal Play release on 2026-10-04. The original upload
+key matches Play and the retained public certificate; the existing CI inputs
+are corrected. Local source `42a11817` produces validated 1.0.25/code 25 APK/AAB
+with both ABIs, 116 passing release JVM tests and passing lint. Play reports the
+replacement **Available to internal testers** on the existing `com.jstorrent.app`
+property. Production remains 1.0.23. This supersedes the Android signing blocker
+in the historical 251 account below; broader Play-installed cohorts and production cutover remain open. See the [artifact and publication receipt](../evidence/android-play-internal-255.json).
+
+Tactical [251](../tactical/251-jstorrent-ci-candidates-and-installed-update.md)
+completes a bounded production-package CI attempt with existing signing inputs.
+The first attempt builds APK/AAB, then exposes an explicit exported-attribute
+requirement in release-overlay lint. The overlay repeats the inherited value.
+The repaired retry passes signed APK/AAB building, JVM tests and release lint,
+then fails only at the mandatory original-certificate staging check.
+Its current signing certificate differs from the original GitHub APK signer;
+original inputs and independent Play upload/app-signing review remain required.
+Retained diagnostic artifacts cannot qualify an installed production upgrade.
+
+## Production Candidate Preparation, 2026-10-01
+
+Tactical [250](../tactical/250-jstorrent-production-identity-candidates.md)
+changes release packaging to `com.jstorrent.app`, 1.0.25/code 25. Normal debug
+builds remain `org.rstorrent.bootstrap`; Kotlin/JNI namespace stays unchanged.
+A release-only alias preserves `com.jstorrent.app.MainActivity` as the single
+launcher. Generated release manifest and isolated debug APK metadata pass.
+`upload-certificate.pem` now pins the verified original 1.0.24 GitHub APK
+certificate; `incubation-upload-certificate.pem` preserves the former canary
+public root. The release workflow validates final APK/AAB signers and launcher
+metadata. Tactical 251 simplifies the full cutover to existing `ANDROID_UPLOAD_*`
+secret names; their contents must be replaced with the original signing inputs.
+No original secrets have been transferred/configured by these slices.
+
+Original APK signing is not proof of Play app-signing continuity. Confirm the
+existing Play app, upload certificate, app-signing certificate and maximum
+versionCode across tracks before a signed candidate. Maintainer direction on
+2026-10-01 selects minimum API 28 (Android 9) for the replacement; API 26/27
+are outside the supported cutover cohort. Those installations retain the old
+app until their OS supports the replacement. Qualify unsupported-device guidance
+so an unavailable Play update is not presented as a recoverable retry loop. Existing canary listing
+assets are historical material, unsuitable for this production app unchanged.
+The [cutover checklist](../jstorrent-cutover-checklist.md) keeps installed Play,
+physical ARC/SAF, launch routes and same-ID extension updating open.
+
+Tactical [249](../tactical/249-jstorrent-brand-and-extension-refresh.md) restores
+JSTorrent Android display text and original adaptive/launcher/store icons.
+Debug assembly, 113 JVM tests and packaged attribution checks pass. This is
+branding preparation for the existing `com.jstorrent.app` Play app update;
+application IDs, minimum API, versionCode and signing configuration are unchanged.
+Play signing/version continuity and a physical ChromeOS installed replacement
+remain explicit gates. Canary store copy still describes its separate existing
+incubation distribution; production listing copy belongs to the cutover slice.
+
+
+Tactical [248](../tactical/248-chromeos-staggered-upgrade.md) implements the
+accepted independently staggered ChromeOS update contract and passes controlled
+API 28/35 installed rehearsals using the released extension's actual
+settings/intake/session writers. The connected browser engine saves in Android
+SQLite. Two torrents, mapped settings and SAF bindings/grants survive running
+replacement and restart; the successor extension pairs freshly to that same
+Android owner and controls the migrated library. Legacy Android requires an
+update; the old extension loses control after Android replacement. Physical
+installed replacement, store/production identities and historical browser-local
+fallback remain separate gates. Crostini automatic migration is excluded.
+
+Tactical [247](../tactical/247-android-ordinary-writer-upgrade.md) completes
+ordinary released Android writers and controlled installed upgrades on API 28/35:
+two SAF roots, supported settings, paused/partial torrents, running replacement,
+successor completion, process restart and reboot pass with independent hashes.
+Machine Control's ChromeOS/ARCVM route is confirmed; physical apps are preserved.
+This is disposable-signature emulator evidence, not physical/Play delivery.
+
+## Android Migration Inventory, 2026-09-30
+
+Tactical [245](../tactical/245-android-legacy-inventory-and-import-contract.md)
+pins and inspects the GitHub-released `android-v1.0.24` APK and source, adds
+13 independently authored format fixtures and a temporary SQLite/WAL audit,
+and scopes the importer and installed upgrade matrix below. This completes an
+inventory checkpoint. Tactical [246](../tactical/246-android-legacy-import-and-installed-upgrade.md)
+now owns the importer and installed upgrade implementation/evidence below.
+No personal profile, device, production key or extension has been changed.
+
+### Pinned Source And Artifact
+
+- Tag `android-v1.0.24`, source
+  `7b454be4410385f9c4f7f135cb6b16194a2b0409`; GitHub publication
+  `2026-07-23T09:42:17Z`. This selects one explicit source baseline, not the
+  latest Play-installed cohort or all historical releases.
+- [Released APK](https://github.com/kzahel/JSTorrent/releases/download/android-v1.0.24/app-release.apk):
+  11,014,738 bytes, SHA-256
+  `a938b46825157668e804d1efbf01a2cce461a8e23ce1028e909aa919145cfa84`.
+  Downloaded bytes match GitHub's asset digest. SDK `apkanalyzer` confirms
+  `com.jstorrent.app`, version code `24`, version `1.0.24`, minimum API 26 and
+  target API 36. Public APK signature verification passes; certificate SHA-256
+  `ccb5af8e44d626e9aefb1f0fbd8496dbf23ad27da9347248e71fb3ce70044915`.
+  This public certificate is not proof of Play App Signing continuity.
+- AAB metadata: 15,632,162 bytes, GitHub asset SHA-256
+  `ae61749dd4a31d032ed6ca2993782bbf9d3804bb3bd842124bbd53bc0f929139`.
+  The AAB was not downloaded, signed, or installed in this checkpoint.
+
+### Storage And Authority Mapping
+
+There is one Android session per installed app sandbox, with no desktop-style
+source profiles to union. The independent RSTorrent beta cannot read another
+package's private database or inherit its grants. The eventual in-place
+replacement must use the existing package/signing lane; no cross-package
+filesystem bypass or transfer of grant strings supplies that authority.
+
+| Legacy authority | Exact source format | Proposed successor disposition |
+| --- | --- | --- |
+| `databases/jstorrent_kv.db` | SQLite user version 1; `kv(key TEXT PRIMARY KEY, value TEXT)` permits null values | Bounded read-only SQLite backup including WAL, before opening any engine; retain source unchanged. Unknown source versions fail visibly. |
+| `session:torrents` | JSON index version 2; v1 identity, file/magnet source, original magnet and added time | Validate through the shared Rust intake path, import supported distinct identities into one `default` catalog; current destination identities win unchanged. |
+| `session:torrent:<hash>:torrentfile` / `:infodict` | JSON-string-wrapped base64; native reader accepts whitespace and URL-safe alphabet | Preserve exact source where available; authenticate cached info and metainfo identities. Bounded malformed records are reported/skipped. The format audit is not the metainfo validator. |
+| `:state` | active/stopped/queued/awaitingFileSelection; optional root key, queue position, Normal=0/Skip=1 priorities and `magnetSelectOnly` | Preserve supported run/selection intent. Stopped magnets remain network-inactive until explicit Resume; held file selection stays held. Do not replace missing binding with today's default. |
+| Foreign state evidence | bitfield, piece count, transferred totals, timestamps and peer caches | Import no trusted have state or counters; known metadata enters ordinary full checking. Preserve payload independently. |
+| `files/roots.json` | `roots[]`: opaque 16-hex key, URI, `display_name`, stale health/removable/volume hints | Bind each torrent to its exact source root. Import supported tree locators into the platform registry under stable destination IDs; verify real retained read/write grants and provider health. Lost access retains a repairable root. |
+| OS persisted URI permissions | Runtime `ContentResolver.persistedUriPermissions` | Reuse only actual retained read/write grants after the same-package upgrade. Never infer access from JSON, `last_stat_ok`, a copied URI, or backup restoration. |
+| `files/downloads` | Native `FileBindings::resolveRoot` explicitly maps empty or `default` root keys here | Preserve this app-private payload. The importer uses an exact path-backed handoff distinct from SAF; absent/unknown keys must not be guessed into it. Never create a missing old root during discovery. |
+| `config:*` in KV | JSON engine settings plus `defaultRootKey` | Reuse the desktop closed mapping where semantics match; preserve a latest-format destination's settings/default. Explicitly classify Android-only or unsupported controls; no blind preference copy. |
+| `shared_prefs/jstorrent_settings.xml` | Android-only booleans/strings, including networking and lifecycle | Read a closed, bounded allowlist before engine admission. Treat malformed safety values as review-required. See the policy mapping below. |
+| `shared_prefs/jstorrent_auth.xml` | Legacy raw-I/O pairing and standalone tokens, extension/install IDs and mode preferences | Preserve source for recovery; import no legacy credentials into the semantic companion. Require fresh pairing when browser control returns. The temporary ChromeOS gap is accepted. |
+| `shared_prefs/jstorrent_metrics.xml`, `files/search_plugins.json`, caches | Historical metrics/review state and downloaded plugin definitions | Preserve old files, import neither historical metric identity/counters nor executable plugins. Existing feature-disposition/privacy gates remain authoritative. |
+
+The pinned root writer actually uses the first 16 hex characters of SHA-256
+over the exact URI string; its salted-key comment is stale. Keys remain opaque
+to the importer and must not be rewritten merely from a normalized URI.
+Root-store read errors currently fall back to an empty config: the successor
+must report corruption rather than adopt that fallback as a successful empty
+migration. Nullable KV state and unknown root keys are explicit failure cases.
+
+### Android Preference And Startup Policy
+
+The proposed import mapping is narrow:
+
+- `wifi_only_enabled` maps to existing **Unmetered networks only**. The pinned
+  `NetworkRestrictionEnforcer::computeRestrictionStatus` already tests
+  `isUnmetered`, despite the old Wi-Fi label. Establish the initial prerequisite
+  before any metadata/discovery/peer owner; preserve it across restart.
+- Unsupported `vpn_only_enabled` is dropped by explicit maintainer direction
+  on 2026-09-30. It adds no acknowledgement screen or startup hold. VPN support
+  remains a potential pre-cutover investment, rather than claimed parity.
+- `background_downloads_enabled` and `when_downloads_complete` have existing
+  lifecycle equivalents. Preserve explicit opt-in and stop/close versus
+  keep-seeding choice within their current permission/admission rules.
+  `cpu_wake_lock_enabled` maps to the existing active-work preference.
+- `show_file_selection` maps to the catalog add-selection preference. Theme
+  may map only supported values. Unsupported language/plugin/battery behavior
+  is dropped and recorded as a cutover gap. Low-battery shutdown similarly
+  adds no importer hold; implementing it remains a separate product decision.
+- Do not migrate old notification-prompt suppression, companion tokens/timers,
+  install IDs, metrics, or review state. Retained OS notification permissions
+  and new channel visibility are runtime facts to inspect.
+
+### Importer Boundary And Commit Point
+
+Tactical 246 implements the common validated torrent/selection/
+settings conversion, with a dedicated Android source adapter. Desktop path
+discovery, profile union and native-host fencing are inapplicable. Do not fake
+a desktop `rpc-info.json`, turn a tree URI into a filesystem path, or replay
+ordinary add commands one at a time as a partially committed migration.
+
+1. Kotlin owns same-package source discovery, read-only roots/preferences,
+   runtime grant observations and startup admission. The dormant hook must run
+   only for the eventual production identity, before root reconciliation or
+   `AndroidApplicationClient.open`; incubation must not inspect personal legacy
+   state. Source reading runs in the existing bounded startup owner and has
+   observable cancellation/termination; no detached migration task.
+2. Rust owns bounded source validation, duplicate/current-owner policy and
+   strict fresh-or-current destination opening. Never fall through the normal
+   incubation old-schema reset. Start from desktop limits and the current
+   500-torrent/32-root catalog bounds; record exact adopted byte/time limits in
+   the implementation tactical.
+3. One catalog transaction includes fresh schema/settings, roots, torrent
+   sources/intent, pending verification, the private initial root-binding
+   manifest and one completion report. No per-torrent migration ledger. Existing
+   latest-format records/settings win; corrupt source records do not crash
+   unrelated imports. Destination failure rolls back the transaction.
+4. The Kotlin SAF registry is derived from committed root bindings **before
+   opening the engine**, not a second independently committed migration
+   authority. Replay only still-registered catalog roots missing from the
+   registry; preserve existing/repaired entries. This makes process death after
+   catalog commit but before preference persistence retryable without undoing
+   repairs or resurrecting removed roots. Test this ordering explicitly.
+5. Grant/provider loss yields retained unavailable roots and repair guidance;
+   network-policy review blocks startup before any network task. Only then open
+   the ordinary application/checker. Checking establishes have evidence; no
+   payload copy, deletion or root creation belongs to conversion.
+
+This dependency direction stays Kotlin platform adapter -> Rust session/store
+conversion -> deterministic protocol/intake validation. Platform URIs and OS
+grant facts remain private native state rather than shared public view DTOs.
+The native bootstrap bridge returns a private bounded JSON manifest; no shared
+application DTO changes. Both ABIs and generated Kotlin are validated in 246.
+
+### Controlled Installed Upgrade Checkpoint
+
+Completed Tactical 246 proves the same-package upgrade on fresh ARM64 Android
+9/API 28 and Android 15/API 35 emulators: supported settings, five torrent
+records/selection/run intent, retained UID, real SAF permission, existing private
+payload, intact/corrupt checking, restart, revoked-root repair and no import
+resurrection after explicit profile clearing. Roots/preferences without a native
+DB and source-free first starts also pass. Old source DB/roots and independently
+hashed payload remain unchanged. Both native ABIs/generated Kotlin, 1570 Rust
+workspace tests, 113 Kotlin unit tests and five existing network/lifecycle/reset
+instrumentation tests pass. The exact commands and bounds are in the tactical.
+This is a controlled released-APK/source-format checkpoint, not Play delivery or
+qualification of every historical profile/ordinary old writer.
+
+### Implemented Mapping And Cutover Gaps
+
+Tactical 246 carries explicit valid DHT/PEX toggles, global peer limit, upload
+slots, encryption, upload/download rates, active download/seed limits and UPnP.
+Android's effective two-download cap still applies to the preserved configured
+limit. It carries Wi-Fi/unmetered, background and completion policy, active-work
+wake and show-file-selection preferences. Invalid individual settings retain
+new defaults; current latest-format profiles keep their settings and owners.
+No credentials, metric identity, plugins or foreign completion authority carry.
+
+The startup job completes catalog conversion before engine open, using the
+platform-provided private cache directory for bounded source snapshots. The
+catalog, stable root IDs, private bootstrap and one report commit together.
+Preference/registry bootstrap retries idempotently if startup stops after that
+commit. Its installation-scoped completion preference then bypasses legacy
+input on ordinary starts and after explicit private-profile clearing. This
+prevents old data resurrecting after the normal clear workflow and lets later
+successor schema handling remain with ordinary session open. It is not a
+per-record progress ledger. Shutdown cancels/joins initialization before closing
+resources initialization may create.
+
+Potential investment before cutover (unsupported settings are dropped):
+
+| Gap | Current disposition / remaining decision |
+| --- | --- |
+| VPN-only routing and low-battery shutdown | Not implemented; no migration gate. Decide whether to invest before replacing users relying on these restrictions. |
+| Search plugins, old locale/theme overrides, companion timers and extension pairing | Drop unsupported preferences/credentials; retain original private source files. Re-pair through the current companion model when enabled. Temporary extension-control loss remains accepted. |
+| Historical browser-local sessions | Pinned 1.0.24 routes connected extension session/settings to the same Android SQLite source; qualify its ordinary writer in 248. Browser-local fallback and older pre-remote-KV releases still require a separate disposition. Roots/preferences carry without a native DB. |
+| Per-torrent peer limits, old custom listening-port policy and other unmapped engine knobs | Drop unmapped knobs. Audit user demand and add only equivalent mappings or qualified capabilities in a follow-up. |
+| Private fallback file actions / root management | Existing payload and engine checking carry as a path root; broader Compose open/share/remove/clear/delete journeys for that imported path root still need qualification. |
+| API 26/27 | Minimum API 28 (Android 9) accepted on 2026-10-01. These installations remain on the old app and outside the replacement cohort; qualify unsupported-device and extension guidance. |
+| Production delivery | Play-delivered signing continuity, branding, old components/deep links/notification routes and coordinated extension guidance remain release work. |
+| Migration feedback | Counts and ordinal outcomes are retained privately; qualify a user-facing skipped-record summary and recovery/support journey before production. |
+| Wider profile/device qualification | More historical captures, active old engine at replacement, multiple/removable roots, reboot/provider failure and complete clear/delete UI scenarios remain broader evidence. |
+
+### Installed Upgrade Matrix And Remaining Gates
+
+Tactical 246's runner installs the hash-pinned released APK re-signed with a
+**disposable test key**. The released `AddRootActivity` selects a real SAF tree,
+retains permission and writes RootStore. Instrumentation seeds independently
+authored torrent/settings records in its private source-format store and writes
+known payload through the real provider. It then installs the new debug APK
+with the same package/signature and higher version; no uninstall or clear data.
+This exercises the actual old APK and Android replacement, but is not a Play
+update or evidence that every seeded value came from ordinary old UI writers.
+
+Qualify the actual release signing/update lane and broader installed source
+cohorts in a separately authorized campaign. The public GitHub APK certificate does not
+by itself establish the Play-delivered certificate. Current RSTorrent minimum
+API 28 differs from the old APK's API 26. The accepted replacement cohort
+starts at 28; API 26/27 devices keep the old app and need clear unsupported-device
+guidance, including when the successor extension cannot offer a usable update.
+
+Required assertions cover fresh/empty, intact/corrupt payload, stopped/active/
+queued/held metadata, stopped pending magnets, multiple roots, private default
+storage, revoked grants/offline volume, malformed/nullable/oversized source,
+current duplicates/settings, crash before commit and between commit/registry,
+restart/reboot, repair without changed binding, and no import resurrection
+after removal. Independently hash payload and inspect catalog/verified state;
+prove policy-restricted startup has zero network owners, including metadata
+and DHT. Source/payload remain unchanged except ordinary checking bookkeeping.
+
+The actual old APK exports `MainActivity`, `LinkHandlerActivity`,
+`NativeStandaloneActivity`, `PairingApprovalActivity` and `AddRootActivity`,
+with old `IoDaemonService` and `ForegroundNotificationService` owners. Inventory
+stale notification PendingIntents, deep links and extension activations against
+the new manifest; retire old component routes deliberately and preserve useful
+torrent-intake outcomes. No legacy raw-I/O backend is retained. APK inspection
+shows no custom process names for these old owners; installed replacement still
+needs process-quiescence evidence.
+
+`JAR-004`, `JAR-005` and `JAR-010` remain open. Tactical 246 owns Android importer and controlled grant/package upgrade
+evidence. Production branding/component compatibility,
+privacy/support feature dispositions, signed Play continuity and extension
+rollout have not been proved by the generated audit.
+
+### Inventory Evidence
+
+`tests/fixtures/legacy-android-v1.0.24` contains 13 generated cases/12 index
+records. The read-only temporary SQLite/WAL audit classifies seven format
+candidates (six metadata, one pending magnet), reports unresolved roots/private
+storage and policy review, and reports zero verified pieces throughout. Ten
+Python tests pass, including source preservation, fixture reproducibility,
+nullable values, URL-safe/whitespace binary, stale healthy hints, unknown future
+index, root bounds/ambiguity, private storage, cached-info mismatch and output
+privacy. No installed Android test or Rust importer ran in 245.
+
+Maintainer direction on 2026-09-30 permits temporary loss of ChromeOS
+extension control of the Rust Android app during the JSTorrent replacement.
+Standalone Android remains the usable fallback, with explicit extension copy
+directing users to the Android UI. Uninterrupted companion compatibility is
+not required to ship the desktop replacement or the initial Android transition.
+This narrows the rollout gates below; it does not retire Tactical 194's
+companion architecture or authorize store publication. Restoration timing and
+exact production extension/app versions remain open.
 
 Status: **Active as of 2026-09-01.** This is the authoritative readiness and
 feature-disposition ledger for eventually shipping the first-party Rust
@@ -76,8 +654,8 @@ branding and the installed application audience. The replacement must:
   reauthorization flow;
 - never convert legacy completion or resume claims into verified content
   without the Rust engine's ordinary integrity checks;
-- keep the standalone Android and supported ChromeOS extension journeys
-  usable across the rollout; and
+- keep standalone Android usable and explicitly disclose a temporary
+  ChromeOS extension-control gap when that accepted rollout option is used; and
 - either implement, deliberately retire, or clearly disclose every current
   user-visible JSTorrent capability before the candidate is approved.
 
@@ -98,7 +676,8 @@ Android replacement is ready only when:
    selected;
 3. a production-equivalent old JSTorrent fixture upgrades through the actual
    signed Play lane without payload loss, false verified state, or an unusable
-   standalone/ChromeOS journey;
+   standalone journey; any temporary ChromeOS browser-control gap has clear
+   guidance to use the Android app;
 4. fresh install, upgrade, interrupted migration, missing/revoked root,
    process death, reboot, uninstall, and explicit data deletion have bounded
    outcomes; and
@@ -168,7 +747,8 @@ daemon architecture.
   JSTorrent extension expects the legacy raw I/O companion, while Tactical
   `194` intentionally selects a typed semantic connection to the Rust
   application owner. Choose and prove an extension-first, app-first-compatible,
-  or coordinated rollout that leaves no installed cohort stranded. Do not add
+  or coordinated rollout. A disclosed temporary browser-control gap with
+  standalone Android as the fallback is accepted. Do not add
   a permanent raw I/O compatibility daemon merely to avoid rollout planning.
 - [x] **JAR-006 — Add external Android torrent intake.** Completed Tactical
   [`197`](../tactical/197-android-external-torrent-intake.md) registers and bounds
@@ -253,7 +833,7 @@ blocker for an independent RSTorrent beta.
 | VPN-only mode | JSTorrent suspends when the active default network is not reported as VPN. RSTorrent has no control. The legacy check does not prove socket binding or leak prevention. | Implement only with Android `Network` binding, fail-closed startup/handover, closure or rebinding of existing TCP/UDP sockets, and peer/tracker/DHT/DNS leakage evidence; otherwise retire and disclose it. |
 | SOCKS5 proxy | JSTorrent exposes host, port, optional credentials, and peer/HTTP-tracker/UDP-tracker routing choices. RSTorrent shows a disabled placeholder and has no engine proxy owner. | Use a source-first engine tactical covering DNS, authentication-secret storage, UDP ASSOCIATE or a truthful unsupported state, reconnect, bypass prevention, resource limits, and interoperability. |
 | DHT and PEX controls | Completed Tactical [`205`](../tactical/205-durable-dht-and-pex-controls.md) adds backed default-on Compose controls, durable intent, live application truth, and shared engine enforcement. | Implemented. Private-torrent gating remains unconditional regardless of either setting. |
-| Seeding and queue policy | JSTorrent has backing state for an active-seed limit, although its current native Settings screen does not render that control, plus a stop/close versus keep-seeding choice. RSTorrent now has exact pinned-libtorrent global active-seed and ratio/time priority semantics, but deliberately does not reproduce stop/close-on-goal. | Tactical `200` selects default background closure and a separate keep-seeding-in-background opt-in. Completed Tactical `201` adds backed Compose settings and exact active/queued/goal truth. Its installed API-35 profile proves one active and two queued seeds across foreground reopening and opt-in background ownership. Reaching a goal does not hard-stop or rewrite torrent intent; whether that deliberate difference needs additional disclosure remains release work. |
+| Seeding and queue policy | JSTorrent has backing state for an active-seed limit, although its current native Settings screen does not render that control, plus a stop/close versus keep-seeding choice. RSTorrent has exact pinned-libtorrent global active-seed and ratio/time priority semantics, and Tactical `344` adds share-ratio and seeding-time stop limits with per-torrent overrides that durably stop a finished torrent. | Tactical `200` selects default background closure and a separate keep-seeding-in-background opt-in. Completed Tactical `201` adds backed Compose settings and exact active/queued/goal truth; its installed API-35 profile proves one active and two queued seeds across foreground reopening and opt-in background ownership. Reaching a priority goal still does not stop a torrent. Tactical `344` adds the Compose Stop seeding settings, the per-torrent override in the torrent sheet, "Seeding limit reached" and Keep seeding; its evidence is JVM tests and the debug build, not an installed device profile. |
 | Low-battery shutdown | JSTorrent offers an opt-in 5–50% threshold. RSTorrent has only the active-work sleep setting and a disabled Battery policy row. | Decide whether Android replacement retains this safety valve. If implemented, define charging, threshold hysteresis, notification, intent preservation, and restart behavior. |
 | Companion idle/auto-close | JSTorrent can stop its separate legacy daemon after a configured disconnected interval. Tactical `194` instead owns one semantic service/application owner. | Tactical `200` selects a fixed 60-second authenticated-disconnect grace and no user-facing timer. A configurable idle policy remains deferred unless product evidence justifies it. |
 | Search and plugins | JSTorrent has search UI plus installed/recommended URL-fetched JavaScript plugins in an Android WebView sandbox. RSTorrent has no search/plugin product capability. | Treat as a separate security and product campaign. Implement only with explicit network-code trust, sandbox, update, disclosure, and Play-review policy; otherwise retire/defer visibly. |
@@ -492,13 +1072,29 @@ commit point and repeatable crash cases.
 
 ## Production Extension Rollout
 
+The accepted [ChromeOS cutover contract](product-surfaces-and-migration.md#chromeos-android-cutover-contract)
+permits either update order and a temporary old-extension/new-Android control
+gap. Successor-extension/legacy-Android requires an explicit Android update,
+without running a legacy engine or issuing old pairing/storage commands.
+Successor Android imports before companion admission, remains usable by itself,
+and explains how to restore browser control. Fresh successor pairing never
+inherits the legacy token. Crostini automatic migration is excluded.
+
+The existing importer covers the normal pinned connected extension's Android
+KV destination; its browser runtime ownership does not imply browser-owned
+persistence. Tactical 248 must prove this with the ordinary legacy extension
+writer. Older browser-local fallback is explicitly unqualified. A preparatory
+legacy-extension guidance release is optional, and skipped intermediate
+versions must not invalidate the handoff.
+
 Tactical `194` proves the new companion implementation but deliberately
 excludes the production JSTorrent extension. Replacement therefore needs a
 coordinated rollout contract:
 
 1. identify every supported installed extension/app version pair;
-2. select which side can understand both the old and new launch/pairing state
-   during the transition, or require an explicit paired update;
+2. select an explicit update requirement or a disclosed temporary companion
+   gap with standalone Android fallback; dual-protocol compatibility is not
+   required;
 3. update production extension permissions, Android package/deep-link
    metadata, connection versioning, and recovery presentation;
 4. prove extension-first, app-first, stale-extension, revoked-pairing,
@@ -603,10 +1199,11 @@ live run.
 
 ## Recommended Next Work
 
-1. Create the bounded `JAR-004` production handoff and legacy-state tactical.
-   It fixes the candidate identity, migration/reset boundary, payload safety,
-   signing inputs, and exact old-version fixture before code changes make
-   accidental compatibility promises.
+1. Implement the bounded Android importer/upgrade slice from 245's pinned
+   inventory, source-format fixtures and contract above. Settle the safety-policy
+   review hold and committed root-binding bootstrap before code changes, then
+   prove a disposable same-package real-SAF upgrade. JAR-004's actual release
+   artifact/signing/installed cohort remains separate.
 2. Preserve completed Tactical
    [`197`](../tactical/197-android-external-torrent-intake.md) as the `JAR-006`
    external-intake regression gate while the provisional product identity is

@@ -11,6 +11,8 @@ import styles from "./SettingsDialog.module.css";
 interface DownloadSettingsSectionProps {
   readonly storage: DownloadStorageSettings;
   readonly manageable: boolean;
+  /** The folders have not arrived; an empty list would be misleading. */
+  readonly loading?: boolean;
   readonly showCrostiniStorageHelp: boolean;
   readonly oneCurrentRoot?: boolean;
   readonly onChooseFolder: (repairRoot?: string) => Promise<DownloadRoot | null>;
@@ -23,6 +25,7 @@ interface DownloadSettingsSectionProps {
 export function DownloadSettingsSection({
   storage,
   manageable,
+  loading = false,
   showCrostiniStorageHelp,
   oneCurrentRoot = false,
   onChooseFolder,
@@ -32,18 +35,19 @@ export function DownloadSettingsSection({
   onRemoveRoot,
 }: DownloadSettingsSectionProps) {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
-  const [storageStatus, setStorageStatus] = useState("");
+  const [storageError, setStorageError] = useState("");
 
+  /** The folder list and checkboxes show success; only failures need words. */
   const runStorageAction = async (
     action: string,
-    operation: () => Promise<string>,
+    operation: () => Promise<unknown>,
   ) => {
     setPendingAction(action);
-    setStorageStatus("");
+    setStorageError("");
     try {
-      setStorageStatus(await operation());
+      await operation();
     } catch (error) {
-      setStorageStatus(error instanceof Error ? error.message : String(error));
+      setStorageError(error instanceof Error ? error.message : String(error));
     } finally {
       setPendingAction(null);
     }
@@ -53,15 +57,17 @@ export function DownloadSettingsSection({
     <fieldset className={styles.section}>
       <legend>{localizedMessage("inspection.components.download.settings.section.downloads")}</legend>
       {!manageable ? (
-        <p className={styles.storageNote}>{localizedMessage("inspection.components.download.settings.section.download.folders.are.managed.by.the.live")}</p>
+        <p className={styles.storageNote}>{localizedMessage("inspection.components.download.settings.section.not.manageable")}</p>
+      ) : loading ? (
+        <p className={styles.storageNote} role="status">{localizedMessage("inspection.components.download.settings.section.loading")}</p>
       ) : (
         <>
           <div className={styles.settingHeading}>
             <strong>{localizedMessage("inspection.components.download.settings.section.download.folders")}</strong>
             <span>
               {oneCurrentRoot
-                ? localizedMessage("inspection.components.download.settings.section.the.current.folder.applies.to.future.torrents")
-                : localizedMessage("inspection.components.download.settings.section.the.default.applies.to.future.torrents.only")}
+                ? localizedMessage("inspection.components.download.settings.section.new.downloads.current.folder")
+                : localizedMessage("inspection.components.download.settings.section.new.downloads.default.folder")}
             </span>
           </div>
           {showCrostiniStorageHelp ? <CrostiniStorageHelp /> : null}
@@ -110,12 +116,7 @@ export function DownloadSettingsSection({
                           onClick={() =>
                             void runStorageAction(
                               `repair-${root.id}`,
-                              async () => {
-                                const repaired = await onChooseFolder(root.id);
-                                return repaired === null
-                                  ? "Folder selection canceled"
-                                  : `${repaired.label} repaired`;
-                              },
+                              () => onChooseFolder(root.id),
                             )
                           }
                         >
@@ -130,10 +131,7 @@ export function DownloadSettingsSection({
                           onClick={() =>
                             void runStorageAction(
                               `default-${root.id}`,
-                              async () => {
-                                await onDefaultRootChange(root.id);
-                                return `${root.label} is now the default`;
-                              },
+                              () => onDefaultRootChange(root.id),
                             )
                           }
                         >
@@ -147,10 +145,7 @@ export function DownloadSettingsSection({
                           onClick={() =>
                             void runStorageAction(
                               `remove-${root.id}`,
-                              async () => {
-                                await onRemoveRoot(root.id);
-                                return `${root.label} removed`;
-                              },
+                              () => onRemoveRoot(root.id),
                             )
                           }
                         >
@@ -170,62 +165,53 @@ export function DownloadSettingsSection({
             type="button"
             disabled={pendingAction !== null}
             onClick={() =>
-              void runStorageAction("add", async () => {
-                const root = await onChooseFolder();
-                return root === null
-                  ? "Folder selection canceled"
-                  : `${root.label} added`;
-              })
+              void runStorageAction("add", () => onChooseFolder())
             }
           >
             {pendingAction === "add" ? localizedMessage("inspection.components.download.settings.section.choosing") : localizedMessage("inspection.components.download.settings.section.add.folder")}
           </button>
-          {oneCurrentRoot ? null : (
+          <div className={styles.rows}>
+            {oneCurrentRoot ? null : (
+              <label className={styles.preference}>
+                <input
+                  type="checkbox"
+                  checked={storage.showAddOptions}
+                  disabled={pendingAction !== null}
+                  onChange={(event) => {
+                    const show = event.currentTarget.checked;
+                    void runStorageAction("preference", () =>
+                      onShowAddOptionsChange(show),
+                    );
+                  }}
+                />
+                <span>
+                  <strong>{localizedMessage("inspection.components.download.settings.section.show.options.when.adding.torrents")}</strong>
+                  <small>{localizedMessage("inspection.components.download.settings.section.options.always.shown.without.default")}</small>
+                </span>
+              </label>
+            )}
             <label className={styles.preference}>
               <input
                 type="checkbox"
-                checked={storage.showAddOptions}
+                checked={storage.showFileSelection ?? true}
                 disabled={pendingAction !== null}
                 onChange={(event) => {
                   const show = event.currentTarget.checked;
-                  void runStorageAction("preference", async () => {
-                    await onShowAddOptionsChange(show);
-                    return show
-                      ? "Add options will be shown"
-                      : "The usable default will be used automatically";
-                  });
+                  void runStorageAction("file-selection-preference", () =>
+                    onShowFileSelectionChange(show),
+                  );
                 }}
               />
               <span>
-                <strong>{localizedMessage("inspection.components.download.settings.section.show.options.when.adding.torrents")}</strong>
-                <small>{localizedMessage("inspection.components.download.settings.section.options.are.always.shown.when.no.usable")}</small>
+                <strong>{localizedMessage("inspection.components.download.settings.section.show.file.selection.when.adding.torrents")}</strong>
+                <small>{localizedMessage("inspection.components.download.settings.section.choose.files.before.starting")}</small>
               </span>
             </label>
-          )}
-          <label className={styles.preference}>
-            <input
-              type="checkbox"
-              checked={storage.showFileSelection ?? true}
-              disabled={pendingAction !== null}
-              onChange={(event) => {
-                const show = event.currentTarget.checked;
-                void runStorageAction("file-selection-preference", async () => {
-                  await onShowFileSelectionChange(show);
-                  return show
-                    ? "File selection will be shown for new torrents"
-                    : "New torrents will start with all files";
-                });
-              }}
-            />
-            <span>
-              <strong>{localizedMessage("inspection.components.download.settings.section.show.file.selection.when.adding.torrents")}</strong>
-              <small>{localizedMessage("inspection.components.download.settings.section.checked.means.normal.unchecked.means.skip")}</small>
-            </span>
-          </label>
-          {storageStatus === "" ? null : (
-            <output className={styles.storageStatus} aria-live="polite">
-              {storageStatus}
-            </output>
+          </div>
+          {storageError === "" ? null : (
+            <p className={styles.errorStatus} role="alert">
+              {storageError}
+            </p>
           )}
         </>
       )}

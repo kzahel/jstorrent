@@ -2,8 +2,12 @@
 
 package org.rstorrent.bootstrap.ui
 
+import android.os.Build
+import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +30,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.BatterySaver
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Folder
@@ -37,7 +44,9 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
@@ -48,8 +57,15 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarData
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -61,14 +77,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -81,35 +100,45 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
+import androidx.navigation.navArgument
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
+import org.rstorrent.bootstrap.FILE_CATALOG_PAGE_ROWS
 import org.rstorrent.bootstrap.ProductEngineService
 import org.rstorrent.bootstrap.ProductDataResetPhase
 import org.rstorrent.bootstrap.ProductDataResetState
+import org.rstorrent.bootstrap.BuildConfig
 import org.rstorrent.bootstrap.R
 import org.rstorrent.bootstrap.ProductNotificationNavigation
 import org.rstorrent.bootstrap.ProductNotificationPreference
 import org.rstorrent.bootstrap.ProductState
-import org.rstorrent.bootstrap.ExternalIntakeKind
 import org.rstorrent.bootstrap.ExternalIntakeNoticeKind
 import org.rstorrent.bootstrap.ExternalIntakePhase
 import org.rstorrent.bootstrap.ExternalIntakePresentation
 import org.rstorrent.bootstrap.GlobalPresentation
+import org.rstorrent.bootstrap.TorrentListNotice
 import org.rstorrent.bootstrap.TorrentPresentation
+import org.rstorrent.bootstrap.splitMagnetLinks
+import org.rstorrent.bootstrap.fileShareRequest
 import org.rstorrent.bootstrap.clientSettingsPatch
 import org.rstorrent.bootstrap.presentedClientSettings
 import org.rstorrent.bootstrap.presentedTorrent
+import org.rstorrent.bootstrap.seedStopLimits
 import org.rstorrent.bootstrap.torrentSettingsPatch
 import org.rstorrent.session.uniffi.DiagnosticEvent
 import org.rstorrent.session.uniffi.DiagnosticCategory
 import org.rstorrent.session.uniffi.DiagnosticProfile
 import org.rstorrent.session.uniffi.DiagnosticSeverity
+import org.rstorrent.session.uniffi.ClientSettings
 import org.rstorrent.session.uniffi.ClientSettingsPatch
 import org.rstorrent.session.uniffi.FilePriority
 import org.rstorrent.session.uniffi.ProductFeedbackPreview
 import org.rstorrent.session.uniffi.RemovalDataPolicy
+import org.rstorrent.session.uniffi.SpeedRange
 import org.rstorrent.session.uniffi.StorageRootAvailability
 import org.rstorrent.session.uniffi.TorrentOperationalState
 import org.rstorrent.session.uniffi.TorrentSettingsPatch
@@ -123,9 +152,13 @@ fun ProductApp(
     notificationsGranted: Boolean,
     onRequestNotifications: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
+    onExportTorrentList: (() -> Unit)? = null,
+    onImportTorrentList: (() -> Unit)? = null,
     onOpenFeedback: (Boolean, String) -> Unit = { _, _ -> },
     onPreviewFeedback: (suspend (Boolean) -> ProductFeedbackPreview?)? = null,
     onOpenPrivacy: () -> Unit = {},
+    onConnectChromeExtension: (() -> Unit)? = null,
+    onShutdown: () -> Unit = { service?.shutdownFromUi() },
     themeMode: ProductThemeMode,
     dynamicColor: Boolean,
     onThemeMode: (ProductThemeMode) -> Unit,
@@ -141,6 +174,7 @@ fun ProductApp(
     onUpdateTorrentSettings: ((String, TorrentSettingsPatch) -> Unit)? = null,
     onRepairStorage: (String) -> Unit = {},
     onConfirmExternalIntake: ((Long) -> Unit)? = null,
+    onChooseExternalFiles: ((Long) -> Unit)? = null,
     onRetryExternalIntake: ((Long) -> Unit)? = null,
     onCancelExternalIntake: ((Long) -> Unit)? = null,
     onResetClientSettings: (() -> Unit)? = null,
@@ -148,6 +182,8 @@ fun ProductApp(
     onRetryDataReset: (() -> Unit)? = null,
     onFinishDataResetKeepingFiles: (() -> Unit)? = null,
     onDismissCompletedDataReset: (() -> Unit)? = null,
+    startDestination: PrimaryDestination = PrimaryDestination.TORRENTS,
+    onPrimaryDestination: (PrimaryDestination) -> Unit = {},
 ) {
     RstorrentTheme(mode = themeMode, dynamicColor = dynamicColor) {
         val state =
@@ -183,9 +219,97 @@ fun ProductApp(
         LaunchedEffect(state.externalIntakeNotice?.sequence, externalIntakeNotice) {
             externalIntakeNotice?.let { snackbar.showSnackbar(it) }
         }
-        Box(modifier = Modifier.fillMaxSize()) {
+        val resources = LocalContext.current.resources
+        val restoreLabel = stringResource(R.string.action_restore)
+        LaunchedEffect(state.alreadyPresentNotice?.sequence) {
+            val notice = state.alreadyPresentNotice ?: return@LaunchedEffect
+            // Consume the notice so a recreated UI does not show it again.
+            service?.clearAlreadyPresentNotice(notice.sequence)
+            notificationScope.launch {
+                snackbar.currentSnackbarData?.dismiss()
+                val archived = notice.archivedTorrentIds
+                if (archived.isEmpty()) {
+                    snackbar.showSnackbar(
+                        resources.getQuantityString(
+                            R.plurals.add_already_present_count,
+                            notice.count,
+                            notice.count,
+                        ),
+                    )
+                    return@launch
+                }
+                val result =
+                    snackbar.showSnackbar(
+                        resources.getQuantityString(
+                            R.plurals.add_already_archived_count,
+                            archived.size,
+                            archived.size,
+                        ),
+                        actionLabel = restoreLabel,
+                        duration = SnackbarDuration.Long,
+                    )
+                if (result == SnackbarResult.ActionPerformed) {
+                    service?.restoreArchive(
+                        archived,
+                        resume = if (notice.resumeOnRestore) archived else emptyList(),
+                    )
+                }
+            }
+        }
+        val torrentListNotice = state.torrentListNotice
+        val torrentListMessage = torrentListNotice?.let { torrentListNoticeText(it) }
+        LaunchedEffect(torrentListNotice?.sequence, torrentListMessage) {
+            // Summaries stay until their dialog is dismissed; messages show once.
+            val message = torrentListMessage ?: return@LaunchedEffect
+            torrentListNotice?.sequence?.let { service?.clearTorrentListNotice(it) }
+            notificationScope.launch {
+                snackbar.currentSnackbarData?.dismiss()
+                snackbar.showSnackbar(
+                    message,
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Long,
+                )
+            }
+        }
+        LaunchedEffect(state.torrentCommandFailure?.sequence) {
+            val failure = state.torrentCommandFailure ?: return@LaunchedEffect
+            // Consume the failure so a recreated UI does not show it again.
+            service?.clearTorrentCommandFailure(failure.sequence)
+            notificationScope.launch {
+                // Replace a shown failure instead of queueing behind it.
+                snackbar.currentSnackbarData?.dismiss()
+                snackbar.showSnackbar(
+                    failure.detail,
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Long,
+                )
+            }
+        }
+        val navController = rememberNavController()
+        // Torrents is always the graph's start; a remembered Library opens
+        // once at launch, not again when the activity is recreated.
+        var initialDestinationShown by rememberSaveable { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            if (initialDestinationShown) return@LaunchedEffect
+            initialDestinationShown = true
+            if (startDestination != PrimaryDestination.TORRENTS) {
+                navController.showPrimary(startDestination)
+            }
+        }
+        val entry by navController.currentBackStackEntryAsState()
+        val primary = PrimaryDestination.forRoute(entry?.destination?.route)
+        LaunchedEffect(primary) { primary?.let(onPrimaryDestination) }
+        var torrentSelectionMode by remember { mutableStateOf(false) }
+        val navigation =
+            primary?.takeUnless {
+                it == PrimaryDestination.TORRENTS && torrentSelectionMode
+            }
+        PrimaryNavigationScaffold(navigation, onSelect = { navController.showPrimary(it) }) {
             Surface(modifier = Modifier.fillMaxSize()) {
                 ProductNavHost(
+                    navController = navController,
+                    onTorrentSelectionMode = { torrentSelectionMode = it },
+                    onShutdown = onShutdown,
                     state = state,
                     service = service,
                     onSelectStorage = onSelectStorage,
@@ -194,13 +318,38 @@ fun ProductApp(
                     notificationsGranted = notificationsGranted,
                     onRequestNotifications = onRequestNotifications,
                     onOpenNotificationSettings = onOpenNotificationSettings,
+                    onExportTorrentList = onExportTorrentList,
+                    onImportTorrentList = onImportTorrentList,
                     onOpenFeedback = onOpenFeedback,
                     onPreviewFeedback = onPreviewFeedback,
                     onOpenPrivacy = onOpenPrivacy,
+                    onConnectChromeExtension = onConnectChromeExtension,
                     notificationNavigation = notificationNavigation,
                     onNotificationNavigationConsumed = onNotificationNavigationConsumed,
                     onNotificationNavigationFallback = { message ->
                         notificationScope.launch { snackbar.showSnackbar(message) }
+                    },
+                    onMessage = { message ->
+                        notificationScope.launch {
+                            snackbar.currentSnackbarData?.dismiss()
+                            snackbar.showSnackbar(
+                                message,
+                                withDismissAction = true,
+                                duration = SnackbarDuration.Long,
+                            )
+                        }
+                    },
+                    onUndoableAction = { message, undoLabel, undo ->
+                        notificationScope.launch {
+                            snackbar.currentSnackbarData?.dismiss()
+                            val result =
+                                snackbar.showSnackbar(
+                                    message,
+                                    actionLabel = undoLabel,
+                                    duration = SnackbarDuration.Long,
+                                )
+                            if (result == SnackbarResult.ActionPerformed) undo()
+                        }
                     },
                     onUpdateNotificationPreference =
                         onUpdateNotificationPreference ?: { preference, enabled ->
@@ -256,7 +405,7 @@ fun ProductApp(
             SnackbarHost(
                 hostState = snackbar,
                 modifier = Modifier.align(Alignment.BottomCenter),
-            )
+            ) { data -> SwipeableSnackbar(data) }
         }
         state.productSummary
             ?.takeIf { it.disclosureVersion < 1U }
@@ -268,10 +417,6 @@ fun ProductApp(
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(stringResource(R.string.product_statistics_disclosure_detail))
-                            Text(
-                                stringResource(R.string.feedback_recipient_warning),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier =
@@ -283,7 +428,7 @@ fun ProductApp(
                                     checked = statisticsEnabled,
                                     onCheckedChange = { statisticsEnabled = it },
                                 )
-                                Text(stringResource(R.string.product_statistics_include))
+                                Text(stringResource(R.string.product_statistics_first_use_include))
                             }
                         }
                     },
@@ -315,9 +460,14 @@ fun ProductApp(
                 onRepairStorage = onRepairStorage,
                 onConfirm =
                     onConfirmExternalIntake ?: {
-                        service?.confirmExternalIntake(it)
+                        service?.confirmExternalIntake(it, awaitFileSelection = false)
                         Unit
                     },
+                rootLabel = state.storageRootLabel ?: stringResource(R.string.download_folder),
+                onChooseFiles = onChooseExternalFiles ?: {
+                    service?.confirmExternalIntake(it, awaitFileSelection = true)
+                    Unit
+                },
                 onRetry =
                     onRetryExternalIntake ?: {
                         service?.retryExternalIntake(it)
@@ -330,7 +480,10 @@ fun ProductApp(
                     },
             )
         }
-        pendingSelection?.takeIf { state.dataReset == null }?.let { torrent ->
+        pendingSelection?.takeIf {
+            state.dataReset == null && state.quickAddsInFlight == 0 &&
+                state.externalIntake?.phase != ExternalIntakePhase.SUBMITTING
+        }?.let { torrent ->
             val root = state.storage?.roots?.singleOrNull { it.rootId == torrent.storageRoot }
             val rootReady =
                 root?.availability == StorageRootAvailability.AVAILABLE &&
@@ -357,9 +510,22 @@ fun ProductApp(
                         )
                     }
                 },
+                onDownloadAll = { disableFuture ->
+                    service?.downloadAllPendingAdd(torrent.torrentId, disableFuture)
+                },
                 onCancel = { service?.cancelPendingAdd(torrent.torrentId) },
             )
         }
+        // Shown after any file choices the added torrents asked for.
+        (torrentListNotice as? TorrentListNotice.Summary)
+            ?.takeIf {
+                pendingSelection == null && state.dataReset == null && state.externalIntake == null
+            }?.let { notice ->
+                TorrentAddSummaryDialog(
+                    summary = notice.summary,
+                    onDismiss = { service?.clearTorrentListNotice(notice.sequence) },
+                )
+            }
         state.companionPairing?.takeIf { state.dataReset == null }?.let { pairing ->
             AlertDialog(
                 onDismissRequest = {},
@@ -540,12 +706,8 @@ private fun dataResetPhaseText(phase: ProductDataResetPhase?): String =
     stringResource(
         when (phase) {
             ProductDataResetPhase.REMOVING_TORRENTS -> R.string.data_reset_phase_torrents
-            ProductDataResetPhase.RESETTING_PROFILE -> R.string.data_reset_phase_profile
-            ProductDataResetPhase.RELEASING_ROOTS -> R.string.data_reset_phase_folders
-            ProductDataResetPhase.RESETTING_PREFERENCES -> R.string.data_reset_phase_preferences
-            ProductDataResetPhase.RESTARTING_APPLICATION -> R.string.data_reset_phase_restarting
-            ProductDataResetPhase.VERIFYING_APPLICATION -> R.string.data_reset_phase_verifying
             null -> R.string.data_reset_phase_starting
+            else -> R.string.data_reset_phase_finishing
         },
     )
 
@@ -559,40 +721,30 @@ private fun ExternalTorrentIntakeDialog(
     onConfirm: (Long) -> Unit,
     onRetry: (Long) -> Unit,
     onCancel: (Long) -> Unit,
+    rootLabel: String,
+    onChooseFiles: (Long) -> Unit,
 ) {
-    val title =
-        when (intake.kind) {
-            ExternalIntakeKind.MAGNET -> stringResource(R.string.intake_magnet_title)
-            ExternalIntakeKind.TORRENT_FILE -> stringResource(R.string.intake_torrent_title)
-        }
     AlertDialog(
         onDismissRequest = { onCancel(intake.intakeId) },
-        title = { Text(title) },
+        title = { Text(stringResource(R.string.add_torrent_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 intake.displayLabel?.let { Text(it) }
-                Text(
-                    stringResource(R.string.intake_selection_notice),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                if (!storageRootReady) {
-                    Text(stringResource(R.string.intake_folder_required))
-                    TextButton(
-                        onClick = {
-                            if (repairRootId == null) onSelectStorage()
-                            else onRepairStorage(repairRootId)
-                        },
-                    ) {
-                        Text(
-                            stringResource(
-                                if (repairRootId == null) {
-                                    R.string.action_select_folder
-                                } else {
-                                    R.string.action_repair_folder
-                                },
-                            ),
-                        )
-                    }
+                if (storageRootReady) {
+                    Text(
+                        stringResource(R.string.file_selection_folder, rootLabel),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                } else {
+                    Text(
+                        stringResource(
+                            if (repairRootId == null) {
+                                R.string.intake_folder_required
+                            } else {
+                                R.string.intake_folder_repair_required
+                            },
+                        ),
+                    )
                 }
                 when (intake.phase) {
                     ExternalIntakePhase.AWAITING_ROOT -> Unit
@@ -604,34 +756,59 @@ private fun ExternalTorrentIntakeDialog(
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    if (intake.phase == ExternalIntakePhase.RETRYABLE_FAILURE) {
-                        onRetry(intake.intakeId)
-                    } else {
-                        onConfirm(intake.intakeId)
-                    }
-                },
-                enabled =
-                    storageRootReady &&
-                        intake.phase in
-                        setOf(
-                            ExternalIntakePhase.PRESENTED,
-                            ExternalIntakePhase.RETRYABLE_FAILURE,
-                        ),
-            ) {
-                Text(
-                    if (intake.phase == ExternalIntakePhase.RETRYABLE_FAILURE) {
-                        stringResource(R.string.action_retry)
-                    } else {
-                        stringResource(R.string.action_add)
+            if (!storageRootReady) {
+                TextButton(
+                    onClick = {
+                        if (repairRootId == null) onSelectStorage()
+                        else onRepairStorage(repairRootId)
                     },
-                )
+                ) {
+                    Text(
+                        stringResource(
+                            if (repairRootId == null) {
+                                R.string.action_select_folder
+                            } else {
+                                R.string.action_repair_folder
+                            },
+                        ),
+                    )
+                }
+            } else {
+                TextButton(
+                    onClick = {
+                        if (intake.phase == ExternalIntakePhase.RETRYABLE_FAILURE) {
+                            onRetry(intake.intakeId)
+                        } else {
+                            onConfirm(intake.intakeId)
+                        }
+                    },
+                    enabled =
+                        intake.phase in
+                            setOf(
+                                ExternalIntakePhase.PRESENTED,
+                                ExternalIntakePhase.RETRYABLE_FAILURE,
+                            ),
+                ) {
+                    Text(
+                        if (intake.phase == ExternalIntakePhase.RETRYABLE_FAILURE) {
+                            stringResource(R.string.action_retry)
+                        } else {
+                            stringResource(R.string.action_download_all)
+                        },
+                    )
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = { onCancel(intake.intakeId) }) {
-                Text(stringResource(R.string.action_cancel))
+            Row {
+                TextButton(onClick = { onCancel(intake.intakeId) }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+                if (intake.phase == ExternalIntakePhase.PRESENTED && storageRootReady) {
+                    TextButton(onClick = { onChooseFiles(intake.intakeId) }) {
+                        Text(stringResource(R.string.action_choose_files))
+                    }
+                }
             }
         },
     )
@@ -650,6 +827,9 @@ private fun externalIntakeNoticeText(kind: ExternalIntakeNoticeKind): String =
 
 @Composable
 private fun ProductNavHost(
+    navController: NavHostController,
+    onTorrentSelectionMode: (Boolean) -> Unit,
+    onShutdown: () -> Unit,
     state: ProductState,
     service: ProductEngineService?,
     onSelectStorage: () -> Unit,
@@ -658,12 +838,17 @@ private fun ProductNavHost(
     notificationsGranted: Boolean,
     onRequestNotifications: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
+    onExportTorrentList: (() -> Unit)?,
+    onImportTorrentList: (() -> Unit)?,
     onOpenFeedback: (Boolean, String) -> Unit,
     onPreviewFeedback: (suspend (Boolean) -> ProductFeedbackPreview?)?,
     onOpenPrivacy: () -> Unit,
+    onConnectChromeExtension: (() -> Unit)?,
     notificationNavigation: ProductNotificationNavigation?,
     onNotificationNavigationConsumed: (Long) -> Unit,
     onNotificationNavigationFallback: (String) -> Unit,
+    onMessage: (String) -> Unit,
+    onUndoableAction: (message: String, undoLabel: String, undo: () -> Unit) -> Unit,
     onUpdateNotificationPreference: (ProductNotificationPreference, Boolean) -> Unit,
     onBackgroundDownloads: (Boolean) -> Unit,
     onKeepSeedingInBackground: (Boolean) -> Unit,
@@ -679,9 +864,31 @@ private fun ProductNavHost(
     onResetClientSettings: () -> Unit,
     onClearAllData: (Boolean) -> Unit,
 ) {
-    val navController = rememberNavController()
+    val resources = LocalContext.current.resources
+    val undoLabel = stringResource(R.string.action_undo)
+    val privateMagnetCopied = stringResource(R.string.copied_private_magnet)
+    val share = rememberShareFlow(state, service, onMessage)
+
+    fun shareTorrent(
+        torrentId: String,
+        mode: ShareMode,
+    ) {
+        state.torrents[torrentId]?.let { share(torrentShareRequest(it), mode) }
+    }
+
+    // Android confirms clipboard writes itself; a copy for one private torrent
+    // also says the link only works for members of its tracker.
+    fun privateCopyNotice(
+        torrentIds: List<String>,
+        message: String,
+    ): (() -> Unit)? =
+        torrentIds.singleOrNull()
+            ?.let { state.torrents[it] }
+            ?.takeIf(TorrentView::privateTorrent)
+            ?.let { { onMessage(message) } }
     var removeTargets by remember { mutableStateOf(emptySet<String>()) }
     var removeStorageRoot by remember { mutableStateOf<String?>(null) }
+    var deleteFolderData by remember { mutableStateOf(false) }
     var confirmKeepSeeding by remember { mutableStateOf(false) }
     var confirmResetEngine by remember { mutableStateOf(false) }
     var confirmClearAllData by remember { mutableStateOf(false) }
@@ -692,6 +899,7 @@ private fun ProductNavHost(
     var feedbackBusy by remember { mutableStateOf(false) }
     var feedbackError by remember { mutableStateOf<String?>(null) }
     val productPrivacyScope = rememberCoroutineScope()
+    val feedbackPreviewFailedMessage = stringResource(R.string.feedback_preview_failed)
     val torrentMissingMessage = stringResource(R.string.notification_torrent_missing)
     val folderMissingMessage = stringResource(R.string.notification_folder_missing)
     val backgroundDownloadsDescription =
@@ -712,9 +920,7 @@ private fun ProductNavHost(
                         launchSingleTop = true
                     }
                 } else {
-                    if (!navController.popBackStack(ProductRoutes.LIBRARY, inclusive = false)) {
-                        navController.navigate(ProductRoutes.LIBRARY) { launchSingleTop = true }
-                    }
+                    navController.showPrimary(PrimaryDestination.TORRENTS, restoreState = false)
                     onNotificationNavigationFallback(torrentMissingMessage)
                 }
             }
@@ -732,65 +938,166 @@ private fun ProductNavHost(
     }
     LaunchedEffect(state.externalIntake?.intakeId) {
         if (state.externalIntake != null) {
-            if (!navController.popBackStack(ProductRoutes.LIBRARY, inclusive = false)) {
-                navController.navigate(ProductRoutes.LIBRARY) { launchSingleTop = true }
-            }
+            navController.showPrimary(PrimaryDestination.TORRENTS, restoreState = false)
         }
     }
-    NavHost(navController = navController, startDestination = ProductRoutes.LIBRARY) {
-        composable(ProductRoutes.LIBRARY) {
-            LibraryScreen(
+    val addMagnet: (String, Boolean) -> Unit = { text, chooseFiles ->
+        val magnets = splitMagnetLinks(text)
+        if (magnets.size <= 1) {
+            service?.addMagnet(
+                text,
+                startContent = true,
+                awaitFileSelection = chooseFiles,
+                downloadAll = !chooseFiles,
+            )
+        } else {
+            service?.addMagnets(
+                magnets,
+                startContent = true,
+                awaitFileSelection = chooseFiles,
+                downloadAll = !chooseFiles,
+                summarize = true,
+            )
+        }
+    }
+    val browseTorrent = { onBrowseTorrent(state.storage?.showFileSelection ?: true) }
+    val addTestTorrents: ((List<TestTorrent>) -> Unit)? =
+        if (BuildConfig.DEBUG) {
+            { torrents ->
+                // Follow the file selection setting like any other add.
+                val chooseFiles = state.storage?.showFileSelection ?: true
+                service?.addMagnets(
+                    torrents.map { it.magnet },
+                    awaitFileSelection = chooseFiles,
+                    downloadAll = !chooseFiles,
+                )
+            }
+        } else {
+            null
+        }
+    NavHost(navController = navController, startDestination = ProductRoutes.TORRENTS) {
+        composable(ProductRoutes.MEDIA_LIBRARY) {
+            val currentService by rememberUpdatedState(service)
+            DisposableEffect(Unit) { onDispose { currentService?.presentLibrary(null) } }
+            var addOpen by rememberSaveable { mutableStateOf(false) }
+            MediaLibraryScreen(
+                state = state,
+                presentationOwner = service,
+                onPresent = { service?.presentLibrary(it) },
+                onOpenTorrent = { navController.navigate(ProductRoutes.detail(it)) },
+                onShowInTorrent = {
+                    navController.navigate(ProductRoutes.detail(it.torrentId, it.fileIndex))
+                },
+                onPlay = { service?.playLibraryMedia(it) },
+                onOpenWith = { service?.openLibraryMedia(it) },
+                onOpenFolder = { service?.openLibraryFolder(it) },
+                onAdd = { addOpen = true },
+                onPause = { service?.pause(it) },
+                onResume = { service?.resume(it) },
+                onSelectStorage = onSelectStorage,
+                onAddTestTorrents = addTestTorrents,
+                onSpeed = { navController.navigate(ProductRoutes.SPEED) },
+                onDht = { navController.navigate(ProductRoutes.DHT) },
+                onLogs = { navController.navigate(ProductRoutes.LOGS) },
+                onSettings = { navController.navigate(ProductRoutes.SETTINGS) },
+                onShutdown = onShutdown,
+            )
+            if (addOpen) {
+                AddTorrentDialog(
+                    enabled = state.ready,
+                    onDismiss = { addOpen = false },
+                    onAddMagnet = { magnet, chooseFiles ->
+                        addMagnet(magnet, chooseFiles)
+                        addOpen = false
+                    },
+                    onBrowse = {
+                        addOpen = false
+                        browseTorrent()
+                    },
+                )
+            }
+        }
+        composable(ProductRoutes.TORRENTS) {
+            TorrentsScreen(
                 state = state,
                 notificationsGranted =
                     notificationsGranted &&
                         state.notifications.appNotificationsEnabled &&
                         state.notifications.backgroundChannelEnabled,
-                onRequestNotifications =
-                    if (notificationsGranted) {
-                        onOpenNotificationSettings
-                    } else {
-                        onRequestNotifications
-                    },
-                notificationActionLabel =
-                    stringResource(
-                        if (notificationsGranted) R.string.action_manage else R.string.action_enable,
-                    ),
+                onEnableBackgroundDownloads = { onBackgroundDownloads(true) },
+                backgroundControlsEnabled = lifecycleControlsEnabled,
                 onSelectStorage = onSelectStorage,
+                onRepairStorage = onRepairStorage,
                 onOpenTorrent = { navController.navigate(ProductRoutes.detail(it)) },
-                onAddMagnet = { magnet ->
-                    service?.addMagnet(
-                        magnet,
-                        startContent = true,
-                        awaitFileSelection = state.storage?.showFileSelection ?: true,
-                    )
-                },
-                onBrowseTorrent = {
-                    onBrowseTorrent(state.storage?.showFileSelection ?: true)
-                },
+                onAddMagnet = addMagnet,
+                onBrowseTorrent = browseTorrent,
+                onAddTestTorrents = addTestTorrents,
                 onPause = { service?.pause(it) },
                 onResume = { service?.resume(it) },
-                onMoveTop = { service?.moveDownloadToTop(it) },
-                onMoveBottom = { service?.moveDownloadToBottom(it) },
-                onArchive = { id ->
-                    if (state.torrents[id]?.archived == true) service?.restoreArchive(id)
-                    else service?.archive(id)
+                onMoveTop = { service?.moveDownloadsToTop(it) },
+                onMoveBottom = { service?.moveDownloadsToBottom(it) },
+                onForceRecheck = { service?.forceRecheck(it) },
+                onCopyMagnets = { ids ->
+                    service?.copyMagnets(ids, privateCopyNotice(ids, privateMagnetCopied))
+                },
+                onCopyShareLink = { shareTorrent(it, ShareMode.COPY) },
+                onShareLink = { shareTorrent(it, ShareMode.SEND) },
+                onShowQrCode = { shareTorrent(it, ShareMode.PANEL) },
+                onArchive = { ids ->
+                    // Archiving pauses; undo resumes the torrents that were running.
+                    val wasRunning = ids.filter { state.torrents[it]?.runningBeforeArchive() == true }
+                    service?.archive(ids)
+                    onUndoableAction(
+                        resources.getQuantityString(R.plurals.library_archived_count, ids.size, ids.size),
+                        undoLabel,
+                    ) { service?.restoreArchive(ids, resume = wasRunning) }
+                },
+                onRestore = { ids ->
+                    service?.restoreArchive(ids)
+                    onUndoableAction(
+                        resources.getQuantityString(R.plurals.library_restored_count, ids.size, ids.size),
+                        undoLabel,
+                    ) { service?.archive(ids) }
                 },
                 onRemove = { removeTargets = it },
                 onSpeed = { navController.navigate(ProductRoutes.SPEED) },
                 onDht = { navController.navigate(ProductRoutes.DHT) },
                 onLogs = { navController.navigate(ProductRoutes.LOGS) },
                 onSettings = { navController.navigate(ProductRoutes.SETTINGS) },
-                onShutdown = { service?.shutdownFromUi() },
+                onShutdown = onShutdown,
+                onSelectionModeChange = onTorrentSelectionMode,
             )
         }
-        composable(ProductRoutes.DETAIL) { entry ->
+        composable(
+            ProductRoutes.DETAIL,
+            arguments =
+                listOf(
+                    navArgument("file") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
+        ) { entry ->
             val torrentId = requireNotNull(entry.arguments?.getString("torrentId"))
+            val focusFile = entry.arguments?.getString("file")?.toUIntOrNull()
             val torrent = state.presentedTorrent(state.torrents[torrentId])
+            // The service is replaced when the activity returns after a
+            // lifecycle stop; select on each owner and clear on the current one.
+            val currentService by rememberUpdatedState(service)
+            LaunchedEffect(torrentId, service) { service?.selectTorrent(torrentId) }
             DisposableEffect(torrentId) {
-                service?.selectTorrent(torrentId)
-                onDispose { service?.clearTorrentPresentation(torrentId) }
+                onDispose { currentService?.clearTorrentPresentation(torrentId) }
+            }
+            // Leave once the loaded library no longer has this torrent, however
+            // it was removed. Skip while not loaded so a reconnect stays here.
+            val gone = state.ready && torrentId !in state.torrents
+            LaunchedEffect(gone) {
+                if (gone) navController.popBackStack(ProductRoutes.DETAIL, inclusive = true)
             }
             TorrentDetailScreen(
+                presentationOwner = service,
+                focusFile = focusFile,
                 torrent = torrent,
                 state = state,
                 onBack = navController::popBackStack,
@@ -799,20 +1106,41 @@ private fun ProductNavHost(
                 onForceRecheck = { service?.forceRecheck(torrentId) },
                 onMoveTop = { service?.moveDownloadToTop(torrentId) },
                 onMoveBottom = { service?.moveDownloadToBottom(torrentId) },
-                onArchive = { service?.archive(torrentId) },
-                onRestore = { service?.restoreArchive(torrentId) },
+                onArchive = { service?.archive(listOf(torrentId)) },
+                onRestore = { service?.restoreArchive(listOf(torrentId)) },
                 onRemove = { removeTargets = setOf(torrentId) },
-                onCopyMagnet = { service?.copyMagnet(torrentId) },
+                onCopyMagnet = {
+                    service?.copyMagnets(
+                        listOf(torrentId),
+                        privateCopyNotice(listOf(torrentId), privateMagnetCopied),
+                    )
+                },
+                onCopyShareLink = { shareTorrent(torrentId, ShareMode.COPY) },
+                onShareLink = { shareTorrent(torrentId, ShareMode.SEND) },
+                onShowQrCode = { shareTorrent(torrentId, ShareMode.PANEL) },
+                onShareFiles = { files ->
+                    torrent?.let {
+                        fileShareRequest(
+                            torrentId,
+                            torrentPresentationName(it),
+                            it.privateTorrent,
+                            files,
+                        )
+                    }?.let { share(it, ShareMode.PANEL) }
+                },
                 onTransferLimits = { onUpdateTorrentSettings(torrentId, it) },
                 onSpeed = { navController.navigate(ProductRoutes.SPEED) },
                 onDht = { navController.navigate(ProductRoutes.DHT) },
                 onLogs = { navController.navigate(ProductRoutes.LOGS) },
                 onSettings = { navController.navigate(ProductRoutes.SETTINGS) },
                 onPresent = { service?.presentTorrent(torrentId, it) },
-                onSetFilePriority = { file, priority ->
-                    service?.setFilePriority(torrentId, file.fileIndex, priority)
+                onFileSafetyOverride = { file, allowed -> service?.setFileSafetyOverride(torrentId, listOf(file.fileIndex), allowed) },
+                onSetFilePriority = { files, priority ->
+                    service?.setFilePriority(torrentId, files.map { it.fileIndex }, priority)
                 },
-                onDownloadFile = { service?.downloadFileNow(torrentId, it.fileIndex) },
+                onDownloadFile = { files ->
+                    service?.downloadFilesNow(torrentId, files.map { it.fileIndex })
+                },
                 onPlayFile = { file -> service?.playMedia(torrentId, file) },
                 onOpenFile = { file ->
                     torrent?.displayName?.let {
@@ -828,11 +1156,18 @@ private fun ProductNavHost(
             )
         }
         composable(ProductRoutes.SPEED) {
-            DisposableEffect(service) {
-                service?.presentGlobal(GlobalPresentation.SPEED)
+            var speedRange by rememberSaveable { mutableStateOf(SpeedRange.MINUTES2) }
+            DisposableEffect(service, speedRange) {
+                service?.presentGlobal(GlobalPresentation.SPEED, speedRange)
                 onDispose { service?.presentGlobal(GlobalPresentation.NONE) }
             }
-            SpeedScreen(state.speed, state.currentRates, navController::popBackStack)
+            SpeedScreen(
+                state.speed,
+                state.currentRates,
+                speedRange,
+                { speedRange = it },
+                navController::popBackStack,
+            )
         }
         composable(ProductRoutes.DHT) {
             DisposableEffect(service) {
@@ -857,71 +1192,76 @@ private fun ProductNavHost(
         }
         composable(ProductRoutes.SETTINGS_STORAGE) {
             SettingsPage(stringResource(R.string.settings_storage), navController::popBackStack) {
-                SettingAction(
-                    title = state.storageRootLabel ?: stringResource(R.string.download_folder),
-                    detail =
-                        stringResource(
-                            if (state.storageRootReady) {
-                                R.string.storage_available
-                            } else {
-                                R.string.storage_unavailable
-                            },
-                        ),
-                    onClick = onSelectStorage,
-                    action =
-                        stringResource(
-                            if (state.storageRootReady) R.string.action_change else R.string.action_select,
-                        ),
+                SettingsSection(stringResource(R.string.settings_section_download_folders))
+                Text(
+                    stringResource(R.string.storage_explanation),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
+                state.storage?.roots.orEmpty().forEach { root ->
+                    StorageRootRow(
+                        label = root.label,
+                        path = root.displayPath,
+                        isDefault = root.rootId == state.storage?.defaultRoot,
+                        available = root.availability != StorageRootAvailability.UNAVAILABLE,
+                        onRepair = { onRepairStorage(root.rootId) },
+                        onMakeDefault = { service?.makeSafRootCurrent(root.rootId) },
+                        onRemove = { removeStorageRoot = root.rootId },
+                    )
+                }
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.storage_add_folder)) },
+                    leadingContent = { Icon(Icons.Outlined.Add, contentDescription = null) },
+                    modifier =
+                        Modifier.clickable(onClick = onSelectStorage)
+                            .semantics(mergeDescendants = true) { role = Role.Button },
+                )
+                HorizontalDivider()
+                SettingsSection(stringResource(R.string.settings_section_adding))
                 NotificationToggleSetting(
                     title = stringResource(R.string.storage_show_file_selection),
                     detail = stringResource(R.string.storage_show_file_selection_detail),
                     checked = state.storage?.showFileSelection ?: true,
                     onChecked = { service?.setShowFileSelection(it) },
                 )
-                state.storage?.roots.orEmpty().forEach { root ->
-                    val isCurrent = root.rootId == state.storage?.defaultRoot
-                    val isReferenced = state.torrents.values.any { it.storageRoot == root.rootId }
-                    val title =
-                        if (isCurrent) {
-                            stringResource(R.string.storage_current_suffix, root.label)
-                        } else {
-                            root.label
-                        }
-                    val detail =
-                        root.displayPath?.let {
-                            stringResource(
-                                R.string.storage_path_detail,
-                                root.availability.name.lowercase(),
-                                it,
-                            )
-                        } ?: stringResource(
-                            R.string.storage_provider_detail,
-                            root.availability.name.lowercase(),
-                        )
-                    if (root.availability == StorageRootAvailability.UNAVAILABLE) {
+                state.clientSettings?.configured?.fileSafety?.let { safety ->
+                    DownloadSafetySettings(safety) { changed -> service?.updateFileSafety(changed, safety) }
+                }
+                if (onExportTorrentList != null || onImportTorrentList != null) {
+                    val idle = service != null && state.torrentListActivity == null
+                    SettingsSection(stringResource(R.string.settings_section_torrent_list))
+                    onExportTorrentList?.let { exportList ->
                         SettingAction(
-                            title = title,
-                            detail = detail,
-                            onClick = { onRepairStorage(root.rootId) },
-                            action = stringResource(R.string.action_repair),
+                            title = stringResource(R.string.torrent_list_export),
+                            detail = stringResource(R.string.torrent_list_export_detail),
+                            onClick = exportList,
+                            action = stringResource(R.string.action_export),
+                            enabled = idle,
                         )
-                    } else if (!isCurrent) {
-                        SettingAction(
-                            title = title,
-                            detail = detail,
-                            onClick = { service?.makeSafRootCurrent(root.rootId) },
-                            action = stringResource(R.string.action_use),
-                        )
-                    } else {
-                        ReadOnlySettingsRow(title, detail)
                     }
-                    if (!isCurrent && !isReferenced) {
+                    onImportTorrentList?.let { importList ->
                         SettingAction(
-                            title = stringResource(R.string.forget_folder_action, root.label),
-                            detail = stringResource(R.string.forget_folder_detail),
-                            onClick = { removeStorageRoot = root.rootId },
-                            action = stringResource(R.string.action_remove),
+                            title = stringResource(R.string.torrent_list_import),
+                            detail =
+                                stringResource(
+                                    if (state.storageRootReady) {
+                                        R.string.torrent_list_import_detail
+                                    } else {
+                                        R.string.torrent_list_import_needs_folder
+                                    },
+                                ),
+                            onClick = importList,
+                            action = stringResource(R.string.action_import),
+                            enabled = idle && state.storageRootReady,
+                        )
+                    }
+                    state.torrentListActivity?.let {
+                        Text(
+                            torrentListActivityText(it),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                     }
                 }
@@ -953,23 +1293,6 @@ private fun ProductNavHost(
                                 clientSettingsPatch(activeSeeds = value),
                             )
                         },
-                        onShareRatioLimit = { value ->
-                            onUpdateClientSettings(
-                                clientSettingsPatch(shareRatioLimitPercent = value),
-                            )
-                        },
-                        onFinishedDownloadRatioLimit = { value ->
-                            onUpdateClientSettings(
-                                clientSettingsPatch(
-                                    finishedDownloadRatioLimitPercent = value,
-                                ),
-                            )
-                        },
-                        onFinishedTimeLimit = { value ->
-                            onUpdateClientSettings(
-                                clientSettingsPatch(finishedTimeLimitSeconds = value),
-                            )
-                        },
                         onUploadRateLimit = { value ->
                             onUpdateClientSettings(
                                 clientSettingsPatch(uploadRateLimit = value),
@@ -980,6 +1303,16 @@ private fun ProductNavHost(
                                 clientSettingsPatch(downloadRateLimit = value),
                             )
                         },
+                        onSeedStopRatio = { value ->
+                            onUpdateClientSettings(
+                                clientSettingsPatch(seedStopRatioPercent = value),
+                            )
+                        },
+                        onSeedStopTime = { value ->
+                            onUpdateClientSettings(
+                                clientSettingsPatch(seedStopTimeSeconds = value),
+                            )
+                        },
                     )
                 }
             }
@@ -987,10 +1320,7 @@ private fun ProductNavHost(
         composable(ProductRoutes.SETTINGS_NOTIFICATIONS) {
             SettingsPage(stringResource(R.string.settings_notifications), navController::popBackStack) {
                 val notificationState = state.notifications
-                val backgroundVisible =
-                    notificationsGranted &&
-                        notificationState.appNotificationsEnabled &&
-                        notificationState.backgroundChannelEnabled
+                SettingsSection(stringResource(R.string.settings_section_permission))
                 SettingAction(
                     title =
                         when {
@@ -1000,18 +1330,14 @@ private fun ProductNavHost(
                                 stringResource(R.string.notifications_background_blocked)
                             else -> stringResource(R.string.notifications_enabled)
                         },
-                    detail =
-                        if (backgroundVisible) {
-                            stringResource(R.string.notifications_foreground_status)
-                        } else {
-                            stringResource(R.string.library_background_unavailable)
-                        },
-                    onClick = if (notificationsGranted) onOpenNotificationSettings else onRequestNotifications,
+                    detail = stringResource(R.string.notifications_required_for_background),
+                    onClick = onOpenNotificationSettings,
                     action =
                         stringResource(
                             if (notificationsGranted) R.string.action_manage else R.string.action_enable,
                         ),
                 )
+                SettingsSection(stringResource(R.string.settings_section_alerts))
                 NotificationToggleSetting(
                     title = stringResource(R.string.notifications_download_completed),
                     detail =
@@ -1047,12 +1373,6 @@ private fun ProductNavHost(
                 notificationState.preferenceError?.let {
                     ReadOnlySetting(stringResource(R.string.setting_not_saved), productErrorText(it))
                 }
-                SettingAction(
-                    title = stringResource(R.string.notifications_manage_system),
-                    detail = stringResource(R.string.notifications_manage_system_detail),
-                    onClick = onOpenNotificationSettings,
-                    action = stringResource(R.string.action_open),
-                )
             }
         }
         composable(ProductRoutes.SETTINGS_NETWORK) {
@@ -1102,22 +1422,25 @@ private fun ProductNavHost(
                         },
                     )
                 } ?: Text(stringResource(R.string.settings_loading), modifier = Modifier.padding(16.dp))
+                ShareLinkSettings(
+                    choice = state.sharePeerHintChoice,
+                    saveFailed = state.error == org.rstorrent.bootstrap.ProductError.Code.SHARE_SETTING_SAVE_FAILED,
+                    onChoice = { service?.setSharePeerHintChoice(it) },
+                )
             }
         }
         composable(ProductRoutes.SETTINGS_POWER) {
             SettingsPage(stringResource(R.string.settings_power_management), navController::popBackStack) {
                 val lifecycle = state.lifecycle
+                SettingsSection(stringResource(R.string.settings_section_background))
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.power_continue_background)) },
                     supportingContent = {
                         Text(
-                            when {
-                                lifecycle.effectiveBackgroundDownloads ->
-                                    stringResource(R.string.power_continue_effective)
-                                lifecycle.backgroundDownloadsEnabled ->
-                                    stringResource(R.string.power_continue_blocked)
-                                else ->
-                                    stringResource(R.string.power_continue_detail)
+                            if (lifecycle.backgroundDownloadsEnabled && !lifecycle.effectiveBackgroundDownloads) {
+                                stringResource(R.string.power_continue_blocked)
+                            } else {
+                                stringResource(R.string.power_continue_detail)
                             },
                         )
                     },
@@ -1133,6 +1456,7 @@ private fun ProductNavHost(
                         )
                     },
                 )
+                HorizontalDivider()
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.power_keep_seeding_background)) },
                     supportingContent = {
@@ -1140,7 +1464,7 @@ private fun ProductNavHost(
                             if (lifecycle.backgroundDownloadsEnabled) {
                                 stringResource(R.string.power_keep_seeding_detail_enabled)
                             } else {
-                                stringResource(R.string.power_keep_seeding_requires_background)
+                                stringResource(R.string.error_background_downloads_required)
                             },
                         )
                     },
@@ -1161,6 +1485,7 @@ private fun ProductNavHost(
                         )
                     },
                 )
+                HorizontalDivider()
                 ListItem(
                     headlineContent = {
                         Text(stringResource(R.string.power_prevent_sleep))
@@ -1180,14 +1505,16 @@ private fun ProductNavHost(
                         )
                     },
                 )
-                ReadOnlySetting(
-                    stringResource(R.string.power_background_limits),
-                    stringResource(R.string.power_background_limits_detail),
-                )
+                HorizontalDivider()
                 lifecycle.preferenceError?.let {
                     ReadOnlySetting(stringResource(R.string.setting_not_saved), productErrorText(it))
                 }
-                UnavailableSetting(stringResource(R.string.power_low_battery_shutdown))
+                Text(
+                    stringResource(R.string.power_background_limits_detail),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp),
+                )
             }
             if (confirmKeepSeeding) {
                 AlertDialog(
@@ -1218,24 +1545,33 @@ private fun ProductNavHost(
         }
         composable(ProductRoutes.SETTINGS_ADVANCED) {
             SettingsPage(stringResource(R.string.settings_advanced), navController::popBackStack) {
-                Text(stringResource(R.string.settings_theme), modifier = Modifier.padding(16.dp), fontWeight = FontWeight.SemiBold)
-                ProductThemeMode.entries.forEach { mode ->
-                    ListItem(
-                        headlineContent = { Text(productThemeModeLabel(mode)) },
-                        leadingContent = {
-                            RadioButton(selected = themeMode == mode, onClick = { onThemeMode(mode) })
-                        },
-                        modifier = Modifier.semantics { role = Role.RadioButton },
+                SettingsSection(stringResource(R.string.settings_section_appearance))
+                ChoiceSetting(
+                    title = stringResource(R.string.settings_theme),
+                    selected = themeMode,
+                    values = ProductThemeMode.entries,
+                    label = { productThemeModeLabel(it) },
+                    onSelected = onThemeMode,
+                )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    NotificationToggleSetting(
+                        title = stringResource(R.string.theme_use_system_colors),
+                        detail = null,
+                        checked = dynamicColor,
+                        onChecked = onDynamicColor,
                     )
                 }
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.theme_use_system_colors)) },
-                    supportingContent = { Text(stringResource(R.string.theme_system_colors_requirement)) },
-                    trailingContent = {
-                        Switch(checked = dynamicColor, onCheckedChange = onDynamicColor)
-                    },
-                )
-                HorizontalDivider()
+                onConnectChromeExtension?.let { connect ->
+                    SettingsSection(stringResource(R.string.settings_section_chrome))
+                    SettingAction(
+                        title = stringResource(R.string.chrome_extension_setup_action),
+                        detail = stringResource(R.string.chrome_extension_setup_settings_detail),
+                        onClick = connect,
+                        action = stringResource(R.string.action_open),
+                        enabled = service != null,
+                    )
+                }
+                SettingsSection(stringResource(R.string.settings_section_privacy))
                 state.productSummary?.let { summary ->
                     ListItem(
                         headlineContent = { Text(stringResource(R.string.product_statistics_include)) },
@@ -1248,24 +1584,22 @@ private fun ProductNavHost(
                             )
                         },
                     )
-                    ReadOnlySetting(
-                        stringResource(R.string.product_statistics_summary),
-                        stringResource(
-                            R.string.product_statistics_summary_values,
-                            summary.daysSinceFirstUse.toString(),
-                            summary.torrentsAdded,
-                            summary.downloadsCompleted,
-                            summary.foregroundSessions,
-                        ),
-                    )
+                    HorizontalDivider()
                     SettingAction(
                         title = stringResource(R.string.product_statistics_reset),
-                        detail = stringResource(R.string.product_statistics_reset_detail),
+                        detail = null,
                         onClick = { confirmResetStatistics = true },
                         action = stringResource(R.string.action_reset),
                         enabled = service != null,
                     )
                 }
+                SettingAction(
+                    title = stringResource(R.string.action_privacy_policy),
+                    detail = null,
+                    onClick = onOpenPrivacy,
+                    action = stringResource(R.string.action_open),
+                )
+                SettingsSection(stringResource(R.string.settings_section_support))
                 FeedbackSetting {
                     val include = state.productSummary?.statisticsEnabled == true
                     feedbackIncludeStatistics = include
@@ -1277,16 +1611,10 @@ private fun ProductNavHost(
                                 ?: service?.productFeedbackPreview(include)
                         }
                             .onSuccess { feedbackPreview = it }
-                            .onFailure { feedbackError = it.message ?: it.toString() }
+                            .onFailure { feedbackError = it.message ?: feedbackPreviewFailedMessage }
                         feedbackBusy = false
                     }
                 }
-                SettingAction(
-                    title = stringResource(R.string.action_privacy_policy),
-                    detail = stringResource(R.string.product_privacy_policy_detail),
-                    onClick = onOpenPrivacy,
-                    action = stringResource(R.string.action_open),
-                )
                 if (feedbackBusy) {
                     ReadOnlySetting(
                         stringResource(R.string.feedback_preview_title),
@@ -1299,7 +1627,7 @@ private fun ProductNavHost(
                         it,
                     )
                 }
-                UnavailableSetting(stringResource(R.string.settings_search_plugins))
+                SettingsSection(stringResource(R.string.settings_section_reset))
                 SettingAction(
                     title = stringResource(R.string.settings_reset_engine),
                     detail = stringResource(R.string.settings_reset_engine_detail),
@@ -1370,10 +1698,15 @@ private fun ProductNavHost(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier =
                             Modifier.fillMaxWidth()
-                                .clickable(enabled = preview.statisticsAvailable) {
-                                    val include = !feedbackIncludeStatistics
+                                .toggleable(
+                                    value = feedbackIncludeStatistics && preview.statisticsAvailable,
+                                    enabled = preview.statisticsAvailable && !feedbackBusy,
+                                    role = Role.Checkbox,
+                                ) { include ->
+                                    val previousInclude = feedbackIncludeStatistics
                                     feedbackIncludeStatistics = include
                                     feedbackBusy = true
+                                    feedbackError = null
                                     productPrivacyScope.launch {
                                         runCatching {
                                             onPreviewFeedback?.invoke(include)
@@ -1381,16 +1714,17 @@ private fun ProductNavHost(
                                         }
                                             .onSuccess { feedbackPreview = it }
                                             .onFailure {
-                                                feedbackError = it.message ?: it.toString()
+                                                feedbackIncludeStatistics = previousInclude
+                                                feedbackError = it.message ?: feedbackPreviewFailedMessage
                                             }
                                         feedbackBusy = false
                                     }
-                                }.semantics(mergeDescendants = true) { role = Role.Checkbox },
+                                },
                     ) {
                         Checkbox(
                             checked = feedbackIncludeStatistics && preview.statisticsAvailable,
                             onCheckedChange = null,
-                            enabled = preview.statisticsAvailable,
+                            enabled = preview.statisticsAvailable && !feedbackBusy,
                         )
                         Text(stringResource(R.string.feedback_include_statistics_once))
                     }
@@ -1470,16 +1804,12 @@ private fun ProductNavHost(
                         )
                         Text(stringResource(R.string.clear_all_data_delete_files))
                     }
-                    Text(
-                        stringResource(
-                            if (deleteDownloadedFiles) {
-                                R.string.clear_all_data_delete_scope
-                            } else {
-                                R.string.clear_all_data_keep_scope
-                            },
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    if (deleteDownloadedFiles) {
+                        Text(
+                            stringResource(R.string.clear_all_data_delete_scope),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -1507,41 +1837,113 @@ private fun ProductNavHost(
         )
     }
     if (removeTargets.isNotEmpty()) {
+        val remove = { policy: RemovalDataPolicy ->
+            removeTargets.forEach { service?.removeTorrent(it, policy) }
+            // Deleting data can keep the torrent listed for a while, so leave
+            // its detail now; the library shows the removal and any failure.
+            val shown = navController.currentBackStackEntry?.arguments?.getString("torrentId")
+            if (shown in removeTargets) navController.popBackStack()
+            removeTargets = emptySet()
+        }
         RemoveDialog(
             count = removeTargets.size,
             onDismiss = { removeTargets = emptySet() },
-            onKeep = {
-                removeTargets.forEach { service?.removeTorrent(it, RemovalDataPolicy.KEEP) }
-                removeTargets = emptySet()
-            },
-            onDelete = {
-                removeTargets.forEach { service?.removeTorrent(it, RemovalDataPolicy.DELETE_DATA) }
-                removeTargets = emptySet()
-            },
+            onKeep = { remove(RemovalDataPolicy.KEEP) },
+            onDelete = { remove(RemovalDataPolicy.DELETE_DATA) },
         )
     }
     removeStorageRoot?.let { rootId ->
-        val label = state.storage?.roots?.singleOrNull { it.rootId == rootId }?.label ?: rootId
+        val roots = state.storage?.roots.orEmpty()
+        val label = roots.singleOrNull { it.rootId == rootId }?.label ?: rootId
+        val using = state.torrents.values.filter { it.storageRoot == rootId }
+        val archived = using.count { it.archived }
+        // The engine makes the first other available folder current.
+        val replacement =
+            roots
+                .filter { it.rootId != rootId && it.availability == StorageRootAvailability.AVAILABLE }
+                .minByOrNull { it.rootId }
+                ?.takeIf { state.storage?.defaultRoot == rootId }
+        val isCurrent = state.storage?.defaultRoot == rootId
         AlertDialog(
             onDismissRequest = { removeStorageRoot = null },
             title = { Text(stringResource(R.string.remove_folder_title, label)) },
             text = {
-                Text(
-                    stringResource(R.string.remove_folder_detail),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (using.isNotEmpty()) {
+                        Text(
+                            pluralStringResource(
+                                R.plurals.remove_folder_torrents,
+                                using.size,
+                                using.size,
+                            ),
+                        )
+                        if (!deleteFolderData) {
+                            Text(pluralStringResource(R.plurals.remove_folder_torrents_wait, using.size))
+                        }
+                        if (archived > 0) {
+                            Text(
+                                pluralStringResource(
+                                    R.plurals.remove_folder_archived,
+                                    archived,
+                                    archived,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                    if (isCurrent) {
+                        Text(
+                            if (replacement != null) {
+                                stringResource(R.string.remove_folder_next_current, replacement.label)
+                            } else {
+                                stringResource(R.string.remove_folder_no_current)
+                            },
+                        )
+                    }
+                    Text(
+                        stringResource(
+                            if (deleteFolderData) {
+                                R.string.remove_folder_delete_scope
+                            } else {
+                                R.string.remove_folder_detail
+                            },
+                        ),
+                    )
+                    if (using.isNotEmpty()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier =
+                                Modifier.fillMaxWidth()
+                                    .clickable { deleteFolderData = !deleteFolderData }
+                                    .semantics(mergeDescendants = true) { role = Role.Checkbox },
+                        ) {
+                            Checkbox(
+                                checked = deleteFolderData,
+                                onCheckedChange = { deleteFolderData = it },
+                            )
+                            Text(stringResource(R.string.remove_folder_delete_files))
+                        }
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        service?.removeSafRoot(rootId)
+                        service?.removeSafRoot(rootId, deleteData = deleteFolderData && using.isNotEmpty())
                         removeStorageRoot = null
+                        deleteFolderData = false
                     },
                 ) {
                     Text(stringResource(R.string.action_remove))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { removeStorageRoot = null }) {
+                TextButton(
+                    onClick = {
+                        removeStorageRoot = null
+                        deleteFolderData = false
+                    },
+                ) {
                     Text(stringResource(R.string.action_cancel))
                 }
             },
@@ -1552,6 +1954,8 @@ private fun ProductNavHost(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TorrentDetailScreen(
+    presentationOwner: Any?,
+    focusFile: UInt?,
     torrent: TorrentView?,
     state: ProductState,
     onBack: () -> Unit,
@@ -1564,23 +1968,54 @@ private fun TorrentDetailScreen(
     onRestore: () -> Unit,
     onRemove: () -> Unit,
     onCopyMagnet: () -> Unit,
+    onCopyShareLink: () -> Unit,
+    onShareLink: () -> Unit,
+    onShowQrCode: () -> Unit,
+    onShareFiles: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
     onTransferLimits: (TorrentSettingsPatch) -> Unit,
     onSpeed: () -> Unit,
     onDht: () -> Unit,
     onLogs: () -> Unit,
     onSettings: () -> Unit,
     onPresent: (TorrentPresentation) -> Unit,
-    onSetFilePriority: (org.rstorrent.session.uniffi.FileView, FilePriority) -> Unit,
-    onDownloadFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
+    onFileSafetyOverride: (org.rstorrent.session.uniffi.FileView, Boolean) -> Unit,
+    onSetFilePriority: (List<org.rstorrent.session.uniffi.FileView>, FilePriority) -> Unit,
+    onDownloadFile: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
     onPlayFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
     onOpenFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
     onFilePage: (UInt) -> Unit,
     onTrackerPage: (UInt) -> Unit,
 ) {
     var overflow by remember { mutableStateOf(false) }
-    val pager = rememberPagerState(pageCount = { TorrentDetailTab.entries.size })
+    val pager =
+        rememberPagerState(
+            initialPage = if (focusFile == null) 0 else TorrentDetailTab.FILES.ordinal,
+            pageCount = { TorrentDetailTab.entries.size },
+        )
+    // A file opened from the Library is presented once, on the page that holds it.
+    var focusPending by rememberSaveable { mutableStateOf(focusFile != null) }
     val scope = rememberCoroutineScope()
+    // File selection lives here so its bars can replace this screen's app bar,
+    // with the same mechanics as the Torrents selection.
+    var fileSelection by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    val fileCatalog = torrent?.let { state.files[it.torrentId] }
+    val files = remember(fileCatalog?.files) { presentedFiles(fileCatalog) }
+    val selectedFiles = files.filter { it.fileId in fileSelection }
+    LaunchedEffect(selectedFiles.size, fileSelection.size, fileCatalog != null) {
+        // Skip while the catalog is not loaded so a reconnect keeps the selection.
+        if (fileCatalog != null && selectedFiles.size != fileSelection.size) {
+            fileSelection = selectedFiles.mapTo(mutableSetOf()) { it.fileId }
+        }
+    }
     LaunchedEffect(pager.currentPage) {
+        if (TorrentDetailTab.entries[pager.currentPage] != TorrentDetailTab.FILES) {
+            fileSelection = emptySet()
+        }
+    }
+    BackHandler(enabled = fileSelection.isNotEmpty()) { fileSelection = emptySet() }
+    // A stopped activity can return to a new service whose presentation
+    // repository has never been told which tab is showing.
+    LaunchedEffect(pager.currentPage, presentationOwner) {
         val presentation =
             when (TorrentDetailTab.entries[pager.currentPage]) {
                 TorrentDetailTab.DETAILS,
@@ -1591,81 +2026,110 @@ private fun TorrentDetailScreen(
                 TorrentDetailTab.PEERS -> TorrentPresentation.PEERS
                 TorrentDetailTab.PIECES -> TorrentPresentation.PIECES
             }
-        onPresent(presentation)
+        val focusPage = focusFile?.let { it / FILE_CATALOG_PAGE_ROWS * FILE_CATALOG_PAGE_ROWS }
+        if (presentation == TorrentPresentation.FILES && focusPending && focusPage != null && focusPage > 0U) {
+            onFilePage(focusPage)
+        } else {
+            onPresent(presentation)
+        }
     }
     Scaffold(
         topBar = {
-            TopAppBar(
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
-                        )
-                    }
-                },
-                title = {
-                    Text(
-                        torrent?.let(::torrentPresentationName)
-                            ?: stringResource(R.string.torrent_fallback_name),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                actions = {
-                    val paused = torrent?.operationalState == TorrentOperationalState.PAUSED
-                    IconButton(onClick = if (paused) onResume else onPause, enabled = torrent != null) {
-                        Icon(
-                            if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                            contentDescription =
-                                stringResource(
-                                    if (paused) R.string.action_resume else R.string.action_pause,
-                                ),
-                        )
-                    }
-                    Box {
-                        IconButton(onClick = { overflow = true }) {
+            if (fileSelection.isNotEmpty()) {
+                SelectionTopBar(
+                    count = fileSelection.size,
+                    allSelected = selectedFiles.size == files.size,
+                    onClear = { fileSelection = emptySet() },
+                    onSelectAll = { fileSelection = files.mapTo(mutableSetOf()) { it.fileId } },
+                )
+            } else {
+                TopAppBar(
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
                             Icon(
-                                Icons.Outlined.MoreVert,
-                                contentDescription = stringResource(R.string.a11y_more_options),
+                                Icons.AutoMirrored.Outlined.ArrowBack,
+                                contentDescription = stringResource(R.string.action_back),
                             )
                         }
-                        DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.action_force_recheck)) },
-                                enabled = torrent?.forceRecheckAvailable == true,
-                                onClick = { overflow = false; onForceRecheck() },
-                            )
-                            DropdownMenuItem(text = { Text(stringResource(R.string.action_move_top)) }, onClick = { overflow = false; onMoveTop() })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.action_move_bottom)) }, onClick = { overflow = false; onMoveBottom() })
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        stringResource(
-                                            if (torrent?.archived == true) {
-                                                R.string.action_restore_archive
-                                            } else {
-                                                R.string.action_archive
-                                            },
-                                        ),
-                                    )
-                                },
-                                onClick = { overflow = false; if (torrent?.archived == true) onRestore() else onArchive() },
-                            )
-                            DropdownMenuItem(text = { Text(stringResource(R.string.action_remove_torrent)) }, onClick = { overflow = false; onRemove() })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.action_copy_magnet)) }, onClick = { overflow = false; onCopyMagnet() })
-                            HorizontalDivider()
-                            DropdownMenuItem(text = { Text(stringResource(R.string.library_menu_speed)) }, onClick = { overflow = false; onSpeed() })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.library_menu_dht)) }, onClick = { overflow = false; onDht() })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.logs_title)) }, onClick = { overflow = false; onLogs() })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.settings_title)) }, onClick = { overflow = false; onSettings() })
+                    },
+                    title = {
+                        Text(
+                            torrent?.let(::torrentPresentationName)
+                                ?: stringResource(R.string.torrent_fallback_name),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    actions = {
+                        if (torrent != null && !torrent.archived) {
+                            val paused = torrent.operationalState == TorrentOperationalState.PAUSED
+                            IconButton(onClick = if (paused) onResume else onPause) {
+                                Icon(
+                                    if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                    contentDescription = stringResource(torrent.pauseResumeLabelRes()),
+                                )
+                            }
                         }
-                    }
-                },
-            )
+                        Box {
+                            IconButton(onClick = { overflow = true }) {
+                                Icon(
+                                    Icons.Outlined.MoreVert,
+                                    contentDescription = stringResource(R.string.a11y_more_options),
+                                )
+                            }
+                            DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
+                                val dismiss = { overflow = false }
+                                if (torrent?.allows(TorrentAction.START) == true) {
+                                    TorrentMenuItem(torrent.pauseResumeLabelRes(), torrent, TorrentAction.START, dismiss, onResume)
+                                } else if (torrent?.allows(TorrentAction.PAUSE) == true) {
+                                    TorrentMenuItem(R.string.action_pause, torrent, TorrentAction.PAUSE, dismiss, onPause)
+                                }
+                                TorrentMenuItem(R.string.action_move_top, torrent, TorrentAction.MOVE_TOP, dismiss, onMoveTop)
+                                TorrentMenuItem(R.string.action_move_bottom, torrent, TorrentAction.MOVE_BOTTOM, dismiss, onMoveBottom)
+                                TorrentMenuItem(R.string.action_force_recheck, torrent, TorrentAction.FORCE_RECHECK, dismiss, onForceRecheck)
+                                if (torrent?.archived == true) {
+                                    TorrentMenuItem(R.string.action_restore, torrent, TorrentAction.RESTORE, dismiss, onRestore)
+                                } else {
+                                    TorrentMenuItem(R.string.action_archive, torrent, TorrentAction.ARCHIVE, dismiss, onArchive)
+                                }
+                                TorrentMenuItem(R.string.action_copy_magnet, torrent, TorrentAction.COPY_MAGNET, dismiss, onCopyMagnet)
+                                TorrentMenuItem(
+                                    R.string.action_copy_share_link,
+                                    torrent,
+                                    TorrentAction.COPY_SHARE_LINK,
+                                    dismiss,
+                                    onCopyShareLink,
+                                )
+                                TorrentMenuItem(R.string.action_share_link, torrent, TorrentAction.COPY_SHARE_LINK, dismiss, onShareLink)
+                                TorrentMenuItem(R.string.action_show_qr_code, torrent, TorrentAction.COPY_SHARE_LINK, dismiss, onShowQrCode)
+                                TorrentMenuItem(R.string.action_remove, torrent, TorrentAction.REMOVE, dismiss, onRemove)
+                                HorizontalDivider()
+                                DropdownMenuItem(text = { Text(stringResource(R.string.library_menu_speed)) }, onClick = { overflow = false; onSpeed() })
+                                DropdownMenuItem(text = { Text(stringResource(R.string.library_menu_dht)) }, onClick = { overflow = false; onDht() })
+                                DropdownMenuItem(text = { Text(stringResource(R.string.logs_title)) }, onClick = { overflow = false; onLogs() })
+                                DropdownMenuItem(text = { Text(stringResource(R.string.settings_title)) }, onClick = { overflow = false; onSettings() })
+                            }
+                        }
+                    },
+                )
+            }
+        },
+        bottomBar = {
+            if (fileSelection.isNotEmpty()) {
+                FileSelectionBottomBar(
+                    selected = selectedFiles,
+                    archived = torrent?.archived == true,
+                onSetPriority = onSetFilePriority,
+                    onDownloadNow = onDownloadFile,
+                    onShare = onShareFiles,
+                )
+            }
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
+            if (torrent?.archived == true) {
+                ArchivedBanner(onRestore)
+            }
             ScrollableTabRow(selectedTabIndex = pager.currentPage, edgePadding = 8.dp) {
                 TorrentDetailTab.entries.forEachIndexed { index, tab ->
                     Tab(
@@ -1675,13 +2139,24 @@ private fun TorrentDetailScreen(
                     )
                 }
             }
-            HorizontalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
+            // Pages start at the top; the pager would otherwise center short pages.
+            HorizontalPager(
+                state = pager,
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.Top,
+            ) { page ->
                 DetailTabContent(
                     TorrentDetailTab.entries[page],
                     torrent,
                     state,
+                    focusFile.takeIf { focusPending },
+                    { focusPending = false },
+                    fileSelection,
+                    { fileSelection = it },
+                    onFileSafetyOverride,
                     onSetFilePriority,
                     onDownloadFile,
+                    onShareFiles,
                     onPlayFile,
                     onOpenFile,
                     onFilePage,
@@ -1698,8 +2173,14 @@ private fun DetailTabContent(
     tab: TorrentDetailTab,
     torrent: TorrentView?,
     state: ProductState,
-    onSetFilePriority: (org.rstorrent.session.uniffi.FileView, FilePriority) -> Unit,
-    onDownloadFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
+    focusFile: UInt?,
+    onFocusShown: () -> Unit,
+    fileSelection: Set<String>,
+    onFileSelectionChange: (Set<String>) -> Unit,
+    onFileSafetyOverride: (org.rstorrent.session.uniffi.FileView, Boolean) -> Unit,
+    onSetFilePriority: (List<org.rstorrent.session.uniffi.FileView>, FilePriority) -> Unit,
+    onDownloadFile: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
+    onShareFiles: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
     onPlayFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
     onOpenFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
     onFilePage: (UInt) -> Unit,
@@ -1714,6 +2195,7 @@ private fun DetailTabContent(
         TorrentDetailTab.DETAILS ->
             TorrentDetails(
                 torrent,
+                state.presentedClientSettings()?.configured,
                 onTransferLimits,
                 *buildList {
                     val v1 = torrent.protocolIdentities.v1
@@ -1724,42 +2206,41 @@ private fun DetailTabContent(
                     } else {
                         add(stringResource(R.string.detail_info_hash) to (v1 ?: v2 ?: "—"))
                     }
-                    add(stringResource(R.string.detail_state) to operationalLabel(torrent.operationalState))
-                    add(stringResource(R.string.detail_required) to formatBytes(torrent.requiredPayloadBytes))
-                    add(stringResource(R.string.detail_remaining) to formatBytes(torrent.remainingPayloadBytes))
-                    add(stringResource(R.string.detail_pieces) to "${torrent.verifiedPieceCount} / ${torrent.pieceCount}")
-                    add(stringResource(R.string.detail_trackers) to (torrent.configuredTrackerCount?.toString() ?: "—"))
-                    add(stringResource(R.string.detail_lifetime_downloaded) to formatBytes(torrent.lifetime.downloadedPayloadBytes))
-                    add(stringResource(R.string.detail_lifetime_uploaded) to formatBytes(torrent.lifetime.uploadedPayloadBytes))
+                    if (torrent.privateTorrent) {
+                        add(stringResource(R.string.detail_private_torrent) to stringResource(R.string.detail_private_torrent_hint))
+                    }
+                    add(stringResource(R.string.detail_size) to torrentSizeText(torrent))
+                    state.storage?.roots?.firstOrNull { it.rootId == torrent.storageRoot }?.let {
+                        add(stringResource(R.string.detail_save_location) to it.label)
+                    }
+                    add(stringResource(R.string.detail_downloaded) to formatBytes(torrent.lifetime.downloadedPayloadBytes))
+                    add(stringResource(R.string.detail_uploaded) to formatBytes(torrent.lifetime.uploadedPayloadBytes))
                     add(stringResource(R.string.detail_share_ratio) to formatShareRatio(torrent.lifetime.shareRatioHundredths))
-                    add(stringResource(R.string.detail_active_time) to formatDuration(torrent.lifetime.activeSeconds))
-                    add(stringResource(R.string.detail_finished_time) to formatDuration(torrent.lifetime.finishedSeconds))
                     add(stringResource(R.string.detail_seeding_time) to formatDuration(torrent.lifetime.seedingSeconds))
-                    if (torrent.seeding.goal != null) {
-                        add(stringResource(R.string.detail_seed_admission) to seedAdmissionLabel(torrent.seeding.admission))
-                        add(stringResource(R.string.detail_seeding_priority_goal) to seedGoalLabel(torrent.seeding.goal))
-                        add(
-                            stringResource(R.string.detail_goal_behavior) to
-                                stringResource(R.string.detail_goal_behavior_value),
-                        )
+                    seedStopProgress(torrent, state.presentedClientSettings()?.configured)?.let {
+                        add(stringResource(R.string.detail_stop_seeding) to seedStopProgressText(it))
                     }
                 }.toTypedArray(),
             )
         TorrentDetailTab.STATUS ->
             DetailList(
-                stringResource(R.string.detail_download) to formatRate(torrent.payloadDownloadRateBytes),
-                stringResource(R.string.detail_peers) to torrent.activePeerConnections.toString(),
-                stringResource(R.string.detail_eta) to torrentEta(torrent),
-                stringResource(R.string.detail_storage) to torrent.storageState.name.lowercase(),
-                stringResource(R.string.detail_progress) to torrent.progress.reason.name.lowercase(),
-                stringResource(R.string.detail_error) to (torrent.error ?: stringResource(R.string.detail_none)),
+                *buildList {
+                    val state = torrentStatusLabel(torrent)
+                    val activity = torrentActivityLabel(torrent)
+                    add(stringResource(R.string.detail_state) to state)
+                    if (activity != state) add(stringResource(R.string.detail_activity) to activity)
+                    add(stringResource(R.string.detail_download) to formatRate(torrent.payloadDownloadRateBytes))
+                    add(stringResource(R.string.detail_peers) to torrent.activePeerConnections.toString())
+                    add(stringResource(R.string.detail_eta) to torrentEta(torrent))
+                    torrent.error?.let { add(stringResource(R.string.detail_error) to it) }
+                }.toTypedArray(),
             )
         TorrentDetailTab.PIECES -> {
             val pieces = state.pieces[torrent.torrentId]
             if (pieces == null) {
                 CenterMessage(stringResource(R.string.piece_activity_loading))
             } else {
-                Column(Modifier.padding(16.dp)) {
+                Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
                     Text(
                         stringResource(
                             R.string.pieces_verified,
@@ -1775,13 +2256,20 @@ private fun DetailTabContent(
         }
         TorrentDetailTab.FILES ->
             FilesScreen(
-                state.files[torrent.torrentId],
-                onSetFilePriority,
-                onDownloadFile,
-                onPlayFile,
-                onOpenFile,
-                state.mediaLaunchPending,
-                onFilePage,
+                catalog = state.files[torrent.torrentId],
+                archived = torrent.archived,
+                selection = fileSelection,
+                onSelectionChange = onFileSelectionChange,
+                onSafetyOverride = onFileSafetyOverride,
+                onSetPriority = onSetFilePriority,
+                onDownloadNow = onDownloadFile,
+                onShare = onShareFiles,
+                onPlay = onPlayFile,
+                onOpen = onOpenFile,
+                mediaLaunchPending = state.mediaLaunchPending,
+                onPage = onFilePage,
+                focusFile = focusFile,
+                onFocusShown = onFocusShown,
             )
         TorrentDetailTab.TRACKERS ->
             TrackersScreen(state.trackers[torrent.torrentId], onTrackerPage)
@@ -1796,6 +2284,7 @@ private fun DetailTabContent(
 @Composable
 private fun TorrentDetails(
     torrent: TorrentView,
+    global: ClientSettings?,
     onTransferLimits: (TorrentSettingsPatch) -> Unit,
     vararg rows: Pair<String, String>,
 ) {
@@ -1804,6 +2293,7 @@ private fun TorrentDetails(
         contentPadding = PaddingValues(vertical = 8.dp),
     ) {
         items(rows.toList()) { (label, value) -> ReadOnlySetting(label, value) }
+        item("speed-limits") { SettingsSection(stringResource(R.string.settings_section_speed_limits)) }
         item("download-rate-limit") {
             RateLimitSetting(
                 title = stringResource(R.string.torrent_download_limit),
@@ -1819,6 +2309,28 @@ private fun TorrentDetails(
                 configured = torrent.transferLimits.upload,
                 onValue = { limit ->
                     onTransferLimits(torrentSettingsPatch(uploadRateLimit = limit))
+                },
+            )
+        }
+        item("stop-seeding") { SettingsSection(stringResource(R.string.settings_section_stop_seeding)) }
+        val stop = torrent.seedStopLimits()
+        item("seed-stop-ratio") {
+            SeedStopRatioSetting(
+                configured = stop.ratioPercent,
+                global = global?.seedStopRatioPercent,
+                perTorrent = true,
+                onValue = { limit ->
+                    onTransferLimits(torrentSettingsPatch(seedStopRatioPercent = limit))
+                },
+            )
+        }
+        item("seed-stop-time") {
+            SeedStopTimeSetting(
+                configured = stop.timeSeconds,
+                global = global?.seedStopTimeSeconds,
+                perTorrent = true,
+                onValue = { limit ->
+                    onTransferLimits(torrentSettingsPatch(seedStopTimeSeconds = limit))
                 },
             )
         }
@@ -1942,7 +2454,8 @@ private fun LogsShell(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            events.takeLast(200).forEach { event ->
+            // Newest first: the latest event is visible without scrolling.
+            events.takeLast(200).asReversed().forEach { event ->
                 ListItem(
                     headlineContent = { Text(event.code, fontFamily = FontFamily.Monospace) },
                     supportingContent = {
@@ -2086,32 +2599,19 @@ private fun ReadOnlySetting(
 }
 
 @Composable
-private fun NotificationToggleSetting(
+internal fun NotificationToggleSetting(
     title: String,
-    detail: String,
+    detail: String?,
     checked: Boolean,
     onChecked: (Boolean) -> Unit,
 ) {
     ListItem(
         headlineContent = { Text(title) },
-        supportingContent = { Text(detail) },
+        supportingContent = detail?.let { { Text(it) } },
         trailingContent = { Switch(checked = checked, onCheckedChange = null) },
         modifier =
             Modifier.clickable { onChecked(!checked) }
                 .semantics(mergeDescendants = true) { role = Role.Switch },
-    )
-    HorizontalDivider()
-}
-
-@Composable
-private fun UnavailableSetting(title: String) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(stringResource(R.string.setting_not_available)) },
-        colors = androidx.compose.material3.ListItemDefaults.colors(
-            headlineColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            supportingColor = MaterialTheme.colorScheme.outline,
-        ),
     )
     HorizontalDivider()
 }
@@ -2133,15 +2633,70 @@ private fun FeedbackSetting(onClick: () -> Unit) {
 @Composable
 private fun SettingAction(
     title: String,
-    detail: String,
+    detail: String?,
     onClick: () -> Unit,
     action: String,
     enabled: Boolean = true,
 ) {
     ListItem(
         headlineContent = { Text(title) },
-        supportingContent = { Text(detail) },
+        supportingContent = detail?.let { { Text(it) } },
         trailingContent = { TextButton(onClick = onClick, enabled = enabled) { Text(action) } },
+    )
+    HorizontalDivider()
+}
+
+/** One download folder: a star marks the default; the menu holds the less common actions. */
+@Composable
+private fun StorageRootRow(
+    label: String,
+    path: String?,
+    isDefault: Boolean,
+    available: Boolean,
+    onRepair: () -> Unit,
+    onMakeDefault: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    var menu by remember { mutableStateOf(false) }
+    val defaultDescription = stringResource(R.string.storage_default)
+    val supporting = if (available) path else stringResource(R.string.storage_unavailable)
+    ListItem(
+        headlineContent = { Text(label) },
+        supportingContent = supporting?.let { { Text(it) } },
+        leadingContent = {
+            if (isDefault) {
+                Icon(Icons.Filled.Star, contentDescription = defaultDescription)
+            } else {
+                Icon(Icons.Outlined.Folder, contentDescription = null)
+            }
+        },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (!available) {
+                    TextButton(onClick = onRepair) { Text(stringResource(R.string.action_repair)) }
+                }
+                Box {
+                    IconButton(onClick = { menu = true }) {
+                        Icon(
+                            Icons.Outlined.MoreVert,
+                            contentDescription = stringResource(R.string.storage_folder_actions, label),
+                        )
+                    }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        if (!isDefault && available) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.storage_set_default)) },
+                                onClick = { menu = false; onMakeDefault() },
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.storage_remove_folder)) },
+                            onClick = { menu = false; onRemove() },
+                        )
+                    }
+                }
+            }
+        },
     )
     HorizontalDivider()
 }
@@ -2150,6 +2705,56 @@ private fun SettingAction(
 private fun CenterMessage(message: String) {
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun TorrentMenuItem(
+    @StringRes label: Int,
+    torrent: TorrentView?,
+    action: TorrentAction,
+    dismiss: () -> Unit,
+    onClick: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = { Text(stringResource(label)) },
+        enabled = torrent?.allows(action) == true,
+        onClick = {
+            dismiss()
+            onClick()
+        },
+    )
+}
+
+@Composable
+private fun ArchivedBanner(onRestore: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Outlined.Archive,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(
+                    stringResource(R.string.detail_archived_title),
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    stringResource(R.string.detail_archived_detail),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+            Button(onClick = onRestore) { Text(stringResource(R.string.action_restore)) }
+        }
     }
 }
 
@@ -2172,4 +2777,25 @@ private fun RemoveDialog(
             }
         },
     )
+}
+
+/**
+ * Material snackbars cannot be swiped away on their own. A sideways swipe
+ * dismisses this one, which also declines its action, and lets the next
+ * queued message show at once.
+ */
+@Composable
+private fun SwipeableSnackbar(data: SnackbarData) {
+    key(data) {
+        val dismissState =
+            rememberSwipeToDismissBoxState(
+                confirmValueChange = { value ->
+                    if (value != SwipeToDismissBoxValue.Settled) data.dismiss()
+                    true
+                },
+            )
+        SwipeToDismissBox(state = dismissState, backgroundContent = {}) {
+            Snackbar(data)
+        }
+    }
 }

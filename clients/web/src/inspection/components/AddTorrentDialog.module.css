@@ -5,19 +5,19 @@
   inset: 0;
   place-items: center;
   padding: 1rem;
-  background: rgb(9 20 33 / 52%);
+  background: var(--overlay-scrim);
 }
 
 .dialog {
   overflow: auto;
   width: min(35rem, 100%);
   max-height: min(44rem, calc(100vh - 2rem));
-  border: 1px solid var(--border-strong);
-  border-radius: 0.75rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
   padding: 1.2rem;
   color: var(--text-primary);
-  background: var(--surface-primary);
-  box-shadow: 0 1.2rem 3rem rgb(8 20 34 / 35%);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-dialog);
 }
 
 .dialog header p,
@@ -29,13 +29,12 @@
   margin-bottom: 0.15rem;
   color: var(--text-muted);
   font-size: var(--ui-font-caption);
-  font-weight: 750;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-weight: var(--weight-medium);
 }
 
 .dialog header h2 {
   font-size: var(--ui-font-heading);
+  font-weight: var(--weight-strong);
 }
 
 .description,
@@ -47,15 +46,9 @@
 
 .locations {
   min-width: 0;
-  margin: 1.1rem 0 0;
+  margin: 0.9rem 0 0;
   border: 0;
   padding: 0;
-}
-
-.locations legend {
-  margin-bottom: 0.55rem;
-  font-size: var(--ui-font-body);
-  font-weight: 750;
 }
 
 .location {
@@ -64,7 +57,7 @@
   align-items: center;
   gap: 0.55rem;
   border: 1px solid var(--border-soft);
-  border-radius: 0.55rem;
+  border-radius: var(--radius-md);
   padding: 0.65rem 0.75rem;
 }
 
@@ -73,7 +66,7 @@
 }
 
 .location:has(input:checked) {
-  border-color: color-mix(in srgb, var(--accent) 62%, var(--border-strong));
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--border-strong));
   background: var(--selection);
 }
 
@@ -107,7 +100,7 @@
 
 .location .performance {
   color: var(--accent-strong);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
 }
 
 .location button,
@@ -115,14 +108,20 @@
 .actions button {
   min-height: var(--ui-control-height);
   border: 1px solid var(--border-strong);
-  border-radius: 0.42rem;
+  border-radius: var(--radius-md);
   padding: 0 0.75rem;
   color: var(--text-primary);
-  background: var(--surface-secondary);
+  background: var(--surface-primary);
   font: inherit;
   font-size: var(--ui-font-small);
-  font-weight: 650;
+  font-weight: var(--weight-medium);
   cursor: pointer;
+}
+
+.location button:hover:not(:disabled),
+.choose:hover:not(:disabled),
+.actions button:hover:not(:disabled) {
+  background: var(--surface-hover);
 }
 
 .choose {
@@ -130,42 +129,12 @@
 }
 
 .defaultBadge {
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   padding: 0.2rem 0.48rem;
   color: var(--accent-strong);
   background: var(--selection);
   font-size: var(--ui-font-caption);
-  font-weight: 750;
-}
-
-.files {
-  margin-top: 1.15rem;
-  border-block: 1px solid var(--border-soft);
-  padding: 0.8rem 0;
-  font-size: var(--ui-font-small);
-}
-
-.files label {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: 0.55rem;
-  cursor: pointer;
-}
-
-.files span {
-  display: grid;
-  gap: 0.18rem;
-}
-
-.files > strong,
-.files > small {
-  display: block;
-}
-
-.files small {
-  color: var(--text-muted);
-  line-height: 1.4;
+  font-weight: var(--weight-medium);
 }
 
 .preference {
@@ -177,17 +146,16 @@
   line-height: 1.4;
 }
 
-.preference input,
-.files input,
-.location input {
-  accent-color: var(--accent);
+.preference + .preference {
+  margin-top: 0.5rem;
 }
 
 .error {
   border-left: 3px solid var(--danger);
+  border-radius: var(--radius-sm);
   padding: 0.5rem 0.65rem;
-  color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger-strong);
+  background: var(--danger-soft);
   font-size: var(--ui-font-small);
 }
 
@@ -200,8 +168,13 @@
 
 .actions .confirm {
   border-color: var(--accent-action);
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent-action);
+}
+
+.actions .confirm:hover:not(:disabled) {
+  border-color: var(--accent-action-hover);
+  background: var(--accent-action-hover);
 }
 
 .dialog button:disabled {
@@ -214,9 +187,11 @@
   outline: 2px solid var(--focus);
 }
 
+/* A fixed height keeps the buttons still while the list loads or the queue advances. */
 .selectionDialog {
   display: flex;
   width: min(43rem, 100%);
+  height: min(38rem, calc(100vh - 2rem));
   flex-direction: column;
 }
 
@@ -229,7 +204,8 @@
 }
 
 .metadataWait {
-  min-height: 12rem;
+  flex: 1 1 auto;
+  min-height: 6rem;
   place-content: center;
   text-align: center;
 }
@@ -244,12 +220,17 @@
 .selectionToolbar button {
   min-height: var(--ui-control-height);
   border: 1px solid var(--border-strong);
-  border-radius: 0.42rem;
+  border-radius: var(--radius-md);
   padding: 0 0.7rem;
   color: var(--text-primary);
-  background: var(--surface-secondary);
+  background: var(--surface-primary);
   font: inherit;
+  font-weight: var(--weight-medium);
   cursor: pointer;
+}
+
+.selectionToolbar button:hover:not(:disabled) {
+  background: var(--surface-hover);
 }
 
 .selectionToolbar span {
@@ -261,8 +242,8 @@
 .selectionList {
   overflow-y: auto;
   position: relative;
-  min-height: 10rem;
-  max-height: min(25rem, 48vh);
+  flex: 1 1 auto;
+  min-height: 6rem;
   margin-top: 0.6rem;
   border-block: 1px solid var(--border-soft);
 }
@@ -312,6 +293,6 @@
   .dialog {
     width: 100%;
     max-height: 94vh;
-    border-radius: 0.75rem 0.75rem 0 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 }

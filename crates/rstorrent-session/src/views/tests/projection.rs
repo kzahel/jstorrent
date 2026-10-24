@@ -175,6 +175,48 @@ async fn preparation_projection_is_compact_generation_fenced_and_separate_from_s
 }
 
 #[test]
+fn completed_seed_projection_survives_content_task_cleanup() {
+    for (admission, expected) in [
+        (
+            crate::SeedAdmissionView::Active,
+            crate::TorrentOperationalState::Seeding,
+        ),
+        (
+            crate::SeedAdmissionView::InactiveExempt,
+            crate::TorrentOperationalState::Seeding,
+        ),
+        (
+            crate::SeedAdmissionView::Queued,
+            crate::TorrentOperationalState::Queued,
+        ),
+    ] {
+        let mut current = snapshot(0, 1);
+        let hub = ViewHub::new(&current).expect("hub");
+        hub.set_progress_inputs(
+            TORRENT_ID,
+            ProgressInputs {
+                task_active: true,
+                ..ProgressInputs::default()
+            },
+        )
+        .expect("content task");
+        current.revision = "1".to_owned();
+        current.torrents[0].state = TorrentState::Complete;
+        current.torrents[0].download_queue_position = None;
+        let mut durable = eta_durable(None, 1, 1);
+        durable.get_mut(TORRENT_ID).unwrap().seeding.admission = admission;
+        hub.replace_durable(&current, &durable)
+            .expect("completed admission");
+        assert_eq!(current_torrent(&hub).operational_state, expected);
+        hub.set_progress_inputs(TORRENT_ID, ProgressInputs::default())
+            .expect("old content task cleanup");
+        let view = current_torrent(&hub);
+        assert_eq!(view.seeding.admission, admission);
+        assert_eq!(view.operational_state, expected);
+    }
+}
+
+#[test]
 fn operational_state_and_queue_position_are_authoritative() {
     let mut queued = snapshot(0, 1);
     queued.torrents[0].download_queue_position = Some(3);
@@ -227,14 +269,10 @@ fn operational_state_and_queue_position_are_authoritative() {
         current_torrent(&hub).operational_state,
         crate::TorrentOperationalState::Queued
     );
-    hub.set_progress_inputs(
-        TORRENT_ID,
-        ProgressInputs {
-            seed_admission: crate::SeedAdmissionView::Active,
-            ..ProgressInputs::default()
-        },
-    )
-    .expect("admit complete seed");
+    let mut durable = eta_durable(None, 1, 1);
+    durable.get_mut(TORRENT_ID).unwrap().seeding.admission = crate::SeedAdmissionView::Active;
+    hub.replace_durable(&complete, &durable)
+        .expect("admit complete seed");
     assert_eq!(
         current_torrent(&hub).operational_state,
         crate::TorrentOperationalState::Seeding
@@ -368,6 +406,8 @@ fn eta_durable(
         DurableTorrentViewState {
             display_name: Some("ETA fixture".to_owned()),
             source_display_name: None,
+            source_size_bytes: None,
+            private_torrent: false,
             checking_generation: None,
             verified: Vec::new(),
             files,
@@ -1292,6 +1332,8 @@ fn durable_replacement_preserves_exact_have_ranges() {
             DurableTorrentViewState {
                 display_name: Some("Verified fixture".to_owned()),
                 source_display_name: None,
+                source_size_bytes: None,
+                private_torrent: false,
                 checking_generation: None,
                 verified: vec![IndexRange {
                     start: 1,
@@ -1319,7 +1361,7 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
             projection: ViewProjection::Summary,
             delivery: DeliveryPolicy {
                 min_interval_millis: 0,
-                max_queue_bytes: 4096,
+                max_queue_bytes: 8192,
             },
             diagnostics: None,
             catalog_page: None,
@@ -1333,7 +1375,7 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
             projection: ViewProjection::Summary,
             delivery: DeliveryPolicy {
                 min_interval_millis: 0,
-                max_queue_bytes: 4096,
+                max_queue_bytes: 8192,
             },
             diagnostics: None,
             catalog_page: None,
@@ -1349,6 +1391,8 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
             DurableTorrentViewState {
                 display_name: None,
                 source_display_name: Some("Magnet fixture".to_owned()),
+                source_size_bytes: Some(1_048_576),
+                private_torrent: false,
                 checking_generation: None,
                 verified: Vec::new(),
                 files: None,
@@ -1374,6 +1418,17 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
         TorrentFieldUpdate::SourceDisplayName { value: Some(value) }
             if value == "Magnet fixture"
     )));
+    assert!(updates[0].fields.iter().any(|field| matches!(
+        field,
+        TorrentFieldUpdate::SourceSizeBytes { value: Some(value) } if value == "1048576"
+    )));
+    // A magnet awaiting metadata never claims the private flag.
+    assert!(
+        !updates[0]
+            .fields
+            .iter()
+            .any(|field| matches!(field, TorrentFieldUpdate::PrivateTorrent { .. }))
+    );
 
     let summary_update = summary.next_update().await.expect("summary patch");
     let ViewUpdatePayload::Patch {
@@ -1398,6 +1453,8 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
             DurableTorrentViewState {
                 display_name: Some("Verified fixture".to_owned()),
                 source_display_name: Some("Magnet fixture".to_owned()),
+                source_size_bytes: None,
+                private_torrent: true,
                 checking_generation: None,
                 verified: Vec::new(),
                 files: None,
@@ -1423,6 +1480,19 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
         TorrentFieldUpdate::DisplayName { value: Some(value) }
             if value == "Verified fixture"
     )));
+    assert!(
+        updates[0]
+            .fields
+            .iter()
+            .any(|field| matches!(field, TorrentFieldUpdate::PrivateTorrent { value: true }))
+    );
+    // Verified metadata withdraws the link's size claim.
+    assert!(
+        updates[0]
+            .fields
+            .iter()
+            .any(|field| matches!(field, TorrentFieldUpdate::SourceSizeBytes { value: None }))
+    );
 
     let summary_update = summary.next_update().await.expect("verified summary patch");
     let ViewUpdatePayload::Patch {
@@ -1439,6 +1509,12 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
         TorrentFieldUpdate::DisplayName { value: Some(value) }
             if value == "Verified fixture"
     )));
+    assert!(
+        update
+            .fields
+            .iter()
+            .any(|field| matches!(field, TorrentFieldUpdate::PrivateTorrent { value: true }))
+    );
 }
 
 #[test]
@@ -1578,5 +1654,67 @@ fn stale_settings_attempts_cannot_publish_runtime_or_mapping_facts() {
             runtime.effective_upload_slots = 50;
         })
         .expect("ignore stale runtime patch")
+    );
+}
+
+#[test]
+fn reopened_tracker_snapshot_uses_stable_deadlines_and_current_application_clock() {
+    use crate::{OpenViewSetRequest, ViewDeliveryPolicy, ViewSetOwner, ViewSetUpdate, ViewSpec};
+    let hub = ViewHub::new(&snapshot(0, 4)).expect("hub");
+    let origin = hub.inner.lock().expect("hub state").clock_origin;
+    let snapshot = tracker_snapshot(TrackerRuntimeStatus::ReannounceWait, 1);
+    hub.record_tracker_state_at(TORRENT_ID, &snapshot, origin + Duration::from_secs(2))
+        .expect("state");
+    let spec = ViewSpec::TorrentTrackers {
+        view_id: "trackers".to_owned(),
+        torrent_id: TORRENT_ID.to_owned(),
+        page: Some(crate::CatalogPageRequest::default()),
+        delivery: ViewDeliveryPolicy::default(),
+    };
+    let open = |seconds| {
+        hub.open_view_set_at(
+            ViewSetOwner::trusted("timing"),
+            OpenViewSetRequest {
+                views: vec![spec.clone()],
+                options: Default::default(),
+            },
+            origin + Duration::from_secs(seconds),
+        )
+        .expect("open")
+    };
+    let first = open(3).initial;
+    let reopened = open(8).initial;
+    assert_eq!(first.server_now_millis, "3000");
+    assert_eq!(reopened.server_now_millis, "8000");
+    let ViewSetUpdate::Snapshot {
+        snapshot:
+            ViewSnapshot::Trackers {
+                trackers: first_rows,
+                ..
+            },
+        ..
+    } = &first.updates[0]
+    else {
+        panic!("tracker snapshot")
+    };
+    let ViewSetUpdate::Snapshot {
+        snapshot:
+            ViewSnapshot::Trackers {
+                trackers: reopened_rows,
+                ..
+            },
+        ..
+    } = &reopened.updates[0]
+    else {
+        panic!("tracker snapshot")
+    };
+    assert_eq!(first_rows, reopened_rows);
+    assert_eq!(
+        reopened_rows[0].next_action_at_millis.as_deref(),
+        Some("17000")
+    );
+    assert_eq!(
+        reopened_rows[0].last_success_at_millis.as_deref(),
+        Some("1000")
     );
 }

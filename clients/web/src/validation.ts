@@ -9,6 +9,7 @@ import type {
   OpenViewSetResponse,
   ResponseEnvelope,
   ServiceSnapshot,
+  TorrentListImportReport,
   TorrentView,
   UpdateBatch,
   ViewPatch,
@@ -20,11 +21,15 @@ import {
   DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW,
 } from "./api/generated/v1";
 import { assertApiSchema, SchemaError } from "./api/schema";
+import { ROW_FIELD_KINDS } from "./api/generated/v1.validators.js";
 
 const MAX_FRAME_BYTES = 512 * 1024;
 const MAX_HTTP_RESPONSE_BYTES = 16 * 1024 * 1024;
 const MAX_APPLICATION_FRAME_BYTES = MAX_HTTP_RESPONSE_BYTES + 4 * 1024;
 const MAX_MAGNET_BYTES = 16 * 1024;
+const MAX_IMPORT_FAILURES = 4_096;
+const MAX_IMPORT_FAILURE_NAME_BYTES = 64 * 1024;
+const MAX_IMPORT_FAILURE_REASON_BYTES = 16 * 1024;
 const MAX_COLLECTION = 100_000;
 const MAX_ACTIVE_PEERS = 256;
 const MAX_SWARM_PEERS = 1_000;
@@ -49,6 +54,9 @@ const PEER_FLAGS = [
 const MAX_FILE_CATALOG = 374_998;
 const MAX_TRACKER_CATALOG = 999_994;
 const MAX_CATALOG_PAGE_ROWS = 1_024;
+const MAX_LIBRARY_PAGE_ROWS = 128;
+const MAX_LIBRARY_TEXT_BYTES = 256;
+const MAX_LIBRARY_GROUP_ID_BYTES = 512;
 const MAX_DISK_PIECES = 16_384;
 const MAX_ACTIVE_PIECES = 16_384;
 const DHT_BUCKETS = 160;
@@ -73,7 +81,9 @@ const SHA1_HEX = /^[A-Fa-f0-9]{40}$/;
 const DIAGNOSTIC_CATEGORY = /^[a-z0-9_-]+(?:\.[a-z0-9_-]+){0,3}$/;
 const DIAGNOSTIC_IDENTIFIER = /^[a-z0-9_.-]{1,48}$/;
 
-export class ContractError extends Error {}
+import { ContractError } from "./api/errors";
+
+export { ContractError };
 
 function parseBoundedJson(source: string, maximum: number, label: string): unknown {
   if (new TextEncoder().encode(source).byteLength > maximum) {
@@ -140,6 +150,16 @@ function validateApiHello(value: ApiHello): void {
   ) {
     throw new ContractError("API queue limits are inconsistent");
   }
+  const product = value.product;
+  if (product !== undefined && product !== null) {
+    boundedString(product.kind, "product kind", 16);
+    boundedString(product.version, "product version", 64);
+    boundedString(product.build_id, "product build ID", 160);
+    boundedString(product.target, "product target", 64);
+    optionalString(product.identifier, "product identifier", 128);
+    boundedString(product.profile_id, "profile ID", 128);
+    optionalString(product.profile_location, "profile location", 4_096);
+  }
 }
 
 export function decodeApplicationServerFrame(
@@ -154,6 +174,10 @@ export function decodeApplicationServerFrame(
     ),
   );
   switch (value.type) {
+    case "download_root_chosen":
+      connectionIdentifier(value.call_id, "call ID");
+      if (value.response.root !== null) validateStorageRoot(value.response.root);
+      break;
     case "connected":
       if (value.api_version !== 1 || value.encoding !== "json") {
         throw new ContractError("unsupported application connection contract");
@@ -254,7 +278,7 @@ export function decodeApplicationServerFrame(
 export function decodeResponseEnvelope(source: string): ResponseEnvelope {
   const value = generated<ResponseEnvelope>(
     "ResponseEnvelope",
-    parseBoundedJson(source, MAX_FRAME_BYTES, "command response"),
+    parseBoundedJson(source, MAX_HTTP_RESPONSE_BYTES, "command response"),
   );
   validateResponse(value);
   return value;
@@ -315,6 +339,69 @@ function validateMediaUrlResponse(value: MediaUrlResponse): void {
   }
 }
 
+/**
+ * Tactical 348 bundle import report. The type is not in the generated
+ * schema, so this checks it by hand with the engine's own bounds.
+ */
+export function decodeTorrentListImportReport(
+  source: string,
+): TorrentListImportReport {
+  return validateTorrentListImportReport(
+    parseBoundedJson(source, MAX_HTTP_RESPONSE_BYTES, "torrent list import report"),
+  );
+}
+
+export function validateTorrentListImportReport(
+  value: unknown,
+): TorrentListImportReport {
+  const report = recordWithKeys(
+    value,
+    "torrent list import report",
+    ["added", "already_present", "failed"],
+  );
+  const failed = report.failed;
+  if (!Array.isArray(failed) || failed.length > MAX_IMPORT_FAILURES) {
+    throw new ContractError("torrent list import failures must be a bounded array");
+  }
+  return {
+    added: boundedInteger(report.added, "torrent list import added", 0, MAX_U32),
+    already_present: boundedInteger(
+      report.already_present,
+      "torrent list import already present",
+      0,
+      MAX_U32,
+    ),
+    failed: failed.map((entry) => {
+      const failure = recordWithKeys(entry, "torrent list import failure", ["name", "reason"]);
+      return {
+        name: boundedUtf8String(
+          failure.name,
+          "torrent list import failure name",
+          MAX_IMPORT_FAILURE_NAME_BYTES,
+        ),
+        reason: boundedUtf8String(
+          failure.reason,
+          "torrent list import failure reason",
+          MAX_IMPORT_FAILURE_REASON_BYTES,
+        ),
+      };
+    }),
+  };
+}
+
+/** A record with every listed key. A newer host may add others; they are ignored. */
+function recordWithKeys(
+  value: unknown,
+  label: string,
+  keys: readonly string[],
+): Record<string, unknown> {
+  const record = asRecord(value, label);
+  for (const key of keys) {
+    if (!(key in record)) throw new ContractError(`${label} is missing ${key}`);
+  }
+  return record;
+}
+
 export function decodeOpenViewSetResponse(source: string): OpenViewSetResponse {
   const value = generated<OpenViewSetResponse>(
     "OpenViewSetResponse",
@@ -352,6 +439,7 @@ function validateUpdateBatch(batch: UpdateBatch): void {
   decimal(batch.base_cursor, "view-set base cursor");
   decimal(batch.cursor, "view-set cursor");
   decimal(batch.durable_revision, "durable revision");
+  decimal(batch.server_now_millis, "server monotonic time");
   const base = BigInt(batch.base_cursor);
   const cursor = BigInt(batch.cursor);
   if (
@@ -431,6 +519,32 @@ function validateResponse(value: unknown): void {
           0,
           MAX_U32,
         );
+        if (magnet.peer_hints !== undefined) {
+          const hints = array(magnet.peer_hints, "magnet peer hints");
+          if (hints.length > 2) {
+            throw new ContractError("magnet peer hints exceed 2 entries");
+          }
+          for (const value of hints) {
+            const hint = asRecord(value, "magnet peer hint");
+            boundedString(hint.endpoint, "magnet peer hint endpoint", 64);
+            oneOf(hint.scope, "magnet peer hint scope", [
+              "internet",
+              "local_network",
+            ]);
+          }
+        }
+        if (
+          magnet.peer_hint_omission !== undefined &&
+          magnet.peer_hint_omission !== null
+        ) {
+          oneOf(magnet.peer_hint_omission, "magnet peer hint omission", [
+            "private_torrent",
+            "metadata_pending",
+            "incoming_disabled",
+            "not_reachable",
+            "no_address",
+          ]);
+        }
       }
     }
   } else if (status === "error") {
@@ -484,12 +598,13 @@ function validateServiceSnapshot(value: unknown): void {
       0,
       MAX_U32,
     );
-    array(torrent.skip_files, "skipped files").forEach((index) =>
+    array(torrent.skip_files, "skipped files", 374_998).forEach((index) =>
       boundedInteger(index, "file index", 0, MAX_U32),
     );
-    array(torrent.high_priority_files, "high-priority files").forEach((index) =>
+    array(torrent.high_priority_files, "high-priority files", 374_998).forEach((index) =>
       boundedInteger(index, "file priority index", 0, MAX_U32),
     );
+    array(torrent.selection_exceptions ?? [], "selection exceptions", 374_998);
     optionalString(torrent.error, "torrent error", 1_024);
   }
 }
@@ -1063,6 +1178,27 @@ function validateViewSnapshot(value: unknown): void {
       validateDiagnosticRetention(snapshot.retention);
       break;
     }
+    case "library_media": {
+      const page = validateCatalogPage(snapshot.page, MAX_U32);
+      if (page.limit > MAX_LIBRARY_PAGE_ROWS) {
+        throw new ContractError("library page exceeds its row bound");
+      }
+      const items = array(snapshot.items, "library items");
+      const groups = array(snapshot.groups, "library groups");
+      if (items.length !== 0 && groups.length !== 0) {
+        throw new ContractError("library page mixes items and groups");
+      }
+      if (
+        items.length + groups.length !==
+        Math.min(page.limit, Math.max(0, page.total - page.offset))
+      ) {
+        throw new ContractError("library page does not match its declared page");
+      }
+      items.forEach(validateLibraryMediaItemView);
+      groups.forEach(validateLibraryGroupView);
+      validateLibraryFacets(snapshot.facets);
+      break;
+    }
     default:
       throw new ContractError("unknown view snapshot type");
   }
@@ -1278,6 +1414,14 @@ function validateViewPatch(value: unknown): void {
       validateDiagnosticRetention(patch.retention);
       break;
     }
+    case "library_media": {
+      const upserts = array(patch.upsert, "library upserts");
+      if (upserts.length > MAX_LIBRARY_PAGE_ROWS) {
+        throw new ContractError("library patch exceeds its row bound");
+      }
+      upserts.forEach(validateLibraryMediaItemView);
+      break;
+    }
     default:
       throw new ContractError("unknown view patch type");
   }
@@ -1285,7 +1429,7 @@ function validateViewPatch(value: unknown): void {
 
 function validateRowUpdates(
   value: unknown,
-  label: string,
+  label: RowLabel,
   idField: string,
   validateId: (value: unknown) => unknown,
   maximumFields: number,
@@ -1308,7 +1452,7 @@ function validateRowUpdates(
 
 function validateRowUpdate(
   value: unknown,
-  label: string,
+  label: RowLabel,
   idField: string,
   validateId: (value: unknown) => unknown,
   maximumFields: number,
@@ -1316,7 +1460,7 @@ function validateRowUpdate(
   const update = asRecord(value, `${label} update`);
   validateId(update[idField]);
   const fields = array(update.fields, `${label} update fields`);
-  if (fields.length === 0 || fields.length > maximumFields) {
+  if (fields.length === 0 || fields.length > MAX_ROW_UPDATE_FIELDS) {
     throw new ContractError(`${label} update field count is invalid`);
   }
   const kinds = new Set<string>();
@@ -1328,8 +1472,31 @@ function validateRowUpdate(
     }
     kinds.add(kind);
   }
+  // A newer host may update fields this client does not know. They passed
+  // the generated schema as unknown kinds; drop them so the reducer and the
+  // types see only known fields.
+  const known = ROW_FIELD_KINDS[ROW_FIELD_UNIONS[label]];
+  const knownFields = fields.filter((field) =>
+    known.includes((field as { field: string }).field),
+  );
+  if (knownFields.length > maximumFields) {
+    throw new ContractError(`${label} update field count is invalid`);
+  }
+  update.fields = knownFields;
   return update;
 }
+
+/** Bounds a row update before unknown field kinds are dropped. */
+const MAX_ROW_UPDATE_FIELDS = 256;
+
+type RowLabel = "active piece" | "file" | "peer" | "torrent";
+
+const ROW_FIELD_UNIONS: Readonly<Record<RowLabel, keyof typeof ROW_FIELD_KINDS>> = {
+  "active piece": "ActivePieceFieldUpdate",
+  file: "FileFieldUpdate",
+  peer: "PeerFieldUpdate",
+  torrent: "TorrentFieldUpdate",
+};
 
 function validateDisjointRowOperations(
   upsertValue: unknown,
@@ -2069,6 +2236,7 @@ export function validateTorrentView(value: unknown): asserts value is TorrentVie
   validateProtocolIdentities(torrent.protocol_identities);
   optionalString(torrent.display_name, "torrent display name", 255);
   optionalString(torrent.source_display_name, "torrent source display name", 255);
+  optionalDecimal(torrent.source_size_bytes, "torrent source size");
   oneOf(torrent.operational_state, "torrent operational state", [
     "queued",
     "starting",
@@ -2506,6 +2674,112 @@ function validateMediaItemView(value: unknown): void {
   }
 }
 
+const MEDIA_AVAILABILITY = [
+  "available",
+  "streamable",
+  "metadata_unavailable",
+  "invalid_file",
+  "padding",
+  "incomplete",
+  "checking",
+  "unverified",
+  "storage_unavailable",
+  "removing",
+  "server_unavailable",
+  "resource_limit",
+] as const;
+
+function validateLibraryMediaItemView(value: unknown): void {
+  const item = asRecord(value, "library item");
+  torrentId(item.torrent_id);
+  const fileIndex = boundedInteger(
+    item.file_index,
+    "library file index",
+    0,
+    MAX_FILE_CATALOG - 1,
+  );
+  if (item.item_id !== `${item.torrent_id}:${fileIndex}`) {
+    throw new ContractError("library item ID does not name its file");
+  }
+  boundedString(item.torrent_name, "library torrent name", MAX_LIBRARY_TEXT_BYTES);
+  boundedString(item.file_name, "library file name", MAX_LIBRARY_TEXT_BYTES);
+  boundedString(item.title, "library title", MAX_LIBRARY_TEXT_BYTES);
+  oneOf(item.kind, "library kind", ["video", "audio"]);
+  oneOf(item.role, "library role", ["episode", "movie", "other", "track"]);
+  optionalString(item.series_title, "series title", MAX_LIBRARY_TEXT_BYTES);
+  optionalString(item.series_id, "series ID", MAX_LIBRARY_GROUP_ID_BYTES);
+  optionalString(item.album_title, "album title", MAX_LIBRARY_TEXT_BYTES);
+  optionalString(item.album_id, "album ID", MAX_LIBRARY_GROUP_ID_BYTES);
+  for (const field of [
+    "season_number",
+    "episode_number",
+    "ending_episode_number",
+    "disc_number",
+    "track_number",
+    "year",
+  ] as const) {
+    optionalInteger(item[field], `library ${field}`, 65_535);
+  }
+  const extension = boundedString(item.extension, "library extension", 16);
+  if (!/^[a-z0-9]+$/.test(extension)) {
+    throw new ContractError("library extension is invalid");
+  }
+  const length = BigInt(decimal(item.length_bytes, "library length"));
+  const verified = BigInt(decimal(item.verified_bytes, "library verified bytes"));
+  if (verified > length) {
+    throw new ContractError("library progress exceeds the file length");
+  }
+  if (boolean(item.offline, "library offline") !== (verified === length)) {
+    throw new ContractError("library offline state contradicts its progress");
+  }
+  boolean(item.archived, "library archived");
+  oneOf(item.media_availability, "media availability", [...MEDIA_AVAILABILITY]);
+}
+
+function validateLibraryGroupView(value: unknown): void {
+  const group = asRecord(value, "library group");
+  const id = boundedString(group.group_id, "library group ID", MAX_LIBRARY_GROUP_ID_BYTES);
+  if (!/^(series|album|torrent):/.test(id)) {
+    throw new ContractError("library group ID is invalid");
+  }
+  boundedString(group.title, "library group title", MAX_LIBRARY_TEXT_BYTES);
+  const items = boundedInteger(group.item_count, "library group items", 1, MAX_U32);
+  const offline = boundedInteger(
+    group.offline_count,
+    "library group offline items",
+    0,
+    MAX_U32,
+  );
+  if (offline > items) {
+    throw new ContractError("library group offline count exceeds its items");
+  }
+  decimal(group.total_bytes, "library group bytes");
+  boundedInteger(group.season_count, "library group seasons", 0, MAX_U32);
+  boundedInteger(group.torrent_count, "library group torrents", 1, MAX_U32);
+  optionalInteger(group.year, "library group year", 65_535);
+}
+
+function validateLibraryFacets(value: unknown): void {
+  const facets = asRecord(value, "library facets");
+  for (const field of [
+    "items",
+    "video",
+    "audio",
+    "episodes",
+    "movies",
+    "other_videos",
+    "tracks",
+    "offline",
+    "incomplete",
+    "series",
+    "albums",
+    "torrents",
+    "metadata_pending",
+  ] as const) {
+    boundedInteger(facets[field], `library facet ${field}`, 0, MAX_U32);
+  }
+}
+
 function validateCatalogPage(
   value: unknown,
   maximumTotal: number,
@@ -2601,9 +2875,9 @@ function validateTrackerView(value: unknown): void {
     ]);
   }
   [
-    "next_action_in_millis",
-    "last_success_age_millis",
-    "last_failure_age_millis",
+    "next_action_at_millis",
+    "last_success_at_millis",
+    "last_failure_at_millis",
   ].forEach((field) => optionalDecimal(tracker[field], `tracker ${field}`));
   optionalString(tracker.last_error, "tracker last error", 256);
 }
@@ -3133,8 +3407,8 @@ function asRecord(
   return value as Record<string, unknown>;
 }
 
-function array(value: unknown, label: string): unknown[] {
-  if (!Array.isArray(value) || value.length > MAX_COLLECTION) {
+function array(value: unknown, label: string, maximum = MAX_COLLECTION): unknown[] {
+  if (!Array.isArray(value) || value.length > maximum) {
     throw new ContractError(`${label} must be a bounded array`);
   }
   return value;

@@ -11,6 +11,8 @@ axum = { workspace = true, features = ["ws"] }
 base64.workspace = true
 futures-util = { workspace = true, features = ["sink"] }
 getrandom.workspace = true
+hyper = { version = "1.11.0", features = ["server", "http1"] }
+hyper-util = { version = "0.1.20", features = ["tokio", "service"] }
 rstorrent-session = { path = "../rstorrent-session" }
 rstorrent-media = { path = "../rstorrent-media" }
 rstorrent-platform = { path = "../rstorrent-platform" }

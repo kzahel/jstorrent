@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 def load(name):
@@ -17,6 +18,47 @@ def load(name):
 audit = load('review-dependency-audit')
 package = load('inspect-distribution')
 notices = load('prepare-release-notices')
+collector = load('audit-cargo-dependencies')
+
+
+class PlaybackDependencySourceTests(unittest.TestCase):
+    def test_rust_notices_keep_their_registry_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'LICENSE').write_text('Published MIT license attribution')
+            data = {'crates': [{'package': {'name': 'example', 'version': '1.0.0',
+                     'license': 'MIT', 'source': 'registry+https://example.com',
+                     'manifest_path': str(root / 'Cargo.toml')}}], 'licenses': []}
+            sections, inventory = notices.rust_notices(data, {})
+            self.assertEqual(inventory[0]['source'],
+                             'https://crates.io/api/v1/crates/example/1.0.0/download')
+            self.assertIn('Published MIT license attribution', sections[0])
+
+    def test_only_the_reviewed_immutable_git_source_is_accepted(self):
+        package = {'name': 'mediabunny', 'version': '1.38.1', 'license': 'MPL-2.0'}
+        locked = {'resolved': 'git+https://github.com/kzahel/mediabunny.git#cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0'}
+        self.assertIn('cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0.tar.gz', notices.npm_source(locked, package))
+        ssh = {'resolved': locked['resolved'].replace('git+https://', 'git+ssh://git@')}
+        self.assertEqual(notices.npm_source(locked, package), notices.npm_source(ssh, package))
+        for bad in ['git+https://github.com/kzahel/mediabunny.git#integration',
+                    'git+ssh://git@github.com/kzahel/mediabunny.git#integration',
+                    'git+ssh://git@github.com/other/mediabunny.git#cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0',
+                    'git+https://example.com/mediabunny.git#cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0']:
+            with self.assertRaisesRegex(ValueError, 'reviewed source integrity'):
+                notices.npm_source({'resolved': bad}, package)
+        with self.assertRaises(ValueError):
+            notices.npm_source(locked, {**package, 'license': 'unknown'})
+
+    def test_production_lockfile_sources_are_accepted(self):
+        lock = json.loads((notices.ROOT / 'clients/web/package-lock.json').read_text())
+        sources = {}
+        for key, locked in lock['packages'].items():
+            if key and (not locked.get('dev') or key == 'node_modules/ajv'):
+                name = key.rsplit('node_modules/', 1)[-1]
+                sources[name] = notices.npm_source(locked, {**locked, 'name': name})
+        self.assertEqual(sources['mediabunny'],
+                         'https://github.com/kzahel/mediabunny/archive/'
+                         'cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0.tar.gz')
 
 
 class AdvisoryReviewTests(unittest.TestCase):
@@ -46,6 +88,20 @@ class AdvisoryReviewTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'inventory changed'):
             audit.review(changed, self.npm, self.website_npm, self.policy, date(2026, 9, 12))
 
+    def test_conditional_rand_warning_requires_feature_proof_and_blocks_logger_activation(self):
+        item = {'advisory': {'id': 'RUSTSEC-2026-0097'},
+                'package': {'name': 'rand', 'version': '0.7.3'}}
+        self.cargo['warnings'] = {'unsound': [item]}
+        self.policy['warnings'] = [{'kind': 'unsound', 'advisory': item['advisory']['id'],
+                                   'package': 'rand', 'version': '0.7.3'}]
+        with self.assertRaisesRegex(ValueError, 'log feature'):
+            audit.review(self.cargo, self.npm, self.website_npm, self.policy, date(2026, 9, 12))
+        self.cargo['rstorrent_reviewed_features'] = {'rand@0.7.3': ['std', 'small_rng']}
+        audit.review(self.cargo, self.npm, self.website_npm, self.policy, date(2026, 9, 12))
+        self.cargo['rstorrent_reviewed_features']['rand@0.7.3'].append('log')
+        with self.assertRaisesRegex(ValueError, 'log feature'):
+            audit.review(self.cargo, self.npm, self.website_npm, self.policy, date(2026, 9, 12))
+
     def test_expired_review_stale_database_and_vulnerabilities_fail(self):
         with self.assertRaisesRegex(ValueError, '30 days'):
             audit.review(self.cargo, self.npm, self.website_npm, self.policy, date(2026, 10, 13))
@@ -72,6 +128,80 @@ class AdvisoryReviewTests(unittest.TestCase):
         self.assertEqual(result['npm_findings']['website'],
                          [{'package': 'astro', 'severity': 'critical'}])
         self.assertNotIn('unreviewed details', json.dumps(result))
+
+
+class ProbeAdvisoryTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.lock = self.root / audit.PROBE_LOCKFILE
+        self.lock.parent.mkdir(parents=True)
+        self.lock.write_bytes(b'probe lockfile')
+        self.today = date(2026, 10, 23)
+        self.cargo = {'rstorrent_ios_probe': {
+            'lock_sha256': audit.hashlib.sha256(self.lock.read_bytes()).hexdigest(),
+            'audit': {'database': {'last-updated': '2026-10-22T00:00:00+00:00',
+                                   'last-commit': 'abc'},
+                      'vulnerabilities': {'count': 0}, 'warnings': {}}}}
+
+    def test_collection_audits_both_locks_without_rewriting_them(self):
+        metadata = json.dumps({'packages': [], 'resolve': {'nodes': []}})
+        with patch.object(collector.glib_backport, 'audit_lock',
+                          return_value=(b'root projection', {'source': 'verified'})), \
+                patch.object(collector.subprocess, 'check_output',
+                             side_effect=['cargo-audit 0.22.2', metadata]), \
+                patch.object(collector, 'audit_lock', return_value={}) as collect:
+            result = collector.collect(self.root)
+        self.assertEqual([c.args[0] for c in collect.call_args_list],
+                         [b'root projection', b'probe lockfile'])
+        self.assertEqual(result['rstorrent_ios_probe']['lock_sha256'],
+                         self.cargo['rstorrent_ios_probe']['lock_sha256'])
+        self.assertEqual(self.lock.read_bytes(), b'probe lockfile')
+
+    def test_clean_probe_records_exact_lock_and_database(self):
+        result = audit.review_ios_probe(self.cargo, self.today, self.root)
+        self.assertEqual(result['lockfile'], audit.PROBE_LOCKFILE)
+        self.assertEqual(result['database_revision'], 'abc')
+        self.assertEqual(result['cargo_vulnerabilities'], 0)
+
+    def test_missing_report_and_changed_lock_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'current lockfile'):
+            audit.review_ios_probe({}, self.today, self.root)
+        self.lock.write_bytes(b'changed')
+        with self.assertRaisesRegex(ValueError, 'current lockfile'):
+            audit.review_ios_probe(self.cargo, self.today, self.root)
+
+    def test_probe_vulnerabilities_and_warnings_are_rejected(self):
+        report = self.cargo['rstorrent_ios_probe']['audit']
+        report['vulnerabilities']['count'] = 1
+        with self.assertRaisesRegex(ValueError, 'vulnerabilities'):
+            audit.review_ios_probe(self.cargo, self.today, self.root)
+        report['vulnerabilities']['count'] = 0
+        report['warnings'] = {'yanked': [{'package': {'name': 'chacha20'}}]}
+        with self.assertRaisesRegex(ValueError, 'warnings'):
+            audit.review_ios_probe(self.cargo, self.today, self.root)
+        report.pop('warnings')
+        with self.assertRaisesRegex(ValueError, 'warnings'):
+            audit.review_ios_probe(self.cargo, self.today, self.root)
+
+    def test_stale_and_future_probe_database_are_rejected(self):
+        report = self.cargo['rstorrent_ios_probe']['audit']
+        for updated in ('2026-09-01T00:00:00+00:00', '2026-10-24T00:00:00+00:00'):
+            report['database']['last-updated'] = updated
+            with self.assertRaisesRegex(ValueError, '30 days'):
+                audit.review_ios_probe(self.cargo, self.today, self.root)
+
+    def test_failure_summary_retains_bounded_probe_findings(self):
+        report = self.cargo['rstorrent_ios_probe']['audit']
+        report['vulnerabilities'] = {'count': 25, 'list': [{
+            'advisory': {'id': 'RUSTSEC-test', 'description': 'raw advisory'},
+            'package': {'name': 'quinn-proto', 'version': '0.11.16'},
+        }] * 25}
+        result = audit.failure_summary(self.cargo, {}, {}, 'probe failure')
+        self.assertEqual(result['ios_probe_vulnerability_count'], 25)
+        self.assertEqual(len(result['ios_probe_findings']), 20)
+        self.assertNotIn('raw advisory', json.dumps(result))
 
 
 class DistributionTests(unittest.TestCase):
@@ -137,7 +267,8 @@ class NativeNoticeTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve() / 'AppDir'
         self.root.mkdir()
-        for name in native_notices.FIRST_PARTY | {'usr/lib/libexample.so.1', 'usr/bin/xdg-mime'}:
+        for name in {'usr/bin/jstorrent-client', 'usr/bin/rstorrent-native-host',
+                     'usr/lib/libexample.so.1', 'usr/lib/libssl.so.3', 'usr/bin/xdg-mime'}:
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b'#!/bin/sh\n' if name.endswith('xdg-mime') else b'\x7fELFexample')
@@ -149,6 +280,11 @@ class NativeNoticeTests(unittest.TestCase):
 
         class Provenance:
             def identify(self, path, digest):
+                if path.name == 'libssl.so.3':
+                    return {'package': 'libssl3:amd64', 'version': '3.0.2-0ubuntu1.30',
+                            'source_package': 'openssl', 'source_version': '3.0.2-0ubuntu1.30',
+                            'original_path': '/usr/lib/libssl.so.3',
+                            'original_sha256': digest, 'build_id': 'abcdef'}
                 return {'package': 'example:amd64', 'version': '1.2-1',
                         'source_package': 'example', 'source_version': '1.2-1',
                         'original_path': '/usr/lib/libexample.so.1.2',
@@ -164,14 +300,144 @@ class NativeNoticeTests(unittest.TestCase):
 
     def test_selected_components_and_original_license_bytes_round_trip(self):
         result = self.native.collect(self.root, self.provenance)
-        self.assertEqual(len(result['components']), 4)
-        self.assertEqual(len(result['packages']), 1)
-        self.assertEqual(len(result['notices']), 2)
+        self.assertEqual(len(result['components']), 5)
+        self.assertEqual(len(result['packages']), 2)
+        self.assertEqual(len(result['notices']), 3)
         copyright_path = self.root / result['packages'][0]['copyright']
         self.assertEqual(copyright_path.read_bytes(), self.copyright.read_bytes())
-        self.assertEqual(self.native.verify(self.root)['distro_packages'], 1)
+        self.assertEqual(self.native.verify(self.root)['distro_packages'], 2)
         self.assertNotIn(str(self.root.parent), json.dumps(result))
         self.assertTrue(result['remaining_review'])
+
+    def test_historical_desktop_remains_independently_reviewable(self):
+        (self.root / 'usr/bin/jstorrent-client').rename(self.root / 'usr/bin/rstorrent-desktop')
+        result = self.native.collect(self.root, self.provenance)
+        desktops = [item for item in result['components']
+                    if item['path'] in self.native.DESKTOP_BINARIES]
+        self.assertEqual([(item['path'], item['kind']) for item in desktops],
+                         [('usr/bin/rstorrent-desktop', 'first-party')])
+        self.assertEqual(self.native.verify(self.root)['distro_packages'], 2)
+
+    def add_reviewed_apprun_fixture(self, architecture):
+        from unittest.mock import patch
+        binary = self.root / 'AppRun.wrapped'
+        binary.write_bytes(b'\x7fELFcontrolled-apprun-' + architecture.encode())
+        review = patch.dict(self.native.APPRUN, {self.native.sha(binary): architecture})
+        review.start()
+        self.addCleanup(review.stop)
+
+    def test_apprun_both_architectures_preserve_original_notice(self):
+        for architecture in ['x86_64', 'aarch64']:
+            with self.subTest(architecture=architecture):
+                self.add_reviewed_apprun_fixture(architecture)
+                result = self.native.collect(self.root, self.provenance)
+                entry = next(c for c in result['components'] if c['kind'] == 'apprun')
+                self.assertEqual(entry['architecture'], architecture)
+                self.assertEqual(entry['license'], 'MIT')
+                notice = self.root / entry['copyright']
+                self.assertEqual(notice.read_bytes(), self.native.APPRUN_LICENSE.read_bytes())
+                self.assertIn(b'Simon Peter', notice.read_bytes())
+                self.assertIn(b'RazZziel', notice.read_bytes())
+                self.assertEqual(self.native.verify(self.root)['notice_files'], 4)
+
+    def test_apprun_missing_or_forged_attribution_is_refused(self):
+        import hashlib
+        self.add_reviewed_apprun_fixture('x86_64')
+        original = self.native.collect(self.root, self.provenance)
+        for key in ['architecture', *self.native.APPRUN_NOTICE]:
+            with self.subTest(field=key):
+                modified = copy.deepcopy(original)
+                entry = next(c for c in modified['components'] if c['kind'] == 'apprun')
+                entry[key] = 'unreviewed'
+                (self.root / self.native.MANIFEST).write_text(json.dumps(modified))
+                with self.assertRaisesRegex(ValueError, 'AppRun license attribution'):
+                    self.native.verify(self.root)
+        modified = copy.deepcopy(original)
+        name = self.native.APPRUN_NOTICE['copyright']
+        modified['notices'] = [n for n in modified['notices'] if n['path'] != name]
+        (self.root / self.native.MANIFEST).write_text(json.dumps(modified))
+        with self.assertRaisesRegex(ValueError, 'AppRun license attribution'):
+            self.native.verify(self.root)
+        modified = copy.deepcopy(original)
+        notice = next(n for n in modified['notices'] if n['path'] == name)
+        payload = b'Forged terms'
+        (self.root / name).write_bytes(payload)
+        notice.update(bytes=len(payload), sha256=hashlib.sha256(payload).hexdigest())
+        (self.root / self.native.MANIFEST).write_text(json.dumps(modified))
+        with self.assertRaisesRegex(ValueError, 'AppRun license attribution'):
+            self.native.verify(self.root)
+
+    def test_apprun_source_notice_drift_is_refused_before_manifest(self):
+        from unittest.mock import patch
+        self.add_reviewed_apprun_fixture('x86_64')
+        changed = self.root.parent / 'changed-AppRun-license'
+        changed.write_bytes(b'Altered terms')
+        with patch.object(self.native, 'APPRUN_LICENSE', changed):
+            with self.assertRaisesRegex(ValueError, 'AppRun license source drift'):
+                self.native.collect(self.root, self.provenance)
+        self.assertFalse((self.root / self.native.MANIFEST).exists())
+
+    def test_missing_or_duplicate_desktop_is_refused(self):
+        binary = self.root / 'usr/bin/jstorrent-client'
+        old = self.root / 'usr/bin/rstorrent-desktop'
+        old.write_bytes(binary.read_bytes())
+        with self.assertRaisesRegex(ValueError, 'expected first-party binaries'):
+            self.native.collect(self.root, self.provenance)
+        old.unlink()
+        binary.unlink()
+        with self.assertRaisesRegex(ValueError, 'expected first-party binaries'):
+            self.native.collect(self.root, self.provenance)
+
+    def test_reviewed_openssl_floors_and_future_security_revisions(self):
+        for version in ('3.0.2-0ubuntu1.30', '3.0.2-0ubuntu1.100',
+                        '3.0.13-0ubuntu3.16', '3.0.13-0ubuntu3.20'):
+            with self.subTest(version=version):
+                package = {'package': 'libssl3t64:arm64', 'version': version,
+                           'source_package': 'openssl', 'source_version': version}
+                result = self.native.verify_security_floor([package])
+                self.assertEqual(result['packages'][0]['version'], version)
+        for version in ('3.0.2-0ubuntu1.29', '3.0.13-0ubuntu3.9'):
+            with self.subTest(version=version):
+                package = {'package': 'libssl3:amd64', 'version': version,
+                           'source_package': 'openssl', 'source_version': version}
+                with self.assertRaisesRegex(ValueError, 'below USN-8847-1'):
+                    self.native.verify_security_floor([package])
+
+    def test_unreviewed_or_missing_openssl_provenance_fails_closed(self):
+        for version in ('3.5.5-1ubuntu3.6', '1:3.0.2-0ubuntu1.30',
+                        '3.0.2-0ubuntu1.30+local', '3.0.2-0ubuntu1.030'):
+            package = {'package': 'libssl3:amd64', 'version': version,
+                       'source_package': 'openssl', 'source_version': version}
+            with self.subTest(version=version), self.assertRaisesRegex(ValueError, 'requires security-floor review'):
+                self.native.verify_security_floor([package])
+        package = {'package': 'libssl3:amd64', 'version': '3.0.2-0ubuntu1.30',
+                   'source_package': 'openssl', 'source_version': '3.0.2-0ubuntu1.30'}
+        for changed in ({'source_package': 'unreviewed'}, {'version': '3.0.2-0ubuntu1.29'}):
+            with self.assertRaisesRegex(ValueError, 'attribution differs'):
+                self.native.verify_security_floor([{**package, **changed}])
+        for packages in ([], [package, {**package, 'package': 'libssl3:arm64'}]):
+            with self.assertRaisesRegex(ValueError, 'exactly one'):
+                self.native.verify_security_floor(packages)
+
+    def test_old_openssl_refused_before_manifest_and_after_extraction(self):
+        from unittest.mock import patch
+        identify = self.provenance.identify
+        def old(path, digest):
+            item = identify(path, digest)
+            if item['source_package'] == 'openssl':
+                item.update(version='3.0.2-0ubuntu1.29', source_version='3.0.2-0ubuntu1.29')
+            return item
+        with patch.object(self.provenance, 'identify', side_effect=old):
+            with self.assertRaisesRegex(ValueError, 'below USN-8847-1'):
+                self.native.collect(self.root, self.provenance)
+        self.assertFalse((self.root / self.native.MANIFEST).exists())
+        result = self.native.collect(self.root, self.provenance)
+        for item in result['packages'] + result['components']:
+            if item.get('source_package') == 'openssl':
+                item.update(version='3.0.2-0ubuntu1.29', source_version='3.0.2-0ubuntu1.29')
+        (self.root / self.native.MANIFEST).write_text(json.dumps(result))
+        with self.assertRaisesRegex(ValueError, 'below USN-8847-1'):
+            self.native.verify(self.root)
 
     def test_spdx_common_license_name_uses_ubuntu_canonical_text(self):
         from unittest.mock import patch

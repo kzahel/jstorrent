@@ -1,3 +1,5 @@
+import { usePlayback } from "./VideoPlayer";
+import { isPlaybackEligible, useMediaPlayback } from "./useMediaPlayback";
 import { message as localizedMessage } from "../../localization/runtime";
 import {
   useEffect,
@@ -8,10 +10,12 @@ import {
   type UIEvent,
 } from "react";
 
-import { useInspectionCommand, useInspectionStore } from "../context";
-import { formatDecimalProgress, formatExactBytes } from "../format";
+import { useInspectionStore } from "../context";
+import { formatDecimalProgress, formatExactBytes, torrentVisibleProgress } from "../format";
+import type { LayoutMode } from "../layout";
 import { episodeLabel, sortFileRows, sortMediaRows } from "../library-media";
 import type { FileRow, MediaRow, TorrentRow, ViewMaterialization } from "../model";
+import { seedLimitReached } from "../seed-stop";
 import { Icon } from "./Icon";
 import styles from "./LibraryDetailView.module.css";
 
@@ -24,6 +28,8 @@ export function LibraryDetailView({
   readonly torrent: TorrentRow;
   readonly onBack: () => void;
 }) {
+  const { demo, pending, play, reset } = useMediaPlayback();
+  const visibleProgress = torrentVisibleProgress(torrent);
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
   const layout = useInspectionStore((state) => state.presentation.layout);
   const mode = useInspectionStore(
@@ -43,28 +49,14 @@ export function LibraryDetailView({
   );
   const mediaStatus = useInspectionStore((state) => state.viewStatus.media);
   const filesStatus = useInspectionStore((state) => state.viewStatus.files);
-  const demo = useInspectionStore((state) => state.demo);
-  const execute = useInspectionCommand();
   const autoFallback = useRef(torrent.id);
-  const playbackRequest = useRef(0);
-  const [playbackPendingFile, setPlaybackPendingFile] = useState<number | null>(
-    null,
-  );
-  const [playbackStatus, setPlaybackStatus] = useState("");
+  const playbackPendingFile =
+    pending?.torrentId === torrent.id ? pending.fileIndex : null;
 
   useEffect(() => {
     autoFallback.current = torrent.id;
-    playbackRequest.current += 1;
-    setPlaybackPendingFile(null);
-    setPlaybackStatus("");
-  }, [torrent.id]);
-
-  useEffect(
-    () => () => {
-      playbackRequest.current += 1;
-    },
-    [],
-  );
+    reset();
+  }, [reset, torrent.id]);
 
   useEffect(() => {
     if (
@@ -83,43 +75,14 @@ export function LibraryDetailView({
     selectMode(next);
   };
   const mediaCount = media?.order.length;
-  const playMedia = async (row: MediaRow) => {
-    if (
-      demo !== null ||
-      playbackPendingFile !== null ||
-      !isPlaybackEligible(row.mediaAvailability)
-    ) {
-      return;
-    }
-    const request = playbackRequest.current + 1;
-    playbackRequest.current = request;
-    setPlaybackPendingFile(row.fileIndex);
-    setPlaybackStatus("");
-    try {
-      const result = await execute({
-        type: "open_file",
-        torrentId: torrent.id,
-        fileIndex: row.fileIndex,
-      });
-      if (playbackRequest.current === request) {
-        setPlaybackStatus(
-          result.accepted
-            ? `Opening ${row.name} for playback`
-            : result.message,
-        );
-      }
-    } catch (error) {
-      if (playbackRequest.current === request) {
-        setPlaybackStatus(
-          error instanceof Error ? error.message : String(error),
-        );
-      }
-    } finally {
-      if (playbackRequest.current === request) {
-        setPlaybackPendingFile(null);
-      }
-    }
-  };
+  const playMedia = (row: MediaRow) =>
+    play({
+      torrentId: torrent.id,
+      fileIndex: row.fileIndex,
+      name: row.name,
+      lengthBytes: row.lengthBytes,
+      mediaAvailability: row.mediaAvailability,
+    });
 
   return (
     <section className={styles.detail} aria-labelledby="library-detail-heading">
@@ -131,11 +94,10 @@ export function LibraryDetailView({
           autoFocus
           onClick={onBack}
         >
-          <span aria-hidden="true">←</span>
+          <Icon name="arrowBack" />
           <span>{localizedMessage("inspection.components.library.detail.view.library")}</span>
         </button>
         <div>
-          <p>{localizedMessage("inspection.components.library.detail.view.content.details")}</p>
           <h1 id="library-detail-heading">{torrent.name}</h1>
         </div>
         <button
@@ -144,13 +106,18 @@ export function LibraryDetailView({
           aria-label={localizedMessage("inspection.components.library.detail.view.open.in.workbench")}
           onClick={() => openInWorkbench(torrent.id)}
         >
-          <Icon name="workbench" />
+          <Icon name="transfers" />
           <span>{localizedMessage("inspection.components.library.detail.view.open.in.workbench")}</span>
         </button>
       </header>
       <div className={styles.body}>
         <aside className={styles.summary} aria-label={localizedMessage("inspection.components.library.detail.view.torrent.content.summary")}>
-          <div className={styles.placeholder} aria-hidden="true">
+          <div
+            className={styles.placeholder}
+            data-full={visibleProgress !== null && visibleProgress >= 1 ? true : undefined}
+            style={waterLevel(visibleProgress)}
+            aria-hidden="true"
+          >
             <span>{initials(torrent.name)}</span>
           </div>
           <div className={styles.summaryText}>
@@ -183,11 +150,6 @@ export function LibraryDetailView({
               onClick={() => chooseMode("files")}
             >{localizedMessage("inspection.components.library.detail.view.all.files")}</button>
           </div>
-          {playbackStatus === "" ? null : (
-            <output className={styles.commandStatus} aria-live="polite">
-              {playbackStatus}
-            </output>
-          )}
           {mode === "media" ? (
             <MediaCatalog
               rows={media === undefined ? [] : media.order
@@ -199,9 +161,7 @@ export function LibraryDetailView({
               dataUnits={dataUnits}
               playbackPendingFile={playbackPendingFile}
               playbackUnavailableReason={
-                demo === null
-                  ? undefined
-                  : "Playback is unavailable in demo scenarios."
+                demo ? "Playback is unavailable in demo scenarios." : undefined
               }
               onPlay={(row) => void playMedia(row)}
             />
@@ -236,7 +196,7 @@ function MediaCatalog({
   readonly rows: readonly MediaRow[];
   readonly state: "metadata_pending" | "available" | "torrent_missing" | undefined;
   readonly materialization: ViewMaterialization;
-  readonly layout: "wide" | "compact" | "phone";
+  readonly layout: LayoutMode;
   readonly dataUnits: "decimal" | "binary";
   readonly playbackPendingFile: number | null;
   readonly playbackUnavailableReason: string | undefined;
@@ -280,7 +240,7 @@ function FileCatalog({
   readonly state: "metadata_pending" | "available" | "torrent_missing" | undefined;
   readonly total: number;
   readonly materialization: ViewMaterialization;
-  readonly layout: "wide" | "compact" | "phone";
+  readonly layout: LayoutMode;
   readonly dataUnits: "decimal" | "binary";
 }) {
   if (materialization.status !== "ready") {
@@ -323,7 +283,7 @@ function VirtualCatalog({
   onPlay,
 }: {
   readonly rows: readonly CatalogRow[];
-  readonly layout: "wide" | "compact" | "phone";
+  readonly layout: LayoutMode;
   readonly dataUnits: "decimal" | "binary";
   readonly label: string;
   readonly playbackPendingFile?: number | null;
@@ -407,12 +367,14 @@ function CatalogRowView({
       : row.doneBytes === "0"
         ? "Not downloaded"
         : "Partially downloaded";
+  const playback = usePlayback();
   const playbackReason =
     entry.kind === "media"
       ? playbackDisabledReason(
           entry.row,
           playbackPendingFile,
-          playbackUnavailableReason,
+          playback.remote && !playback.canPlay(row.name, row.mediaAvailability)
+            ? localizedMessage("remote.video.completed.mp4") : playbackUnavailableReason,
         )
       : undefined;
   return (
@@ -479,16 +441,10 @@ function playbackDisabledReason(
   return `Playback is unavailable: ${availabilityLabel(row.mediaAvailability).toLocaleLowerCase()}.`;
 }
 
-function isPlaybackEligible(
-  availability: MediaRow["mediaAvailability"],
-): boolean {
-  return availability === "available" || availability === "streamable";
-}
-
 function CatalogMessage({ message }: { readonly message: string }) {
   return (
     <div className={styles.message} role="status">
-      <span aria-hidden="true">◇</span>
+      <Icon name="library" />
       <strong>{message}</strong>
     </div>
   );
@@ -502,8 +458,8 @@ function materializationMessage(materialization: ViewMaterialization): string {
       return localizedMessage("inspection.components.library.detail.view.loading.content.details");
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
       return localizedMessage("inspection.components.library.detail.view.no.content");
   }
@@ -514,7 +470,10 @@ function torrentSummary(torrent: TorrentRow): string {
     case "metadata": return localizedMessage("inspection.components.library.detail.view.finding.content.details");
     case "downloading": return localizedMessage("inspection.components.library.detail.view.downloading");
     case "complete": return localizedMessage("inspection.components.library.detail.view.available.offline");
-    case "paused": return localizedMessage("inspection.components.library.detail.view.paused");
+    case "paused":
+      return seedLimitReached(torrent)
+        ? localizedMessage("inspection.components.library.detail.view.seed.limit.reached")
+        : localizedMessage("inspection.components.library.detail.view.paused");
     case "checking": return localizedMessage("inspection.components.library.detail.view.checking.downloaded.data");
     case "error": return localizedMessage("inspection.components.library.detail.view.needs.attention");
   }
@@ -532,7 +491,7 @@ function availabilityLabel(
   switch (availability) {
     case "available": return localizedMessage("inspection.components.library.detail.view.available");
     case "streamable": return localizedMessage("inspection.components.library.detail.view.streamable");
-    case "metadata_unavailable": return localizedMessage("inspection.components.library.detail.view.metadata.pending");
+    case "metadata_unavailable": return localizedMessage("inspection.components.library.detail.view.getting.torrent.info");
     case "invalid_file": return localizedMessage("inspection.components.library.detail.view.invalid.file");
     case "padding": return localizedMessage("inspection.components.library.detail.view.padding");
     case "incomplete": return localizedMessage("inspection.components.library.detail.view.incomplete");
@@ -553,4 +512,9 @@ function initials(name: string): string {
     .map((part) => part.slice(0, 1).toUpperCase())
     .join("");
   return value || "RS";
+}
+
+/** The tile is the icon's box: water rises with verified download progress. */
+export function waterLevel(progress: number | null): CSSProperties {
+  return { "--water-level": `${Math.round(Math.min(1, Math.max(0, progress ?? 0)) * 100)}%` } as CSSProperties;
 }

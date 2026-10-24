@@ -1,4 +1,4 @@
-RSTorrent Canary is an experimental BitTorrent client for Android and ChromeOS from the developer of JSTorrent. It previews a new Rust-based torrent engine in a separate app that can be installed alongside JSTorrent.
+JSTorrent Canary is an experimental BitTorrent client for Android and ChromeOS from the developer of JSTorrent. It previews a new Rust-based torrent engine in a separate app that can be installed alongside JSTorrent.
 
 Features:
 • Download torrents directly on your phone, tablet, or Chromebook

@@ -1,5 +1,39 @@
 # Desktop Release Runbook
 
+## Release track status, 2026-10-13
+
+JSTorrent is the sole active desktop release identity. Desktop 0.3.1 is public
+with `com.jstorrent.desktop`, the existing JSTorrent updater signing key and
+`updates.jstorrent.com`. Use
+[JSTorrent candidate builds](../DEVELOPMENT.md#building-jstorrent-production-candidates)
+and [explicit publication](../DEVELOPMENT.md#explicit-production-desktop-publication)
+for new work, with the existing release qualification gates.
+
+Tactical [326](tactical/326-full-product-release.md) records its exact signed
+source, matching source archive, website and all 11 updater offers.
+
+The RSTorrent track is frozen at its last recorded Stable 0.1.4 and Latest
+0.2.801 offers. No new incubation releases or resumed nightly publication are
+planned. Its descriptor, artifacts and updater route remain historical
+compatibility; old installed apps use a different signing root and must not be
+redirected to JSTorrent packages. See the
+[owning release policy](topics/product-surfaces-and-migration.md#jstorrent-only-release-policy-2026-10-11)
+and [updater configuration](../update-server/README.md).
+
+The incubation commands and checkpoints below are historical. They do not
+authorize publishing that flavor or enabling `INCUBATION_PUBLICATION_ENABLED`.
+
+## Historical packaging and channel runbook
+
+For the first JSTorrent production replacement, Linux support is best effort
+and offers AppImages only. Both Linux lanes use Ubuntu 24.04 and refresh vendor
+WebKit/OpenSSL packages; the reviewed WebKit build floor is 2.52.6. The production
+collector requires 15 core assets, six signature sidecars and 11 updater keys;
+`SHA256SUMS` is the additional 16th support asset. Production DEB/RPM assets and
+selectors are refused. The frozen preview used a 23-asset/15-key matrix.
+Tactical 285 records local validation. A new signed inventory, actual ABI/minimum
+requirements and representative launch checks remain required before shipment.
+
 RSTorrent desktop releases use the `desktop-v<version>` tag family and the
 [`Desktop Release`](../.github/workflows/desktop-release.yml) workflow. The
 workflow builds signed updater packages and ordinary installers for macOS
@@ -26,17 +60,21 @@ up; it never downgrades. The selector is offered for macOS app, Windows NSIS,
 and Linux AppImage installations. MSI, DEB, and RPM continue through their
 package managers. The update service must deploy the channel registry from
 [`update-server/rstorrent.json`](../update-server/rstorrent.json) before Latest
-checks can succeed. The native client discovers the registry and verifies the
-selected channel in the response, while old clients continue to use Stable.
+checks can succeed. The desktop app discovers the registry and verifies the
+selected channel in the response, while old apps continue to use Stable.
 Remy's registry was deployed on 2026-09-27 and publicly advertises both
 channels. The first signed Latest release was `desktop-latest-v0.2.301`.
-The parallel-pipeline publication is `desktop-latest-v0.2.401`, and production
-Latest version checks return `0.2.401`.
+The current qualified Latest is `desktop-latest-v0.2.801` at source `fc401ecf`;
+the legacy preview Latest checks offered 0.2.801. Its
+[public evidence](evidence/desktop-latest-v0.2.801.md)
+and [installed checkpoint](tactical/240-signed-desktop-control-qualification.md)
+cover outer-DMG notarization, bundled/registered helper trust and three-platform
+native updating plus extension control. Frozen preview Stable remains 0.1.4.
 
 The [first Latest release evidence](evidence/desktop-latest-v0.2.301.md)
 records the signed hosted workflow and all five production routes. Installed
-old-to-new acceptance remains open; hosted checks do not establish installed
-package behavior. The
+old-to-new acceptance now passes in 238/240 on macOS arm64 and Windows/Linux x64;
+hosted checks alone do not establish installed package behavior. The
 [parallel release evidence](evidence/desktop-parallel-release-2026-09-27.md)
 records overlapping signed builds, collector validation, publication, and
 production route checks.
@@ -57,7 +95,14 @@ Actions artifacts retained for 14 days. One collect job assembles and checks
 the same complete updater manifest used for publication, retaining private
 manifest evidence. A rehearsal creates no tag or GitHub Release. Check the job
 assertions for both macOS notarization/stapling and Windows Authenticode
-validation before using a rehearsal package.
+validation before using a rehearsal package. The app and outer DMG each need
+notarization and a stapled ticket. Tauri 2.11.4 notarizes the app but only signs
+the DMG; our post-build gate submits the DMG, requires Accepted with no issues,
+staples it, and runs `spctl --assess --type open --context
+context:primary-signature` before staging final hashes. Notary submission/log
+JSON is retained for 14 days. A valid app ticket alone does not qualify the
+DMG download. Tactical 240 records the omission found in Latest 0.2.701 and
+its forward correction.
 
 The latest proven rehearsal is GitHub Actions run
 [`36341433008`](https://github.com/kzahel/rstorrent/actions/runs/36341433008)
@@ -65,7 +110,8 @@ at commit `80b0446860909eb7a754c1319631fc288127560a`. Its source gate and all
 five signed release legs passed on 2026-09-27. The five package jobs overlapped,
 and the sole collector retained a private 23-asset inventory and 15-key updater
 manifest. It created no tag or GitHub Release. The platform checks include
-macOS Developer ID, Gatekeeper and notarization/stapling, Windows installer
+macOS app Developer ID, Gatekeeper and notarization/stapling (the outer DMG
+was only signature-checked in that historical run), Windows installer
 Authenticode, and Linux AppImage/DEB/RPM packages.
 
 ## Cut A Release
@@ -99,7 +145,8 @@ Authenticode, and Linux AppImage/DEB/RPM packages.
 The five signed package jobs run in parallel and never write to a GitHub
 Release. Each retains an exact package/signature set with source, run, version,
 and SHA-256 evidence. The sole finalizer checks all five sets, creates the
-15-key `latest.json`, and validates the complete manifest before creating a
+product-specific `latest.json` (11 production keys,15 preview keys), and
+validates the complete manifest before creating a
 private draft. It uploads those exact assets, checks their GitHub digests,
 validates same-release URLs and signatures, adds `SHA256SUMS`, and only then
 publishes. Failed builds create no release; a failure after draft creation
@@ -135,7 +182,7 @@ are recorded in [`desktop-v0.1.2`](evidence/desktop-v0.1.2.md). This release
 record does not claim the still-open installed `0.1.1`-to-`0.1.2` update
 campaign.
 
-The latest published release is
+The current Stable release is
 [`desktop-v0.1.4`](https://github.com/kzahel/rstorrent/releases/tag/desktop-v0.1.4).
 Its [signed workflow](https://github.com/kzahel/rstorrent/actions/runs/36262994983)
 passed the source gate, five package jobs, and finalizer. The
@@ -155,7 +202,7 @@ service health check passed on 2026-08-23. Public `desktop-v0.1.1` now resolves:
 a current `0.1.1` version returns HTTP 204 and installed `0.1.0` returns signed
 Tauri metadata referencing that immutable GitHub Release. Both results passed
 for all five default updater targets after publication. The installed macOS
-arm64 client then completed the real replacement/relaunch and reported the
+arm64 app then completed the real replacement/relaunch and reported the
 new exact version/build; the other four installed targets remain open.
 
 ## Windows First-Launch Consent

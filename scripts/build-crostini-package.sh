@@ -19,7 +19,7 @@ case "$(uname -m)" in
 esac
 
 cd "$REPO_ROOT"
-VITE_RSTORRENT_DEFAULT_LIVE=same-origin npm run build --prefix clients/web
+VITE_RSTORRENT_DEFAULT_LIVE=same-origin npm run build:hosted --prefix clients/web
 cargo build --release -p rstorrent-gateway -p rstorrent-crostini
 
 STAGING="$(mktemp -d)"

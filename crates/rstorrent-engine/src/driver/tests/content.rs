@@ -1431,33 +1431,34 @@ async fn dry_swarm_probe_recovers_after_three_transient_handshake_failures() {
     );
     peer_task.await.expect("recovering peer task");
 
-    let events = activity
-        .events
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    assert_eq!(
-        events
-            .iter()
-            .filter(|event| matches!(event, DownloadActivityEvent::PeerDialStarted { .. }))
-            .count(),
-        4
-    );
-    assert_eq!(
-        events
-            .iter()
-            .filter_map(|event| match event {
-                DownloadActivityEvent::DrySwarmProbeStarted {
-                    failures,
-                    ordinal,
-                    next_delay_seconds,
-                    ..
-                } => Some((*failures, *ordinal, *next_delay_seconds)),
-                _ => None,
-            })
-            .collect::<Vec<_>>(),
-        [(3, 1, 5 * 60)]
-    );
-    drop(events);
+    {
+        let events = activity
+            .events
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| matches!(event, DownloadActivityEvent::PeerDialStarted { .. }))
+                .count(),
+            4
+        );
+        assert_eq!(
+            events
+                .iter()
+                .filter_map(|event| match event {
+                    DownloadActivityEvent::DrySwarmProbeStarted {
+                        failures,
+                        ordinal,
+                        next_delay_seconds,
+                        ..
+                    } => Some((*failures, *ordinal, *next_delay_seconds)),
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+            [(3, 1, 5 * 60)]
+        );
+    }
 
     let snapshot = peers.registry_snapshot();
     assert_eq!(snapshot.counts.total, 1);

@@ -6,6 +6,14 @@
 //! the ICE, DTLS, SCTP, and certificate dependency graph.
 
 pub mod codec;
+#[cfg(feature = "experiment")]
+mod impairment;
+pub mod range_protocol;
+
+#[cfg(feature = "webrtc")]
+mod range_stream;
+#[cfg(feature = "webrtc")]
+mod send_window;
 
 #[cfg(feature = "webrtc")]
 mod endpoint;
@@ -20,3 +28,6 @@ pub use endpoint::{
 pub use rtc::peer_connection::sdp::RTCSessionDescription;
 #[cfg(feature = "webrtc")]
 pub use rtc::peer_connection::transport::RTCIceCandidateInit;
+
+#[cfg(feature = "experiment")]
+pub use endpoint::ExperimentSource;

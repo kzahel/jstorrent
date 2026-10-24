@@ -13,7 +13,7 @@ use rstorrent_gateway::{
 use rstorrent_remote_host::RemoteApplicationRuntime;
 use rstorrent_session::{
     ApplicationConfig, ApplicationError, ApplicationService, NetworkConfig, NetworkPolicy,
-    PathRootStartupPolicy,
+    PathRootStartupPolicy, ProductIdentity,
 };
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
@@ -264,7 +264,8 @@ pub async fn run_installed_service(
         ),
     )
     .with_fresh_profile_defaults()
-    .with_path_root_startup_policy(PathRootStartupPolicy::PreserveUnavailable);
+    .with_path_root_startup_policy(PathRootStartupPolicy::PreserveUnavailable)
+    .with_product(ProductIdentity::for_this_build("headless", &layout.version));
     let application = ApplicationService::open(application_config)
         .await
         .map_err(configuration_application_error)?;

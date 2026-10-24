@@ -23,6 +23,7 @@ import android.os.SystemClock
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.util.Log
+import org.rstorrent.bootstrap.ui.productFailureDetail
 import java.io.File
 import java.io.FileNotFoundException
 import java.util.UUID
@@ -40,9 +41,12 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.channels.Channel
@@ -64,13 +68,17 @@ import org.rstorrent.bootstrap.uniffi.AndroidPlatformStorageRoot
 import org.rstorrent.bootstrap.uniffi.AndroidViewSubscription
 import org.rstorrent.bootstrap.uniffi.SafStorageFailureKind
 import org.rstorrent.bootstrap.uniffi.SafStorageOperation
+import org.rstorrent.bootstrap.uniffi.diagnoseCatalog
 import org.rstorrent.session.uniffi.Command
 import org.rstorrent.session.uniffi.CommandResult
+import org.rstorrent.session.uniffi.MagnetExportOptions
+import org.rstorrent.session.uniffi.MagnetExportResult
 import org.rstorrent.session.uniffi.AddTorrentDisposition
 import org.rstorrent.session.uniffi.AddTorrentResult
 import org.rstorrent.session.uniffi.AddTorrentBytesRequest
 import org.rstorrent.session.uniffi.ActiveSeedLimit
 import org.rstorrent.session.uniffi.CatalogPageRequest
+import org.rstorrent.session.uniffi.CatalogRecoveryStatus
 import org.rstorrent.session.uniffi.ClientSettings
 import org.rstorrent.session.uniffi.ClientSettingsPatch
 import org.rstorrent.session.uniffi.ClientSettingsApplicationState
@@ -90,6 +98,8 @@ import org.rstorrent.session.uniffi.FileView
 import org.rstorrent.session.uniffi.HttpsServerAuthenticationPolicy
 import org.rstorrent.session.uniffi.ListenerPolicy
 import org.rstorrent.session.uniffi.ListenerStatus
+import org.rstorrent.session.uniffi.LibraryMediaItemView
+import org.rstorrent.session.uniffi.TorrentView
 import org.rstorrent.session.uniffi.MediaUrlOutcome
 import org.rstorrent.session.uniffi.PortMappingPolicy
 import org.rstorrent.session.uniffi.RequestEnvelope
@@ -101,6 +111,7 @@ import org.rstorrent.session.uniffi.SpeedMetric
 import org.rstorrent.session.uniffi.SpeedRange
 import org.rstorrent.session.uniffi.StorageRootAvailability
 import org.rstorrent.session.uniffi.SubscriptionSpec
+import org.rstorrent.session.uniffi.TorrentListImportTarget
 import org.rstorrent.session.uniffi.TorrentState
 import org.rstorrent.session.uniffi.TorrentSettingsPatch
 import org.rstorrent.session.uniffi.TorrentTransferLimits
@@ -125,6 +136,10 @@ class ProductEngineService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val requestPrefix = UUID.randomUUID().toString()
     private val requestIds = AtomicLong(1)
+    private val torrentCommandFailureSequence = AtomicLong()
+    private val alreadyPresentSequence = AtomicLong()
+    private val torrentListNoticeSequence = AtomicLong()
+    private val torrentListBusy = AtomicBoolean(false)
     private val stopped = AtomicBoolean(false)
     private val stopRequested = AtomicBoolean(false)
     private val dataResetActive = AtomicBoolean(false)
@@ -139,6 +154,8 @@ class ProductEngineService : Service() {
     private val shutdownComplete = CompletableDeferred<Unit>()
     private val clientReady = CompletableDeferred<Unit>()
     private val presentationReady = CompletableDeferred<Unit>()
+    private val pendingSelectionPresentation = PendingSelectionPresentation(::withPresentation)
+    private val libraryPresentation = LatestPresentationRequest(::withPresentation)
     private val mutableState = MutableStateFlow(ProductState())
     val state: StateFlow<ProductState> = mutableState.asStateFlow()
 
@@ -195,6 +212,9 @@ class ProductEngineService : Service() {
     private val externalIntakeMutation = Mutex()
     private val externalContentMutation = Mutex()
     private val productCommandMutation = Mutex()
+    // Serializes torrent command batches so an Undo cannot interleave with the
+    // batch it reverses. Mutex waiters are served in FIFO order.
+    private val torrentCommandBatches = Mutex()
     private val dataResetOwnerMutation = Mutex()
     @Volatile private var dataResetJournal: ProductDataResetJournal? = null
     @Volatile private var dataResetProcessKillAfterTorrentsForTest: Int? = null
@@ -209,10 +229,12 @@ class ProductEngineService : Service() {
     private data class ExternalContentHint(
         val announcedMimeType: String?,
         val pathHasTorrentSuffix: Boolean,
+        val pickedInApp: Boolean = false,
     ) {
         val independentlyEligible: Boolean
             get() =
-                announcedMimeType.equals(BITTORRENT_MIME_TYPE, ignoreCase = true) ||
+                pickedInApp ||
+                    announcedMimeType.equals(BITTORRENT_MIME_TYPE, ignoreCase = true) ||
                     pathHasTorrentSuffix
     }
 
@@ -298,72 +320,82 @@ class ProductEngineService : Service() {
         }
         registerNotificationBlockReceiver()
         lifecycleCoordinator.start()
-        val safRegistry = ProductSafRootRegistry.load(this)
-        val unmeteredNetworksOnly = ProductNetworkPreference.read(this)
-        defaultNetworkObserver =
-            AndroidDefaultNetworkObserver(this, unmeteredNetworksOnly) observer@{ networkState ->
-                if (
-                    desiredNetworkPrerequisite(networkState) ==
-                        AndroidApplicationNetworkPrerequisite.WAITING_FOR_UNMETERED_NETWORK &&
-                        clientOpen
-                ) {
-                    runCatching { client.closeNetworkPrerequisite() }.onFailure { error ->
-                        Log.e(TAG, "synchronous network prerequisite close failed", error)
-                        mutableState.update {
-                            it.copy(
-                                network =
-                                    it.network.copy(
-                                        runtimeError =
-                                            ProductError.Technical(
-                                                error.message ?: error.toString(),
-                                            ),
-                                    ),
-                            )
-                        }
-                        requestStop("network_prerequisite_close_failed")
-                        return@observer
-                    }
-                }
-                mutableState.update {
-                    it.copy(
-                        network =
-                            it.network.copy(
-                                unmeteredNetworksOnly = networkState.unmeteredNetworksOnly,
-                                eligibility = networkState.eligibility,
-                                observationRevision = networkState.revision,
-                            ),
-                    )
-                }
-                networkConvergenceWake.trySend(Unit)
-            }
-        val callbackRegistered = defaultNetworkObserver.start()
-        val initialNetworkState = defaultNetworkObserver.snapshot()
-        mutableState.update {
-            it.copy(
-                storageRootReady = false,
-                storageRootLabel = safRegistry.roots.singleOrNull()?.label,
-                preventSleepDuringActiveDownloads = ProductPowerPreference.read(this),
-                network =
-                    ProductNetworkState(
-                        unmeteredNetworksOnly = unmeteredNetworksOnly,
-                        eligibility = initialNetworkState.eligibility,
-                        observationRevision = initialNetworkState.revision,
-                        callbackRegistered = callbackRegistered,
-                    ),
-            )
-        }
         initializationJob = scope.launch {
             try {
                 val stickyRecovery =
                     withTimeout(PRODUCT_LIFETIME_STARTUP_MILLIS) {
                         firstStartCommand.await()
                     }
+                recoveryNetworkGateClosed.set(stickyRecovery)
+                ProductLegacyAndroidMigration.run(this@ProductEngineService)
+                ensureActive()
+                mutableState.update {
+                    it.copy(legacyChromeOsMigration = isChromeOs() && ProductLegacyAndroidMigration.hasMigratedSource(this@ProductEngineService))
+                }
+                lifecyclePreferences = lifecyclePreferenceStore.read()
+                lifecycleCoordinator.updatePreferences(lifecyclePreferences)
+                publishLifecyclePreferences(initialNotificationEligibility)
                 if (stickyRecovery && !stickyRecoveryAllowed()) {
                     Log.i(TAG, "lifecycle_recovery admitted=false")
                     requestStop("sticky_recovery_ineligible")
                     return@launch
                 }
-                recoveryNetworkGateClosed.set(stickyRecovery)
+                val safRegistry = ProductSafRootRegistry.load(this@ProductEngineService)
+                val unmeteredNetworksOnly = ProductNetworkPreference.read(this@ProductEngineService)
+                defaultNetworkObserver =
+                    AndroidDefaultNetworkObserver(this@ProductEngineService, unmeteredNetworksOnly) observer@{ networkState ->
+                        if (
+                            desiredNetworkPrerequisite(networkState) ==
+                                AndroidApplicationNetworkPrerequisite.WAITING_FOR_UNMETERED_NETWORK &&
+                                clientOpen
+                        ) {
+                            runCatching { client.closeNetworkPrerequisite() }.onFailure { error ->
+                                Log.e(TAG, "synchronous network prerequisite close failed", error)
+                                mutableState.update {
+                                    it.copy(
+                                        network =
+                                            it.network.copy(
+                                                runtimeError =
+                                                    ProductError.Technical(
+                                                        productFailureDetail(error, getString(R.string.error_operation_failed)),
+                                                    ),
+                                            ),
+                                    )
+                                }
+                                requestStop("network_prerequisite_close_failed")
+                                return@observer
+                            }
+                        }
+                        mutableState.update {
+                            it.copy(
+                                network =
+                                    it.network.copy(
+                                        unmeteredNetworksOnly = networkState.unmeteredNetworksOnly,
+                                        eligibility = networkState.eligibility,
+                                        observationRevision = networkState.revision,
+                                    ),
+                            )
+                        }
+                        networkConvergenceWake.trySend(Unit)
+                    }
+                val callbackRegistered = defaultNetworkObserver.start()
+                val initialNetworkState = defaultNetworkObserver.snapshot()
+                mutableState.update {
+                    it.copy(
+                        storageRootReady = false,
+                        storageRootLabel = safRegistry.roots.singleOrNull()?.label,
+                        preventSleepDuringActiveDownloads = ProductPowerPreference.read(this@ProductEngineService),
+                        sharePeerHintChoice = SharePeerHintPreference.read(this@ProductEngineService),
+                        network =
+                            ProductNetworkState(
+                                unmeteredNetworksOnly = unmeteredNetworksOnly,
+                                eligibility = initialNetworkState.eligibility,
+                                observationRevision = initialNetworkState.revision,
+                                callbackRegistered = callbackRegistered,
+                            ),
+                    )
+                }
+
                 PlatformTrustBootstrap.ensureInitialized(applicationContext)
                 observePowerAndNotification()
                 if (recoveredDataReset.isFailure) return@launch
@@ -389,10 +421,13 @@ class ProductEngineService : Service() {
                     presentationReady.completeExceptionally(error)
                 }
                 Log.e(TAG, "product service initialization failed", error)
+                val catalogRecovery = (error as? ProductCatalogOpenException)?.let(::diagnoseCatalogOpenFailure)
                 mutableState.update {
                     it.copy(
                         ready = false,
-                        error = ProductError.Technical(error.message ?: error.toString()),
+                        storageRootChecking = false,
+                        error = ProductError.Technical(productFailureDetail(error, getString(R.string.error_operation_failed))),
+                        catalogRecovery = catalogRecovery,
                     )
                 }
                 notificationCoordinator.updateOngoingNotification(
@@ -453,35 +488,67 @@ class ProductEngineService : Service() {
         }
     }
 
+    /**
+     * Tactical 369: classifies a failed catalog open for the recovery screen.
+     * Reads only, and never throws: without a diagnosis the generic error
+     * remains.
+     */
+    private fun diagnoseCatalogOpenFailure(failure: ProductCatalogOpenException): CatalogRecoveryStatus? =
+        try {
+            diagnoseCatalog(failure.profile.absolutePath, failure.detail).also {
+                Log.i(TAG, "catalog_recovery reason=${it.reason.name} export=${it.exportAvailable}")
+            }
+        } catch (error: Throwable) {
+            Log.e(TAG, "catalog_recovery_diagnosis_failed", error)
+            null
+        }
+
     private suspend fun openProductApplication(
         safRegistry: ProductSafRootRegistryState,
         initialNetworkState: AndroidDefaultNetworkState,
         startCompanion: Boolean,
     ) {
         check(!clientOpen) { "Android application client is already open" }
+        val startupStarted = SystemClock.elapsedRealtime()
+        fun startupCheckpoint(stage: String) {
+            Log.i(TAG, "product_startup stage=$stage elapsed_ms=${SystemClock.elapsedRealtime() - startupStarted}")
+        }
+        startupCheckpoint("opening")
         val profile = File(filesDir, ProductPrivateProfileReset.PROFILE_DIRECTORY)
         check(profile.mkdirs() || profile.isDirectory)
         val openedClient =
-            withTimeout(PRODUCT_LIFETIME_STARTUP_MILLIS) {
-                AndroidApplicationClient.open(
-                    AndroidApplicationConfig(
-                        File(noBackupFilesDir, PRODUCT_STATE_DIRECTORY).absolutePath,
-                        BuildConfig.VERSION_NAME,
-                        profile.absolutePath,
-                        "default",
-                        "",
-                        true,
-                        safRegistry.roots.map {
-                            AndroidPlatformStorageRoot(it.rootId, it.label)
-                        },
-                        AndroidNetworkPolicy.ONLINE,
-                        desiredNetworkPrerequisite(initialNetworkState),
-                        15UL,
-                        60UL,
-                    ),
-                )
+            try {
+                withTimeout(PRODUCT_LIFETIME_STARTUP_MILLIS) {
+                    AndroidApplicationClient.open(
+                        AndroidApplicationConfig(
+                            File(noBackupFilesDir, PRODUCT_STATE_DIRECTORY).absolutePath,
+                            BuildConfig.VERSION_NAME,
+                            profile.absolutePath,
+                            "default",
+                            "",
+                            true,
+                            // A root without a grant stays in the engine catalog;
+                            // configuring it would let the engine make it current.
+                            safRegistry.roots
+                                .filter { ProductSafDocuments.hasGrant(this@ProductEngineService, Uri.parse(it.treeUri)) }
+                                .map { AndroidPlatformStorageRoot(it.rootId, it.label) },
+                            AndroidNetworkPolicy.ONLINE,
+                            desiredNetworkPrerequisite(initialNetworkState),
+                            15UL,
+                            60UL,
+                            packageName,
+                        ),
+                    )
+                }
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                // Tactical 369: the native open failed, typically on the
+                // torrent catalog; the outer handler classifies it.
+                throw ProductCatalogOpenException(profile, error)
             }
+        startupCheckpoint("native_open")
         val productSummary = openedClient.productSummary()
+        startupCheckpoint("product_summary")
         if (
             desiredNetworkPrerequisite(defaultNetworkObserver.snapshot()) ==
                 AndroidApplicationNetworkPrerequisite.WAITING_FOR_UNMETERED_NETWORK
@@ -490,6 +557,14 @@ class ProductEngineService : Service() {
         }
         client = openedClient
         clientOpen = true
+        // Restored-torrent maintenance may hold the native service lock while
+        // awaiting provider work. Start its responders before subscriptions or
+        // network convergence can wait for that same lock during startup.
+        safStorageJobs =
+            List(SAF_PROVIDER_CONCURRENCY) {
+                scope.launch(Dispatchers.IO) { driveSafStorageRequests() }
+            }
+        startupCheckpoint("provider_responders")
         mutableState.update { it.copy(productSummary = productSummary) }
         networkConvergenceJob =
             scope.launch {
@@ -509,7 +584,7 @@ class ProductEngineService : Service() {
                                     it.network.copy(
                                         runtimeError =
                                             ProductError.Technical(
-                                                error.message ?: error.toString(),
+                                                productFailureDetail(error, getString(R.string.error_operation_failed)),
                                             ),
                                     ),
                             )
@@ -544,16 +619,16 @@ class ProductEngineService : Service() {
                 onError = ::reportError,
             )
         presentationRepository.start(client)
+        startupCheckpoint("presentation")
         if (!presentationReady.isCompleted) presentationReady.complete(Unit)
-        safStorageJobs =
-            List(SAF_PROVIDER_CONCURRENCY) {
-                scope.launch(Dispatchers.IO) { driveSafStorageRequests() }
-            }
         reconcileSafRootRegistry()
+        startupCheckpoint("root_registry")
         val storageRootHealthy = client.probeSafStorageRoots()
+        startupCheckpoint("root_probe")
         Log.i(TAG, "saf_root_health source=startup available=$storageRootHealthy")
         refreshSafRootState()
-        mutableState.update { it.copy(ready = true) }
+        startupCheckpoint("root_presentation")
+        mutableState.update { it.copy(ready = true, storageRootChecking = false) }
         if (!clientReady.isCompleted) clientReady.complete(Unit)
         if (
             startCompanion &&
@@ -564,6 +639,7 @@ class ProductEngineService : Service() {
         ) {
             startChromeOsCompanionOwners()
         }
+        startupCheckpoint("ready")
     }
 
     fun acknowledgeProductDisclosure(statisticsEnabled: Boolean) {
@@ -748,12 +824,16 @@ class ProductEngineService : Service() {
         source: ExternalIntakeSource,
         hint: ExternalContentHint?,
         started: Long,
+        heldInApp: Boolean = false,
+        awaitFileSelection: Boolean? = null,
     ) {
         val result =
             externalIntakeController.receive(
                 source,
                 needsMetadataValidation = hint != null,
                 rootReady = currentSafRootForAdd() != null,
+                heldInApp = heldInApp,
+                awaitFileSelection = awaitFileSelection,
             )
         val intakeId = result.intakeId
         when (result.disposition) {
@@ -769,7 +849,12 @@ class ProductEngineService : Service() {
                 )
                 publishExternalSnapshot()
                 if (hint == null) {
-                    logExternalIntake(intakeId, source.kind, "presented", "ready")
+                    if (currentSafRootForAdd() != null) {
+                        logExternalIntake(intakeId, source.kind, "presented", "ready")
+                    } else {
+                        logExternalIntake(intakeId, source.kind, "awaiting_root", "no_root")
+                    }
+                    submitHeldAddLocked()
                 } else {
                     scheduleExternalAdmissionLocked()
                 }
@@ -795,6 +880,54 @@ class ProductEngineService : Service() {
                 )
             }
         }
+    }
+
+    /**
+     * Queues in-app adds made before a usable download folder exists. The
+     * intake dialog asks for the folder; each add then submits with
+     * [awaitFileSelection] as if it had been made with the folder ready.
+     * Returns false when a source cannot be held, leaving the caller to report.
+     */
+    private fun holdForStorageRoot(
+        kind: ExternalIntakeKind,
+        values: List<String>,
+        awaitFileSelection: Boolean,
+    ): Boolean {
+        val sources =
+            values.map {
+                runCatching { ExternalIntakeSource.create(kind, it.trim()) }.getOrNull()
+                    ?: return false
+            }
+        val hint =
+            if (kind == ExternalIntakeKind.TORRENT_FILE) {
+                ExternalContentHint(null, pathHasTorrentSuffix = false, pickedInApp = true)
+            } else {
+                null
+            }
+        scope.launch {
+            val started = SystemClock.elapsedRealtime()
+            externalIntakeMutation.withLock {
+                for (source in sources) {
+                    admitExternalSource(
+                        source,
+                        hint,
+                        started,
+                        heldInApp = true,
+                        awaitFileSelection = awaitFileSelection,
+                    )
+                }
+            }
+        }
+        return true
+    }
+
+    private fun submitHeldAddLocked() {
+        if (externalSubmissionJob?.isActive == true) return
+        val work =
+            externalIntakeController.takeHeldSubmission(currentSafRootForAdd() != null)
+                ?: return
+        publishExternalSnapshot()
+        scheduleExternalSubmissionLocked(work)
     }
 
     private fun rejectExternalIntent(
@@ -871,6 +1004,7 @@ class ProductEngineService : Service() {
                             }
                         }
                         publishExternalSnapshot()
+                        submitHeldAddLocked()
                     }
                 }
             }
@@ -983,7 +1117,7 @@ class ProductEngineService : Service() {
         }
     }
 
-    fun confirmExternalIntake(intakeId: Long) {
+    fun confirmExternalIntake(intakeId: Long, awaitFileSelection: Boolean? = null) {
         if (rejectMutationDuringDataReset()) return
         scope.launch {
             externalIntakeMutation.withLock {
@@ -991,6 +1125,7 @@ class ProductEngineService : Service() {
                     externalIntakeController.confirm(
                         intakeId,
                         rootReady = currentSafRootForAdd() != null,
+                        awaitFileSelection = awaitFileSelection,
                     )
                 publishExternalSnapshot()
                 if (work != null) scheduleExternalSubmissionLocked(work)
@@ -1027,6 +1162,7 @@ class ProductEngineService : Service() {
                     externalSubmissionJob
                 }
             submission?.cancelAndJoin()
+            externalIntakeMutation.withLock { submitHeldAddLocked() }
             logExternalIntake(intakeId, null, "cancelled", "user")
         }
     }
@@ -1054,9 +1190,10 @@ class ProductEngineService : Service() {
                         )
                         return@launch
                     }
+                    val downloadAll = work.startContent && work.awaitFileSelection == false
                     val awaitFileSelection =
                         work.startContent &&
-                            (mutableState.value.storage?.showFileSelection ?: true)
+                            (work.awaitFileSelection ?: mutableState.value.storage?.showFileSelection ?: true)
                     val result =
                         when (work.source.kind) {
                             ExternalIntakeKind.MAGNET ->
@@ -1065,7 +1202,7 @@ class ProductEngineService : Service() {
                                         magnet = work.source.reveal().trim(),
                                         storageRoot = storageRoot,
                                         startContent = work.startContent,
-                                        awaitFileSelection = awaitFileSelection,
+                                        awaitFileSelection = awaitFileSelection || downloadAll,
                                         skipFiles = emptyList(),
                                     ),
                                 )
@@ -1085,11 +1222,14 @@ class ProductEngineService : Service() {
                                         work.startContent,
                                         FileSelectionIntent.All,
                                         storageRoot,
-                                        awaitFileSelection,
+                                        awaitFileSelection || downloadAll,
                                     )
                                 }
                             }
                         }
+                    if (downloadAll && result.disposition == AddTorrentDisposition.Added) {
+                        downloadAllPendingAwait(result.torrentId)
+                    }
                     val notice =
                         when (result.disposition) {
                             AddTorrentDisposition.Added -> ExternalIntakeNoticeKind.ADDED
@@ -1123,7 +1263,16 @@ class ProductEngineService : Service() {
                                 currentSafRootForAdd() != null,
                             )
                         ) {
-                            publishExternalNotice(notice)
+                            // A held in-app add reports like any other in-app add.
+                            if (
+                                notice == ExternalIntakeNoticeKind.ALREADY_PRESENT &&
+                                (work.heldInApp ||
+                                    mutableState.value.torrents[result.torrentId]?.archived == true)
+                            ) {
+                                publishAlreadyPresent(listOf(result.torrentId), work.startContent)
+                            } else if (!(work.heldInApp && notice == ExternalIntakeNoticeKind.ADDED)) {
+                                publishExternalNotice(notice)
+                            }
                             publishExternalSnapshot()
                             logExternalIntake(
                                 work.intakeId,
@@ -1194,6 +1343,7 @@ class ProductEngineService : Service() {
                     externalCancellationSignal = null
                     externalIntakeMutation.withLock {
                         externalSubmissionJob = null
+                        submitHeldAddLocked()
                     }
                 }
             }
@@ -1260,30 +1410,111 @@ class ProductEngineService : Service() {
         skipFiles: List<UInt> = emptyList(),
         startContent: Boolean = true,
         awaitFileSelection: Boolean = false,
+        downloadAll: Boolean = false,
     ) {
-        if (rejectMutationDuringDataReset()) return
+        addMagnets(listOf(magnet), skipFiles, startContent, awaitFileSelection, downloadAll)
+    }
+
+    /**
+     * Adds [magnets] in order. A failed add does not stop later ones, and
+     * matches already in the session are reported together once the batch ends.
+     * With [summarize], the batch ends with one added/already present/failed
+     * summary instead of per-add messages.
+     */
+    fun addMagnets(
+        magnets: List<String>,
+        skipFiles: List<UInt> = emptyList(),
+        startContent: Boolean = true,
+        awaitFileSelection: Boolean = false,
+        downloadAll: Boolean = false,
+        summarize: Boolean = false,
+    ) {
+        if (magnets.isEmpty() || rejectMutationDuringDataReset()) return
         val storageRoot = currentSafRootForAdd()
         if (storageRoot == null) {
-            mutableState.update { it.copy(error = ProductError.Code.SELECT_DOWNLOAD_FOLDER) }
+            val held =
+                startContent && skipFiles.isEmpty() &&
+                    holdForStorageRoot(
+                        ExternalIntakeKind.MAGNET,
+                        if (summarize) magnets.take(MAX_BATCH_ADD_ITEMS) else magnets,
+                        awaitFileSelection = awaitFileSelection && !downloadAll,
+                    )
+            if (!held) {
+                mutableState.update { it.copy(error = ProductError.Code.SELECT_DOWNLOAD_FOLDER) }
+            }
             return
         }
+        if (summarize && !beginTorrentListActivity(TorrentListActivity.ADDING, export = false)) return
+        val batch = if (summarize) magnets.take(MAX_BATCH_ADD_ITEMS) else magnets
+        if (downloadAll) mutableState.update { it.copy(quickAddsInFlight = it.quickAddsInFlight + 1) }
         scope.launch {
             try {
                 clientReady.await()
-                dispatchAddAwait(
-                    Command.AddMagnet(
-                        magnet = magnet.trim(),
-                        storageRoot = storageRoot,
-                        startContent = startContent,
-                        awaitFileSelection = awaitFileSelection,
-                        skipFiles = skipFiles,
-                    ),
-                    magnetV1(magnet),
-                    magnetV2(magnet),
-                )
+                val alreadyPresent = mutableListOf<String>()
+                val summary = TorrentAddSummaryBuilder()
+                for (magnet in batch) {
+                    try {
+                        val result = dispatchAddResult(
+                            Command.AddMagnet(
+                                magnet = magnet.trim(),
+                                storageRoot = storageRoot,
+                                startContent = startContent,
+                                awaitFileSelection = awaitFileSelection || downloadAll,
+                                skipFiles = skipFiles,
+                            ),
+                        )
+                        if (downloadAll && result.disposition == AddTorrentDisposition.Added) {
+                            downloadAllPendingAwait(result.torrentId)
+                        }
+                        if (result.disposition == AddTorrentDisposition.AlreadyPresent) {
+                            alreadyPresent += result.torrentId
+                        }
+                        if (result.disposition == AddTorrentDisposition.Added) {
+                            summary.added()
+                        } else {
+                            summary.alreadyPresent()
+                        }
+                        logAddResult(result, magnetV1(magnet), magnetV2(magnet))
+                    } catch (error: Throwable) {
+                        if (error is CancellationException) throw error
+                        if (summarize) {
+                            Log.w(TAG, "magnet_batch_add_failed", error)
+                            summary.failed(magnetDisplayName(magnet), torrentAddFailureReason(error))
+                        } else {
+                            reportError(error)
+                        }
+                    }
+                }
+                if (summarize) {
+                    summary.failedUnlisted(magnets.size - batch.size)
+                    publishTorrentListNotice { TorrentListNotice.Summary(it, summary.build()) }
+                } else {
+                    publishAlreadyPresent(alreadyPresent, startContent)
+                }
             } catch (error: Throwable) {
                 reportError(error)
+            } finally {
+                if (downloadAll) mutableState.update { it.copy(quickAddsInFlight = it.quickAddsInFlight - 1) }
+                if (summarize) endTorrentListActivity()
             }
+        }
+    }
+
+    private fun publishAlreadyPresent(torrentIds: List<String>, resumeOnRestore: Boolean) {
+        if (torrentIds.isEmpty()) return
+        val sequence = alreadyPresentSequence.incrementAndGet()
+        mutableState.update { state ->
+            state.copy(
+                alreadyPresentNotice =
+                    alreadyPresentNotice(sequence, torrentIds, state.torrents, resumeOnRestore),
+            )
+        }
+    }
+
+    fun clearAlreadyPresentNotice(sequence: Long) {
+        mutableState.update {
+            if (it.alreadyPresentNotice?.sequence == sequence) it.copy(alreadyPresentNotice = null)
+            else it
         }
     }
 
@@ -1295,7 +1526,16 @@ class ProductEngineService : Service() {
         if (rejectMutationDuringDataReset()) return
         val storageRoot = currentSafRootForAdd()
         if (storageRoot == null) {
-            mutableState.update { it.copy(error = ProductError.Code.SELECT_DOWNLOAD_FOLDER) }
+            val held =
+                startContent &&
+                    holdForStorageRoot(
+                        ExternalIntakeKind.TORRENT_FILE,
+                        listOf(uri.toString()),
+                        awaitFileSelection,
+                    )
+            if (!held) {
+                mutableState.update { it.copy(error = ProductError.Code.SELECT_DOWNLOAD_FOLDER) }
+            }
             return
         }
         scope.launch(Dispatchers.IO) {
@@ -1312,6 +1552,286 @@ class ProductEngineService : Service() {
                 reportError(error)
             }
         }
+    }
+
+    /**
+     * Adds several picked .torrent files one after another and ends with one
+     * added/already present/failed summary. Without a usable download folder
+     * the files wait in the intake dialog like a single in-app pick.
+     */
+    fun addTorrentFiles(
+        uris: List<Uri>,
+        awaitFileSelection: Boolean = false,
+    ) {
+        if (uris.isEmpty() || rejectMutationDuringDataReset()) return
+        val batch = uris.take(MAX_BATCH_ADD_ITEMS)
+        val storageRoot = currentSafRootForAdd()
+        if (storageRoot == null) {
+            val held =
+                holdForStorageRoot(
+                    ExternalIntakeKind.TORRENT_FILE,
+                    batch.map(Uri::toString),
+                    awaitFileSelection,
+                )
+            if (!held) {
+                mutableState.update { it.copy(error = ProductError.Code.SELECT_DOWNLOAD_FOLDER) }
+            }
+            return
+        }
+        if (!beginTorrentListActivity(TorrentListActivity.ADDING, export = false)) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                clientReady.await()
+                val summary = TorrentAddSummaryBuilder()
+                for (uri in batch) {
+                    try {
+                        val add =
+                            dispatchTorrentSourceResult(
+                                readTorrentSource(uri),
+                                startContent = true,
+                                selection = FileSelectionIntent.All,
+                                storageRoot = storageRoot,
+                                awaitFileSelection = awaitFileSelection,
+                            )
+                        logAddResult(add, null)
+                        if (add.disposition == AddTorrentDisposition.Added) {
+                            summary.added()
+                        } else {
+                            summary.alreadyPresent()
+                        }
+                    } catch (error: Throwable) {
+                        if (error is CancellationException) throw error
+                        Log.w(TAG, "torrent_file_batch_add_failed", error)
+                        summary.failed(
+                            pickedDocumentMetadata(uri).displayLabel
+                                ?: uri.lastPathSegment
+                                ?: getString(R.string.torrent_file),
+                            torrentAddFailureReason(error),
+                        )
+                    }
+                }
+                summary.failedUnlisted(uris.size - batch.size)
+                publishTorrentListNotice { TorrentListNotice.Summary(it, summary.build()) }
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                reportError(error)
+            } finally {
+                endTorrentListActivity()
+            }
+        }
+    }
+
+    /** Writes the engine's torrent list bundle to a document the user created. */
+    fun exportTorrentList(destination: Uri) {
+        if (!beginTorrentListActivity(TorrentListActivity.EXPORTING, export = true)) return
+        scope.launch(Dispatchers.IO) {
+            var written = false
+            try {
+                clientReady.await()
+                val bundle = client.exportTorrentList()
+                try {
+                    runInterruptible {
+                        val output =
+                            contentResolver.openOutputStream(destination, "w")
+                                ?: throw FileNotFoundException()
+                        output.use { it.write(bundle) }
+                    }
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    Log.w(TAG, "torrent_list_export_write_failed", error)
+                    publishTorrentListNotice {
+                        TorrentListNotice.Failed(it, export = true, TorrentListFailure.WRITE_FAILED)
+                    }
+                    return@launch
+                }
+                written = true
+                Log.i(TAG, "torrent_list_exported bytes=${bundle.size}")
+                publishTorrentListNotice { TorrentListNotice.Exported(it) }
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                Log.e(TAG, "torrent_list_export_failed", error)
+                publishTorrentListNotice {
+                    TorrentListNotice.Failed(
+                        it,
+                        export = true,
+                        TorrentListFailure.ENGINE,
+                        productFailureDetail(error, getString(R.string.error_operation_failed)),
+                    )
+                }
+            } finally {
+                // Do not leave an empty or partial bundle behind.
+                if (!written) {
+                    runCatching { DocumentsContract.deleteDocument(contentResolver, destination) }
+                }
+                endTorrentListActivity()
+            }
+        }
+    }
+
+    /**
+     * Imports a torrent list bundle into the current default download folder.
+     * Torrents whose saved folder name matches another folder keep it.
+     */
+    fun importTorrentList(source: Uri) {
+        if (rejectMutationDuringDataReset()) return
+        val storageRoot = currentSafRootForAdd()
+        if (storageRoot == null) {
+            publishTorrentListNotice {
+                TorrentListNotice.Failed(it, export = false, TorrentListFailure.NO_DOWNLOAD_FOLDER)
+            }
+            return
+        }
+        if (!beginTorrentListActivity(TorrentListActivity.IMPORTING, export = false)) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                clientReady.await()
+                val bundle =
+                    try {
+                        readPickedTorrentListBundle(source)
+                    } catch (error: Exception) {
+                        if (error is CancellationException) throw error
+                        Log.w(TAG, "torrent_list_import_read_failed", error)
+                        val failure =
+                            when (error) {
+                                is OversizedTorrentSourceException -> TorrentListFailure.TOO_LARGE
+                                is EmptyTorrentSourceException -> TorrentListFailure.EMPTY
+                                else -> TorrentListFailure.READ_FAILED
+                            }
+                        publishTorrentListNotice {
+                            TorrentListNotice.Failed(it, export = false, failure)
+                        }
+                        return@launch
+                    }
+                val report =
+                    productCommandMutation.withLock {
+                        if (dataResetActive.get()) throw ProductDataResetInProgressException()
+                        client.importTorrentBundle(
+                            bundle,
+                            TorrentListImportTarget(
+                                storageRoot = storageRoot,
+                                keepMatchingLocations = true,
+                            ),
+                        )
+                    }
+                Log.i(
+                    TAG,
+                    "torrent_list_imported bytes=${bundle.size} added=${report.added} " +
+                        "already_present=${report.alreadyPresent} failed=${report.failed.size}",
+                )
+                publishTorrentListNotice {
+                    TorrentListNotice.Summary(it, torrentListImportSummary(report))
+                }
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                Log.e(TAG, "torrent_list_import_failed", error)
+                publishTorrentListNotice {
+                    TorrentListNotice.Failed(
+                        it,
+                        export = false,
+                        TorrentListFailure.ENGINE,
+                        torrentAddFailureReason(error),
+                    )
+                }
+            } finally {
+                endTorrentListActivity()
+            }
+        }
+    }
+
+    fun clearTorrentListNotice(sequence: Long) {
+        mutableState.update {
+            if (it.torrentListNotice?.sequence == sequence) it.copy(torrentListNotice = null) else it
+        }
+    }
+
+    private suspend fun readPickedTorrentListBundle(uri: Uri): ByteArray {
+        val knownLength = pickedDocumentMetadata(uri).knownLength
+        val cancellation = CancellationSignal()
+        return readTorrentListBundle(
+            openInput = {
+                val descriptor =
+                    contentResolver.openFileDescriptor(uri, "r", cancellation)
+                        ?: throw FileNotFoundException()
+                ParcelFileDescriptor.AutoCloseInputStream(descriptor)
+            },
+            knownLength = knownLength,
+            cancelled = { cancellation.isCanceled },
+            onCancel = cancellation::cancel,
+        )
+    }
+
+    /** Name and size of a picked document; empty when the provider does not answer. */
+    private suspend fun pickedDocumentMetadata(uri: Uri): ExternalContentMetadata =
+        supervisorScope {
+            val cancellation = CancellationSignal()
+            val query =
+                async(Dispatchers.IO) {
+                    runCatching {
+                        runInterruptible {
+                            contentResolver
+                                .query(
+                                    uri,
+                                    arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE),
+                                    null,
+                                    null,
+                                    null,
+                                    cancellation,
+                                ).use(::externalContentMetadataFromCursor)
+                        }
+                    }.getOrNull()
+                }
+            try {
+                withTimeoutOrNull(EXTERNAL_PROVIDER_TIMEOUT_MILLIS) { query.await() }
+                    ?: ExternalContentMetadata(null, null, null)
+            } finally {
+                cancellation.cancel()
+                query.cancelAndJoin()
+            }
+        }
+
+    private fun beginTorrentListActivity(
+        activity: TorrentListActivity,
+        export: Boolean,
+    ): Boolean {
+        if (!torrentListBusy.compareAndSet(false, true)) {
+            publishTorrentListNotice {
+                TorrentListNotice.Failed(it, export, TorrentListFailure.BUSY)
+            }
+            return false
+        }
+        // Keep the service running until the work finishes, even off screen.
+        ProductInteractionRegistry.setLease(INTERACTION_TORRENT_LIST_TRANSFER, true)
+        mutableState.update { it.copy(torrentListActivity = activity) }
+        return true
+    }
+
+    private fun endTorrentListActivity() {
+        mutableState.update { it.copy(torrentListActivity = null) }
+        ProductInteractionRegistry.setLease(INTERACTION_TORRENT_LIST_TRANSFER, false)
+        torrentListBusy.set(false)
+    }
+
+    private fun publishTorrentListNotice(notice: (Long) -> TorrentListNotice) {
+        val sequence = torrentListNoticeSequence.incrementAndGet()
+        mutableState.update { it.copy(torrentListNotice = notice(sequence)) }
+    }
+
+    /** A reason for one failed add: plain copy for local causes, else the engine's message. */
+    private fun torrentAddFailureReason(error: Throwable): String {
+        val reason =
+            when (error) {
+                is EmptyTorrentSourceException -> R.string.add_failure_empty_file
+                is OversizedTorrentSourceException -> R.string.add_failure_file_too_large
+                is TorrentSourceReadTimeoutException -> R.string.add_failure_read_timeout
+                is TorrentSourceReadException,
+                is SecurityException,
+                is FileNotFoundException,
+                -> R.string.add_failure_read_failed
+                is ProductDataResetInProgressException -> R.string.error_data_reset_in_progress
+                else -> null
+            }
+        return reason?.let(::getString)
+            ?: productFailureDetail(error, getString(R.string.error_operation_failed))
     }
 
     fun addTorrentBytes(
@@ -1363,6 +1883,9 @@ class ProductEngineService : Service() {
                 storageRoot,
                 awaitFileSelection,
             )
+        if (add.disposition == AddTorrentDisposition.AlreadyPresent) {
+            publishAlreadyPresent(listOf(add.torrentId), startContent)
+        }
         logAddResult(add, null)
     }
 
@@ -1427,6 +1950,7 @@ class ProductEngineService : Service() {
                 dispatchAwait(
                     Command.UpdateClientSettings(
                         ClientSettings(
+                            fileSafety = org.rstorrent.session.uniffi.FileSafetySettings(true, org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, emptyList(), true),
                             listener = ListenerPolicy.Disabled,
                             preferredListenPort = 6_881U.toUShort(),
                             portMapping = PortMappingPolicy.DISABLED,
@@ -1437,6 +1961,8 @@ class ProductEngineService : Service() {
                             shareRatioLimitPercent = 200U,
                             finishedDownloadRatioLimitPercent = 700U,
                             finishedTimeLimitSeconds = 86_400U,
+                            seedStopRatioPercent = org.rstorrent.session.uniffi.SeedStopLimit.Off,
+                            seedStopTimeSeconds = org.rstorrent.session.uniffi.SeedStopLimit.Off,
                             uploadRateLimit = TransferRateLimit.Unlimited,
                             downloadRateLimit = TransferRateLimit.Unlimited,
                             encryption = EncryptionPolicy.ALLOW,
@@ -1492,6 +2018,7 @@ class ProductEngineService : Service() {
                 dispatchAwait(
                     Command.UpdateClientSettings(
                         ClientSettings(
+                            fileSafety = org.rstorrent.session.uniffi.FileSafetySettings(true, org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, emptyList(), true),
                             listener = ListenerPolicy.Disabled,
                             preferredListenPort = 6_881U.toUShort(),
                             portMapping = PortMappingPolicy.DISABLED,
@@ -1502,6 +2029,8 @@ class ProductEngineService : Service() {
                             shareRatioLimitPercent = 200U,
                             finishedDownloadRatioLimitPercent = 700U,
                             finishedTimeLimitSeconds = 86_400U,
+                            seedStopRatioPercent = org.rstorrent.session.uniffi.SeedStopLimit.Off,
+                            seedStopTimeSeconds = org.rstorrent.session.uniffi.SeedStopLimit.Off,
                             uploadRateLimit = TransferRateLimit.Unlimited,
                             downloadRateLimit = TransferRateLimit.Unlimited,
                             encryption = policy,
@@ -2056,10 +2585,9 @@ class ProductEngineService : Service() {
                     completeCompanionRootSelection(companionRequestId, repairRootId)
                 }
                 if (!storageRootHealthy) return@launch
+                // The native probe reconciles durable run intent. A delayed
+                // AwaitingStorage view must not become a new Resume request.
                 advanceSaf(mutableState.value)
-                mutableState.value.torrents.values
-                    .filter { it.state == TorrentState.AWAITING_STORAGE }
-                    .forEach { resume(it.torrentId) }
             } catch (error: Throwable) {
                 if (companionRequestId != null && clientOpen) {
                     client.failCompanionRootRequest(
@@ -2130,6 +2658,21 @@ class ProductEngineService : Service() {
                 reportError(error)
             }
         }
+    }
+
+    suspend fun prepareChromeExtensionSetup() {
+        check(!rejectMutationDuringDataReset()) { "Data reset is in progress" }
+        check(isChromeOs()) { "Chrome extension setup requires ChromeOS" }
+        ProductCompanionPreference.enable(this)
+        clientReady.await()
+        notificationEligibilityMutation.withLock {
+            val eligibility = notificationCoordinator.refreshPlatformState(interactionLeases.size)
+            check(eligibility.backgroundNotificationVisible) { "Chrome requires visible Android notifications" }
+            lifecycleCoordinator.updateNotificationEligibility(true)
+            publishLifecyclePreferences(true)
+        }
+        startChromeOsCompanionOwners()
+        lifecycleCoordinator.companionSetupRequested()
     }
 
     private suspend fun startChromeOsCompanionOwners() {
@@ -2277,24 +2820,24 @@ class ProductEngineService : Service() {
         }
     }
 
-    fun removeSafRoot(rootId: String) {
+    /**
+     * Stops using a download folder and releases Android's access to it. Files
+     * are kept unless [deleteData], which first removes the torrents using the
+     * folder with their data. Otherwise those torrents wait for the folder to
+     * be chosen again.
+     */
+    fun removeSafRoot(rootId: String, deleteData: Boolean = false) {
         if (rejectMutationDuringDataReset()) return
         scope.launch {
             try {
                 clientReady.await()
+                if (deleteData) removeRootTorrentsWithData(rootId)
                 safRootMutation.withLock {
-                    val storage = client.safStorageSnapshot()
-                    require(storage.defaultRoot != rootId) {
-                        "The current download folder cannot be removed"
-                    }
-                    require(storage.roots.any { it.rootId == rootId }) {
+                    require(client.safStorageSnapshot().roots.any { it.rootId == rootId }) {
                         "Download folder is not registered"
                     }
-                    require(mutableState.value.torrents.values.none { it.storageRoot == rootId }) {
-                        "Download folder is still used by a retained torrent"
-                    }
                     executeSafRootOperation(
-                        ProductSafRootRegistry.beginRemoval(
+                        ProductSafRootRegistry.beginDetach(
                             this@ProductEngineService,
                             rootId,
                         ),
@@ -2305,6 +2848,30 @@ class ProductEngineService : Service() {
             } catch (error: Throwable) {
                 reportError(error)
             }
+        }
+    }
+
+    private suspend fun removeRootTorrentsWithData(rootId: String) {
+        val torrentIds =
+            mutableState.value.torrents.values
+                .filter { it.storageRoot == rootId }
+                .map { it.torrentId }
+        if (torrentIds.isEmpty()) return
+        torrentCommandBatches.withLock {
+            torrentIds.forEach {
+                dispatchAwait(Command.RemoveTorrent(it, RemovalDataPolicy.DELETE_DATA))
+            }
+        }
+        val settled =
+            withTimeoutOrNull(ROOT_DATA_REMOVAL_TIMEOUT_MILLIS) {
+                mutableState.first { state ->
+                    torrentIds.none { it in state.torrents } ||
+                        torrentIds.any { state.torrents[it]?.removalState == RemovalState.FAILED }
+                }
+            } ?: error("Deleting this folder's downloads is taking too long")
+        // The folder keeps its access so a failed deletion can be retried.
+        check(torrentIds.none { it in settled.torrents }) {
+            "Some downloaded files could not be deleted"
         }
     }
 
@@ -2417,6 +2984,17 @@ class ProductEngineService : Service() {
                         dispatchAwait(Command.RemoveStorageRoot(operation.rootId))
                     }
                 }
+                ProductSafRootOperationKind.DETACH -> {
+                    // A replay after process death finds the root already gone.
+                    val removed =
+                        if (client.safStorageSnapshot().roots.any { it.rootId == operation.rootId }) {
+                            client.detachSafStorageRoot(operation.rootId).removed
+                        } else {
+                            true
+                        }
+                    ProductSafRootRegistry.completeDetach(this, removed)
+                    ProductSafDocuments.releaseGrant(this, Uri.parse(operation.treeUri))
+                }
             }
             nativeMutationComplete = true
             ProductSafRootRegistry.completePending(this)
@@ -2446,15 +3024,12 @@ class ProductEngineService : Service() {
                     ProductSafRootRegistry.rollbackRepair(this)
                     releaseFailedSafSelection(operation)
                     client.probeSafStorageRoots()
-                    mutableState.value.torrents.values
-                        .filter { it.storageRoot == operation.rootId }
-                        .filter { it.state == TorrentState.AWAITING_STORAGE }
-                        .forEach { resume(it.torrentId) }
                 }
                 ProductSafRootOperationKind.SET_DEFAULT ->
                     ProductSafRootRegistry.abandonPendingDefault(this)
-                ProductSafRootOperationKind.REMOVE ->
-                    ProductSafRootRegistry.abandonPendingRemoval(this)
+                ProductSafRootOperationKind.REMOVE,
+                ProductSafRootOperationKind.DETACH,
+                -> ProductSafRootRegistry.abandonPendingRemoval(this)
             }
             throw error
         }
@@ -2514,6 +3089,7 @@ class ProductEngineService : Service() {
             externalIntakeMutation.withLock {
                 externalIntakeController.rootAvailabilityChanged(ready)
                 publishExternalSnapshot()
+                submitHeldAddLocked()
             }
         }
     }
@@ -2591,6 +3167,21 @@ class ProductEngineService : Service() {
                                 "operational=${torrent.operationalState} " +
                                 "progress=${torrent.progress.reason}",
                         )
+                    }
+                    action == "observe_incoming" -> {
+                        val snapshot = withTimeout(10_000) { client.incomingPeerSnapshot() }
+                        if (snapshot == null) {
+                            Log.i(TAG, "incoming_peer_snapshot torrent=$torrentId available=false")
+                        } else {
+                            val counts = snapshot.rejectionCounts.joinToString(",") { "${it.reason}:${it.count}" }
+                            val recent = snapshot.recentRejections.joinToString(",") { "${it.reason}:${it.infoHash ?: "none"}" }
+                            Log.i(TAG, "incoming_peer_snapshot torrent=$torrentId available=true " +
+                                "port=${snapshot.listenPort} registrations=${snapshot.registrations} " +
+                                "pending=${snapshot.pending} established=${snapshot.established} " +
+                                "payload=${snapshot.payloadBytesSent} rejections=$counts " +
+                                "recent=$recent counts_truncated=${snapshot.rejectionCountsTruncated} " +
+                                "recent_truncated=${snapshot.recentRejectionsTruncated}")
+                        }
                     }
                     action == "force_recheck" -> forceRecheckAndAwaitForTest(torrentId)
                     action == "remove" ->
@@ -2718,38 +3309,106 @@ class ProductEngineService : Service() {
     }
 
     fun pause(torrentId: String) {
-        dispatch(Command.Pause(torrentId))
+        dispatchTorrentCommands(listOf(Command.Pause(torrentId)))
     }
 
     fun resume(torrentId: String) {
-        dispatch(Command.Resume(torrentId))
+        dispatchTorrentCommands(listOf(Command.Resume(torrentId)))
     }
 
     fun forceRecheck(torrentId: String) {
-        dispatch(Command.ForceRecheck(torrentId))
+        dispatchTorrentCommands(listOf(Command.ForceRecheck(torrentId)))
     }
 
     fun moveDownloadToTop(torrentId: String) {
-        dispatch(Command.MoveDownloadToTop(torrentId))
+        dispatchTorrentCommands(listOf(Command.MoveDownloadToTop(torrentId)))
     }
 
     fun moveDownloadToBottom(torrentId: String) {
-        dispatch(Command.MoveDownloadToBottom(torrentId))
+        dispatchTorrentCommands(listOf(Command.MoveDownloadToBottom(torrentId)))
     }
 
-    fun archive(torrentId: String) {
-        dispatch(Command.Archive(torrentId))
+    fun archive(torrentIds: Collection<String>) {
+        dispatchTorrentCommands(torrentIds.map(Command::Archive))
     }
 
-    fun restoreArchive(torrentId: String) {
-        dispatch(Command.RestoreArchive(torrentId))
+    /** Restores in order, then resumes [resume] (used to undo an archive). */
+    fun restoreArchive(
+        torrentIds: Collection<String>,
+        resume: Collection<String> = emptyList(),
+    ) {
+        dispatchTorrentCommands(
+            torrentIds.map(Command::RestoreArchive) + resume.map(Command::Resume),
+        )
     }
 
     fun removeTorrent(
         torrentId: String,
         policy: RemovalDataPolicy,
     ) {
-        dispatch(Command.RemoveTorrent(torrentId, policy))
+        dispatchTorrentCommands(listOf(Command.RemoveTorrent(torrentId, policy)))
+    }
+
+    fun moveDownloadsToTop(torrentIds: List<String>) {
+        // Moving each to the top in reverse keeps the selection's list order.
+        dispatchTorrentCommands(torrentIds.reversed().map(Command::MoveDownloadToTop))
+    }
+
+    fun moveDownloadsToBottom(torrentIds: List<String>) {
+        dispatchTorrentCommands(torrentIds.map(Command::MoveDownloadToBottom))
+    }
+
+    fun clearTorrentCommandFailure(sequence: Long) {
+        mutableState.update {
+            if (it.torrentCommandFailure?.sequence == sequence) it.copy(torrentCommandFailure = null)
+            else it
+        }
+    }
+
+    /**
+     * Runs torrent commands in order, one batch at a time, so dependent
+     * commands and later batches keep their order. A rejected command is
+     * reported as a transient failure rather than the library error card, and
+     * later commands still run.
+     */
+    private fun dispatchTorrentCommands(commands: List<Command>) {
+        if (commands.isEmpty()) return
+        scope.launch {
+            try {
+                clientReady.await()
+            } catch (error: Throwable) {
+                reportError(error)
+                return@launch
+            }
+            torrentCommandBatches.withLock {
+                for (command in commands) {
+                    try {
+                        dispatchAwait(command)
+                    } catch (error: Throwable) {
+                        if (error is CancellationException) throw error
+                        reportTorrentCommandFailure(error)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun reportTorrentCommandFailure(error: Throwable) {
+        if (error is ProductDataResetInProgressException) {
+            reportError(error)
+            return
+        }
+        Log.e(TAG, "torrent command failed", error)
+        val sequence = torrentCommandFailureSequence.incrementAndGet()
+        mutableState.update {
+            it.copy(
+                torrentCommandFailure =
+                    TorrentCommandFailure(
+                        sequence,
+                        productFailureDetail(error, getString(R.string.error_operation_failed)),
+                    ),
+            )
+        }
     }
 
     fun setShowFileSelection(show: Boolean) {
@@ -2774,29 +3433,57 @@ class ProductEngineService : Service() {
         )
     }
 
+    fun downloadAllPendingAdd(
+        torrentId: String,
+        disableFuture: Boolean,
+    ) {
+        dispatch(Command.DownloadAllPendingAdd(torrentId, disableFuture))
+    }
+
     fun cancelPendingAdd(torrentId: String) {
         dispatch(Command.CancelPendingAdd(torrentId))
     }
 
+    fun setFileSafetyOverride(torrentId: String, files: List<UInt>, allowed: Boolean) {
+        if (files.isEmpty()) return
+        dispatchTorrentCommands(listOf(Command.SetFileSafetyOverride(torrentId, files, allowed)))
+    }
+
+    fun updateFileSafety(settings: org.rstorrent.session.uniffi.FileSafetySettings, expected: org.rstorrent.session.uniffi.FileSafetySettings) {
+        if (rejectMutationDuringDataReset()) return
+        scope.launch {
+            try {
+                clientReady.await()
+                val current = mutableState.value
+                check(current.clientSettings?.configured?.fileSafety == expected) { getString(R.string.safety_conflict) }
+                dispatchForResponse(Command.UpdateFileSafetySettings(settings), current.latestDurableRevision())
+            } catch (error: Throwable) { reportError(error) }
+        }
+    }
+
     fun setFilePriority(
         torrentId: String,
-        fileIndex: UInt,
+        fileIndices: List<UInt>,
         priority: FilePriority,
     ) {
-        dispatch(
-            Command.SetFilePriority(
-                torrentId,
-                listOf(fileIndex),
-                priority,
+        if (fileIndices.isEmpty()) return
+        dispatchTorrentCommands(
+            listOf(
+                Command.SetFilePriority(
+                    torrentId,
+                    fileIndices,
+                    priority,
+                ),
             ),
         )
     }
 
-    fun downloadFileNow(
+    fun downloadFilesNow(
         torrentId: String,
-        fileIndex: UInt,
+        fileIndices: List<UInt>,
     ) {
-        dispatch(Command.DownloadFiles(torrentId, listOf(fileIndex)))
+        if (fileIndices.isEmpty()) return
+        dispatchTorrentCommands(listOf(Command.DownloadFiles(torrentId, fileIndices)))
     }
 
     fun openCompletedFile(
@@ -2807,31 +3494,170 @@ class ProductEngineService : Service() {
         if (rejectMutationDuringDataReset()) return
         scope.launch(Dispatchers.IO) {
             try {
-                require(file.verifiedBytes == file.lengthBytes) { "File is not complete" }
-                val tree =
-                    ProductSafRootRegistry.treeForRoot(this@ProductEngineService, storageRoot)
-                        ?: error("Download folder is unavailable")
-                val path =
-                    if (file.path.firstOrNull() == torrentName) {
-                        file.path
-                    } else {
-                        listOf(torrentName) + file.path
-                    }
-                val document =
-                    ProductSafDocuments.contentDocument(this@ProductEngineService, tree, path)
-                        ?: error("Completed file is unavailable")
-                val mime = contentResolver.getType(document) ?: "application/octet-stream"
-                startActivity(
-                    Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(document, mime)
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    },
-                )
+                openCompletedDocument(storageRoot, torrentName, file, chooser = false)
             } catch (error: Throwable) {
                 reportError(error)
             }
         }
+    }
+
+    /** Library "Open with…": the system chooser for a complete file. */
+    fun openLibraryMedia(item: LibraryMediaItemView) {
+        if (rejectMutationDuringDataReset()) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                val torrent = libraryTorrent(item)
+                openCompletedDocument(
+                    torrent.storageRoot,
+                    libraryContentName(torrent),
+                    libraryFile(item),
+                    chooser = true,
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                reportError(error)
+            }
+        }
+    }
+
+    /** Opens the folder that holds a Library item in the system file manager. */
+    fun openLibraryFolder(item: LibraryMediaItemView) {
+        if (rejectMutationDuringDataReset()) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                val torrent = libraryTorrent(item)
+                val file = libraryFile(item)
+                val tree =
+                    ProductSafRootRegistry.treeForRoot(this@ProductEngineService, torrent.storageRoot)
+                        ?: error(getString(R.string.error_folder_unavailable))
+                val folder =
+                    ProductSafDocuments.containingFolder(
+                        this@ProductEngineService,
+                        tree,
+                        contentPath(libraryContentName(torrent), file),
+                    ) ?: error(getString(R.string.error_folder_unavailable))
+                withContext(Dispatchers.Main.immediate) { openFolderDocument(folder) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                reportError(error)
+            }
+        }
+    }
+
+    /** Library items exist only with metadata, which names the torrent's content. */
+    private fun libraryContentName(torrent: TorrentView): String =
+        torrent.displayName ?: error(getString(R.string.error_file_unavailable))
+
+    private fun libraryTorrent(item: LibraryMediaItemView): TorrentView =
+        mutableState.value.torrents[item.torrentId]
+            ?: error(getString(R.string.torrent_unavailable))
+
+    /**
+     * Library rows carry no path, so read the one catalog page that holds the
+     * item. Catalog rows are in file-index order, padding included.
+     */
+    private suspend fun libraryFile(item: LibraryMediaItemView): FileView {
+        clientReady.await()
+        val pageSize = FILE_CATALOG_PAGE_ROWS
+        val subscription =
+            client.subscribe(
+                SubscriptionSpec(
+                    ViewSelector.Torrent(item.torrentId),
+                    ViewProjection.FILES,
+                    DeliveryPolicy(0U, 512U * 1024U),
+                    null,
+                    CatalogPageRequest(item.fileIndex / pageSize * pageSize, pageSize),
+                ),
+            )
+        try {
+            return withTimeout(10_000) {
+                var files: ViewSnapshot.Files? = null
+                while (files == null) {
+                    val update = subscription.nextUpdate() ?: error("file view closed")
+                    when (val payload = update.payload) {
+                        is ViewUpdatePayload.Snapshot -> files = payload.snapshot as? ViewSnapshot.Files
+                        is ViewUpdatePayload.ResetRequired -> subscription.resync()
+                        is ViewUpdatePayload.Patch -> Unit
+                    }
+                }
+                files.files.firstOrNull { it.fileIndex == item.fileIndex }
+                    ?: error(getString(R.string.error_file_unavailable))
+            }
+        } finally {
+            subscription.close()
+        }
+    }
+
+    private fun contentPath(
+        torrentName: String,
+        file: FileView,
+    ): List<String> =
+        if (file.path.firstOrNull() == torrentName) {
+            file.path
+        } else {
+            listOf(torrentName) + file.path
+        }
+
+    private suspend fun openCompletedDocument(
+        storageRoot: String,
+        torrentName: String,
+        file: FileView,
+        chooser: Boolean,
+    ) {
+        require(file.verifiedBytes == file.lengthBytes) { "File is not complete" }
+        val tree =
+            ProductSafRootRegistry.treeForRoot(this, storageRoot)
+                ?: error("Download folder is unavailable")
+        val document =
+            ProductSafDocuments.contentDocument(this, tree, contentPath(torrentName, file))
+                ?: error("Completed file is unavailable")
+        val mime = contentResolver.getType(document) ?: "application/octet-stream"
+        val view =
+            Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(document, mime)
+                clipData = ClipData.newRawUri(null, document)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        withContext(Dispatchers.Main.immediate) {
+            startActivity(
+                if (chooser) {
+                    Intent.createChooser(view, getString(R.string.action_open_with))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                } else {
+                    view
+                },
+            )
+        }
+    }
+
+    /**
+     * Android has no single "show folder" intent. The system file manager
+     * views a directory document; Google Files and then any viewer are the
+     * fallbacks, as in the original JSTorrent app.
+     */
+    private fun openFolderDocument(folder: Uri) {
+        val attempts =
+            listOf(
+                Intent(Intent.ACTION_VIEW).setDataAndType(
+                    folder,
+                    DocumentsContract.Document.MIME_TYPE_DIR,
+                ),
+                Intent(Intent.ACTION_VIEW, folder).setPackage("com.google.android.apps.nbu.files"),
+                Intent(Intent.ACTION_VIEW, folder),
+            )
+        for (attempt in attempts) {
+            attempt.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            try {
+                startActivity(attempt)
+                return
+            } catch (_: android.content.ActivityNotFoundException) {
+                continue
+            }
+        }
+        error(getString(R.string.error_folder_viewer_unavailable))
     }
 
     fun playMedia(
@@ -2850,6 +3676,17 @@ class ProductEngineService : Service() {
             file.fileIndex,
             file.path.lastOrNull() ?: getString(R.string.media_fallback_title),
         )
+    }
+
+    fun playLibraryMedia(item: LibraryMediaItemView) {
+        if (rejectMutationDuringDataReset()) return
+        if (!AndroidMediaPlaybackPolicy.isLibraryPlayActionEnabled(item, launchPending = false)) {
+            mutableState.update {
+                it.copy(error = ProductError.MediaUnavailable(item.mediaAvailability))
+            }
+            return
+        }
+        startMediaPlayback(item.torrentId, item.fileIndex, item.title)
     }
 
     private fun startMediaPlayback(
@@ -3181,9 +4018,6 @@ class ProductEngineService : Service() {
                                     ),
                             )
                         }
-                        notificationCoordinator.updateOngoingNotification(
-                            getString(R.string.notification_ready),
-                        )
                         return
                     }
                 }
@@ -3194,7 +4028,7 @@ class ProductEngineService : Service() {
             val failure =
                 ProductDataResetFailure(
                     code = dataResetFailureCode(error),
-                    detail = boundedDataResetDetail(error.message ?: error.toString()),
+                    detail = boundedDataResetDetail(productFailureDetail(error, getString(R.string.error_operation_failed))),
                     torrentId =
                         current.torrentIds.getOrNull(current.nextTorrentIndex)
                             ?.takeIf {
@@ -3209,9 +4043,6 @@ class ProductEngineService : Service() {
                 .onFailure(error::addSuppressed)
             Log.e(TAG, "product data reset failed phase=${current.phase}", error)
             mutableState.update { it.copy(error = null) }
-            notificationCoordinator.updateOngoingNotification(
-                getString(R.string.notification_needs_attention),
-            )
         }
     }
 
@@ -3312,7 +4143,7 @@ class ProductEngineService : Service() {
                                 client.failSafRemoval(
                                     torrentId,
                                     plan.operationId,
-                                    boundedDataResetDetail(error.message ?: error.toString()),
+                                    boundedDataResetDetail(productFailureDetail(error, getString(R.string.error_operation_failed))),
                                 )
                             }.onFailure(error::addSuppressed)
                             throw error
@@ -3400,6 +4231,7 @@ class ProductEngineService : Service() {
         check(lifecyclePreferenceStore.reset()) { "could not reset lifecycle preferences" }
         check(ProductNetworkPreference.reset(this)) { "could not reset network preferences" }
         check(ProductPowerPreference.reset(this)) { "could not reset power preferences" }
+        check(SharePeerHintPreference.reset(this)) { "could not reset share preference" }
         check(ProductCompanionPreference.reset(this)) { "could not reset companion preference" }
         check(ProductDataSyncQuotaFence.clearForUserVisibleStart(this)) {
             "could not reset data-sync quota state"
@@ -3413,6 +4245,7 @@ class ProductEngineService : Service() {
         mutableState.update {
             it.copy(
                 preventSleepDuringActiveDownloads = true,
+                sharePeerHintChoice = SharePeerHintChoice.ASK,
                 lifecycle =
                     it.lifecycle.copy(
                         backgroundDownloadsEnabled = false,
@@ -3440,6 +4273,7 @@ class ProductEngineService : Service() {
                 dataReset = current.dataReset,
                 lifecycle = current.lifecycle,
                 preventSleepDuringActiveDownloads = current.preventSleepDuringActiveDownloads,
+                sharePeerHintChoice = current.sharePeerHintChoice,
                 network = current.network,
                 notifications = current.notifications,
             )
@@ -3483,19 +4317,6 @@ class ProductEngineService : Service() {
                     ),
                 error = null,
             )
-        }
-        if (::notificationCoordinator.isInitialized) {
-            val message =
-                if (journal.phase == ProductDataResetPhase.REMOVING_TORRENTS) {
-                    getString(
-                        R.string.notification_clearing_data_progress,
-                        journal.completedTorrentCount,
-                        journal.torrentIds.size,
-                    )
-                } else {
-                    getString(R.string.notification_clearing_data)
-                }
-            notificationCoordinator.updateOngoingNotification(message)
         }
     }
 
@@ -3602,7 +4423,7 @@ class ProductEngineService : Service() {
                     product.torrentSettingsDraft.authority(
                         torrentId,
                         product.latestDurableRevision(),
-                        torrent.transferLimits.fieldValues(),
+                        torrent.settingsFieldValues(),
                     )
                 } else {
                     product.torrentSettingsDraft
@@ -3656,7 +4477,7 @@ class ProductEngineService : Service() {
                         clientSettingsDraft =
                             it.clientSettingsDraft.failed(
                                 outbound.resourceKey,
-                                error.message ?: error.toString(),
+                                productFailureDetail(error, getString(R.string.error_operation_failed)),
                             ),
                     )
                 }
@@ -3710,7 +4531,7 @@ class ProductEngineService : Service() {
                         torrentSettingsDraft =
                             it.torrentSettingsDraft.failed(
                                 outbound.resourceKey,
-                                error.message ?: error.toString(),
+                                productFailureDetail(error, getString(R.string.error_operation_failed)),
                             ),
                     )
                 }
@@ -3722,24 +4543,92 @@ class ProductEngineService : Service() {
         }
     }
 
-    fun copyMagnet(torrentId: String) {
+    /**
+     * Copies one magnet link per torrent, newline-separated, in the given order.
+     * [onCopied] runs after the clipboard holds the links.
+     */
+    fun copyMagnets(
+        torrentIds: List<String>,
+        onCopied: (() -> Unit)? = null,
+    ) {
+        if (torrentIds.isEmpty()) return
         scope.launch {
             try {
                 clientReady.await()
-                val response = dispatchForResponse(Command.ExportMagnet(torrentId))
-                val result = response.result as? CommandResult.ExportMagnet
-                    ?: error("Magnet export returned no value")
-                val clipboard = getSystemService(ClipboardManager::class.java)
-                clipboard.setPrimaryClip(
-                    ClipData.newPlainText(
-                        getString(R.string.add_magnet_label),
-                        result.result.magnet,
-                    ),
-                )
+                val magnets = torrentIds.map { exportMagnet(it) }
+                copyToClipboard(getString(R.string.add_magnet_label), magnets.joinToString("\n"))
+                onCopied?.invoke()
             } catch (error: Throwable) {
-                reportError(error)
+                if (error is CancellationException) throw error
+                reportTorrentCommandFailure(error)
             }
         }
+    }
+
+    /**
+     * Exports a jstorrent.com share link for [request] (Tactical 357): the
+     * engine's magnet with its verified size, the requested files' `so`, a peer
+     * hint when [peerHint] is true, plus the client's `jst.*` display keys.
+     * [onExported] runs on the main thread.
+     */
+    internal fun exportShareLink(
+        request: ShareLinkRequest,
+        peerHint: Boolean,
+        onExported: (ShareLinkExport) -> Unit,
+    ) {
+        scope.launch {
+            try {
+                clientReady.await()
+                val options =
+                    MagnetExportOptions(
+                        includeSize = true,
+                        fileIndices = request.fileIndices,
+                        peerHint = peerHint,
+                    )
+                val result = exportMagnetResult(request.torrentId, options)
+                val export =
+                    ShareLinkExport(
+                        request = request,
+                        link = shareLinkFromMagnet(result.magnet, request.file),
+                        peerHintRequested = peerHint,
+                        peerHints = result.peerHints,
+                        peerHintOmission = result.peerHintOmission,
+                    )
+                withContext(Dispatchers.Main) { onExported(export) }
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                reportTorrentCommandFailure(error)
+            }
+        }
+    }
+
+    fun setSharePeerHintChoice(choice: SharePeerHintChoice) {
+        if (rejectMutationDuringDataReset()) return
+        if (!SharePeerHintPreference.persist(this, choice)) {
+            mutableState.update { it.copy(error = ProductError.Code.SHARE_SETTING_SAVE_FAILED) }
+            return
+        }
+        mutableState.update { it.copy(sharePeerHintChoice = choice, error = null) }
+    }
+
+    private suspend fun exportMagnet(torrentId: String): String = exportMagnetResult(torrentId, options = null).magnet
+
+    private suspend fun exportMagnetResult(
+        torrentId: String,
+        options: MagnetExportOptions?,
+    ): MagnetExportResult {
+        val response = dispatchForResponse(Command.ExportMagnet(torrentId, options))
+        val result = response.result as? CommandResult.ExportMagnet
+            ?: error("Magnet export returned no value")
+        return result.result
+    }
+
+    private fun copyToClipboard(
+        label: String,
+        text: String,
+    ) {
+        getSystemService(ClipboardManager::class.java)
+            .setPrimaryClip(ClipData.newPlainText(label, text))
     }
 
     fun shutdownFromUi() {
@@ -3884,15 +4773,22 @@ class ProductEngineService : Service() {
         torrentId: String,
         offset: UInt,
     ) {
-        withPresentation { it.presentPendingFileSelection(torrentId, offset) }
+        pendingSelectionPresentation.present(torrentId, offset)
     }
 
     fun clearPendingFileSelection() {
-        withPresentation(AndroidPresentationRepository::clearPendingFileSelection)
+        pendingSelectionPresentation.clear()
     }
 
-    fun presentGlobal(presentation: GlobalPresentation) {
-        withPresentation { it.presentGlobal(presentation) }
+    fun presentGlobal(
+        presentation: GlobalPresentation,
+        speedRange: SpeedRange = SpeedRange.MINUTES2,
+    ) {
+        withPresentation { it.presentGlobal(presentation, speedRange) }
+    }
+
+    fun presentLibrary(request: LibraryMediaRequest?) {
+        libraryPresentation.submit { it.presentLibrary(request) }
     }
 
     fun configureDiagnostics(
@@ -3949,6 +4845,16 @@ class ProductEngineService : Service() {
         v1InfoHash: String?,
         v2InfoHash: String? = null,
     ): String = logAddResult(dispatchAddResult(command), v1InfoHash, v2InfoHash)
+
+    private suspend fun downloadAllPendingAwait(torrentId: String) {
+        // Add-time Download all is per-add consent; the preference is untouched.
+        dispatchForResponse(Command.DownloadAllPendingAdd(torrentId, disableFuture = false))
+        // Keep the intermediate pending add off screen until its authoritative
+        // summary catches up with the durable receipt.
+        withTimeout(5_000) {
+            state.first { it.torrents[torrentId]?.awaitingFileSelection == false }
+        }
+    }
 
     private suspend fun dispatchAddResult(command: Command): AddTorrentResult =
         addResult(dispatchForResponse(command))
@@ -4209,7 +5115,7 @@ class ProductEngineService : Service() {
                             client.failSafRemoval(
                                 torrent.torrentId,
                                 plan.operationId,
-                                error.message ?: error.toString(),
+                                productFailureDetail(error, getString(R.string.error_operation_failed)),
                             )
                         } catch (markError: Throwable) {
                             error.addSuppressed(markError)
@@ -4226,6 +5132,8 @@ class ProductEngineService : Service() {
     private suspend fun driveSafStorageRequests() {
         while (!stopped.get()) {
             val request = client.nextSafStorageRequest() ?: return
+            val startupRequest = BuildConfig.DEBUG && !clientReady.isCompleted
+            val requestStarted = SystemClock.elapsedRealtime()
             val cancellation = CancellationSignal()
             try {
                 withTimeout(request.timeoutMillis.toLong()) {
@@ -4292,10 +5200,13 @@ class ProductEngineService : Service() {
                 client.failSafStorageRequest(
                     request.requestId,
                     SafStorageFailureKind.PROVIDER_REFUSED,
-                    error.message ?: error.toString(),
+                    productFailureDetail(error, getString(R.string.error_operation_failed)),
                 )
             } finally {
                 cancellation.cancel()
+                if (startupRequest) {
+                    Log.i(TAG, "saf_startup_request operation=${request.operation} elapsed_ms=${SystemClock.elapsedRealtime() - requestStarted}")
+                }
             }
         }
     }
@@ -4304,6 +5215,15 @@ class ProductEngineService : Service() {
         update: ViewUpdate,
         product: ProductState,
     ) {
+        // Session rates arrive every 500 ms for the library header; tracing
+        // them would flood the log without describing any torrent.
+        val payload = update.payload
+        if (
+            (payload is ViewUpdatePayload.Snapshot && payload.snapshot is ViewSnapshot.SessionCurrentRates) ||
+            (payload is ViewUpdatePayload.Patch && payload.patch is ViewPatch.SessionCurrentRates)
+        ) {
+            return
+        }
         val kind =
             when (update.payload) {
                 is ViewUpdatePayload.Snapshot -> "snapshot"
@@ -4631,16 +5551,30 @@ class ProductEngineService : Service() {
 
     private fun observePowerAndNotification() {
         powerNotificationJob = scope.launch {
-            state.collect { product ->
-                val active =
-                    product.preventSleepDuringActiveDownloads &&
-                        requiresSleepInhibition(product.torrents.values)
-                updatePowerLock(active)
-                if (foreground.get()) {
-                    notificationCoordinator.updateOngoingNotification(
-                        productOngoingNotificationText(product),
-                    )
+            launch {
+                state.collect { product ->
+                    val active =
+                        product.preventSleepDuringActiveDownloads &&
+                            requiresSleepInhibition(product.torrents.values)
+                    updatePowerLock(active)
                 }
+            }
+            // The only steady-state writer of the ongoing notification; a newer
+            // emission cancels a pending rate post and the throttle recomputes it.
+            val throttle = ProductOngoingNotificationThrottle()
+            state.collectLatest { product ->
+                if (!foreground.get()) {
+                    throttle.forget()
+                    return@collectLatest
+                }
+                val content = productOngoingNotificationContent(product)
+                val wait =
+                    throttle.delayMillis(content, SystemClock.elapsedRealtime())
+                        ?: return@collectLatest
+                if (wait > 0L) delay(wait)
+                if (!foreground.get()) return@collectLatest
+                notificationCoordinator.updateOngoingNotification(content)
+                throttle.posted(content, SystemClock.elapsedRealtime())
             }
         }
     }
@@ -4690,6 +5624,9 @@ class ProductEngineService : Service() {
             } finally {
                 val safeStartId = maxOf(startId ?: 0, latestStartId.get())
                 if (safeStartId == 0 || !stopSelfResult(safeStartId)) stopSelf()
+                // Published after stopSelf so a bound activity that unbinds in
+                // response lets this instance be destroyed before it restarts.
+                mutableState.update { it.copy(ready = false, serviceStopped = true) }
             }
         }
     }
@@ -4700,13 +5637,14 @@ class ProductEngineService : Service() {
             return
         }
         Log.i(TAG, "product_shutdown_begin reason=$reason")
+        var clientCleanupFailed = false
         try {
+            initializationJob?.cancelAndJoin()
             lifecycleCoordinator.close()
             if (::defaultNetworkObserver.isInitialized) defaultNetworkObserver.close()
             unregisterNotificationBlockReceiver()
             ProductInteractionRegistry.detach()
             interactionLeases.clear()
-            initializationJob?.cancelAndJoin()
             dataResetJob?.cancelAndJoin()
             networkConvergenceJob?.cancelAndJoin()
             powerNotificationJob?.cancelAndJoin()
@@ -4730,21 +5668,32 @@ class ProductEngineService : Service() {
             }
             notificationCoordinator.close()
             if (clientOpen) {
-                try {
-                    Log.i(TAG, "product_shutdown_client_begin")
-                    client.shutdown()
-                    Log.i(TAG, "product_shutdown_client_complete")
-                } finally {
-                    companionConnectionJob?.join()
-                    companionPairingJob?.join()
-                    companionRootJob?.join()
-                    companionRootRemovalJob?.join()
-                    safStorageJobs.forEach { it.join() }
-                    client.close()
-                    clientOpen = false
+                val failure =
+                    joinProductClientShutdown(
+                        shutdown = {
+                            Log.i(TAG, "product_shutdown_client_begin")
+                            client.shutdown()
+                            Log.i(TAG, "product_shutdown_client_complete")
+                        },
+                        release = {
+                            companionConnectionJob?.join()
+                            companionPairingJob?.join()
+                            companionRootJob?.join()
+                            companionRootRemovalJob?.join()
+                            safStorageJobs.forEach { it.join() }
+                            client.close()
+                            clientOpen = false
+                        },
+                    )
+                if (failure != null) {
+                    clientCleanupFailed = true
+                    reportError(failure)
                 }
             }
-            Log.i(TAG, "product_shutdown_complete reason=$reason")
+            Log.i(
+                TAG,
+                "product_shutdown_complete reason=$reason cleanup_failed=$clientCleanupFailed",
+            )
         } finally {
             releasePowerLock()
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -4762,7 +5711,7 @@ class ProductEngineService : Service() {
                     if (error is ProductDataResetInProgressException) {
                         ProductError.Code.DATA_RESET_IN_PROGRESS
                     } else {
-                        ProductError.Technical(error.message ?: error.toString())
+                        ProductError.Technical(productFailureDetail(error, getString(R.string.error_operation_failed)))
                     },
             )
         }
@@ -4844,10 +5793,13 @@ class ProductEngineService : Service() {
         const val INTERACTION_PLAYBACK = "playback"
         const val INTERACTION_SAF_PICKER = "saf_picker"
         const val INTERACTION_TORRENT_PICKER = "torrent_picker"
+        const val INTERACTION_TORRENT_LIST_DOCUMENT = "torrent_list_document"
+        const val INTERACTION_TORRENT_LIST_TRANSFER = "torrent_list_transfer"
         private const val COMPANION_PAIRING_POLL_MILLIS = 250L
         private const val EXTERNAL_PROVIDER_TIMEOUT_MILLIS = 30_000L
         private const val DATA_RESET_POLL_MILLIS = 50L
         private const val DATA_RESET_TORRENT_TIMEOUT_MILLIS = 120_000L
+        private const val ROOT_DATA_REMOVAL_TIMEOUT_MILLIS = 300_000L
         private const val SAF_PROVIDER_CONCURRENCY = 4
         private const val ANDROID_RATE_BYTES_PER_SECOND = 24 * 1024
         private const val PRODUCT_QUOTA_RESTART_DELAY_MILLIS = 3_000L

@@ -1,0 +1,56 @@
+{
+  "sourceSha": "f5860c99bbaf6b40c0ba40735071aff6a0b5527d",
+  "runUrl": "https://github.com/kzahel/rstorrent/actions/runs/37239167494",
+  "runId": 37239167494,
+  "attempt": 1,
+  "package": "com.jstorrent.app",
+  "version": "1.0.26",
+  "versionCode": 26,
+  "uploadCertificateSha256": "ccb5af8e44d626e9aefb1f0fbd8496dbf23ad27da9347248e71fb3ce70044915",
+  "playAppSigningCertificateSha256": "b2b421781fc40c632656d17c72c012a40f623d358e29837adad41cd5d835acd5",
+  "published": false,
+  "playUploaded": false,
+  "jobs": [
+    {
+      "name": "Signed Android APK and App Bundle",
+      "conclusion": "success"
+    },
+    {
+      "name": "publish",
+      "conclusion": "skipped"
+    }
+  ],
+  "assets": [
+    {
+      "file": "jstorrent-android-1.0.26.apk",
+      "sha256": "706d2821f0b24da8dba863f28aad314281be50b093133a41105e2e88e0868644",
+      "bytes": 105193175
+    },
+    {
+      "file": "jstorrent-android-1.0.26.aab",
+      "sha256": "85d7594e91c69afea9b65b7d81a7edd7ff544925e086178d64a49a68ff28a066",
+      "bytes": 61692157
+    }
+  ],
+  "independentValidation": {
+    "downloadedHashes": "passed",
+    "originalUploadSignerAndAabSignature": "passed",
+    "resolvedApkAndAabLabels": "JSTorrent",
+    "legacyLauncher": "retained",
+    "minimumApi": 28,
+    "targetSdk": 36,
+    "abis": [
+      "arm64-v8a",
+      "x86_64"
+    ],
+    "elfAndZip16KiBAlignment": "passed",
+    "bundletoolAndPackagedNotices": "passed"
+  },
+  "qualification": "Current-source signed GitHub/upload candidate; not a Play-generated package and not an installed Play code-26 upgrade",
+  "priorCandidate": {
+    "sourceSha": "46c19b3abf77e0d9d5ab2fca467a3bc48cf533b4",
+    "runUrl": "https://github.com/kzahel/rstorrent/actions/runs/37235699078",
+    "independentVerification": "passed",
+    "sameArtifactHashesAsFinal": false
+  }
+}

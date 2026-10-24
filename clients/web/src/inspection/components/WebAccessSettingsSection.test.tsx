@@ -2,12 +2,16 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render as renderUnwrapped, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { WebAuthClient } from "../../web-auth-client";
 import { WebAccessSettingsSection } from "./WebAccessSettingsSection";
+import { ToastProvider } from "./Toast";
+
+const render = (ui: Parameters<typeof renderUnwrapped>[0]) =>
+  renderUnwrapped(ui, { wrapper: ToastProvider });
 
 afterEach(() => {
   cleanup();

@@ -1,1 +1,1 @@
-RSTorrent Canary
+JSTorrent Canary

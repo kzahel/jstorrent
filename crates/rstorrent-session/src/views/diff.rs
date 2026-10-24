@@ -228,6 +228,8 @@ pub(super) fn patch_for(
         (ViewSelector::SessionDht, _) => None,
         (ViewSelector::SessionCurrentRates { .. }, _) => None,
         (ViewSelector::SessionSpeedHistory { .. }, _) => None,
+        // The hub's Library publication owns these views.
+        (ViewSelector::Library { .. }, _) | (_, ViewProjection::LibraryMedia) => None,
     }
 }
 
@@ -236,6 +238,15 @@ pub(super) fn projection_requires_snapshot(
     previous: &BTreeMap<String, TorrentModel>,
     current: &BTreeMap<String, TorrentModel>,
 ) -> bool {
+    if let (ViewSelector::Torrent { torrent_id }, ViewProjection::PieceActivity) =
+        (&spec.selector, spec.projection)
+    {
+        // Clear ranges refer to the previous geometry. A replacement snapshot
+        // also discards any queued patches before a torrent disappears or its
+        // metadata changes the number of pieces.
+        return previous.get(torrent_id).map(|model| model.view.piece_count)
+            != current.get(torrent_id).map(|model| model.view.piece_count);
+    }
     if let (ViewSelector::Torrent { torrent_id }, ViewProjection::Swarm) =
         (&spec.selector, spec.projection)
     {
@@ -1058,6 +1069,22 @@ pub(crate) fn coalesce_patch(current: &mut ViewPatch, next: &ViewPatch) -> bool 
             removed_ids.extend(next_removed.iter().cloned());
             *upsert = values.into_values().collect();
             *removed = removed_ids.into_iter().collect();
+            true
+        }
+        (
+            ViewPatch::LibraryMedia { upsert },
+            ViewPatch::LibraryMedia {
+                upsert: next_upsert,
+            },
+        ) => {
+            let mut values = upsert
+                .drain(..)
+                .map(|item| (item.item_id.clone(), item))
+                .collect::<BTreeMap<_, _>>();
+            for item in next_upsert {
+                values.insert(item.item_id.clone(), item.clone());
+            }
+            *upsert = values.into_values().collect();
             true
         }
         (

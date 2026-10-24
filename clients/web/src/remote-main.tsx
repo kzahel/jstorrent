@@ -1,3 +1,4 @@
+import { applyStoredAppearance } from "./inspection/appearance";
 import { createRoot } from "react-dom/client";
 
 import { startRemoteInspection } from "./inspection/bootstrap";
@@ -11,6 +12,7 @@ import {
 } from "./localization/runtime";
 
 localizeDocumentShell();
+applyStoredAppearance();
 
 const relayUrl = import.meta.env.VITE_RSTORRENT_REMOTE_RELAY_URL;
 const clientBuild = import.meta.env.VITE_RSTORRENT_REMOTE_BUILD_ID;
@@ -38,14 +40,17 @@ void loadCrypto()
           crypto={crypto}
           store={new IndexedDbRemoteClientStore()}
           onConnected={(client, remoteAccess) =>
-            startRemoteInspection(client, root, remoteAccess)
+            startRemoteInspection(client, root, remoteAccess, clientBuild)
           }
         />
       </LocalizationProvider>,
     );
   })
   .catch((error: unknown) => {
-    rootElement.textContent = `${message("shell.remote.start-failed")}: ${errorMessage(error)}`;
+    const alert = document.createElement("div");
+    alert.setAttribute("role", "alert");
+    alert.textContent = `${message("shell.remote.start-failed")}: ${errorMessage(error)}`;
+    rootElement.replaceChildren(alert);
   });
 
 async function loadCrypto(): Promise<RemoteCryptoWasmModule> {

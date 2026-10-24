@@ -35,12 +35,12 @@ export class DesktopUpdaterController implements DesktopUpdater {
     private readonly timers: UpdaterTimers = globalThis,
     channel: UpdateChannel = "stable",
   ) {
-    this.snapshot = { info, state: { phase: "idle" }, channel, selectingChannel: false };
-    this.disposeSchedule = scheduleAutomaticChecks(
+    this.snapshot = { info, state: restingState(info), channel, selectingChannel: false };
+    this.disposeSchedule = installPolicy(info.bundleType).canCheck ? scheduleAutomaticChecks(
       (reason) => void this.check(reason),
       timers,
       channel,
-    );
+    ) : () => undefined;
   }
 
   async check(reason: CheckReason = "manual"): Promise<void> {
@@ -111,10 +111,11 @@ export class DesktopUpdaterController implements DesktopUpdater {
     this.generation += 1;
     this.activeCheck = null;
     this.closeCandidate();
-    this.setState({ phase: "idle" });
+    this.setState(restingState(this.snapshot.info));
   }
 
   async selectChannel(channel: UpdateChannel): Promise<void> {
+    if (!installPolicy(this.snapshot.info.bundleType).canCheck) return;
     if (this.closed || this.isInstalling() || this.snapshot.selectingChannel || !this.backend.selectChannel || channel === this.snapshot.channel) return;
     const generation = ++this.generation;
     this.activeCheck = null;
@@ -227,6 +228,13 @@ export class DesktopUpdaterController implements DesktopUpdater {
   private isInstalling(): boolean {
     return this.snapshot.state.phase === "downloading" || this.snapshot.state.phase === "installing";
   }
+}
+
+function restingState(info: DesktopReleaseInfo): UpdaterState {
+  const policy = installPolicy(info.bundleType);
+  return policy.canCheck
+    ? { phase: "idle" }
+    : { phase: "manual-install", packageLabel: policy.packageLabel };
 }
 
 export function progressPercent(state: UpdaterState): number | undefined {

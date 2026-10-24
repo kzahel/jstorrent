@@ -1,6 +1,249 @@
 # Implementation Tactical Docs
 
+- [380 — Product releases](380-product-release.md):
+  extension 1.1.6 and remote 0.3.3 published; Stable/Android release resumed.
+
+- [379 — Release security dependency repair](379-release-security-dependencies.md):
+  complete; patched rustls/ZIP and retained updater 2.10.1 pass full CI,
+  signed native builds and public Latest 0.3.2 qualification.
+- [378 — Public Latest and nightly publication](378-public-latest-and-nightly.md):
+  complete; public Latest 0.3.2 and live five-target offers verify; daily
+  changed-main releases use full CI and a bounded companion exception.
+- [377 — Compatible touchless release channels](377-compatible-touchless-release-channels.md):
+  qualified signed installed updates, database admission and immutable promotion.
+- [376 — Android media Library](376-android-media-library.md): complete;
+  Torrents | Library primary navigation (bar, or rail from 600 dp) and a
+  Compose Library over `library_media` with presets, search, filters, shows
+  and albums in place, pages, and Files-style rows with Play, Open with…,
+  Open containing folder and Show in torrent.
+- [375 — CI reconciliation and UI regressions](375-ci-reconciliation-and-ui-regressions.md):
+  merge concurrent contracts, repair Rust test lints, and scope browser/iOS
+  assertions to displayed or scrolled settings controls.
+- [372 — CI packaging and presentation regressions](372-ci-packaging-and-presentation-regressions.md):
+  npm Git notice provenance, current support-link/Settings browser assertions
+  and Android pending-selection request order across service startup.
+- [371 — Statistics and compatibility reporting rollout](371-statistics-and-compatibility-rollout.md):
+  ready; handoff plan for the update server's opt-out logging and estimate,
+  lifting the release hold, the companion header fix, releases, and
+  compatibility reports over update checks and the relay.
+- [370 — Version handshake and compatibility reports](370-version-handshake-and-compatibility-reports.md):
+  slices 1–3 complete; value exposures checked for tolerant clients, a
+  computed support window that forces cleanup, client identity in `connect`
+  and in-memory mismatch observations. Reports (opt-out, via update checks
+  and the relay) are next.
+- [369 — Recovery screen when the torrent catalog will not open](369-catalog-recovery-screen.md):
+  desktop, Android and headless offer updates, a read-only torrent list export
+  and bug-report details instead of crashing or a generic error.
+- [368 — Local MP4 native playback](368-local-mp4-native-playback.md): complete;
+  prefer codec-checked native MP4/M4V playback so Big Buck Bunny's MP3 audio
+  plays without transcoding; parser disposal preserves the player session.
+- [367 — Encrypted short links](367-encrypted-short-links.md): proposed; an
+  opt-in `link.jstorrent.com` short link whose Cloudflare Worker stores only
+  ciphertext, keyed from the fragment, for a readable Share panel QR code.
+- [364 — Library review fixes](364-library-review-fixes.md): albums and shows
+  named by a torrent's own folder, file counts per preset, kind icons, inline
+  audio, shared segmented toggles, a sortable Library table and adding from
+  the header on every destination.
+- [363 — Library media index](363-library-media-index.md): the host indexes
+  video and audio across torrents in memory and serves `library_media` pages
+  by query; the web Library browses them with search, filters, presets for
+  shows, movies, music and torrents, cards or list, and pages.
+- [362 — Local browser inline video playback](362-local-browser-inline-playback.md):
+  complete; browser-hosted Files and Library **Play** completed MP4/M4V/MKV in
+  the shared playsvideo dialog, with Open in a new tab as the fallback.
+- [361 — Extension store publishing setup](361-extension-store-publishing-setup.md):
+  done; one-time Google and GitHub setup so `extension-v*` tags submit to the
+  Chrome Web Store, and extension 1.1.5 submitted through it.
+- [360 — Hosted remote controller on its own subdomain](360-remote-controller-subdomain.md):
+  proposed for later; serve the remote controller from `remote.jstorrent.com`,
+  deployed only from `remote-v*` tags and isolated from the marketing site.
+- [359 — Mixed-version compatibility matrix](359-mixed-version-compatibility-matrix.md):
+  proposed; proves old/new host × old/new client for every release in the
+  support window from artifacts captured from each release's own source, and
+  fails release workflows when a release is missing.
+- [358 — One durable store and a migration ledger](358-one-durable-store-and-migration-ledger.md):
+  desktop shell switches and the network-defaults marker move into SQLite,
+  the extension keeps statistics consent, and every migration is ledgered
+  with a retirement condition.
+- [357 — Rich share links](357-rich-share-links.md): share exports add size,
+  selected files and an opt-in peer hint; web and Android gain file shares,
+  a Share panel, QR codes and the system share sheet; the share page shows
+  file names and sizes.
+- [356 — Precompressed hosted web assets](356-precompressed-hosted-web-assets.md):
+  `npm run build:hosted` writes brotli and gzip copies that the gateway's
+  static fallback serves by `Accept-Encoding`; a throttled first load drops
+  from about 1.9 MB to 0.3 MB.
+- [355 — Automatic updates](355-automatic-updates.md): proposed; unattended
+  desktop install, opt-in headless apply and Play In-App Updates so old hosts
+  age out and 354's horizon can tighten.
+- [354 — Mixed-version compatibility and capabilities](354-mixed-version-compatibility.md):
+  proposed; a 30-day support horizon, two-way capability advertisement,
+  tolerant contract, CI audits and dated capability removal, starting with a
+  repair of the hosted controller against released hosts.
+- [353 — Host product facts in the API hello](353-host-product-in-hello.md):
+  hosts report version, build, target, app ID and profile in the hello;
+  About shows them everywhere and the client re-reads them after reconnects.
+- [352 — Render-first web startup](352-render-first-web-startup.md): the
+  real shell renders before the engine connects, with placeholder rows until
+  the first library view; transports, adapters, demo and settings load off
+  the critical path; startup timings join support diagnostics.
+- [351 — Narrow web lists and flat chrome](351-narrow-web-lists-and-flat-chrome.md):
+  navigation moves into the sidebar and narrow drawer, narrow details get an
+  app bar, tables render as list items at 760 px and below, and desktop
+  content loses its alternating gray bands.
+- [350 — Share links across clients and private hint](350-share-links-and-private-hint.md):
+  the view projects BEP 27 private; web and Android copy share links through
+  one action with a private hint; the website `/share/` page reads new and
+  legacy links.
+- [349 — General tab compact header and links](349-general-tab-compact-header-and-links.md):
+  one header line and one status line replace the summary card and repeated
+  state; the tab copies the magnet link, a share link and the info hash.
+- [347 — About on every web host](347-about-on-every-web-host.md): Settings
+  always has About with connection, version, build, desktop profile and
+  support diagnostics; updates appear only where the app updates itself.
+- [346 — Action feedback toasts](346-action-feedback-toasts.md): one
+  bottom-centre toast replaces inline result rows; visible results show
+  nothing, errors persist, archive/restore offer Undo, copy is localized.
+- [345 — Never reset shipped catalogs; migrate forward](345-supported-catalog-migrations.md):
+  schema 26 is the supported baseline, automatic reset is removed, and later
+  schemas migrate through checked steps proven against a released catalog.
+- [344 — Seeding stop limits](344-seeding-stop-limits.md): draft; global and
+  per-torrent ratio and seeding-time limits that stop a finished torrent,
+  separate from the priority-only seed goals.
+- [342 — Deliver DHT peers as replies arrive](342-stream-dht-peers-during-lookup.md):
+  per-reply DHT peer delivery to the torrent, bounded and non-blocking, with
+  the final lookup result still authoritative.
+- [341 — Peer sources in the Trackers tab](341-trackers-tab-peer-sources.md):
+  an untitled summary of a torrent's peer sources, trackers first, above its
+  tracker table, from the existing tracker, swarm and DHT views.
+- [340 — Quiet Windows network startup and firewall qualification](340-windows-quiet-network-startup.md):
+  Windows fresh/upgrade defaults, preserved opt-in choices, native denial,
+  controlled cross-VM transfers and retained-data migration.
+- [339 — Quiet Mac network startup and explicit incoming settings](339-macos-quiet-network-startup.md):
+  Mac fresh/upgrade defaults, complete TCP/uTP Off, forwarding disclosure,
+  idle DHT, shared/Android gates and isolated native transfer/migration evidence.
+- [338 — macOS network consent research and plan](338-macos-network-consent-research.md):
+  historical Mac/Windows consent research, fresh-port uTP admission controls
+  and the Fast availability diagnosis; implementation follows in 339.
+
+- [337 — Lightweight macOS development bundle](337-lightweight-macos-development-bundle.md):
+  separate foreground debug `.app` launcher with native registration and
+  production-ID extension lifecycle verification.
+
+- [336 — Production desktop extension control](336-production-desktop-extension-control.md):
+  exact production/beta bootstrap admission and real unpacked macOS lifecycle
+  qualification; signed desktop delivery remains separate.
+
+- [335 — Removal Pieces and disconnect lifetime](335-removal-pieces-and-disconnect-lifetime.md):
+  valid empty Pieces snapshots and joined accepted removal through WebSocket close.
+
+- [333 — Web settings plain copy](333-web-settings-plain-copy.md):
+  shared React settings, torrent settings and General tab use plain copy,
+  speed presets and row-level notes instead of engine runtime state.
+
+- [331 — Android settings plain copy](331-android-settings-plain-copy.md):
+  Settings and torrent Details/Status use plain copy with section headers and
+  speed presets; engine state, enum names and seeding goals are no longer shown.
+
+- [330 — Android 1.0.31 production release](330-android-1-0-31-production-release.md):
+  exact signed artifacts qualified and production review submitted at 100%;
+  automatic publication after approval, with quick checks pending.
+
+- [329 — Android remove download folder](329-android-remove-download-folder.md):
+  any folder can be removed; its torrents stop safely and wait for repair,
+  files are kept unless the Delete data option is chosen.
+
+- [328 — Android add before download folder](328-android-add-before-download-folder.md):
+  in-app adds without a folder wait in the intake dialog, which asks for the
+  folder and then continues the add as if the folder had been ready.
+
+- [327 — Removal hang with inbound peers](327-removal-hang-with-inbound-peers.md):
+  removing a fast download with attached inbound peers no longer freezes the
+  Android engine; teardown closes the inbound event queue before joining.
+
+- [326 — Full product release](326-full-product-release.md): desktop 0.3.1
+  published, Android 1.0.30 published at 100%, and extension 1.1.4 pending
+  review with automatic publication; exact packages, sources, website and updater.
+
+- [325 — Android CI library readiness](325-android-ci-library-readiness.md):
+  owned first-use smoke observes the current All tab after statistics opt-out;
+  preserves complete SAF lifecycle assertions and bounded cleanup.
+
+- [324 — Release queued adds on skip file selection](324-release-queued-adds-on-skip-file-selection.md):
+  `Don’t show file selection again` releases the rest of the add queue with
+  its existing selection, and the web dialog no longer freezes on `Saving…`.
+
+- [323 — Pre-metadata skip file selection](323-pre-metadata-skip-file-selection.md):
+  Android shows `Don’t show file selection again` while a magnet loads and
+  pre-metadata Download all applies it atomically with the add.
+
+- [322 — Android empty filter navigation](322-android-empty-filter-navigation.md):
+  actionable return to All from empty filters, with Add guidance for an empty
+  library.
+
+- [321 — Android feedback statistics checkbox](321-android-feedback-statistics-checkbox.md):
+  verified hosted pages, enabled Android context gate and accessible per-report
+  statistics toggle.
+
+- [320 — Android-owned ChromeOS extension setup](320-chromeos-android-owned-extension-setup.md):
+  complete locally; direct production launch, notification-gated native setup,
+  exact HTTPS UI return and two-device isolated pairing/recovery evidence.
+
+- [319 — Android ongoing notification rates](319-android-ongoing-notification-rates.md):
+  background notification shows download and upload rates, reposted at most
+  every two seconds by one content owner.
+
+- [318 — Android duplicate add feedback](318-android-duplicate-add-feedback.md):
+  in-app adds report torrents already present, archived matches offer
+  Restore, and test torrents honor the file selection setting.
+
+- [317 — Android Files tab rows and multiselect](317-android-files-tab-rows-and-multiselect.md):
+  compact file rows, an explicit three-way priority sheet and Library-style
+  multi-file selection with bounded batch commands; presentation only.
+
+- [315 — Android 1.0.29 production release](315-android-1-0-29-production-release.md):
+  signed crash/UX hotfix, production review, automatic publication and100%
+  rollout under explicit maintainer direction.
+
+- [314 — Android presentation shutdown race](314-android-presentation-shutdown-race.md):
+  terminal subscription ownership, contained setup failures and cancellation
+  cleanup following the version28 production crash; store delivery separate.
+
+- [312 — Reliable credit-based range streams](312-reliable-credit-range-streams.md):
+  shared receive credit, bounded reliable lanes, arbitrary ranges, consumption
+  and release barriers, compatibility and measured RTT/loss behavior.
+
+- [311 — Android notification settings consolidation](311-android-notification-settings-consolidation.md):
+  one status/action row opens system controls in granted and denied states;
+  independent notification preferences remain.
+
+- [309 — Direct file transport ceiling](309-direct-file-transport-ceiling.md):
+  generated ranges, raw reliable RTC and browser control distinguish storage
+  cost from transport; production unchanged, RTT/loss diagnosis next.
+
+- [307 — Direct file save throughput](307-direct-file-save-throughput.md):
+  production-consumer baseline, bounded window experiments and Chrome/Edge
+  large-save scope; Firefox/Safari large saves and playback deferred.
+
+- [306 — Development documentation map](306-development-documentation-map.md):
+  focused runtime/testing guides and a separate legacy migration stream.
+
+- [304 — Fast PR feedback and CI benchmarks](304-fast-pr-feedback-and-ci-benchmarks.md):
+  free-runner early checks, green-only reviewer triggers and profile benchmarks;
+  full platform qualification remains independent.
+
+- [302 — Desktop external links](302-desktop-external-links.md):
+  shared browser/native link handling using scoped Tauri opener permissions.
+
 Bounded implementation plans and execution records live here.
+
+- [300 — Monotonic tracker view deadlines](300-monotonic-tracker-view-deadlines.md):
+  stable application deadlines, per-batch clock reference and permanent
+  deterministic/real-browser countdown regressions; installed delivery separate.
+
+- [301 — Stable remote file save progress](301-remote-save-progress-presentation.md):
+  separate Files feedback row, bounded display cadence and stable percentage
+  geometry; no remote playback or transfer-protocol change.
 
 Use zero-padded numeric filenames:
 
@@ -31,6 +274,47 @@ Update the tactical as implementation reveals new facts. When complete, record
 what landed, what validation actually ran, known gaps, and the recommended next
 slice. Completed tacticals remain in place as execution records; living
 direction belongs in `../topics/`.
+
+Latest Android delivery record:
+[`255-android-play-internal-replacement.md`](255-android-play-internal-replacement.md)
+— original-key 1.0.25 replacement available on JSTorrent's Play internal track;
+production and installed migration qualification remain separate.
+
+Latest release qualification work:
+
+- [`287-website-appimage-production-handoff.md`](287-website-appimage-production-handoff.md):
+  disabled website handoff matches15 assets; both AppImage views pass locally.
+- [`286-connected-companion-layout-review.md`](286-connected-companion-layout-review.md):
+  settled connected layout/drawer passes; initial clipping was a capture artifact.
+- [`285-production-linux-appimage-scope.md`](285-production-linux-appimage-scope.md):
+  local production AppImage-only packaging; signed/installed repeats remain259.
+- [`284-owned-upgrade-scenario-captures.md`](284-owned-upgrade-scenario-captures.md):
+  actual owned four-pair upgrade passes; narrow connected presentation needs286.
+- [`283-companion-update-recovery-guidance.md`](283-companion-update-recovery-guidance.md):
+  local source/render recovery pass; real installed/store scenarios remain259.
+- [`256-swarm-touch-ci-stabilization.md`](256-swarm-touch-ci-stabilization.md):
+  complete; repair native-touch and asynchronous-intake CI races with all
+  ten exact-source CI jobs and Website passing.
+- [`257-play-upgrade-and-fresh-signed-candidates.md`](257-play-upgrade-and-fresh-signed-candidates.md):
+  complete bounded Play 1.0.23-to-1.0.25 migration and current-source signed
+  desktop five-target/Android candidates; full cutover remains open.
+
+- [`259-jstorrent-finish-line-checks.md`](259-jstorrent-finish-line-checks.md):
+  active; owns the maintained release checklist, exact installed evidence and
+  ignored report, with explicit external delivery dependencies.
+- [`272-proportional-physical-upload-budget.md`](272-proportional-physical-upload-budget.md):
+  complete locally; measured proportional upload, independent full hashes and
+  bounded refusals, preserving the separate whole-run reopen failure.
+- [`273-native-display-wake-before-reopen.md`](273-native-display-wake-before-reopen.md):
+  complete locally; targeted and full default native wake/reopen pass inside
+  existing deadlines, with independent hashes and final owned cleanup.
+
+- [`274-linux-arm-native-compositor-capture.md`](274-linux-arm-native-compositor-capture.md):
+  complete locally; native GNOME recordings and restored migration evidence
+  retain the ARM visual gap, with exact-owned cleanup and no graphics override.
+- [`275-linux-arm-signed-deb-visual-comparison.md`](275-linux-arm-signed-deb-visual-comparison.md):
+  complete locally; original-signed extracted Debian payload passes migration
+  and native pixels; AppImage/final-source/installed-package gaps remain.
 
 ## Work Selection And Concurrency
 
@@ -92,6 +376,41 @@ generated-contract changes, or another externally visible action must state
 that scope and its cleanup or compatibility rules explicitly.
 
 ## Current Tacticals
+
+- [`240-signed-desktop-control-qualification.md`](240-signed-desktop-control-qualification.md):
+  complete bounded signed Latest 0.2.801 delivery, notarized DMG/helper checks,
+  native updates and installed control/transfer/picker/Quit on three platforms.
+- [`239-desktop-suspension-browser-recovery.md`](239-desktop-suspension-browser-recovery.md):
+  bounded browser restart, supported suspension and controlled-byte recovery.
+- [`238-signed-desktop-channel-recovery.md`](238-signed-desktop-channel-recovery.md):
+  existing signed channel selection/replacement/recovery without publication.
+
+- [`237-macos-windows-package-recovery.md`](237-macos-windows-package-recovery.md):
+  installed beta package replacement, rollback and registration recovery.
+
+- [`236-desktop-compatibility-refusal-and-recovery.md`](236-desktop-compatibility-refusal-and-recovery.md):
+  terminal desktop incompatibility and attach-only repair; bounded Linux beta
+  old/new package matrix. Signed and broader platform update gates stay open.
+
+- [`235-linux-quit-launch-handoff.md`](235-linux-quit-launch-handoff.md):
+  bounded Linux admission retry closes the installed Quit/launch overlap;
+  real native/background/magnet/file and concurrent-launch checks pass.
+
+- [`234-desktop-user-intent-and-background-lifecycle.md`](234-desktop-user-intent-and-background-lifecycle.md):
+  bounded installed macOS/Windows/Linux lifecycle checkpoint: explicit relaunch,
+  persistent tray, native routing, detached transfer, reload/worker/discard
+  recovery and prompt retired-client subscription cleanup.
+- [`233-legacy-desktop-fixture-cohort.md`](233-legacy-desktop-fixture-cohort.md):
+  completed bounded Linux/Windows released-writer cohort, closed snapshot and
+  piece oracle, and proposed profile-union conflict outcomes; no importer.
+- [`232-desktop-extension-control.md`](232-desktop-extension-control.md):
+  installed Linux/Windows protected bootstrap, shared React control, native
+  picker, controlled transfer and Quit evidence on all three platforms; broader
+  bounded lifecycle qualification is recorded in 234; broader endurance and
+  update compatibility remain open.
+- [`231-jstorrent-migration-working-campaign.md`](231-jstorrent-migration-working-campaign.md):
+  active desktop replacement campaign; control precedes legacy-profile union
+  import and production replacement rehearsal.
 
 - [`219-dependency-and-ci-maintenance.md`](219-dependency-and-ci-maintenance.md):
   complete; patched Cargo and website advisories, three-lockfile review,
@@ -1080,3 +1399,18 @@ Tactical `015` completed the oracle campaign's headless measurement
 foundation. Current prioritization and the compaction-safe restart
 checkpoint live in [`../topics/capability-readiness.md`](../topics/capability-readiness.md)
 and [`../topics/oracle-driven-engine-campaign.md`](../topics/oracle-driven-engine-campaign.md).
+
+- [305 — Canonical JSTorrent repository](305-canonical-jstorrent-repository.md):
+  canonical Rust/legacy TypeScript names, update continuity and exact release
+  alias validation; no bulk release copying or legacy app rebuild.
+
+- [308 — Optional Android add-time selection](308-android-optional-add-selection.md):
+  immediate Download all, optional checklist, concise intake and durable intent.
+
+- [310 — Concise first use and background setup](310-concise-first-use-and-background-setup.md):
+  short statistics choice, folder-first Android setup and notification-gated
+  explicit background continuation; independent seeding and transmission policy.
+
+- [377 — Compatible touchless release channels](377-compatible-touchless-release-channels.md):
+  active; shared version ordering, database admission, deployed Latest and
+  production-signed unattended-update acceptance before Stable promotion.

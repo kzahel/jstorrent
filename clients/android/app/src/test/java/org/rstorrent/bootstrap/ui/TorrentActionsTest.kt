@@ -1,0 +1,195 @@
+package org.rstorrent.bootstrap.ui
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.rstorrent.bootstrap.alreadyPresentNotice
+import org.rstorrent.session.uniffi.ProgressAssessment
+import org.rstorrent.session.uniffi.ProgressDisposition
+import org.rstorrent.session.uniffi.ProgressPhase
+import org.rstorrent.session.uniffi.ProgressReason
+import org.rstorrent.session.uniffi.RemovalState
+import org.rstorrent.session.uniffi.SeedAdmissionView
+import org.rstorrent.session.uniffi.StorageState
+import org.rstorrent.session.uniffi.TorrentEtaView
+import org.rstorrent.session.uniffi.TorrentLifetimeView
+import org.rstorrent.session.uniffi.TorrentOperationalState
+import org.rstorrent.session.uniffi.TorrentProtocolIdentities
+import org.rstorrent.session.uniffi.TorrentSeedingView
+import org.rstorrent.session.uniffi.TorrentState
+import org.rstorrent.session.uniffi.TorrentTransferLimits
+import org.rstorrent.session.uniffi.TorrentView
+import org.rstorrent.session.uniffi.TransferRateLimit
+
+class TorrentActionsTest {
+    @Test
+    fun alreadyPresentNoticeCountsDistinctMatchesAndKeepsArchivedOnes() {
+        val torrents =
+            listOf(torrent("visible"), torrent("archived", archived = true)).associateBy { it.torrentId }
+
+        assertEquals(null, alreadyPresentNotice(1L, emptyList(), torrents, resumeOnRestore = true))
+        val notice =
+            alreadyPresentNotice(
+                2L,
+                listOf("visible", "archived", "archived", "unknown"),
+                torrents,
+                resumeOnRestore = true,
+            )!!
+        assertEquals(3, notice.count)
+        assertEquals(listOf("archived"), notice.archivedTorrentIds)
+        assertTrue(notice.resumeOnRestore)
+    }
+
+    @Test
+    fun archivedTorrentsAppearOnlyInTheArchivedTab() {
+        val archivedComplete = torrent("archived", state = TorrentState.COMPLETE, archived = true)
+        val complete = torrent("complete", state = TorrentState.COMPLETE)
+        val queued = torrent("queued", operational = TorrentOperationalState.QUEUED, queue = 1U)
+        val all = listOf(archivedComplete, complete, queued)
+
+        fun ids(filter: TorrentFilter) =
+            filteredAndSortedTorrents(all, filter, TorrentSort.NAME).map(TorrentView::torrentId)
+
+        assertEquals(listOf("complete", "queued"), ids(TorrentFilter.ALL))
+        assertEquals(listOf("complete"), ids(TorrentFilter.FINISHED))
+        assertEquals(listOf("queued"), ids(TorrentFilter.QUEUED))
+        assertEquals(listOf("archived"), ids(TorrentFilter.ARCHIVED))
+    }
+
+    @Test
+    fun archivedTorrentsCanOnlyBeRestoredRecheckedCopiedOrRemoved() {
+        val archived =
+            torrent("archived", operational = TorrentOperationalState.PAUSED, queue = 2U, archived = true)
+
+        assertEquals(
+            setOf(
+                TorrentAction.FORCE_RECHECK,
+                TorrentAction.RESTORE,
+                TorrentAction.COPY_MAGNET,
+                TorrentAction.COPY_SHARE_LINK,
+                TorrentAction.REMOVE,
+            ),
+            TorrentAction.entries.filter(archived::allows).toSet(),
+        )
+    }
+
+    @Test
+    fun selectionActionsTargetOnlyApplicableTorrents() {
+        val paused = torrent("paused", operational = TorrentOperationalState.PAUSED, queue = 1U)
+        val running = torrent("running", queue = 2U)
+        val seeding = torrent("seeding", operational = TorrentOperationalState.SEEDING)
+        val pending = torrent("pending", operational = TorrentOperationalState.PAUSED, awaitingSelection = true)
+        val selection = listOf(paused, running, seeding, pending)
+
+        assertEquals(listOf("paused"), selection.targetsFor(TorrentAction.START))
+        assertEquals(listOf("running", "seeding"), selection.targetsFor(TorrentAction.PAUSE))
+        assertEquals(listOf("paused", "running"), selection.targetsFor(TorrentAction.MOVE_TOP))
+        assertEquals(listOf("paused", "running", "seeding"), selection.targetsFor(TorrentAction.ARCHIVE))
+        assertEquals(emptyList<String>(), selection.targetsFor(TorrentAction.RESTORE))
+    }
+
+    @Test
+    fun removalInProgressBlocksEverythingExceptCopy() {
+        val removing =
+            torrent("removing", operational = TorrentOperationalState.PAUSED, removal = RemovalState.PENDING)
+        val failed =
+            torrent("failed", operational = TorrentOperationalState.PAUSED, removal = RemovalState.FAILED)
+
+        assertEquals(
+            setOf(TorrentAction.COPY_MAGNET, TorrentAction.COPY_SHARE_LINK),
+            TorrentAction.entries.filter(removing::allows).toSet(),
+        )
+        assertTrue(failed.allows(TorrentAction.REMOVE))
+        assertTrue(removing.removalActive)
+        assertTrue(
+            torrent("platform", removal = RemovalState.AWAITING_PLATFORM).removalActive,
+        )
+        assertFalse(failed.removalActive)
+        assertFalse(failed.allows(TorrentAction.START))
+    }
+
+    @Test
+    fun linkSizeIsShownOnlyWhileTheVerifiedSizeIsUnknown() {
+        val magnet = torrent("magnet").copy(totalSizeBytes = null, sourceSizeBytes = "1048576")
+        assertEquals("1048576", linkClaimedSizeBytes(magnet))
+        assertEquals(null, linkClaimedSizeBytes(magnet.copy(totalSizeBytes = "1048000")))
+        assertEquals(null, linkClaimedSizeBytes(magnet.copy(sourceSizeBytes = null)))
+    }
+
+    @Test
+    fun torrentShareRequestCarriesPrivacyAndMetadataState() {
+        val request =
+            torrentShareRequest(
+                torrent("t").copy(privateTorrent = true, metadataAvailable = false, displayName = "Name"),
+            )
+        assertEquals("t", request.torrentId)
+        assertEquals("Name", request.title)
+        assertTrue(request.privateTorrent)
+        assertFalse(request.metadataAvailable)
+        assertTrue(request.fileIndices.isEmpty())
+        assertEquals(null, request.file)
+    }
+
+    private fun torrent(
+        id: String,
+        state: TorrentState = TorrentState.DOWNLOADING,
+        operational: TorrentOperationalState = TorrentOperationalState.DOWNLOADING,
+        queue: UInt? = null,
+        archived: Boolean = false,
+        awaitingSelection: Boolean = false,
+        removal: RemovalState? = null,
+    ): TorrentView =
+        TorrentView(
+            safetySummary = null,
+            torrentId = id,
+            protocolIdentities = TorrentProtocolIdentities(v1 = null, v2 = null),
+            displayName = id,
+            sourceDisplayName = null,
+            sourceSizeBytes = null,
+            state = state,
+            operationalState = operational,
+            downloadQueuePosition = queue,
+            transferLimits =
+                TorrentTransferLimits(TransferRateLimit.Unlimited, TransferRateLimit.Unlimited),
+            storageState = StorageState.AVAILABLE,
+            storageRoot = "downloads",
+            metadataAvailable = true,
+            privateTorrent = false,
+            awaitingFileSelection = awaitingSelection,
+            pendingFileSelectionPosition = null,
+            fileCatalogId = null,
+            selectableFileCount = 0U,
+            selectedFileCount = 0U,
+            selectableFileBytes = "0",
+            selectedFileBytes = "0",
+            pieceCount = 10U,
+            totalSizeBytes = "100",
+            verifiedPieceCount = 0U,
+            requestedBytes = "0",
+            receivedBytes = "0",
+            storedBytes = "0",
+            activePeerConnections = 0U,
+            configuredTrackerCount = 1U,
+            payloadDownloadRateBytes = "0",
+            requiredPayloadBytes = "100",
+            remainingPayloadBytes = "100",
+            etaPayloadDownloadRateBytes = "0",
+            eta = TorrentEtaView.Unavailable,
+            lifetime = TorrentLifetimeView("0", "0", "0", "0", "0", "0"),
+            seeding = TorrentSeedingView(SeedAdmissionView.INELIGIBLE, null, null),
+            progress =
+                ProgressAssessment(
+                    ProgressDisposition.ACTIVE,
+                    ProgressPhase.TRANSFER,
+                    ProgressReason.TRANSFERRING_PIECES,
+                    emptyList(),
+                ),
+            checking = null,
+            archived = archived,
+            removalState = removal,
+            deleteDataSupported = true,
+            forceRecheckAvailable = true,
+            error = null,
+        )
+}

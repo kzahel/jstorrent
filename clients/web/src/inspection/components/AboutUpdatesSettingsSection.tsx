@@ -1,127 +1,250 @@
 import { message as localizedMessage } from "../../localization/runtime";
+import { productFlavor, type AboutConnection, type AboutFacts, type ProductFlavor } from "../support/about";
 import { progressPercent } from "../updater/controller";
+import { installPolicy } from "../updater/policy";
 import type {
   DesktopUpdater,
   DesktopUpdaterSnapshot,
   UpdaterState,
 } from "../updater/types";
 import styles from "./SettingsDialog.module.css";
+import { ExternalLink } from "./ExternalLink";
 import { SupportDiagnostics } from "./SupportDiagnostics";
+import { useToast } from "./Toast";
 
-const RELEASES_URL = "https://github.com/kzahel/rstorrent/releases/latest";
+const RELEASES_URL = "https://github.com/kzahel/jstorrent/releases/latest";
 
 export interface AboutUpdatesSettingsSectionProps {
-  readonly updater: DesktopUpdater;
-  readonly snapshot: DesktopUpdaterSnapshot;
+  readonly about: AboutFacts;
+  readonly updater?: DesktopUpdater | undefined;
+  readonly snapshot?: DesktopUpdaterSnapshot | undefined;
 }
 
+/** About facts and support on every host; update controls only with an updater. */
 export function AboutUpdatesSettingsSection({
+  about,
   updater,
   snapshot,
 }: AboutUpdatesSettingsSectionProps) {
-  const { info, state } = snapshot;
+  const info = snapshot?.info;
+  const version = info?.version ?? about.hostVersion;
+  const build = info?.buildId ?? about.hostBuild;
+  const target = info?.target ?? about.hostTarget;
+  const flavor = about.identifier === undefined ? undefined : productFlavor(about.identifier);
   return (
     <div className={styles.aboutUpdates}>
       <fieldset className={styles.section}>
         <legend>{localizedMessage("inspection.components.about.updates.settings.section.application")}</legend>
         <dl className={styles.releaseFacts}>
+          {about.connection === undefined ? null : (
+            <div>
+              <dt>{localizedMessage("inspection.components.about.updates.settings.section.connection")}</dt>
+              <dd className={styles.plainFact}>{connectionLabel(about.connection)}</dd>
+            </div>
+          )}
           <div>
             <dt>{localizedMessage("inspection.components.about.updates.settings.section.version")}</dt>
-            <dd>{info.version}</dd>
+            {version === undefined
+              ? <dd className={styles.plainFact}>{localizedMessage("inspection.components.about.updates.settings.section.not.reported")}</dd>
+              : <dd>{version}</dd>}
           </div>
-          <div>
-            <dt>{localizedMessage("inspection.components.about.updates.settings.section.build")}</dt>
-            <dd title={info.buildId}>{shortBuildId(info.buildId)}</dd>
-          </div>
-          <div>
-            <dt>{localizedMessage("inspection.components.about.updates.settings.section.target")}</dt>
-            <dd>{info.target}</dd>
-          </div>
-          <div>
-            <dt>{localizedMessage("inspection.components.about.updates.settings.section.package")}</dt>
-            <dd>{packageLabel(info.bundleType)}</dd>
-          </div>
+          {build === undefined ? null : (
+            <div>
+              <dt>{localizedMessage("inspection.components.about.updates.settings.section.build")}</dt>
+              <dd title={build}>{shortBuildId(build)}</dd>
+            </div>
+          )}
+          {target === undefined ? null : (
+            <div>
+              <dt>{localizedMessage("inspection.components.about.updates.settings.section.target")}</dt>
+              <dd>{target}</dd>
+            </div>
+          )}
+          {info === undefined ? null : (
+            <div>
+              <dt>{localizedMessage("inspection.components.about.updates.settings.section.package")}</dt>
+              <dd>{packageLabel(info.bundleType)}</dd>
+            </div>
+          )}
+          {about.pageBuild === undefined ? null : (
+            <div>
+              <dt>{localizedMessage("inspection.components.about.updates.settings.section.page.build")}</dt>
+              <dd title={about.pageBuild}>{shortBuildId(about.pageBuild)}</dd>
+            </div>
+          )}
         </dl>
       </fieldset>
 
-      <fieldset className={styles.section}>
-        <legend>{localizedMessage("inspection.components.about.updates.settings.section.updates")}</legend>
-        {updater.selectChannel !== undefined && ["app", "nsis", "appimage"].includes(info.bundleType) ? (
-          <div className={styles.updateChannel}>
-            <label htmlFor="desktop-update-channel">{localizedMessage("inspection.components.about.updates.settings.section.channel")}</label>
-            <select
-              id="desktop-update-channel"
-              value={snapshot.channel ?? "stable"}
-              disabled={snapshot.selectingChannel === true || state.phase === "checking" || isInstalling(state)}
-              onChange={(event) => void updater.selectChannel?.(event.target.value as "stable" | "latest")}
-            >
-              <option value="stable">{localizedMessage("inspection.components.about.updates.settings.section.stable")}</option>
-              <option value="latest">{localizedMessage("inspection.components.about.updates.settings.section.latest")}</option>
-            </select>
-            <p>{snapshot.channel === "latest"
-              ? localizedMessage("inspection.components.about.updates.settings.section.latest.description")
-              : localizedMessage("inspection.components.about.updates.settings.section.stable.description")}</p>
-          </div>
-        ) : null}
-        <div className={styles.updateStatus} aria-live="polite">
-          <strong>{statusTitle(state)}</strong>
-          <span>{statusDetail(state, info.version)}</span>
-        </div>
-        {state.phase === "downloading" ? (
-          <progress
-            aria-label={localizedMessage("inspection.components.about.updates.settings.section.update.download.progress")}
-            max={100}
-            {...(progressPercent(state) === undefined
-              ? {}
-              : { value: progressPercent(state) })}
-          />
-        ) : null}
-        {state.phase === "available" && state.notes ? (
-          <div className={styles.releaseNotes}>
-            <strong>{localizedMessage("inspection.components.about.updates.settings.section.release.notes")}</strong>
-            <p>{state.notes}</p>
-          </div>
-        ) : null}
-        {state.phase === "available" && state.manualApply !== undefined ? (
-          <div className={styles.manualUpdate}>
-            <strong>{localizedMessage("inspection.components.about.updates.settings.section.apply.from.a.shell.on.this.server")}</strong>
-            <code>{state.manualApply.command}</code>
-            <a href={state.manualApply.releaseUrl} rel="noreferrer" target="_blank">{localizedMessage("inspection.components.about.updates.settings.section.review.signed.release")}</a>
-          </div>
-        ) : null}
-        <div className={styles.updateActions}>
-          <button
-            type="button"
-            disabled={snapshot.selectingChannel === true || state.phase === "checking" || isInstalling(state)}
-            onClick={() => void updater.check("manual")}
-          >
-            {state.phase === "checking" ? localizedMessage("inspection.components.about.updates.settings.section.checking") : localizedMessage("inspection.components.about.updates.settings.section.check.for.updates")}
-          </button>
-          {(state.phase === "available" && state.manualApply === undefined) ||
-          (state.phase === "error" && state.operation === "install") ? (
-            <button
-              type="button"
-              className={styles.primaryAction}
-              disabled={isInstalling(state)}
-              onClick={() => void updater.install()}
-            >{localizedMessage("inspection.components.about.updates.settings.section.install.and.restart")}</button>
-          ) : null}
-          {state.phase === "manual-install" ? (
-            <a href={RELEASES_URL} rel="noreferrer" target="_blank">{localizedMessage("inspection.components.about.updates.settings.section.open.release.downloads")}</a>
-          ) : null}
-        </div>
-        <p className={styles.updatePrivacy}>{snapshot.channel === "latest"
-          ? localizedMessage("inspection.components.about.updates.settings.section.checks.latest.schedule")
-          : localizedMessage("inspection.components.about.updates.settings.section.rstorrent.checks.automatically.after.startup.and.about")} {info.checkPrivacy === "anonymous"
-            ? localizedMessage("inspection.components.about.updates.settings.section.headless.checks.include.no.installation.identifier")
-            : info.checkPrivacy === "preference-controlled"
-              ? localizedMessage("inspection.components.about.updates.settings.section.checks.follow.the.usage.statistics.preference")
-              : localizedMessage("inspection.components.about.updates.settings.section.checks.include.a.random.resettable.installation.identifier")}
-        </p>
-      </fieldset>
-      <SupportDiagnostics snapshot={snapshot} />
+      {about.identifier === undefined && about.profileLocation === undefined ? null : (
+        <fieldset className={styles.section}>
+          <legend>{localizedMessage("inspection.components.about.updates.settings.section.profile")}</legend>
+          <dl className={styles.releaseFacts}>
+            {about.identifier === undefined || flavor === undefined ? null : (
+              <>
+                <div>
+                  <dt>{localizedMessage("inspection.components.about.updates.settings.section.build.type")}</dt>
+                  <dd className={styles.plainFact}>{flavorLabel(flavor)}</dd>
+                </div>
+                <div>
+                  <dt>{localizedMessage("inspection.components.about.updates.settings.section.app.id")}</dt>
+                  <dd>{about.identifier}</dd>
+                </div>
+              </>
+            )}
+            {about.profileLocation === undefined ? null : (
+              <div>
+                <dt>{localizedMessage("inspection.components.about.updates.settings.section.profile.location")}</dt>
+                <dd>{about.profileLocation}</dd>
+              </div>
+            )}
+          </dl>
+          {flavor === undefined || flavor === "production" ? null : (
+            <p className={styles.updatePrivacy}>{localizedMessage("inspection.components.about.updates.settings.section.separate.library")}</p>
+          )}
+        </fieldset>
+      )}
+
+      {updater === undefined || snapshot === undefined ? null : (
+        <UpdatesFieldset updater={updater} snapshot={snapshot} />
+      )}
+      <SupportDiagnostics facts={{ about, updater: snapshot }} />
     </div>
   );
+}
+
+function UpdatesFieldset({
+  updater,
+  snapshot,
+}: {
+  readonly updater: DesktopUpdater;
+  readonly snapshot: DesktopUpdaterSnapshot;
+}) {
+  const { info, state } = snapshot;
+  const policy = installPolicy(info.bundleType);
+  const toast = useToast();
+  return (
+    <fieldset className={styles.section}>
+      <legend>{localizedMessage("inspection.components.about.updates.settings.section.updates")}</legend>
+      {updater.selectChannel !== undefined && ["app", "nsis", "appimage"].includes(info.bundleType) ? (
+        <div className={styles.updateChannel}>
+          <label htmlFor="desktop-update-channel">{localizedMessage("inspection.components.about.updates.settings.section.channel")}</label>
+          <select
+            id="desktop-update-channel"
+            value={snapshot.channel ?? "stable"}
+            disabled={snapshot.selectingChannel === true || state.phase === "checking" || isInstalling(state)}
+            onChange={(event) => void updater.selectChannel?.(event.target.value as "stable" | "latest")}
+          >
+            <option value="stable">{localizedMessage("inspection.components.about.updates.settings.section.stable")}</option>
+            <option value="latest">{localizedMessage("inspection.components.about.updates.settings.section.latest")}</option>
+          </select>
+          <p>{snapshot.channel === "latest"
+            ? localizedMessage("inspection.components.about.updates.settings.section.latest.description")
+            : localizedMessage("inspection.components.about.updates.settings.section.stable.description")}</p>
+        </div>
+      ) : null}
+      {updater.setAutomaticUpdates !== undefined && policy.canInstallInApp ? (
+        <label><input type="checkbox" checked={snapshot.automaticUpdates ?? false}
+          onChange={event => void updater.setAutomaticUpdates?.(event.target.checked)} />
+          {localizedMessage("updates.automatic-install")}
+        </label>
+      ) : null}
+      <div className={styles.updateStatus} aria-live="polite">
+        <strong>{state.phase === "idle" && snapshot.automaticAvailable === false ? localizedMessage("updates.automatic-awaiting-qualification") : state.phase === "idle" && snapshot.automaticUpdates === false ? localizedMessage("updates.automatic-install-off") : statusTitle(state)}</strong>
+        <span>{snapshot.updateMessage ?? statusDetail(state, info.version)}</span>
+        {snapshot.lastOutcome === undefined ? null : <span>{localizedMessage("updates.last-outcome", { message: snapshot.lastOutcome.message })}</span>}
+      </div>
+      {state.phase === "downloading" ? (
+        <progress
+          aria-label={localizedMessage("inspection.components.about.updates.settings.section.update.download.progress")}
+          max={100}
+          {...(progressPercent(state) === undefined
+            ? {}
+            : { value: progressPercent(state) })}
+        />
+      ) : null}
+      {state.phase === "available" && state.notes ? (
+        <div className={styles.releaseNotes}>
+          <strong>{localizedMessage("inspection.components.about.updates.settings.section.release.notes")}</strong>
+          <p>{state.notes}</p>
+        </div>
+      ) : null}
+      {state.phase === "available" && state.manualApply !== undefined ? (
+        <div className={styles.manualUpdate}>
+          <strong>{localizedMessage("inspection.components.about.updates.settings.section.apply.from.a.shell.on.this.server")}</strong>
+          <div className={styles.updateActions}>
+            <button type="button" onClick={async () => {
+              const command = state.manualApply?.command;
+              if (command === undefined) return;
+              try {
+                await navigator.clipboard.writeText(command);
+                toast.show({ message: localizedMessage("updates.command-copied") });
+              } catch {
+                toast.show({ tone: "error", message: localizedMessage("updates.command-copy-failed") });
+              }
+            }}>{localizedMessage("updates.copy-command")}</button>
+          </div>
+          <ExternalLink href={state.manualApply.releaseUrl}>{localizedMessage("inspection.components.about.updates.settings.section.review.signed.release")}</ExternalLink>
+        </div>
+      ) : null}
+      <div className={styles.updateActions}>
+        {policy.canCheck ? <button
+          type="button"
+          disabled={snapshot.selectingChannel === true || state.phase === "checking" || isInstalling(state)}
+          onClick={() => void updater.check("manual")}
+        >
+          {state.phase === "checking" ? localizedMessage("inspection.components.about.updates.settings.section.checking") : localizedMessage("inspection.components.about.updates.settings.section.check.for.updates")}
+        </button> : null}
+        {policy.canInstallInApp && ((state.phase === "available" && state.manualApply === undefined) ||
+        (state.phase === "error" && state.operation === "install")) ? (
+          <button
+            type="button"
+            className={styles.primaryAction}
+            disabled={isInstalling(state)}
+            onClick={() => void updater.install()}
+          >{localizedMessage("inspection.components.about.updates.settings.section.install.and.restart")}</button>
+        ) : null}
+        {state.phase === "manual-install" ? (
+          <ExternalLink href={RELEASES_URL}>{localizedMessage("inspection.components.about.updates.settings.section.open.release.downloads")}</ExternalLink>
+        ) : null}
+      </div>
+      {policy.canCheck ? <p className={styles.updatePrivacy}>{snapshot.channel === "latest"
+        ? localizedMessage("inspection.components.about.updates.settings.section.checks.latest.schedule")
+        : localizedMessage("inspection.components.about.updates.settings.section.rstorrent.checks.automatically.after.startup.and.about")} {info.checkPrivacy === "anonymous"
+          ? localizedMessage("inspection.components.about.updates.settings.section.headless.checks.include.no.installation.identifier")
+          : info.checkPrivacy === "preference-controlled"
+            ? localizedMessage("inspection.components.about.updates.settings.section.checks.follow.the.usage.statistics.preference")
+            : localizedMessage("inspection.components.about.updates.settings.section.checks.include.a.random.resettable.installation.identifier")}
+      </p> : null}
+    </fieldset>
+  );
+}
+
+function connectionLabel(connection: AboutConnection): string {
+  switch (connection) {
+    case "desktop":
+      return localizedMessage("inspection.components.about.updates.settings.section.connection.desktop");
+    case "server":
+      return localizedMessage("inspection.components.about.updates.settings.section.connection.server");
+    case "remote":
+      return localizedMessage("inspection.components.about.updates.settings.section.connection.remote");
+    case "android-companion":
+      return localizedMessage("inspection.components.about.updates.settings.section.connection.android");
+    case "desktop-companion":
+      return localizedMessage("inspection.components.about.updates.settings.section.connection.desktop.app");
+    case "demo":
+      return localizedMessage("inspection.components.about.updates.settings.section.connection.demo");
+  }
+}
+
+function flavorLabel(flavor: ProductFlavor): string {
+  switch (flavor) {
+    case "production":
+      return localizedMessage("inspection.components.about.updates.settings.section.build.type.production");
+    case "preview":
+      return localizedMessage("inspection.components.about.updates.settings.section.build.type.preview");
+    case "development":
+      return localizedMessage("inspection.components.about.updates.settings.section.build.type.development");
+  }
 }
 
 function statusTitle(state: UpdaterState): string {
@@ -135,13 +258,13 @@ function statusTitle(state: UpdaterState): string {
     case "waiting-for-stable":
       return localizedMessage("inspection.components.about.updates.settings.section.waiting.for.stable");
     case "available":
-      return `RSTorrent ${state.version} is available`;
+      return `JSTorrent ${state.version} is available`;
     case "manual-install":
       return localizedMessage("inspection.components.about.updates.settings.section.manual.update.required");
     case "downloading":
-      return `Downloading RSTorrent ${state.version}`;
+      return `Downloading JSTorrent ${state.version}`;
     case "installing":
-      return `Installing RSTorrent ${state.version}`;
+      return `Installing JSTorrent ${state.version}`;
     case "error":
       return state.operation === "check"
         ? "Update check failed"

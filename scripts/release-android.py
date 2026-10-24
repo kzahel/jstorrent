@@ -96,7 +96,7 @@ def main():
     (ROOT / GRADLE).write_text(updated)
     subprocess.run(['git', 'add', str(GRADLE)], cwd=ROOT, check=True)
     subprocess.run(['git', 'commit', '-m', f'Release Android v{args.version}', '-m', 'Topic: beta-release-readiness'], cwd=ROOT, check=True)
-    subprocess.run(['git', 'tag', '-a', tag, '-m', f'RSTorrent Android {args.version}'], cwd=ROOT, check=True)
+    subprocess.run(['git', 'tag', '-a', tag, '-m', f'JSTorrent Android {args.version}'], cwd=ROOT, check=True)
     subprocess.run(['git', 'push', '--atomic', 'origin', 'HEAD:refs/heads/main', f'refs/tags/{tag}'], cwd=ROOT, check=True)
     print(f'Release requested: {tag}. Download APK/AAB from its GitHub prerelease after CI passes.')
 

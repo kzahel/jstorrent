@@ -2,6 +2,8 @@ import {
   checkingStatusLabel,
   formatProgress,
   torrentProgressSortValue,
+  torrentRemovalActive,
+  torrentRemovalLabel,
   torrentVisibleProgress,
 } from "../format";
 import type { TorrentRow } from "../model";
@@ -10,8 +12,23 @@ import styles from "./TorrentTable.module.css";
 export { torrentProgressSortValue };
 
 export function TorrentProgress({ row }: { readonly row: TorrentRow }) {
+  if (torrentRemovalActive(row)) {
+    const label = torrentRemovalLabel(row)!;
+    return (
+      <span className={styles.progressCell}>
+        <span className={styles.progressLabel} />
+        <span
+          className={styles.progressTrack}
+          data-indeterminate
+          role="progressbar"
+          aria-label={`${row.name}: ${label}`}
+        />
+      </span>
+    );
+  }
   const checking = row.status === "checking";
   const progress = torrentVisibleProgress(row);
+  if (!checking && progress === null) return <span>—</span>;
   const label = checking ? checkingStatusLabel(row) : formatProgress(row.progress);
   const indeterminate = checking && progress === null;
 

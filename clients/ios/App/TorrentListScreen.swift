@@ -189,9 +189,10 @@ private struct AppTopBar: View {
     var body: some View {
         HStack(spacing: 12) {
             HStack(spacing: 10) {
-                Image(systemName: "arrow.down.circle.fill")
-                    .font(.system(size: 34))
-                    .foregroundStyle(.tint)
+                Image("HeaderAppIcon")
+                    .resizable()
+                    .scaledToFit()
+                    .accessibilityHidden(true)
                     .frame(width: 40, height: 40)
                 Text(String(localized: "app_name"))
                     .font(.title3.weight(.semibold))

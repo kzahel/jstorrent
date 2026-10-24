@@ -159,7 +159,7 @@ class AndroidNotificationInstrumentationTest {
             attention.notification.extras.getCharSequence(Notification.EXTRA_TITLE),
         )
         assertEquals(
-            "Fixture torrent · Open RSTorrent for details",
+            "Fixture torrent · Open JSTorrent for details",
             attention.notification.extras.getCharSequence(Notification.EXTRA_TEXT),
         )
         assertEquals(context.packageName, attention.notification.contentIntent.creatorPackage)
@@ -348,10 +348,12 @@ class AndroidNotificationInstrumentationTest {
         received: ULong,
     ) =
         TorrentView(
+            safetySummary = null,
             torrentId = id,
             protocolIdentities = TorrentProtocolIdentities(v1 = null, v2 = null),
             displayName = "Fixture torrent",
             sourceDisplayName = null,
+            sourceSizeBytes = null,
             state = state,
             operationalState = TorrentOperationalState.DOWNLOADING,
             downloadQueuePosition = null,
@@ -360,6 +362,7 @@ class AndroidNotificationInstrumentationTest {
             storageState = StorageState.AVAILABLE,
             storageRoot = "downloads",
             metadataAvailable = true,
+            privateTorrent = false,
             awaitingFileSelection = false,
             pendingFileSelectionPosition = null,
             fileCatalogId = null,
@@ -381,7 +384,7 @@ class AndroidNotificationInstrumentationTest {
             etaPayloadDownloadRateBytes = "0",
             eta = TorrentEtaView.Unavailable,
             lifetime = TorrentLifetimeView("0", received.toString(), "0", "0", "0", "0"),
-            seeding = TorrentSeedingView(SeedAdmissionView.INELIGIBLE, null),
+            seeding = TorrentSeedingView(SeedAdmissionView.INELIGIBLE, null, null),
             progress =
                 ProgressAssessment(
                     ProgressDisposition.ACTIVE,
@@ -405,6 +408,7 @@ class AndroidNotificationInstrumentationTest {
     private fun clientSettings(): ClientSettingsRuntimeView {
         val configured =
             ClientSettings(
+                            fileSafety = org.rstorrent.session.uniffi.FileSafetySettings(true, org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, emptyList(), true),
                 listener = ListenerPolicy.Disabled,
                 preferredListenPort = 6_881U.toUShort(),
                 portMapping = PortMappingPolicy.DISABLED,
@@ -415,6 +419,8 @@ class AndroidNotificationInstrumentationTest {
                 shareRatioLimitPercent = 200U,
                 finishedDownloadRatioLimitPercent = 700U,
                 finishedTimeLimitSeconds = 86_400U,
+                seedStopRatioPercent = org.rstorrent.session.uniffi.SeedStopLimit.Off,
+                seedStopTimeSeconds = org.rstorrent.session.uniffi.SeedStopLimit.Off,
                 uploadRateLimit = TransferRateLimit.Unlimited,
                 downloadRateLimit = TransferRateLimit.Unlimited,
                 encryption = EncryptionPolicy.ALLOW,

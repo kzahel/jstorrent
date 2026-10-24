@@ -1,0 +1,64 @@
+{
+  "qualification": "Apple notarization recheck only; complete same-attempt matrix and installed migration remain unqualified",
+  "runUrl": "https://github.com/kzahel/rstorrent/actions/runs/36831643488",
+  "runId": "36831643488",
+  "attempt": 2,
+  "sourceSha": "19eb3a88703088a2dfebb803342394938d305cb8",
+  "appleAgreementGate": "No longer blocking; both fresh app and DMG submissions accepted",
+  "collectorConclusion": "failure: expected exactly 5 release leg artifacts; failed-only rerun contains only 2 current-attempt package legs",
+  "published": false,
+  "lanes": [
+    {
+      "lane": "macos-aarch64",
+      "jobId": 110307463615,
+      "jobConclusion": "success",
+      "appSubmissionId": "ab773dd7-78e1-46ee-9b0d-11f9aff99320",
+      "appAcceptedAt": "2026-10-01T09:47:31Z",
+      "dmgSubmissionId": "4e8fc466-6f16-4afd-bc6b-216d99de8932",
+      "dmgStatus": "Accepted",
+      "dmgIssues": null,
+      "dmgUploadDate": "2026-10-01T09:48:28.809Z",
+      "submittedDmgSha256": "f987e3601e0af773674bbfe54a3a7bf97e12f5c3e3f2bf3cf7866e83fcb683d5",
+      "notarizationArtifactId": 11153156821,
+      "appAndDmgStaplingAndGatekeeperChecks": "pass",
+      "reports": [
+        {
+          "name": "dmg-log.json",
+          "sha256": "f18e04f5caa1d2072861410107fcf5e60365c9160c070b29bcfdd2c60f661c9f",
+          "size": 1406
+        },
+        {
+          "name": "dmg-submit.json",
+          "sha256": "c6369aa8988ba23537a44489823ac1b4d4413e4519ab960dd5a7b0ff9a35b2d8",
+          "size": 98
+        }
+      ]
+    },
+    {
+      "lane": "macos-x86_64",
+      "jobId": 110307463717,
+      "jobConclusion": "success",
+      "appSubmissionId": "30f789a8-6051-46c5-8f10-2f7610473420",
+      "appAcceptedAt": "2026-10-01T09:47:29Z",
+      "dmgSubmissionId": "4c5693ee-b8c5-45bd-bbc2-1ff1aba4bd31",
+      "dmgStatus": "Accepted",
+      "dmgIssues": null,
+      "dmgUploadDate": "2026-10-01T09:48:29.732Z",
+      "submittedDmgSha256": "a8b376b67b70485c82eb19b910b004ac7dd795e9ad258dc2d0606c398776be27",
+      "notarizationArtifactId": 11152688641,
+      "appAndDmgStaplingAndGatekeeperChecks": "pass",
+      "reports": [
+        {
+          "name": "dmg-log.json",
+          "sha256": "75dbd79ee7119ad8c9756d6f1b6be1d940548a87361bd5ec610a6dea40546cdb",
+          "size": 1386
+        },
+        {
+          "name": "dmg-submit.json",
+          "sha256": "df528a7883276b34483d8cd79e98d60302c82b469e218c7cacad5caca106b32a",
+          "size": 98
+        }
+      ]
+    }
+  ]
+}

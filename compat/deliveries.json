@@ -1,0 +1,202 @@
+{
+  "$comment": "Append-only ledger of published or submitted deliveries for the mixed-version compatibility matrix (docs/tactical/359-mixed-version-compatibility-matrix.md). Each delivery names the source commit captured under compat/captures/<commit>/. Add an entry when a delivery is submitted; update its status as it moves; never delete one.",
+  "windowDays": 30,
+  "excluded": [
+    {
+      "tagPattern": "^desktop-v0\\.1\\.",
+      "reason": "RSTorrent incubation desktop releases; the incubation track is frozen (2026-10-11) and not a supported JSTorrent delivery."
+    },
+    {
+      "tagPattern": "^desktop-latest-v",
+      "reason": "RSTorrent incubation Latest channel; frozen."
+    },
+    {
+      "tagPattern": "^crostini-v0\\.1\\.0$",
+      "reason": "RSTorrent incubation Crostini package; serves its own matched UI."
+    },
+    {
+      "tagPattern": "^android-v0\\.",
+      "reason": "RSTorrent incubation Android identity, not the production app."
+    },
+    {
+      "surface": "android",
+      "versionBelow": "1.0.28",
+      "reason": "Production 1.0.23 and earlier are the legacy TypeScript app, not an application-API host; 1.0.25-1.0.27 went only to Play's internal track."
+    }
+  ],
+  "deliveries": [
+    {
+      "surface": "desktop",
+      "version": "0.3.0",
+      "tag": "desktop-v0.3.0",
+      "commit": "ff632f4588a474d7b169de3cea228bd406e6982d",
+      "channel": "stable",
+      "status": "published",
+      "submitted": "2026-10-10",
+      "firstPublic": "2026-10-10",
+      "roles": ["host"]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.28",
+      "commit": "b25482902a1b52a5216fafa460a91e58fc49f74b",
+      "commitBasis": "Commit that set versionCode 28; the release was not tagged and the exact build commit is unconfirmed.",
+      "channel": "play-production",
+      "status": "published",
+      "submitted": "2026-10-10",
+      "firstPublic": "2026-10-10",
+      "roles": ["host"]
+    },
+    {
+      "surface": "extension",
+      "version": "1.1.3",
+      "commit": "bff14e72a26575ee5d042d1a6de3335d0898775e",
+      "commitBasis": "Commit that set the production manifest to 1.1.3; the exact packaged commit is unconfirmed.",
+      "channel": "chrome-web-store",
+      "status": "published",
+      "submitted": "2026-10-10",
+      "firstPublic": "2026-10-11",
+      "roles": ["client"]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.29",
+      "tag": "android-v1.0.29",
+      "commit": "8ddf2e8be2c50e957f2e4946dbde68e58ba76e4d",
+      "channel": "play-production",
+      "status": "submitted",
+      "submitted": "2026-10-12",
+      "firstPublic": null,
+      "roles": ["host"]
+    },
+    {
+      "surface": "desktop",
+      "version": "0.3.1",
+      "tag": "desktop-v0.3.1",
+      "commit": "5fa018ff589f8058f6ed3910f5cea5fcd06410ab",
+      "channel": "stable",
+      "status": "published",
+      "submitted": "2026-10-13",
+      "firstPublic": "2026-10-13",
+      "roles": ["host"]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.30",
+      "tag": "android-v1.0.30",
+      "commit": "5fa018ff589f8058f6ed3910f5cea5fcd06410ab",
+      "channel": "play-production",
+      "status": "published",
+      "submitted": "2026-10-13",
+      "firstPublic": "2026-10-13",
+      "roles": ["host"]
+    },
+    {
+      "surface": "extension",
+      "version": "1.1.4",
+      "commit": "5fa018ff589f8058f6ed3910f5cea5fcd06410ab",
+      "channel": "chrome-web-store",
+      "status": "published",
+      "submitted": "2026-10-13",
+      "firstPublic": "2026-10-15",
+      "firstPublicBasis": "Latest possible date: the store API reported it published on 2026-10-15; the actual date is unknown.",
+      "roles": ["client"]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.31",
+      "tag": "android-v1.0.31",
+      "commit": "70150ec99ff5613bb468fd816fed46c687ff7557",
+      "channel": "play-production",
+      "status": "published",
+      "submitted": "2026-10-13",
+      "firstPublic": "2026-10-13",
+      "firstPublicBasis": "Play Console inspection on 2026-10-20 confirms production 31 active, with last publication on 2026-10-13.",
+      "roles": ["host"]
+    },
+    {
+      "surface": "extension",
+      "version": "1.1.5",
+      "tag": "extension-v1.1.5",
+      "commit": "7e67eed958e13e705fc386cfa0721e262937a4dd",
+      "channel": "chrome-web-store",
+      "status": "published",
+      "submitted": "2026-10-15",
+      "firstPublic": "2026-10-15",
+      "firstPublicBasis": "Maintainer report that the store update went live on 2026-10-15.",
+      "roles": ["client"]
+    },
+    {
+      "surface": "remote",
+      "version": "0.3.1",
+      "commit": "bdc58e4ac7f7811eb07101b92a6385d11ea80e1a",
+      "channel": "legacy-combined-pages",
+      "status": "published",
+      "submitted": "2026-10-16",
+      "firstPublic": "2026-10-16",
+      "roles": ["client"]
+    },
+    {
+      "surface": "remote",
+      "version": "0.3.2",
+      "tag": "remote-v0.3.2",
+      "commit": "859f00de949fc1616fb1f537fd15b9f55498e09d",
+      "channel": "remote-pages",
+      "status": "published",
+      "submitted": "2026-10-16",
+      "firstPublic": "2026-10-16",
+      "roles": ["client"]
+    },
+    {
+      "surface": "extension",
+      "version": "1.1.6",
+      "tag": "extension-v1.1.6",
+      "commit": "b3792b9064c24bcdf0344c7c4c30390cb2744543",
+      "channel": "chrome-web-store",
+      "status": "published",
+      "submitted": "2026-10-20",
+      "firstPublic": "2026-10-21",
+      "firstPublicBasis": "Latest possible date: public store listing verified on 2026-10-21 shows 1.1.6, updated 2026-10-20; the exact first-public time is unconfirmed.",
+      "roles": ["client"]
+    },
+    {
+      "surface": "remote",
+      "version": "0.3.3",
+      "tag": "remote-v0.3.3",
+      "commit": "5cb10f298943f1f18b9481ee68492b3840842a66",
+      "channel": "remote-pages",
+      "status": "published",
+      "submitted": "2026-10-21",
+      "firstPublic": "2026-10-21",
+      "roles": [
+        "client"
+      ]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.32",
+      "tag": "android-v1.0.32",
+      "commit": "071ada49f1c29cd10351dda619d5ab5029bdfda3",
+      "channel": "play-production",
+      "status": "published",
+      "submitted": "2026-10-22",
+      "firstPublic": "2026-10-22",
+      "firstPublicBasis": "Play Console production shows 32 (1.0.32) active and Available on Google Play across 178 countries, released October 22 at 15:54 Europe/Berlin; verified on 2026-10-22.",
+      "roles": [
+        "host"
+      ]
+    },
+    {
+      "surface": "desktop",
+      "version": "0.3.4",
+      "tag": "desktop-v0.3.4",
+      "commit": "ecd65fe4e0fd274a3fc0538245334c528375a321",
+      "channel": "stable",
+      "status": "published",
+      "submitted": "2026-10-22",
+      "firstPublic": "2026-10-22",
+      "firstPublicBasis": "Public Stable desktop-v0.3.4 published at 2026-10-22T17:32:04Z. All 17 unauthenticated public downloads, original updater signatures, signed database facts and all five Stable updater selectors independently verified on 2026-10-22.",
+      "roles": ["host"]
+    }
+  ]
+}

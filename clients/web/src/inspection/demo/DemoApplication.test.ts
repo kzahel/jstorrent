@@ -89,6 +89,62 @@ describe("DemoApplication", () => {
     await controller.close();
   });
 
+  it("exports share options: size, file selection and a fake LAN hint", async () => {
+    const application = new DemoApplication({
+      scenarioId: "healthy-download",
+      elapsedMs: 42_000,
+      running: false,
+    });
+    const controller = new InspectionController(application);
+    controller.start();
+    const torrentId = controller.store.getState().torrentOrder[0]!;
+    const torrent = controller.store.getState().torrents[torrentId]!;
+    const base =
+      "magnet:?xt=urn:btih:a962f460b83861cfb5faa1d7ad7da9c3f3cc2fc4" +
+      "&dn=Big%20Buck%20Bunny%201080p%20surround";
+    await expect(
+      controller.execute({
+        type: "export_magnet",
+        torrentId,
+        options: { includeSize: true, fileIndices: [3, 0, 1], peerHint: true },
+      }),
+    ).resolves.toMatchObject({
+      magnetExport: {
+        magnet: `${base}&xl=${torrent.sizeBytes}&so=0-1,3&x.pe=192.168.1.20:6881`,
+        peerHints: [{ endpoint: "192.168.1.20:6881", scope: "local_network" }],
+      },
+    });
+    await controller.close();
+
+    const stalled = new InspectionController(
+      new DemoApplication({
+        scenarioId: "stalled-metadata",
+        elapsedMs: 4_000,
+        running: false,
+      }),
+    );
+    stalled.start();
+    const pending = stalled.store.getState().torrentOrder[0]!;
+    expect(stalled.store.getState().torrents[pending]?.sourceSizeBytes).toBe(276_445_467);
+    await expect(
+      stalled.execute({
+        type: "export_magnet",
+        torrentId: pending,
+        options: { includeSize: true, peerHint: true },
+      }),
+    ).resolves.toMatchObject({
+      magnetExport: { peerHints: [], peerHintOmission: "metadata_pending" },
+    });
+    await expect(
+      stalled.execute({
+        type: "export_magnet",
+        torrentId: pending,
+        options: { fileIndices: [0] },
+      }),
+    ).rejects.toThrow("metadata is not available");
+    await stalled.close();
+  });
+
   it("applies pause, archive, add, and reset commands", async () => {
     const application = new DemoApplication({
       scenarioId: "healthy-download",

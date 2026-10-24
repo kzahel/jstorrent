@@ -1,7 +1,8 @@
 import type { InspectionApplication } from "./application";
+import { CommandRejectedError } from "./command-error";
 import type { AppearanceStorage } from "./appearance";
 import type {
-  CommandResult,
+  CommandAccepted,
   DesiredInspectionViews,
   InspectionCommand,
 } from "./model";
@@ -11,6 +12,7 @@ import {
   type InspectionStoreApi,
 } from "./state";
 import { desiredDetailForTab } from "./tabs";
+import { libraryMediaRequest, sameLibraryRequest } from "./library-browse";
 
 export class InspectionController {
   readonly store: InspectionStoreApi;
@@ -53,15 +55,20 @@ export class InspectionController {
     this.queueViews(desiredViewsFor(this.store.getState()));
   }
 
-  async dispatch(command: InspectionCommand): Promise<string> {
+  async dispatch(command: InspectionCommand): Promise<string | undefined> {
     return (await this.execute(command)).message;
   }
 
-  async execute(command: InspectionCommand): Promise<CommandResult> {
+  async execute(command: InspectionCommand): Promise<CommandAccepted> {
     if (this.closed) throw new Error("inspection controller is closed");
     const result = await this.application.dispatch(command);
-    if (!result.accepted) throw new Error(result.message);
+    if (!result.accepted) throw new CommandRejectedError(result.message, result.code);
     return result;
+  }
+
+  reconnectNow(): void {
+    if (this.closed) return;
+    this.application.reconnectNow();
   }
 
   showPendingFileSelection(torrentId: string, offset = 0): void {
@@ -158,6 +165,10 @@ function desiredViewsFor(state: InspectionStore): DesiredInspectionViews {
       : null;
     return {
       library: true,
+      // Hosts without the projection report it unsupported, and the
+      // Library falls back to its torrent cards.
+      libraryMedia:
+        torrentId === null ? libraryMediaRequest(presentation.libraryBrowse) : null,
       torrentId,
       detail:
         torrentId === null ? null : presentation.libraryDetailMode,
@@ -201,6 +212,7 @@ function sameViews(
 ): boolean {
   return (
     left.library === right.library &&
+    sameLibraryRequest(left.libraryMedia, right.libraryMedia) &&
     left.torrentId === right.torrentId &&
     left.detail === right.detail &&
     (left.filePageOffset ?? 0) === (right.filePageOffset ?? 0) &&

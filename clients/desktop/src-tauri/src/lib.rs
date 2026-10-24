@@ -1,5 +1,9 @@
 #![forbid(unsafe_code)]
 
+mod desktop_control;
+mod download_picker;
+mod legacy_migration;
+
 use std::collections::BTreeMap;
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
@@ -37,13 +41,19 @@ use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use zeroize::Zeroizing;
 
+mod automatic_updates;
 mod desktop_lifecycle;
 mod desktop_localization;
 mod desktop_notifications;
 mod desktop_power;
 mod external_intake;
+#[cfg(target_os = "linux")]
+mod linux_single_instance;
 mod native_host_registration;
 mod update_channels;
+mod update_compatibility;
+mod update_install;
+mod update_policy;
 mod updater;
 mod view_delivery;
 
@@ -102,6 +112,7 @@ const HEADER_SELECTION: &str = "x-rstorrent-selection";
 const HEADER_WANTED_RANGES: &str = "x-rstorrent-wanted-ranges";
 
 struct DesktopState {
+    download_picker: Arc<download_picker::DesktopDownloadPicker>,
     service: Arc<Mutex<ApplicationService>>,
     product_state: ProductStateOwner,
     remote_runtime: Option<Arc<RemoteApplicationRuntime>>,
@@ -109,8 +120,8 @@ struct DesktopState {
     view_resources: Arc<DesktopViewResources>,
     torrent_uploads: Arc<Semaphore>,
     media_server: Mutex<Option<LoopbackMediaServer>>,
+    desktop_control: Mutex<Option<desktop_control::DesktopControlOwner>>,
     window_generation: AtomicU64,
-    shell_settings_path: PathBuf,
     shell_settings: StdMutex<DesktopShellSettings>,
     notification_owner: Mutex<Option<DesktopNotificationOwner>>,
     power_owner: Mutex<Option<DesktopPowerOwner>>,
@@ -120,7 +131,11 @@ struct DesktopState {
     shutdown_status: watch::Sender<ShutdownPhase>,
     shutdown_error: StdMutex<Option<String>>,
     restart_after_shutdown: AtomicBool,
+    terminal_quit: AtomicBool,
+    update_install: StdMutex<Option<update_install::PreparedInstall>>,
+    update_relaunch_cancel: StdMutex<Option<PathBuf>>,
     foreground_visible: AtomicBool,
+    window_hidden: AtomicBool,
     update_check_generation: AtomicU64,
     external_activations: StdMutex<DesktopActivationState>,
 }
@@ -531,6 +546,7 @@ fn enter_visible_foreground_epoch(foreground_visible: &AtomicBool) -> bool {
 }
 
 fn mark_desktop_background(state: &DesktopState) {
+    state.window_hidden.store(true, Ordering::Release);
     state.foreground_visible.store(false, Ordering::Release);
 }
 
@@ -592,8 +608,7 @@ fn desktop_set_notification_settings(
         .shell_settings
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let next =
-        persist_notification_settings(&state.shell_settings_path, *shell_settings, settings)?;
+    let next = persist_notification_settings(&state.product_state, *shell_settings, settings)?;
     *shell_settings = next;
     Ok(next.notifications)
 }
@@ -616,7 +631,7 @@ fn desktop_set_power_settings(
         .shell_settings
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let next = persist_power_settings(&state.shell_settings_path, *shell_settings, settings)?;
+    let next = persist_power_settings(&state.product_state, *shell_settings, settings)?;
     *shell_settings = next;
     state
         .power_preference
@@ -626,7 +641,7 @@ fn desktop_set_power_settings(
 
 #[tauri::command]
 fn desktop_reset_shell_settings(state: State<'_, DesktopState>) -> Result<(), String> {
-    let defaults = reset_desktop_shell_settings(&state.shell_settings_path)?;
+    let defaults = reset_desktop_shell_settings(&state.product_state)?;
     *state
         .shell_settings
         .lock()
@@ -912,6 +927,10 @@ async fn choose_download_root(
     state: State<'_, DesktopState>,
     repair_root: Option<String>,
 ) -> Result<Option<StorageRootSnapshot>, String> {
+    let _permit = state
+        .download_picker
+        .acquire()
+        .map_err(|error| error.to_string())?;
     let suggested = state
         .service
         .lock()
@@ -926,9 +945,220 @@ async fn choose_download_root(
             .home_dir()
             .map_err(|error| format!("resolve folder-picker home directory: {error}"))?,
     };
-    let selected = pick_download_directory(&window, &starting_directory).await?;
+    let selected = tokio::select! {
+        biased;
+        () = state.download_picker.cancelled() => return Err("desktop is shutting down".into()),
+        selected = pick_download_directory(&window, &starting_directory) => selected?,
+    };
     let mut service = state.service.lock().await;
     register_download_root_selection(&mut service, repair_root.as_deref(), selected)
+}
+
+/// Tactical 348: saves the torrent list bundle where the user chooses.
+/// Returns false when the user cancels the save dialog.
+#[tauri::command]
+async fn desktop_export_torrent_list(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+) -> Result<bool, String> {
+    let _permit = state
+        .download_picker
+        .acquire()
+        .map_err(|error| error.to_string())?;
+    let bundle = state
+        .service
+        .lock()
+        .await
+        .export_torrent_list()
+        .await
+        .map_err(|error| error.to_string())?;
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    window
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .set_title(desktop_localization::text(
+            "dialog.torrent-list-export.title",
+        ))
+        .set_file_name("jstorrent-torrents.zip")
+        .add_filter(
+            desktop_localization::text("dialog.torrent-list.filter"),
+            &["zip"],
+        )
+        .save_file(move |selection| {
+            let _ = sender.send(selection);
+        });
+    let selection = tokio::select! {
+        biased;
+        () = state.download_picker.cancelled() => return Err("desktop is shutting down".into()),
+        selection = receiver => selection.map_err(|_| "save dialog closed without a result".to_owned())?,
+    };
+    let Some(selection) = selection else {
+        return Ok(false);
+    };
+    let path = selection
+        .into_path()
+        .map_err(|error| format!("resolve export location: {error}"))?;
+    tauri::async_runtime::spawn_blocking(move || std::fs::write(&path, bundle))
+        .await
+        .map_err(|error| error.to_string())?
+        .map_err(|error| format!("save torrent list: {error}"))?;
+    Ok(true)
+}
+
+/// Tactical 348: imports a bundle the user picks. Returns `None` when the
+/// user cancels the open dialog.
+#[tauri::command]
+async fn desktop_import_torrent_bundle(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    target: rstorrent_session::TorrentListImportTarget,
+) -> Result<Option<rstorrent_session::TorrentListImportReport>, String> {
+    let _permit = state
+        .download_picker
+        .acquire()
+        .map_err(|error| error.to_string())?;
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    window
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .set_title(desktop_localization::text(
+            "dialog.torrent-list-import.title",
+        ))
+        .add_filter(
+            desktop_localization::text("dialog.torrent-list.filter"),
+            &["zip"],
+        )
+        .pick_file(move |selection| {
+            let _ = sender.send(selection);
+        });
+    let selection = tokio::select! {
+        biased;
+        () = state.download_picker.cancelled() => return Err("desktop is shutting down".into()),
+        selection = receiver => selection.map_err(|_| "open dialog closed without a result".to_owned())?,
+    };
+    let Some(selection) = selection else {
+        return Ok(None);
+    };
+    let path = selection
+        .into_path()
+        .map_err(|error| format!("resolve torrent list: {error}"))?;
+    let bundle = tauri::async_runtime::spawn_blocking(move || {
+        let length = std::fs::metadata(&path)?.len();
+        if length > rstorrent_session::MAX_TORRENT_LIST_BUNDLE_BYTES as u64 {
+            return Err(std::io::Error::other("torrent list bundle is too large"));
+        }
+        std::fs::read(&path)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+    .map_err(|error| format!("read torrent list: {error}"))?;
+    state
+        .service
+        .lock()
+        .await
+        .import_torrent_bundle(bundle, target)
+        .await
+        .map(Some)
+        .map_err(|error| error.to_string())
+}
+
+/// The product database, managed on its own so updates can be checked even
+/// when the torrent catalog is in recovery (Tactical 369).
+pub(crate) struct DesktopProduct(pub(crate) ProductStateOwner);
+
+/// Why the torrent catalog did not open, and where it is.
+struct DesktopRecovery {
+    status: rstorrent_session::CatalogRecoveryStatus,
+    profile_root: PathBuf,
+}
+
+/// Debug builds only: `RSTORRENT_DESKTOP_DATA_ROOT` keeps config and data
+/// under one folder so recovery dry runs never touch a real profile.
+fn debug_data_root_override() -> Option<PathBuf> {
+    // NSIS can relaunch through Explorer, which does not inherit the fixture's
+    // process environment. This switch is absent from shipping builds.
+    #[cfg(feature = "update-qualification")]
+    if let Some(root) = std::env::args_os().find_map(|argument| {
+        argument
+            .to_str()?
+            .strip_prefix("--qualification-data-root=")
+            .map(PathBuf::from)
+    }) {
+        return Some(root);
+    }
+    if cfg!(debug_assertions) {
+        std::env::var_os("RSTORRENT_DESKTOP_DATA_ROOT").map(PathBuf::from)
+    } else {
+        None
+    }
+}
+
+fn enter_desktop_recovery(app: &tauri::App, profile_root: &Path, failure: &str) {
+    eprintln!("JSTorrent could not open its torrent catalog: {failure}");
+    let status = rstorrent_session::diagnose_catalog(profile_root, failure);
+    app.manage(DesktopRecovery {
+        status,
+        profile_root: profile_root.to_owned(),
+    });
+}
+
+#[tauri::command]
+fn desktop_recovery_status(app: AppHandle) -> Option<rstorrent_session::CatalogRecoveryStatus> {
+    app.try_state::<DesktopRecovery>()
+        .map(|recovery| recovery.status.clone())
+}
+
+/// Saves the torrent list from the catalog without opening it for writing.
+/// Returns false when the user cancels the save dialog.
+#[tauri::command]
+async fn desktop_recovery_export(window: WebviewWindow, app: AppHandle) -> Result<bool, String> {
+    let Some(recovery) = app.try_state::<DesktopRecovery>() else {
+        return Err("JSTorrent is not in recovery".to_owned());
+    };
+    let profile_root = recovery.profile_root.clone();
+    let bundle = tauri::async_runtime::spawn_blocking(move || {
+        rstorrent_session::export_torrent_list_read_only(&profile_root)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+    .map_err(|error| error.to_string())?;
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    window
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .set_title(desktop_localization::text(
+            "dialog.torrent-list-export.title",
+        ))
+        .set_file_name("jstorrent-torrents.zip")
+        .add_filter(
+            desktop_localization::text("dialog.torrent-list.filter"),
+            &["zip"],
+        )
+        .save_file(move |selection| {
+            let _ = sender.send(selection);
+        });
+    let Some(selection) = receiver
+        .await
+        .map_err(|_| "save dialog closed without a result".to_owned())?
+    else {
+        return Ok(false);
+    };
+    let path = selection
+        .into_path()
+        .map_err(|error| format!("resolve export location: {error}"))?;
+    tauri::async_runtime::spawn_blocking(move || std::fs::write(&path, bundle))
+        .await
+        .map_err(|error| error.to_string())?
+        .map_err(|error| format!("save torrent list: {error}"))?;
+    Ok(true)
+}
+
+#[tauri::command]
+fn desktop_recovery_quit(app: AppHandle) {
+    app.exit(0);
 }
 
 async fn pick_download_directory(
@@ -1360,10 +1590,10 @@ async fn deliver_desktop_notification(
     }
     let mut native = notify_rust::Notification::new();
     native
-        .appname("RSTorrent")
+        .appname("JSTorrent")
         .summary(notification.title)
         .body(&notification.body)
-        .icon("rstorrent-desktop")
+        .icon("jstorrent-client")
         .timeout(notify_rust::Timeout::Never)
         .action("default", desktop_localization::text("notification.open"));
     let handle = match native.show_async().await {
@@ -1451,7 +1681,11 @@ async fn application_shutdown(
 }
 
 #[tauri::command]
-async fn application_restart(app: AppHandle, state: State<'_, DesktopState>) -> Result<(), String> {
+async fn application_restart(app: AppHandle) -> Result<(), String> {
+    let Some(state) = app.try_state::<DesktopState>() else {
+        // Recovery (Tactical 369): nothing to shut down after an update.
+        app.restart();
+    };
     let started = request_application_shutdown(&app, true);
     if !started && state.shutdown.phase() == ShutdownPhase::Running {
         return Err("desktop restart shutdown could not be started".to_owned());
@@ -1459,8 +1693,56 @@ async fn application_restart(app: AppHandle, state: State<'_, DesktopState>) -> 
     wait_for_application_shutdown(&state).await
 }
 
+fn request_update_shutdown(app: &AppHandle, prepared: update_install::PreparedInstall) -> bool {
+    let Some(state) = app.try_state::<DesktopState>() else {
+        return false;
+    };
+    let Ok(picker_permit) = state.download_picker.acquire() else {
+        return false;
+    };
+    let activations = state.external_activations.lock().unwrap();
+    if activations.has_pending() || !state.shutdown.try_start() {
+        return false;
+    }
+    // Holding the same permit as picker/import/export admission closes its
+    // final race. Cancel future admission before releasing the permit to join.
+    state.download_picker.begin_shutdown();
+    drop(picker_permit);
+    let cancel = prepared.cancel_file();
+    *state.update_relaunch_cancel.lock().unwrap() = Some(cancel.clone());
+    if state.terminal_quit.load(Ordering::Acquire) {
+        let _ = std::fs::write(&cancel, b"quit");
+    }
+    *state.update_install.lock().unwrap() = Some(prepared);
+    state.restart_after_shutdown.store(false, Ordering::Release);
+    state.shutdown_status.send_replace(ShutdownPhase::Stopping);
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        perform_application_shutdown(app).await;
+    });
+    true
+}
+
 fn request_application_shutdown(app: &AppHandle, restart_after_shutdown: bool) -> bool {
-    let state = app.state::<DesktopState>();
+    // In recovery (Tactical 369) nothing is running: quit exits, and the
+    // restart after installing an update restarts directly.
+    let Some(state) = app.try_state::<DesktopState>() else {
+        if restart_after_shutdown {
+            app.restart();
+        }
+        app.exit(0);
+        return true;
+    };
+    if !restart_after_shutdown {
+        // Explicit Quit/OS shutdown remains terminal even if an update won
+        // admission immediately before the request reached the main loop.
+        state.terminal_quit.store(true, Ordering::Release);
+        if let Some(cancel) = state.update_relaunch_cancel.lock().unwrap().as_ref()
+            && let Err(error) = std::fs::write(cancel, b"quit")
+        {
+            eprintln!("could not persist update relaunch cancellation: {error}");
+        }
+    }
     if !state.shutdown.try_start() {
         return false;
     }
@@ -1501,6 +1783,14 @@ async fn wait_for_application_shutdown(state: &DesktopState) -> Result<(), Strin
 
 async fn perform_application_shutdown(app: AppHandle) {
     let state = app.state::<DesktopState>();
+    if let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>() {
+        updates.stop().await;
+    }
+    state.download_picker.shutdown().await;
+    let control_result = match state.desktop_control.lock().await.take() {
+        Some(owner) => owner.shutdown().await,
+        None => Ok(()),
+    };
     if let Some(owner) = state.power_owner.lock().await.take() {
         stop_power_owner(owner).await;
     }
@@ -1541,6 +1831,9 @@ async fn perform_application_shutdown(app: AppHandle) {
         Ok(())
     };
     let mut failures = Vec::new();
+    if let Err(control) = control_result {
+        failures.push(control);
+    }
     if let Err(remote) = remote_result {
         failures.push(format!("remote access shutdown: {remote}"));
     }
@@ -1560,7 +1853,47 @@ async fn perform_application_shutdown(app: AppHandle) {
             let restart = state.restart_after_shutdown.load(Ordering::Acquire);
             state.shutdown.complete();
             state.shutdown_status.send_replace(ShutdownPhase::FinalExit);
-            if restart {
+            let prepared = state.update_install.lock().unwrap().take();
+            if state.terminal_quit.load(Ordering::Acquire) {
+                if let Some(prepared) = prepared {
+                    let _ = std::fs::remove_file(prepared.cancel_file());
+                    let _ = state.product_state.cancel_desktop_update_attempt();
+                }
+                app.exit(0);
+            } else if let Some(prepared) = prepared {
+                let presentation = prepared.presentation;
+                let version = prepared.version.clone();
+                let cutoff = prepared.focus_cutoff;
+                let cache = prepared.cache.clone();
+                let cancel = prepared.cancel_file();
+                if let Err(error) = update_install::install(&app, prepared) {
+                    eprintln!("desktop update installation failed: {error}");
+                    let _ = state.product_state.record_desktop_update_attempt(
+                        &rstorrent_session::DesktopUpdateAttempt {
+                            version,
+                            succeeded: false,
+                            message: bounded_diagnostic(error),
+                        },
+                    );
+                    // The engine has joined. Resume the installed application,
+                    // retaining background intent and the durable failed-attempt
+                    // marker, rather than leave a stopped host behind.
+                    if let Err(recovery) = update_install::relaunch_installed(
+                        &app,
+                        &cache,
+                        presentation,
+                        cutoff,
+                        &cancel,
+                    ) {
+                        eprintln!("desktop update recovery failed: {recovery}");
+                        if presentation.should_focus()
+                            && update_install::Presentation::capture(&app).should_focus()
+                        {
+                            show_shutdown_failure(&app);
+                        }
+                    }
+                }
+            } else if restart {
                 app.request_restart();
             } else {
                 app.exit(0);
@@ -1575,7 +1908,28 @@ async fn perform_application_shutdown(app: AppHandle) {
             state.shutdown.fail();
             state.shutdown_status.send_replace(ShutdownPhase::Failed);
             eprintln!("desktop shutdown failed: {error}");
-            show_shutdown_failure(&app);
+            let prepared = state.update_install.lock().unwrap().take();
+            if let Some(prepared) = prepared {
+                if let Ok(stored) = state.product_state.desktop_update_state()
+                    && let Some(mut attempt) = stored.attempt
+                {
+                    attempt.message =
+                        "Update was not installed because shutdown could not finish".into();
+                    let _ = state.product_state.record_desktop_update_attempt(&attempt);
+                }
+                if let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>() {
+                    updates.installation_failed(
+                        "Shutdown could not finish; the update was not installed",
+                    );
+                }
+                if prepared.presentation.should_focus()
+                    && update_install::Presentation::capture(&app).should_focus()
+                {
+                    show_shutdown_failure(&app);
+                }
+            } else {
+                show_shutdown_failure(&app);
+            }
         }
     }
 }
@@ -1644,7 +1998,19 @@ fn observe_window_destruction(
     let label = window.label().to_owned();
     let app = window.app_handle().clone();
     window.on_window_event(move |event| match event {
+        WindowEvent::Focused(true) => {
+            app.state::<DesktopState>()
+                .window_hidden
+                .store(false, Ordering::Release);
+            if let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>() {
+                rstorrent_session::HostUpdateControl::connected(updates.inner().as_ref(), &label);
+                rstorrent_session::HostUpdateControl::interacted(updates.inner().as_ref());
+            }
+        }
         WindowEvent::CloseRequested { api, .. } => {
+            if let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>() {
+                rstorrent_session::HostUpdateControl::interacted(updates.inner().as_ref());
+            }
             let state = app.state::<DesktopState>();
             let run_in_background = state
                 .shell_settings
@@ -1670,6 +2036,12 @@ fn observe_window_destruction(
             }
         }
         WindowEvent::Destroyed => {
+            if let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>() {
+                rstorrent_session::HostUpdateControl::disconnected(
+                    updates.inner().as_ref(),
+                    &label,
+                );
+            }
             mark_desktop_background(&app.state::<DesktopState>());
             let service = service.clone();
             let subscriptions = subscriptions.clone();
@@ -1687,6 +2059,13 @@ fn observe_window_destruction(
 }
 
 fn restore_main_window(app: &AppHandle) -> Result<(), String> {
+    restore_main_window_with_presentation(app, update_install::Presentation::Foreground)
+}
+
+fn restore_main_window_with_presentation(
+    app: &AppHandle,
+    presentation: update_install::Presentation,
+) -> Result<(), String> {
     if let Some(state) = app.try_state::<DesktopState>()
         && matches!(
             state.shutdown.phase(),
@@ -1712,6 +2091,8 @@ fn restore_main_window(app: &AppHandle) -> Result<(), String> {
         let window_generation = state.window_generation.fetch_add(1, Ordering::AcqRel) + 1;
         let window = WebviewWindowBuilder::from_config(app, &config)
             .map_err(|error| format!("configure main webview window: {error}"))?
+            .focused(presentation.should_focus())
+            .visible(false)
             .build()
             .map_err(|error| format!("recreate main webview window: {error}"))?;
         observe_window_destruction(
@@ -1723,15 +2104,56 @@ fn restore_main_window(app: &AppHandle) -> Result<(), String> {
         );
         window
     };
+    if matches!(
+        presentation,
+        update_install::Presentation::Foreground | update_install::Presentation::Unfocused
+    ) && let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>()
+    {
+        rstorrent_session::HostUpdateControl::connected(
+            updates.inner().as_ref(),
+            MAIN_WINDOW_LABEL,
+        );
+    }
+    if let Some(state) = app.try_state::<DesktopState>() {
+        state.window_hidden.store(false, Ordering::Release);
+    }
     apply_platform_window_icon(&window)?;
-    window
-        .unminimize()
-        .map_err(|error| format!("restore main webview window: {error}"))?;
+    #[cfg(target_os = "linux")]
+    {
+        use glib::prelude::ObjectExt;
+        // GTK's accept-focus guard is restored on the first draw, which can
+        // precede Wayland mapping. Keep mapping itself non-activating too.
+        window
+            .gtk_window()
+            .map_err(|error| error.to_string())?
+            .set_property("focus-on-map", presentation.should_focus());
+    }
+    if presentation == update_install::Presentation::Minimized {
+        #[cfg(windows)]
+        update_install::show_minimized(&window)?;
+        #[cfg(not(windows))]
+        window.minimize().map_err(|error| error.to_string())?;
+        // Showing again restores the window, so retain native minimization.
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        return Ok(());
+    }
+    if presentation != update_install::Presentation::Minimized
+        && window.is_minimized().map_err(|error| error.to_string())?
+    {
+        // GTK deiconify can activate even a never-minimized hidden window.
+        // Only undo a real minimized state during an explicit restoration.
+        window
+            .unminimize()
+            .map_err(|error| format!("restore main webview window: {error}"))?;
+    }
     window
         .show()
         .map_err(|error| format!("show main webview window: {error}"))?;
     if let Some(state) = app.try_state::<DesktopState>() {
         record_desktop_foreground_if_new(&state);
+    }
+    if !presentation.should_focus() {
+        return Ok(());
     }
     window
         .set_focus()
@@ -1796,6 +2218,41 @@ fn build_desktop_tray_menu(
     Ok((menu, background))
 }
 
+#[cfg(target_os = "macos")]
+fn install_macos_application_menu(app: &tauri::App) -> tauri::Result<()> {
+    // Muda's predefined macOS Quit sends terminate: directly to AppKit,
+    // bypassing Tauri's preventable ExitRequested and our joined shutdown.
+    // Keep the standard menu, replacing only that native termination action.
+    const QUIT_ID: &str = "rstorrent-application-quit";
+    let menu = Menu::default(app.handle())?;
+    let quit_text = PredefinedMenuItem::quit(app, None)?.text()?;
+    let quit = MenuItem::with_id(app, QUIT_ID, &quit_text, true, Some("Cmd+Q"))?;
+    let mut replaced = 0;
+    for item in menu.items()? {
+        if let Some(submenu) = item.as_submenu() {
+            for (index, item) in submenu.items()?.iter().enumerate() {
+                if let Some(predefined) = item.as_predefined_menuitem()
+                    && predefined.text()? == quit_text
+                {
+                    submenu.remove(item)?;
+                    submenu.insert(&quit, index)?;
+                    replaced += 1;
+                }
+            }
+        }
+    }
+    if replaced != 1 {
+        return Err(std::io::Error::other("expected one macOS application Quit item").into());
+    }
+    app.set_menu(menu)?;
+    app.on_menu_event(|app, event| {
+        if event.id().as_ref() == QUIT_ID {
+            request_application_shutdown(app, false);
+        }
+    });
+    Ok(())
+}
+
 fn install_desktop_tray(app: &tauri::App, menu: &Menu<tauri::Wry>) -> Result<(), String> {
     let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))
         .map_err(|error| format!("decode desktop tray icon: {error}"))?;
@@ -1842,14 +2299,16 @@ fn handle_desktop_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
 }
 
 fn toggle_run_in_background(app: &AppHandle) {
-    let state = app.state::<DesktopState>();
+    let Some(state) = app.try_state::<DesktopState>() else {
+        return;
+    };
     let mut settings = state
         .shell_settings
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let current = *settings;
     let requested = !current.run_in_background;
-    match persist_run_in_background(&state.shell_settings_path, current, requested) {
+    match persist_run_in_background(&state.product_state, current, requested) {
         Ok(next) => {
             *settings = next;
             drop(settings);
@@ -1885,12 +2344,21 @@ fn show_settings_failure(app: &AppHandle) {
 }
 
 fn request_manual_update_check(app: &AppHandle) {
+    if let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>() {
+        let _ = rstorrent_session::HostUpdateControl::request(
+            updates.inner().as_ref(),
+            "native-menu",
+            rstorrent_session::HostUpdateRequest::Check,
+        );
+    }
     if let Err(error) = restore_main_window(app) {
         eprintln!("failed to restore desktop window for update check: {error}");
         return;
     }
-    let generation = app
-        .state::<DesktopState>()
+    let Some(state) = app.try_state::<DesktopState>() else {
+        return;
+    };
+    let generation = state
         .update_check_generation
         .fetch_add(1, Ordering::AcqRel)
         .wrapping_add(1);
@@ -1900,8 +2368,11 @@ fn request_manual_update_check(app: &AppHandle) {
 }
 
 #[tauri::command]
-fn desktop_update_check_generation(state: State<'_, DesktopState>) -> u64 {
-    state.update_check_generation.load(Ordering::Acquire)
+fn desktop_update_check_generation(app: AppHandle) -> u64 {
+    // Recovery (Tactical 369) has no desktop state but still checks updates.
+    app.try_state::<DesktopState>().map_or(0, |state| {
+        state.update_check_generation.load(Ordering::Acquire)
+    })
 }
 
 fn handle_external_activation_values<I, S>(app: &AppHandle, values: I)
@@ -1912,11 +2383,28 @@ where
     let Some(state) = app.try_state::<DesktopState>() else {
         return;
     };
+    if let Some(updates) = app.try_state::<Arc<automatic_updates::AutomaticUpdates>>() {
+        rstorrent_session::HostUpdateControl::interacted(updates.inner().as_ref());
+    }
+    let values: Vec<String> = values
+        .into_iter()
+        .map(|value| value.as_ref().to_owned())
+        .collect();
     let (admission, generation) = {
         let mut activations = state
             .external_activations
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if state.shutdown.phase() != ShutdownPhase::Running {
+            let recognized: Vec<_> = values
+                .into_iter()
+                .filter(|value| external_intake::recognized_external_activation(value))
+                .collect();
+            if let Err(error) = state.product_state.defer_desktop_update_intake(&recognized) {
+                eprintln!("could not retain update-handoff intake: {error}");
+            }
+            return;
+        }
         let admission = activations.admit_strings(values);
         (admission, activations.generation())
     };
@@ -1936,6 +2424,7 @@ fn emit_external_intake_signal(app: &AppHandle, generation: u64) {
     }
 }
 
+#[cfg(not(target_os = "linux"))]
 fn is_magnet_argument(value: &str) -> bool {
     value
         .get(.."magnet:".len())
@@ -2014,71 +2503,208 @@ async fn open_configured_desktop_remote_runtime(
     .map_err(|error| format!("start remote access validation owner: {error}"))
 }
 
-pub fn run() {
-    let application = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(
-            |app, arguments, _cwd| {
-                handle_external_activation_values(
-                    app,
-                    arguments
-                        .iter()
-                        .filter(|argument| !is_magnet_argument(argument)),
-                );
-                if let Err(error) = restore_main_window(app) {
+#[cfg(not(target_os = "linux"))]
+fn single_instance_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
+    tauri_plugin_single_instance::init(|app, arguments, _cwd| {
+        handle_external_activation_values(
+            app,
+            arguments
+                .iter()
+                .filter(|argument| !is_magnet_argument(argument)),
+        );
+        if !desktop_control::background_launch(arguments.iter().map(String::as_str)) {
+            // Platform activation callbacks can arrive on a non-main thread.
+            let handle = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                if let Err(error) = restore_main_window(&handle) {
                     eprintln!("failed to restore desktop window for second launch: {error}");
                 }
-            },
-        ))
+            });
+        }
+    })
+}
+
+#[cfg(target_os = "linux")]
+fn single_instance_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
+    linux_single_instance::init()
+}
+
+#[cfg(target_os = "linux")]
+fn admit_linux_launch(
+    app: &AppHandle,
+    arguments: Vec<String>,
+    permit: tokio::sync::OwnedSemaphorePermit,
+) -> Result<(), linux_single_instance::AdmissionError> {
+    use linux_single_instance::AdmissionError;
+    linux_single_instance::check_phase(
+        app.try_state::<DesktopState>()
+            .map(|state| state.shutdown.phase()),
+    )?;
+    // This observation orders admission before a later Quit. Only that later
+    // explicit Quit may supersede the queued presentation; stopped owners retry.
+    let handle = app.clone();
+    app.run_on_main_thread(move || {
+        let _permit = permit;
+        handle_external_activation_values(&handle, &arguments);
+        if !desktop_control::background_launch(arguments.iter().map(String::as_str))
+            && let Err(error) = restore_main_window(&handle)
+        {
+            eprintln!("failed to restore desktop window for second launch: {error}");
+        }
+    })
+    .map_err(|_| AdmissionError::Refused("desktop launch could not be queued".into()))
+}
+
+fn show_legacy_startup_failure(app: &AppHandle, error: String) {
+    // Setup uses the main thread, where the plugin forbids blocking dialogs.
+    // Queue the dialog and return without creating any application owner.
+    eprintln!("JSTorrent migration: {error}");
+    let exit = app.clone();
+    app.dialog()
+        .message(error)
+        .title("JSTorrent migration")
+        .kind(MessageDialogKind::Error)
+        .show(move |_| exit.exit(1));
+}
+
+pub fn run() {
+    // Native tray/accessibility names must not fall back to the executable name.
+    #[cfg(target_os = "linux")]
+    glib::set_application_name("JSTorrent");
+    if update_install::run_relaunch_helper() {
+        return;
+    }
+    if download_picker::run_helper_if_requested() {
+        return;
+    }
+    let application = tauri::Builder::default()
+        .plugin(single_instance_plugin())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::Builder::new().open_js_links_on_click(false).build())
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
-            let config_dir = app
-                .path()
-                .app_config_dir()
-                .map_err(|error| format!("resolve desktop config directory: {error}"))?;
+            let data_root_override = debug_data_root_override();
+            let config_dir = match &data_root_override {
+                Some(root) => root.join("config"),
+                None => app
+                    .path()
+                    .app_config_dir()
+                    .map_err(|error| format!("resolve desktop config directory: {error}"))?,
+            };
+            if update_install::cancelled_startup(&config_dir) {
+                app.handle().exit(0);
+                return Ok(());
+            }
             #[cfg(target_os = "linux")]
             let appimage = app.env().appimage.map(PathBuf::from);
             #[cfg(not(target_os = "linux"))]
             let appimage: Option<PathBuf> = None;
-            match app.path().home_dir() {
-                Ok(home_dir) => match repair_native_host_registration(
-                    &config_dir,
-                    &home_dir,
-                    appimage.as_deref(),
-                ) {
-                    Ok(report) => eprintln!(
-                        "RSTorrent native host is registered for {} Chrome installation(s)",
-                        report.browser_manifests
-                    ),
-                    Err(error) => eprintln!(
-                        "RSTorrent native host registration could not be repaired: {error}"
-                    ),
-                },
-                Err(error) => {
-                    eprintln!("resolve home directory for native host registration: {error}")
+            let production_replacement = app.config().identifier == rstorrent_native_host::legacy::PRODUCTION_IDENTIFIER;
+            let registration = (|| {
+                if data_root_override.is_some() || (cfg!(feature = "update-qualification") && app.config().identifier.starts_with("com.jstorrent.qualification.")) {
+                    // A dry run never touches the real Chrome registration.
+                    return Err("skipped for a debug data root".to_owned());
                 }
+                let home_dir = app.path().home_dir().map_err(|error| error.to_string())?;
+                let report = repair_native_host_registration(&config_dir, &home_dir, appimage.as_deref())?;
+                native_host_registration::install_legacy_refusal(
+                    &app.config().identifier, &config_dir, &home_dir, &report.stable_host,
+                )?;
+                if production_replacement { legacy_migration::ensure_legacy_quiet()?; }
+                Ok::<_, String>(report)
+            })();
+            match registration {
+                Ok(report) => eprintln!("RSTorrent native host is registered for {} Chrome installation(s)", report.browser_manifests),
+                Err(error) if production_replacement => {
+                    show_legacy_startup_failure(app.handle(), error);
+                    return Ok(());
+                }
+                Err(error) => eprintln!("RSTorrent native host registration could not be repaired: {error}"),
             }
-            let shell_settings = load_desktop_shell_settings(&config_dir);
+            let app_data = match &data_root_override {
+                Some(root) => root.join("data"),
+                None => app
+                    .path()
+                    .app_data_dir()
+                    .map_err(|error| format!("resolve application data directory: {error}"))?,
+            };
+            let profile_root = app_data.join("profile");
+            // Shell switches live in the product database (Tactical 358), so
+            // it opens before the tray is built. A store that will not open
+            // shows the recovery screen instead (Tactical 369).
+            let product_state = match open_desktop_product_state(&config_dir, env!("CARGO_PKG_VERSION")) {
+                Ok(product_state) => product_state,
+                Err(error) => {
+                    enter_desktop_recovery(app, &profile_root, &format!("product state: {error}"));
+                    return Ok(());
+                }
+            };
+            app.manage(DesktopProduct(product_state.clone()));
+            let shell_settings = match load_desktop_shell_settings(&config_dir, &product_state) {
+                Ok(shell_settings) => shell_settings,
+                Err(error) => {
+                    enter_desktop_recovery(app, &profile_root, &error);
+                    return Ok(());
+                }
+            };
             if let Some(diagnostic) = &shell_settings.diagnostic {
                 eprintln!("{diagnostic}");
             }
             let (tray_menu, background_menu_item) =
                 build_desktop_tray_menu(app, shell_settings.settings.run_in_background)?;
-            let product_state = open_desktop_product_state(&config_dir, env!("CARGO_PKG_VERSION"))?;
             let updater = tauri_plugin_updater::Builder::new().build();
             app.handle().plugin(updater)?;
             app.manage(StdMutex::new(ChannelUpdates::open(&config_dir)));
-            let app_data = app
-                .path()
-                .app_data_dir()
-                .map_err(|error| format!("resolve application data directory: {error}"))?;
-            let service = tauri::async_runtime::block_on(ApplicationService::open(
-                desktop_application_config_with_product_state(&app_data, product_state.clone()),
-            ))
-            .map_err(|error| error.to_string())?;
+            let migration = if app.config().identifier == "com.jstorrent.desktop" {
+                match legacy_migration::migrate_before_startup(
+                    &app.config().identifier,
+                    &app.path().config_dir().map_err(|error| error.to_string())?,
+                    &app_data,
+                ) {
+                    Ok(report) => report,
+                    Err(error) => {
+                        show_legacy_startup_failure(app.handle(), error);
+                        return Ok(());
+                    }
+                }
+            } else { None };
+            let mut application_config = desktop_application_config_with_product_state(&app_data, product_state.clone())
+                .with_product(desktop_product_identity(&app.config().identifier));
+            if production_replacement && let Err(error) = legacy_migration::ensure_legacy_quiet() {
+                show_legacy_startup_failure(app.handle(), error);
+                return Ok(());
+            }
+            if migration.is_some() {
+                application_config = application_config.with_path_root_startup_policy(
+                    rstorrent_session::PathRootStartupPolicy::PreserveUnavailable,
+                );
+            }
+            let service = match tauri::async_runtime::block_on(open_desktop_application(
+                application_config, &shell_settings,
+            )) {
+                Ok(service) => service,
+                Err(error) => {
+                    enter_desktop_recovery(app, &profile_root, &error);
+                    return Ok(());
+                }
+            };
+            if let Some(report) = migration.filter(|report| !report.already_completed) {
+                eprintln!("JSTorrent migration: imported={}, already_present={}, skipped={}, skipped_profiles={}",
+                    report.imported, report.already_present, report.skipped, report.skipped_profiles.len());
+                if report.skipped > 0 || !report.skipped_profiles.is_empty() || report.settings_need_attention {
+                    app.dialog().message(format!(
+                        "Imported {} torrents. {} were already present. {} legacy records and {} profiles could not be imported. Your legacy data is preserved.{}",
+                        report.imported, report.already_present, report.skipped, report.skipped_profiles.len(),
+                        if report.settings_need_attention { " Some legacy settings could not be imported; review settings before starting imported torrents." } else { "" },
+                    )).title("JSTorrent migration").kind(MessageDialogKind::Warning).show(|_| {});
+                }
+            }
             let service = Arc::new(Mutex::new(service));
             tauri::async_runtime::block_on(ApplicationService::ensure_maintenance_owner(&service));
+            let update_owner = automatic_updates::AutomaticUpdates::open(app.handle().clone(), product_state.clone(), &config_dir)?;
+            tauri::async_runtime::block_on(service.lock()).set_host_update_control(update_owner.clone());
+            app.manage(update_owner.clone());
             let remote_runtime = tauri::async_runtime::block_on(open_desktop_remote_runtime(
                 &app_data,
                 service.clone(),
@@ -2113,6 +2739,7 @@ pub fn run() {
                 Ok(None) => {}
                 Err(_) => eprintln!("desktop startup deep-link state could not be read"),
             }
+            startup_activations.extend(product_state.take_desktop_update_intake()?);
             external_activations.admit_strings(&startup_activations);
             let (power_preference, power_preference_rx) = watch::channel(
                 shell_settings
@@ -2120,7 +2747,16 @@ pub fn run() {
                     .power
                     .prevent_sleep_during_active_downloads,
             );
+            let download_picker = Arc::new(download_picker::DesktopDownloadPicker::new());
+            let control_owner =
+                tauri::async_runtime::block_on(desktop_control::DesktopControlOwner::open(
+                    &config_dir,
+                    service.clone(),
+                    download_picker.clone(),
+                ))?;
             let state = DesktopState {
+                download_picker,
+                desktop_control: Mutex::new(Some(control_owner)),
                 service,
                 product_state,
                 remote_runtime,
@@ -2129,7 +2765,6 @@ pub fn run() {
                 torrent_uploads: Arc::new(Semaphore::new(1)),
                 media_server: Mutex::new(Some(media_server)),
                 window_generation: AtomicU64::new(1),
-                shell_settings_path: shell_settings.path,
                 shell_settings: StdMutex::new(shell_settings.settings),
                 notification_owner: Mutex::new(None),
                 power_owner: Mutex::new(None),
@@ -2139,32 +2774,40 @@ pub fn run() {
                 shutdown_status: watch::channel(ShutdownPhase::Running).0,
                 shutdown_error: StdMutex::new(None),
                 restart_after_shutdown: AtomicBool::new(false),
+                terminal_quit: AtomicBool::new(false),
+                update_install: StdMutex::new(None),
+                update_relaunch_cancel: StdMutex::new(None),
                 foreground_visible: AtomicBool::new(false),
+                window_hidden: AtomicBool::new(true),
                 update_check_generation: AtomicU64::new(0),
                 external_activations: StdMutex::new(external_activations),
             };
-            let service = state.service.clone();
-            let subscriptions = state.subscriptions.clone();
-            let view_resources = state.view_resources.clone();
-            let window = app
-                .get_webview_window(MAIN_WINDOW_LABEL)
-                .ok_or_else(|| "main webview window was not created".to_owned())?;
-            apply_platform_window_icon(&window)?;
-            observe_window_destruction(&window, service, subscriptions, view_resources, 1);
             app.manage(state);
-            if window.is_visible().unwrap_or(true) {
-                record_desktop_foreground_if_new(&app.state::<DesktopState>());
+            #[cfg(target_os = "macos")]
+            install_macos_application_menu(app)?;
+            if let Some(presentation) = update_install::Presentation::startup() {
+                if presentation != update_install::Presentation::Hidden {
+                    restore_main_window_with_presentation(app.handle(), presentation)?;
+                }
+            } else if !desktop_control::background_launch(std::env::args().collect::<Vec<_>>().iter().map(String::as_str)) {
+                restore_main_window(app.handle())?;
             }
-            let external_handle = app.handle().clone();
-            app.deep_link().on_open_url(move |event| {
-                let urls = event.urls();
-                handle_external_activation_values(
-                    &external_handle,
-                    urls.iter()
-                        .filter(|url| url.scheme().eq_ignore_ascii_case("magnet"))
-                        .map(url::Url::as_str),
-                );
-            });
+            // On macOS plugin callbacks run under Tauri's plugin-store lock.
+            // Creating the first window there reenters that lock. Opened below
+            // handles both URL kinds after plugin event delivery has finished.
+            #[cfg(not(target_os = "macos"))]
+            {
+                let external_handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    let urls = event.urls();
+                    handle_external_activation_values(
+                        &external_handle,
+                        urls.iter()
+                            .filter(|url| url.scheme().eq_ignore_ascii_case("magnet"))
+                            .map(url::Url::as_str),
+                    );
+                });
+            }
             #[cfg(target_os = "linux")]
             if app.env().appimage.is_some() {
                 app.deep_link()
@@ -2186,6 +2829,7 @@ pub fn run() {
             let power_owner = start_power_owner(power_subscription, power_preference_rx);
             *tauri::async_runtime::block_on(app.state::<DesktopState>().power_owner.lock()) =
                 Some(power_owner);
+            update_owner.start();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -2215,6 +2859,11 @@ pub fn run() {
             desktop_set_power_settings,
             desktop_reset_shell_settings,
             choose_download_root,
+            desktop_export_torrent_list,
+            desktop_import_torrent_bundle,
+            desktop_recovery_status,
+            desktop_recovery_export,
+            desktop_recovery_quit,
             application_view_hello,
             application_view_open,
             application_view_update,
@@ -2233,6 +2882,7 @@ pub fn run() {
             desktop_check_update,
             desktop_clear_update_candidate,
             desktop_install_update,
+            automatic_updates::desktop_update_request,
             desktop_release_info,
             desktop_product_summary,
             desktop_product_clear_app_data,
@@ -2247,8 +2897,9 @@ pub fn run() {
         .expect("build RSTorrent desktop application");
     application.run(|handle, event| match event {
         RunEvent::ExitRequested { api, .. } => {
-            let state = handle.state::<DesktopState>();
-            if state.shutdown.phase() != ShutdownPhase::FinalExit {
+            if let Some(state) = handle.try_state::<DesktopState>()
+                && state.shutdown.phase() != ShutdownPhase::FinalExit
+            {
                 api.prevent_exit();
                 request_application_shutdown(handle, false);
             }
@@ -2261,15 +2912,34 @@ pub fn run() {
         }
         #[cfg(target_os = "macos")]
         RunEvent::Opened { urls } => {
-            handle_external_activation_values(
-                handle,
-                urls.iter()
-                    .filter(|url| url.scheme().eq_ignore_ascii_case("file"))
-                    .map(url::Url::as_str),
-            );
+            handle_external_activation_values(handle, urls.iter().map(url::Url::as_str));
         }
         _ => {}
     });
+}
+
+// macOS and Windows apply the quiet network defaults once per profile. The
+// session catalog records that in the same transaction (Tactical 358), so no
+// control surface sees an unrecorded hold and a lost file cannot repeat it.
+async fn open_desktop_application(
+    mut config: ApplicationConfig,
+    shell: &desktop_lifecycle::LoadedDesktopShellSettings,
+) -> Result<ApplicationService, String> {
+    if cfg!(any(target_os = "macos", target_os = "windows")) {
+        config.reset_unconfirmed_network_features = true;
+        config.legacy_network_defaults_applied = shell.legacy_network_defaults_applied;
+    }
+    ApplicationService::open(config)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+fn desktop_product_identity(identifier: &str) -> rstorrent_session::ProductIdentity {
+    rstorrent_session::ProductIdentity {
+        identifier: Some(identifier.to_owned()),
+        target: env!("TAURI_ENV_TARGET_TRIPLE").to_owned(),
+        ..rstorrent_session::ProductIdentity::for_this_build("desktop", env!("CARGO_PKG_VERSION"))
+    }
 }
 
 fn desktop_application_config_with_product_state(
@@ -2283,6 +2953,14 @@ fn desktop_application_config_with_product_state(
         NetworkConfig::new(NetworkPolicy::Online, PEER_CONNECT_TIMEOUT, PEER_IO_TIMEOUT),
     )
     .with_fresh_profile_defaults();
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    {
+        config.initial_client_settings = rstorrent_session::ClientSettings::default();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        config.defer_idle_dht = true;
+    }
     config.product_state = Some(product_state);
     config
 }
@@ -2325,21 +3003,151 @@ mod tests {
         assert_eq!(config.peer_transport_policy, PeerTransportPolicy::PreferUtp);
         assert_eq!(
             config.initial_client_settings,
-            ClientSettings::fresh_profile_default()
+            if cfg!(any(target_os = "macos", target_os = "windows")) {
+                ClientSettings::default()
+            } else {
+                ClientSettings::fresh_profile_default()
+            }
         );
         assert_eq!(
             config.initial_client_settings.listener,
-            ListenerPolicy::AutomaticLocalNetwork
+            if cfg!(any(target_os = "macos", target_os = "windows")) {
+                ListenerPolicy::Disabled
+            } else {
+                ListenerPolicy::AutomaticLocalNetwork
+            }
         );
         assert_eq!(
             config.initial_client_settings.port_mapping,
-            PortMappingPolicy::Upnp
+            if cfg!(any(target_os = "macos", target_os = "windows")) {
+                PortMappingPolicy::Disabled
+            } else {
+                PortMappingPolicy::Upnp
+            }
         );
         assert!(config.storage_roots.is_empty());
+        assert_eq!(config.defer_idle_dht, cfg!(target_os = "macos"));
         assert_eq!(
             config.download_resource_limits,
             DownloadResourceLimits::DESKTOP
         );
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    #[tokio::test]
+    async fn desktop_network_upgrade_holds_once_then_preserves_explicit_choices() {
+        use rstorrent_session::{Command, RequestEnvelope, ResponseOutcome, SessionStore};
+
+        let temporary = tempfile::tempdir().unwrap();
+        let app_data = temporary.path().join("data");
+        let profile = app_data.join("profile");
+        let mut config = desktop_application_config(&app_data);
+        config.network.policy = NetworkPolicy::LoopbackOnly;
+        let prior = ClientSettings {
+            listener: ListenerPolicy::FixedLoopback { port: 45432 },
+            upload_slots: 7,
+            dht_enabled: false,
+            ..ClientSettings::fresh_profile_default()
+        };
+        let mut store = SessionStore::open(&profile, "default", &[]).unwrap();
+        let update = |id: &str, settings: &ClientSettings| RequestEnvelope {
+            version: rstorrent_session::CONTROL_VERSION,
+            request_id: id.to_owned(),
+            expected_revision: None,
+            command: Command::UpdateClientSettings {
+                patch: settings.clone().into(),
+            },
+        };
+        assert!(matches!(
+            store
+                .handle_durable(&update("legacy-settings", &prior))
+                .unwrap()
+                .outcome,
+            ResponseOutcome::Success { .. }
+        ));
+        drop(store);
+        let product = rstorrent_session::ProductStateOwner::open_ephemeral("1.0.0").unwrap();
+        let shell = super::load_desktop_shell_settings(temporary.path(), &product).unwrap();
+        let mut service = super::open_desktop_application(config.clone(), &shell)
+            .await
+            .unwrap();
+        service.shutdown().await.unwrap();
+        drop(service);
+        let mut store = SessionStore::open(&profile, "default", &[]).unwrap();
+        let held = store.client_settings().unwrap();
+        assert_eq!(held.listener, ListenerPolicy::Disabled);
+        assert_eq!(held.port_mapping, PortMappingPolicy::Disabled);
+        assert_eq!(held.preferred_listen_port, 45432);
+        assert_eq!(held.upload_slots, 7);
+        assert!(!held.dht_enabled);
+        // Automatic loopback uses an ephemeral port and no LAN or firewall grant.
+        let explicit = ClientSettings {
+            listener: ListenerPolicy::AutomaticLoopback,
+            port_mapping: PortMappingPolicy::Disabled,
+            ..held
+        };
+        assert!(matches!(
+            store
+                .handle_durable(&update("explicit-settings", &explicit))
+                .unwrap()
+                .outcome,
+            ResponseOutcome::Success { .. }
+        ));
+        drop(store);
+        // The catalog remembers the hold, so explicit choices survive restarts
+        // even when the old shell file is gone or unreadable.
+        std::fs::write(temporary.path().join("desktop-shell.json"), "corrupt").unwrap();
+        let shell = super::load_desktop_shell_settings(temporary.path(), &product).unwrap();
+        let mut service = super::open_desktop_application(config, &shell)
+            .await
+            .unwrap();
+        service.shutdown().await.unwrap();
+        drop(service);
+        let store = SessionStore::open(&profile, "default", &[]).unwrap();
+        assert_eq!(store.client_settings().unwrap(), explicit);
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    #[tokio::test]
+    async fn legacy_shell_marker_records_the_hold_without_changing_network_choices() {
+        use rstorrent_session::{Command, RequestEnvelope, SessionStore};
+
+        let temporary = tempfile::tempdir().unwrap();
+        let app_data = temporary.path().join("data");
+        let profile = app_data.join("profile");
+        let mut config = desktop_application_config(&app_data);
+        config.network.policy = NetworkPolicy::LoopbackOnly;
+        let chosen = ClientSettings {
+            listener: ListenerPolicy::AutomaticLoopback,
+            ..ClientSettings::fresh_profile_default()
+        };
+        let mut store = SessionStore::open(&profile, "default", &[]).unwrap();
+        store
+            .handle_durable(&RequestEnvelope {
+                version: rstorrent_session::CONTROL_VERSION,
+                request_id: "chosen".to_owned(),
+                expected_revision: None,
+                command: Command::UpdateClientSettings {
+                    patch: chosen.clone().into(),
+                },
+            })
+            .unwrap();
+        drop(store);
+        std::fs::write(
+            temporary.path().join("desktop-shell.json"),
+            r#"{"version":4,"run_in_background":true,"network_defaults_version":1}"#,
+        )
+        .unwrap();
+        let product = rstorrent_session::ProductStateOwner::open_ephemeral("1.0.0").unwrap();
+        let shell = super::load_desktop_shell_settings(temporary.path(), &product).unwrap();
+        assert!(shell.legacy_network_defaults_applied);
+        let mut service = super::open_desktop_application(config, &shell)
+            .await
+            .unwrap();
+        service.shutdown().await.unwrap();
+        drop(service);
+        let store = SessionStore::open(&profile, "default", &[]).unwrap();
+        assert_eq!(store.client_settings().unwrap(), chosen);
     }
 
     #[cfg(unix)]

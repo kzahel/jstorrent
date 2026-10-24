@@ -178,6 +178,7 @@ function serverFrame(type: string, value: Record<string, unknown>): string {
 function batch(updates: readonly unknown[]) {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",

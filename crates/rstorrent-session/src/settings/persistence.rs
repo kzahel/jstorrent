@@ -5,9 +5,11 @@ use rusqlite::{Connection, Transaction, params};
 
 use super::contract::{
     ActiveSeedLimit, ClientSettings, EncryptionPolicy, HttpsServerAuthenticationPolicy,
-    ListenerPolicy, PortMappingPolicy, TransferRateLimit,
+    ListenerPolicy, PortMappingPolicy, SeedStopLimit, TransferRateLimit,
 };
 
+/// Frozen schema-26 baseline table. Later columns are added by migration
+/// steps; `create_client_settings` writes only these columns.
 const CLIENT_SETTINGS_TABLE_SQL: &str = "CREATE TABLE client_settings (
         singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
         listener_mode TEXT NOT NULL CHECK (
@@ -103,6 +105,9 @@ impl From<rusqlite::Error> for SettingsPersistenceError {
     }
 }
 
+/// Creates the schema-26 baseline settings row. Part of the frozen baseline:
+/// fields added later are written by `replace_client_settings` after the
+/// migration steps run.
 pub(crate) fn create_client_settings(
     transaction: &Transaction<'_>,
     settings: &ClientSettings,
@@ -179,6 +184,8 @@ pub(crate) fn read_client_settings(
         dht_enabled,
         peer_exchange_enabled,
         tracker_https_authentication,
+        seed_stop_ratio_percent,
+        seed_stop_time_seconds,
     ) = connection.query_row(
         "SELECT listener_mode, listener_port, preferred_listen_port, port_mapping_mode,
                 peer_connection_limit, upload_slots, active_downloads,
@@ -186,7 +193,8 @@ pub(crate) fn read_client_settings(
                 finished_download_ratio_limit_percent, finished_time_limit_seconds,
                 upload_rate_limit, download_rate_limit, encryption, ipv6_enabled,
                 dht_enabled, peer_exchange_enabled,
-                tracker_https_server_authentication
+                tracker_https_server_authentication,
+                seed_stop_ratio_percent, seed_stop_time_seconds
          FROM client_settings WHERE singleton = 1",
         [],
         |row| {
@@ -209,6 +217,8 @@ pub(crate) fn read_client_settings(
                 row.get::<_, bool>(15)?,
                 row.get::<_, bool>(16)?,
                 row.get::<_, String>(17)?,
+                row.get::<_, Option<i64>>(18)?,
+                row.get::<_, Option<i64>>(19)?,
             ))
         },
     )?;
@@ -241,7 +251,14 @@ pub(crate) fn read_client_settings(
             ));
         }
     };
+    let safety_json: String = connection.query_row(
+        "SELECT file_safety_json FROM client_settings WHERE singleton = 1",
+        [],
+        |row| row.get(0),
+    )?;
     let settings = ClientSettings {
+        file_safety: serde_json::from_str(&safety_json)
+            .map_err(|error| SettingsPersistenceError::Corrupt(error.to_string()))?,
         listener,
         preferred_listen_port: u16::try_from(preferred_listen_port).map_err(|_| {
             SettingsPersistenceError::Corrupt(
@@ -278,6 +295,16 @@ pub(crate) fn read_client_settings(
                 "finished time limit cannot be represented".to_owned(),
             )
         })?,
+        seed_stop_ratio_percent: SeedStopLimit::from_persisted(
+            "seed stop ratio",
+            seed_stop_ratio_percent,
+        )
+        .map_err(|error| SettingsPersistenceError::Corrupt(error.to_string()))?,
+        seed_stop_time_seconds: SeedStopLimit::from_persisted(
+            "seed stop time",
+            seed_stop_time_seconds,
+        )
+        .map_err(|error| SettingsPersistenceError::Corrupt(error.to_string()))?,
         upload_rate_limit: TransferRateLimit::from_persisted(upload_rate_limit)
             .map_err(|error| SettingsPersistenceError::Corrupt(error.to_string()))?,
         download_rate_limit: TransferRateLimit::from_persisted(download_rate_limit)
@@ -322,6 +349,12 @@ pub(crate) fn replace_client_settings(
     if read_client_settings(transaction)? == *settings {
         return Ok(false);
     }
+    let safety_json = serde_json::to_string(&settings.file_safety)
+        .map_err(|error| SettingsPersistenceError::Corrupt(error.to_string()))?;
+    transaction.execute(
+        "UPDATE client_settings SET file_safety_json = ?1 WHERE singleton = 1",
+        [safety_json],
+    )?;
     let (mode, port) = listener_columns(settings.listener);
     let mapping_mode = mapping_column(settings.port_mapping);
     let tracker_https_authentication =
@@ -338,7 +371,8 @@ pub(crate) fn replace_client_settings(
              finished_time_limit_seconds = ?11, upload_rate_limit = ?12,
              download_rate_limit = ?13, encryption = ?14, ipv6_enabled = ?15,
              dht_enabled = ?16, peer_exchange_enabled = ?17,
-             tracker_https_server_authentication = ?18
+             tracker_https_server_authentication = ?18,
+             seed_stop_ratio_percent = ?19, seed_stop_time_seconds = ?20
          WHERE singleton = 1",
         params![
             mode,
@@ -359,6 +393,8 @@ pub(crate) fn replace_client_settings(
             settings.dht_enabled,
             settings.peer_exchange_enabled,
             tracker_https_authentication,
+            settings.seed_stop_ratio_percent.persisted(),
+            settings.seed_stop_time_seconds.persisted(),
         ],
     )?;
     if changed != 1 {

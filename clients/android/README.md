@@ -22,16 +22,28 @@ retain their original titles while current commands use this directory.
 Build both locked Android ABIs and the debug APK:
 
 ```bash
-source ~/.profile
 clients/android/build.sh
 ```
 
-The build uses Android Gradle Plugin `8.7.3`, Gradle `8.11.1`, Kotlin
-`2.0.21`, JNA Android AAR `5.17.0`, UniFFI `0.31.0`, NDK
-`28.2.13676358`, and API 28 Rust targets. It generates Kotlin from the host
-native library and packages independently cross-built `x86_64` and
+The build uses a Java `17` toolchain, Android Gradle Plugin `8.10.1`, Gradle
+`8.11.1`, Kotlin `2.0.21`, JNA Android AAR `5.17.0`, UniFFI `0.31.0`, NDK
+`28.2.13676358`, and API 28 Rust targets. Gradle requires an installed JDK 17
+and does not substitute a newer JDK. `scripts/dev-env.sh` finds it and exports
+`JDK17_HOME`, which `gradle.properties` registers as a toolchain, so
+`JAVA_HOME` may select a newer JDK. `build.sh` sources that script; source it
+yourself before running `./gradlew` directly. The build generates Kotlin from
+the host native library and packages independently cross-built `x86_64` and
 `arm64-v8a` libraries. Generated bindings, native libraries, reports, and APKs
 remain under ignored build directories.
+
+Debug installs are branded so they are not mistaken for the Play app or for
+each other. The ordinary debug identity is labeled `JSTorrent Dev` with an
+amber launcher background, and the side-by-side
+`chromeosQualificationTestPackage` identity is labeled `JSTorrent QA` with a
+purple one; the in-app header and notifications use the same label. The
+`legacyUpgradeTestPackage` identity stands in for production and keeps
+`JSTorrent`, as do release builds. The overrides live in `app/src/debugDev`
+and `app/src/debugQualification`.
 
 Run product lint, unit, and instrumentation packaging after the full build:
 
@@ -266,7 +278,13 @@ an eligible global-unicast address must report typed `Degraded` state with
 effective IPv6 disabled while IPv4 remains usable; that is an expected
 environment outcome rather than an application error.
 
-## Signed Canary Releases
+## Signed JSTorrent Candidates
+
+Release targets `com.jstorrent.app`, versionCode 25, with the original public
+upload certificate. Normal debug builds retain `org.rstorrent.bootstrap`.
+Original private signing material and existing Play app-signing/version
+continuity must be qualified; the former canary key cannot sign this release.
 
 See [the Android release runbook](../../docs/android-release.md) for version
 bumps, tag-triggered CI, signing backups, APK/AAB downloads, and Play upload.
+The [cutover checklist](../../docs/jstorrent-cutover-checklist.md) remains open.

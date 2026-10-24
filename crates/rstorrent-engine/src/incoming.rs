@@ -893,6 +893,7 @@ struct Shared {
     mse_index: Mutex<HashMap<[u8; 20], BTreeSet<SwarmKey>>>,
     mutations: AsyncMutex<()>,
     accepting_registrations: AtomicBool,
+    accepting_incoming: AtomicBool,
     next_generation: AtomicU64,
     peer_budget: PeerBudget,
     upload_coordinator: UploadCoordinator,
@@ -1350,6 +1351,9 @@ impl IncomingPeerHandle {
                 .reject(IncomingRejectionReason::ConnectionLimit, Some(remote), None);
             return Ok(());
         };
+        if !self.shared.accepting_incoming.load(Ordering::Acquire) {
+            return Ok(());
+        }
         let _pending = ObservationGuard::pending(&self.shared);
         run_handshake(
             stream.into(),
@@ -1559,6 +1563,7 @@ impl IncomingPeerRuntime {
             mse_index: Mutex::new(HashMap::new()),
             mutations: AsyncMutex::new(()),
             accepting_registrations: AtomicBool::new(true),
+            accepting_incoming: AtomicBool::new(true),
             next_generation: AtomicU64::new(1),
             peer_budget: config.peer_budget,
             upload_coordinator,
@@ -1630,7 +1635,18 @@ impl IncomingPeerRuntime {
         })
     }
 
+    pub fn set_incoming_enabled(&self, enabled: bool) {
+        self.handle
+            .shared
+            .accepting_incoming
+            .store(enabled, Ordering::Release);
+        if !enabled {
+            self.handle.shared.peer_budget.cancel_incoming();
+        }
+    }
+
     pub fn disable_listener(&self) {
+        self.set_incoming_enabled(false);
         *self.handle.shared.listener_guard() = IncomingListenerObservation {
             bootstrap: IncomingTcpBootstrap::Disabled,
             listen_address: SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0).into(),
@@ -1864,10 +1880,19 @@ pub(crate) async fn select_local_network_ipv4(
         return require_eligible_local_network_ipv4(address);
     }
 
+    #[cfg(target_os = "macos")]
+    {
+        probe_local_network_ipv4(SocketAddrV4::new(Ipv4Addr::new(192, 0, 2, 1), 1))
+            .await
+            .and_then(require_eligible_local_network_ipv4)
+    }
+
+    #[cfg(not(target_os = "macos"))]
     let primary =
         probe_local_network_ipv4(SocketAddrV4::new(Ipv4Addr::new(239, 255, 255, 250), 1900))
             .await
             .and_then(require_eligible_local_network_ipv4);
+    #[cfg(not(target_os = "macos"))]
     if primary.is_ok() {
         return primary;
     }
@@ -1882,7 +1907,7 @@ pub(crate) async fn select_local_network_ipv4(
             .and_then(require_eligible_local_network_ipv4);
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     primary
 }
 
@@ -2779,6 +2804,9 @@ async fn run_handshake(
     cancellation: CancellationToken,
     mut budget_permit: PeerBudgetPermit,
 ) {
+    if !shared.accepting_incoming.load(Ordering::Acquire) {
+        return;
+    }
     let remote = stream.peer_addr().unwrap_or(remote);
     let budget_cancellation = budget_permit.cancellation_token();
     let deadline = Instant::now() + timeout;

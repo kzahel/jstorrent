@@ -1,0 +1,141 @@
+{
+  "schema": "chromeos-dedicated-localhost/v1",
+  "date": "2026-10-04",
+  "route": "http://jstorrent.localhost:3030",
+  "legacy_route": "not admitted; matching preview package/extension update required",
+  "artifacts": {
+    "linux_package_sha256": "0ddb9c48b0c5fa7fa8cb03ab466673628c6798f4f751914cb8d695fd97216694",
+    "extension_zip_sha256": "e377f8097eaa8ddd36a1d3e3f73bbd481d870aaff0fcd3032475a61e0ec258fa"
+  },
+  "validation": {
+    "rust_fmt": "pass",
+    "rust_clippy_workspace": "pass",
+    "rust_workspace": {
+      "passed": 1574,
+      "ignored": 18
+    },
+    "web_typecheck": "pass",
+    "web_tests": {
+      "passed": 470,
+      "skipped": 2
+    },
+    "extension_tests": 54,
+    "extension_archive_csp": "pass",
+    "packaged_injected_journeys": {
+      "android": 6,
+      "linux": 10,
+      "cached_document_replacement": "pass"
+    },
+    "actual_chromium_paired_cookie_origin_restart": "pass",
+    "linux_baseline_package": "Ubuntu 22.04 x86_64, archive/dependencies/version checks pass",
+    "android": "No Android or shared engine/application contract behavior changed"
+  },
+  "physical": [
+    {
+      "route": "http://jstorrent.localhost:3030",
+      "delivery": "unsigned_local_candidate",
+      "wifi": "unchanged",
+      "cases": [
+        {
+          "case": "actual_packaged_handoff_connected",
+          "result": "pass",
+          "registered_launcher": false
+        },
+        {
+          "case": "same_origin_browser_intake_verified_download",
+          "result": "pass",
+          "bytes": 1048576,
+          "sha1": "27b016b8f330f063a2776225cd2242821cbb8b40"
+        },
+        {
+          "case": "source_offline_process_restart_browser_reload",
+          "result": "pass",
+          "same_library": true,
+          "sha1": "27b016b8f330f063a2776225cd2242821cbb8b40"
+        },
+        {
+          "case": "repeated_handoff_reuses_same_library_tab",
+          "result": "pass"
+        }
+      ],
+      "result": "pass_bounded_route",
+      "cohort": "A",
+      "probe": {
+        "route": "http://jstorrent.localhost:3030",
+        "actual_chrome_reachable": true,
+        "cookie_sent_to_same_host": true,
+        "cookie_absent_on_bare_and_other_localhost": true
+      },
+      "cleanup": {
+        "inherited_beta_path_permissions_storage_restored": true,
+        "extension_count_restored": 25,
+        "inherited_tabs_preserved": 3,
+        "inherited_package_profile_digest_unchanged": true,
+        "owned_runtime_profile_payload_removed": true,
+        "listener_absent": true,
+        "wifi_and_power_policy": "unchanged",
+        "staging_and_marker_removed": true,
+        "doctor": "10/10 pass"
+      }
+    },
+    {
+      "route": "http://jstorrent.localhost:3030",
+      "delivery": "unsigned_local_candidate",
+      "wifi": "unchanged",
+      "cases": [
+        {
+          "case": "actual_packaged_handoff_connected",
+          "result": "pass",
+          "registered_launcher": true
+        },
+        {
+          "case": "same_origin_browser_intake_verified_download",
+          "result": "pass",
+          "bytes": 1048576,
+          "sha1": "27b016b8f330f063a2776225cd2242821cbb8b40"
+        },
+        {
+          "case": "source_offline_process_restart_browser_reload",
+          "result": "pass",
+          "same_library": true,
+          "sha1": "27b016b8f330f063a2776225cd2242821cbb8b40"
+        },
+        {
+          "case": "repeated_handoff_reuses_same_library_tab",
+          "result": "pass"
+        },
+        {
+          "case": "actual_exact_host_permission_and_connection_page",
+          "result": "pass",
+          "same_library": true
+        }
+      ],
+      "result": "pass_bounded_route",
+      "cohort": "B",
+      "probe": {
+        "route": "http://jstorrent.localhost:3030",
+        "actual_chrome_reachable": true,
+        "cookie_sent_to_same_host": true,
+        "cookie_absent_on_bare_and_other_localhost": true
+      },
+      "cleanup": {
+        "owned_beta_removed": true,
+        "extension_count_restored": 16,
+        "inherited_tabs_preserved": 9,
+        "owned_package_profile_payload_removed": true,
+        "listener_absent": true,
+        "wifi_and_power_policy": "unchanged",
+        "staging_and_marker_removed": true,
+        "doctor": "10/10 pass"
+      }
+    }
+  ],
+  "limits": [
+    "Unsigned local candidates; no publication/store upgrade claim",
+    "Cohort A preserves its inherited package and uses an isolated runtime; installed launcher qualified on B",
+    "Controlled 1 MiB source; no public swarm or long forwarding-performance claim",
+    "Wi-Fi unchanged; full reboot, suspend and ARM physical qualification remain open",
+    "Cookies still span ports on the same dedicated hostname; not a malicious-local-process boundary"
+  ],
+  "build_host_checkout": "restored clean"
+}

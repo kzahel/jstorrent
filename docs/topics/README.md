@@ -1,5 +1,11 @@
 # Topics
 
+- [Download safety](download-safety.md): captured skip rules, overrides, bitmap storage and OS origin labels.
+
+For running and debugging the current product, start with the
+[development map](../../DEVELOPMENT.md). Legacy replacement and cutover
+concerns are indexed separately in the [migration stream](../migration/README.md).
+
 Focused, living records of continuing concerns live here.
 
 Prefer the smallest coherent topic whose status, decisions, evidence, gaps, and
@@ -33,24 +39,13 @@ Topics own the current truth for a continuing concern. Tactical docs under
 
 ## Current Topics
 
-- [`beta-release-readiness.md`](beta-release-readiness.md): authoritative beta
-  gap ledger, platform release lanes, CI/updater/distribution gates, deliberate
-  MVP deferrals, and ordered release tacticals.
 - [`product-direction.md`](product-direction.md): initial product motivation,
   first-party Rust engine decision, platform posture, non-goals, open choices,
   and recommended bring-up sequence.
-- [`product-surfaces-and-migration.md`](product-surfaces-and-migration.md):
-  backend/presentation separation, desktop extension use, ChromeOS Android and
-  Crostini choices, launch handoff, backend isolation, and later best-effort
-  JSTorrent graduation.
-- [`android-jstorrent-replacement.md`](android-jstorrent-replacement.md):
-  authoritative Android production-replacement gates, current JSTorrent
-  feature dispositions, Play/state/SAF handoff, and coordinated ChromeOS
-  extension rollout.
 - [`runtime-configurations-and-headless-deployment.md`](runtime-configurations-and-headless-deployment.md):
   visible, background, windowless, and headless runtime compositions; explicit
   Linux service, listener, origin, authentication, and reverse-proxy policy;
-  and the separation of backend availability from UI and seeding lifetime.
+  and the separation of host availability from UI and seeding lifetime.
 - [`product-state-and-feedback.md`](product-state-and-feedback.md):
   installation identity, local usage summaries, prompt campaign state,
   lifecycle/version facts, disclosed update/feedback/uninstall context, and
@@ -98,6 +93,13 @@ Topics own the current truth for a continuing concern. Tactical docs under
 - [`client-persistence.md`](client-persistence.md): SQLite-backed client state,
   verified metadata and resume invariants, cross-platform storage-root
   identity, and the application-service boundary above the torrent engine.
+- [`durable-data-migrations.md`](durable-data-migrations.md): the ledger of
+  every durable format, its supported floor, and each migration step, legacy
+  reader and one-time import with its retirement condition.
+- [`mixed-version-compatibility.md`](mixed-version-compatibility.md): clients
+  and hosts of different versions; the 30-day horizon, host capabilities, the
+  contract rules every feature follows, their CI checks, and the release and
+  fallback-removal runbooks.
 - [`download-roots.md`](download-roots.md): user-selected payload roots,
   first-add and default-root UX, platform capability ownership, desktop/WebUI
   picker behavior, and the deferred JSTorrent-like file-selection flow.
@@ -148,6 +150,10 @@ Topics own the current truth for a continuing concern. Tactical docs under
   accepted Library, Transfers, and Workbench product destinations, contextual
   sidebar and inspector roles, media-library boundaries, and the preserved
   traditional advanced interface.
+- [`media-library.md`](media-library.md): the cross-torrent Library of video
+  and audio files, its host-owned in-memory index and `library_media` query
+  contract, cross-torrent grouping, and where derived, probed and
+  user-authored media data live.
 - [`web-ui-design.md`](web-ui-design.md): fresh React and CSS Modules web
   presentation, JSTorrent-inspired information hierarchy, category layer,
   Zustand state ownership, adaptive master/detail navigation, accessibility,
@@ -171,3 +177,24 @@ Topics own the current truth for a continuing concern. Tactical docs under
 - [`tracker-discovery.md`](tracker-discovery.md): tracker URL and announce
   lifecycle, bounded results, scheduling direction, and the
   tracker-to-peer-observation boundary.
+
+- [`agent-pr-review.md`](agent-pr-review.md) owns the isolated maintainer PR
+  review lane, credential boundaries, trusted cache and activation evidence.
+
+## Legacy migration and release qualification
+
+Read these for import, update continuity or rollout work; current runtime and
+testing instructions live in the development map above.
+
+- [`product-surfaces-and-migration.md`](product-surfaces-and-migration.md):
+  accepted release identity, frozen incubation routes, legacy handoff and
+  host/client compatibility.
+- [`desktop-jstorrent-replacement.md`](desktop-jstorrent-replacement.md):
+  desktop state import, host ownership and installed replacement evidence.
+- [`android-jstorrent-replacement.md`](android-jstorrent-replacement.md):
+  legacy Android state/SAF/Play continuity and mixed extension/app versions.
+- [`beta-release-readiness.md`](beta-release-readiness.md):
+  qualification ledger, release boundary and remaining platform/store gates.
+
+[Migration testing](../migration/testing.md) maps the retained upgrade
+regressions; dated results remain in their owning tacticals.

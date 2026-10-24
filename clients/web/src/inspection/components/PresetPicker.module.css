@@ -1,0 +1,150 @@
+/*
+ * A settings row: label on the left, one fixed-width control column on the
+ * right. The preset select and any custom field below it share that column,
+ * so every control in a form ends at the same edge with the same width.
+ */
+.field {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) var(--ui-setting-control-width);
+  align-items: center;
+  gap: var(--ui-space-xs) var(--ui-space-lg);
+}
+
+.field > :nth-child(n + 3) {
+  grid-column: 1 / -1;
+}
+
+.field strong {
+  font-size: var(--ui-font-body);
+  font-weight: var(--weight-medium);
+}
+
+.field > label {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.field > label small {
+  color: var(--text-muted);
+  font-size: var(--ui-font-small);
+  line-height: 1.4;
+}
+
+.controls {
+  display: grid;
+  min-width: 0;
+  gap: var(--ui-space-xs);
+}
+
+.controls select {
+  width: 100%;
+  min-width: 0;
+}
+
+/* A custom value: one number field, or a number with its unit select. */
+.custom {
+  display: flex;
+  min-width: 0;
+  gap: var(--ui-space-xs);
+}
+
+.custom > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.custom > select {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+/*
+ * A number field with its unit inside the same box. The unit never moves the
+ * field: the box keeps the column's width whatever the unit's length.
+ */
+.unitInput {
+  display: flex;
+  min-width: 0;
+  min-height: var(--ui-control-height);
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding-right: var(--ui-space-sm);
+  color: var(--text-secondary);
+  background-color: var(--surface-primary);
+  font-size: var(--ui-font-small);
+  transition: border-color 120ms ease;
+}
+
+.unitInput:hover:not(:has(input:disabled)) {
+  border-color: var(--control-border);
+}
+
+.unitInput:has(input:focus-visible) {
+  border-color: var(--focus);
+  outline: 2px solid var(--focus);
+  outline-offset: 0;
+}
+
+.unitInput:has(input[aria-invalid="true"]) {
+  border-color: var(--danger);
+}
+
+.unitInput:has(input:disabled) {
+  opacity: 0.55;
+}
+
+.unitInput input {
+  flex: 1 1 auto;
+  width: 0;
+  min-width: 0;
+  min-height: calc(var(--ui-control-height) - 2px);
+  border: 0;
+  padding-right: var(--ui-space-xs);
+  background: transparent;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.unitInput input:focus-visible {
+  outline: none;
+}
+
+.unitInput input:disabled {
+  opacity: 1;
+}
+
+.unitInput > span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* A number field with no unit still fills the column. */
+.plainInput {
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.plainInput[aria-invalid="true"],
+.controls select[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.error {
+  color: var(--danger-strong);
+  font-size: var(--ui-font-small);
+}
+
+@media (max-width: 520px) {
+  .field {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .controls {
+    max-width: var(--ui-setting-control-width);
+  }
+}

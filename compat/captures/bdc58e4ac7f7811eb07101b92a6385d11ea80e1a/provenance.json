@@ -1,0 +1,20 @@
+{
+  "commit": "bdc58e4ac7f7811eb07101b92a6385d11ea80e1a",
+  "roles": [
+    "client"
+  ],
+  "capturedWith": {
+    "node": "v26.7.0",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "rolldown": "1.1.5"
+  },
+  "sourceDigests": {
+    "clients/web/src/validation.ts": "a37c3e14e47879d99546b3ee129ec972ada202468ac293bb233a384f477fba08",
+    "clients/web/src/view-set-reducer.ts": "4adffd391febac6b82f3b3f4a2470bfdac2b359fa94ed608c3117ea91f928ce5",
+    "clients/web/src/api/generated/v1.validators.js": "df848f62b16c67aad4dc34946b45649cdccb095ccca8d8b018aff1d9267fdc7c"
+  },
+  "artifactDigests": {
+    "v1.schema.json": "b27616d6995180839728406e018042257c116e0c95b314fddadb9e172f40b973",
+    "client-decoder.mjs": "9ec35a91c0cac7bef9b32a59c475b9f3529f4e22e9113c1438be967b718b3074"
+  }
+}

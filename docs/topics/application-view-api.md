@@ -1,6 +1,193 @@
 # Application View API
 
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+adds optional FileView.safety and TorrentView.safety_summary, with corresponding
+field updates. A row independently explains rule source, suffix, allowance and
+blocked state; safety never adds a priority enum value. All-selection previews
+subtract blocked file counts/bytes. Files stays paged. New commands are gated
+by file_safety; strict released field-delta exposure stays under the existing
+client-first release hold. See [download safety](download-safety.md).
+
+Tactical [357](../tactical/357-rich-share-links.md) gives `export_magnet`
+optional `options` (`include_size`, `file_indices`, `peer_hint`) and adds
+`peer_hints` and `peer_hint_omission` to its result. Without options the
+export is unchanged. `TorrentView.source_size_bytes` carries a magnet's `xl`
+until metadata is recorded. Hosts older than this contract ignore `options`.
+
+Tactical [353](../tactical/353-host-product-in-hello.md) adds an optional
+`ApiHello.product` (`ApiProductInfo`): host kind, version, source build ID,
+target, application identifier, profile ID and durable profile location.
+Desktop, headless, the gateway (including Crostini) and Android report it
+from `ApplicationConfig.product`; the service adds the profile fields. These
+facts are fixed for the process lifetime, so they live in the hello rather
+than a separate call. Web clients bound each string and read the hello again
+after every reconnect. Android's `AndroidApplicationConfig` gains
+`application_id`.
+
+Tactical [350](../tactical/350-share-links-and-private-hint.md) adds
+`TorrentView.private_torrent` and `TorrentFieldUpdate::PrivateTorrent`. The
+flag is true only when parsed, stored metainfo carries BEP 27 `private=1`,
+and is omitted when false, so public torrents, magnets before metadata and
+older readers are unchanged. Generated TypeScript, Kotlin and Swift carry it
+as `privateTorrent`; no schema change.
+
+Tactical [340](../tactical/340-windows-quiet-network-startup.md) keeps the same
+contract while qualifying Windows settings and runtime observations. Configured
+incoming, socket binding, forwarding result and observed reachability remain
+separate from unknown OS permission. Native Cancel leaves settings intent intact;
+Off still removes intake without disabling outbound UDP. No generated type or
+permission-state field is added.
+
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) keeps the existing generated contract: saved
+incoming/UPnP preferences, effective listener/UDP state and DHT state remain
+separate. Mac idle discovery demand changes effective DHT participation without
+rewriting its saved preference. No OS permission grant is inferred from settings
+or a successful bind. Android uses the same incoming-Off semantics and existing
+observer boundary; its defaults and presentation are unchanged.
+
+Tactical [335](../tactical/335-removal-pieces-and-disconnect-lifetime.md)
+replaces Pieces with an empty snapshot when its torrent disappears and with a
+fresh snapshot when piece geometry changes. This discards pending patches for
+the old geometry before publishing new bounds. Sparse verified ranges and active
+attempts clear together; strict client range validation remains unchanged.
+
+Tactical [314](../tactical/314-android-presentation-shutdown-race.md) makes the
+Android presentation adapter terminal after close and retains ownership during
+partial subscription setup failures. Acquisition and closure share the existing
+mutex; cancellation remains explicit. View semantics and generated contracts
+are unchanged. The local repair is separate from delivery to installed clients.
+
+Tactical [308](../tactical/308-android-optional-add-selection.md) adds the
+closed `download_all_pending_add` command carrying the opaque torrent ID.
+It applies exclusively to a newly pending add and accepts no catalog or file
+indices. Tactical [323](../tactical/323-pre-metadata-skip-file-selection.md)
+adds a serde-defaulted `disable_future` flag; only when true does it also
+turn off future file selection, atomically with the add. Existing snapshots clear pending state
+and retain authoritative metadata availability. TypeScript/schema, Kotlin and
+Swift boundaries are regenerated; only Android exposes the new action.
+
+Tactical [277](../tactical/277-android-observer-listener-readiness.md) repairs
+qualification of269's asynchronous listener startup. Source8c CI and a focused
+local reproduction fail the immediate optional snapshot. The unchanged
+maintenance owner applies settings asynchronously; the test now observes actual
+readiness within five seconds. All15 Android Rust boundary cases, focused
+all-target clippy and workspace formatting pass. Protocol, generated boundary
+and shipping behavior are unchanged; the original hosted failure remains open
+until revised-source CI is authorized and run.
+
 Topic: `application-view-api`
+
+Tactical [269](../tactical/269-android-incoming-peer-diagnostic-evidence.md)
+is complete locally at application sourceaeaa72f9:15 Android Rust cases/clippy,
+normal original-key dual-ABI packaging,122 JVM cases/lint and actual bounded
+physical incoming snapshots pass. Full workspace1575 cases/fmt/clippy and
+web typecheck/470 cases also pass, with existing ignores/skips retained.
+The original failed probe observes zero then one native registration and two
+UnknownTorrent rejections for exactly its owned hash; it started before actual
+admission. Tactical270 is complete locally: fresh UID/exact-fixture registry
+readiness precedes independent upload. Both current-source original large
+fixtures verify/upload all28 MiB with120 empty files, retained diagnostic
+history/actual filters, joined shutdown and actual reopened Live/owned row,
+unchanged SAF registry/payload and cleanup. Readiness takes107.99/166.16 seconds.
+All48 portable cases pass; earlier failed receipts remain scoped and intact.
+Normal diagnostic warnings intentionally remain across category filters. No
+engine/network/admission/retry policy changes. Both full current-APK default
+runs subsequently pass under259/273; managed and broader physical acceptance
+remain separate.
+
+Both current-APK physical default runs now pass three cold repetitions, the
+3,600-second detached hour, full independent 40-MiB download/upload hashes,
+retained Warning/Info filters, joined actual Live/owned-row reopen, unchanged
+SAF registry/payload and cleanup. Both also pass all seven current-APK recovery
+cases. A retains its older fixed 120-second upload driver; B's fresh repeat loads
+source `840f421d`/driver `51883b67` with a 172-second upload and one native display wake
+inside the original 120-second reopen budget. B's first whole reopen failure
+remains recorded unchanged. No managed Play, physical reboot/provider/network/
+sleep or final signed desktop/store/public acceptance is inferred.
+
+
+Both source0aa physical cohorts independently hash the installed APK and pass
+small foreground/background/reopened upload plus joined Live-library restart,
+retained SAF registry and cleanup. This closes Tactical260's bounded local
+shutdown evidence, not the failed large-metadata/hour or managed delivery gates.
+Tactical266's restored native retained history/Live-library component also passes
+both cohorts. Whole upload receipts remain failed; severity/category button
+changes alone cannot prove asynchronous filtering. Tactical267 now checks actual
+visible filtered rows, with26 passing portable driver cases.
+
+Tactical [266](../tactical/266-android-diagnostic-history-resynchronization.md)
+repairs Android's diagnostic-only queue after a real 581,079-byte history cannot
+resynchronize through 256 KiB. Source `2adf2eb1` requests the existing 4-MiB
+subscription bound for retained history (2 MiB / 2,048 events); Kotlin still
+retains 512 rows. The real retention regression rejects the old budget, delivers
+473,255 bytes and resynchronizes unchanged history. Normal original-signed and
+isolated dual-ABI builds, 121 release JVM cases, lint and independent package
+checks pass. Full session checks pass 387 cases with two existing ignores.
+Bounded physical retained-history/Live return passes; large-fixture upload
+and managed delivery remain open under259/267. No store upload occurs.
+
+Tactical [267](../tactical/267-physical-upload-and-reopen-evidence.md) strengthens
+actual upload transport/readiness/counter and observed retained-settings
+navigation evidence. Both source-376 physical runs pass their full 3,600-second
+background transfer and whole 40-MiB hash; their subsequent upload phase fails.
+No complete end-to-end pass is inferred. Portable delayed-listener/failure
+ownership/refusal tests pass; short current-APK trials run before full retries.
+No engine/network/seeding policy changes or inherited app/data cleanup occurs.
+
+Tactical
+[253](../tactical/253-chromeos-onboarding-recovery-and-physical-qualification.md)
+keeps the native companion wire/API unchanged. The page owns bounded discovery
+and a validated 1..120-second approval window; Cancel joins its transport/view
+owner and explains the separately owned Android request. Real cohort-A
+approval/rejection/declared-window expiry, disconnect/manual retry and
+shared-library recovery are bounded candidate-page passes. The Linux page uses
+the unchanged product/build/protocol health endpoint before handing off to the
+existing product UI. Normal Terminal startup restores missing Linux registration,
+and an isolated current browser now connects and verifies file-picker intake.
+Runtime-only hour/repetition evidence retains its original limit; store and
+signed installed handoff remain open.
+
+Second-cohort Tactical 253 evidence exposed a completion/cleanup ordering bug:
+active seed admission could coexist with a downloading operational state.
+Completed admission now precedes the old content-task flag, and task-progress
+cleanup preserves the admission owner's fact. The strict browser contract is
+unchanged. A three-admission regression covers active, inactive-exempt and queued
+seeds through cleanup; the rebuilt physical Android candidate stays connected
+at completion with independently verified bytes, including a full 3,600-second
+controlled observation and stable 40 MiB completed view. Store delivery and the
+Linux browser journey retain their separate qualification limits.
+
+Tactical [244](../tactical/244-unavailable-storage-presentation.md) corrects
+shared React adaptation of `awaiting_storage`: blocked progress becomes Needs
+attention with a Storage unavailable table label; active storage preparation
+retains active membership. Existing typed progress and operational state remain
+authoritative. Application DTOs, persisted run intent, root health and checker
+behavior are unchanged. Adapter/category/component and migration regressions
+pass; Android Compose uses operational state and does not share this mapping.
+
+Tactical [`236`](../tactical/236-desktop-compatibility-refusal-and-recovery.md)
+reuses existing version/schema and desktop capability checks without changing
+DTOs or protocol versions. Incompatible desktop hello/schema failures close the
+connection and stop automatic page retries; manual recovery only attaches.
+Product-version strings are not used as a compatibility guarantee.
+
+Tactical [`232`](../tactical/232-desktop-extension-control.md) reuses existing
+commands, library views and acknowledgements for desktop extension control.
+No generated DTO changes are needed. Its hello identifies `desktop`, the sole
+`default` profile and a fresh runtime instance with `desktop_control_v1` and
+`desktop_root_picker_v1` on qualified Linux, Windows and macOS desktop builds.
+Media capability is withheld and media-URL
+creation is rejected until that surface has its own acceptance evidence.
+
+Tactical [`234`](../tactical/234-desktop-user-intent-and-background-lifecycle.md)
+retires desktop-control view sets when their authenticated connection ends,
+after joining calls and attachment pumps and before admitting a same-client
+replacement. Desktop pages rebuild views on attachment; retaining abandoned
+sets for the five-minute lease exhausted the global limit during rapid reloads.
+Cleanup includes unattached sets and affects only the departed owner. Other
+transports retain resumable leases, and native-window views remain independent.
+The 32-set global/eight-set owner limits and application wire contract do not
+change.
 
 Tactical `216`'s local support export consumes only the existing client-side
 updater snapshot and emits its own bounded allowlist. It changes no generated
@@ -435,7 +622,7 @@ public shape.
 | --- | --- | --- |
 | Application view hub | Current projection source state and fan-out into view sets | One application-service instance; closes all view sets during joined service shutdown |
 | View-set lease reaper | One timer that removes client-silent view sets independently from later requests | One application-service instance; cancellation and awaited join during service shutdown |
-| View set | Desired view specifications, per-view materialization, epoch, cursor, and bounded accumulated updates | Explicit close, idle-lease expiry, authenticated remote disconnect policy, or application shutdown |
+| View set | Desired view specifications, per-view materialization, epoch, cursor, and bounded accumulated updates | Explicit close, idle-lease expiry, idle eviction at a capacity limit, authenticated remote disconnect policy, or application shutdown |
 | Transport adapter | Authentication context, framing, request bounds, and delivery of semantic calls | Tauri webview, HTTP request, or WebSocket connection lifetime; never owns application truth |
 | TypeScript `ViewController` | Desired view set, current ID/epoch/cursor, one update consumer, reconnect/backoff, validation, and cancellation | One web application instance; closes or abandons its leased Rust view set |
 | Pure client reducer | Atomic snapshot and patch application with continuity checks | No I/O or task lifetime |
@@ -751,7 +938,7 @@ GET    /api/v1/connect
 authenticates once and carries typed hello, command, view-set creation/update/
 close, attachment, batch and exact cursor-acknowledgement frames directly. It
 does not require an HTTP-created view set, and one socket multiplexes every
-bounded view attachment for that client/backend connection. The accepted
+bounded view attachment for that client/host connection. The accepted
 framing, ownership, resume and relay-compatible layering live in
 [`application-connection-architecture.md`](application-connection-architecture.md).
 
@@ -802,10 +989,12 @@ fails on drift.
 Generated schema validates structural shape at the untrusted JSON boundary.
 Small handwritten semantic validators retain limits that schemas cannot
 express clearly, such as canonical ranges, safe lengths, cross-field
-relationships, and negotiated capabilities. Unknown object fields are
-accepted for additive forward compatibility. Unknown closed command, patch,
-or control variants fail unless a negotiated capability defines their safe
-handling.
+relationships, and negotiated capabilities. The intended rule is that
+unknown object fields are accepted for additive forward compatibility, but
+released clients do not yet follow it: 57 generated object schemas are
+closed. [`mixed-version-compatibility`](mixed-version-compatibility.md) owns
+the rules that hold today, the capability gating of client-sent commands and
+patch keys, and the plan to make clients tolerant.
 
 The current handwritten TypeScript validator already demonstrates the drift
 risk: its storage-state list omits Rust's `prepared` and `needs_repair`
@@ -945,6 +1134,12 @@ proved the packed geometry.
 Tactical `033` establishes these concrete v1 choices:
 
 - 32 live view sets per application and 8 per authenticated adapter owner;
+  at either limit an open evicts the least recently active set that is not
+  being polled and whose client has been silent for at least 60 seconds (three
+  maximum waits), and is refused with `resource_limit` only when no set
+  qualifies. A reloaded browser page has a new owner and cannot resume its
+  previous sets, so without eviction repeated reloads exhausted capacity until
+  the abandoned leases expired;
 - 16 named views per set and 64-byte conservative ASCII view IDs;
 - 16--512 KiB whole-set queues, defaulting to 256 KiB;
 - 512 KiB steady-state queues, a separately retained 16 MiB coherent snapshot
@@ -1183,13 +1378,36 @@ metadata transition uses the closed typed `TotalSizeBytes` sparse field;
 TypeScript, Android, and Swift reducers apply it exhaustively. Playback itself
 reuses the existing semantic media call and adds no view field or payload byte.
 
+## Library Media Extension
+
+Tactical [`363`](../tactical/363-library-media-index.md) adds
+`library_media`, the first cross-torrent projection. The view hub derives one
+in-memory index from every torrent's resident file catalog and evaluates a
+`LibraryMediaQuery` (words, kinds, roles, availability, archived scope,
+torrent, group, grouping, sort, direction) against current file progress. A
+view carries the query and a catalog page of 1 to 128 rows (default 100); the
+legacy subscription boundary expresses the same view as
+`ViewSelector::Library` with the `library_media` projection and a required
+page, which is how Android consumes it.
+
+The snapshot holds the page, facets over the text, archived and torrent scope,
+and either item rows or group rows. The only patch is an `upsert` of items
+already on the delivered page. The hub keeps the last result of each live
+`(query, page)`: progress that leaves every item's offline state unchanged
+patches memoized rows without re-evaluating, and any change to the page,
+order, totals, facets or groups replaces the view with a snapshot. Clients use
+one view ID per request, so a page answering an earlier query is never taken
+for the current one. Companion connections do not advertise the projection,
+as with `torrent_media`. [`media-library`](media-library.md) owns the item
+model and its rules.
+
 ## Live Trackers Extension
 
 Tactical `043` implements `torrent_trackers` as complete keyed rows derived
 from the deterministic engine schedule. The projection carries configured
 identity, source and transport, active/inactive lifecycle, current and next
 action, attempt and failure counts, accepted response statistics and interval,
-monotonic outcome ages and deadline, and bounded failure context. It does not
+monotonic outcome instants and deadline, and bounded failure context. It does not
 derive state from diagnostics or retain a second tracker state machine.
 
 Tactical `081` makes this a paged projection and adds metainfo versus magnet
@@ -1215,9 +1433,17 @@ coarse redacted TLS categories rather than native exception text.
 Same-catalog durable updates preserve live tracker state. Restart reconstructs
 configured inactive rows from the magnet without pretending volatile response
 history survived. The selected Trackers tab alone requests the view at a
-250 ms minimum delivery interval; leaving the tab evicts it. The adapter maps
-the delivered deadline to a local wall-clock target once, and the React table
-updates countdown text without backend timer patches.
+250 ms minimum delivery interval; leaving the tab evicts it. Completed Tactical
+[`300`](../tactical/300-monotonic-tracker-view-deadlines.md) replaces relative
+row durations with `next_action_at_millis`, `last_success_at_millis`, and
+`last_failure_at_millis` on ViewHub's application monotonic clock. Every
+`UpdateBatch` carries current `server_now_millis`, refreshed on retained replay
+without changing its cursor or payload. These decimal instants are not Unix
+timestamps and cannot be persisted across application restart. The adapter
+anchors this clock to `performance.now()` once per view-set epoch; retained
+rows, partial patches, tab reopen and unrelated updates preserve deadlines.
+The React table ticks locally without host timer patches. Transport delay
+can produce a small display offset; the engine remains scheduling authority.
 
 The torrent summary also carries an additive optional configured-tracker
 count derived from the same bounded tracker model. Navigation can therefore
@@ -1547,7 +1773,10 @@ this design.
   initially client-side within a bounded complete torrent list;
 - exact reset granularity when one view snapshot itself exceeds its bound;
 - remote authentication, pairing, TLS, exposure, and deployment posture;
-- browser router and navigation URL details;
+- deep links into the browser UI from outside it (notifications, the
+  extension, share links); Tactical
+  [`365`](../tactical/365-url-navigation-and-hot-reload.md) settles in-app
+  navigation URLs as a client-only fragment with no host contract;
 - the measured threshold for specialized field patches or binary encoding;
   and
 - durable label and queue semantics; archive and bounded removal/deletion are

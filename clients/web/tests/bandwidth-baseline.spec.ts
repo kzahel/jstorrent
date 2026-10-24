@@ -126,7 +126,7 @@ test("production WebSocket UI bandwidth baseline", async ({ page }) => {
     () => page.goto(liveUrl()),
     async () => {
       await expect(
-        page.getByRole("grid", { name: "Transfer queue" }),
+        page.getByRole("grid", { name: "Torrents" }),
       ).toHaveAttribute("aria-rowcount", String(libraryRows! + 1));
       await expect.poll(() => applicationUpgrades).toBe(1);
     },
@@ -144,11 +144,11 @@ test("production WebSocket UI bandwidth baseline", async ({ page }) => {
       await input.press("Enter");
       await confirmDefaultAddOptions(page);
       await expect(
-        page.getByRole("region", { name: "Transfers" }).getByRole("status"),
+        page.getByRole("region", { name: "Torrent collection" }).getByRole("status"),
       ).toHaveText("Added");
     },
     async () => {
-      const transfers = page.getByRole("grid", { name: "Transfer queue" });
+      const transfers = page.getByRole("grid", { name: "Torrents" });
       await expect(transfers).toHaveAttribute(
         "aria-rowcount",
         String(libraryRows! + 2),
@@ -170,8 +170,8 @@ test("production WebSocket UI bandwidth baseline", async ({ page }) => {
     "workbench_peers",
     async () => {
       await activeRow!.click();
-      await primary.getByRole("button", { name: "Workbench" }).click();
-      const library = page.getByRole("grid", { name: "Torrent library" });
+      await primary.getByRole("button", { name: "Torrents" }).click();
+      const library = page.getByRole("grid", { name: "Torrents" });
       const libraryRow = library
         .getByRole("row")
         .filter({ hasText: activeName! });
@@ -193,7 +193,7 @@ test("production WebSocket UI bandwidth baseline", async ({ page }) => {
     () => captureFailure,
     "General",
     "general",
-    () => expect(page.getByText("Current transfer")).toBeVisible(),
+    () => expect(page.getByRole("button", { name: "Copy magnet link" })).toBeVisible(),
     windowMillis!,
   );
   await selectDetail(
@@ -232,7 +232,7 @@ test("production WebSocket UI bandwidth baseline", async ({ page }) => {
         page.getByRole("log", { name: "Chronological diagnostic events" }),
       ).toBeVisible();
       await expect(
-        page.getByRole("combobox", { name: "Diagnostic capture profile" }),
+        page.getByRole("combobox", { name: "Log detail level" }),
       ).toHaveValue("normal");
     },
     windowMillis!,
@@ -242,8 +242,8 @@ test("production WebSocket UI bandwidth baseline", async ({ page }) => {
     page.getByRole("progressbar").first(),
   );
   const retainedText =
-    (await page.locator("span").filter({ hasText: /retained$/ }).first().textContent()) ??
-    "0 retained";
+    (await page.locator("span").filter({ hasText: /kept$/ }).first().textContent()) ??
+    "0 kept";
   const normalLogsRetained = Number(retainedText.replace(/\D/g, ""));
   const total = capture.summarize();
 
@@ -362,7 +362,7 @@ async function progressValueOrNull(target: Locator): Promise<number | null> {
 }
 
 async function confirmDefaultAddOptions(page: Page): Promise<void> {
-  const dialog = page.getByRole("dialog", { name: "Choose download options" });
+  const dialog = page.getByRole("dialog", { name: "Add torrent" });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Add torrent" }).click();
 }

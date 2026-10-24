@@ -9,12 +9,13 @@ export interface SpeedPreferences {
 export const DEFAULT_SPEED_RANGE: SpeedRange = "seconds30";
 export const DEFAULT_SPEED_METRICS: readonly SpeedMetric[] = [
   "payload_received",
-  "staged_write",
-  "payload_verified",
+  "payload_uploaded",
 ];
 
 const STORAGE_KEY = "rstorrent.presentation.speed";
-const VERSION = 1;
+// Version 2 moved the defaults from received/staged/verified to
+// download/upload; older saved selections fall back to the new defaults.
+const VERSION = 2;
 const RANGES: readonly SpeedRange[] = [
   "seconds30",
   "minutes2",
@@ -43,6 +44,7 @@ const METRICS: readonly SpeedMetric[] = [
   "logical_hash_read",
   "payload_redundant",
   "payload_hash_failed",
+  "payload_uploaded",
 ];
 
 export function loadSpeedPreferences(
@@ -88,6 +90,16 @@ export function saveSpeedPreferences(
   } catch {
     // Browser-local chart preferences are optional in sandboxed contexts.
   }
+}
+
+export function isDefaultSpeedPreferences(
+  preferences: SpeedPreferences,
+): boolean {
+  return (
+    preferences.range === DEFAULT_SPEED_RANGE &&
+    preferences.metrics.length === DEFAULT_SPEED_METRICS.length &&
+    DEFAULT_SPEED_METRICS.every((metric) => preferences.metrics.includes(metric))
+  );
 }
 
 function defaults(): SpeedPreferences {

@@ -30,7 +30,7 @@ jobs:
   rust:
     name: Rust and loopback interop
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -47,11 +47,14 @@ jobs:
 
       - name: Install Linux desktop build dependencies
         run: |
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y \
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libwebkit2gtk-4.1-dev \
+            libssl-dev \
+            openssl \
             patchelf
 
       - name: Install uv and locked Python 3.12 environment
@@ -149,6 +152,9 @@ jobs:
       - name: Lint workflow definitions
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.9
 
+      - name: Verify PR review gates and proxy boundaries
+        run: node --test .github/agent-review/review.test.mjs .github/scripts/fast-ci.test.mjs
+
       - name: Verify backport integrity and failure cases
         run: |
           python3 scripts/glib_backport.py
@@ -157,18 +163,48 @@ jobs:
       - name: Validate desktop release configuration and tools
         run: |
           node scripts/validate-desktop-release.mjs
+          bash scripts/configure-ci-apt.sh
+          sudo apt-get update
+          sudo apt-get install -y minisign
+          node scripts/validate-jstorrent-candidate.mjs
           node --test \
+            scripts/assemble-pages-site.test.mjs \
+            scripts/validate-jstorrent-candidate.test.mjs \
+            scripts/verify-desktop-signatures.test.mjs \
             scripts/validate-desktop-package.test.mjs \
             scripts/validate-desktop-release.test.mjs \
             .github/scripts/desktop-release-artifacts.test.mjs \
             .github/scripts/validate-desktop-release.test.mjs \
             .github/scripts/write-release-checksums.test.mjs \
             scripts/nightly-desktop-release.test.mjs \
+            scripts/latest-desktop-release.test.mjs \
             scripts/desktop-release-input.test.mjs \
-            scripts/apply-desktop-nightly-version.test.mjs
+            scripts/desktop-release-train.test.mjs \
+            scripts/desktop-release-metadata.test.mjs \
+            scripts/desktop-promotion.test.mjs \
+            scripts/prepare-private-update-qualification.test.mjs \
+            scripts/apply-desktop-nightly-version.test.mjs \
+            scripts/check-release-compatibility.test.mjs \
+            scripts/compat-ledger.test.mjs \
+            scripts/compat-window.test.mjs \
+            scripts/extension-store-version.test.mjs
+
+      # Every supported delivery must be captured for the compatibility
+      # matrix (docs/tactical/359 and 370).
+      - name: Check compatibility delivery ledger
+        run: |
+          git fetch --force --tags --depth=1 origin
+          node scripts/compat-ledger.mjs
 
       - name: Verify dependency and distribution review tools
-        run: python3 -m unittest discover -s scripts -p test_distribution_review.py
+        run: |
+          bash scripts/configure-ci-apt.sh
+          sudo apt-get update
+          sudo apt-get install -y squashfs-tools
+          python3 -m unittest discover -s scripts -p test_distribution_review.py
+          python3 -m unittest discover -s scripts -p test_package_appimage_sources.py
+          python3 -m unittest discover -s scripts -p test_current_appimage_sources.py
+          python3 -m unittest discover -s tests/interop/desktop_updates -p 'test_live_*.py'
 
       - name: Validate Crostini bootstrap release tools
         run: |
@@ -237,6 +273,9 @@ jobs:
             clients/web/src/fixtures/reactive-trace.json \
             clients/web/src/fixtures/view-set-trace.json
 
+      - name: Check product branding and original assets
+        run: node scripts/check-branding.mjs
+
       - name: Typecheck the shared web application
         run: npm run typecheck --prefix clients/web
 
@@ -285,7 +324,9 @@ jobs:
             bundle: appimage
             artifact-arch: arm64
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    # A cold Windows cache takes about an hour. rust-cache saves only after a
+    # successful job, so a tighter limit can keep the cache from recovering.
+    timeout-minutes: 90
     env:
       APPIMAGE_EXTRACT_AND_RUN: "1"
     steps:
@@ -310,6 +351,7 @@ jobs:
       - name: Install Linux desktop packaging dependencies
         if: runner.os == 'Linux'
         run: |
+          bash scripts/configure-ci-apt.sh
           sudo apt-get update
           sudo apt-get install -y \
             desktop-file-utils \
@@ -317,6 +359,8 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libwebkit2gtk-4.1-dev \
+            libssl-dev \
+            openssl \
             patchelf \
             xdg-utils
 
@@ -350,6 +394,18 @@ jobs:
       - name: Install pinned license notice generator
         run: cargo install cargo-about --locked --version 0.9.2 --features cli
 
+      - name: Build reviewed Linux native libraries without GPL-only chains
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            cmake dpkg-dev patch libdbusmenu-gtk3-dev libgirepository1.0-dev \
+            libjpeg-dev liblzma-dev libzstd-dev libwebp-dev zlib1g-dev \
+            libdeflate-dev liblerc-dev
+          python3 scripts/build-linux-native.py \
+            --sources-dir "$RUNNER_TEMP/jstorrent-native-sources" \
+            --output "$RUNNER_TEMP/jstorrent-native-build" --download
+          echo "JSTORRENT_LINUX_NATIVE_BUILD=$RUNNER_TEMP/jstorrent-native-build" >> "$GITHUB_ENV"
+
       - name: Build one unsigned native package
         working-directory: clients/desktop
         shell: bash
@@ -376,7 +432,7 @@ jobs:
               "$APPIMAGE" --appimage-extract >/dev/null
               test -x squashfs-root/usr/bin/rstorrent-native-host
               node scripts/smoke-native-host.mjs squashfs-root/usr/bin/rstorrent-native-host
-              python3 scripts/inspect-distribution.py --root squashfs-root --require-native-notices --output artifacts/distribution/linux.json
+              python3 scripts/inspect-distribution.py --root squashfs-root --require-native-notices --require-mit-native --output artifacts/distribution/linux.json
               rm -rf squashfs-root
               ;;
           esac
@@ -399,8 +455,8 @@ jobs:
           if ($installer.Count -ne 1) {
             throw "Expected one NSIS installer; found $($installer.Count)"
           }
-          $installDirectory = Join-Path $env:LOCALAPPDATA 'RSTorrent'
-          $executable = Join-Path $installDirectory 'rstorrent-desktop.exe'
+          $installDirectory = Join-Path $env:LOCALAPPDATA 'JSTorrent Preview'
+          $executable = Join-Path $installDirectory 'jstorrent-client.exe'
           $nativeHost = Join-Path $installDirectory 'rstorrent-native-host.exe'
           try {
             $install = Start-Process -FilePath $installer[0].FullName -ArgumentList '/S' -Wait -PassThru
@@ -510,7 +566,7 @@ jobs:
           shared-key: ci-android-ubuntu-24.04
 
       - name: Configure Gradle caches
-        uses: gradle/actions/setup-gradle@f236b35da9d031e13b1005234ebe4392ed54c580 # v5.0.0
+        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5.0.0
 
       - name: Install pinned Android SDK and NDK packages
         run: >-
@@ -634,6 +690,12 @@ jobs:
 
       - name: Run iOS simulator unit and UI tests
         run: clients/ios/scripts/test.sh "$RUNNER_TEMP/RSTorrent.xcresult"
+
+      - name: Check the standalone iOS storage probe
+        run: >-
+          cargo check --locked
+          --manifest-path experiments/ios-storage-probe/Cargo.toml
+          --target aarch64-apple-ios-sim
 
       - name: Build an unsigned iOS device archive
         run: clients/ios/scripts/archive.sh --unsigned "$RUNNER_TEMP/RSTorrent.xcarchive"

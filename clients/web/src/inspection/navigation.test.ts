@@ -7,9 +7,9 @@ import {
 } from "./navigation";
 
 describe("application navigation preferences", () => {
-  it("defaults to Transfers and independent all filters", () => {
+  it("defaults to Torrents and independent all filters", () => {
     expect(loadNavigationPreferences(null)).toEqual({
-      destination: "transfers",
+      destination: "workbench",
       libraryCategory: "all",
       transfersCategory: "all",
       workbenchCategory: "all",
@@ -57,7 +57,7 @@ describe("application navigation preferences", () => {
       workbenchCategory: "all",
     });
     expect(loadNavigationPreferences(stored({ version: 2 }))).toEqual({
-      destination: "transfers",
+      destination: "workbench",
       libraryCategory: "all",
       transfersCategory: "all",
       workbenchCategory: "all",
@@ -66,7 +66,7 @@ describe("application navigation preferences", () => {
 
   it("tolerates malformed and denied storage", () => {
     expect(loadNavigationPreferences({ getItem: () => "not json" })).toEqual({
-      destination: "transfers",
+      destination: "workbench",
       libraryCategory: "all",
       transfersCategory: "all",
       workbenchCategory: "all",
@@ -78,7 +78,7 @@ describe("application navigation preferences", () => {
       throw new Error("denied");
     });
     expect(loadNavigationPreferences({ getItem: read }).destination).toBe(
-      "transfers",
+      "workbench",
     );
     expect(() =>
       saveNavigationPreferences(
@@ -91,6 +91,21 @@ describe("application navigation preferences", () => {
         { setItem: write },
       ),
     ).not.toThrow();
+  });
+
+  it("opens a saved Transfers destination in Torrents with its filter", () => {
+    expect(loadNavigationPreferences(stored({
+      version: 1,
+      destination: "transfers",
+      libraryCategory: "recent",
+      transfersCategory: "paused",
+      workbenchCategory: "errors",
+    }))).toEqual({
+      destination: "workbench",
+      libraryCategory: "recent",
+      transfersCategory: "paused",
+      workbenchCategory: "paused",
+    });
   });
 });
 

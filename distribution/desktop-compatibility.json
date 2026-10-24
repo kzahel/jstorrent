@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "stores": {
+    "session": {
+      "floor": 26,
+      "target": 29,
+      "lineage": {
+        "26": "4c15f8d8f5871f24bb12632bd0b642dcd568ac42001cc9cc888104c8cbf6c1ff",
+        "27": "2d2edc458762d0042d49e87c6c9fd3d5ed63c456b30195972911f4f6188f0863",
+        "28": "23f5e93b7fce16abbe8f94e018d38e716e612aa4ba15832232be3d708196e2d8",
+        "29": "1c6b958f9c8e459087399b32721fabea3b69d0c77f0cd7b1bb3ea9f4bae34b32"
+      }
+    },
+    "product": {
+      "floor": 2,
+      "target": 4,
+      "lineage": {
+        "2": "42f0f45dcd6bfa168bdfcbba0226211fe280ffc2adac73a247f4c731bdb15196",
+        "3": "5b34cfa9719cc3e5dfa8aed50d54bc15005f4e5cc9f488f59fcba6f02d731fd4",
+        "4": "83ac2475b1521639e74b166e7fc1c1cf4d39673810713d87d499cb9bdcd2d96a"
+      }
+    },
+    "metrics": {
+      "floor": 1,
+      "target": 1,
+      "lineage": {
+        "1": "8a1cf951bce44a1dab25fee9a34805974af366bbb7fe07c6ad71bb1af13b9652"
+      }
+    }
+  }
+}

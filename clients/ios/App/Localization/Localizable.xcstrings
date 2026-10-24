@@ -260,7 +260,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "RSTorrent Documents"
+            "value": "JSTorrent Documents"
           }
         }
       }
@@ -320,7 +320,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "iOS grants finite background time. RSTorrent saves durable progress and resumes safely; it does not promise indefinite background downloading or seeding."
+            "value": "iOS grants finite background time. JSTorrent saves durable progress and resumes safely; it does not promise indefinite background downloading or seeding."
           }
         }
       }
@@ -332,7 +332,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Foreground service"
+            "value": "App is active"
           }
         }
       }
@@ -452,7 +452,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "RSTorrent download"
+            "value": "JSTorrent download"
           }
         }
       }
@@ -572,7 +572,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "RSTorrent is still starting."
+            "value": "JSTorrent is still starting."
           }
         }
       }
@@ -680,7 +680,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "RSTorrent can open magnet links and .torrent files."
+            "value": "JSTorrent can open magnet links and .torrent files."
           }
         }
       }
@@ -1184,7 +1184,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "RSTorrent Documents is the default folder"
+            "value": "JSTorrent Documents is the default folder"
           }
         }
       }
@@ -2073,6 +2073,210 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stopped"
+          }
+        }
+      }
+    },
+    "safety_title": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File safety"
+          }
+        }
+      }
+    },
+    "safety_enabled": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatically skip potentially dangerous files"
+          }
+        }
+      }
+    },
+    "safety_files_to_skip": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Files to skip"
+          }
+        }
+      }
+    },
+    "safety_recommended": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applications, installers & scripts (recommended)"
+          }
+        }
+      }
+    },
+    "safety_archives": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applications, installers, scripts & archives"
+          }
+        }
+      }
+    },
+    "safety_custom": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom…"
+          }
+        }
+      }
+    },
+    "safety_extensions": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File extensions"
+          }
+        }
+      }
+    },
+    "safety_extensions_help": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Separate extensions with spaces or commas, for example .exe, .dmg, .tar.gz."
+          }
+        }
+      }
+    },
+    "safety_invalid": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use at most 128 extensions, each starting with a dot and containing up to 31 letters, digits or dots."
+          }
+        }
+      }
+    },
+    "safety_future": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applies to newly added torrents. Download all respects safety settings. Existing torrents and individual overrides stay unchanged. Files explains each safety skip. This does not scan for malware or inspect archives."
+          }
+        }
+      }
+    },
+    "safety_skip_detail": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skipped by safety settings · %1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "safety_override_detail": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safety override · %1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "safety_download_anyway": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download anyway"
+          }
+        }
+      }
+    },
+    "safety_undo": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo safety override"
+          }
+        }
+      }
+    },
+    "safety_conflict": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These settings changed in another client. Discard changes to reload."
+          }
+        }
+      }
+    },
+    "safety_save": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save file safety settings"
+          }
+        }
+      }
+    },
+    "safety_discard": {
+      "comment": "Download safety settings and per-file overrides.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard changes"
           }
         }
       }

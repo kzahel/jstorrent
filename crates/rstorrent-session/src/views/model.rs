@@ -270,6 +270,18 @@ pub(crate) fn operational_state(
     if snapshot.desired_running && snapshot.state == TorrentState::Checking {
         return TorrentOperationalState::Checking;
     }
+    // Completion/admission can be published while the old content task still
+    // owns its cleanup. That task flag must not relabel an admitted seed.
+    if snapshot.desired_running && snapshot.state == TorrentState::Complete {
+        return match inputs.seed_admission {
+            SeedAdmissionView::Active | SeedAdmissionView::InactiveExempt => {
+                TorrentOperationalState::Seeding
+            }
+            SeedAdmissionView::Queued | SeedAdmissionView::Ineligible => {
+                TorrentOperationalState::Queued
+            }
+        };
+    }
     if snapshot.desired_running && inputs.task_active {
         return match snapshot.state {
             TorrentState::AwaitingMetadata | TorrentState::AwaitingStorage => {
@@ -294,16 +306,6 @@ pub(crate) fn operational_state(
     }
     if !snapshot.desired_running {
         return TorrentOperationalState::Paused;
-    }
-    if snapshot.state == TorrentState::Complete {
-        return match inputs.seed_admission {
-            SeedAdmissionView::Active | SeedAdmissionView::InactiveExempt => {
-                TorrentOperationalState::Seeding
-            }
-            SeedAdmissionView::Queued | SeedAdmissionView::Ineligible => {
-                TorrentOperationalState::Queued
-            }
-        };
     }
     if snapshot.download_queue_position.is_some() {
         return TorrentOperationalState::Queued;
@@ -735,6 +737,10 @@ pub(super) struct DiskSessionView {
 pub(crate) struct DurableTorrentViewState {
     pub(crate) display_name: Option<String>,
     pub(crate) source_display_name: Option<String>,
+    /// The source magnet's `xl` claim; only set before metadata exists.
+    pub(crate) source_size_bytes: Option<u64>,
+    /// BEP 27 flag from parsed, stored metainfo only.
+    pub(crate) private_torrent: bool,
     pub(crate) checking_generation: Option<u64>,
     pub(crate) verified: Vec<IndexRange>,
     pub(crate) files: Option<FileProgressModel>,
@@ -750,10 +756,12 @@ impl TorrentModel {
         let progress_inputs = ProgressInputs::default();
         Self {
             view: TorrentView {
+                safety_summary: snapshot.safety_summary.clone(),
                 torrent_id: snapshot.torrent_id.clone(),
                 protocol_identities: snapshot.protocol_identities.clone(),
                 display_name: None,
                 source_display_name: None,
+                source_size_bytes: None,
                 state: snapshot.state,
                 operational_state: operational_state(snapshot, progress_inputs),
                 download_queue_position: snapshot.download_queue_position,
@@ -761,6 +769,7 @@ impl TorrentModel {
                 storage_state: snapshot.storage_state,
                 storage_root: snapshot.storage_root.clone(),
                 metadata_available: snapshot.metadata_available,
+                private_torrent: false,
                 awaiting_file_selection: snapshot.awaiting_file_selection,
                 pending_file_selection_position: snapshot.pending_file_selection_position,
                 file_catalog_id: snapshot.file_catalog_id.clone(),

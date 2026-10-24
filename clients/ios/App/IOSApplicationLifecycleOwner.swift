@@ -210,7 +210,7 @@ final class IOSApplicationLifecycleOwner: ObservableObject {
               state.beginUIKitBackgroundAssertion()
         else { return }
         backgroundAssertion = UIApplication.shared.beginBackgroundTask(
-            withName: "RSTorrent finite checkpoint"
+            withName: "JSTorrent finite checkpoint"
         ) { [weak self] in
             Task { @MainActor in await self?.expireFiniteOpportunity() }
         }

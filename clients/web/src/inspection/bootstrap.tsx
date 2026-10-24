@@ -1,43 +1,50 @@
 import { createRoot, type Root } from "react-dom/client";
-import { LocalizationProvider } from "../localization/runtime";
+import {
+  LocalizationProvider,
+  onMessageCatalogReplaced,
+} from "../localization/runtime";
 
-import { App } from "./components/App";
+import { ExternalUrlProvider, type OpenExternalUrl } from "./external-links";
+import { App, type AppProps } from "./components/App";
 import { WebAuthGate } from "./components/WebAuthGate";
 import { InspectionProvider } from "./context";
 import { InspectionController } from "./controller";
-import { DemoApplication } from "./demo/DemoApplication";
-import { isDemoScenarioId } from "./demo/catalog";
 import { LiveApplication } from "./live/LiveApplication";
+import { installRouteHistory } from "./route-history";
 import type { DemoScenarioId } from "./model";
-import type { DesktopUpdater } from "./updater/types";
-import type { DesktopExternalIntake } from "../desktop-external-intake";
-import type { DesktopNotifications } from "./desktop-notifications/types";
-import type { DesktopPower } from "./desktop-power/types";
 import type { DesktopRemoteAccess } from "./remote-access/types";
-import type { ProductPrivacyController } from "./product-privacy/types";
 import type { ApplicationViewClient } from "../api/client";
-import { RemoteOnlyApplicationClient } from "../remote-application-client";
-import { HttpApplicationClient } from "../api/client";
-import { TauriApplicationViewClient } from "../tauri-view-client";
-import { WebSocketApplicationViewClient } from "../websocket-view-client";
 import { WebAuthClient } from "../web-auth-client";
-import {
-  createHostedHostIntegration,
-  type HostedAccessMode,
-  type HostedProduct,
-} from "../headless-updater";
+import { createBrowserVideoPlayback } from "../browser-video-playback";
+import { createHostedHostIntegration } from "../headless-updater";
+import { clientIdentity } from "../client-identity";
+import { markStartup } from "../startup-timing";
 import "./global.css";
 
-export function startDemoInspection(parameters: URLSearchParams): void {
+// Demo scenarios load only for demo mode, not with every live shell.
+export async function startDemoInspection(
+  parameters: URLSearchParams,
+): Promise<void> {
+  const [{ DemoApplication }, { isDemoScenarioId }] = await Promise.all([
+    import("./demo/DemoApplication"),
+    import("./demo/catalog"),
+  ]);
   const requested = parameters.get("demo");
   const scenarioId: DemoScenarioId = isDemoScenarioId(requested)
     ? requested
     : "healthy-download";
   const elapsedMs = parseElapsed(parameters.get("at"));
   const running = parameters.get("autoplay") !== "0";
-  const application = new DemoApplication({ scenarioId, elapsedMs, running });
+  // `library=cards` shows the torrent cards of hosts without the media library.
+  const mediaLibrary = parameters.get("library") !== "cards";
+  const application = new DemoApplication({
+    scenarioId,
+    elapsedMs,
+    running,
+    mediaLibrary,
+  });
   const controller = new InspectionController(application);
-  renderInspection(controller);
+  renderInspection(controller, createRoot(applicationRoot()), {});
 }
 
 export async function startLiveInspection(
@@ -58,6 +65,7 @@ export async function startLiveInspection(
       : undefined;
   const webAuth = token === null ? new WebAuthClient(baseUrl.href) : undefined;
   const authStatus = await webAuth?.status();
+  markStartup("auth_checked");
   const root = createRoot(applicationRoot());
   if (
     webAuth !== undefined &&
@@ -85,13 +93,15 @@ export async function startLiveInspection(
     );
     return;
   }
+  // Hosts without browser-session authentication (development or bearer
+  // modes) report the store unavailable; offer no Web access settings there.
   await openLiveInspection(
     root,
     baseUrl,
     token,
     transport,
     waitMillis,
-    webAuth,
+    authStatus?.available === true ? webAuth : undefined,
   );
 }
 
@@ -103,147 +113,231 @@ async function openLiveInspection(
   waitMillis: number | undefined,
   webAuth: WebAuthClient | undefined,
 ): Promise<void> {
-  const client =
-    transport === "http"
-      ? new HttpApplicationClient(baseUrl.href, token, window.location.origin)
-      : new WebSocketApplicationViewClient(baseUrl.href, token);
-  const [application, hosted] = await Promise.all([
-    LiveApplication.open(client, {
-      ...(waitMillis === undefined ? {} : { waitMillis }),
-    }),
-    createHostedHostIntegration(baseUrl).catch((error: unknown) => {
+  const application = LiveApplication.connect(
+    {
+      load: () =>
+        transport === "http"
+          ? import("../api/client").then(
+              ({ HttpApplicationClient }) =>
+                new HttpApplicationClient(
+                  baseUrl.href,
+                  token,
+                  window.location.origin,
+                ),
+            )
+          : import("../websocket-view-client").then(
+              ({ WebSocketApplicationViewClient }) =>
+                new WebSocketApplicationViewClient(baseUrl.href, token, undefined, undefined, {
+                  client: clientIdentity("web"),
+                }),
+            ),
+      torrentListBundles: true,
+    },
+    { ...(waitMillis === undefined ? {} : { waitMillis }) },
+  );
+  application.installBrowserWakeHints(window, document);
+  const localPlayback = createBrowserVideoPlayback(application);
+  const update = renderInspection(new InspectionController(application), root, {
+    webAuth,
+    localPlayback,
+    about: { connection: "server" },
+  });
+  const hosted = await createHostedHostIntegration(baseUrl).catch(
+    (error: unknown) => {
       console.error("Hosted product integration initialization failed:", error);
       return undefined;
-    }),
-  ]);
-  application.installBrowserWakeHints(window, document);
-  renderInspection(
-    new InspectionController(application),
-    root,
-    webAuth,
-    hosted?.updater,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    hosted?.accessMode,
-    hosted?.product,
+    },
   );
+  if (hosted === undefined) return;
+  update({
+    webAuth,
+    localPlayback,
+    updater: hosted.updater,
+    accessMode: hosted.accessMode,
+    hostedProduct: hosted.product,
+    about: {
+      connection: "server",
+      ...(hosted.buildId === undefined ? {} : { hostBuild: hosted.buildId }),
+    },
+  });
 }
 
+// Renders before any desktop adapter exists; each adapter tolerates absence
+// and arrives in one later render. Nothing here rejects after that render.
 export async function startTauriInspection(): Promise<void> {
-  const [updater, notifications, power, remoteAccess, productPrivacy, application, externalIntake] =
-    await Promise.all([
-      import("../tauri-updater")
-        .then(({ createTauriDesktopUpdater }) => createTauriDesktopUpdater())
-        .catch((error: unknown) => {
-          console.error("Desktop updater initialization failed:", error);
-          return undefined;
-        }),
-      import("../tauri-desktop-notifications")
-        .then(({ createTauriDesktopNotifications }) =>
-          createTauriDesktopNotifications(),
-        )
-        .catch((error: unknown) => {
-          console.error(
-            "Desktop notification settings initialization failed:",
-            error,
-          );
-          return undefined;
-        }),
-      import("../tauri-desktop-power")
-        .then(({ createTauriDesktopPower }) => createTauriDesktopPower())
-        .catch((error: unknown) => {
-          console.error("Desktop power settings initialization failed:", error);
-          return undefined;
-        }),
-      import("../tauri-remote-access")
-        .then(({ createTauriDesktopRemoteAccess }) =>
-          createTauriDesktopRemoteAccess(),
-        )
-        .catch((error: unknown) => {
-          console.error("Desktop remote access initialization failed:", error);
-          return undefined;
-        }),
-      import("../tauri-product-privacy")
-        .then(({ createTauriProductPrivacy }) => createTauriProductPrivacy())
-        .catch((error: unknown) => {
-          console.error("Desktop product privacy initialization failed:", error);
-          return undefined;
-        }),
-      LiveApplication.open(new TauriApplicationViewClient()),
-      import("../desktop-external-intake").then(
-        ({ TauriDesktopExternalIntake }) => TauriDesktopExternalIntake.open(),
+  // A torrent catalog that did not open shows recovery instead (Tactical 369).
+  const recovery = await import("../tauri-recovery")
+    .then(({ loadTauriRecovery }) => loadTauriRecovery())
+    .catch((error: unknown) => {
+      console.error("Desktop recovery status was unavailable:", error);
+      return null;
+    });
+  if (recovery !== null) {
+    await startTauriRecovery(recovery);
+    return;
+  }
+  const application = LiveApplication.connect({
+    load: () =>
+      import("../tauri-view-client").then(
+        ({ TauriApplicationViewClient }) => new TauriApplicationViewClient(),
       ),
-    ]);
+    torrentListBundles: true,
+  });
   application.installBrowserWakeHints(window, document);
-  renderInspection(
+  const update = renderInspection(
     new InspectionController(application),
-    undefined,
-    undefined,
+    createRoot(applicationRoot()),
+    { about: { connection: "desktop" } },
+  );
+  const [
+    openExternalUrl,
+    updater,
+    notifications,
+    power,
+    remoteAccess,
+    productPrivacy,
+    externalIntake,
+  ] = await Promise.all([
+    adapter("external links", () =>
+      import("../tauri-external-links").then(
+        ({ openTauriExternalUrl }) => openTauriExternalUrl,
+      ),
+    ),
+    adapter("updater", () =>
+      import("../tauri-updater").then(({ createTauriDesktopUpdater }) =>
+        createTauriDesktopUpdater(),
+      ),
+    ),
+    adapter("notification settings", () =>
+      import("../tauri-desktop-notifications").then(
+        ({ createTauriDesktopNotifications }) => createTauriDesktopNotifications(),
+      ),
+    ),
+    adapter("power settings", () =>
+      import("../tauri-desktop-power").then(({ createTauriDesktopPower }) =>
+        createTauriDesktopPower(),
+      ),
+    ),
+    adapter("remote access", () =>
+      import("../tauri-remote-access").then(
+        ({ createTauriDesktopRemoteAccess }) => createTauriDesktopRemoteAccess(),
+      ),
+    ),
+    adapter("product privacy", () =>
+      import("../tauri-product-privacy").then(({ createTauriProductPrivacy }) =>
+        createTauriProductPrivacy(),
+      ),
+    ),
+    adapter("external torrent intake", () =>
+      import("../desktop-external-intake").then(({ TauriDesktopExternalIntake }) =>
+        TauriDesktopExternalIntake.open(),
+      ),
+    ),
+  ]);
+  markStartup("adapters_ready");
+  update({
     updater,
     externalIntake,
     notifications,
     power,
     remoteAccess,
-    undefined,
-    undefined,
     productPrivacy,
-  );
+    openExternalUrl,
+    about: { connection: "desktop" },
+  });
 }
 
+async function startTauriRecovery(
+  recovery: import("../tauri-recovery").DesktopRecovery,
+): Promise<void> {
+  const { RecoveryScreen } = await import("./components/RecoveryScreen");
+  const root = createRoot(applicationRoot());
+  const render = (props: Omit<import("./components/RecoveryScreen").RecoveryScreenProps, "recovery">) =>
+    root.render(<RecoveryScreen recovery={recovery} {...props} />);
+  render({});
+  markStartup("shell_rendered");
+  const [updater, openExternalUrl] = await Promise.all([
+    adapter("updater", () =>
+      import("../tauri-updater").then(({ createTauriDesktopUpdater }) =>
+        createTauriDesktopUpdater(),
+      ),
+    ),
+    adapter("external links", () =>
+      import("../tauri-external-links").then(
+        ({ openTauriExternalUrl }) => openTauriExternalUrl,
+      ),
+    ),
+  ]);
+  render({ updater, openExternalUrl });
+}
+
+function adapter<T>(
+  name: string,
+  create: () => Promise<T>,
+): Promise<T | undefined> {
+  return create().catch((error: unknown) => {
+    console.error(`Desktop ${name} initialization failed:`, error);
+    return undefined;
+  });
+}
+
+// The remote gate relies on a failed first attach to return to sign-in, so
+// this entry still attaches before rendering.
 export async function startRemoteInspection(
   client: ApplicationViewClient,
   root: Root,
   remoteAccess: DesktopRemoteAccess,
+  pageBuild?: string,
 ): Promise<void> {
+  const { RemoteOnlyApplicationClient } = await import(
+    "../remote-application-client"
+  );
   const application = await LiveApplication.open(
     new RemoteOnlyApplicationClient(client),
   );
   application.installBrowserWakeHints(window, document);
-  renderInspection(
-    new InspectionController(application),
-    root,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
+  renderInspection(new InspectionController(application), root, {
     remoteAccess,
-  );
+    about: {
+      connection: "remote",
+      ...(pageBuild === undefined ? {} : { pageBuild }),
+    },
+  });
 }
 
+interface InspectionHost extends AppProps {
+  readonly openExternalUrl?: OpenExternalUrl | undefined;
+}
+
+/**
+ * Renders the application and returns a re-render for later host facts. The
+ * URL fragment and the message catalog stay attached for the page's life.
+ */
 function renderInspection(
   controller: InspectionController,
-  root: Root = createRoot(applicationRoot()),
-  webAuth?: WebAuthClient,
-  updater?: DesktopUpdater,
-  externalIntake?: DesktopExternalIntake,
-  notifications?: DesktopNotifications,
-  power?: DesktopPower,
-  remoteAccess?: DesktopRemoteAccess,
-  accessMode?: HostedAccessMode,
-  hostedProduct?: HostedProduct,
-  productPrivacy?: ProductPrivacyController,
-): void {
+  root: Root,
+  host: InspectionHost,
+): (host: InspectionHost) => void {
   controller.start();
-  root.render(
-    <LocalizationProvider>
-      <InspectionProvider controller={controller}>
-        <App
-          webAuth={webAuth}
-          updater={updater}
-          externalIntake={externalIntake}
-          notifications={notifications}
-          power={power}
-          remoteAccess={remoteAccess}
-          accessMode={accessMode}
-          hostedProduct={hostedProduct}
-          productPrivacy={productPrivacy}
-        />
-      </InspectionProvider>
-    </LocalizationProvider>,
-  );
+  installRouteHistory(controller.store, window);
+  let latest = host;
+  const render = (next: InspectionHost) => {
+    latest = next;
+    const { openExternalUrl, ...props } = next;
+    root.render(
+      <LocalizationProvider>
+        <ExternalUrlProvider openUrl={openExternalUrl}>
+          <InspectionProvider controller={controller}>
+            <App {...props} />
+          </InspectionProvider>
+        </ExternalUrlProvider>
+      </LocalizationProvider>,
+    );
+  };
+  // New elements re-render every component with the replaced catalog.
+  onMessageCatalogReplaced(() => render(latest));
+  render(host);
+  return render;
 }
 
 function applicationRoot(): HTMLElement {

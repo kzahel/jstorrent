@@ -2,13 +2,13 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const screenshotDirectory = process.env.RSTORRENT_SCREENSHOT_DIR;
 
 test("checker progress stays truthful across every shared surface", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/?demo=checking-progress&at=18000&autoplay=0");
+  await page.goto("/?demo=checking-progress&at=18000&autoplay=0&library=cards");
   const primary = page.getByRole("navigation", { name: "Primary" });
   const checkingBar = page.getByRole("progressbar", {
       name: /Big Buck Bunny 1080p surround checking progress: Checked 40.0%/,
@@ -23,16 +23,17 @@ test("checker progress stays truthful across every shared surface", async ({ pag
       name: "Open details for Big Buck Bunny 1080p surround",
     })
     .click();
-  await page.getByRole("button", { name: "Open in Workbench" }).click();
+  await page.getByRole("button", { name: "Open in Torrents" }).click();
   await page.getByRole("tab", { name: "General" }).click();
   const details = page.getByLabel("Torrent details", { exact: true });
-  await expect(details.getByText("Current check")).toBeVisible();
+  await expect(details.getByText("Checking", { exact: true })).toBeVisible();
+  await expect(details.getByText("40.0%", { exact: true })).toBeVisible();
   await expect(details.getByText("400 / 1,000")).toBeVisible();
   await expect(details.getByText("397", { exact: true })).toBeVisible();
   await expect(details.getByText("2", { exact: true })).toBeVisible();
   await expect(details.getByText("1", { exact: true })).toBeVisible();
 
-  await page.goto("/?demo=checking-progress&at=36000&autoplay=0");
+  await page.goto("/?demo=checking-progress&at=36000&autoplay=0&library=cards");
   const fencedBar = page.getByRole("progressbar", {
     name: /checking progress: Updating file selection/,
   });
@@ -50,17 +51,17 @@ test("checker progress stays truthful across every shared surface", async ({ pag
 
 test("primary destinations preserve shared source state", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?demo=healthy-download&at=42000&autoplay=0");
-  await expect(page.getByText("RSTorrent", { exact: true })).toBeVisible();
+  await page.goto("/?demo=healthy-download&at=42000&autoplay=0&library=cards");
+  await expect(page.getByText("JSTorrent", { exact: true })).toBeVisible();
   await expect(page).toHaveTitle(
-    /^RSTorrent - ↓[\d.]+ [kMGT]?B\/s ↑[\d.]+ [kMGT]?B\/s$/,
+    /^JSTorrent - ↓[\d.]+ [kKMGT]?B\/s ↑[\d.]+ [kKMGT]?B\/s$/,
   );
 
   const primary = page.getByRole("navigation", { name: "Primary" });
-  const transfers = primary.getByRole("button", { name: "Transfers" });
+  const transfers = primary.getByRole("button", { name: "Torrents" });
   await expect(transfers).toHaveAttribute("aria-current", "page");
   await expect(
-    page.getByRole("grid", { name: "Transfer queue" }),
+    page.getByRole("grid", { name: "Torrents" }),
   ).toHaveAttribute("aria-rowcount", "4");
   await capture(page, "rstorrent-transfers-wide.png");
   const sintelCheck = page.getByRole("checkbox", {
@@ -74,24 +75,19 @@ test("primary destinations preserve shared source state", async ({ page }) => {
   await bunnyRow.click();
   const normalColumns = await transferRow.getAttribute("style");
   await transferRow.click({ modifiers: ["Shift"] });
-  await expect(page.getByText("2 selected for actions")).toBeVisible();
+  await expect(page.getByText("2 selected")).toBeVisible();
   await expect(transferRow).toHaveAttribute("style", normalColumns ?? "");
   await page
-    .getByRole("navigation", { name: "Transfer filters" })
+    .getByRole("navigation", { name: "Torrent filters" })
     .getByRole("button", { name: /Paused/ })
     .click();
+  await expect(page.getByText(/not shown/)).toHaveCount(0);
+  await primary.getByRole("button", { name: "Library" }).click();
+  await primary.getByRole("button", { name: "Torrents" }).click();
+  await page.getByRole("navigation", { name: "Torrent filters" }).getByRole("button", { name: /All torrents/ }).click();
   await expect(
-    page.getByText("2 selected for actions (1 outside this view)"),
-  ).toBeVisible();
-  await primary.getByRole("button", { name: "Workbench" }).click();
-  await expect(
-    page.getByRole("checkbox", {
-      name: "Deselect Big Buck Bunny 1080p surround",
-    }),
-  ).toBeChecked();
-  await expect(
-    page.getByRole("checkbox", { name: "Deselect Sintel 4K open movie" }),
-  ).toBeChecked();
+    page.getByRole("checkbox", { name: /^Deselect / }),
+  ).toHaveCount(1);
 
   await primary.getByRole("button", { name: "Library" }).click();
   await expect(
@@ -102,12 +98,12 @@ test("primary destinations preserve shared source state", async ({ page }) => {
   await page
     .getByRole("button", { name: "Open details for Sintel 4K open movie" })
     .click();
-  await page.getByRole("button", { name: "Open in Workbench" }).click();
+  await page.getByRole("button", { name: "Open in Torrents" }).click();
   await expect(
-    primary.getByRole("button", { name: "Workbench" }),
+    primary.getByRole("button", { name: "Torrents" }),
   ).toHaveAttribute("aria-current", "page");
   await page.getByRole("tab", { name: "General" }).click();
-  await expect(page.getByText("Current transfer")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy magnet link" })).toBeVisible();
   await expect(page.getByText("Sintel 4K open movie").first()).toBeVisible();
 
   const violations = (
@@ -124,7 +120,7 @@ test("Library media detail sorts episodes and adapts to phone", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?demo=media-library&at=0&autoplay=0");
+  await page.goto("/?demo=media-library&at=0&autoplay=0&library=cards");
   const primary = page.getByRole("navigation", { name: "Primary" });
   await primary.getByRole("button", { name: "Library" }).click();
   const card = page.getByRole("button", {
@@ -184,7 +180,7 @@ test("Library media detail sorts episodes and adapts to phone", async ({
   await expect(card).toBeFocused();
 
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?demo=file-progress&at=24000&autoplay=0");
+  await page.goto("/?demo=file-progress&at=24000&autoplay=0&library=cards");
   await page
     .getByRole("navigation", { name: "Primary" })
     .getByRole("button", { name: "Library" })
@@ -220,6 +216,53 @@ test("Library media detail sorts episodes and adapts to phone", async ({
   );
 });
 
+test("media Library browses presets, groups and layouts across widths", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?demo=media-library&at=0&autoplay=0");
+  const primary = page.getByRole("navigation", { name: "Primary" });
+  await primary.getByRole("button", { name: "Library" }).click();
+  await expect(page.getByRole("heading", { name: "All media" })).toBeVisible();
+  const items = page.getByRole("list", { name: "Library items" });
+  await expect(items.getByRole("listitem")).toHaveCount(5);
+  await capture(page, "rstorrent-media-library-wide.png");
+  const filters = page.getByRole("navigation", { name: "Library filters" });
+  await filters.getByRole("button", { name: /^TV shows/ }).click();
+  const show = page
+    .getByRole("list", { name: "TV shows" })
+    .getByRole("button", { name: /North Shore Stories/ });
+  await expect(show).toContainText("4 episodes · 2 seasons");
+  await capture(page, "rstorrent-media-library-shows.png");
+  await show.click();
+  await expect(page.getByRole("heading", { name: "North Shore Stories" })).toBeVisible();
+  await page.getByRole("radio", { name: "List" }).click();
+  await expect(
+    page.getByRole("grid", { name: "Library items" }).getByRole("row"),
+  ).toHaveCount(5);
+  await capture(page, "rstorrent-media-library-list.png");
+  const violations = (
+    await new AxeBuilder({ page }).analyze()
+  ).violations.filter(
+    (violation) =>
+      violation.impact === "serious" || violation.impact === "critical",
+  );
+  expect(violations).toEqual([]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("heading", { name: "North Shore Stories" })).toBeVisible();
+  await page.getByRole("radio", { name: "Cards" }).click();
+  await expect(items.getByRole("listitem")).toHaveCount(4);
+  await capture(page, "rstorrent-media-library-phone.png");
+  const phoneViolations = (
+    await new AxeBuilder({ page }).analyze()
+  ).violations.filter(
+    (violation) =>
+      violation.impact === "serious" || violation.impact === "critical",
+  );
+  expect(phoneViolations).toEqual([]);
+});
+
 test("More copies selected torrents' source-aware magnets", async ({
   context,
   page,
@@ -248,8 +291,8 @@ test("More copies selected torrents' source-aware magnets", async ({
   await copy.click();
 
   await expect(
-    page.getByText("2 magnet links copied", { exact: true }),
-  ).toBeVisible();
+    page.getByRole("region", { name: "Notification" }),
+  ).toContainText("2 magnet links copied");
   await expect(menu).toHaveCount(0);
   await expect(more).toBeFocused();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
@@ -265,7 +308,7 @@ test("torrent and file rows expose exact accessible context actions", async ({
 }) => {
   await page.setViewportSize({ width: 1024, height: 720 });
   await page.goto("/?demo=healthy-download&at=42000&autoplay=0");
-  const transferGrid = page.getByRole("grid", { name: "Transfer queue" });
+  const transferGrid = page.getByRole("grid", { name: "Torrents" });
   const sintelRow = transferGrid.getByRole("row").filter({
     hasText: "Sintel 4K open movie",
   });
@@ -273,12 +316,15 @@ test("torrent and file rows expose exact accessible context actions", async ({
   await sintelRow.click({ button: "right", position: { x: 300, y: 18 } });
   let menu = page.getByRole("menu", { name: "Torrent actions" });
   await expect(menu).toBeVisible();
-  await expect(menu.getByRole("menuitem")).toHaveCount(10);
+  await expect(menu.getByRole("menuitem")).toHaveCount(11);
   await expect(menu.getByRole("menuitem", { name: "Torrent settings" })).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: "Move to top" })).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: "Move to bottom" })).toBeVisible();
   await expect(
     menu.getByRole("menuitem", { name: "Copy magnet link" }),
+  ).toBeVisible();
+  await expect(
+    menu.getByRole("menuitem", { name: "Copy share link" }),
   ).toBeVisible();
   await expect(menu.getByRole("separator")).toHaveCount(3);
   for (const heading of ["Transfer", "Sharing", "Organization", "Destructive"]) {
@@ -334,9 +380,9 @@ test("torrent and file rows expose exact accessible context actions", async ({
 
   await page
     .getByRole("navigation", { name: "Primary" })
-    .getByRole("button", { name: "Workbench" })
+    .getByRole("button", { name: "Torrents" })
     .click();
-  const workbenchGrid = page.getByRole("grid", { name: "Torrent library" });
+  const workbenchGrid = page.getByRole("grid", { name: "Torrents" });
   const workbenchSintel = workbenchGrid.getByRole("row").filter({
     hasText: "Sintel 4K open movie",
   });
@@ -349,7 +395,7 @@ test("torrent and file rows expose exact accessible context actions", async ({
   await page.goto("/?demo=file-progress&at=24000&autoplay=0");
   await page
     .getByRole("navigation", { name: "Primary" })
-    .getByRole("button", { name: "Workbench" })
+    .getByRole("button", { name: "Torrents" })
     .click();
   await page.getByRole("tab", { name: "Files" }).click();
   const files = page.getByRole("grid", { name: "Torrent files" });
@@ -364,7 +410,11 @@ test("torrent and file rows expose exact accessible context actions", async ({
     fileMenu.getByRole("menuitem", { name: "Normal" }),
   ).toBeDisabled();
   await expect(fileMenu.getByRole("menuitem", { name: "Skip" })).toBeDisabled();
-  await expect(fileMenu.getByRole("separator")).toHaveCount(1);
+  // Sharing only exports a link, so demo scenarios allow it.
+  await expect(
+    fileMenu.getByRole("menuitem", { name: "Share file" }),
+  ).toBeEnabled();
+  await expect(fileMenu.getByRole("separator")).toHaveCount(2);
   await expect(fileMenu.getByText("Priority", { exact: true })).toHaveCount(0);
   await capture(page, "rstorrent-file-context-dividers.png");
   expect(await files.getByRole("row").count()).toBeLessThanOrEqual(100);
@@ -377,12 +427,106 @@ test("torrent and file rows expose exact accessible context actions", async ({
   expect(fileViolations).toEqual([]);
 });
 
+test("share panel, address question and file share stay accessible", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.setViewportSize({ width: 1100, height: 760 });
+  await page.goto("/?demo=healthy-download&at=42000&autoplay=0");
+  await page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("button", { name: "Torrents" })
+    .click();
+  await page.getByRole("tab", { name: "General" }).click();
+  const shareButton = page.getByRole("button", { name: "Share", exact: true });
+  await shareButton.click();
+  const panel = page.getByRole("dialog", { name: "Share torrent" });
+  const link = panel.getByRole("textbox", { name: "Share link" });
+  await expect(link).toHaveValue(/^https:\/\/jstorrent\.com\/share\/#xt=urn:btih:[0-9a-f]{40}&dn=[^&]+&xl=\d+$/);
+  await expect(
+    panel.getByRole("img", { name: "QR code for the share link" }),
+  ).toBeVisible();
+  await panel.getByRole("checkbox", { name: "Include my IP address" }).check();
+  await expect(link).toHaveValue(/&x\.pe=192\.168\.1\.20:6881$/);
+  await expect(panel.getByRole("status")).toHaveText(
+    "Includes your local network address 192.168.1.20:6881. Only people on your network can use it.",
+  );
+  await capture(page, "rstorrent-share-panel.png");
+  const panelViolations = (
+    await new AxeBuilder({ page }).include('[role="dialog"]').analyze()
+  ).violations.filter(
+    (violation) =>
+      violation.impact === "serious" || violation.impact === "critical",
+  );
+  expect(panelViolations).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(panel).toBeHidden();
+  await expect(shareButton).toBeFocused();
+
+  const grid = page.getByRole("grid", { name: "Torrents" });
+  await grid
+    .getByRole("row")
+    .filter({ hasText: "Big Buck Bunny 1080p surround" })
+    .click({ button: "right" });
+  await page
+    .getByRole("menu", { name: "Torrent actions" })
+    .getByRole("menuitem", { name: "Copy share link" })
+    .click();
+  const question = page.getByRole("dialog", {
+    name: "Let them connect to you directly?",
+  });
+  await expect(question).toBeVisible();
+  await capture(page, "rstorrent-share-address-question.png");
+  const questionViolations = (
+    await new AxeBuilder({ page }).include('[role="dialog"]').analyze()
+  ).violations.filter(
+    (violation) =>
+      violation.impact === "serious" || violation.impact === "critical",
+  );
+  expect(questionViolations).toEqual([]);
+  await question.getByRole("button", { name: "Don't include" }).click();
+  await expect(page.getByRole("region", { name: "Notification" })).toContainText(
+    "Share link copied",
+  );
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(
+    /^https:\/\/jstorrent\.com\/share\/#xt=urn:btih:[0-9a-f]{40}&dn=[^&]+&xl=\d+$/,
+  );
+
+  await page.goto("/?demo=file-progress&at=24000&autoplay=0");
+  await page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("button", { name: "Torrents" })
+    .click();
+  await page.getByRole("tab", { name: "Files" }).click();
+  const files = page.getByRole("grid", { name: "Torrent files" });
+  await files
+    .getByRole("row")
+    .filter({ hasText: "asset-001.mkv" })
+    .click({ button: "right" });
+  await page
+    .getByRole("menu", { name: "File actions" })
+    .getByRole("menuitem", { name: "Share file" })
+    .click();
+  await question.getByRole("checkbox", { name: "Remember my choice" }).check();
+  await question.getByRole("button", { name: "Include my address" }).click();
+  await expect(page.getByRole("region", { name: "Notification" })).toContainText(
+    "Share link copied with your local network address.",
+  );
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(
+    /&so=\d+&x\.pe=192\.168\.1\.20:6881&jst\.file=asset-001\.mkv&jst\.size=\d+$/,
+  );
+  expect(
+    await page.evaluate(() => localStorage.getItem("rstorrent.presentation.share")),
+  ).toBe(JSON.stringify({ version: 1, peerHint: "include" }));
+});
+
 test("phone destinations and contextual filters remain reachable", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/?demo=healthy-download&at=42000&autoplay=0");
-  const transferGrid = page.getByRole("grid", { name: "Transfer queue" });
+  await page.goto("/?demo=healthy-download&at=42000&autoplay=0&library=cards");
+  const transferGrid = page.getByRole("grid", { name: "Torrents" });
   await expect(transferGrid).toBeVisible();
   const heldRow = transferGrid.getByRole("row").filter({ hasText: "Sintel" });
   await heldRow.dispatchEvent("pointerdown", {
@@ -398,27 +542,39 @@ test("phone destinations and contextual filters remain reachable", async ({
   ).toBeChecked();
   await page
     .getByRole("button", {
-      name: "Done selecting rows in Transfer queue",
+      name: "Done selecting rows in Torrents",
     })
     .click();
-  await expect(
-    page.getByRole("checkbox", { name: "Select Sintel 4K open movie" }),
-  ).not.toBeChecked();
+  // A phone list shows checkboxes only while several rows are selected.
+  await expect(transferGrid.getByRole("checkbox")).toHaveCount(0);
+  const toggleNavigation = page.getByRole("button", {
+    name: "Toggle navigation",
+  });
   const primary = page.getByRole("navigation", { name: "Primary" });
+  await toggleNavigation.click();
+  await expect(
+    page.getByRole("navigation", { name: "Torrent filters" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Session views" }),
+  ).toBeVisible();
+  await capture(page, "rstorrent-navigation-phone.png");
   await primary.getByRole("button", { name: "Library" }).click();
   await expect(
     page.getByRole("list", { name: "Torrent-backed content" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Toggle Library filters" }).click();
+  await expect(page.locator("header")).toContainText("Library");
+  // Choosing a destination keeps the drawer open on its new categories.
   await expect(
     page.getByRole("navigation", { name: "Library filters" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Toggle Library filters" }).click();
+  await closeNavigation(page);
   await capture(page, "rstorrent-library-phone.png");
 
-  await primary.getByRole("button", { name: "Workbench" }).click();
+  await toggleNavigation.click();
+  await primary.getByRole("button", { name: "Torrents" }).click();
   await expect(
-    page.getByRole("grid", { name: "Torrent library" }),
+    page.getByRole("grid", { name: "Torrents" }),
   ).toBeVisible();
   const violations = (
     await new AxeBuilder({ page }).analyze()
@@ -434,9 +590,9 @@ test("Workbench empty-space focus keeps Select All on torrents", async ({ page }
   await page.goto("/?demo=healthy-download&at=42000&autoplay=0");
   await page
     .getByRole("navigation", { name: "Primary" })
-    .getByRole("button", { name: "Workbench" })
+    .getByRole("button", { name: "Torrents" })
     .click();
-  const grid = page.getByRole("grid", { name: "Torrent library" });
+  const grid = page.getByRole("grid", { name: "Torrents" });
   const bounds = await grid.boundingBox();
   expect(bounds).not.toBeNull();
   await grid.click({ position: { x: 12, y: bounds!.height - 8 } });
@@ -453,7 +609,7 @@ test("wide inspection surface is accessible and drivable", async ({ page }) => {
   await openScenario(page, "healthy-download", 42_000);
 
   await expect(
-    page.getByRole("grid", { name: "Torrent library" }),
+    page.getByRole("grid", { name: "Torrents" }),
   ).toHaveAttribute("aria-rowcount", "4");
   await expect(
     page.getByRole("grid", { name: "Active peer connections" }),
@@ -472,7 +628,7 @@ test("wide inspection surface is accessible and drivable", async ({ page }) => {
   await capture(page, "rstorrent-demo-wide.png");
 
   const torrentRows = page
-    .getByRole("grid", { name: "Torrent library" })
+    .getByRole("grid", { name: "Torrents" })
     .getByRole("row");
   const detail = page.getByRole("region", { name: "Torrent details" });
   await page.getByRole("tab", { name: "General" }).click();
@@ -485,7 +641,7 @@ test("wide inspection surface is accessible and drivable", async ({ page }) => {
 
   await page.keyboard.press("Shift+ArrowUp");
   await expect(torrentRows.nth(2)).toHaveAttribute("aria-current", "true");
-  await expect(page.getByText("2 selected for actions")).toBeVisible();
+  await expect(page.getByText("2 selected")).toBeVisible();
   await expect(
     detail.getByRole("heading", {
       name: "Big Buck Bunny 1080p surround",
@@ -493,10 +649,10 @@ test("wide inspection surface is accessible and drivable", async ({ page }) => {
   ).toBeVisible();
 
   await page.keyboard.press("Control+a");
-  await expect(page.getByText("3 selected for actions")).toBeVisible();
+  await expect(page.getByText("3 selected")).toBeVisible();
   await page.keyboard.press("ArrowUp");
   await expect(torrentRows.nth(1)).toHaveAttribute("aria-current", "true");
-  await expect(page.getByText("3 selected for actions")).toHaveCount(0);
+  await expect(page.getByText("3 selected")).toHaveCount(0);
   await expect(
     page.getByRole("checkbox", {
       name: "Deselect Arch Linux 2026.08.01 x86_64",
@@ -511,7 +667,7 @@ test("wide inspection surface is accessible and drivable", async ({ page }) => {
     detail.getByRole("heading", { name: "Arch Linux 2026.08.01 x86_64" }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByText("3 selected for actions")).toHaveCount(0);
+  await expect(page.getByText("3 selected")).toHaveCount(0);
   await expect(torrentRows.nth(1)).toHaveAttribute("aria-current", "true");
 });
 
@@ -521,7 +677,7 @@ test("typed torrent ETA stays explicit across responsive surfaces", async ({
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/?demo=healthy-download&at=42000&autoplay=0");
 
-  let transfers = page.getByRole("grid", { name: "Transfer queue" });
+  let transfers = page.getByRole("grid", { name: "Torrents" });
   let primary = transfers.getByRole("row").filter({
     hasText: "Big Buck Bunny 1080p surround",
   });
@@ -536,9 +692,10 @@ test("typed torrent ETA stays explicit across responsive surfaces", async ({
   const settings = page.getByRole("dialog", { name: "Settings" });
   await settings.getByRole("tab", { name: "Connection & seeding" }).click();
   await expect(
-    settings.getByRole("spinbutton", { name: "Simultaneous downloads" }),
+    settings.getByRole("spinbutton", { name: "Max active downloads" }),
   ).toHaveValue("3");
-  await expect(settings.getByText("Active downloads: 0 of 3.")).toBeVisible();
+  await settings.getByText("Network details").click();
+  await expect(settings.getByText("Active downloads: 0 of 3")).toBeVisible();
   await settings.getByRole("tab", { name: "Appearance" }).click();
   await settings.getByRole("radio", { name: /Compact/ }).check();
   await page.keyboard.press("Escape");
@@ -547,21 +704,21 @@ test("typed torrent ETA stays explicit across responsive surfaces", async ({
   );
 
   await page.goto("/?demo=healthy-download&at=7500&autoplay=0");
-  transfers = page.getByRole("grid", { name: "Transfer queue" });
+  transfers = page.getByRole("grid", { name: "Torrents" });
   primary = transfers.getByRole("row").filter({
     hasText: "Big Buck Bunny 1080p surround",
   });
   await expect(primary.getByLabel("Calculating ETA")).toHaveText("—");
 
   await page.goto("/?demo=healthy-download&at=0&autoplay=0");
-  transfers = page.getByRole("grid", { name: "Transfer queue" });
+  transfers = page.getByRole("grid", { name: "Torrents" });
   primary = transfers.getByRole("row").filter({
     hasText: "Big Buck Bunny 1080p surround",
   });
   await expect(primary.getByLabel("ETA unavailable")).toHaveText("—");
 
   await page.goto("/?demo=swarm-lifecycle&at=11000&autoplay=0");
-  transfers = page.getByRole("grid", { name: "Transfer queue" });
+  transfers = page.getByRole("grid", { name: "Torrents" });
   primary = transfers.getByRole("row").filter({
     hasText: "Big Buck Bunny — swarm registry inspection",
   });
@@ -576,18 +733,18 @@ test("typed torrent ETA stays explicit across responsive surfaces", async ({
     ),
   ).toEqual([]);
 
+  // A phone renders the table as a list that keeps the typed ETA and
+  // never scrolls sideways.
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(
-    transfers.getByRole("columnheader", { name: "ETA" }),
-  ).toHaveCount(1);
-  await expect(transfers.getByRole("columnheader", { name: "Name" })).toBeVisible();
+  await expect(transfers.getByRole("columnheader")).toHaveCount(0);
+  await expect(primary.getByLabel("Transfer stalled")).toHaveText("∞");
   await expect
     .poll(() =>
       transfers.evaluate(
         (element) => element.scrollWidth > element.clientWidth,
       ),
     )
-    .toBe(true);
+    .toBe(false);
   expect(
     (await new AxeBuilder({ page }).analyze()).violations.filter(
       (violation) =>
@@ -633,11 +790,13 @@ test("detail tabs keep equal stable footprints with narrow scrolling", async ({
     await page.setViewportSize({ width, height: 900 });
     if (width === 390) {
       await page
-        .getByRole("grid", { name: "Torrent library" })
+        .getByRole("grid", { name: "Torrents" })
         .locator("[data-row-id]")
         .first()
         .click();
-      await expect(tabs).toHaveCount(10);
+      // Phone session views live in the navigation drawer.
+      await expect(tabs).toHaveCount(6);
+      tabNames.splice(6);
     }
     const initialGeometry = await tabGeometry(page);
     expect(new Set(initialGeometry.map((tab) => tab.width)).size).toBe(1);
@@ -755,7 +914,7 @@ test("interface size settings persist and keep geometry coherent", async ({
   await openScenario(page, "healthy-download", 42_000);
 
   const app = page.locator("#app > [data-interface-size]");
-  const library = page.getByRole("grid", { name: "Torrent library" });
+  const library = page.getByRole("grid", { name: "Torrents" });
   const firstRow = library.locator("[data-row-id]").first();
   const more = page.getByRole("button", { name: "More", exact: true });
   await expect(app).toHaveAttribute("data-interface-size", "standard");
@@ -776,7 +935,7 @@ test("interface size settings persist and keep geometry coherent", async ({
   const close = dialog.getByRole("button", { name: "Close settings" });
   await expect(close).toBeFocused();
   await page.keyboard.press("Shift+Tab");
-  await expect(dialog.getByRole("radio", { name: /Binary/ })).toBeFocused();
+  await expect(dialog.getByRole("radio", { name: /Decimal/ })).toBeFocused();
   await dialog.getByRole("radio", { name: /Standard/ }).check();
   await expect.poll(() => detailTabWidths(page)).toEqual([100]);
   await expect.poll(() => detailTabIsFullyVisible(page, "DHT")).toBe(true);
@@ -841,37 +1000,64 @@ test("seeding priority settings stay truthful across responsive layouts", async 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Settings" });
   await dialog.getByRole("tab", { name: "Connection & seeding" }).click();
-  const priority = dialog.getByRole("group", {
-    name: "Automatic seeding priority",
-  });
+  const queue = dialog.getByRole("region", { name: "Queue" });
+  const stop = dialog.getByRole("region", { name: "Stop seeding" });
+  const priority = dialog.getByRole("region", { name: "Seeding priority" });
+  await expect(stop.getByRole("combobox", { name: "Share ratio" })).toHaveValue("off");
+  await expect(stop.getByRole("combobox", { name: "Seeding time" })).toHaveValue("off");
   await expect(
-    priority.getByText(/Meeting a goal does not stop a torrent/i),
+    priority.getByText(/Reaching a goal doesn't stop seeding/i),
   ).toBeVisible();
   await expect(
-    priority.getByRole("spinbutton", { name: "Active seeds" }),
+    queue.getByRole("spinbutton", { name: "Max active seeds" }),
   ).toHaveValue("5");
   await expect(
-    priority.getByRole("spinbutton", {
-      name: "Share-ratio priority goal (%)",
-    }),
+    priority.getByRole("spinbutton", { name: "Share ratio" }),
   ).toHaveValue("200");
   await expect(
     priority.getByRole("spinbutton", {
-      name: "Finished/download time priority goal (%)",
+      name: "Seeding time vs. download time",
     }),
   ).toHaveValue("700");
-  await expect(
-    priority.getByRole("spinbutton", {
-      name: "Finished-time priority goal (seconds)",
-    }),
-  ).toHaveValue("86400");
-  await expect(dialog.getByText("Active seeds: 0 counted of 5.")).toBeVisible();
-  const unlimited = priority.getByRole("checkbox", {
-    name: /Unlimited active seeds/,
+  const goalTime = priority.getByRole("combobox", { name: "Seeding time", exact: true });
+  await expect(goalTime).toHaveValue("86400");
+  await expect(goalTime.locator("option:checked")).toHaveText("1 day");
+  await stop.getByRole("combobox", { name: "Share ratio" }).selectOption({ label: "Custom…" });
+  await stop.getByRole("combobox", { name: "Seeding time" }).selectOption({ label: "Custom…" });
+  // Mounted inactive settings panels have hidden controls with zero boxes.
+  // Every visible select and number field shares one right edge and
+  // width. A custom time splits its row between a number and a unit choice.
+  const boxes = await dialog
+    .locator('form select:visible, form input[type="number"]:visible')
+    .evaluateAll((elements) =>
+      elements.map((element) => {
+        const field = element.closest('[class*="unitInput"]') ?? element;
+        const box = field.getBoundingClientRect();
+        return {
+          id: element.id,
+          right: Math.round(box.right),
+          width: Math.round(box.width),
+          shared: field.parentElement?.className.includes("custom") === true,
+          last: field.nextElementSibling === null,
+        };
+      }),
+    );
+  expect(boxes.filter((box) => !box.shared).length).toBeGreaterThan(8);
+  expect(
+    new Set(boxes.filter((box) => !box.shared || box.last).map((box) => box.right)).size,
+    JSON.stringify(boxes),
+  ).toBe(1);
+  expect(
+    new Set(boxes.filter((box) => !box.shared).map((box) => box.width)).size,
+  ).toBe(1);
+  await dialog.getByText("Network details").click();
+  await expect(dialog.getByText("Active seeds: 0 of 5")).toBeVisible();
+  const unlimited = queue.getByRole("checkbox", {
+    name: /No limit on active seeds/,
   });
   await unlimited.check();
   await expect(
-    priority.getByRole("spinbutton", { name: "Active seeds" }),
+    queue.getByRole("spinbutton", { name: "Max active seeds" }),
   ).toBeDisabled();
   expect(
     (await new AxeBuilder({ page }).analyze()).violations.filter(
@@ -886,12 +1072,12 @@ test("seeding priority settings stay truthful across responsive layouts", async 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const phoneDialog = page.getByRole("dialog", { name: "Settings" });
   await phoneDialog.getByRole("tab", { name: "Connection & seeding" }).click();
-  const phonePriority = phoneDialog.getByRole("group", {
-    name: "Automatic seeding priority",
+  const phonePriority = phoneDialog.getByRole("region", {
+    name: "Seeding priority",
   });
   await phonePriority.scrollIntoViewIfNeeded();
   await expect(
-    phonePriority.getByText(/fixed shared 500-torrent safety ceiling/i),
+    phonePriority.getByText(/Reaching a goal doesn't stop seeding/i),
   ).toBeVisible();
   await expect
     .poll(async () => Math.round((await phoneDialog.boundingBox())?.width ?? 0))
@@ -909,6 +1095,30 @@ test("seeding priority settings stay truthful across responsive layouts", async 
   await capture(page, "rstorrent-seeding-settings-phone.png");
 });
 
+test("a torrent stopped by a seeding limit offers Keep seeding", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openScenario(page, "seeding-limits", 0);
+  const grid = page.getByRole("grid", { name: "Torrents" });
+  const debian = grid.getByRole("row").filter({ hasText: "Debian 13.1 amd64 netinst" });
+  await expect(debian.getByText("Seeding limit reached")).toBeVisible();
+  await debian.getByText("Debian 13.1 amd64 netinst").click();
+  await page.getByRole("tab", { name: "General" }).click();
+  const details = page.getByRole("region", { name: "Torrent details" });
+  await expect(details.getByRole("region", { name: "Stop seeding" })).toHaveText(
+    "Stops at ratio 2.00 · now 2.03",
+  );
+  await capture(page, "rstorrent-seeding-limit-reached.png");
+
+  await page.getByRole("button", { name: "Keep seeding" }).click();
+  await expect(debian.getByText("Seeding limit reached")).toHaveCount(0);
+  await expect(details.getByRole("region", { name: "Stop seeding" })).toHaveText(
+    "No stop limit",
+  );
+  await expect(page.getByRole("button", { name: "Keep seeding" })).toHaveCount(0);
+});
+
 test("torrent settings dialog stays operable across responsive layouts", async ({
   page,
 }) => {
@@ -916,59 +1126,46 @@ test("torrent settings dialog stays operable across responsive layouts", async (
   await openScenario(page, "healthy-download", 42_000, true);
   await page.getByRole("tab", { name: "General" }).click();
   const details = page.getByRole("region", { name: "Torrent details" });
-  await expect(details.getByRole("spinbutton", {
-    name: "Torrent upload limit in KiB per second",
-  })).toHaveCount(0);
+  await expect(details.getByRole("combobox", { name: "Upload" })).toHaveCount(0);
   const more = page.getByRole("button", { name: /^More/ });
   await more.click();
   await page.getByRole("menuitem", { name: "Torrent settings" }).click();
   const dialog = page.getByRole("dialog", { name: "Torrent settings" });
   await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
-  const uploadUnlimited = dialog.getByRole("checkbox", {
-    name: "Torrent upload limit unlimited",
-  });
+  const uploadChoice = dialog.getByRole("combobox", { name: "Upload" });
   const upload = dialog.getByRole("spinbutton", {
-    name: "Torrent upload limit in KiB per second",
+    name: "Upload, custom speed in KB per second",
   });
-  const downloadUnlimited = dialog.getByRole("checkbox", {
-    name: "Torrent download limit unlimited",
-  });
-  const download = dialog.getByRole("spinbutton", {
-    name: "Torrent download limit in KiB per second",
-  });
+  const downloadChoice = dialog.getByRole("combobox", { name: "Download" });
 
-  await expect(uploadUnlimited).toBeChecked();
-  await uploadUnlimited.focus();
-  await page.keyboard.press("Space");
+  await expect(uploadChoice).toHaveValue("unlimited");
+  await uploadChoice.selectOption({ label: "Custom…" });
   await upload.fill("48");
-  await downloadUnlimited.uncheck();
-  await download.fill("160");
+  await downloadChoice.selectOption({ label: "1 MB/s" });
   await page.waitForTimeout(1_250);
-  await expect(downloadUnlimited).not.toBeChecked();
-  await expect(download).toHaveValue("160");
-  await dialog.getByRole("button", { name: "Save torrent limits" }).click();
-  await expect(
-    dialog.getByText("Torrent peer transfer limits saved."),
-  ).toBeVisible();
+  await expect(downloadChoice).toHaveValue("1024");
+  await expect(upload).toHaveValue("48");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(dialog.getByText("Saved")).toBeVisible();
 
   await page.setViewportSize({ width: 920, height: 720 });
   await expect(dialog).toBeVisible();
   await expect(upload).toHaveValue("48");
-  await expect(download).toHaveValue("160");
+  await expect(downloadChoice).toHaveValue("1024");
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(dialog).toBeVisible();
-  await uploadUnlimited.focus();
-  await page.keyboard.press("Space");
-  await expect(upload).toBeDisabled();
-  await page.keyboard.press("Space");
+  await uploadChoice.selectOption({ label: "Unlimited" });
+  await expect(upload).toHaveCount(0);
+  await uploadChoice.selectOption({ label: "Custom…" });
   await expect(upload).toBeEnabled();
   await expect(upload).toHaveValue("48");
 
+  await uploadChoice.focus();
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(more).toBeFocused();
-  const torrentRow = page.getByRole("grid", { name: "Torrent library" })
+  const torrentRow = page.getByRole("grid", { name: "Torrents" })
     .getByRole("row")
     .filter({ hasText: "Big Buck Bunny" });
   await torrentRow.click({ button: "right" });
@@ -1003,7 +1200,7 @@ test("global settings draft survives complete autoplay publications", async ({
   const dialog = page.getByRole("dialog", { name: "Settings" });
   await dialog.getByRole("tab", { name: "Connection & seeding" }).click();
   const limit = dialog.getByRole("spinbutton", {
-    name: "Peer connection limit",
+    name: "Max peer connections",
   });
   const save = dialog.getByRole("button", { name: "Save settings" });
 
@@ -1032,7 +1229,7 @@ test("color themes follow or override system appearance and persist", async ({
     .poll(() => themeMetrics(page))
     .toEqual({
       colorScheme: "dark",
-      background: "rgb(21, 27, 34)",
+      background: "rgb(24, 22, 20)",
     });
 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -1042,10 +1239,10 @@ test("color themes follow or override system appearance and persist", async ({
       .getByRole("group", { name: "Color theme" })
       .getByRole("radio", { name: /Auto/ }),
   ).toBeChecked();
-  const dataUnits = dialog.getByRole("group", { name: "Data units" });
+  const dataUnits = dialog.getByRole("group", { name: "Size units" });
+  await expect(dataUnits.getByRole("radio", { name: /^KB, MB, GB/ })).toBeChecked();
+  await dataUnits.getByRole("radio", { name: /Decimal/ }).check();
   await expect(dataUnits.getByRole("radio", { name: /Decimal/ })).toBeChecked();
-  await dataUnits.getByRole("radio", { name: /Binary/ }).check();
-  await expect(dataUnits.getByRole("radio", { name: /Binary/ })).toBeChecked();
   await capture(page, "rstorrent-settings-auto-dark.png");
 
   await dialog.getByRole("radio", { name: /Light/ }).check();
@@ -1072,7 +1269,7 @@ test("color themes follow or override system appearance and persist", async ({
     .poll(() => themeMetrics(page))
     .toEqual({
       colorScheme: "dark",
-      background: "rgb(21, 27, 34)",
+      background: "rgb(24, 22, 20)",
     });
   const darkViolations = (
     await new AxeBuilder({ page }).analyze()
@@ -1098,7 +1295,7 @@ test("color themes follow or override system appearance and persist", async ({
     .poll(() => themeMetrics(page))
     .toEqual({
       colorScheme: "dark",
-      background: "rgb(21, 27, 34)",
+      background: "rgb(24, 22, 20)",
     });
 
   await dialog.getByRole("radio", { name: /Dark/ }).check();
@@ -1112,7 +1309,7 @@ test("color themes follow or override system appearance and persist", async ({
     version: 3,
     interfaceSize: "standard",
     colorTheme: "dark",
-    dataUnits: "binary",
+    dataUnits: "decimal",
   });
   await page.addInitScript(() => {
     const observer = new MutationObserver(() => {
@@ -1136,7 +1333,7 @@ test("color themes follow or override system appearance and persist", async ({
   });
   await page.emulateMedia({ colorScheme: "light" });
   await page.reload();
-  await expect(page.getByText("RSTorrent", { exact: true })).toBeVisible();
+  await expect(page.getByText("JSTorrent", { exact: true })).toBeVisible();
   await expect(root).toHaveAttribute("data-color-theme", "dark");
   await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute(
     "content",
@@ -1146,18 +1343,19 @@ test("color themes follow or override system appearance and persist", async ({
     .poll(() => themeMetrics(page))
     .toEqual({
       colorScheme: "dark",
-      background: "rgb(21, 27, 34)",
+      background: "rgb(24, 22, 20)",
     });
   expect(
     await page.evaluate(() =>
       sessionStorage.getItem("rstorrent.theme-at-first-content"),
     ),
   ).toBe("dark");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  // The URL restores the open Settings dialog across a reload.
+  await expect(dialog).toBeVisible();
   await expect(
     page
-      .getByRole("group", { name: "Data units" })
-      .getByRole("radio", { name: /Binary/ }),
+      .getByRole("group", { name: "Size units" })
+      .getByRole("radio", { name: /Decimal/ }),
   ).toBeChecked();
 });
 
@@ -1165,15 +1363,19 @@ test("data units reformat mounted product surfaces without changing raw state", 
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 820 });
-  await openScenario(page, "healthy-download", 42_000);
+  await openScenario(page, "healthy-download", 42_000, false, "cards");
 
-  const transfers = page.getByRole("grid", { name: "Transfer queue" });
+  const transfers = page.getByRole("grid", { name: "Torrents" });
   const transferOrder = await transfers
     .locator("[data-row-id]")
     .evaluateAll((rows) => rows.map((row) => row.getAttribute("data-row-id")));
-  await expectVisibleUnits(page, "decimal");
-  await setDataUnits(page, "Binary");
   await expectVisibleUnits(page, "binary");
+  const binarySize = await transfers.getByText(/\d (?:KB|MB|GB)$/).first().textContent();
+  await setDataUnits(page, "Decimal");
+  await expectVisibleUnits(page, "decimal");
+  expect(
+    await transfers.getByText(/\d (?:kB|MB|GB)$/).first().textContent(),
+  ).not.toBe(binarySize);
   expect(
     await transfers
       .locator("[data-row-id]")
@@ -1184,44 +1386,44 @@ test("data units reformat mounted product surfaces without changing raw state", 
 
   const primary = page.getByRole("navigation", { name: "Primary" });
   await primary.getByRole("button", { name: "Library" }).click();
-  await expectVisibleUnits(page, "binary");
+  await expectVisibleUnits(page, "decimal");
   await page
     .getByRole("button", { name: "Open details for Sintel 4K open movie" })
     .click();
-  await page.getByRole("button", { name: "Open in Workbench" }).click();
+  await page.getByRole("button", { name: "Open in Torrents" }).click();
   await page.getByRole("tab", { name: "General" }).click();
-  await expectVisibleUnits(page, "binary");
-  await page.getByRole("tab", { name: "Files" }).click();
-  await expectVisibleUnits(page, "binary");
-  await setDataUnits(page, "Decimal");
   await expectVisibleUnits(page, "decimal");
+  await page.getByRole("tab", { name: "Files" }).click();
+  await expectVisibleUnits(page, "decimal");
+  await setDataUnits(page, "Binary");
+  await expectVisibleUnits(page, "binary");
 
   await openScenario(page, "slow-disk-pressure", 20_000);
   await page.getByRole("tab", { name: "Disk" }).click();
-  await expectVisibleUnits(page, "decimal");
-  await expect(page.getByText(/16 KiB block jobs/)).toBeVisible();
-  await setDataUnits(page, "Binary");
   await expectVisibleUnits(page, "binary");
-  await expect(page.getByText(/16 KiB block jobs/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Active storage pieces" })).toBeVisible();
+  await setDataUnits(page, "Decimal");
+  await expectVisibleUnits(page, "decimal");
+  await expect(page.getByRole("heading", { name: "Active storage pieces" })).toBeVisible();
 
   await openScenario(page, "dht-observatory", 42_000);
   await page.getByRole("tab", { name: "DHT" }).click();
-  await expectVisibleUnits(page, "binary");
+  await expectVisibleUnits(page, "decimal");
 
   await openScenario(page, "speed-bursty", 42_000);
   await page.getByRole("tab", { name: "Speed" }).click();
-  await expectVisibleUnits(page, "binary");
+  await expectVisibleUnits(page, "decimal");
   const canvas = page.getByRole("img", { name: /Speed history chart/ });
   const canvasSize = await canvas.boundingBox();
-  await setDataUnits(page, "Decimal");
-  await expectVisibleUnits(page, "decimal");
+  await setDataUnits(page, "Binary");
+  await expectVisibleUnits(page, "binary");
   expect(await canvas.boundingBox()).toEqual(canvasSize);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const phoneSettings = page.getByRole("dialog", { name: "Settings" });
   await expect(
-    phoneSettings.getByRole("group", { name: "Data units" }),
+    phoneSettings.getByRole("group", { name: "Size units" }),
   ).toBeVisible();
   const violations = (
     await new AxeBuilder({ page }).analyze()
@@ -1258,18 +1460,18 @@ test("compact tracker recovery remains legible", async ({ page }) => {
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page
-    .getByRole("grid", { name: "Torrent library" })
+    .getByRole("grid", { name: "Torrents" })
     .getByRole("row")
     .filter({ hasText: "Big Buck Bunny" })
     .click();
   await expect(trackers).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Torrents", exact: true }),
+    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Back", exact: true }),
   ).toBeVisible();
   await expect
     .poll(async () =>
       page
-        .getByRole("navigation", { name: "Workbench torrent filters" })
+        .getByRole("navigation", { name: "Torrent filters" })
         .evaluate((element) =>
           Math.round(element.getBoundingClientRect().right),
         ),
@@ -1300,90 +1502,29 @@ test("swarm lifecycle remains readable and accessible across layouts", async ({
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page
-    .getByRole("grid", { name: "Torrent library" })
+    .getByRole("grid", { name: "Torrents" })
     .getByRole("row")
     .filter({ hasText: "Big Buck Bunny" })
     .click();
   await expect(swarm).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Torrents", exact: true }),
+    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Back", exact: true }),
   ).toBeVisible();
-  const expectedColumns = [
-    "State",
-    "Address",
-    "Sources",
-    "Last seen",
-    "Retry",
-    "Downloaded",
-    "Uploaded",
-    "Dials",
-    "Fails",
-    "Trust",
-    "Parole",
-  ];
-  const columns = page.getByRole("button", { name: "Columns" }).last();
-  await columns.click();
-  const columnDialog = page.getByRole("dialog", {
-    name: "Table column settings",
-  });
-  for (const name of expectedColumns) {
-    await expect(
-      columnDialog.getByRole("checkbox", { name }),
-    ).toBeChecked();
-  }
-  await page.keyboard.press("Escape");
-  await expect(columnDialog).not.toBeVisible();
-
+  // Phone widths list each peer instead of scrolling a wide table.
   for (const width of [390, 456]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1024 });
     await expect(swarm).toBeVisible();
-    await expect
-      .poll(() =>
-        swarm.getByRole("columnheader").evaluateAll((headers) =>
-          headers.map((header) => header.getAttribute("aria-label")),
-        ),
-      )
-      .toEqual(expectedColumns);
-    await swarm.evaluate((element) => {
-      element.scrollLeft = 0;
-      element.dispatchEvent(new Event("scroll"));
-    });
-    await expect
-      .poll(() =>
-        swarm.evaluate((element) => ({
-          clientWidth: element.clientWidth,
-          scrollWidth: element.scrollWidth,
-        })),
-      )
-      .toMatchObject({ clientWidth: width });
+    await expect(swarm.getByRole("columnheader")).toHaveCount(0);
+    await expect(swarm.getByText("backed off").first()).toBeVisible();
+    await expect(swarm.getByText(/TRACKER · DHT/).first()).toBeVisible();
+    await expect(
+      page.getByRole("combobox", { name: "Sort by" }),
+    ).toBeVisible();
     expect(
       await swarm.evaluate(
         (element) => element.scrollWidth > element.clientWidth,
       ),
-    ).toBe(true);
-    const tableContainer = swarm.locator("..");
-    await expect(tableContainer).toHaveAttribute("data-overflow-left", "false");
-    await expect(tableContainer).toHaveAttribute("data-overflow-right", "true");
-
-    await swipeTableLeft(page, swarm);
-    await expect
-      .poll(() => swarm.evaluate((element) => element.scrollLeft))
-      .toBeGreaterThan(0);
-    await expect(tableContainer).toHaveAttribute("data-overflow-left", "true");
-
-    await swarm.evaluate((element) => {
-      element.scrollLeft = element.scrollWidth;
-      element.dispatchEvent(new Event("scroll"));
-    });
-    await expect(tableContainer).toHaveAttribute("data-overflow-right", "false");
-    const finalColumnBounds = await swarm
-      .getByRole("columnheader", { name: "Parole" })
-      .boundingBox();
-    expect(finalColumnBounds).not.toBeNull();
-    expect(finalColumnBounds!.x).toBeGreaterThanOrEqual(0);
-    expect(finalColumnBounds!.x + finalColumnBounds!.width).toBeLessThanOrEqual(
-      width,
-    );
+    ).toBe(false);
   }
   violations = (await new AxeBuilder({ page }).analyze()).violations.filter(
     (violation) =>
@@ -1419,25 +1560,37 @@ test("global disk pipeline shows pressure and responsive piece work", async ({
   await capture(page, "rstorrent-disk-compact.png");
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page
-    .getByRole("grid", { name: "Torrent library" })
-    .getByRole("row")
-    .filter({ hasText: "Big Buck Bunny" })
-    .click();
+  await openPhoneSessionView(page, "Disk");
   await expect(
-    page.getByRole("button", { name: "Torrents", exact: true }),
+    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Back", exact: true }),
   ).toBeVisible();
   await expect(pieces).toBeVisible();
   await expect
     .poll(async () =>
       page
-        .getByRole("navigation", { name: "Workbench torrent filters" })
+        .getByRole("navigation", { name: "Torrent filters" })
         .evaluate((element) =>
           Math.round(element.getBoundingClientRect().right),
         ),
     )
     .toBeLessThanOrEqual(0);
   await capture(page, "rstorrent-disk-phone.png");
+});
+
+test("speed controls remain wheel-scrollable in a short desktop viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 631 });
+  await openScenario(page, "speed-bursty", 42_000);
+  await page.getByRole("tab", { name: "Speed" }).click();
+  const panel = page.getByLabel("Session speed history");
+  const box = await panel.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.y + box!.height).toBeLessThanOrEqual(631);
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height - 20);
+  await page.mouse.wheel(0, 900);
+  await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect(panel.getByRole("button", { name: "DHT in" })).toBeInViewport();
+  await panel.getByRole("button", { name: "DHT in" }).click();
+  await expect(panel.getByText("3 of 8")).toBeVisible();
 });
 
 test("speed history stays exact, selectable, and accessible", async ({
@@ -1449,18 +1602,18 @@ test("speed history stays exact, selectable, and accessible", async ({
 
   const panel = page.getByLabel("Session speed history");
   const chart = page.getByRole("img", { name: /Speed history chart/ });
-  await expect(panel).toContainText("Session · All torrents");
+  await expect(panel).toContainText("All torrents");
   await expect(chart).toBeVisible();
   await expect(
     page.getByLabel("Selected speed window summaries"),
-  ).toContainText("Received");
+  ).toContainText("Download");
 
   await chart.focus();
   await page.keyboard.press("ArrowLeft");
-  await expect(panel.getByRole("status")).toContainText(/Received.*\/s/);
+  await expect(panel.getByRole("status")).toContainText(/Download.*\/s/);
 
   await panel.getByRole("button", { name: "DHT in" }).click();
-  await expect(panel.getByText("4 of 8")).toBeVisible();
+  await expect(panel.getByText("3 of 8")).toBeVisible();
   const historyRange = panel.getByRole("combobox", { name: "History" });
   await historyRange.selectOption("hours24");
   await expect(historyRange).toHaveValue("hours24");
@@ -1474,15 +1627,14 @@ test("speed history stays exact, selectable, and accessible", async ({
   expect(violations).toEqual([]);
   await capture(page, "rstorrent-speed-wide.png");
 
+  // A phone opens session views from the navigation drawer.
   await page.setViewportSize({ width: 390, height: 844 });
-  await page
-    .getByRole("grid", { name: "Torrent library" })
-    .getByRole("row")
-    .filter({ hasText: "Big Buck Bunny" })
-    .click();
+  await openPhoneSessionView(page, "Speed");
   await expect(chart).toBeVisible();
   await capture(page, "rstorrent-speed-phone.png");
+});
 
+test("stale speed history stays frozen", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 820 });
   await openScenario(page, "speed-stale", 42_000);
   await page.getByRole("tab", { name: "Speed" }).click();
@@ -1545,17 +1697,17 @@ test("piece canvas shows retry truth and bounds a large torrent", async ({
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page
-    .getByRole("grid", { name: "Torrent library" })
+    .getByRole("grid", { name: "Torrents" })
     .getByRole("row")
-    .nth(1)
+    .first()
     .click();
   await expect(
-    page.getByRole("button", { name: "Torrents", exact: true }),
+    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Back", exact: true }),
   ).toBeVisible();
   await expect
     .poll(async () =>
       page
-        .getByRole("navigation", { name: "Workbench torrent filters" })
+        .getByRole("navigation", { name: "Torrent filters" })
         .evaluate((element) =>
           Math.round(element.getBoundingClientRect().right),
         ),
@@ -1575,16 +1727,14 @@ test("metadata preparation stays compact and accessible across widths", async ({
   await page.getByRole("tab", { name: "General" }).click();
 
   const progress = page.getByRole("progressbar", {
-    name: "Metadata bytes received",
+    name: "Torrent info received",
   });
   await expect(progress).toHaveAttribute("max", "8388608");
   await expect(progress).toHaveAttribute("value", "2097152");
   const map = page.getByRole("img", {
-    name: "512 metadata blocks: 128 received, 0 requested, 384 missing",
+    name: "Torrent info: 128 received, 0 requested, 384 missing",
   });
   await expect(map).toBeVisible();
-  await expect(page.getByText("16 KiB per block")).toBeVisible();
-  await expect(page.getByText("Hash retries").last()).toBeVisible();
   const wideMetrics = await page.evaluate(() => ({
     domElements: document.getElementsByTagName("*").length,
     canvases: document.querySelectorAll("canvas").length,
@@ -1598,12 +1748,11 @@ test("metadata preparation stays compact and accessible across widths", async ({
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page
-    .getByRole("grid", { name: "Torrent library" })
+    .getByRole("grid", { name: "Torrents" })
     .getByRole("row")
-    .nth(1)
+    .first()
     .click();
   await expect(map).toBeVisible();
-  await expect(page.getByText("Requests in flight")).toBeVisible();
   const phoneOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
@@ -1649,8 +1798,8 @@ test("removal keeps data by default and exposes destructive intent", async ({
   await retained.getByRole("button", { name: "Remove", exact: true }).click();
   await expect(retained).not.toBeVisible();
   await expect(
-    page.getByText("Removed Big Buck Bunny 1080p surround", { exact: true }),
-  ).toBeVisible();
+    page.getByRole("region", { name: "Notification" }),
+  ).toContainText("Removed Big Buck Bunny 1080p surround");
 });
 
 test("diagnostic console stays ordered, filtered, and virtualized", async ({
@@ -1663,10 +1812,10 @@ test("diagnostic console stays ordered, filtered, and virtualized", async ({
     name: "Chronological diagnostic events",
   });
   await expect(feed).toBeVisible();
-  await expect(page.getByText("2,048 retained", { exact: true })).toBeVisible();
+  await expect(page.getByText("2,048 kept", { exact: true })).toBeVisible();
   expect(await feed.locator("article").count()).toBeLessThan(60);
 
-  await page.getByLabel("Diagnostic capture profile").selectOption("trace");
+  await page.getByLabel("Log detail level").selectOption("trace");
   await expect(page.getByText("High-volume producer capture")).toBeVisible();
   await page.getByLabel("Minimum displayed severity").selectOption("warning");
   await page.getByLabel("Displayed torrent scope").selectOption("all");
@@ -1705,9 +1854,10 @@ test("diagnostic console stays ordered, filtered, and virtualized", async ({
   }
   await capture(page, "rstorrent-diagnostic-console-wide.png");
 
+  // A phone opens the Logs view from the navigation drawer.
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("row", { name: /Big Buck Bunny/ }).click();
-  await page.getByRole("tab", { name: "Logs" }).click();
+  await expect(page.getByRole("grid", { name: "Torrents" })).toBeVisible();
+  await openPhoneSessionView(page, "Logs");
   const phoneFeed = page.getByRole("log", {
     name: "Chronological diagnostic events",
   });
@@ -1720,11 +1870,11 @@ test("diagnostic console stays ordered, filtered, and virtualized", async ({
 test("phone navigation opens a full detail surface", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openScenario(page, "healthy-download", 42_000);
-  const library = page.getByRole("grid", { name: "Torrent library" });
+  const library = page.getByRole("grid", { name: "Torrents" });
   await expect(library).toBeVisible();
   await library.getByRole("row").filter({ hasText: "Big Buck Bunny" }).click();
-  const backButton = page.getByRole("button", {
-    name: "Torrents",
+  const backButton = page.getByRole("region", { name: "Torrent details" }).getByRole("button", {
+    name: "Back",
     exact: true,
   });
   await expect(backButton).toBeVisible();
@@ -1739,8 +1889,8 @@ test("phone navigation opens a full detail surface", async ({ page }) => {
 test("Workbench detail has a return path at the layout breakpoint", async ({ page }) => {
   await page.setViewportSize({ width: 760, height: 844 });
   await openScenario(page, "healthy-download", 42_000);
-  const library = page.getByRole("grid", { name: "Torrent library" });
-  const backButton = page.getByRole("button", { name: "Torrents", exact: true });
+  const library = page.getByRole("grid", { name: "Torrents" });
+  const backButton = page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Back", exact: true });
 
   for (const width of [700, 701, 730, 760]) {
     await page.setViewportSize({ width, height: 844 });
@@ -1763,6 +1913,62 @@ test("Workbench detail has a return path at the layout breakpoint", async ({ pag
   }
 });
 
+test("torrent scrolling survives running updates and retains keyboard navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/?demo=large-swarm&at=0");
+  const torrents = page.getByRole("grid", { name: "Torrents", exact: true });
+  await expect(torrents).toHaveAttribute("aria-rowcount", "2001");
+  await expect(torrents.locator('[data-row-index="0"]')).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+  const clock = page.getByLabel(/^Demo clock /);
+  const clockSeconds = async () => {
+    const label = (await clock.getAttribute("aria-label"))!;
+    const [, minutes, seconds] = /^Demo clock (\d+):(\d+)$/.exec(label)!;
+    return Number(minutes) * 60 + Number(seconds);
+  };
+  const bounds = (await torrents.boundingBox())!;
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 100);
+  await page.mouse.wheel(0, 1800);
+  await expect
+    .poll(() => torrents.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(800);
+  const scrolledTop = await torrents.evaluate((element) => element.scrollTop);
+  const initialClockSeconds = await clockSeconds();
+  const positions: number[] = [];
+  for (let sample = 0; sample < 65; sample += 1) {
+    await page.waitForTimeout(50);
+    positions.push(await torrents.evaluate((element) => element.scrollTop));
+  }
+  expect((await clockSeconds()) - initialClockSeconds).toBeGreaterThanOrEqual(3);
+  expect(Math.min(...positions)).toBe(scrolledTop);
+  expect(Math.max(...positions)).toBe(scrolledTop);
+  expect(await torrents.getByRole("row").count()).toBeLessThan(100);
+
+  await torrents.press("End");
+  await expect(torrents.locator('[data-row-index="1999"]')).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+  await expect
+    .poll(() => torrents.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(scrolledTop);
+  await torrents.press("Home");
+  await expect.poll(() => torrents.evaluate((element) => element.scrollTop)).toBe(0);
+  await page.mouse.wheel(0, 1800);
+  await expect
+    .poll(() => torrents.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(800);
+  await torrents.press("Home");
+  await expect.poll(() => torrents.evaluate((element) => element.scrollTop)).toBe(0);
+  await torrents.press("ArrowDown");
+  await expect(torrents.locator('[data-row-index="1"]')).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+});
+
 test("large collections retain a bounded virtual DOM", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.addInitScript(() => {
@@ -1775,9 +1981,9 @@ test("large collections retain a bounded virtual DOM", async ({ page }) => {
     }).observe({ type: "longtask", buffered: true });
   });
   const openedAt = performance.now();
-  await openScenario(page, "large-swarm", 0);
+  await openScenario(page, "large-swarm", 0, false, "cards");
   const initialRenderMs = performance.now() - openedAt;
-  const torrents = page.getByRole("grid", { name: "Torrent library" });
+  const torrents = page.getByRole("grid", { name: "Torrents" });
   const peers = page.getByRole("grid", { name: "Active peer connections" });
   await expect(torrents).toHaveAttribute("aria-rowcount", "2001");
   await expect(peers).toHaveAttribute("aria-rowcount", "10001");
@@ -1824,8 +2030,8 @@ test("large collections retain a bounded virtual DOM", async ({ page }) => {
   expect(await swarm.getByRole("row").count()).toBeLessThanOrEqual(100);
   expect(await page.locator("*").count()).toBeLessThan(2_000);
   const primary = page.getByRole("navigation", { name: "Primary" });
-  await primary.getByRole("button", { name: "Transfers" }).click();
-  const transferQueue = page.getByRole("grid", { name: "Transfer queue" });
+  await primary.getByRole("button", { name: "Torrents" }).click();
+  const transferQueue = page.getByRole("grid", { name: "Torrents" });
   await expect(transferQueue).toHaveAttribute("aria-rowcount", "2001");
   expect(await transferQueue.getByRole("row").count()).toBeLessThanOrEqual(100);
   await primary.getByRole("button", { name: "Library" }).click();
@@ -1877,13 +2083,13 @@ test("full file catalog stays virtualized across wide compact and phone layouts"
   );
   await page.keyboard.press("Shift+ArrowDown");
   await expect(files).toHaveAttribute("aria-multiselectable", "true");
-  await expect(page.getByText("2 selected for actions")).toBeVisible();
+  await expect(page.getByText("2 selected")).toBeVisible();
   await expect(files.getByRole("row").nth(3)).toHaveAttribute(
     "aria-current",
     "true",
   );
   await page.keyboard.press("Control+a");
-  await expect(page.getByText("4,095 selected for actions")).toBeVisible();
+  await expect(page.getByText("4,095 selected")).toBeVisible();
   expect(await files.getByRole("row").count()).toBeLessThanOrEqual(100);
   await page.keyboard.press("Escape");
   await expect(
@@ -1944,30 +2150,31 @@ test("full file catalog stays virtualized across wide compact and phone layouts"
   await capture(page, "rstorrent-files-compact.png");
 
   await page
-    .getByRole("grid", { name: "Torrent library" })
+    .getByRole("grid", { name: "Torrents" })
     .getByRole("row")
     .filter({ hasText: "Open Movies production archive" })
     .click();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
-    page.getByRole("button", { name: "Torrents", exact: true }),
+    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Back", exact: true }),
   ).toBeVisible();
   await expect(files).toBeVisible();
   await expect
     .poll(async () =>
       page
-        .getByRole("navigation", { name: "Workbench torrent filters" })
+        .getByRole("navigation", { name: "Torrent filters" })
         .evaluate((element) =>
           Math.round(element.getBoundingClientRect().right),
         ),
     )
     .toBeLessThanOrEqual(0);
-  await columns.click();
-  await expect(
-    page.getByRole("dialog", { name: "Table column settings" }),
-  ).toBeVisible();
-  await capture(page, "rstorrent-columns-phone.png");
-  await page.keyboard.press("Escape");
+  // The phone list sorts from its toolbar instead of column headers.
+  await expect(files.getByRole("columnheader")).toHaveCount(0);
+  const sort = page.getByRole("combobox", { name: "Sort by" });
+  await sort.selectOption({ label: "Size" });
+  await expect(sort).toHaveValue("size");
+  expect(await files.getByRole("row").count()).toBeLessThanOrEqual(100);
+  await capture(page, "rstorrent-files-phone.png");
   await page.getByRole("button", { name: "More file actions" }).click();
   const phoneFileActions = page.getByRole("menu", {
     name: "More file actions",
@@ -2000,56 +2207,44 @@ async function openScenario(
   scenario: string,
   at: number,
   autoplay = false,
+  library: "media" | "cards" = "media",
 ) {
-  await page.goto(`/?demo=${scenario}&at=${at}&autoplay=${autoplay ? 1 : 0}`);
-  await expect(page.getByText("RSTorrent", { exact: true })).toBeVisible();
+  await page.goto(
+    `/?demo=${scenario}&at=${at}&autoplay=${autoplay ? 1 : 0}${library === "cards" ? "&library=cards" : ""}`,
+  );
+  await expect(
+    page.getByRole("button", { name: "Settings", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Demo data", { exact: true })).toBeVisible();
+  // Narrow layouts keep the destinations in the navigation drawer, which
+  // stays open after a destination is chosen.
+  const drawer = page.getByRole("button", { name: "Toggle navigation" });
+  const narrow = await drawer.isVisible();
+  if (narrow) await drawer.click();
   await page
     .getByRole("navigation", { name: "Primary" })
-    .getByRole("button", { name: "Workbench" })
+    .getByRole("button", { name: "Torrents" })
     .click();
+  if (narrow) await closeNavigation(page);
 }
 
-async function swipeTableLeft(page: Page, table: Locator) {
-  const bounds = await table.boundingBox();
+async function closeNavigation(page: Page) {
+  // The drawer covers the scrim's leading edge; dismiss it at the far edge.
+  const scrim = page.getByRole("button", { name: "Close navigation" });
+  const bounds = await scrim.boundingBox();
   expect(bounds).not.toBeNull();
-  const startX = Math.round(bounds!.x + bounds!.width - 36);
-  const endX = Math.round(bounds!.x + 36);
-  const y = Math.round(
-    Math.min(bounds!.y + 100, bounds!.y + bounds!.height - 24),
-  );
-  const session = await page.context().newCDPSession(page);
-  try {
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: [{ x: startX, y }],
-    });
-    for (let step = 1; step <= 6; step += 1) {
-      await session.send("Input.dispatchTouchEvent", {
-        type: "touchMove",
-        touchPoints: [
-          {
-            x: Math.round(startX + ((endX - startX) * step) / 6),
-            y,
-          },
-        ],
-      });
-    }
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchEnd",
-      touchPoints: [],
-    });
-  } finally {
-    await session.detach();
-  }
+  await scrim.click({ position: { x: bounds!.width - 10, y: bounds!.height / 2 } });
+  await expect(
+    page.getByRole("button", { name: "Toggle navigation" }),
+  ).toHaveAttribute("aria-expanded", "false");
 }
 
 async function setDataUnits(page: Page, label: "Decimal" | "Binary") {
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Settings" });
   await dialog
-    .getByRole("group", { name: "Data units" })
-    .getByRole("radio", { name: new RegExp(label) })
+    .getByRole("group", { name: "Size units" })
+    .getByRole("radio", { name: label === "Binary" ? /^KB, MB, GB/ : /^Decimal/ })
     .check();
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
@@ -2059,8 +2254,16 @@ async function expectVisibleUnits(page: Page, dataUnits: "decimal" | "binary") {
   const pattern =
     dataUnits === "decimal"
       ? /\d+(?:\.\d)? (?:kB|MB|GB|TB|PB)(?:\/s)?/
-      : /\d+(?:\.\d)? (?:KiB|MiB|GiB|TiB|PiB)(?:\/s)?/;
+      : /\d+(?:\.\d)? (?:KB|MB|GB|TB|PB)(?:\/s)?/;
   await expect(page.getByText(pattern).first()).toBeVisible();
+}
+
+async function openPhoneSessionView(page: Page, name: string) {
+  await page.getByRole("button", { name: "Toggle navigation" }).click();
+  await page
+    .getByRole("navigation", { name: "Session views" })
+    .getByRole("button", { name })
+    .click();
 }
 
 async function tabGeometry(page: Page) {

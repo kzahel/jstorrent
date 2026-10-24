@@ -11,10 +11,7 @@ export interface PowerSettingsSectionProps {
 export function PowerSettingsSection({ power }: PowerSettingsSectionProps) {
   const [settings, setSettings] = useState(power.getSnapshot);
   const [pending, setPending] = useState(false);
-  const [status, setStatus] = useState<{
-    readonly type: "success" | "error";
-    readonly message: string;
-  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const change = async (checked: boolean) => {
     if (pending) return;
@@ -25,16 +22,12 @@ export function PowerSettingsSection({ power }: PowerSettingsSectionProps) {
     };
     setSettings(next);
     setPending(true);
-    setStatus(null);
+    setError(null);
     try {
       setSettings(await power.save(next));
-      setStatus({ type: "success", message: localizedMessage("inspection.components.power.settings.section.power.setting.saved") });
-    } catch (error) {
+    } catch (cause) {
       setSettings(previous);
-      setStatus({
-        type: "error",
-        message: `Power setting was not saved: ${errorMessage(error)}`,
-      });
+      setError(localizedMessage("feedback.power.save.failed", { error: errorMessage(cause) }));
     } finally {
       setPending(false);
     }
@@ -43,26 +36,22 @@ export function PowerSettingsSection({ power }: PowerSettingsSectionProps) {
   return (
     <fieldset className={styles.section} disabled={pending}>
       <legend>{localizedMessage("inspection.components.power.settings.section.power")}</legend>
-      <p className={styles.sectionIntroduction}>{localizedMessage("inspection.components.power.settings.section.rstorrent.can.prevent.automatic.system.sleep.during")}</p>
-      <label className={styles.preference}>
-        <input
-          type="checkbox"
-          checked={settings.prevent_sleep_during_active_downloads}
-          onChange={(event) => void change(event.currentTarget.checked)}
-        />
-        <span>
-          <strong>{localizedMessage("inspection.components.power.settings.section.prevent.sleep.during.active.downloads.and.checks")}</strong>
-          <small>{localizedMessage("inspection.components.power.settings.section.releases.automatically.for.queued.paused.completed.seeding")}</small>
-        </span>
-      </label>
-      {status === null ? null : (
-        <p
-          className={
-            status.type === "error" ? styles.errorStatus : styles.successStatus
-          }
-          role={status.type === "error" ? "alert" : "status"}
-        >
-          {status.message}
+      <p className={styles.sectionIntroduction}>{localizedMessage("inspection.components.power.settings.section.keeps.computer.awake")}</p>
+      <div className={styles.rows}>
+        <label className={styles.preference}>
+          <input
+            type="checkbox"
+            checked={settings.prevent_sleep_during_active_downloads}
+            onChange={(event) => void change(event.currentTarget.checked)}
+          />
+          <span>
+            <strong>{localizedMessage("inspection.components.power.settings.section.prevent.sleep.while.downloading")}</strong>
+          </span>
+        </label>
+      </div>
+      {error === null ? null : (
+        <p className={styles.errorStatus} role="alert">
+          {error}
         </p>
       )}
     </fieldset>

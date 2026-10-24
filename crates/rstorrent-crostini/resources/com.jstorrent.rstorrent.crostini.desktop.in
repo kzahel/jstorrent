@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=RSTorrent for ChromeOS Linux
+Name=JSTorrent for ChromeOS Linux
 GenericName=BitTorrent Client
-Comment=Open RSTorrent using ChromeOS Linux
+Comment=Open JSTorrent using ChromeOS Linux
 Exec=@RSTORRENT_CROSTINI_BINARY@ launch
 Icon=com.jstorrent.rstorrent.crostini
 Terminal=false

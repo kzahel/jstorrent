@@ -1,0 +1,14 @@
+{
+  "status": "submitted",
+  "extensionId": "dbokmlpefliilbjldladbimlcfgbolhk",
+  "published": {
+    "state": "PUBLISHED",
+    "versions": [
+      "1.1.5"
+    ]
+  },
+  "version": "1.1.6",
+  "revision": "b3792b9064c24bcdf0344c7c4c30390cb2744543",
+  "sha256": "aeb7abe31a4e8b41d643e53828f00ee3fc284da04733e77021ef1346a76ceae6",
+  "state": "PENDING_REVIEW"
+}

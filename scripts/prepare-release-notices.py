@@ -28,6 +28,13 @@ def read_text(path):
     return data.decode('utf-8-sig')
 
 
+def branding_notice():
+    return ('# JSTorrent branding assets\n\n'
+            'Original first-party icons from kzahel/jstorrent-typescript, revision\n'
+            '25e4b701433fd815398ba89526546f5e4f072e3f, used without modification.\n\n'
+            + read_text(ROOT / 'distribution/branding/JSTorrent-LICENSE.txt'))
+
+
 def license_files(root):
     files = []
     for entry in sorted(root.iterdir()):
@@ -119,6 +126,21 @@ def rust_notices(data, catalog):
     return sections, inventory
 
 
+def npm_source(locked, package):
+    source = locked.get('resolved', '')
+    if locked.get('integrity'):
+        return source
+    # Only this reviewed public git dependency may omit npm tarball integrity.
+    revision = 'cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0'
+    # npm can normalize the public HTTPS override to its SSH lockfile form.
+    reviewed = {f'git+https://github.com/kzahel/mediabunny.git#{revision}',
+                f'git+ssh://git@github.com/kzahel/mediabunny.git#{revision}'}
+    if ((package['name'], package['version'], package.get('license')) != (
+            'mediabunny', '1.38.1', 'MPL-2.0') or source not in reviewed):
+        raise ValueError('npm dependency has no reviewed source integrity')
+    return f'https://github.com/kzahel/mediabunny/archive/{revision}.tar.gz'
+
+
 def npm_notices():
     web = ROOT / 'clients/web'
     lock = json.loads((web / 'package-lock.json').read_text(encoding='utf-8'))['packages']
@@ -132,8 +154,9 @@ def npm_notices():
         locked = lock[key]
         root = web / key
         package = json.loads((root / 'package.json').read_text(encoding='utf-8'))
-        if package['version'] != locked['version'] or not locked.get('integrity'):
+        if package['version'] != locked['version']:
             raise ValueError('npm installation differs from lockfile')
+        source = npm_source(locked, package)
         files = license_files(root)
         texts = [f"Published file: {p.relative_to(root).as_posix()}\n\n{read_text(p)}" for p in files]
         if not files:
@@ -144,9 +167,19 @@ def npm_notices():
             texts = ['The published manifest declares MIT; the browser entry is empty.\n'
                      'The standard MIT text appears in the Rust license section.']
         inventory.append({'name': package['name'], 'version': package['version'],
-                          'license': package.get('license'), 'integrity': locked['integrity']})
+                          'license': package.get('license'), 'integrity': locked.get('integrity'),
+                          'source': source})
+        adaptation = ''
+        if package['name'] == 'playsvideo':
+            patch = ROOT / 'clients/web/scripts/patch-playsvideo.mjs'
+            subprocess.run(['node', str(patch)], cwd=ROOT, check=True, timeout=30)
+            inventory[-1]['local_patch_sha256'] = digest(patch.read_bytes())
+            adaptation = ('Locally adapted by clients/web/scripts/patch-playsvideo.mjs; '
+                          'original/modified file checksums are recorded there.\n'
+                          'Preferred MIT source and adaptation: '
+                          'https://github.com/kzahel/jstorrent/tree/main/clients/web/scripts\n')
         sections.append(f"## npm {package['name']}@{package['version']}\n"
-                        f"Declared license: {package.get('license')}\n\n" + '\n\n'.join(texts))
+                        f"Declared license: {package.get('license')}\nSource: {source}\n{adaptation}\n" + '\n\n'.join(texts))
     return sections, inventory
 
 
@@ -185,14 +218,14 @@ def main():
         raise ValueError('unreviewed desktop target')
     rust, rust_inventory, version = generate_rust_notices([target], ROOT / 'clients/desktop/src-tauri/Cargo.toml')
     npm, npm_inventory = npm_notices()
-    text = ('# RSTorrent third-party Rust and web notices\n\n'
+    text = ('# JSTorrent third-party Rust and web notices\n\n'
             f'Target: {target}\nGenerator: {version}\n'
             'Scope: locked default-feature desktop Cargo graph, including build dependencies;\n'
             'web production dependencies and Ajv standalone code generation.\n'
             'Native system libraries require the platform package inventory separately.\n\n'
             'MPL-covered source is available from the exact source-package URLs below.\n'
-            'Dependencies are unmodified except where a package explicitly records a backport.\n\n'
-            + '\n\n'.join(rust + npm) + '\n')
+            'Dependencies with local adaptations identify them in their package section.\n\n'
+            + branding_notice() + '\n\n' + '\n\n'.join(rust + npm) + '\n')
     if len(text.encode()) > 16 * 1024 * 1024:
         raise ValueError('notice bundle exceeds 16 MiB')
     manifest = {'schema': 1, 'target': target, 'generator': version,

@@ -387,6 +387,10 @@ impl fmt::Display for DhtError {
 
 impl Error for DhtError {}
 
+/// Receives peers from each `get_peers` reply while a lookup runs. Delivery is
+/// best effort and deduplicated per lookup; the final result stays complete.
+pub type DhtPeerProgress = mpsc::Sender<Vec<SocketAddr>>;
+
 #[derive(Clone, Debug)]
 pub struct DhtHandle {
     sender: mpsc::Sender<Command>,
@@ -395,10 +399,27 @@ pub struct DhtHandle {
 
 impl DhtHandle {
     pub async fn lookup(&self, info_hash: [u8; 20]) -> Result<Vec<SocketAddr>, DhtError> {
+        self.lookup_inner(info_hash, None).await
+    }
+
+    pub async fn lookup_with_progress(
+        &self,
+        info_hash: [u8; 20],
+        progress: DhtPeerProgress,
+    ) -> Result<Vec<SocketAddr>, DhtError> {
+        self.lookup_inner(info_hash, Some(progress)).await
+    }
+
+    async fn lookup_inner(
+        &self,
+        info_hash: [u8; 20],
+        progress: Option<DhtPeerProgress>,
+    ) -> Result<Vec<SocketAddr>, DhtError> {
         let (sender, receiver) = oneshot::channel();
         self.sender
             .send(Command::Lookup {
                 info_hash: NodeId(info_hash),
+                progress,
                 result: sender,
             })
             .await
@@ -420,12 +441,32 @@ impl DhtHandle {
         info_hash: [u8; 20],
         ports: DhtAnnouncePorts,
     ) -> Result<DhtAnnounceResult, DhtError> {
+        self.lookup_and_announce_inner(info_hash, ports, None).await
+    }
+
+    pub async fn lookup_and_announce_ports_with_progress(
+        &self,
+        info_hash: [u8; 20],
+        ports: DhtAnnouncePorts,
+        progress: DhtPeerProgress,
+    ) -> Result<DhtAnnounceResult, DhtError> {
+        self.lookup_and_announce_inner(info_hash, ports, Some(progress))
+            .await
+    }
+
+    async fn lookup_and_announce_inner(
+        &self,
+        info_hash: [u8; 20],
+        ports: DhtAnnouncePorts,
+        progress: Option<DhtPeerProgress>,
+    ) -> Result<DhtAnnounceResult, DhtError> {
         let ports = ports.validate()?;
         let (sender, receiver) = oneshot::channel();
         self.sender
             .send(Command::LookupAndAnnounce {
                 info_hash: NodeId(info_hash),
                 ports,
+                progress,
                 result: sender,
             })
             .await
@@ -684,11 +725,13 @@ enum Command {
     },
     Lookup {
         info_hash: NodeId,
+        progress: Option<DhtPeerProgress>,
         result: oneshot::Sender<Result<Vec<SocketAddr>, DhtError>>,
     },
     LookupAndAnnounce {
         info_hash: NodeId,
         ports: DhtAnnouncePorts,
+        progress: Option<DhtPeerProgress>,
         result: oneshot::Sender<Result<DhtAnnounceResult, DhtError>>,
     },
     CancelLookup(NodeId),
@@ -743,6 +786,9 @@ struct Announcement {
 struct LookupGroup {
     waiters: Vec<oneshot::Sender<Result<Vec<SocketAddr>, DhtError>>>,
     announcement: Option<Announcement>,
+    progress: Vec<DhtPeerProgress>,
+    /// Peers already sent to `progress`, at most `MAX_LOOKUP_PEERS` per family.
+    streamed: BTreeSet<SocketAddr>,
     pending: BTreeSet<AddressFamily>,
     peers: BTreeSet<SocketAddr>,
     failures: Vec<DhtError>,
@@ -1004,6 +1050,8 @@ impl LookupGroup {
         Self {
             waiters: Vec::new(),
             announcement: None,
+            progress: Vec::new(),
+            streamed: BTreeSet::new(),
             pending: BTreeSet::new(),
             peers: BTreeSet::new(),
             failures: Vec::new(),
@@ -1012,6 +1060,33 @@ impl LookupGroup {
             announces_sent: 0,
             announces_succeeded: 0,
             announces_failed: 0,
+        }
+    }
+
+    /// A requester joining a running lookup first receives what was already streamed.
+    fn add_progress(&mut self, progress: Option<DhtPeerProgress>) {
+        let Some(progress) = progress else {
+            return;
+        };
+        if !self.streamed.is_empty() {
+            let _ = progress.try_send(self.streamed.iter().copied().collect());
+        }
+        self.progress.push(progress);
+    }
+
+    /// Never blocks the actor: a full or closed channel loses only this early
+    /// copy, because the final result still carries every peer.
+    fn stream(&mut self, peers: impl IntoIterator<Item = SocketAddr>) {
+        let fresh = peers
+            .into_iter()
+            .filter(|peer| self.streamed.insert(*peer))
+            .collect::<Vec<_>>();
+        if fresh.is_empty() {
+            return;
+        }
+        self.progress.retain(|progress| !progress.is_closed());
+        for progress in &self.progress {
+            let _ = progress.try_send(fresh.clone());
         }
     }
 
@@ -1536,21 +1611,28 @@ impl Actor {
                 let _ = result.send(outcome.clone());
                 outcome?;
             }
-            Command::Lookup { info_hash, result } => {
+            Command::Lookup {
+                info_hash,
+                progress,
+                result,
+            } => {
                 if !self.enabled || matches!(self.config.network_policy, NetworkPolicy::Offline) {
                     let _ = result.send(Err(DhtError::NetworkDisabled));
                     return Ok(());
                 }
                 if let Some(group) = self.lookup_groups.get_mut(&info_hash) {
                     group.waiters.push(result);
+                    group.add_progress(progress);
                     return Ok(());
                 }
-                self.start_lookup_group(info_hash, LookupGroup::with_waiter(result))
-                    .await?;
+                let mut group = LookupGroup::with_waiter(result);
+                group.add_progress(progress);
+                self.start_lookup_group(info_hash, group).await?;
             }
             Command::LookupAndAnnounce {
                 info_hash,
                 ports,
+                progress,
                 result,
             } => {
                 if !self.enabled || matches!(self.config.network_policy, NetworkPolicy::Offline) {
@@ -1563,6 +1645,7 @@ impl Actor {
                         return Ok(());
                     }
                     group.announcement = Some(Announcement { ports, result });
+                    group.add_progress(progress);
                     let families = group.pending.iter().copied().collect::<Vec<_>>();
                     for family in &families {
                         if let Some(lookup) = self.lookups.get_mut(&(info_hash, *family)) {
@@ -1574,11 +1657,9 @@ impl Actor {
                     }
                     return Ok(());
                 }
-                self.start_lookup_group(
-                    info_hash,
-                    LookupGroup::with_announcement(Announcement { ports, result }),
-                )
-                .await?;
+                let mut group = LookupGroup::with_announcement(Announcement { ports, result });
+                group.add_progress(progress);
+                self.start_lookup_group(info_hash, group).await?;
             }
             Command::CancelLookup(info_hash) => {
                 self.cancel_group(info_hash, DhtError::Cancelled);
@@ -2083,6 +2164,7 @@ impl Actor {
             }
             TransactionOwner::Lookup { family, info_hash } => {
                 let key = (info_hash, family);
+                let mut fresh = Vec::new();
                 if let Some(lookup) = self.lookups.get_mut(&key) {
                     lookup.mark(source, CandidateState::Responded, Some(contact));
                     if AddressFamily::of(source.ip()) == family
@@ -2103,10 +2185,16 @@ impl Actor {
                         }
                         if AddressFamily::of(peer.ip()) == family
                             && self.config.network_policy.allows(peer)
+                            && lookup.peers.insert(peer)
                         {
-                            lookup.peers.insert(peer);
+                            fresh.push(peer);
                         }
                     }
+                }
+                if !fresh.is_empty()
+                    && let Some(group) = self.lookup_groups.get_mut(&info_hash)
+                {
+                    group.stream(fresh);
                 }
                 self.advance_lookup(key).await?;
             }
@@ -3122,6 +3210,55 @@ fn deduplicate_contacts(contacts: &mut Vec<NodeContact>) {
     contacts.retain(|contact| ids.insert(contact.id) && endpoints.insert(contact.address));
 }
 
+/// Scripted DHT nodes for tests in this crate.
+#[cfg(test)]
+pub(crate) mod test_support {
+    use super::*;
+
+    /// Answers every query; `get_peers` replies carry `nodes` and `peers`.
+    /// With `hold`, the first `get_peers` reply waits until released.
+    pub(crate) async fn scripted_peer_node(
+        socket: UdpSocket,
+        id: NodeId,
+        nodes: Vec<NodeContact>,
+        peers: Vec<SocketAddr>,
+        mut hold: Option<oneshot::Receiver<()>>,
+    ) {
+        let peers = peers.into_iter().map(dht_endpoint).collect::<Vec<_>>();
+        let mut buffer = [0_u8; MAX_DATAGRAM_SIZE];
+        loop {
+            let Ok((length, source)) = socket.recv_from(&mut buffer).await else {
+                return;
+            };
+            let Ok(Message::Query(query)) = decode_message(&buffer[..length]) else {
+                continue;
+            };
+            let get_peers = matches!(query.query, Query::GetPeers { .. });
+            if get_peers && let Some(release) = hold.take() {
+                let _ = release.await;
+            }
+            let response = if get_peers {
+                encode_response(
+                    &query.transaction,
+                    id,
+                    &nodes,
+                    &peers,
+                    Some(b"tk"),
+                    dht_endpoint(source),
+                )
+            } else {
+                encode_response(&query.transaction, id, &[], &[], None, dht_endpoint(source))
+            }
+            .expect("encode scripted response");
+            let _ = socket.send_to(&response, source).await;
+        }
+    }
+
+    pub(crate) fn loopback_peer(port: u16) -> SocketAddr {
+        SocketAddr::from((Ipv4Addr::LOCALHOST, port))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3173,6 +3310,7 @@ mod tests {
             .sender
             .send(Command::Lookup {
                 info_hash: NodeId([7; 20]),
+                progress: None,
                 result,
             })
             .await
@@ -3781,6 +3919,124 @@ mod tests {
                 .expect("receive response");
         assert_eq!(source, server);
         decode_message(&response[..length]).expect("decode response")
+    }
+
+    #[tokio::test]
+    async fn lookup_streams_new_peers_per_reply_before_finishing() {
+        let node_a = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+        let node_b = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+        let a_address = node_a.local_addr().unwrap();
+        let b_contact = NodeContact {
+            id: NodeId([0x22; 20]),
+            address: dht_endpoint(node_b.local_addr().unwrap()),
+        };
+        let (release_b, hold_b) = oneshot::channel();
+        let a = tokio::spawn(test_support::scripted_peer_node(
+            node_a,
+            NodeId([0x11; 20]),
+            vec![b_contact],
+            vec![
+                test_support::loopback_peer(50_001),
+                test_support::loopback_peer(50_002),
+            ],
+            None,
+        ));
+        let b = tokio::spawn(test_support::scripted_peer_node(
+            node_b,
+            b_contact.id,
+            Vec::new(),
+            vec![
+                test_support::loopback_peer(50_002),
+                test_support::loopback_peer(50_003),
+            ],
+            Some(hold_b),
+        ));
+        let mut config = loopback_config(vec![BootstrapNode::Address(a_address)]);
+        config.query_timeout = Duration::from_secs(5);
+        config.lookup_timeout = Duration::from_secs(10);
+        let client = DhtService::start(config).await.expect("start client");
+        let handle = client.handle();
+        let (progress, mut batches) = mpsc::channel(8);
+        let lookup =
+            tokio::spawn(async move { handle.lookup_with_progress([0x33; 20], progress).await });
+
+        let first = tokio::time::timeout(Duration::from_secs(3), batches.recv())
+            .await
+            .expect("first batch before node B replies")
+            .expect("first batch");
+        assert_eq!(
+            first.into_iter().collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                test_support::loopback_peer(50_001),
+                test_support::loopback_peer(50_002)
+            ])
+        );
+        assert!(!lookup.is_finished(), "lookup still waits for node B");
+
+        release_b.send(()).unwrap();
+        let second = tokio::time::timeout(Duration::from_secs(3), batches.recv())
+            .await
+            .expect("second batch")
+            .expect("second batch");
+        assert_eq!(
+            second,
+            vec![test_support::loopback_peer(50_003)],
+            "duplicates are not resent"
+        );
+        let peers = lookup.await.unwrap().expect("lookup result");
+        assert_eq!(
+            peers.into_iter().collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                test_support::loopback_peer(50_001),
+                test_support::loopback_peer(50_002),
+                test_support::loopback_peer(50_003)
+            ])
+        );
+        assert_eq!(
+            tokio::time::timeout(Duration::from_secs(1), batches.recv())
+                .await
+                .expect("progress closes with the lookup"),
+            None
+        );
+
+        client.shutdown().await.unwrap();
+        a.abort();
+        b.abort();
+    }
+
+    #[tokio::test]
+    async fn full_progress_channel_never_stalls_the_lookup() {
+        let node = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+        let address = node.local_addr().unwrap();
+        let server = tokio::spawn(test_support::scripted_peer_node(
+            node,
+            NodeId([0x11; 20]),
+            Vec::new(),
+            vec![test_support::loopback_peer(50_011)],
+            None,
+        ));
+        let client = DhtService::start(loopback_config(vec![BootstrapNode::Address(address)]))
+            .await
+            .expect("start client");
+        let (progress, mut batches) = mpsc::channel(1);
+        progress
+            .try_send(Vec::new())
+            .expect("fill progress channel");
+
+        let peers = client
+            .handle()
+            .lookup_with_progress([0x34; 20], progress)
+            .await
+            .expect("lookup completes");
+        assert_eq!(peers, vec![test_support::loopback_peer(50_011)]);
+        assert_eq!(
+            batches.recv().await,
+            Some(Vec::new()),
+            "only the filler was queued"
+        );
+
+        client.shutdown().await.unwrap();
+        server.abort();
     }
 
     #[tokio::test]

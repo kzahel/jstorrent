@@ -1,0 +1,140 @@
+/*
+ * One transient toast, bottom-centre like the Android snackbar. It sits above
+ * the settings sheet so settings results stay visible, and below the privacy
+ * and connection overlays.
+ */
+.toast {
+  position: fixed;
+  z-index: 160;
+  bottom: var(--ui-space-md);
+  left: 50%;
+  display: flex;
+  width: max-content;
+  min-width: min(20rem, calc(100vw - 2 * var(--ui-space-md)));
+  max-width: min(36rem, calc(100vw - 2 * var(--ui-space-md)));
+  align-items: center;
+  gap: var(--ui-space-xs);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--ui-space-xs) var(--ui-space-xs) var(--ui-space-xs) var(--ui-space-md);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-overlay);
+  font-size: var(--ui-font-small);
+  transform: translateX(-50%);
+  animation: enter 160ms ease-out;
+}
+
+.toast[data-tone="error"] {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.body {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: var(--ui-space-xs);
+  padding: var(--ui-space-xs) 0;
+}
+
+.message {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow-wrap: anywhere;
+}
+
+.toast[data-tone="error"] .message {
+  color: var(--danger-strong);
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-sm);
+  color: var(--text-muted);
+  font-size: var(--ui-font-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress {
+  min-width: 0;
+  flex: 1;
+  height: 0.4rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  appearance: none;
+  background: var(--progress-track);
+  accent-color: var(--water);
+}
+
+.progress::-webkit-progress-bar {
+  background: var(--progress-track);
+}
+
+.progress::-webkit-progress-value {
+  background: var(--water);
+}
+
+.progress::-moz-progress-bar {
+  background: var(--water);
+}
+
+.action {
+  min-height: var(--ui-control-height);
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: 0 var(--ui-space-sm);
+  color: var(--accent-strong);
+  background: transparent;
+  font: inherit;
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.action:hover,
+.dismiss:hover {
+  background: var(--surface-hover);
+}
+
+.dismiss {
+  display: grid;
+  inline-size: var(--ui-control-height);
+  block-size: var(--ui-control-height);
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  font-size: var(--ui-icon-size);
+  cursor: pointer;
+}
+
+.announcer {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}

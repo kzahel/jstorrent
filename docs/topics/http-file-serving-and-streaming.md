@@ -1,5 +1,27 @@
 # HTTP File Serving And Future Streaming
 
+Remote completed-file MP4 playback now uses the separate authenticated
+DataChannel consumer in [313](../tactical/313-completed-remote-video-playback.md),
+not this loopback HTTP listener. Its browser Source performs byte-range reads,
+and playsvideo remuxes to HLS/MSE. Local Open, Android playback and progressive
+HTTP authority remain unchanged; general remote Open is still unavailable.
+Completed Tactical [362](../tactical/362-local-browser-inline-playback.md)
+adds in-page Play for completed MP4/M4V/MKV in the browser-hosted UI: the page
+reads the same file-scoped capability URL with same-origin byte ranges and
+feeds the 313 playsvideo source. The route, capability and limits are
+unchanged; development gateways mint media URLs on their visible origin so the
+Vite proxy carries them. Tactical
+[368](../tactical/368-local-mp4-native-playback.md) lets local MP4/M4V prefer
+native playback of that URL when the browser accepts the parsed codecs,
+with HLS remuxing as the codec-checked fallback. MP3 audio in the maintainer's
+H.264 Big Buck Bunny file works natively in Chromium even though MP3 in
+fragmented MP4/MSE is rejected. Parser disposal after native handoff releases
+range reads without closing the player; the dialog still owns teardown.
+MKV and remote playback keep their existing remux paths. Tactical
+[364](../tactical/364-library-review-fixes.md) plays completed MP3, M4A/M4B,
+AAC, FLAC, Ogg, Opus and WAV in the same dialog with a native `<audio>`
+element on that URL; the route names M4B, AAC and Opus with audio types.
+
 Topic: `http-file-serving-and-streaming`
 
 Status: Implemented on 2026-08-11 through completed Tacticals
@@ -87,7 +109,7 @@ The local JSTorrent reference implements that product layer explicitly:
 
 Adopt the separation among HTTP response ownership, stream-session demand,
 and torrent scheduling. Do not inherit JSTorrent's companion-daemon topology:
-RSTorrent's first-party clients normally run the Rust engine in-process.
+RSTorrent's first-party products normally run the Rust engine in-process.
 
 RSTorrent now has a reusable verified logical-file reader in
 `crates/rstorrent-engine/src/seed_content.rs` alongside conservative peer-
@@ -117,7 +139,7 @@ The same bounded media router has two deployment modes:
    mount `/media/v1/<capability>` on that listener. Browser-hosted and private
    deployments therefore retain one address, port, origin, TLS termination,
    process lifetime, and graceful-shutdown owner.
-2. **In-process client without an HTTP gateway.** A client such as Tauri or
+2. **In-process app without an HTTP gateway.** An app such as Tauri or
    Android may start one media-only listener on `127.0.0.1:0`. Port `0` asks
    the operating system for an available ephemeral port. This is a narrow
    byte-serving exception to the ordinary no-application-socket posture, not
@@ -411,6 +433,9 @@ and deliberate deferrals.
 
 Stable sharing, remote exposure, embedded desktop playback, iOS progressive
 presentation, subtitles, and transcoding remain independent product decisions.
+After 362, the browser player's next steps are desktop (Tauri CSP and
+`tauri://` mixed content), incomplete-file playback with presentation
+deadlines through the demand seam, and audio transcoding.
 The direct remote path
 and its browser presentation investigation now live in
 [`direct-remote-file-streaming.md`](direct-remote-file-streaming.md). A future

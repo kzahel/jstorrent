@@ -1,27 +1,42 @@
 import { useRef, useState } from "react";
 
 import { message } from "../../localization/runtime";
+import { startupTimings } from "../../startup-timing";
+import type { SupportFacts } from "../support/about";
 import { buildDiagnostics, DIAGNOSTICS_FILENAME } from "../support/diagnostics";
-import type { DesktopUpdaterSnapshot } from "../updater/types";
+import {
+  feedbackPageUrl,
+  GITHUB_ISSUES_URL,
+  githubIssueUrl,
+  SUPPORT_PAGE_URL,
+} from "../support/report-links";
+import { ExternalLink } from "./ExternalLink";
+import { Icon } from "./Icon";
+import { useToast } from "./Toast";
 import styles from "./SettingsDialog.module.css";
 
-export function SupportDiagnostics({ snapshot }: { readonly snapshot: DesktopUpdaterSnapshot }) {
+export function SupportDiagnostics({ facts }: { readonly facts: SupportFacts }) {
   const [preview, setPreview] = useState<string>();
-  const [copyStatus, setCopyStatus] = useState<"copied" | "manual">();
+  const [manualCopy, setManualCopy] = useState(false);
+  const toast = useToast();
   const previewRef = useRef<HTMLTextAreaElement>(null);
   const previewGeneration = useRef(0);
+  const reportFacts = { ...facts, startup: startupTimings() };
 
   async function copy() {
     if (preview === undefined) return;
     const generation = previewGeneration.current;
     try {
       await navigator.clipboard.writeText(preview);
-      if (generation === previewGeneration.current) setCopyStatus("copied");
+      if (generation === previewGeneration.current) {
+        setManualCopy(false);
+        toast.show({ message: message("support.diagnostics.copied") });
+      }
     } catch {
       if (generation !== previewGeneration.current) return;
       previewRef.current?.focus();
       previewRef.current?.select();
-      setCopyStatus("manual");
+      setManualCopy(true);
     }
   }
 
@@ -47,7 +62,7 @@ export function SupportDiagnostics({ snapshot }: { readonly snapshot: DesktopUpd
       <legend>{message("support.diagnostics.title")}</legend>
       <p className={styles.updatePrivacy}>{message("support.diagnostics.description")}</p>
       <div className={styles.updateActions}>
-        <button type="button" onClick={() => { previewGeneration.current += 1; setPreview(buildDiagnostics(snapshot)); setCopyStatus(undefined); }}>
+        <button type="button" onClick={() => { previewGeneration.current += 1; setPreview(buildDiagnostics(reportFacts)); setManualCopy(false); }}>
           {preview === undefined ? message("support.diagnostics.prepare") : message("support.diagnostics.refresh")}
         </button>
       </div>
@@ -59,16 +74,16 @@ export function SupportDiagnostics({ snapshot }: { readonly snapshot: DesktopUpd
             <button type="button" onClick={() => void copy()}>{message("support.diagnostics.copy")}</button>
             <button type="button" onClick={download}>{message("support.diagnostics.download")}</button>
           </div>
-          <p role="status" className={styles.updatePrivacy}>
-            {copyStatus === undefined ? null : copyStatus === "copied" ? message("support.diagnostics.copied") : message("support.diagnostics.manual")}
-          </p>
+          {manualCopy ? (
+            <p role="status" className={styles.updatePrivacy}>{message("support.diagnostics.manual")}</p>
+          ) : null}
         </div>
       )}
-      <p className={styles.updatePrivacy}>{message("support.diagnostics.public.report")}</p>
       <div className={styles.updateActions}>
-        <a href="https://github.com/kzahel/rstorrent/issues" target="_blank" rel="noreferrer">{message("support.known.issues")}</a>
-        <a href="https://github.com/kzahel/rstorrent/issues/new" target="_blank" rel="noreferrer">{message("support.report.problem")}</a>
-        <a href="https://github.com/kzahel/rstorrent/blob/main/docs/user-support.md" target="_blank" rel="noreferrer">{message("support.privacy.recovery")}</a>
+        <ExternalLink href={githubIssueUrl(reportFacts)}><Icon name="github" />{message("support.report.github")}</ExternalLink>
+        <ExternalLink href={feedbackPageUrl(reportFacts)}>{message("support.report.feedback")}</ExternalLink>
+        <ExternalLink href={GITHUB_ISSUES_URL}>{message("support.known.issues")}</ExternalLink>
+        <ExternalLink href={SUPPORT_PAGE_URL}>{message("support.help")}</ExternalLink>
       </div>
     </fieldset>
   );

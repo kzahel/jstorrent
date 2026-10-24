@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "surface": "android",
+  "version": "1.0.32",
+  "versionCode": 32,
+  "source": "071ada49f1c29cd10351dda619d5ab5029bdfda3",
+  "tag": "android-v1.0.32",
+  "observed": "2026-10-22",
+  "package": "com.jstorrent.app",
+  "channel": "play-production",
+  "status": "submitted",
+  "firstPublic": null,
+  "workflow": "https://github.com/kzahel/jstorrent/actions/runs/39776657995",
+  "liveCompatibilityWorkflow": "https://github.com/kzahel/jstorrent/actions/runs/39776657979",
+  "artifacts": {
+    "jstorrent-android-1.0.32.apk": {
+      "bytes": 109215739,
+      "sha256": "0d2078d3176c46ee6e2aed8bede28520557a61ff45720222c6114485db99c1bf"
+    },
+    "jstorrent-android-1.0.32.aab": {
+      "bytes": 64402400,
+      "sha256": "e230ec6804949f1b3334986f5303b988f618dd3f383f94564a3d3cad75abece0"
+    }
+  },
+  "uploadCertificateSha256": "ccb5af8e44d626e9aefb1f0fbd8496dbf23ad27da9347248e71fb3ce70044915",
+  "playDistributionCertificateSha256": "b2b421781fc40c632656d17c72c012a40f623d358e29837adad41cd5d835acd5",
+  "validation": {
+    "signedApkAndAab": true,
+    "manifestIdentity": true,
+    "abis": [
+      "arm64-v8a",
+      "x86_64"
+    ],
+    "elfAndZip16KiBAlignment": true,
+    "checksumInventory": true,
+    "minSdk": 28,
+    "targetSdk": 36
+  },
+  "play": {
+    "observedState": "Your changes are now in review; automated quick checks completed",
+    "releaseName": "32 (1.0.32)",
+    "rolloutPercentage": 100,
+    "existingTargetCountries": 178,
+    "managedPublishing": false,
+    "retainsPrevious31": false,
+    "lostSupportedDevices": 0,
+    "warning": "No deobfuscation file; R8 remains disabled."
+  },
+  "chromeosReceipt": "380-chromeos-release-receipt.json",
+  "minimumExtension": "1.1.5"
+}

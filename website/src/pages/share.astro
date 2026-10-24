@@ -1,0 +1,519 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import Header from '../components/Header.astro'
+import Footer from '../components/Footer.astro'
+import { productionSiteRelease as release } from '../lib/production-site'
+import { CHROME_WEB_STORE_URL, GOOGLE_PLAY_URL } from '../lib/store-links'
+---
+
+<BaseLayout
+  title="Share · JSTorrent"
+  description="Open a torrent someone shared with you in JSTorrent, or get JSTorrent for desktop, Android and Chromebook."
+>
+  <meta slot="head" name="robots" content="noindex" />
+  <Header />
+  <main>
+    <section class="section share-hero" aria-labelledby="share-title">
+      <div class="container">
+        <div class="share-card">
+          <p id="share-eyebrow" class="share-eyebrow">Shared torrent</p>
+          <h1 id="share-title" class="share-title">Shared torrent</h1>
+          <p id="share-from" class="share-from" hidden></p>
+
+          <noscript>
+            <p>This page needs JavaScript to read the shared link. You can still get JSTorrent below.</p>
+          </noscript>
+
+          <div id="share-ready" hidden>
+            <dl class="share-facts">
+              <div id="share-size" hidden>
+                <dt>Size from the link</dt>
+                <dd></dd>
+              </div>
+              <div id="share-hash-v1" hidden>
+                <dt>Info hash (v1)</dt>
+                <dd><code></code></dd>
+              </div>
+              <div id="share-hash-v2" hidden>
+                <dt>Info hash (v2)</dt>
+                <dd><code></code></dd>
+              </div>
+              <div id="share-trackers" hidden>
+                <dt>Trackers</dt>
+                <dd></dd>
+              </div>
+            </dl>
+
+            <p id="share-claim" class="text-muted share-note" hidden>
+              The name and size are as shared in the link. JSTorrent confirms them when it gets the
+              torrent's details.
+            </p>
+            <p id="share-selection" class="share-note" hidden></p>
+            <div id="share-peers" class="share-note" hidden>
+              <p>This link includes a direct address to the person who shared it.</p>
+              <details class="share-peer-details">
+                <summary>Show address</summary>
+                <ul></ul>
+              </details>
+            </div>
+
+            <div class="btn-group share-actions">
+              <a id="share-open" class="btn btn-primary btn-large">Open in JSTorrent</a>
+              <button id="share-copy" type="button" class="btn btn-secondary btn-large">
+                Copy magnet link
+              </button>
+            </div>
+            <p id="share-copy-status" class="share-copy-status" role="status" aria-live="polite"></p>
+            <div id="share-fallback-region" role="status" aria-live="polite">
+              <div id="share-fallback" class="share-fallback" hidden>
+                <p class="share-fallback-title">Didn't open? Get JSTorrent</p>
+                <p>
+                  If JSTorrent isn't installed on this device, install it below, then open this link
+                  again.
+                </p>
+                <button id="share-fallback-button" type="button" class="btn btn-primary">
+                  Get JSTorrent
+                </button>
+              </div>
+            </div>
+            <p class="text-muted share-hint">
+              Opening hands the magnet link to the torrent app installed on this device. If
+              nothing happens, get JSTorrent below and open this page again.
+            </p>
+
+            <label class="share-label" for="share-magnet">Magnet link</label>
+            <input id="share-magnet" class="share-magnet" type="text" readonly spellcheck="false" />
+          </div>
+
+          <div id="share-invalid" hidden>
+            <p>
+              This page could not find a complete torrent in the link. Ask the sender to copy the
+              share link again, or paste a magnet link into JSTorrent directly.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="share-get" class="section section-alt share-get" aria-labelledby="get-title">
+      <div class="container">
+        <h2 id="get-title" tabindex="-1">Get JSTorrent</h2>
+        <p>
+          JSTorrent is a free, open source torrent client for Windows, Mac, Android and supported
+          Chromebooks, with best-effort Linux support.
+        </p>
+        <div class="share-downloads">
+          <div class="download-subsection">
+            <h3>Desktop app</h3>
+            <p>Windows, Mac and Linux. Runs on its own without a browser.</p>
+            <ul class="share-download-list">
+              <li><a class="btn btn-primary" href={release.windowsUrl}>Windows ({release.tag})</a></li>
+              <li><a class="btn btn-secondary" href={release.macosPrimaryArmUrl}>Mac — Apple Silicon</a></li>
+              <li><a class="btn btn-secondary" href={release.macosPrimaryIntelUrl}>Mac — Intel</a></li>
+              <li><a class="btn btn-secondary" href={release.linuxAppImageUrl}>Linux AppImage — x86_64</a></li>
+              <li><a class="btn btn-secondary" href={release.linuxArm64AppImageUrl}>Linux AppImage — ARM64</a></li>
+            </ul>
+          </div>
+          <div class="download-subsection">
+            <h3>Android &amp; ChromeOS</h3>
+            <p>For Android and supported Chromebooks.</p>
+            <a class="btn btn-primary" href={GOOGLE_PLAY_URL} rel="noopener noreferrer">
+              Get it on Google Play
+            </a>
+          </div>
+          <div class="download-subsection">
+            <h3>Chrome extension</h3>
+            <p>
+              Connects your browser to the JSTorrent app with magnet links, torrent files and
+              right-click actions.
+            </p>
+            <a class="btn btn-secondary" href={CHROME_WEB_STORE_URL} rel="noopener noreferrer">
+              Chrome Web Store
+            </a>
+          </div>
+        </div>
+        <p><a href="/#download">All download options</a></p>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<script>
+  import { clipText, formatBytes, parseShareFragment } from '../lib/share-link.js'
+
+  const HEADLINE_LENGTH = 300
+  const TITLE_LENGTH = 120
+  // How long the page waits after Open in JSTorrent before suggesting an
+  // install. A handled magnet usually blurs or hides the page sooner.
+  const FALLBACK_DELAY_MS = 1800
+
+  const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
+
+  const eyebrow = element<HTMLParagraphElement>('share-eyebrow')
+  const title = element<HTMLHeadingElement>('share-title')
+  const from = element<HTMLParagraphElement>('share-from')
+  const ready = element<HTMLDivElement>('share-ready')
+  const invalid = element<HTMLDivElement>('share-invalid')
+  const open = element<HTMLAnchorElement>('share-open')
+  const copy = element<HTMLButtonElement>('share-copy')
+  const copyStatus = element<HTMLParagraphElement>('share-copy-status')
+  const magnetInput = element<HTMLInputElement>('share-magnet')
+  const size = element<HTMLDivElement>('share-size')
+  const trackers = element<HTMLDivElement>('share-trackers')
+  const claim = element<HTMLParagraphElement>('share-claim')
+  const selection = element<HTMLParagraphElement>('share-selection')
+  const peers = element<HTMLDivElement>('share-peers')
+  const fallback = element<HTMLDivElement>('share-fallback')
+  const fallbackButton = element<HTMLButtonElement>('share-fallback-button')
+  const getSection = element<HTMLElement>('share-get')
+  const getTitle = element<HTMLHeadingElement>('get-title')
+
+  function showHash(id: string, value: string | undefined) {
+    const row = element<HTMLDivElement>(id)
+    row.hidden = !value
+    row.querySelector('code')!.textContent = value ?? ''
+  }
+
+  function claimText(hasName: boolean, hasSize: boolean) {
+    if (hasName && hasSize) {
+      return "The name and size are as shared in the link. JSTorrent checks them when it gets the torrent's details."
+    }
+    const what = hasName ? 'name' : 'size'
+    return `The ${what} is as shared in the link. JSTorrent checks it when it gets the torrent's details.`
+  }
+
+  function render() {
+    const share = parseShareFragment(location.hash)
+    copyStatus.textContent = ''
+    hideFallback()
+    if (!share.ok) {
+      ready.hidden = true
+      invalid.hidden = false
+      open.removeAttribute('href')
+      magnetInput.value = ''
+      eyebrow.textContent = 'Shared torrent'
+      title.textContent = 'This share link is incomplete'
+      from.hidden = true
+      document.title = 'Share · JSTorrent'
+      return
+    }
+    // Only a magnet accepted by parseShareFragment reaches the link target;
+    // every other value is rendered as text. Names and sizes are the
+    // sharer's claims until JSTorrent has the torrent's metadata.
+    const headline = share.fileName ?? share.name
+    eyebrow.textContent = share.fileName ? 'Shared file' : 'Shared torrent'
+    title.textContent = clipText(headline ?? 'Shared torrent', HEADLINE_LENGTH)
+    document.title = headline
+      ? `${clipText(headline, TITLE_LENGTH)} · Share · JSTorrent`
+      : 'Share · JSTorrent'
+    from.hidden = !(share.fileName && share.name)
+    from.textContent = share.fileName && share.name ? `from ${clipText(share.name, HEADLINE_LENGTH)}` : ''
+
+    const bytes = share.fileName ? share.fileSize : share.totalSize
+    size.hidden = bytes === null
+    size.querySelector('dt')!.textContent = share.fileName ? 'File size from the link' : 'Size from the link'
+    const sizeValue = size.querySelector('dd')!
+    sizeValue.textContent = bytes === null ? '' : formatBytes(bytes)
+    sizeValue.title = bytes === null ? '' : `${bytes.toLocaleString()} bytes`
+    claim.hidden = !headline && bytes === null
+    claim.textContent = claimText(Boolean(headline), bytes !== null)
+
+    showHash('share-hash-v1', share.infoHashes.find((hash) => hash.version === 1)?.value)
+    showHash('share-hash-v2', share.infoHashes.find((hash) => hash.version === 2)?.value)
+    trackers.hidden = share.trackerCount === 0
+    trackers.querySelector('dd')!.textContent = String(share.trackerCount)
+
+    const selected = share.fileName ? null : share.selection
+    selection.hidden = !selected
+    selection.textContent = selected
+      ? `${selected.count.toLocaleString()} selected ${selected.count === 1 ? 'file' : 'files'} from this torrent`
+      : ''
+
+    const hints = share.peerHints
+    peers.hidden = !hints
+    peers.querySelector('summary')!.textContent =
+      hints && hints.count > 1 ? 'Show addresses' : 'Show address'
+    peers.querySelector('details')!.open = false
+    const list = peers.querySelector('ul')!
+    list.replaceChildren(
+      ...(hints?.entries ?? []).map((hint) => {
+        const item = document.createElement('li')
+        const code = document.createElement('code')
+        code.textContent = hint.address
+        item.append(code, hint.scope === 'local' ? ' (local network)' : ' (internet)')
+        return item
+      }),
+    )
+
+    open.href = share.magnet
+    magnetInput.value = share.magnet
+    invalid.hidden = true
+    ready.hidden = false
+  }
+
+  // "Didn't open?" fallback. There is no reliable way to ask whether a
+  // magnet handler exists, so after Open in JSTorrent the page waits; if it
+  // never lost focus or visibility, it suggests installing. It never
+  // navigates on its own.
+  let fallbackTimer: number | undefined
+  let leftPage = false
+
+  function hideFallback() {
+    window.clearTimeout(fallbackTimer)
+    fallback.hidden = true
+    getSection.classList.remove('share-get-highlight')
+  }
+
+  function markLeft() {
+    leftPage = true
+  }
+
+  open.addEventListener('click', () => {
+    if (!open.getAttribute('href')) return
+    hideFallback()
+    leftPage = false
+    fallbackTimer = window.setTimeout(() => {
+      if (!leftPage && document.visibilityState === 'visible' && document.hasFocus()) {
+        fallback.hidden = false
+        getSection.classList.add('share-get-highlight')
+      }
+    }, FALLBACK_DELAY_MS)
+  })
+  window.addEventListener('blur', markLeft)
+  window.addEventListener('pagehide', markLeft)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') markLeft()
+  })
+
+  fallbackButton.addEventListener('click', () => {
+    // Scroll without touching location.hash, which holds the shared link.
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    getSection.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+    getTitle.focus({ preventScroll: true })
+  })
+
+  copy.addEventListener('click', async () => {
+    const magnet = magnetInput.value
+    if (!magnet) return
+    try {
+      await navigator.clipboard.writeText(magnet)
+      copyStatus.textContent = 'Magnet link copied.'
+      return
+    } catch {
+      // Clipboard access can be unavailable or denied; fall back to selection.
+    }
+    magnetInput.focus()
+    magnetInput.select()
+    copyStatus.textContent = 'Press Ctrl+C (or ⌘C) to copy the selected magnet link.'
+  })
+
+  magnetInput.addEventListener('focus', () => magnetInput.select())
+  window.addEventListener('hashchange', render)
+  render()
+</script>
+
+<style>
+  .share-hero {
+    background: linear-gradient(to bottom, var(--color-bg-alt) 0%, var(--color-bg) 100%);
+  }
+
+  .share-card {
+    max-width: 46rem;
+    padding: 1.5rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+  }
+
+  .share-eyebrow {
+    color: var(--color-text-light);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .share-title {
+    font-size: clamp(1.5rem, 5vw, 2.25rem);
+    line-height: 1.2;
+    margin: 0.25rem 0 1.25rem;
+    overflow-wrap: anywhere;
+  }
+
+  .share-facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.5rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .share-facts > div {
+    display: contents;
+  }
+
+  .share-facts > div[hidden] {
+    display: none;
+  }
+
+  .share-facts dt {
+    color: var(--color-text-light);
+  }
+
+  .share-facts code,
+  .share-magnet {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+  }
+
+  .section .share-from {
+    margin: -0.75rem 0 1.25rem;
+    color: var(--color-text-light);
+    overflow-wrap: anywhere;
+  }
+
+  .share-facts dd {
+    overflow-wrap: anywhere;
+  }
+
+  .section .share-note {
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .share-note p {
+    margin-bottom: 0.25rem;
+  }
+
+  .share-peer-details summary {
+    cursor: pointer;
+    color: var(--color-link);
+  }
+
+  .share-peer-details ul {
+    margin: 0.5rem 0 0 1.25rem;
+  }
+
+  .share-peer-details code {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+  }
+
+  .share-actions {
+    margin-bottom: 0.5rem;
+  }
+
+  .share-fallback {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    color: var(--color-text);
+    background: var(--color-warning-bg);
+    border: 1px solid var(--color-warning-border);
+    border-radius: 8px;
+  }
+
+  .section .share-fallback p {
+    margin-bottom: 0.75rem;
+  }
+
+  .section .share-fallback .share-fallback-title {
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+  }
+
+  .share-fallback .btn {
+    font: inherit;
+    font-weight: 600;
+  }
+
+  .share-get-highlight .share-downloads {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 0.75rem;
+    border-radius: 4px;
+  }
+
+  .share-actions .btn {
+    font: inherit;
+    font-weight: 600;
+  }
+
+  .section .share-copy-status {
+    min-height: 1.6em;
+    margin-bottom: 0.25rem;
+    color: var(--color-success);
+  }
+
+  .section .share-hint {
+    font-size: 0.9rem;
+  }
+
+  .share-label {
+    display: block;
+    color: var(--color-text-light);
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .share-magnet {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    color: var(--color-text);
+    background: var(--color-code-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+  }
+
+  .share-downloads {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .share-downloads .download-subsection {
+    margin-bottom: 0;
+  }
+
+  .share-download-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  main :focus-visible {
+    outline: 3px solid var(--color-link);
+    outline-offset: 3px;
+  }
+
+  @media (max-width: 639px) {
+    .share-card {
+      padding: 1rem;
+    }
+
+    .share-facts {
+      grid-template-columns: 1fr;
+      row-gap: 0;
+    }
+
+    .share-facts dd {
+      margin-bottom: 0.5rem;
+    }
+
+    .share-download-list {
+      flex-direction: column;
+    }
+
+    .share-actions .btn,
+    .share-download-list .btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  @media (min-width: 900px) {
+    .share-downloads {
+      grid-template-columns: 2fr 1fr 1fr;
+    }
+  }
+</style>

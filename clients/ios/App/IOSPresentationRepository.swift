@@ -35,6 +35,7 @@ enum IOSPresentationError: Error, LocalizedError {
 final class IOSPresentationRepository: ObservableObject {
     @Published private(set) var torrents: [TorrentView] = []
     @Published private(set) var preparations: [String: TorrentPreparationView] = [:]
+    @Published private(set) var fileSafetySettings: FileSafetySettings?
     @Published private(set) var storage: StorageSettingsSnapshot?
     @Published private(set) var error: String?
     @Published private(set) var files: [String: [FileView]] = [:]
@@ -185,9 +186,10 @@ final class IOSPresentationRepository: ObservableObject {
 
     private func applySnapshot(_ snapshot: ViewSnapshot) {
         switch snapshot {
-        case .torrentList(let torrents, let storage, _):
+        case .torrentList(let torrents, let storage, let settings):
             self.torrents = Self.sorted(torrents)
             self.storage = storage
+            self.fileSafetySettings = settings.configured.fileSafety
             onProductUpdate?(self.torrents)
         case .torrent(let torrent):
             guard let torrent else { return }
@@ -219,7 +221,7 @@ final class IOSPresentationRepository: ObservableObject {
 
     private func applyPatch(_ patch: ViewPatch) throws {
         switch patch {
-        case .torrentList(let upsert, let updates, let removed, let storage, _):
+        case .torrentList(let upsert, let updates, let removed, let storage, let settings):
             var values = Dictionary(uniqueKeysWithValues: torrents.map { ($0.torrentId, $0) })
             removed.forEach { values.removeValue(forKey: $0) }
             upsert.forEach { values[$0.torrentId] = $0 }
@@ -231,6 +233,7 @@ final class IOSPresentationRepository: ObservableObject {
             }
             torrents = Self.sorted(Array(values.values))
             if let storage { self.storage = storage }
+            if let settings { self.fileSafetySettings = settings.configured.fileSafety }
             onProductUpdate?(torrents)
         case .torrent(let change):
             switch change {
@@ -408,16 +411,19 @@ final class IOSPresentationRepository: ObservableObject {
             case .protocolIdentities(let value): next.protocolIdentities = value
             case .displayName(let value): next.displayName = value
             case .sourceDisplayName(let value): next.sourceDisplayName = value
+            case .sourceSizeBytes(let value): next.sourceSizeBytes = value
             case .state(let value): next.state = value
             case .operationalState(let value): next.operationalState = value
             case .downloadQueuePosition(let value): next.downloadQueuePosition = value
             case .transferLimits(let value): next.transferLimits = value
             case .storageState(let value): next.storageState = value
             case .metadataAvailable(let value): next.metadataAvailable = value
+            case .privateTorrent(let value): next.privateTorrent = value
             case .awaitingFileSelection(let value): next.awaitingFileSelection = value
             case .pendingFileSelectionPosition(let value):
                 next.pendingFileSelectionPosition = value
             case .fileCatalogId(let value): next.fileCatalogId = value
+            case .safetySummary(let value): next.safetySummary = value
             case .selectableFileCount(let value): next.selectableFileCount = value
             case .selectedFileCount(let value): next.selectedFileCount = value
             case .selectableFileBytes(let value): next.selectableFileBytes = value
@@ -460,9 +466,12 @@ final class IOSPresentationRepository: ObservableObject {
         case .transferLimits: return 6
         case .storageState: return 7
         case .metadataAvailable: return 8
+        case .privateTorrent: return 38
+        case .sourceSizeBytes: return 39
         case .awaitingFileSelection: return 31
         case .pendingFileSelectionPosition: return 32
         case .fileCatalogId: return 33
+        case .safetySummary: return 40
         case .selectableFileCount: return 34
         case .selectedFileCount: return 35
         case .selectableFileBytes: return 36
@@ -498,6 +507,7 @@ final class IOSPresentationRepository: ObservableObject {
         var next = current
         for field in update.fields {
             switch field {
+            case .safety(let value): next.safety = value
             case .selection(let value): next.selection = value
             case .doneBytes(let value): next.doneBytes = value
             case .verifiedBytes(let value): next.verifiedBytes = value
@@ -509,6 +519,7 @@ final class IOSPresentationRepository: ObservableObject {
 
     private static func fileFieldKey(_ field: FileFieldUpdate) -> Int {
         switch field {
+        case .safety: return 4
         case .selection: return 0
         case .doneBytes: return 1
         case .verifiedBytes: return 2

@@ -9,11 +9,17 @@ import {
   formatBytes,
   formatEta,
   formatRate,
+  torrentRemovalActive,
 } from "../format";
 import type { TorrentRow, ViewMaterialization } from "../model";
 import { torrentMatchesCategory } from "../state";
 import { VirtualTable, type VirtualColumn } from "./VirtualTable";
 import { TorrentStatus } from "./TorrentStatus";
+import {
+  ShowAllTorrentsButton,
+  categoryHidesTorrents,
+  torrentCategoryEmptyMessage,
+} from "./TorrentCategoryEmpty";
 import { TorrentContextMenu } from "./TorrentContextMenu";
 import {
   TorrentProgress,
@@ -26,6 +32,7 @@ const columns = (
 ): readonly VirtualColumn<TorrentRow>[] => [
   {
     id: "name",
+    listRole: "title",
     label: localizedMessage("inspection.components.transfer.table.name"),
     width: 430,
     minimumWidth: 210,
@@ -35,7 +42,11 @@ const columns = (
         ? `\uffff${String(row.queuePosition ?? Number.MAX_SAFE_INTEGER).padStart(10, "0")}`
         : row.name,
     render: (row) => (
-      <span className={tableStyles.name} title={row.name}>
+      <span
+        className={tableStyles.name}
+        title={row.name}
+        data-removing={torrentRemovalActive(row) || undefined}
+      >
         <span
           className={tableStyles.stateDot}
           data-status={row.status}
@@ -47,6 +58,7 @@ const columns = (
   },
   {
     id: "status",
+    listRole: "subtitle",
     label: localizedMessage("inspection.components.transfer.table.status"),
     width: 132,
     sortable: true,
@@ -58,6 +70,7 @@ const columns = (
   },
   {
     id: "progress",
+    listRole: "wide",
     label: localizedMessage("inspection.components.transfer.table.progress"),
     width: 190,
     align: "right",
@@ -67,6 +80,7 @@ const columns = (
   },
   {
     id: "rate",
+    listRole: "detail",
     label: localizedMessage("inspection.components.transfer.table.rate"),
     width: 120,
     align: "right",
@@ -76,6 +90,7 @@ const columns = (
   },
   {
     id: "eta",
+    listRole: "detail",
     label: localizedMessage("inspection.components.transfer.table.eta"),
     width: 84,
     align: "right",
@@ -93,6 +108,7 @@ const columns = (
   },
   {
     id: "size",
+    listRole: "detail",
     label: localizedMessage("inspection.components.transfer.table.size"),
     width: 104,
     align: "right",
@@ -153,6 +169,7 @@ export function TransferTable() {
 
   return (
     <VirtualTable
+      formatCount={(count) => localizedMessage("common.count.torrents", { count })}
       tableId="transfers"
       label={localizedMessage("inspection.components.transfer.table.transfer.queue")}
       rows={rows}
@@ -175,14 +192,21 @@ export function TransferTable() {
           />
         ),
       }}
+      loading={materialization.status === "loading"}
       emptyMessage={
         materialization.status !== "ready"
           ? materializationMessage(materialization)
           : category === "all" && demo === null
-            ? localizedMessage("inspection.components.transfer.table.no.transfers.are.present.in.the.live")
+            ? localizedMessage("inspection.components.transfer.table.nothing.downloading.yet")
             : category === "all"
               ? localizedMessage("inspection.components.transfer.table.no.transfers.yet.add.a.generated.demo")
-              : `No transfers in ${category}.`
+              : torrentCategoryEmptyMessage(category)
+      }
+      emptyAction={
+        materialization.status === "ready" &&
+        categoryHidesTorrents(category, torrents) ? (
+          <ShowAllTorrentsButton />
+        ) : undefined
       }
       initialSort={{ columnId: "name", direction: "asc" }}
     />
@@ -209,14 +233,14 @@ function statusLabel(row: TorrentRow): string {
 function materializationMessage(materialization: ViewMaterialization): string {
   switch (materialization.status) {
     case "not_requested":
-      return localizedMessage("inspection.components.transfer.table.transfer.collection.is.not.requested.in.this");
+      return localizedMessage("inspection.components.transfer.table.loading");
     case "loading":
       return localizedMessage("inspection.components.transfer.table.loading.transfers");
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
-      return localizedMessage("inspection.components.transfer.table.no.transfers.are.present");
+      return localizedMessage("inspection.components.transfer.table.nothing.in.this.view");
   }
 }

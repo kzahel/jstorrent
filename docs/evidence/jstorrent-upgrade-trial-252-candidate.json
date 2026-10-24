@@ -1,0 +1,43 @@
+{
+  "qualification": "Authenticated complete CI candidate; installed migration not yet qualified",
+  "sourceSha": "19eb3a88703088a2dfebb803342394938d305cb8",
+  "runId": "36845370571",
+  "attempt": 1,
+  "version": "0.3.0",
+  "notes": "Signed JSTorrent desktop release rehearsal.",
+  "pub_date": "2026-10-01T10:14:16.663Z",
+  "platforms": {
+    "linux-x86_64": {
+      "url": "https://updates.jstorrent.com/trials/36845370571-1/JSTorrent_0.3.0_amd64.AppImage",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNHo5Q3o5RDFkUWVLTkxHTEs5RHBydUExSEM3by81Z0dmU25UMHRzcllEUzlrUFVwR0hFVkprRjZTZHBxdFBlNk9WSW04MGp4YmttRHQ3WTVvVHR5Zi9QdnVUZHo3VWdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwODQ5NjMzCWZpbGU6SlNUb3JyZW50XzAuMy4wX2FtZDY0LkFwcEltYWdlCjU3azQxakk3MVdtbVk1T25hMzlDSkFZZnQzL1hzakRReEJ4dXJDbVVYekVvaUN4SnRpWVIxNElIWnhjS1BNZzl1WEhGRVhqMVAweFREcGtOa1IxMkFBPT0K",
+      "size": 101636600,
+      "sha256": "ed3ffbdaff48d97b3857b77038009cfe6fef2c95d70b48797303cd133a8b4eae"
+    },
+    "linux-aarch64": {
+      "url": "https://updates.jstorrent.com/trials/36845370571-1/JSTorrent_0.3.0_aarch64.AppImage",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNHo5Q3o5RDFkUWR3dGphbXRzclAxN01LWHFidmVub1VWK0RWdi9FK2xuSXVzM1pyajhjTXFwL0JGZ2ZyRElDSlhuSGgvTXJ3YS9BaDhjU3J0Z1VYZENKb1d3TXNza1F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwODQ5NTQwCWZpbGU6SlNUb3JyZW50XzAuMy4wX2FhcmNoNjQuQXBwSW1hZ2UKUlA3cnBQSU4zVExIRU9jaHVYVFNFQlA1dUtZNW1FWWZrQ3orSlVKSGIyTjN0WTRxei9WRTZNa0VoZXArcEVlRFczbGJVcFdRelhjT0RucDFoMVlWQ2c9PQo=",
+      "size": 99908104,
+      "sha256": "1ca12adc9e5b05e96364ef2ddc355a63c81abba0a4d5a98ddd6a3f08f4502b2e"
+    },
+    "darwin-aarch64": {
+      "url": "https://updates.jstorrent.com/trials/36845370571-1/JSTorrent_aarch64.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNHo5Q3o5RDFkUVFDSFZGWklVd2RVSyt0R2lsZDdqZXF0ZTZnSDdMNTFlZ3FOL0crVkdqTTI3b1BRRi9FM1pXczlYVDJaNmZydGQyY1FwcWh6V2tGejVwZVpnc1JFT2drPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwODQ5MjI4CWZpbGU6SlNUb3JyZW50LmFwcC50YXIuZ3oKRldzeXBodGRzMVk1T3RxQTl1MDhqMERjTmlMTWNPb2t4eHJLcktEcUJBQ0tTWjBWbXYyMEg5NHp0aVJpWWE0OU9xaGxMaGFRNTQ1K3V1MWNVUDJ1QVE9PQo=",
+      "size": 19906232,
+      "sha256": "02431fc88e1790ee276f1e04405582ce9db8fefc6d3b996981b0c57f095a8516"
+    },
+    "darwin-x86_64": {
+      "url": "https://updates.jstorrent.com/trials/36845370571-1/JSTorrent_x64.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNHo5Q3o5RDFkUWRZdGxGellhamxnZUVqT3I3SXBWSFEwTVRBN25ldW5wQ3cvMUhSVzNwamVxZFl2QWtuSjVTT2Rhd01lZUpJeDlUT1RETUc0WFNuYnEyb21mVU1weFFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwODQ5MzcwCWZpbGU6SlNUb3JyZW50LmFwcC50YXIuZ3oKQ1Y5UHZCVENBZlhyeXlmYnMzcDk2YnR4VzVUdGVDaHhJbjZKZGRqa0RZQ1FvTXRHNDUyTGo2MzlFaTBldlp4SlVxeGlTSG1pYllkQmd5SHUrL1NPQlE9PQo=",
+      "size": 21361582,
+      "sha256": "5a3125e940f80d5760a9b384e13470923b45d1f4a6c7b8ab7856170d32de0e9e"
+    },
+    "windows-x86_64": {
+      "url": "https://updates.jstorrent.com/trials/36845370571-1/JSTorrent_0.3.0_x64-setup.exe",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNHo5Q3o5RDFkUVcrMlAzbnpQV1NDckRBV0hhZE9nY1NmUjNLOHhSZ3NVSDZVRTJpZkNqb3Z1bm9PZTJ1ZVdoZlRmTnRrbjk3SlBiczV1TzM2c2VFWWgwQzd5NzArTGdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwODQ5NTY1CWZpbGU6SlNUb3JyZW50XzAuMy4wX3g2NC1zZXR1cC5leGUKNmtpZVFsVkIwT01JakluS0hiYVYxQ2QwUFBQdFVKQUMxSjBtRXY1ZkZpcURhV3loYmwxeStZT1VwVEpWN0ZGTlh5Wno3NkNVOENYRi9lcmtiSTkxQVE9PQo=",
+      "size": 14823704,
+      "sha256": "af393292ff4c9cbabd7cc7030146d7a89a149d852b96d423c349347225023dde"
+    }
+  },
+  "downloadedReceiptHashesVerified": 23,
+  "originalRootPayloadSignaturesVerified": 5
+}

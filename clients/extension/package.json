@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "package": "node scripts/package.mjs",
+    "package:jstorrent": "node scripts/package.mjs --production",
     "test": "node --test scripts/*.test.mjs && node scripts/validate.mjs",
     "validate": "node scripts/validate.mjs"
   }

@@ -7,6 +7,8 @@ import org.rstorrent.session.uniffi.EncryptionPolicy
 import org.rstorrent.session.uniffi.HttpsServerAuthenticationPolicy
 import org.rstorrent.session.uniffi.ListenerPolicy
 import org.rstorrent.session.uniffi.PortMappingPolicy
+import org.rstorrent.session.uniffi.SeedStopLimit
+import org.rstorrent.session.uniffi.TorrentSeedStopLimit
 import org.rstorrent.session.uniffi.TorrentSettingsPatch
 import org.rstorrent.session.uniffi.TorrentTransferLimits
 import org.rstorrent.session.uniffi.TransferRateLimit
@@ -22,6 +24,8 @@ internal fun clientSettingsPatch(
     shareRatioLimitPercent: UInt? = null,
     finishedDownloadRatioLimitPercent: UInt? = null,
     finishedTimeLimitSeconds: UInt? = null,
+    seedStopRatioPercent: SeedStopLimit? = null,
+    seedStopTimeSeconds: SeedStopLimit? = null,
     uploadRateLimit: TransferRateLimit? = null,
     downloadRateLimit: TransferRateLimit? = null,
     encryption: EncryptionPolicy? = null,
@@ -41,6 +45,8 @@ internal fun clientSettingsPatch(
         shareRatioLimitPercent = shareRatioLimitPercent,
         finishedDownloadRatioLimitPercent = finishedDownloadRatioLimitPercent,
         finishedTimeLimitSeconds = finishedTimeLimitSeconds,
+        seedStopRatioPercent = seedStopRatioPercent,
+        seedStopTimeSeconds = seedStopTimeSeconds,
         uploadRateLimit = uploadRateLimit,
         downloadRateLimit = downloadRateLimit,
         encryption = encryption,
@@ -62,6 +68,8 @@ internal fun ClientSettings.asPatch(): ClientSettingsPatch =
         shareRatioLimitPercent = shareRatioLimitPercent,
         finishedDownloadRatioLimitPercent = finishedDownloadRatioLimitPercent,
         finishedTimeLimitSeconds = finishedTimeLimitSeconds,
+        seedStopRatioPercent = seedStopRatioPercent,
+        seedStopTimeSeconds = seedStopTimeSeconds,
         uploadRateLimit = uploadRateLimit,
         downloadRateLimit = downloadRateLimit,
         encryption = encryption,
@@ -74,7 +82,15 @@ internal fun ClientSettings.asPatch(): ClientSettingsPatch =
 internal fun torrentSettingsPatch(
     uploadRateLimit: TransferRateLimit? = null,
     downloadRateLimit: TransferRateLimit? = null,
-): TorrentSettingsPatch = TorrentSettingsPatch(uploadRateLimit, downloadRateLimit)
+    seedStopRatioPercent: TorrentSeedStopLimit? = null,
+    seedStopTimeSeconds: TorrentSeedStopLimit? = null,
+): TorrentSettingsPatch =
+    TorrentSettingsPatch(
+        uploadRateLimit = uploadRateLimit,
+        downloadRateLimit = downloadRateLimit,
+        seedStopRatioPercent = seedStopRatioPercent,
+        seedStopTimeSeconds = seedStopTimeSeconds,
+    )
 
 internal fun TorrentTransferLimits.asPatch(): TorrentSettingsPatch =
     torrentSettingsPatch(upload, download)

@@ -69,7 +69,7 @@ and
 The ChromeOS Launcher produced one static active service, one listener, and
 one `http://penguin.linux.test:3030/` RSTorrent tab. `/healthz` reported
 product `rstorrent-crostini`, build `0.1.0`, and launch protocol `1`; the
-backend-served React surface reported `connected`. Closing the tab, stopping
+host-served React UI reported `connected`. Closing the tab, stopping
 the service, and selecting the Launcher item again restored the same identity
 and singleton cardinality.
 
@@ -116,7 +116,7 @@ artifacts for 14 days. No tag or GitHub Release is created.
    package validator on both archives.
 7. On a physical Chromebook of the matching architecture, run the exact
    website bootstrap, open the ChromeOS Launcher entry, verify health and the
-   backend-served UI identity, stop/relaunch once, and confirm existing profile
+   host-served UI identity, stop/relaunch once, and confirm existing profile
    data is preserved. Record exact public hashes and cleanup in a dated
    evidence document.
 8. Only after that acceptance may product or extension copy present

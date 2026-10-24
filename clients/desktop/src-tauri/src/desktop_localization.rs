@@ -33,7 +33,7 @@ mod tests {
 
     #[test]
     fn resolves_packaged_english_and_named_placeholders() {
-        assert_eq!(text("tray.show"), "Show RSTorrent");
+        assert_eq!(text("tray.show"), "Show JSTorrent");
         assert_eq!(
             format("notification.download-complete.body", &[("name", "Sintel")]),
             "Sintel finished downloading."

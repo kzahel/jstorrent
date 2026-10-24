@@ -57,7 +57,7 @@
 }
 
 .summaryCount[data-tone="waiting"] > span {
-  background: var(--accent);
+  background: var(--water);
 }
 
 .summaryCount[data-tone="blocked"] > span {
@@ -93,7 +93,7 @@
 
 .state[data-state="dialing"] > span,
 .state[data-state="backed_off"] > span {
-  background: var(--accent);
+  background: var(--water);
 }
 
 .state[data-state="not_connectable"] > span,

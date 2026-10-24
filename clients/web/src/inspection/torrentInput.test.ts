@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   MAX_TORRENT_INPUT_BYTES,
+  magnetLabel,
+  splitTorrentInputList,
   validateTorrentInput,
 } from "./torrentInput";
 
@@ -42,5 +44,31 @@ describe("validateTorrentInput", () => {
       accepted: false,
       message: expect.stringContaining("16,384 bytes"),
     });
+  });
+});
+
+describe("splitTorrentInputList", () => {
+  const first = "magnet:?xt=urn:btih:000102030405060708090a0b0c0d0e0f10111213&dn=First";
+  const second = "magnet:?xt=urn:btih:1111111111111111111111111111111111111111";
+
+  it("keeps a single item on the one-link path", () => {
+    expect(splitTorrentInputList(`  ${first}  `)).toBeNull();
+    expect(splitTorrentInputList("not a magnet")).toBeNull();
+  });
+
+  it("splits several links on any whitespace and keeps stray items to report", () => {
+    expect(splitTorrentInputList(`${first}\n\t${second} junk`)).toEqual([
+      first,
+      second,
+      "junk",
+    ]);
+  });
+
+  it("names a link by its display name when it has one", () => {
+    expect(magnetLabel(first)).toBe("First");
+    expect(magnetLabel(second)).toBe(second);
+    const long = `${second}&tr=${"x".repeat(100)}`;
+    expect(magnetLabel(long)).toBe(`${long.slice(0, 79)}…`);
+    expect(magnetLabel("junk")).toBe("junk");
   });
 });

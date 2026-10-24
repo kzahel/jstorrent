@@ -1,6 +1,6 @@
 {
   "name": "rstorrent-web",
-  "version": "0.1.4",
+  "version": "0.3.1",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -8,10 +8,11 @@
     "check:localization": "node ../../scripts/check-localization.mjs",
     "generate:localization": "formatjs compile src/localization/messages/en.json --ast --out-file src/localization/generated/en.json",
     "extract:localization": "node scripts/migrate-inline-messages.mjs && npm run generate:localization && npm run check:localization",
-    "prebuild": "npm run generate:validators && npm run generate:localization",
+    "prebuild": "node scripts/patch-playsvideo.mjs && npm run generate:validators && npm run generate:localization",
     "build": "vite build && npm run check:csp",
-    "build:companion": "npm run generate:validators && npm run generate:localization && vite build --mode companion && npm run check:csp",
-    "build:remote": "npm run generate:validators && npm run generate:localization && npm run build:remote-wasm && vite build --mode remote && node scripts/finalize-remote-dist.mjs && npm run check:csp",
+    "build:hosted": "npm run build && node scripts/compress-dist.mjs",
+    "build:companion": "node scripts/patch-playsvideo.mjs && npm run generate:validators && npm run generate:localization && vite build --mode companion && npm run check:csp",
+    "build:remote": "node scripts/patch-playsvideo.mjs && npm run generate:validators && npm run generate:localization && npm run build:remote-wasm && vite build --mode remote && node scripts/finalize-remote-dist.mjs && npm run check:csp",
     "build:remote-wasm": "node scripts/build-remote-wasm.mjs",
     "check:csp": "node scripts/check-csp-safe-dist.mjs",
     "predev": "npm run generate:validators && npm run generate:localization",
@@ -22,17 +23,21 @@
     "pretest": "npm run generate:validators && npm run generate:localization",
     "test": "vitest run",
     "test:e2e": "VITE_RSTORRENT_ENABLE_PSEUDO_LOCALES=1 playwright test",
-    "pretypecheck": "npm run generate:validators && npm run generate:localization",
-    "typecheck": "tsc --noEmit"
+    "pretypecheck": "node scripts/patch-playsvideo.mjs && npm run generate:validators && npm run generate:localization",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "node scripts/patch-playsvideo.mjs"
   },
   "dependencies": {
     "@formatjs/icu-messageformat-parser": "3.5.17",
     "@tauri-apps/api": "2.11.1",
+    "@tauri-apps/plugin-opener": "2.5.3",
     "@tauri-apps/plugin-updater": "2.10.1",
+    "playsvideo": "0.4.7",
     "react": "19.2.8",
     "react-aria-components": "1.20.0",
     "react-dom": "19.2.8",
     "react-intl": "10.1.25",
+    "uqr": "0.1.3",
     "zustand": "5.0.14"
   },
   "devDependencies": {
@@ -47,11 +52,15 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "@types/ws": "8.18.1",
+    "@vitejs/plugin-react": "6.1.2",
     "ajv": "8.20.0",
     "jsdom": "29.1.1",
     "typescript": "7.0.2",
-    "vite": "8.1.5",
-    "vitest": "4.1.11",
+    "vite": "8.1.6",
+    "vitest": "4.1.12",
     "ws": "8.21.1"
+  },
+  "overrides": {
+    "mediabunny": "git+https://github.com/kzahel/mediabunny.git#cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0"
   }
 }

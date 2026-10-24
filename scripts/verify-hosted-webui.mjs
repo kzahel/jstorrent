@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import fs from "node:fs/promises";
+import http from "node:http";
+import https from "node:https";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -15,7 +17,10 @@ const authorization = `Basic ${Buffer.from(
   `${options.username}:${password}`,
   "utf8",
 ).toString("base64")}`;
-const headers = { Authorization: authorization };
+// A direct private hop still addresses the configured public virtual host.
+// Keep the gateway's exact Host check intact when transport uses loopback/LAN.
+const host = new URL(options.origin).host;
+const headers = { Authorization: authorization, Host: host };
 
 const indexUrl = new URL("/", options.url);
 const indexResponse = await fetchWithTimeout(indexUrl, { headers });
@@ -77,6 +82,7 @@ await new Promise((resolve, reject) => {
   const socket = new WebSocket(socketUrl, {
     headers: {
       Authorization: authorization,
+      Host: host,
       Origin: options.origin,
     },
   });
@@ -117,13 +123,36 @@ process.stdout.write(
 );
 
 async function fetchWithTimeout(url, init) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10_000);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timeout);
-  }
+  // Node fetch does not preserve a caller-supplied Host on a private hop.
+  // Use the HTTP client so the configured virtual host reaches the gateway.
+  const transport = url.protocol === "https:" ? https : http;
+  return await new Promise((resolve, reject) => {
+    const request = transport.request(url, init, (response) => {
+      const chunks = [];
+      let bytes = 0;
+      response.on("data", (chunk) => {
+        bytes += chunk.length;
+        if (bytes > 8 * 1024 * 1024) {
+          request.destroy(new Error("hosted response exceeds 8 MiB"));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      response.on("error", reject);
+      response.on("end", () => {
+        resolve(new Response(Buffer.concat(chunks), {
+          status: response.statusCode,
+          headers: response.headers,
+        }));
+      });
+    });
+    const timeout = setTimeout(() => {
+      request.destroy(new Error("hosted verification request timed out"));
+    }, 10_000);
+    request.on("error", reject);
+    request.on("close", () => clearTimeout(timeout));
+    request.end();
+  });
 }
 
 function stripOneLineEnding(value) {

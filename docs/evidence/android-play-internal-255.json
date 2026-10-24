@@ -1,0 +1,59 @@
+{
+  "source": "42a1181767438b8c792d7ae1a04a44e0e78e7257",
+  "version": "1.0.25",
+  "versionCode": 25,
+  "package": "com.jstorrent.app",
+  "uploadCertificateSha256": "ccb5af8e44d626e9aefb1f0fbd8496dbf23ad27da9347248e71fb3ce70044915",
+  "artifacts": {
+    "apk": {
+      "file": "jstorrent-android-1.0.25.apk",
+      "sha256": "3d528d5dffbc77141195239305e0944a23c5837df17eb8cc3fc2352f327159ba",
+      "bytes": 105192547
+    },
+    "aab": {
+      "file": "jstorrent-android-1.0.25.aab",
+      "sha256": "86d40b45e8673d69d968c22975e7ba742c8865e363d15b3171851d878febe58d",
+      "bytes": 61688718
+    }
+  },
+  "releaseUnitTests": {
+    "tests": 116,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "verifiedDate": "2026-10-04",
+  "buildMethod": "local release build from committed product source; documentation-only changes were present",
+  "playAppSigningCertificateSha256": "b2b421781fc40c632656d17c72c012a40f623d358e29837adad41cd5d835acd5",
+  "validation": {
+    "releaseToolTests": 23,
+    "releaseLint": "passed",
+    "artifactValidation": "passed: original upload signer, package/launcher metadata, target SDK 36, min SDK 28, both ABIs, 16 KiB ELF/ZIP alignment, bundletool, packaged notices"
+  },
+  "play": {
+    "track": "internal",
+    "releaseName": "1.0.25 - Rust engine internal test",
+    "status": "Available to internal testers",
+    "publishedAt": "2026-10-04T06:43:00Z",
+    "publishedAtPrecision": "minute as displayed in Play Console",
+    "previousInternalVersionCode": 14,
+    "productionVersionCodeUnchanged": 23,
+    "deviceCompatibilityAcknowledgment": {
+      "devicesNoLongerSupported": 5706,
+      "candidateMinimumApi": 28,
+      "candidateAbis": [
+        "arm64-v8a",
+        "x86_64"
+      ]
+    },
+    "warnings": [
+      "larger download",
+      "missing deobfuscation file; minification disabled"
+    ]
+  },
+  "limitations": [
+    "No new hosted CI signing run was executed.",
+    "Real Play-installed upgrade and full migration acceptance remain open.",
+    "No production, desktop, or extension rollout was performed."
+  ]
+}

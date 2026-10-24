@@ -22,9 +22,7 @@ final class ProductSurfaceUITests: XCTestCase {
         XCTAssertTrue(app.textFields["magnet-input"].exists)
         app.swipeUp()
         XCTAssertTrue(app.buttons["browse-torrent"].waitForExistence(timeout: 5))
-        app.navigationBars.buttons.firstMatch.tap()
-
-        app.buttons["open-settings"].tap()
+        dismissAddThenOpenSettings(app)
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["choose-download-folder"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["storage-root-ios-documents"].exists)
@@ -52,6 +50,31 @@ final class ProductSurfaceUITests: XCTestCase {
         XCTAssertTrue(app.buttons["open-settings"].waitForExistence(timeout: 5))
         app.buttons["open-settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+    }
+
+    // Retain actual simulator screens for cross-surface visual review.
+    func testBrandAuditScreens() {
+        let app = XCUIApplication()
+        app.launchArguments += ["--ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        waitUntilReady(app)
+        captureAuditScreen("ios-library")
+        app.buttons["add-torrent"].tap()
+        XCTAssertTrue(app.navigationBars["Add Torrent"].waitForExistence(timeout: 5))
+        captureAuditScreen("ios-add")
+        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons["open-settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        captureAuditScreen("ios-settings")
+        app.swipeUp()
+        captureAuditScreen("ios-settings-background")
+    }
+
+    private func captureAuditScreen(_ name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     private func waitUntilReady(_ app: XCUIApplication) {
@@ -82,14 +105,16 @@ final class LocalizationUITests: XCTestCase {
         app.swipeUp()
         XCTAssertTrue(app.buttons["browse-torrent"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["browse-torrent"].isHittable)
-        app.navigationBars.buttons.firstMatch.tap()
-
-        app.buttons["open-settings"].tap()
+        dismissAddThenOpenSettings(app)
         XCTAssertTrue(
             app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5)
         )
-        XCTAssertTrue(app.switches["background-notifications"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["storage-root-ios-documents"].exists)
+        scrollToSettingsElement(
+            app.descendants(matching: .any)["storage-root-ios-documents"].firstMatch,
+            in: app,
+            requireHittable: false
+        )
+        scrollToSettingsElement(app.switches["background-notifications"], in: app)
     }
 
     func testMirroredPseudoLocaleMirrorsTopBarWithoutRawKeys() {
@@ -107,9 +132,29 @@ final class LocalizationUITests: XCTestCase {
         add.tap()
         XCTAssertTrue(app.textFields["magnet-input"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.textFields["magnet-input"].placeholderValue?.contains("dialog_") ?? true)
-        app.navigationBars.buttons.firstMatch.tap()
-        settings.tap()
-        XCTAssertTrue(app.switches["background-notifications"].waitForExistence(timeout: 5))
+        dismissAddThenOpenSettings(app)
+        XCTAssertTrue(
+            app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5)
+        )
+        scrollToSettingsElement(app.switches["background-notifications"], in: app)
+    }
+
+    private func scrollToSettingsElement(
+        _ element: XCUIElement,
+        in app: XCUIApplication,
+        requireHittable: Bool = true,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        // SwiftUI Form materializes lower rows as they scroll into view.
+        // Added sections and expanded text can move these below the fold.
+        for _ in 0..<12 {
+            if element.exists && (!requireHittable || element.isHittable) { return }
+            app.swipeUp()
+        }
+        XCTAssertTrue(
+            element.exists && (!requireHittable || element.isHittable), file: file, line: line
+        )
     }
 
     private func launchExpandedPseudoLocale() -> XCUIApplication {
@@ -139,5 +184,18 @@ final class LocalizationUITests: XCTestCase {
         ]
         app.launch()
         return app
+    }
+}
+
+private extension XCTestCase {
+    func dismissAddThenOpenSettings(_ app: XCUIApplication) {
+        let addSheet = app.descendants(matching: .any)["add-torrent-sheet"].firstMatch
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(addSheet.waitForNonExistence(timeout: 5))
+
+        let settings = app.buttons["open-settings"]
+        expectation(for: NSPredicate(format: "hittable == true"), evaluatedWith: settings)
+        waitForExpectations(timeout: 5)
+        settings.tap()
     }
 }

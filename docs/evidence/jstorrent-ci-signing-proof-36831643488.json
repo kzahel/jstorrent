@@ -1,0 +1,11 @@
+{
+  "runUrl": "https://github.com/kzahel/rstorrent/actions/runs/36831643488",
+  "sourceSha": "19eb3a88703088a2dfebb803342394938d305cb8",
+  "passwordSecretChanged": false,
+  "qualification": "Owned nonce signing input proof; package and installed qualification remain open",
+  "signatureKeyId": "415D3DF4B3D0CFB8",
+  "verifies": {
+    "JSTorrent": true,
+    "RSTorrent": false
+  }
+}

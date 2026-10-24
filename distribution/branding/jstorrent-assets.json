@@ -1,0 +1,210 @@
+{
+  "schema": 1,
+  "repository": "https://github.com/kzahel/jstorrent-typescript",
+  "revision": "25e4b701433fd815398ba89526546f5e4f072e3f",
+  "license": "MIT",
+  "license_path": "distribution/branding/JSTorrent-LICENSE.txt",
+  "purpose": "Original JSTorrent branding for in-place product succession; copied without modification.",
+  "assets": [
+    {
+      "source": "desktop/tauri-app/src-tauri/icons/32x32.png",
+      "path": "clients/desktop/src-tauri/icons/32x32.png",
+      "sha256": "2e07401e791c90983e78e0a808807b75d4070e214ddf8b56f63bff486771ff77"
+    },
+    {
+      "source": "desktop/tauri-app/src-tauri/icons/128x128.png",
+      "path": "clients/desktop/src-tauri/icons/128x128.png",
+      "sha256": "bb2eb388f480b49cb1852e55ce15c90757411fc64edefdd16cbf881fd447a598"
+    },
+    {
+      "source": "desktop/tauri-app/src-tauri/icons/128x128@2x.png",
+      "path": "clients/desktop/src-tauri/icons/128x128@2x.png",
+      "sha256": "848c84d7582dff5a1fc4464f85300f0e06193df415e0f0c13dca426ce1ba196c"
+    },
+    {
+      "source": "desktop/tauri-app/src-tauri/icons/icon.png",
+      "path": "clients/desktop/src-tauri/icons/icon.png",
+      "sha256": "eca7ee5b77a1cfb8a1ac87879861be31019fff3aa501f867f71b19bfc7a77c52"
+    },
+    {
+      "source": "desktop/tauri-app/src-tauri/icons/icon.icns",
+      "path": "clients/desktop/src-tauri/icons/icon.icns",
+      "sha256": "627f0e9c217bccf7b9829c18d90041bd7a3387d69b3ff259d4f888b3154d2866"
+    },
+    {
+      "source": "desktop/tauri-app/src-tauri/icons/icon.ico",
+      "path": "clients/desktop/src-tauri/icons/icon.ico",
+      "sha256": "a0d1740854a284d800cfc2a3ea2e538d1db36f7cc10f42ba7903cf04e1b13bb4"
+    },
+    {
+      "source": "extension/public/icons/js-32.png",
+      "path": "clients/extension/icons/icon-32.png",
+      "sha256": "b1d80f46963b30890bd91da3513d17bf1b49b028de65cbe6960d0d6a5c5138c5"
+    },
+    {
+      "source": "extension/public/icons/js-128.png",
+      "path": "clients/extension/icons/icon-128.png",
+      "sha256": "5ac4f88d3d5a5b05758e6282696433579fe16307849c3a91e4a3901506f885e2"
+    },
+    {
+      "source": "extension/public/icons/js-128.png",
+      "path": "clients/web/src/assets/jstorrent.png",
+      "sha256": "5ac4f88d3d5a5b05758e6282696433579fe16307849c3a91e4a3901506f885e2"
+    },
+    {
+      "source": "extension/public/icons/js-512.png",
+      "path": "clients/android/play/listing/en-US/images/icon.png",
+      "sha256": "c4ea0d5bde719aea37ffde6814b204909f4d6a6b3f7af2a59bf96178e6329854"
+    },
+    {
+      "source": "android/app/src/main/res/drawable/ic_launcher_background.xml",
+      "path": "clients/android/app/src/main/res/drawable/ic_launcher_background.xml",
+      "sha256": "eaa8709e3635f97dd53c65565a5b665cb0c6ef831027df6fcb4284bd0d284ff2"
+    },
+    {
+      "source": "android/app/src/main/res/drawable-hdpi/ic_launcher_foreground.png",
+      "path": "clients/android/app/src/main/res/drawable-hdpi/ic_launcher_foreground.png",
+      "sha256": "8a669d633971a8c2ef4630217aaa1eabefb8158cfc272ef82215539969fa6751"
+    },
+    {
+      "source": "android/app/src/main/res/drawable-mdpi/ic_launcher_foreground.png",
+      "path": "clients/android/app/src/main/res/drawable-mdpi/ic_launcher_foreground.png",
+      "sha256": "d05f3380d376665defa8d6e563524f2013fd2d8fbf408dad2d9e9ed74738b040"
+    },
+    {
+      "source": "android/app/src/main/res/drawable-xhdpi/ic_launcher_foreground.png",
+      "path": "clients/android/app/src/main/res/drawable-xhdpi/ic_launcher_foreground.png",
+      "sha256": "779756a5a60e618f2a980cc83909828f229afd9a9bb0f70a4e6c75045f05bce2"
+    },
+    {
+      "source": "android/app/src/main/res/drawable-xxhdpi/ic_launcher_foreground.png",
+      "path": "clients/android/app/src/main/res/drawable-xxhdpi/ic_launcher_foreground.png",
+      "sha256": "e2349e396ad8b1fc709d81c83a80a1f871564d5462769ce7f970cc8bb3a656e2"
+    },
+    {
+      "source": "android/app/src/main/res/drawable-xxxhdpi/ic_launcher_foreground.png",
+      "path": "clients/android/app/src/main/res/drawable-xxxhdpi/ic_launcher_foreground.png",
+      "sha256": "cb133a19ac571f8f1e2ba6af24bfc57f8c23be402b817afc3a593a450ee5f842"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-anydpi/ic_launcher.xml",
+      "path": "clients/android/app/src/main/res/mipmap-anydpi/ic_launcher.xml",
+      "sha256": "88f7653499ef524126ea5018a99baf9cc3269e7e584d6205dfdd76db39f39cc0"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-anydpi/ic_launcher_round.xml",
+      "path": "clients/android/app/src/main/res/mipmap-anydpi/ic_launcher_round.xml",
+      "sha256": "88f7653499ef524126ea5018a99baf9cc3269e7e584d6205dfdd76db39f39cc0"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+      "path": "clients/android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+      "sha256": "0d761fa91b54959590fb75e563a8543ba399fc526bfa581ca8e1875a10be84c6"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png",
+      "path": "clients/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png",
+      "sha256": "0d761fa91b54959590fb75e563a8543ba399fc526bfa581ca8e1875a10be84c6"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+      "path": "clients/android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+      "sha256": "f41d83f817cc5471917e3cb4d4580d3913d5710275e2ca2453b14a23dd7d77cb"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png",
+      "path": "clients/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png",
+      "sha256": "f41d83f817cc5471917e3cb4d4580d3913d5710275e2ca2453b14a23dd7d77cb"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+      "path": "clients/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+      "sha256": "04d32b1005f52eacaf0111a5820a4d43a066f3eed47a80bd4a9181c51228fab1"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png",
+      "path": "clients/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png",
+      "sha256": "04d32b1005f52eacaf0111a5820a4d43a066f3eed47a80bd4a9181c51228fab1"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+      "path": "clients/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+      "sha256": "60af04aca80dc4cb6a8bd2b75bb7702383c1bdb4a1d1e17baff7783af139492d"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png",
+      "path": "clients/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png",
+      "sha256": "60af04aca80dc4cb6a8bd2b75bb7702383c1bdb4a1d1e17baff7783af139492d"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+      "path": "clients/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+      "sha256": "61b6a1901879e6f2a92a78d3a70948f2d924a105bfc97794aa57a38e1d0b57af"
+    },
+    {
+      "source": "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png",
+      "path": "clients/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png",
+      "sha256": "61b6a1901879e6f2a92a78d3a70948f2d924a105bfc97794aa57a38e1d0b57af"
+    },
+    {
+      "source": "LICENSE.md",
+      "path": "distribution/branding/JSTorrent-LICENSE.txt",
+      "sha256": "b3b3b34d5a55b59e8f1475ddbe1d2f1648cf98ad0cd95b93cfdf3dd844d8acda"
+    },
+    {
+      "source": "LICENSE.md",
+      "path": "clients/extension/LICENSE.jstorrent.txt",
+      "sha256": "b3b3b34d5a55b59e8f1475ddbe1d2f1648cf98ad0cd95b93cfdf3dd844d8acda"
+    },
+    {
+      "source": "ios/JSTorrent/Resources/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png",
+      "path": "clients/ios/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+      "sha256": "44b18409034729e0aa355f54e570da3b4a659c77332f1784a3c16107c301c4fd"
+    },
+    {
+      "source": "desktop/tauri-app/src-tauri/icons/128x128@2x.png",
+      "path": "website/public/jstorrent.png",
+      "sha256": "848c84d7582dff5a1fc4464f85300f0e06193df415e0f0c13dca426ce1ba196c"
+    },
+    {
+      "source": "LICENSE.md",
+      "path": "website/public/LICENSE.jstorrent.txt",
+      "sha256": "b3b3b34d5a55b59e8f1475ddbe1d2f1648cf98ad0cd95b93cfdf3dd844d8acda"
+    },
+    {
+      "source": "LICENSE.md",
+      "path": "clients/ios/App/Branding/JSTorrent-LICENSE.txt",
+      "sha256": "b3b3b34d5a55b59e8f1475ddbe1d2f1648cf98ad0cd95b93cfdf3dd844d8acda"
+    },
+    {
+      "source": "ios/JSTorrent/Resources/Assets.xcassets/HeaderAppIcon.imageset/Contents.json",
+      "path": "clients/ios/App/Assets.xcassets/HeaderAppIcon.imageset/Contents.json",
+      "sha256": "482fb031f9146ba7f74dbd62734c91702e8ceff9123db979f7dbb054b5cd653a"
+    },
+    {
+      "source": "ios/JSTorrent/Resources/Assets.xcassets/HeaderAppIcon.imageset/HeaderAppIcon@2x.png",
+      "path": "clients/ios/App/Assets.xcassets/HeaderAppIcon.imageset/HeaderAppIcon@2x.png",
+      "sha256": "5faaca5ccc3a9d178dc17453fe0a3b78e789d367761f9cb55d804af647f824c3"
+    },
+    {
+      "source": "ios/JSTorrent/Resources/Assets.xcassets/HeaderAppIcon.imageset/HeaderAppIcon@3x.png",
+      "path": "clients/ios/App/Assets.xcassets/HeaderAppIcon.imageset/HeaderAppIcon@3x.png",
+      "sha256": "628b13d90a7f5d172d9a8785282815d167a30e191563f11a4e901d423b5b7c18"
+    },
+    {
+      "source": "extension/public/icons/js-128.png",
+      "path": "crates/rstorrent-gateway/resources/jstorrent.png",
+      "sha256": "5ac4f88d3d5a5b05758e6282696433579fe16307849c3a91e4a3901506f885e2"
+    },
+    {
+      "source": "LICENSE.md",
+      "path": "crates/rstorrent-gateway/resources/LICENSE.jstorrent.txt",
+      "sha256": "b3b3b34d5a55b59e8f1475ddbe1d2f1648cf98ad0cd95b93cfdf3dd844d8acda"
+    },
+    {
+      "source": "extension/public/icons/js-128.png",
+      "path": "clients/android/app/src/main/res/drawable/jstorrent_brand.png",
+      "sha256": "5ac4f88d3d5a5b05758e6282696433579fe16307849c3a91e4a3901506f885e2"
+    }
+  ]
+}

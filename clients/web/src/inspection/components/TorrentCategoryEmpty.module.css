@@ -1,0 +1,19 @@
+.showAll {
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.4rem;
+  color: var(--accent-strong);
+  background: none;
+  font: inherit;
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.showAll:hover {
+  text-decoration: underline;
+}
+
+.showAll:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

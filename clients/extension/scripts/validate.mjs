@@ -5,16 +5,19 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 
 export const extensionRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+export const productionExtensionId = "dbokmlpefliilbjldladbimlcfgbolhk";
 export const storeExtensionId = "gcgoepclopkgijmclmlheafaglmbjlcc";
 
 export const companionPackagedFiles = Object.freeze([
   "companion/companion.html",
   "companion/assets/companion.css",
   "companion/assets/companion.js",
+  "companion/assets/companion.png",
 ]);
 
 export const packagedFiles = Object.freeze([
   "manifest.json",
+  "LICENSE.jstorrent.txt",
   "icons/icon-32.png",
   "icons/icon-128.png",
   "popup/popup.html",
@@ -23,6 +26,9 @@ export const packagedFiles = Object.freeze([
   "popup/platform.js",
   "crostini/setup.html",
   "crostini/setup.css",
+  "crostini/setup.js",
+  "crostini/connect.html",
+  "crostini/connect.js",
   "src/service-worker.js",
   "src/product-metrics.js",
   ...companionPackagedFiles,
@@ -53,34 +59,54 @@ export function extensionIdFromPublicKey(publicKey) {
     );
 }
 
-export function validateSource() {
-  const manifest = JSON.parse(readFileSync(path.join(extensionRoot, "manifest.json"), "utf8"));
-  if (manifest.manifest_version !== 3 || manifest.name !== "JSTorrent Beta") {
-    fail("expected the reviewed JSTorrent Beta Manifest V3 identity");
+export function validateSource(production = false) {
+  let manifest = JSON.parse(readFileSync(path.join(extensionRoot, "manifest.json"), "utf8"));
+  if (production) {
+    const overlay = JSON.parse(readFileSync(path.join(extensionRoot, "manifest.jstorrent.json"), "utf8"));
+    if (JSON.stringify(Object.keys(overlay).sort()) !== JSON.stringify(["key", "version"])) {
+      fail("production overlay may change only the key and version");
+    }
+    manifest = { ...manifest, ...overlay };
+    if (typeof manifest.version !== "string" || !/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/u.test(manifest.version)) {
+      fail("production version must contain three canonical integers");
+    }
+    const version = manifest.version.split(".").map(Number);
+    if (version.some((v) => !Number.isInteger(v) || v > 65535) ||
+        (version[0] < 1 || (version[0] === 1 && version[1] < 1) ||
+         (version[0] === 1 && version[1] === 1 && version[2] <= 1))) {
+      fail("production version must exceed pinned JSTorrent 1.1.1");
+    }
+  }
+  const expectedExtensionId = production ? productionExtensionId : storeExtensionId;
+  if (manifest.manifest_version !== 3 || manifest.name !== "JSTorrent") {
+    fail("expected the reviewed JSTorrent Manifest V3 identity");
   }
   const derivedExtensionId = extensionIdFromPublicKey(manifest.key);
-  if (derivedExtensionId !== storeExtensionId) {
-    fail(`manifest key derives ${derivedExtensionId}, expected store item ${storeExtensionId}`);
+  if (derivedExtensionId !== expectedExtensionId) {
+    fail(`manifest key derives ${derivedExtensionId}, expected store item ${expectedExtensionId}`);
   }
   if (JSON.stringify(manifest.permissions) !== JSON.stringify(["nativeMessaging", "storage"])) {
     fail("only nativeMessaging and storage permissions are accepted");
   }
   if (
     JSON.stringify(manifest.optional_host_permissions) !==
-    JSON.stringify(["http://100.115.92.2/*"])
+    JSON.stringify(["http://100.115.92.2/*", "http://jstorrent.localhost/*"])
   ) {
-    fail("optional host permission must contain only the exact ARC host");
+    fail("optional host permission must contain only the exact ARC and Crostini hosts");
   }
-  for (const forbidden of ["host_permissions", "content_scripts", "web_accessible_resources"]) {
+  if (JSON.stringify(manifest.host_permissions) !== JSON.stringify(["http://127.0.0.1/*"])) {
+    fail("desktop control requires only the exact loopback host permission");
+  }
+  for (const forbidden of ["content_scripts", "web_accessible_resources"]) {
     if (manifest[forbidden] !== undefined) {
       fail(`manifest must not declare ${forbidden}`);
     }
   }
   if (
     JSON.stringify(manifest.externally_connectable) !==
-    JSON.stringify({ matches: ["http://penguin.linux.test/*"] })
+    JSON.stringify({ matches: ["http://jstorrent.localhost/*", "https://jstorrent.com/chrome-extension.html"] })
   ) {
-    fail("externally_connectable must contain only the exact Crostini host match");
+    fail("externally_connectable must contain only Crostini and the exact JSTorrent Android handoff");
   }
   if (manifest.background?.service_worker !== "src/service-worker.js") {
     fail("unexpected service worker entry point");
@@ -99,7 +125,8 @@ export function validateSource() {
           (port) => `${scheme}://100.115.92.2:${port}`,
         ),
       )
-      .join(" ");
+      .join(" ") + " " + [7800, 7805, 7814, 7827, 7844]
+        .map((port) => `http://100.115.92.2:${port}`).join(" ") + " ws://127.0.0.1:* http://jstorrent.localhost:3030";
   if (manifest.content_security_policy?.extension_pages !== expectedCsp) {
     fail("extension-page CSP must contain only local scripts and the five exact ARC endpoints");
   }
@@ -118,9 +145,11 @@ export function validateSource() {
     if (
       urls.some(
         (url) =>
-          url !== "http://penguin.linux.test:3030" &&
+          url !== "http://jstorrent.localhost:3030" &&
           url !== "http://100.115.92.2/*" &&
+          url !== "http://jstorrent.localhost/*" &&
           url !== "https://jstorrent.com/privacy.html" &&
+          url !== "https://jstorrent.com/chrome-extension.html" &&
           url !== "https://jstorrent.com/uninstall.html",
       )
     ) {
@@ -145,13 +174,24 @@ export function validateSource() {
     fail("popup surfaces must start hidden until the platform decision completes");
   }
   const setup = readFileSync(path.join(extensionRoot, "crostini/setup.html"), "utf8");
-  if (/<script/iu.test(setup) || /\son[a-z]+\s*=/iu.test(setup)) {
-    fail("Crostini setup must remain a static offline document");
+  const setupModule = '<script type="module" src="setup.js"></script>';
+  if (!setup.includes(setupModule) || /<script/iu.test(setup.replace(setupModule, "")) || /\son[a-z]+\s*=/iu.test(setup)) {
+    fail("Crostini setup must use only its local clipboard module");
   }
+  const setupScript = readFileSync(path.join(extensionRoot, "crostini/setup.js"), "utf8");
+  if (/\b(?:fetch|XMLHttpRequest|WebSocket|eval|import)\b/u.test(setupScript)) {
+    fail("Crostini setup clipboard module must remain offline");
+  }
+  const connection = readFileSync(path.join(extensionRoot, "crostini/connect.html"), "utf8");
+  if (/<script(?![^>]*\bsrc=)/iu.test(connection) || /\son[a-z]+\s*=/iu.test(connection) ||
+      !connection.includes('<script type="module" src="connect.js"></script>')) {
+    fail("Linux connection must use only its local external module");
+  }
+  return manifest;
 }
 
 export function validateCompanionBuild(companionRoot) {
-  const expected = ["assets/companion.css", "assets/companion.js", "companion.html"];
+  const expected = ["assets/companion.css", "assets/companion.js", "assets/companion.png", "companion.html"];
   const actual = listFiles(companionRoot);
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     fail(`companion build file set drifted: ${actual.join(", ")}`);
@@ -172,6 +212,8 @@ export function validateCompanionBuild(companionRoot) {
   }
   const remoteHosts = source.match(/(?:https?|wss?):\/\/[A-Za-z0-9.${}_-]+/gu) ?? [];
   const allowedHosts = new Set([
+    "http://127.0.0.1",
+    "ws://127.0.0.1",
     "http://100.115.92.2",
     "ws://100.115.92.2",
     "http://www.w3.org",
@@ -180,6 +222,10 @@ export function validateCompanionBuild(companionRoot) {
     // FormatJS embeds these documentation links in diagnostic strings.
     // The manifest's exact ARC-only connect-src remains the network boundary.
     "https://formatjs.github.io",
+    // User-initiated product navigation links, not backend request origins.
+    // CSP/connect permissions remain unchanged.
+    "https://jstorrent.com",
+    "https://chromewebstore.google.com",
   ]);
   const unexpectedHosts = [...new Set(remoteHosts.filter((url) => !allowedHosts.has(url)))];
   if (unexpectedHosts.length > 0) {
@@ -201,7 +247,7 @@ function listFiles(root, relative = "") {
     .sort();
 }
 
-export function validateArchive(archivePath) {
+export function validateArchive(archivePath, production = false) {
   const entries = execFileSync("unzip", ["-Z1", archivePath], { encoding: "utf8" })
     .trim()
     .split("\n")
@@ -211,17 +257,22 @@ export function validateArchive(archivePath) {
   if (JSON.stringify(entries) !== JSON.stringify(expected)) {
     fail(`archive entries differ from reviewed allowlist: ${entries.join(", ")}`);
   }
+  const manifest = JSON.parse(execFileSync("unzip", ["-p", archivePath, "manifest.json"], { encoding: "utf8" }));
+  if (JSON.stringify(manifest) !== JSON.stringify(validateSource(production))) {
+    fail("archive manifest differs from the selected production/incubation identity");
+  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  validateSource();
+  const production = process.argv.includes("--production");
+  validateSource(production);
   const archiveIndex = process.argv.indexOf("--archive");
   if (archiveIndex !== -1) {
     const archivePath = process.argv[archiveIndex + 1];
     if (!archivePath) {
       fail("--archive requires a path");
     }
-    validateArchive(path.resolve(archivePath));
+    validateArchive(path.resolve(archivePath), production);
   }
-  console.log("JSTorrent Beta extension validation passed.");
+  console.log("JSTorrent extension validation passed.");
 }

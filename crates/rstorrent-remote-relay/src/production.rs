@@ -64,7 +64,7 @@ const MAX_OPERATOR_TOKEN_BYTES: usize = 256;
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct ProductRelayOptions {
-    allowed_client_origin: String,
+    allowed_client_origins: Vec<String>,
     trusted_proxy: Option<IpAddr>,
     operator_token: Option<Zeroizing<String>>,
 }
@@ -73,7 +73,7 @@ impl fmt::Debug for ProductRelayOptions {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("ProductRelayOptions")
-            .field("allowed_client_origin", &self.allowed_client_origin)
+            .field("allowed_client_origins", &self.allowed_client_origins)
             .field("trusted_proxy", &self.trusted_proxy)
             .field(
                 "operator_token",
@@ -86,7 +86,7 @@ impl fmt::Debug for ProductRelayOptions {
 impl ProductRelayOptions {
     pub fn validation(allowed_client_origin: impl Into<String>) -> Self {
         Self {
-            allowed_client_origin: allowed_client_origin.into(),
+            allowed_client_origins: vec![allowed_client_origin.into()],
             trusted_proxy: None,
             operator_token: None,
         }
@@ -96,6 +96,32 @@ impl ProductRelayOptions {
         trusted_proxy: IpAddr,
         operator_token: String,
     ) -> Result<Self, ProductRelayError> {
+        Self::production_with_origins(
+            trusted_proxy,
+            operator_token,
+            vec!["https://jstorrent.com".to_owned()],
+        )
+    }
+
+    pub fn production_with_origins(
+        trusted_proxy: IpAddr,
+        operator_token: String,
+        origins: Vec<String>,
+    ) -> Result<Self, ProductRelayError> {
+        if origins.is_empty()
+            || origins.len() > 2
+            || origins.iter().any(|origin| {
+                !matches!(
+                    origin.as_str(),
+                    "https://jstorrent.com" | "https://remote.jstorrent.com"
+                )
+            })
+            || (origins.len() == 2 && origins[0] == origins[1])
+        {
+            return Err(ProductRelayError::Configuration(
+                "production client origins",
+            ));
+        }
         let trusted_proxy = normalize_ip(trusted_proxy);
         if !trusted_proxy.is_loopback() {
             return Err(ProductRelayError::Configuration(
@@ -104,7 +130,7 @@ impl ProductRelayOptions {
         }
         validate_operator_token(&operator_token)?;
         Ok(Self {
-            allowed_client_origin: "https://rstorrent.com".to_owned(),
+            allowed_client_origins: origins,
             trusted_proxy: Some(trusted_proxy),
             operator_token: Some(Zeroizing::new(operator_token)),
         })
@@ -314,7 +340,7 @@ impl fmt::Debug for ProductRelay {
 
 struct ProductRelayInner {
     deployment_id: [u8; 32],
-    allowed_client_origin: String,
+    allowed_client_origins: Vec<String>,
     trusted_proxy: Option<IpAddr>,
     operator_token: Option<Zeroizing<String>>,
     admission_enabled: AtomicBool,
@@ -448,7 +474,9 @@ impl ProductRelay {
         root: impl Into<PathBuf>,
         options: ProductRelayOptions,
     ) -> Result<Self, ProductRelayError> {
-        validate_origin(&options.allowed_client_origin)?;
+        for origin in &options.allowed_client_origins {
+            validate_origin(origin)?;
+        }
         let store = RelayStore::new(root.into());
         let persisted = store.load_or_create()?;
         let mut routes = BTreeMap::new();
@@ -472,7 +500,7 @@ impl ProductRelay {
         Ok(Self {
             inner: Arc::new(ProductRelayInner {
                 deployment_id: persisted.deployment_id,
-                allowed_client_origin: options.allowed_client_origin,
+                allowed_client_origins: options.allowed_client_origins,
                 trusted_proxy: options.trusted_proxy,
                 operator_token: options.operator_token,
                 admission_enabled: AtomicBool::new(true),
@@ -1119,8 +1147,16 @@ async fn client_upgrade(
     let Some(source) = public_source(&relay, source.0, &headers) else {
         return generic_http_failure();
     };
-    if headers.get("origin").and_then(|value| value.to_str().ok())
-        != Some(relay.allowed_client_origin.as_str())
+    if headers.get_all("origin").iter().count() != 1
+        || !headers
+            .get("origin")
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|origin| {
+                relay
+                    .allowed_client_origins
+                    .iter()
+                    .any(|allowed| allowed == origin)
+            })
         || !admit(&relay, source, None).await
     {
         return generic_http_failure();
@@ -1673,7 +1709,11 @@ fn validate_origin(origin: &str) -> Result<(), ProductRelayError> {
         || url.origin().ascii_serialization() != origin
         || !url.host().is_some_and(|host| match host {
             url::Host::Domain(name) => {
-                (name == "rstorrent.com" && url.port().is_none()) || name == "localhost"
+                (matches!(
+                    name,
+                    "jstorrent.com" | "remote.jstorrent.com" | "rstorrent.com"
+                ) && url.port().is_none())
+                    || name == "localhost"
             }
             url::Host::Ipv4(address) => address.is_loopback(),
             url::Host::Ipv6(address) => address.is_loopback(),
@@ -2081,8 +2121,65 @@ mod tests {
     }
 
     #[test]
+    fn production_origin_transition_is_exact_and_bounded() {
+        for origins in [
+            vec!["https://remote.jstorrent.com"],
+            vec!["https://jstorrent.com", "https://remote.jstorrent.com"],
+        ] {
+            assert!(
+                ProductRelayOptions::production_with_origins(
+                    "127.0.0.1".parse().unwrap(),
+                    "abcdefghijklmnopqrstuvwxyz012345".to_owned(),
+                    origins.into_iter().map(str::to_owned).collect(),
+                )
+                .is_ok()
+            );
+        }
+        for origins in [
+            vec![],
+            vec!["https://remote.jstorrent.com/"],
+            vec!["https://rstorrent.com"],
+            vec!["https://remote.jstorrent.com.evil.test"],
+            vec!["https://preview.pages.dev"],
+            vec!["https://www.jstorrent.com"],
+            vec!["https://jstorrent.com", "https://jstorrent.com"],
+            vec![
+                "https://jstorrent.com",
+                "https://remote.jstorrent.com",
+                "https://jstorrent.com",
+            ],
+        ] {
+            assert!(
+                ProductRelayOptions::production_with_origins(
+                    "127.0.0.1".parse().unwrap(),
+                    "abcdefghijklmnopqrstuvwxyz012345".to_owned(),
+                    origins.into_iter().map(str::to_owned).collect(),
+                )
+                .is_err()
+            );
+        }
+    }
+
+    #[test]
     fn product_origin_operator_token_and_route_namespace_are_exact() {
+        assert!(validate_origin("https://jstorrent.com").is_ok());
         assert!(validate_origin("https://rstorrent.com").is_ok());
+        for origin in [
+            "http://jstorrent.com",
+            "https://jstorrent.com/",
+            "https://jstorrent.com:444",
+            "https://www.jstorrent.com",
+            "https://evil.jstorrent.com",
+            "https://jstorrent.com.evil.test",
+        ] {
+            assert!(validate_origin(origin).is_err(), "accepted {origin}");
+        }
+        let production = ProductRelayOptions::production(
+            "127.0.0.1".parse().unwrap(),
+            "abcdefghijklmnopqrstuvwxyz012345".to_owned(),
+        )
+        .unwrap();
+        assert_eq!(production.allowed_client_origins, ["https://jstorrent.com"]);
         assert!(validate_origin("https://rstorrent.com/").is_err());
         assert!(
             ProductRelayOptions::production(

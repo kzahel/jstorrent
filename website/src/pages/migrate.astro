@@ -1,0 +1,399 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import Footer from '../components/Footer.astro'
+import Header from '../components/Header.astro'
+---
+
+<BaseLayout
+  title="Keep using JSTorrent"
+  description="Move from the old Chrome App to the current JSTorrent for Android, Chromebook, Windows, Mac, or Linux."
+>
+  <Header />
+  <main>
+    <section class="migration-intro section">
+      <div class="migration-container">
+        <img src="/cook/JSTorrent/js-128.png" alt="JSTorrent" class="migration-logo" />
+        <div>
+          <h1>Keep using JSTorrent</h1>
+          <p class="lede">
+            The old Chrome App no longer works, but current versions of JSTorrent are available.
+            Start with the option that matches your device.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt">
+      <div class="migration-content">
+        <div id="migration-choices" class="migration-choices">
+          <article class="migration-card" data-choice="desktop">
+            <div class="choice-heading">
+              <p class="choice-label">Windows, Mac, and Linux</p>
+              <span class="recommendation" data-recommendation hidden>
+                Recommended for this device
+              </span>
+            </div>
+            <h2>Get the JSTorrent desktop app</h2>
+            <p>
+              The complete JSTorrent app for your computer. It works on its own&mdash;no Chrome
+              extension required.
+            </p>
+            <p>
+              You can add browser integration later if you want magnet links and right-click
+              actions to open in JSTorrent.
+            </p>
+            <a class="btn btn-primary" href="/#download" data-migration-link>
+              Download JSTorrent
+            </a>
+          </article>
+
+          <article class="migration-card" data-choice="play">
+            <div class="choice-heading">
+              <p class="choice-label">Android and Chromebooks with Google Play</p>
+              <span class="recommendation" data-recommendation hidden>
+                Recommended for this device
+              </span>
+            </div>
+            <h2>Get JSTorrent from Google Play</h2>
+            <p>
+              The complete JSTorrent app for Android phones, tablets, and supported Chromebooks. It
+              works on its own&mdash;no Chrome extension required.
+            </p>
+            <a
+              class="btn btn-primary"
+              href="https://play.google.com/store/apps/details?id=com.jstorrent.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-migration-link
+            >
+              Get JSTorrent on Google Play
+            </a>
+          </article>
+
+          <article class="migration-card" data-choice="crostini">
+            <p class="choice-label">Chromebooks without Google Play, including ChromeOS Flex</p>
+            <h2>Use JSTorrent with ChromeOS Linux</h2>
+            <p>
+              If your Chromebook cannot use Google Play, install the JSTorrent Linux service and
+              connect the Chrome extension to it.
+            </p>
+            <p id="extension-status" class="extension-status" aria-live="polite" hidden>
+              JSTorrent extension already installed
+            </p>
+            <ol>
+              <li>Enable the Linux development environment in ChromeOS Settings.</li>
+              <li>
+                In the Linux terminal, run:
+                <div class="migration-command">
+                  <code>curl -fsSL https://jstorrent.com/install-crostini.sh | bash</code>
+                </div>
+              </li>
+              <li>Install the JSTorrent Chrome extension and let it connect to the service.</li>
+            </ol>
+            <a
+              class="btn btn-primary"
+              href="https://chromewebstore.google.com/detail/jstorrent/dbokmlpefliilbjldladbimlcfgbolhk"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-migration-link
+            >
+              Get the Chrome extension
+            </a>
+          </article>
+
+          <h2 id="other-options-heading" class="other-options-heading" hidden>
+            Other setup options
+          </h2>
+        </div>
+
+        <aside class="before-removing">
+          <h2>Before removing the old app</h2>
+          <p>
+            Set up and open the current JSTorrent first. Your old torrents, settings, and incomplete
+            downloads are not transferred automatically.
+          </p>
+          <p>
+            When you are comfortable with the new setup, you can remove the old Chrome App. Chrome
+            will ask before removing it.
+          </p>
+        </aside>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .migration-intro {
+    background: linear-gradient(to bottom, var(--color-bg-alt), var(--color-bg));
+    padding: 2rem 0;
+  }
+
+  .migration-container,
+  .migration-content {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  .migration-container {
+    display: grid;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .migration-logo {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto;
+  }
+
+  .choice-label {
+    color: var(--color-primary-dark);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    max-width: 760px;
+    margin: 0.25rem 0 0.75rem;
+    font-size: clamp(1.8rem, 5vw, 2.75rem);
+    line-height: 1.15;
+  }
+
+  .lede {
+    max-width: 72ch;
+    color: var(--color-text-light);
+    font-size: 1.05rem;
+  }
+
+  .migration-choices {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .migration-card,
+  .before-removing {
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-bg);
+    padding: 1.5rem;
+  }
+
+  .migration-card.recommended {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 1px var(--color-primary);
+  }
+
+  .choice-heading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .choice-heading .choice-label {
+    margin: 0;
+  }
+
+  .recommendation,
+  .extension-status {
+    border-radius: 999px;
+    padding: 0.25rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .recommendation {
+    background: var(--color-primary);
+    color: var(--color-bg);
+  }
+
+  .extension-status {
+    display: inline-flex;
+    border: 1px solid var(--color-success);
+    color: var(--color-success);
+  }
+
+  .recommendation[hidden],
+  .extension-status[hidden],
+  .other-options-heading[hidden] {
+    display: none;
+  }
+
+  .other-options-heading {
+    margin: 0.75rem 0 0;
+    font-size: 1.15rem;
+  }
+
+  .migration-card h2,
+  .before-removing h2 {
+    margin: 0.2rem 0 0.75rem;
+    font-size: 1.35rem;
+  }
+
+  .migration-card p,
+  .before-removing p {
+    color: var(--color-text-light);
+  }
+
+  .migration-card ol {
+    margin: 0 0 1.25rem 1.25rem;
+  }
+
+  .migration-card li {
+    margin-bottom: 0.75rem;
+  }
+
+  .migration-command {
+    max-width: 100%;
+    margin-top: 0.5rem;
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-code-bg);
+    padding: 0.7rem 0.8rem;
+  }
+
+  .migration-command code {
+    white-space: nowrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8rem;
+  }
+
+  .before-removing {
+    margin-top: 1rem;
+    border-left: 4px solid var(--color-warning-border);
+  }
+
+  @media (min-width: 640px) {
+    .migration-container,
+    .migration-content {
+      padding: 0 1.5rem;
+    }
+
+    .migration-container {
+      grid-template-columns: auto 1fr;
+    }
+
+    .migration-logo {
+      width: 96px;
+      height: 96px;
+    }
+  }
+</style>
+
+<script>
+  type MigrationPlatform = 'chromeos' | 'windows' | 'macos' | 'linux' | 'android' | 'other'
+  interface MigrationChromeApi {
+    runtime?: {
+      lastError?: { message?: string }
+      sendMessage(
+        extensionId: string,
+        message: { type: string },
+        callback: (response?: { installed?: boolean }) => void,
+      ): void
+    }
+  }
+
+  const extensionId = 'dbokmlpefliilbjldladbimlcfgbolhk'
+  const allowedAttribution = {
+    ref: new Set([
+      'legacy-app',
+      'legacy-app-notification',
+      'legacy-app-window',
+      'legacy-app-uninstall',
+    ]),
+    variant: new Set(['paid', 'lite']),
+    platform: new Set(['chromeos', 'windows', 'macos', 'linux', 'android', 'other']),
+    campaign: new Set(['available-2026']),
+  }
+
+  function getAttribution() {
+    const source = new URLSearchParams(location.search)
+    const accepted = new URLSearchParams()
+    for (const [key, values] of Object.entries(allowedAttribution)) {
+      const value = source.get(key)
+      if (value && values.has(value)) accepted.set(key, value)
+    }
+    return accepted
+  }
+
+  function detectPlatform(attribution: URLSearchParams): MigrationPlatform {
+    const reported = attribution.get('platform')
+    if (reported) return reported as MigrationPlatform
+    const userAgent = navigator.userAgent.toLowerCase()
+    if (userAgent.includes('cros')) return 'chromeos'
+    if (userAgent.includes('android')) return 'android'
+    if (userAgent.includes('win')) return 'windows'
+    if (userAgent.includes('mac')) return 'macos'
+    if (userAgent.includes('linux')) return 'linux'
+    return 'other'
+  }
+
+  const attribution = getAttribution()
+  const platform = detectPlatform(attribution)
+  const recommendationByPlatform: Partial<Record<MigrationPlatform, string>> = {
+    android: 'play',
+    windows: 'desktop',
+    macos: 'desktop',
+    linux: 'desktop',
+  }
+  const choiceOrder: Record<MigrationPlatform, string[]> = {
+    chromeos: ['play', 'crostini', 'desktop'],
+    android: ['play', 'desktop', 'crostini'],
+    windows: ['desktop', 'play', 'crostini'],
+    macos: ['desktop', 'play', 'crostini'],
+    linux: ['desktop', 'play', 'crostini'],
+    other: ['desktop', 'play', 'crostini'],
+  }
+  const recommendedChoice = recommendationByPlatform[platform]
+
+  const choices = document.getElementById('migration-choices')
+  if (choices) {
+    const cards = Array.from(choices.querySelectorAll('[data-choice]')).filter(
+      (element): element is HTMLElement => element instanceof HTMLElement,
+    )
+    for (const choice of choiceOrder[platform]) {
+      const card = cards.find((element) => element.dataset.choice === choice)
+      if (card) choices.append(card)
+    }
+
+    const recommendedCard = cards.find(
+      (element) => element.dataset.choice === recommendedChoice,
+    )
+    const otherOptionsHeading = document.getElementById('other-options-heading')
+    if (recommendedCard && otherOptionsHeading) {
+      recommendedCard.classList.add('recommended')
+      const recommendation = recommendedCard.querySelector('[data-recommendation]')
+      if (recommendation instanceof HTMLElement) recommendation.hidden = false
+      recommendedCard.insertAdjacentElement('afterend', otherOptionsHeading)
+      otherOptionsHeading.hidden = false
+    }
+  }
+
+  document.querySelectorAll('[data-migration-link]').forEach((element) => {
+    if (!(element instanceof HTMLAnchorElement)) return
+    const destination = new URL(element.href, location.href)
+    attribution.forEach((value, key) => destination.searchParams.set(key, value))
+    element.href = destination.toString()
+  })
+
+  const extensionStatus = document.getElementById('extension-status')
+  const chromeApi = (globalThis as typeof globalThis & { chrome?: MigrationChromeApi }).chrome
+  try {
+    const chromeRuntime = chromeApi?.runtime
+    if (chromeRuntime) {
+      chromeRuntime.sendMessage(extensionId, { type: 'ping' }, (response) => {
+        if (!chromeRuntime.lastError && response?.installed && extensionStatus) {
+          extensionStatus.hidden = false
+        }
+      })
+    }
+  } catch {}
+</script>

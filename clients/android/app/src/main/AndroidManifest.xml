@@ -10,10 +10,10 @@
     <application
         android:name=".RstorrentApplication"
         android:allowBackup="false"
-        android:icon="@drawable/ic_rstorrent_launcher"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:roundIcon="@drawable/ic_rstorrent_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
@@ -30,6 +30,9 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="rstorrent"
+                    android:host="chromeos-companion" />
+                <data
+                    android:scheme="jstorrent"
                     android:host="chromeos-companion" />
             </intent-filter>
             <intent-filter>

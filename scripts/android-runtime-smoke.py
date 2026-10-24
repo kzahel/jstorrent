@@ -91,7 +91,10 @@ def summarize(output: str) -> dict:
     if (profile.get("force_recheck") != "passed" or profile.get("removal") != "exact"
             or profile.get("preconfirm_content_upload") != 0
             or profile.get("local_torrent_cancel") != "joined_keep_payload"
-            or profile.get("selection", {}).get("skipped_files_absent") is not True):
+            or profile.get("selection", {}).get("skipped_files_absent") is not True
+            or profile.get("download_all_before_metadata") != "confirmed"
+            or profile.get("download_all_source_selection") != "explicit_all_overrides_so"
+            or profile.get("download_all_files") != "hash_verified"):
         raise SmokeFailure("invalid_runtime_evidence")
     metrics = profile.get("storage_metrics", {})
     numeric = {key: value for key, value in metrics.items()
@@ -101,10 +104,22 @@ def summarize(output: str) -> dict:
         raise SmokeFailure("missing_resource_evidence")
     if numeric["owned_high_water"] > numeric["limit"]:
         raise SmokeFailure("resource_limit")
+    all_metrics = profile.get("download_all_storage_metrics", {})
+    all_numeric = {key: value for key, value in all_metrics.items()
+                   if key in {"limit", "owned_high_water", "owned", "cached", "pending"}
+                   and type(value) is int and value >= 0}
+    if "limit" not in all_numeric or "owned_high_water" not in all_numeric:
+        raise SmokeFailure("missing_resource_evidence")
+    if all_numeric["owned_high_water"] > all_numeric["limit"]:
+        raise SmokeFailure("resource_limit")
     return {"profile": "product-file-selection", "force_recheck": "passed",
             "removal": "exact", "skipped_files_absent": True,
             "preconfirm_content_upload": 0, "local_torrent_cancel": "joined_keep_payload",
-            "storage_metrics": numeric, "cleanup": "ok"}
+            "storage_metrics": numeric, "cleanup": "ok",
+            "download_all_before_metadata": "confirmed",
+            "download_all_files": "hash_verified",
+            "download_all_source_selection": "explicit_all_overrides_so",
+            "download_all_storage_metrics": all_numeric}
 
 
 def main() -> int:

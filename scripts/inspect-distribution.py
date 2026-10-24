@@ -34,7 +34,7 @@ def bounded_paths(root):
                 yield Path(entry.path)
 
 
-def inspect(root, require_notices=True, require_native=False):
+def inspect(root, require_notices=True, require_native=False, require_mit_native=False):
     root = root.resolve(strict=True)
     native_expected = require_native or (require_notices and (root / 'AppRun').exists())
     files, notice_manifests = [], []
@@ -99,6 +99,12 @@ def inspect(root, require_notices=True, require_native=False):
     if require_notices and len(notice_manifests) != 1:
         raise ValueError('distribution must contain exactly one dependency notice bundle')
     native = verify_native_notices(root) if native_expected else None
+    if require_mit_native:
+        from linux_native import load_build, verify_known_gpl_absent
+        if not native or not json.loads((root / 'usr/share/rstorrent/native-notices/manifest.json').read_text()).get('custom_source_build'):
+            raise ValueError('MIT-compatible Linux package lacks custom source-build provenance')
+        load_build(root / 'usr/share/rstorrent/native-notices/custom-source', appdir=root)
+        native['known_gpl_gate'] = verify_known_gpl_absent(root)
     return {'schema': 1, 'native_notices': native, 'files': sorted(files, key=lambda f: f['path']), 'total_bytes': total,
             'notice_manifests': notice_manifests,
             'scope': 'file inventory, bounded text signatures and Rust/npm notice integrity; '
@@ -111,10 +117,12 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--require-native-notices', action='store_true',
                         help='require the AppImage native manifest even if its launcher is missing')
+    parser.add_argument('--require-mit-native', action='store_true',
+                        help='require new Linux source-build provenance and exclude reviewed GPL-only library chains')
     parser.add_argument('--historical-without-notices', action='store_true',
                         help='inventory old public packages; never use for a new release gate')
     args = parser.parse_args()
-    result = inspect(args.root, not args.historical_without_notices, args.require_native_notices)
+    result = inspect(args.root, not args.historical_without_notices, args.require_native_notices, args.require_mit_native)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + '\n')
     print(f"Inspected {len(result['files'])} package entries; {len(result['notice_manifests'])} notice bundles")

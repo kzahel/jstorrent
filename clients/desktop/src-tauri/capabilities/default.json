@@ -2,6 +2,37 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Core desktop window and updater capability",
-  "windows": ["main"],
-  "permissions": ["core:default", "updater:default"]
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "updater:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://github.com/kzahel/jstorrent/issues"
+        },
+        {
+          "url": "https://github.com/kzahel/jstorrent/issues/new"
+        },
+        {
+          "url": "https://github.com/kzahel/jstorrent/issues/new[?]*"
+        },
+        {
+          "url": "https://jstorrent.com/feedback.html[?]*"
+        },
+        {
+          "url": "https://jstorrent.com/support/"
+        },
+        {
+          "url": "https://github.com/kzahel/jstorrent/releases/latest"
+        },
+        {
+          "url": "https://github.com/kzahel/jstorrent/releases/tag/*"
+        }
+      ]
+    }
+  ]
 }

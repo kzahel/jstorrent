@@ -54,6 +54,140 @@ pub enum ActiveSeedLimit {
     },
 }
 
+/// A session-wide seeding stop limit. `value` is a share ratio in percent
+/// or a seeding time in seconds, depending on the setting that holds it.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum SeedStopLimit {
+    #[default]
+    Off,
+    Limited {
+        #[schemars(range(min = 0, max = 2_147_483_647))]
+        value: u32,
+    },
+}
+
+impl SeedStopLimit {
+    pub(crate) fn validate(self, field: &'static str) -> Result<(), ClientSettingsError> {
+        if let Self::Limited { value } = self
+            && value > MAX_SEED_GOAL_VALUE
+        {
+            return Err(ClientSettingsError::SeedStopLimit { field, value });
+        }
+        Ok(())
+    }
+
+    pub(crate) const fn value(self) -> Option<u32> {
+        match self {
+            Self::Off => None,
+            Self::Limited { value } => Some(value),
+        }
+    }
+
+    pub(crate) const fn persisted(self) -> Option<i64> {
+        match self {
+            Self::Off => None,
+            Self::Limited { value } => Some(value as i64),
+        }
+    }
+
+    pub(crate) fn from_persisted(
+        field: &'static str,
+        value: Option<i64>,
+    ) -> Result<Self, ClientSettingsError> {
+        let limit = match value {
+            None => Self::Off,
+            Some(value) => Self::Limited {
+                value: u32::try_from(value).map_err(|_| ClientSettingsError::SeedStopLimit {
+                    field,
+                    value: u32::MAX,
+                })?,
+            },
+        };
+        limit.validate(field)?;
+        Ok(limit)
+    }
+}
+
+/// A torrent's own seeding stop limit, overriding the session limit.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum TorrentSeedStopLimit {
+    #[default]
+    UseGlobal,
+    Off,
+    Limited {
+        #[schemars(range(min = 0, max = 2_147_483_647))]
+        value: u32,
+    },
+}
+
+impl TorrentSeedStopLimit {
+    pub(crate) fn validate(self, field: &'static str) -> Result<(), ClientSettingsError> {
+        if let Self::Limited { value } = self
+            && value > MAX_SEED_GOAL_VALUE
+        {
+            return Err(ClientSettingsError::SeedStopLimit { field, value });
+        }
+        Ok(())
+    }
+
+    pub(crate) const fn resolve(self, global: SeedStopLimit) -> SeedStopLimit {
+        match self {
+            Self::UseGlobal => global,
+            Self::Off => SeedStopLimit::Off,
+            Self::Limited { value } => SeedStopLimit::Limited { value },
+        }
+    }
+
+    /// Stored as NULL for the session limit, -1 for no limit, or the value.
+    pub(crate) const fn persisted(self) -> Option<i64> {
+        match self {
+            Self::UseGlobal => None,
+            Self::Off => Some(-1),
+            Self::Limited { value } => Some(value as i64),
+        }
+    }
+
+    pub(crate) fn from_persisted(
+        field: &'static str,
+        value: Option<i64>,
+    ) -> Result<Self, ClientSettingsError> {
+        let limit = match value {
+            None => Self::UseGlobal,
+            Some(-1) => Self::Off,
+            Some(value) => Self::Limited {
+                value: u32::try_from(value).map_err(|_| ClientSettingsError::SeedStopLimit {
+                    field,
+                    value: u32::MAX,
+                })?,
+            },
+        };
+        limit.validate(field)?;
+        Ok(limit)
+    }
+}
+
+/// A torrent's own seeding stop limits.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(deny_unknown_fields)]
+pub struct TorrentSeedStopLimits {
+    /// Share ratio in percent.
+    pub ratio_percent: TorrentSeedStopLimit,
+    /// Seeding time in seconds.
+    pub time_seconds: TorrentSeedStopLimit,
+}
+
+impl TorrentSeedStopLimits {
+    pub(crate) fn validate(self) -> Result<(), ClientSettingsError> {
+        self.ratio_percent.validate("seed stop ratio")?;
+        self.time_seconds.validate("seed stop time")
+    }
+}
+
 impl Default for ActiveSeedLimit {
     fn default() -> Self {
         Self::Limited {
@@ -185,11 +319,28 @@ pub struct TorrentSettingsPatch {
     )]
     #[schemars(with = "TransferRateLimit")]
     pub download_rate_limit: Option<TransferRateLimit>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_optional_patch_value"
+    )]
+    #[schemars(with = "TorrentSeedStopLimit")]
+    pub seed_stop_ratio_percent: Option<TorrentSeedStopLimit>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_optional_patch_value"
+    )]
+    #[schemars(with = "TorrentSeedStopLimit")]
+    pub seed_stop_time_seconds: Option<TorrentSeedStopLimit>,
 }
 
 impl TorrentSettingsPatch {
     pub(crate) const fn is_empty(self) -> bool {
-        self.upload_rate_limit.is_none() && self.download_rate_limit.is_none()
+        self.upload_rate_limit.is_none()
+            && self.download_rate_limit.is_none()
+            && self.seed_stop_ratio_percent.is_none()
+            && self.seed_stop_time_seconds.is_none()
     }
 
     pub(crate) fn validate(self) -> Result<(), ClientSettingsError> {
@@ -199,7 +350,27 @@ impl TorrentSettingsPatch {
         if let Some(limit) = self.download_rate_limit {
             limit.validate()?;
         }
+        if let Some(limit) = self.seed_stop_ratio_percent {
+            limit.validate("seed stop ratio")?;
+        }
+        if let Some(limit) = self.seed_stop_time_seconds {
+            limit.validate("seed stop time")?;
+        }
         Ok(())
+    }
+
+    pub(crate) fn apply_to_seed_stop(
+        self,
+        current: TorrentSeedStopLimits,
+    ) -> Result<TorrentSeedStopLimits, ClientSettingsError> {
+        let candidate = TorrentSeedStopLimits {
+            ratio_percent: self
+                .seed_stop_ratio_percent
+                .unwrap_or(current.ratio_percent),
+            time_seconds: self.seed_stop_time_seconds.unwrap_or(current.time_seconds),
+        };
+        candidate.validate()?;
+        Ok(candidate)
     }
 
     pub(crate) fn apply_to(
@@ -220,6 +391,7 @@ impl From<TorrentTransferLimits> for TorrentSettingsPatch {
         Self {
             upload_rate_limit: Some(limits.upload),
             download_rate_limit: Some(limits.download),
+            ..Self::default()
         }
     }
 }
@@ -304,6 +476,8 @@ impl EffectiveListenerSettings {
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(deny_unknown_fields)]
 pub struct ClientSettings {
+    #[serde(default)]
+    pub file_safety: crate::FileSafetySettings,
     pub listener: ListenerPolicy,
     #[schemars(range(min = 1_024))]
     pub preferred_listen_port: u16,
@@ -326,6 +500,12 @@ pub struct ClientSettings {
     #[serde(default = "default_finished_time_limit_seconds")]
     #[schemars(range(min = 0, max = 2_147_483_647))]
     pub finished_time_limit_seconds: u32,
+    /// Stop a finished torrent once its share ratio reaches this percent.
+    #[serde(default)]
+    pub seed_stop_ratio_percent: SeedStopLimit,
+    /// Stop a finished torrent once it has seeded this many seconds.
+    #[serde(default)]
+    pub seed_stop_time_seconds: SeedStopLimit,
     #[serde(default)]
     pub upload_rate_limit: TransferRateLimit,
     #[serde(default)]
@@ -342,6 +522,7 @@ pub struct ClientSettings {
 impl Default for ClientSettings {
     fn default() -> Self {
         Self {
+            file_safety: crate::FileSafetySettings::default(),
             listener: ListenerPolicy::Disabled,
             preferred_listen_port: DEFAULT_PREFERRED_LISTEN_PORT,
             port_mapping: PortMappingPolicy::Disabled,
@@ -354,6 +535,8 @@ impl Default for ClientSettings {
             share_ratio_limit_percent: DEFAULT_SHARE_RATIO_LIMIT_PERCENT,
             finished_download_ratio_limit_percent: DEFAULT_FINISHED_DOWNLOAD_RATIO_LIMIT_PERCENT,
             finished_time_limit_seconds: DEFAULT_FINISHED_TIME_LIMIT_SECONDS,
+            seed_stop_ratio_percent: SeedStopLimit::Off,
+            seed_stop_time_seconds: SeedStopLimit::Off,
             upload_rate_limit: TransferRateLimit::Unlimited,
             download_rate_limit: TransferRateLimit::Unlimited,
             encryption: EncryptionPolicy::Allow,
@@ -382,6 +565,9 @@ impl ClientSettings {
     }
 
     pub fn validate(&self) -> Result<(), ClientSettingsError> {
+        self.file_safety
+            .validate()
+            .map_err(|message| ClientSettingsError::FileSafety { message })?;
         if self.preferred_listen_port < MIN_PREFERRED_LISTEN_PORT {
             return Err(ClientSettingsError::PreferredListenerPort {
                 port: self.preferred_listen_port,
@@ -423,6 +609,8 @@ impl ClientSettings {
                 return Err(ClientSettingsError::SeedGoal { field, value });
             }
         }
+        self.seed_stop_ratio_percent.validate("seed stop ratio")?;
+        self.seed_stop_time_seconds.validate("seed stop time")?;
         self.upload_rate_limit.validate()?;
         self.download_rate_limit.validate()?;
         Ok(())
@@ -510,6 +698,20 @@ pub struct ClientSettingsPatch {
         skip_serializing_if = "Option::is_none",
         deserialize_with = "deserialize_optional_patch_value"
     )]
+    #[schemars(with = "SeedStopLimit")]
+    pub seed_stop_ratio_percent: Option<SeedStopLimit>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_optional_patch_value"
+    )]
+    #[schemars(with = "SeedStopLimit")]
+    pub seed_stop_time_seconds: Option<SeedStopLimit>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_optional_patch_value"
+    )]
     #[schemars(with = "TransferRateLimit")]
     pub upload_rate_limit: Option<TransferRateLimit>,
     #[serde(
@@ -568,6 +770,8 @@ impl ClientSettingsPatch {
             && self.share_ratio_limit_percent.is_none()
             && self.finished_download_ratio_limit_percent.is_none()
             && self.finished_time_limit_seconds.is_none()
+            && self.seed_stop_ratio_percent.is_none()
+            && self.seed_stop_time_seconds.is_none()
             && self.upload_rate_limit.is_none()
             && self.download_rate_limit.is_none()
             && self.encryption.is_none()
@@ -586,6 +790,7 @@ impl ClientSettingsPatch {
         current: &ClientSettings,
     ) -> Result<ClientSettings, ClientSettingsError> {
         let candidate = ClientSettings {
+            file_safety: current.file_safety.clone(),
             listener: self.listener.unwrap_or(current.listener),
             preferred_listen_port: self
                 .preferred_listen_port
@@ -606,6 +811,12 @@ impl ClientSettingsPatch {
             finished_time_limit_seconds: self
                 .finished_time_limit_seconds
                 .unwrap_or(current.finished_time_limit_seconds),
+            seed_stop_ratio_percent: self
+                .seed_stop_ratio_percent
+                .unwrap_or(current.seed_stop_ratio_percent),
+            seed_stop_time_seconds: self
+                .seed_stop_time_seconds
+                .unwrap_or(current.seed_stop_time_seconds),
             upload_rate_limit: self.upload_rate_limit.unwrap_or(current.upload_rate_limit),
             download_rate_limit: self
                 .download_rate_limit
@@ -640,6 +851,8 @@ impl From<ClientSettings> for ClientSettingsPatch {
                 settings.finished_download_ratio_limit_percent,
             ),
             finished_time_limit_seconds: Some(settings.finished_time_limit_seconds),
+            seed_stop_ratio_percent: Some(settings.seed_stop_ratio_percent),
+            seed_stop_time_seconds: Some(settings.seed_stop_time_seconds),
             upload_rate_limit: Some(settings.upload_rate_limit),
             download_rate_limit: Some(settings.download_rate_limit),
             encryption: Some(settings.encryption),
@@ -681,6 +894,7 @@ const fn default_finished_time_limit_seconds() -> u32 {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ClientSettingsError {
+    FileSafety { message: &'static str },
     PreferredListenerPort { port: u16 },
     FixedListenerPort { port: u16 },
     PeerConnectionLimit { value: u32 },
@@ -688,12 +902,14 @@ pub enum ClientSettingsError {
     ActiveDownloads { value: u16 },
     ActiveSeeds { value: u16 },
     SeedGoal { field: &'static str, value: u32 },
+    SeedStopLimit { field: &'static str, value: u32 },
     TransferRateLimit { value: u32 },
 }
 
 impl fmt::Display for ClientSettingsError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::FileSafety { message } => formatter.write_str(message),
             Self::PreferredListenerPort { .. } => write!(
                 formatter,
                 "preferred listener port must be {MIN_PREFERRED_LISTEN_PORT}..=65535"
@@ -722,6 +938,10 @@ impl fmt::Display for ClientSettingsError {
             Self::SeedGoal { field, .. } => write!(
                 formatter,
                 "{field} seed goal must be 0..={MAX_SEED_GOAL_VALUE}"
+            ),
+            Self::SeedStopLimit { field, .. } => write!(
+                formatter,
+                "{field} limit must be off or 0..={MAX_SEED_GOAL_VALUE}"
             ),
             Self::TransferRateLimit { .. } => write!(
                 formatter,

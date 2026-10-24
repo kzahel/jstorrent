@@ -1,0 +1,201 @@
+name: Fast CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fast-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  plan:
+    name: Select fast checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      rust: ${{ steps.plan.outputs.rust }}
+      unitTests: ${{ steps.plan.outputs.unitTests }}
+      packages: ${{ steps.plan.outputs.packages }}
+      test-packages: ${{ steps.plan.outputs.testPackages }}
+      web: ${{ steps.plan.outputs.web }}
+      contract: ${{ steps.plan.outputs.contract }}
+      extension: ${{ steps.plan.outputs.extension }}
+      website: ${{ steps.plan.outputs.website }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.18.0
+      - uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613 # 1.97.0
+        with:
+          components: rustfmt
+      - name: Select affected crates and surfaces
+        id: plan
+        env:
+          FAST_CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node .github/scripts/fast-ci.mjs plan
+      - name: Check Rust formatting
+        if: steps.plan.outputs.rust == 'true'
+        run: cargo fmt --all -- --check
+
+  rust:
+    name: Fast Rust lint and unit tests
+    needs: plan
+    if: needs.plan.outputs.rust == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      FAST_CI_PACKAGES: ${{ needs.plan.outputs.packages }}
+      FAST_CI_TEST_PACKAGES: ${{ needs.plan.outputs.test-packages }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.18.0
+      - uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613 # 1.97.0
+        with:
+          components: clippy
+      - name: Restore ordinary CI dependency cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: ci-rust-ubuntu-24.04
+          save-if: 'false'
+      - name: Lint affected portable targets
+        run: node .github/scripts/fast-ci.mjs lint
+      - name: Compile directly changed portable unit tests
+        if: needs.plan.outputs.unitTests == 'true'
+        run: node .github/scripts/fast-ci.mjs compile
+      - name: Run directly changed portable unit tests
+        if: needs.plan.outputs.unitTests == 'true'
+        run: node .github/scripts/fast-ci.mjs test
+      - name: Retain bounded compilation timings
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fast-rust-timings-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/cargo-timings/*.html
+          if-no-files-found: ignore
+          retention-days: 7
+
+  contract:
+    name: Fast generated contract checks
+    needs: plan
+    if: needs.plan.outputs.contract == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      FAST_CI_PACKAGES: '["rstorrent-gateway"]'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.18.0
+      - uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613 # 1.97.0
+      - name: Restore ordinary contract dependency cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: ci-web-contract-ubuntu-24.04
+          save-if: 'false'
+      - name: Verify the generated application contract
+        run: node .github/scripts/fast-ci.mjs contract
+
+  web:
+    name: Fast web and extension checks
+    needs: plan
+    if: needs.plan.outputs.web == 'true' || needs.plan.outputs.extension == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: clients/web/package-lock.json
+      - run: npm ci --prefix clients/web
+      - name: Typecheck, unit test and build the web product
+        if: needs.plan.outputs.web == 'true'
+        run: |
+          npm run typecheck --prefix clients/web
+          npm run test --prefix clients/web
+          npm run build --prefix clients/web
+      - name: Test and package the companion extension
+        if: needs.plan.outputs.extension == 'true'
+        run: |
+          npm test --prefix clients/extension
+          npm run package --prefix clients/extension
+
+  website:
+    name: Fast website checks
+    needs: plan
+    if: needs.plan.outputs.website == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci --prefix website
+      - run: npm test --prefix website
+      - run: npm run build --prefix website
+
+  tools:
+    name: Fast workflow and review safety checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.18.0
+      - run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.9
+      - run: node --test .github/scripts/fast-ci.test.mjs .github/agent-review/review.test.mjs
+
+  gate:
+    name: Fast PR feedback
+    needs: [plan, rust, contract, web, website, tools]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Require every selected check to pass
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: node .github/scripts/fast-ci.mjs gate

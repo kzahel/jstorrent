@@ -12,14 +12,14 @@ import {
 import styles from "./PieceMapPanel.module.css";
 
 const LEGEND = [
-  ["Missing", "var(--surface-tertiary)", null],
-  ["Mixed bucket", "var(--success)", "mixed"],
-  ["Verified", "var(--success)", null],
-  ["Requested", "var(--warning)", null],
-  ["Received", "var(--accent)", null],
-  ["Stored", "#6c77cf", null],
-  ["Hashing", "#9b58b5", null],
-  ["Failed", "var(--danger)", "failed"],
+  ["Missing", "var(--piece-missing)", null],
+  ["Mixed bucket", "var(--piece-mixed)", "mixed"],
+  ["Verified", "var(--piece-verified)", null],
+  ["Requested", "var(--piece-requested)", null],
+  ["Received", "var(--piece-received)", null],
+  ["Stored", "var(--piece-stored)", null],
+  ["Hashing", "var(--piece-hashing)", null],
+  ["Failed", "var(--piece-failed)", "failed"],
 ] as const;
 
 export function PieceMapPanel({ torrentId }: { readonly torrentId: string }) {
@@ -162,14 +162,14 @@ function pieceColors(computed: CSSStyleDeclaration) {
   const color = (name: string, fallback: string) =>
     computed.getPropertyValue(name).trim() || fallback;
   return {
-    [PieceCellState.Missing]: color("--piece-missing", "#edf1f5"),
-    [PieceCellState.Mixed]: color("--piece-mixed", "#2c9b69"),
-    [PieceCellState.Verified]: color("--piece-verified", "#2c9b69"),
-    [PieceCellState.Requested]: color("--piece-requested", "#d3982e"),
-    [PieceCellState.Received]: color("--piece-received", "#2477d1"),
-    [PieceCellState.Stored]: color("--piece-stored", "#6c77cf"),
-    [PieceCellState.Hashing]: color("--piece-hashing", "#9b58b5"),
-    [PieceCellState.Failed]: color("--piece-failed", "#d84d4d"),
+    [PieceCellState.Missing]: color("--piece-missing", "#efebe6"),
+    [PieceCellState.Mixed]: color("--piece-mixed", "#1f8eee"),
+    [PieceCellState.Verified]: color("--piece-verified", "#1f8eee"),
+    [PieceCellState.Requested]: color("--piece-requested", "#d39a3a"),
+    [PieceCellState.Received]: color("--piece-received", "#80c7ff"),
+    [PieceCellState.Stored]: color("--piece-stored", "#6f7fc4"),
+    [PieceCellState.Hashing]: color("--piece-hashing", "#9a6aa8"),
+    [PieceCellState.Failed]: color("--piece-failed", "#b3402f"),
     pattern: color("--piece-pattern", "#ffffff"),
   };
 }
@@ -189,8 +189,7 @@ function EmptyPieceMap({
     materialization.status === "loading"
       ? "Loading verified and active piece state…"
       : materialization.status === "unavailable" ||
-          materialization.status === "unsupported" ||
-          materialization.status === "stale"
+          materialization.status === "unsupported"
         ? materialization.reason
         : "Piece geometry will appear after verified metadata is available.";
   return (

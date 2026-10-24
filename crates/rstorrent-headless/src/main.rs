@@ -58,6 +58,9 @@ async fn execute() -> Result<(), rstorrent_headless::runtime::HeadlessError> {
             return update(true).await;
         }
         [command] if command == "uninstall" => return uninstall(),
+        [command, rest @ ..] if command == "export-torrent-list" => {
+            return export_torrent_list(rest);
+        }
         _ => {}
     }
     let config_path = parse_config_path(arguments.into_iter())?;
@@ -68,7 +71,13 @@ async fn execute() -> Result<(), rstorrent_headless::runtime::HeadlessError> {
         wait_for_shutdown_signal().await;
         signal_shutdown.cancel();
     });
-    let report = run_installed_service(&config_path, &layout, shutdown).await?;
+    let report = match run_installed_service(&config_path, &layout, shutdown).await {
+        Ok(report) => report,
+        Err(error) => {
+            explain_catalog_failure(&config_path, &error.to_string());
+            return Err(error);
+        }
+    };
     eprintln!(
         "headless stopped version={} listeners={} shutdown_millis={}",
         report.version,
@@ -80,6 +89,84 @@ async fn execute() -> Result<(), rstorrent_headless::runtime::HeadlessError> {
             .join(","),
         report.shutdown_elapsed.as_millis()
     );
+    Ok(())
+}
+
+/// Tactical 369: when the torrent catalog will not open, say why and how to
+/// save the torrent list. Never changes the profile.
+fn explain_catalog_failure(config_path: &Path, failure: &str) {
+    let Ok(config) = config::load(config_path) else {
+        return;
+    };
+    if !config.profile_root.join("session.db").is_file() {
+        return;
+    }
+    let status = rstorrent_session::diagnose_catalog(&config.profile_root, failure);
+    let reason = match status.reason {
+        rstorrent_session::CatalogRecoveryReason::MigrationFailed => {
+            "the torrent list could not be updated to this version; it is unchanged and an update will fix this"
+        }
+        rstorrent_session::CatalogRecoveryReason::NewerVersion => {
+            "the torrent list is from a newer version; install the latest version"
+        }
+        rstorrent_session::CatalogRecoveryReason::RetiredVersion => {
+            "the torrent list is from an early test version this version cannot read"
+        }
+        rstorrent_session::CatalogRecoveryReason::Locked => {
+            "another running copy is using the torrent list; stop it and try again"
+        }
+        rstorrent_session::CatalogRecoveryReason::Unreadable => return,
+    };
+    eprintln!("rstorrent-headless: {reason}");
+    if status.export_available {
+        eprintln!(
+            "rstorrent-headless: to save the torrent list, run: rstorrent-headless export-torrent-list --output /absolute/path/torrents.zip"
+        );
+    }
+}
+
+/// `export-torrent-list --output <file> [--config <file>]`: writes the torrent
+/// list bundle without opening the catalog for writing (Tactical 369).
+fn export_torrent_list(
+    arguments: &[String],
+) -> Result<(), rstorrent_headless::runtime::HeadlessError> {
+    let mut output = None;
+    let mut config_path = None;
+    let mut arguments = arguments.iter();
+    while let Some(flag) = arguments.next() {
+        let value = arguments
+            .next()
+            .map(PathBuf::from)
+            .filter(|path| path.is_absolute())
+            .ok_or_else(|| configuration_error(format!("{flag} requires an absolute path")))?;
+        match flag.as_str() {
+            "--output" if output.is_none() => output = Some(value),
+            "--config" if config_path.is_none() => config_path = Some(value),
+            _ => {
+                return Err(configuration_error(
+                    "usage: export-torrent-list --output <file> [--config <file>]",
+                ));
+            }
+        }
+    }
+    let output = output.ok_or_else(|| {
+        configuration_error("usage: export-torrent-list --output <file> [--config <file>]")
+    })?;
+    if output.exists() {
+        return Err(configuration_error(format!(
+            "{} already exists; choose a new file",
+            output.display()
+        )));
+    }
+    let config = config::load(&match config_path {
+        Some(path) => path,
+        None => default_config_path()?,
+    })?;
+    let bundle = rstorrent_session::export_torrent_list_read_only(&config.profile_root)
+        .map_err(|error| configuration_error(error.to_string()))?;
+    std::fs::write(&output, bundle)
+        .map_err(|error| configuration_error(format!("write {}: {error}", output.display())))?;
+    println!("saved the torrent list to {}", output.display());
     Ok(())
 }
 
@@ -191,12 +278,12 @@ async fn update(apply: bool) -> Result<(), rstorrent_headless::runtime::Headless
     let layout = InstalledLayout::discover()?;
     let client = UpdateClient::production()?;
     let Some(candidate) = client.check(&layout.version).await? else {
-        println!("RSTorrent Headless {} is up to date.", layout.version);
+        println!("JSTorrent Headless {} is up to date.", layout.version);
         return Ok(());
     };
     if !apply {
         println!(
-            "RSTorrent Headless {} is available (current {}).",
+            "JSTorrent Headless {} is available (current {}).",
             candidate.version(),
             layout.version
         );
@@ -205,12 +292,12 @@ async fn update(apply: bool) -> Result<(), rstorrent_headless::runtime::Headless
         return Ok(());
     }
     println!(
-        "Downloading and verifying RSTorrent Headless {}...",
+        "Downloading and verifying JSTorrent Headless {}...",
         candidate.version()
     );
     let outcome = client.apply(&candidate).await?;
     println!(
-        "Installed RSTorrent Headless {} with health-checked service recovery.",
+        "Installed JSTorrent Headless {} with health-checked service recovery.",
         outcome.version
     );
     Ok(())
@@ -224,7 +311,7 @@ fn install(bundle: &Path) -> Result<(), rstorrent_headless::runtime::HeadlessErr
     }
     let outcome = installer::install_bundle(bundle)?;
     let paths = installer::InstallPaths::system()?;
-    println!("Installed RSTorrent Headless {}.", outcome.version);
+    println!("Installed JSTorrent Headless {}.", outcome.version);
     if outcome.config_example_created {
         println!(
             "Created protected configuration example: {}",
@@ -262,7 +349,7 @@ fn print_status() -> Result<(), rstorrent_headless::runtime::HeadlessError> {
 fn uninstall() -> Result<(), rstorrent_headless::runtime::HeadlessError> {
     let paths = installer::InstallPaths::system()?;
     installer::uninstall()?;
-    println!("Removed RSTorrent Headless application files and user service.");
+    println!("Removed JSTorrent Headless application files and user service.");
     println!("Preserved configuration: {}", paths.config.display());
     println!(
         "Preserved configuration example: {}",

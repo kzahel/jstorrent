@@ -26,6 +26,7 @@ rstorrent-gateway = { path = "../rstorrent-gateway" }
 rstorrent-media = { path = "../rstorrent-media" }
 rstorrent-protocol = { path = "../rstorrent-protocol" }
 rstorrent-session = { path = "../rstorrent-session", features = ["uniffi"] }
+serde_json.workspace = true
 sha1.workspace = true
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "time"] }
 tokio-util.workspace = true

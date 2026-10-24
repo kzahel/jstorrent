@@ -1,0 +1,490 @@
+{
+  "schemaVersion": 1,
+  "qualification": "Original released HTTPS updater installs pinned signed successor; bounded Linux x64, Windows x64 and macOS arm64 installed evidence",
+  "candidateSourceSha": "19eb3a88703088a2dfebb803342394938d305cb8",
+  "candidateRunId": "36845370571",
+  "candidateAttempt": 1,
+  "legacyVersion": "0.2.1",
+  "candidateVersion": "0.3.0",
+  "serverCommit": "f45885c",
+  "httpsIsolationChecks": 27,
+  "ordinaryResponsesByteIdentical": true,
+  "runs": {
+    "auto-macos": {
+      "legacyArchiveSha256": "4bc5e979635fe9283d9ba60e43f86bfadcf619adf546cdbe4b68b27d424343f1",
+      "candidateArchiveSha256": "02431fc88e1790ee276f1e04405582ce9db8fefc6d3b996981b0c57f095a8516",
+      "checks": [
+        "pre-handshake-host-blocks-before-catalog",
+        "registration-failure-blocks-before-catalog",
+        "old-unmodified-HTTPS-check-offers-pinned-successor",
+        "old-updater-download-authenticates-and-installs-successor",
+        "four-record-import-and-paused-intent",
+        "valid-and-corrupt-reverification",
+        "missing-root-not-created",
+        "nine-registered-refusal-routes",
+        "restart-identities-and-single-marker",
+        "source-and-payload-preserved"
+      ],
+      "legacyBinaries": {
+        "jstorrent-desktop": "f008e2d00e7e414e16096d1ea319d870807ddeddb25d459740b01a0727b019e7",
+        "jstorrent-host": "cc5faaefa59e72d6ac098251ea7cc7c9ec90b35711c342a1211faa01e04a0411",
+        "jstorrent-io-daemon": "57b77c713f4f6b09c955f73694bd3dce7731042093d215e1ec64871d15f88f56"
+      },
+      "candidateBinarySha256": "751fb1f4b25db1277334011567d160a040e0b313822f117a447337955e9a04fe",
+      "imported": 4,
+      "status": "passed"
+    },
+    "auto-linux": {
+      "platform": "linux",
+      "legacyPackageSha256": "1c35bb7dd5bdefcd780c19fc09e160dc7b0e6a5a2ada35f07007089d85e180df",
+      "candidatePackageSha256": "ed3ffbdaff48d97b3857b77038009cfe6fef2c95d70b48797303cd133a8b4eae",
+      "checks": [
+        "pre-handshake-host-blocks-before-catalog",
+        "registration-failure-blocks-before-catalog",
+        "old-unmodified-HTTPS-check-offers-pinned-successor",
+        "old-updater-download-authenticates-and-installs-successor",
+        "four-record-import-and-paused-intent",
+        "valid-and-corrupt-reverification",
+        "missing-root-not-created",
+        "installed-refusal-routes",
+        "restart-identities-and-single-marker",
+        "source-and-payload-preserved"
+      ],
+      "legacyBinaries": [
+        "e7b93708c0c9f9218a2402efae373ce5c56b9d00463ae5c7944bbad15e9dfd63",
+        "eaf386835af15b140ff5f9c91680af198554cf9deb9480e571ed60ad2bf8bce1"
+      ],
+      "refusalRoutes": 6,
+      "imported": 4,
+      "status": "passed",
+      "restoration": "passed"
+    },
+    "wrong-linux": {
+      "platform": "linux",
+      "legacyPackageSha256": "1c35bb7dd5bdefcd780c19fc09e160dc7b0e6a5a2ada35f07007089d85e180df",
+      "candidatePackageSha256": "ed3ffbdaff48d97b3857b77038009cfe6fef2c95d70b48797303cd133a8b4eae",
+      "checks": [
+        "pre-handshake-host-blocks-before-catalog",
+        "registration-failure-blocks-before-catalog",
+        "old-unmodified-HTTPS-check-offers-pinned-successor",
+        "wrong-signature-preserves-old-installation",
+        "old-updater-download-authenticates-and-installs-successor",
+        "four-record-import-and-paused-intent",
+        "valid-and-corrupt-reverification",
+        "missing-root-not-created",
+        "installed-refusal-routes",
+        "restart-identities-and-single-marker",
+        "source-and-payload-preserved"
+      ],
+      "legacyBinaries": [
+        "e7b93708c0c9f9218a2402efae373ce5c56b9d00463ae5c7944bbad15e9dfd63",
+        "eaf386835af15b140ff5f9c91680af198554cf9deb9480e571ed60ad2bf8bce1"
+      ],
+      "refusalRoutes": 6,
+      "imported": 4,
+      "status": "passed",
+      "restoration": "passed"
+    },
+    "interrupted-linux": {
+      "platform": "linux",
+      "legacyPackageSha256": "1c35bb7dd5bdefcd780c19fc09e160dc7b0e6a5a2ada35f07007089d85e180df",
+      "candidatePackageSha256": "ed3ffbdaff48d97b3857b77038009cfe6fef2c95d70b48797303cd133a8b4eae",
+      "checks": [
+        "pre-handshake-host-blocks-before-catalog",
+        "registration-failure-blocks-before-catalog",
+        "old-unmodified-HTTPS-check-offers-pinned-successor",
+        "interrupted-preserves-old-installation",
+        "old-updater-download-authenticates-and-installs-successor",
+        "four-record-import-and-paused-intent",
+        "valid-and-corrupt-reverification",
+        "missing-root-not-created",
+        "installed-refusal-routes",
+        "restart-identities-and-single-marker",
+        "source-and-payload-preserved"
+      ],
+      "legacyBinaries": [
+        "e7b93708c0c9f9218a2402efae373ce5c56b9d00463ae5c7944bbad15e9dfd63",
+        "eaf386835af15b140ff5f9c91680af198554cf9deb9480e571ed60ad2bf8bce1"
+      ],
+      "refusalRoutes": 6,
+      "imported": 4,
+      "status": "passed",
+      "restoration": "passed"
+    },
+    "gui-macos": {
+      "legacyArchiveSha256": "4bc5e979635fe9283d9ba60e43f86bfadcf619adf546cdbe4b68b27d424343f1",
+      "candidateArchiveSha256": "02431fc88e1790ee276f1e04405582ce9db8fefc6d3b996981b0c57f095a8516",
+      "checks": [
+        "pre-handshake-host-blocks-before-catalog",
+        "registration-failure-blocks-before-catalog",
+        "old-unmodified-HTTPS-check-offers-pinned-successor",
+        "old-updater-download-authenticates-and-installs-successor",
+        "four-record-import-and-paused-intent",
+        "valid-and-corrupt-reverification",
+        "missing-root-not-created",
+        "nine-registered-refusal-routes",
+        "restart-identities-and-single-marker",
+        "source-and-payload-preserved"
+      ],
+      "legacyBinaries": {
+        "jstorrent-desktop": "f008e2d00e7e414e16096d1ea319d870807ddeddb25d459740b01a0727b019e7",
+        "jstorrent-host": "cc5faaefa59e72d6ac098251ea7cc7c9ec90b35711c342a1211faa01e04a0411",
+        "jstorrent-io-daemon": "57b77c713f4f6b09c955f73694bd3dce7731042093d215e1ec64871d15f88f56"
+      },
+      "candidateBinarySha256": "751fb1f4b25db1277334011567d160a040e0b313822f117a447337955e9a04fe",
+      "sourceVerification": "GUI logical values and inactive bytes; all bytes across successor restart",
+      "imported": 4,
+      "status": "passed"
+    },
+    "wrong-macos": {
+      "legacyArchiveSha256": "4bc5e979635fe9283d9ba60e43f86bfadcf619adf546cdbe4b68b27d424343f1",
+      "candidateArchiveSha256": "02431fc88e1790ee276f1e04405582ce9db8fefc6d3b996981b0c57f095a8516",
+      "checks": [
+        "pre-handshake-host-blocks-before-catalog",
+        "registration-failure-blocks-before-catalog",
+        "old-unmodified-HTTPS-check-offers-pinned-successor",
+        "wrong-signature-preserves-old-installation",
+        "old-updater-download-authenticates-and-installs-successor",
+        "four-record-import-and-paused-intent",
+        "valid-and-corrupt-reverification",
+        "missing-root-not-created",
+        "nine-registered-refusal-routes",
+        "restart-identities-and-single-marker",
+        "source-and-payload-preserved"
+      ],
+      "legacyBinaries": {
+        "jstorrent-desktop": "f008e2d00e7e414e16096d1ea319d870807ddeddb25d459740b01a0727b019e7",
+        "jstorrent-host": "cc5faaefa59e72d6ac098251ea7cc7c9ec90b35711c342a1211faa01e04a0411",
+        "jstorrent-io-daemon": "57b77c713f4f6b09c955f73694bd3dce7731042093d215e1ec64871d15f88f56"
+      },
+      "candidateBinarySha256": "751fb1f4b25db1277334011567d160a040e0b313822f117a447337955e9a04fe",
+      "negativeLegacyExecutableSha256": "f008e2d00e7e414e16096d1ea319d870807ddeddb25d459740b01a0727b019e7",
+      "imported": 4,
+      "status": "passed"
+    },
+    "auto-windows": {
+      "platform": "windows",
+      "legacyPackageSha256": "55ce6c119e3ada6b66da3f706e4659aa50f0550fea84d56757ba7180f51047c3",
+      "candidatePackageSha256": "af393292ff4c9cbabd7cc7030146d7a89a149d852b96d423c349347225023dde",
+      "checks": [
+        "pre-handshake-host-blocks-before-catalog",
+        "registration-failure-blocks-before-catalog",
+        "old-unmodified-HTTPS-check-offers-pinned-successor",
+        "old-updater-download-authenticates-and-installs-successor",
+        "four-record-import-and-paused-intent",
+        "valid-and-corrupt-reverification",
+        "missing-root-not-created",
+        "installed-refusal-routes",
+        "restart-identities-and-single-marker",
+        "source-and-payload-preserved"
+      ],
+      "legacyBinaries": [
+        "fb79545830c8aae032820100a0044c2a3ea29763aba2f1d35623025ae82af38c",
+        "6cd89eed30f417b97cb13d123280cdcf7138564d8630e29a1db14a8ed1346754"
+      ],
+      "refusalRoutes": 8,
+      "imported": 4,
+      "status": "passed",
+      "restoration": "passed"
+    },
+    "gui-windows": {
+      "platform": "windows",
+      "legacyPackageSha256": "55ce6c119e3ada6b66da3f706e4659aa50f0550fea84d56757ba7180f51047c3",
+      "candidatePackageSha256": "af393292ff4c9cbabd7cc7030146d7a89a149d852b96d423c349347225023dde",
+      "checks": [
+        "pre-handshake-host-blocks-before-catalog",
+        "registration-failure-blocks-before-catalog",
+        "old-unmodified-HTTPS-check-offers-pinned-successor",
+        "old-updater-download-authenticates-and-installs-successor",
+        "four-record-import-and-paused-intent",
+        "valid-and-corrupt-reverification",
+        "missing-root-not-created",
+        "installed-refusal-routes",
+        "restart-identities-and-single-marker",
+        "source-and-payload-preserved"
+      ],
+      "legacyBinaries": [
+        "fb79545830c8aae032820100a0044c2a3ea29763aba2f1d35623025ae82af38c",
+        "6cd89eed30f417b97cb13d123280cdcf7138564d8630e29a1db14a8ed1346754"
+      ],
+      "refusalRoutes": 8,
+      "sourceVerification": "GUI logical values and inactive bytes; all bytes across successor restart",
+      "imported": 4,
+      "status": "passed",
+      "restoration": "passed"
+    },
+    "wrong-windows": {
+      "platform": "windows",
+      "legacyPackageSha256": "55ce6c119e3ada6b66da3f706e4659aa50f0550fea84d56757ba7180f51047c3",
+      "candidatePackageSha256": "af393292ff4c9cbabd7cc7030146d7a89a149d852b96d423c349347225023dde",
+      "checks": [
+        "pre-handshake-host-blocks-before-catalog",
+        "registration-failure-blocks-before-catalog",
+        "old-unmodified-HTTPS-check-offers-pinned-successor",
+        "wrong-signature-preserves-old-installation",
+        "old-updater-download-authenticates-and-installs-successor",
+        "four-record-import-and-paused-intent",
+        "valid-and-corrupt-reverification",
+        "missing-root-not-created",
+        "installed-refusal-routes",
+        "restart-identities-and-single-marker",
+        "source-and-payload-preserved"
+      ],
+      "legacyBinaries": [
+        "fb79545830c8aae032820100a0044c2a3ea29763aba2f1d35623025ae82af38c",
+        "6cd89eed30f417b97cb13d123280cdcf7138564d8630e29a1db14a8ed1346754"
+      ],
+      "negativeLegacyExecutableSha256": "c4aeec22ae763d4402d54b38a142e78f5d2f13383813fbeba28d31cb35abf355",
+      "refusalRoutes": 8,
+      "imported": 4,
+      "status": "passed",
+      "restoration": "passed"
+    },
+    "interrupted-windows": {
+      "platform": "windows",
+      "legacyPackageSha256": "55ce6c119e3ada6b66da3f706e4659aa50f0550fea84d56757ba7180f51047c3",
+      "candidatePackageSha256": "af393292ff4c9cbabd7cc7030146d7a89a149d852b96d423c349347225023dde",
+      "checks": [
+        "pre-handshake-host-blocks-before-catalog",
+        "registration-failure-blocks-before-catalog",
+        "old-unmodified-HTTPS-check-offers-pinned-successor",
+        "interrupted-preserves-old-installation",
+        "old-updater-download-authenticates-and-installs-successor",
+        "four-record-import-and-paused-intent",
+        "valid-and-corrupt-reverification",
+        "missing-root-not-created",
+        "installed-refusal-routes",
+        "restart-identities-and-single-marker",
+        "source-and-payload-preserved"
+      ],
+      "legacyBinaries": [
+        "fb79545830c8aae032820100a0044c2a3ea29763aba2f1d35623025ae82af38c",
+        "6cd89eed30f417b97cb13d123280cdcf7138564d8630e29a1db14a8ed1346754"
+      ],
+      "interruptedDownloadProgressObserved": true,
+      "negativeLegacyExecutableSha256": "c4aeec22ae763d4402d54b38a142e78f5d2f13383813fbeba28d31cb35abf355",
+      "refusalRoutes": 8,
+      "imported": 4,
+      "status": "passed",
+      "restoration": "passed"
+    }
+  },
+  "windows": "Original HTTPS automatic/ordinary GUI, wrong-signature refusal/retry and interrupted-download/retry passed",
+  "trialDisabled": true,
+  "disableVerification": {
+    "ordinaryResponsesByteIdentical": true,
+    "responseChecks": 24,
+    "candidateAssetRoutesDisabled": 5
+  },
+  "interruptedLinuxLegacyAppImageSha256": "1c35bb7dd5bdefcd780c19fc09e160dc7b0e6a5a2ada35f07007089d85e180df",
+  "unqualifiedAttempts": [
+    {
+      "platform": "macos",
+      "path": "ordinary GUI",
+      "observation": "Exact updater replacement and catalog checks succeeded; original frozen-source assertion failed because the old GUI changed discovery/active database bytes with all logical values identical",
+      "resolution": "Corrected active-writer oracle rerun passed; inactive bytes and all source bytes across successor restart are enforced"
+    },
+    {
+      "platform": "linux",
+      "path": "ordinary GUI",
+      "configurations": [
+        "default Wayland",
+        "WEBKIT_DISABLE_DMABUF_RENDERER=1",
+        "GDK_BACKEND=x11, WEBKIT_DISABLE_COMPOSITING_MODE=1, WEBKIT_DISABLE_DMABUF_RENDERER=1"
+      ],
+      "observation": "Old released WebKit window renders blank and no Install control is exposed; bounded attempts cancelled before installation",
+      "restoration": "All three passed"
+    },
+    {
+      "platform": "windows",
+      "path": "ordinary GUI",
+      "observation": "Exact NSIS update/relaunch and catalog checks pass; Windows backslash snapshot keys incorrectly include the active profile in the inactive byte guard",
+      "resolution": "Portable relative snapshot paths; fresh full GUI and successor restart pass",
+      "restoration": "Files, registry and exact four firewall block rules restored"
+    },
+    {
+      "platform": "windows",
+      "path": "interrupted download",
+      "observation": "250-ms observer and external taskkill lose the small NSIS download race; no interruption qualified",
+      "resolution": "Bounded 10-ms observer, direct owned process-handle cancellation and refusal if installation has begun; fresh interruption/retry and all migration/restart checks pass",
+      "restoration": "Both attempts restore files/registry/firewall"
+    }
+  ],
+  "remaining": [
+    "Linux old-release GUI rendering and ordinary Install & Restart",
+    "other architectures and historical cohorts",
+    "real legacy/successor extension combinations and launch routes",
+    "controlled payload repair transfer",
+    "native branding correction in fresh signed CI candidate"
+  ],
+  "cleanup": {
+    "linux": "All six runs restore file scopes and empty inherited backups; no owned product processes; six fixture roots/staging/three captures removed; initial off state restored; claim released",
+    "macos": "All four runs restore scopes and empty inherited backups; no owned product processes; four fixture roots/staging removed; initial suspended state restored; claim released",
+    "windows": "All six attempts restore files/registry/firewall with empty inherited backups; no owned product or installer processes; six fixture roots, staging, six updater downloads and twelve captures removed; initial off state restored; claim released",
+    "server": "Both trials disabled; owned manifest/drop-in/assets removed; service active with original product descriptor; ordinary responses match baseline and all five trial asset GET routes return 404"
+  },
+  "windowsFollowUp": {
+    "status": "complete bounded Windows checkpoint",
+    "httpsIsolationChecks": 8,
+    "ordinaryResponsesByteIdentical": true,
+    "autoFirewallRestoration": {
+      "removedRules": [
+        {
+          "program": "jstorrent-io-daemon.exe",
+          "action": "Block"
+        },
+        {
+          "program": "jstorrent-io-daemon.exe",
+          "action": "Block"
+        },
+        {
+          "program": "rstorrent-desktop.exe",
+          "action": "Block"
+        },
+        {
+          "program": "rstorrent-desktop.exe",
+          "action": "Block"
+        }
+      ],
+      "restoration": "passed",
+      "unrelatedAddedRules": []
+    },
+    "initialPowerState": "off",
+    "guiFirewallRestoration": {
+      "removedRules": [
+        {
+          "program": "jstorrent-io-daemon.exe",
+          "action": "Block"
+        },
+        {
+          "program": "jstorrent-io-daemon.exe",
+          "action": "Block"
+        },
+        {
+          "program": "rstorrent-desktop.exe",
+          "action": "Block"
+        },
+        {
+          "program": "rstorrent-desktop.exe",
+          "action": "Block"
+        }
+      ],
+      "restoration": "passed",
+      "unrelatedAddedRules": []
+    },
+    "installedIdentity": {
+      "primaryExecutable": "rstorrent-desktop.exe",
+      "sha256": "3e5be638289da30904d5ead80f69b75aedca33b7f647999e6623f01b8f53907d",
+      "authenticode": "Valid",
+      "publisher": "Kyle Graehl",
+      "productVersion": "0.3.0",
+      "uninstallerDisplayName": "JSTorrent",
+      "uninstallerDisplayVersion": "0.3.0",
+      "sameInstallationDirectory": true
+    },
+    "wrong-windowsFirewallRestoration": {
+      "removedRules": [
+        {
+          "program": "jstorrent-io-daemon.exe",
+          "action": "Block"
+        },
+        {
+          "program": "jstorrent-io-daemon.exe",
+          "action": "Block"
+        },
+        {
+          "program": "rstorrent-desktop.exe",
+          "action": "Block"
+        },
+        {
+          "program": "rstorrent-desktop.exe",
+          "action": "Block"
+        }
+      ],
+      "restoration": "passed",
+      "unrelatedAddedRules": []
+    },
+    "interrupted-windowsFirewallRestoration": {
+      "removedRules": [
+        {
+          "program": "jstorrent-io-daemon.exe",
+          "action": "Block"
+        },
+        {
+          "program": "jstorrent-io-daemon.exe",
+          "action": "Block"
+        },
+        {
+          "program": "rstorrent-desktop.exe",
+          "action": "Block"
+        },
+        {
+          "program": "rstorrent-desktop.exe",
+          "action": "Block"
+        }
+      ],
+      "restoration": "passed",
+      "unrelatedAddedRules": []
+    },
+    "trialDisabled": true,
+    "disableVerification": {
+      "responseChecks": 8,
+      "ordinaryResponsesByteIdentical": true,
+      "candidateAssetRoutesDisabled": 5
+    },
+    "cleanup": {
+      "stageRemoved": true,
+      "fixtureRootsRemoved": 6,
+      "ownedProcesses": 0,
+      "removedCaptureFiles": 12,
+      "removedUpdaterDirectories": 6,
+      "attempts": [
+        {
+          "attempt": "auto",
+          "status": "passed",
+          "restoration": "passed",
+          "firewall": "passed",
+          "inheritedEmpty": true
+        },
+        {
+          "attempt": "gui",
+          "status": "failed",
+          "restoration": "passed",
+          "firewall": "passed",
+          "inheritedEmpty": true
+        },
+        {
+          "attempt": "gui2",
+          "status": "passed",
+          "restoration": "passed",
+          "firewall": "passed",
+          "inheritedEmpty": true
+        },
+        {
+          "attempt": "wrong",
+          "status": "passed",
+          "restoration": "passed",
+          "firewall": "passed",
+          "inheritedEmpty": true
+        },
+        {
+          "attempt": "interrupted",
+          "status": "failed",
+          "restoration": "passed",
+          "firewall": "passed",
+          "inheritedEmpty": true
+        },
+        {
+          "attempt": "interrupted2",
+          "status": "passed",
+          "restoration": "passed",
+          "firewall": "passed",
+          "inheritedEmpty": true
+        }
+      ]
+    },
+    "finalPowerState": "off",
+    "claimReleased": true,
+    "restartObservation": "Two immediate post-restart ordinary comparisons failed before readiness; subsequent comparisons passed byte-identical. Asset hashing precedes listener startup; wait for HTTPS readiness."
+  }
+}

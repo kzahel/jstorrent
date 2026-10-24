@@ -3,31 +3,49 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>RSTorrent for ChromeOS Linux</title>
+    <title>JSTorrent Chromebook setup and troubleshooting</title>
     <link rel="stylesheet" href="setup.css" />
+    <script type="module" src="setup.js"></script>
   </head>
   <body>
     <main>
       <img src="../icons/icon-128.png" width="96" height="96" alt="" />
-      <p class="eyebrow">JSTorrent Beta</p>
-      <h1>RSTorrent for ChromeOS Linux</h1>
+      <p class="eyebrow">JSTorrent</p>
+      <h1>Chromebook setup and troubleshooting</h1>
+      <section id="android">
+        <h2>Android setup or connection</h2>
+        <p>A service that does not respond cannot tell us whether Play is available, the app is installed, or your administrator restricts it. Choose the stage you can confirm below. Opening a store link does not confirm installation.</p>
+        <details><summary>Play is not enabled or setup is unfinished</summary><p>Open ChromeOS Settings, find Google Play, and finish its setup if offered and permitted. If the option is missing or managed, ask your administrator; do not bypass policy. <a href="#linux">Use Linux instead</a> where permitted.</p></details>
+        <details><summary>Play is available; I need to install the app</summary><p>Open the <a href="https://play.google.com/store/apps/details?id=com.jstorrent.app" target="_blank" rel="noopener noreferrer">JSTorrent Play listing</a> and check the actual installation result. Open JSTorrent from the Launcher after installation. If Play does not offer an update yet, use the Android app directly and check again later.</p></details>
+        <details><summary>Installation failed, or the app is unavailable</summary><p>Read the error shown by Play. This extension cannot determine its cause. Resolve the store's stated account, storage, compatibility or policy issue, then retry manually. Preserve your existing apps and data while resolving installation problems. If installation remains unavailable, <a href="#linux">Use Linux instead</a>.</p></details>
+        <details><summary>The installed app did not open</summary><p>Choose <strong>Open JSTorrent Android</strong> and confirm any ChromeOS <strong>Open with</strong> prompt. If the link is unavailable, open JSTorrent from the Launcher and choose <strong>Settings → Advanced → Connect Chrome extension</strong>. Allow Android notifications if asked, then choose <strong>Open Chrome library</strong>. You can also return to the extension manually with <strong>Connect in Chrome</strong>, including when the website is offline. If setup is missing, update the Android app. The app can also be used directly without extension control.</p></details>
+        <details><summary>Browser access or pairing was denied</summary><p>Use <strong>Connect in Chrome</strong> in the popup, or <strong>Allow Android connection</strong> on the connection page, to request browser access. If Chrome shows a Local Network Access prompt, allow access only if you intend to connect. Open JSTorrent and approve its named extension pairing request. A rejected or expired request needs manual <strong>Retry connection</strong>; <strong>Cancel</strong> stops the page's attempt without changing your library. A canceled pairing attempt can leave its Android approval request pending for up to two minutes; wait for expiry before retrying. Cancel does not dismiss a separate OS launch prompt or revoke an existing pairing.</p></details>
+        <details><summary>Saved pairing, update or connection failure</summary><p>Open the same Android app and retry. If the Android app needs updating, check <a href="https://play.google.com/store/apps/details?id=com.jstorrent.app" target="_blank" rel="noopener noreferrer">JSTorrent in Google Play</a>. If no update is offered, use the Android app directly and check again later. If your OS is unsupported, use a supported device or <a href="#linux">Use Linux instead</a> where available. If the extension needs updating, check <a href="https://chromewebstore.google.com/detail/dbokmlpefliilbjldladbimlcfgbolhk" target="_blank" rel="noopener noreferrer">JSTorrent in Chrome Web Store</a>, then reopen the extension. Re-pair only through explicit Android approval. Browser retries do not start the app automatically.</p></details>
+        <details><summary>The download folder is unavailable</summary><p>In Android Storage settings, repair the original folder binding through the Android folder picker and approve access. ChromeOS <strong>Share with Linux</strong> does not grant Android access. Preserve unrelated files and existing roots.</p></details>
+        <p>The connection page offers a voluntary support-context preview with the failed stage, Android backend, known permission and browser/build versions. Review it before copying to support. Play, app presence and policy remain unknown; no logs are uploaded automatically.</p>
+      </section>
+      <section id="linux">
+        <h2>Use Linux instead</h2>
+        <p>This is an explicit switch to a separate Linux library, settings and download folders. Android torrents stay in Android; an empty Linux library does not mean they were lost. Finish or stop Android work before choosing the same payload folder for Linux. No automatic migration occurs.</p>
+        <p>If Linux is missing or blocked by policy, it may not be available on this device. If neither Android nor Linux is permitted and usable, this Chromebook environment is unsupported. Ask your administrator or use another supported device; repeating installation links cannot resolve that restriction.</p>
+      </section>
       <p class="intro">
         ChromeOS Linux runs the Rust torrent engine and serves the complete
-        RSTorrent interface to Chrome. This extension provides the handoff; it
+        JSTorrent interface to Chrome. This extension provides the handoff; it
         cannot wake a fully stopped Linux environment by itself.
       </p>
 
       <section>
         <h2>Install the preview</h2>
         <ol>
-          <li>Enable <strong>Linux development environment</strong> in ChromeOS Settings.</li>
-          <li>Extract the RSTorrent Crostini package in Linux files.</li>
-          <li>Open Terminal in that folder and run <code>./install.sh</code>.</li>
+          <li>Enable <strong>Linux development environment</strong> in ChromeOS Settings only where offered and permitted.</li>
+          <li>Run the <a href="https://rstorrent.com/install-crostini.sh" target="_blank" rel="noopener noreferrer">official authenticated installer</a> in Terminal using <button type="button" data-command="curl -fsSL https://rstorrent.com/install-crostini.sh | bash">Copy installer command</button>. It verifies the signed release manifest and package hash, then installs the app automatically.</li>
           <li>
-            Open <strong>RSTorrent for ChromeOS Linux</strong> from the Chromebook
-            Launcher. It wakes Linux, starts RSTorrent, and returns to Chrome.
+            Open <strong>JSTorrent for ChromeOS Linux</strong> from the Chromebook
+            Launcher. It wakes Linux, starts JSTorrent, and returns to Chrome.
           </li>
         </ol>
+        <p>For an already authenticated local package, extract it in Linux files, open Terminal in the extracted folder, and run <code>./install.sh</code> instead of the website command. A development candidate is not automatically a published release.</p>
       </section>
 
       <section>
@@ -37,6 +55,16 @@
           backend is running, this extension’s ChromeOS Linux button opens or
           focuses its UI. Closing the tab does not stop active torrents.
         </p>
+        <p>The extension first opens an offline Linux connection page. Its check requests browser access only to <code>jstorrent.localhost</code>, validates the responding app, then opens the Linux library. Creating a tab alone does not confirm a connection. Retry checks again without starting Linux; Cancel stops the check.</p>
+      </section>
+
+      <section id="linux-recovery">
+        <h2>Linux page unavailable</h2>
+        <p>Open <strong>Terminal</strong> from the Chromebook Launcher, select <strong>penguin</strong> if offered, and wait for the Linux command prompt. Then open <strong>JSTorrent for ChromeOS Linux</strong> from the Launcher and retry the extension's <a href="connect.html">Linux connection</a>.</p>
+        <p>Current versions use <code>http://jstorrent.localhost:3030</code>, a local connection forwarded by ChromeOS to your Linux app. This avoids the Linux hostname-registration failure observed on some ChromeOS 150 systems. It opens the same Linux library and download folders.</p>
+        <p>If an older bookmark or installed version opens <code>penguin.linux.test</code>, update the Linux app and extension together, then launch the app again. Browser approval and appearance preferences may need to be set again for the new address; your Linux library stays in place.</p>
+        <p>A failed check cannot identify whether Linux startup, local forwarding, browser permission or the app is responsible. If Terminal also fails, resolve its stated error first. Keep your Linux environment and files; deleting your library will not repair connectivity.</p>
+        <p>If Terminal opens but the app remains unreachable, close Linux apps, use Terminal's <strong>Shut down Linux</strong> action, reopen Terminal and launch the app again. This stops active Linux transfers; your library and downloaded files remain on disk.</p>
       </section>
 
       <section>
@@ -44,19 +72,20 @@
         <p>
           Downloads initially use Linux <code>~/Downloads</code>. To use a
           Chromebook folder, choose <strong>Share with Linux</strong> in the
-          Files app before adding it in RSTorrent.
+          Files app before adding it in JSTorrent.
         </p>
         <dl>
           <dt>Check the installed backend</dt>
-          <dd><code>rstorrent-crostini status</code></dd>
+          <dd><button type="button" data-command="rstorrent-crostini status">Copy status command</button></dd>
           <dt>Restart the backend</dt>
-          <dd><code>systemctl --user restart com.jstorrent.rstorrent.crostini.service</code></dd>
+          <dd><button type="button" data-command="systemctl --user restart com.jstorrent.rstorrent.crostini.service">Copy restart command</button></dd>
           <dt>Remove app files, keep profile and downloads</dt>
-          <dd><code>rstorrent-crostini uninstall</code></dd>
+          <dd><button type="button" data-command="rstorrent-crostini uninstall">Copy removal command</button></dd>
           <dt>Also remove the Crostini profile</dt>
-          <dd><code>rstorrent-crostini uninstall --purge</code></dd>
+          <dd><button type="button" data-command="rstorrent-crostini uninstall --purge">Copy removal and profile command</button></dd>
         </dl>
       </section>
+      <p id="command-status" role="status" aria-live="polite"></p>
     </main>
   </body>
 </html>

@@ -41,7 +41,7 @@ const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
 const PEER_IO_TIMEOUT: Duration = Duration::from_secs(5);
 const LEECHER_PEER_ID: [u8; 20] = *b"-RSUTPL-000000000000";
 const SEED_PEER_ID: [u8; 20] = *b"-RSUTPS-000000000000";
-const MAPPING_DESCRIPTION: &str = "RSTorrent";
+const MAPPING_DESCRIPTION: &str = "JSTorrent";
 const USAGE: &str = "\
 Usage:
   rstorrent-utp-interop leecher --metainfo PATH --peer 127.0.0.1:PORT --output PATH

@@ -1,0 +1,4 @@
+<resources>
+    <!-- Debug installs sit beside the Play app; the label tells them apart. -->
+    <string name="app_name" translatable="false">JSTorrent Dev</string>
+</resources>

@@ -1,5 +1,7 @@
+import { message } from "./localization/runtime";
 import type {
   AddTorrentBytesRequest,
+  ApiClientInfo,
   ApiHello,
   ApplicationCall,
   ApplicationCallResult,
@@ -13,6 +15,8 @@ import type {
   RequestEnvelope,
   ResponseEnvelope,
   StorageRootSnapshot,
+  TorrentListImportReport,
+  TorrentListImportTarget,
   UpdateBatch,
   UpdateViewSetRequest,
 } from "./api";
@@ -24,9 +28,13 @@ import {
   type MediaOpenTarget,
   validateTorrentByteUpload,
 } from "./api/client";
+import { UNSUPPORTED_CALL_MESSAGE } from "./api";
+import { CompatibilityObservations, operationName } from "./compatibility-observations";
 import { ContractError, decodeApplicationServerFrame } from "./validation";
 
 const MAX_PENDING_CALLS = 16;
+/** Aborted calls whose late reply is still expected and ignored. */
+const MAX_ABANDONED_CALLS = 64;
 const MAX_ATTACHMENTS = 8;
 const MAX_CLIENT_MESSAGE_BYTES = 64 * 1024;
 const INITIAL_RECONNECT_MILLIS = 250;
@@ -57,16 +65,27 @@ export interface ApplicationWebSocketPlatformClient {
     signal?: AbortSignal,
   ): Promise<StorageRootSnapshot | null>;
   prepareMediaOpen?(): MediaOpenTarget;
+  exportTorrentList?(signal?: AbortSignal): Promise<boolean>;
+  importTorrentBundle?(
+    target: TorrentListImportTarget,
+    chooseFile: () => Promise<ArrayBuffer | null>,
+    signal?: AbortSignal,
+  ): Promise<TorrentListImportReport | null>;
   close(): Promise<void>;
 }
 
 export interface ApplicationWebSocketClientOptions {
   readonly connectPath?: string;
+  /** Sent in `connect`; hosts released before it ignore it. */
+  readonly client?: ApiClientInfo;
   readonly platformClient?: ApplicationWebSocketPlatformClient;
+  readonly desktopRootPicker?: boolean;
   readonly onConnectionState?: (connected: boolean) => void;
 }
 
 interface PendingCorrelation {
+  /** What the call asked for, for compatibility observations. */
+  readonly operation: string;
   readonly resolve: (frame: ApplicationServerFrame) => void;
   readonly reject: (error: Error) => void;
   readonly removeAbort: () => void;
@@ -88,6 +107,10 @@ export class WebSocketApplicationViewClient
   private readonly socketUrl: string;
   private readonly platformClient: ApplicationWebSocketPlatformClient;
   private readonly pending = new Map<string, PendingCorrelation>();
+  // Calls aborted before their reply; the host still answers them.
+  private readonly abandoned = new Set<string>();
+  /** What this client saw from each host version; see Tactical 370. */
+  public readonly compatibility = new CompatibilityObservations();
   private readonly streams = new Map<string, WebSocketUpdateStream>();
   private socket: ApplicationWebSocket | undefined;
   private connection: Promise<void> | undefined;
@@ -100,6 +123,13 @@ export class WebSocketApplicationViewClient
   private nextCallId = 1;
   private nextUploadId = 1;
   private nextStreamId = 1;
+  /** Present only when the platform client carries the bundle over HTTP. */
+  public readonly exportTorrentList?: (signal?: AbortSignal) => Promise<boolean>;
+  public readonly importTorrentBundle?: (
+    target: TorrentListImportTarget,
+    chooseFile: () => Promise<ArrayBuffer | null>,
+    signal?: AbortSignal,
+  ) => Promise<TorrentListImportReport | null>;
 
   public constructor(
     baseUrl: string,
@@ -135,6 +165,21 @@ export class WebSocketApplicationViewClient
         undefined,
         clientInstanceId,
       );
+    const platform = this.platformClient;
+    const exportTorrentList = platform.exportTorrentList;
+    if (exportTorrentList !== undefined) {
+      this.exportTorrentList = async (signal) => {
+        this.ensureOpen();
+        return exportTorrentList.call(platform, signal);
+      };
+    }
+    const importTorrentBundle = platform.importTorrentBundle;
+    if (importTorrentBundle !== undefined) {
+      this.importTorrentBundle = async (target, chooseFile, signal) => {
+        this.ensureOpen();
+        return importTorrentBundle.call(platform, target, chooseFile, signal);
+      };
+    }
   }
 
   public async hello(signal?: AbortSignal): Promise<ApiHello> {
@@ -190,6 +235,7 @@ export class WebSocketApplicationViewClient
       }
       signal?.addEventListener("abort", abort, { once: true });
       this.pending.set(callId, {
+        operation: "begin_torrent_upload",
         resolve,
         reject,
         removeAbort: () => signal?.removeEventListener("abort", abort),
@@ -215,11 +261,35 @@ export class WebSocketApplicationViewClient
     return response.result.response;
   }
 
+  public async productUpdate(request: import("./api").HostUpdateRequest): Promise<import("./api").HostUpdateSnapshot> {
+    await this.ensureConnected();
+    if (!this.connectedHello?.capabilities.includes("desktop_auto_updates")) throw new ApplicationViewError("unsupported_capability", "Host automatic updates are unavailable");
+    const result = await this.call({ type: "product_update", request });
+    if (result.type !== "product_update") throw new ContractError("update returned the wrong result type");
+    return result.snapshot;
+  }
+
   public async chooseDownloadRoot(
     request: ChooseDownloadRootRequest,
     signal?: AbortSignal,
   ): Promise<StorageRootSnapshot | null> {
     this.ensureOpen();
+    if (this.options.desktopRootPicker) {
+      await this.ensureConnected(signal);
+      if (!this.connectedHello?.backend?.capability_profile.includes("desktop_root_picker_v1")) {
+        throw new ApplicationViewError("invalid_call", message("desktop.companion.native-folder"));
+      }
+      const callId = this.allocateCallId();
+      // Aborting this platform request closes its connection owner. OS Cancel
+      // is an ordinary null result and leaves the connection intact.
+      const abort = () => this.socket?.close(1000, "folder request aborted");
+      signal?.addEventListener("abort", abort, { once: true });
+      try {
+        const frame = await this.correlate(callId, { type: "choose_download_root", call_id: callId, request }, signal);
+        if (frame.type !== "download_root_chosen") throw new ContractError("folder selection returned the wrong result type");
+        return frame.response.root;
+      } finally { signal?.removeEventListener("abort", abort); }
+    }
     return this.platformClient.chooseDownloadRoot(request, signal);
   }
 
@@ -413,7 +483,7 @@ export class WebSocketApplicationViewClient
     }
     return new Promise((resolve, reject) => {
       const abort = () => {
-        this.pending.delete(callId);
+        if (this.pending.delete(callId)) this.abandon(callId);
         reject(new Error("application call was aborted"));
       };
       if (signal?.aborted) {
@@ -422,6 +492,7 @@ export class WebSocketApplicationViewClient
       }
       signal?.addEventListener("abort", abort, { once: true });
       this.pending.set(callId, {
+        operation: operationName(frame),
         resolve,
         reject,
         removeAbort: () => signal?.removeEventListener("abort", abort),
@@ -459,6 +530,8 @@ export class WebSocketApplicationViewClient
       const socket = this.socketFactory(this.socketUrl);
       this.socket = socket;
       socket.binaryType = "arraybuffer";
+      this.abandoned.clear();
+      this.compatibility.connecting();
       let handshakeComplete = false;
       const failHandshake = (error: Error) => {
         if (handshakeComplete) return;
@@ -478,6 +551,7 @@ export class WebSocketApplicationViewClient
             encoding: "json",
             client_instance_id: this.clientInstanceId,
             ...(this.token === null ? {} : { token: this.token }),
+            ...(this.options.client === undefined ? {} : { client: this.options.client }),
           });
         } catch (error) {
           failHandshake(asError(error));
@@ -493,6 +567,7 @@ export class WebSocketApplicationViewClient
         try {
           frame = decodeApplicationServerFrame(event.data);
         } catch (error) {
+          this.compatibility.decodeFailure(handshakeComplete ? "frame" : "handshake");
           const failure = asError(error);
           this.protocolFailure(failure);
           failHandshake(failure);
@@ -521,6 +596,7 @@ export class WebSocketApplicationViewClient
           this.connected = true;
           this.options.onConnectionState?.(true);
           this.connectedHello = frame.hello;
+          this.compatibility.connected(frame.hello);
           this.reconnectAttempt = 0;
           this.reconnectNotBefore = 0;
           resolve();
@@ -565,6 +641,7 @@ export class WebSocketApplicationViewClient
       }
       case "attached":
       case "detached":
+      case "download_root_chosen":
         this.resolveCorrelation(frame.call_id, frame);
         break;
       case "call_error":
@@ -621,6 +698,7 @@ export class WebSocketApplicationViewClient
   ): void {
     const pending = this.pending.get(callId);
     if (pending === undefined) {
+      if (this.abandoned.delete(callId)) return;
       this.protocolFailure(new ContractError("response has no pending call"));
       return;
     }
@@ -632,12 +710,28 @@ export class WebSocketApplicationViewClient
   private rejectCorrelation(callId: string, error: Error): void {
     const pending = this.pending.get(callId);
     if (pending === undefined) {
+      if (this.abandoned.delete(callId)) return;
       this.protocolFailure(new ContractError("error has no pending call"));
       return;
+    }
+    if (
+      error instanceof ApplicationViewError &&
+      error.code === "invalid_call" &&
+      error.detail === UNSUPPORTED_CALL_MESSAGE
+    ) {
+      this.compatibility.refusedCall(pending.operation);
     }
     this.pending.delete(callId);
     pending.removeAbort();
     pending.reject(error);
+  }
+
+  private abandon(callId: string): void {
+    if (this.abandoned.size >= MAX_ABANDONED_CALLS) {
+      const oldest = this.abandoned.values().next().value;
+      if (oldest !== undefined) this.abandoned.delete(oldest);
+    }
+    this.abandoned.add(callId);
   }
 
   private rejectPending(error: Error): void {

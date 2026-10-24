@@ -1,6 +1,6 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 
-import { DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW } from "../api";
+import { DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW } from "../api/generated/v1";
 
 import {
   DEFAULT_COLOR_THEME,
@@ -35,8 +35,17 @@ import {
   loadNavigationPreferences,
   saveNavigationPreferences,
   type NavigationPreferences,
+  type SettingsCategory,
 } from "./navigation";
 import {
+  DEFAULT_LIBRARY_BROWSE,
+  loadLibraryBrowse,
+  saveLibraryBrowse,
+  type LibraryBrowseState,
+} from "./library-browse";
+import {
+  DEFAULT_SPEED_METRICS,
+  DEFAULT_SPEED_RANGE,
   loadSpeedPreferences,
   saveSpeedPreferences,
 } from "./speed-preferences";
@@ -46,10 +55,14 @@ import {
   type DhtVisualizationMode,
 } from "./dht-preferences";
 import type { SpeedMetric, SpeedRange } from "../api";
+import type { LayoutMode } from "./layout";
+import { isSessionTab } from "./tabs";
 
 export interface PresentationState {
   readonly destination: ApplicationDestination;
   readonly libraryCategory: LibraryCategory;
+  /** The cross-torrent Library's preset, filters and page (Tactical 363). */
+  readonly libraryBrowse: LibraryBrowseState;
   readonly transfersCategory: TorrentCategory;
   readonly workbenchCategory: TorrentCategory;
   readonly currentTorrentId: string | null;
@@ -67,7 +80,11 @@ export interface PresentationState {
     readonly torrentId: string;
   } | null;
   readonly sidebarOpen: boolean;
-  readonly layout: "wide" | "compact" | "phone";
+  /** The open Settings category, or null when Settings is closed. */
+  readonly settingsCategory: SettingsCategory | null;
+  /** A reset or import is running, so Settings must stay open. */
+  readonly settingsBusy: boolean;
+  readonly layout: LayoutMode;
   readonly interfaceSize: InterfaceSize;
   readonly colorTheme: ColorTheme;
   readonly dataUnits: DataUnits;
@@ -93,6 +110,8 @@ export interface InspectionActions {
   readonly applyUpdate: (update: InspectionUpdate) => void;
   readonly selectDestination: (destination: ApplicationDestination) => void;
   readonly selectLibraryCategory: (category: LibraryCategory) => void;
+  /** Changes Library filters; any change but a page change returns to page 1. */
+  readonly updateLibraryBrowse: (change: Partial<LibraryBrowseState>) => void;
   readonly selectTorrentCategory: (category: TorrentCategory) => void;
   readonly setTorrentSelection: (
     torrentIds: readonly string[],
@@ -110,10 +129,17 @@ export interface InspectionActions {
   readonly clearTorrentSelection: () => void;
   readonly setCurrentPeer: (connectionId: string | null) => void;
   readonly selectTab: (tab: DetailTab) => void;
+  /** Opens a session-wide view on its own, as the narrow drawer does. */
+  readonly openSessionView: (tab: DetailTab) => void;
   readonly setDetailPanePercent: (percent: number) => void;
   readonly closeDetail: () => void;
   readonly toggleSidebar: () => void;
   readonly closeSidebar: () => void;
+  readonly openSettings: (category: SettingsCategory) => void;
+  readonly selectSettingsCategory: (category: SettingsCategory) => void;
+  /** Does nothing while Settings is busy. */
+  readonly closeSettings: () => void;
+  readonly setSettingsBusy: (busy: boolean) => void;
   readonly setLayout: (layout: PresentationState["layout"]) => void;
   readonly setInterfaceSize: (interfaceSize: InterfaceSize) => void;
   readonly setColorTheme: (colorTheme: ColorTheme) => void;
@@ -131,6 +157,7 @@ export interface InspectionActions {
   readonly setLogFollowing: (following: boolean) => void;
   readonly setSpeedRange: (range: SpeedRange) => void;
   readonly toggleSpeedMetric: (metric: SpeedMetric) => void;
+  readonly resetSpeedPreferences: () => void;
   readonly setDhtVisualizationMode: (mode: DhtVisualizationMode) => void;
 }
 
@@ -145,7 +172,7 @@ const EMPTY_SNAPSHOT: InspectionSnapshot = {
   revision: 0,
   durableRevision: "0",
   session: {
-    connection: "offline",
+    connection: { type: "connecting" },
     downloadRate: 0,
     uploadRate: 0,
     dhtNodes: null,
@@ -160,6 +187,7 @@ const EMPTY_SNAPSHOT: InspectionSnapshot = {
   swarmByTorrent: {},
   filesByTorrent: {},
   mediaByTorrent: {},
+  libraryMedia: null,
   trackersByTorrent: {},
   piecesByTorrent: {},
   disk: emptyDiskSet(),
@@ -175,6 +203,7 @@ const EMPTY_SNAPSHOT: InspectionSnapshot = {
   },
   viewStatus: {
     library: { status: "not_requested" },
+    libraryMedia: { status: "not_requested" },
     torrentSummary: { status: "not_requested" },
     peers: { status: "not_requested" },
     swarm: { status: "not_requested" },
@@ -190,8 +219,9 @@ const EMPTY_SNAPSHOT: InspectionSnapshot = {
 };
 
 const DEFAULT_PRESENTATION: PresentationState = {
-  destination: "transfers",
+  destination: "workbench",
   libraryCategory: "all",
+  libraryBrowse: DEFAULT_LIBRARY_BROWSE,
   transfersCategory: "all",
   workbenchCategory: "all",
   currentTorrentId: null,
@@ -206,6 +236,8 @@ const DEFAULT_PRESENTATION: PresentationState = {
   libraryDetailMode: "media",
   detailTarget: null,
   sidebarOpen: false,
+  settingsCategory: null,
+  settingsBusy: false,
   layout: "wide",
   interfaceSize: DEFAULT_INTERFACE_SIZE,
   colorTheme: DEFAULT_COLOR_THEME,
@@ -219,8 +251,8 @@ const DEFAULT_PRESENTATION: PresentationState = {
   logExpandedIds: [],
   logClearThroughSequence: null,
   logFollowing: true,
-  speedRange: "seconds30",
-  speedMetrics: ["payload_received", "staged_write", "payload_verified"],
+  speedRange: DEFAULT_SPEED_RANGE,
+  speedMetrics: DEFAULT_SPEED_METRICS,
   dhtVisualizationMode: "normalized",
 };
 
@@ -243,8 +275,13 @@ export function createInspectionStore(
     appearanceStorage === undefined
       ? loadDhtVisualizationMode()
       : loadDhtVisualizationMode(appearanceStorage);
+  const libraryBrowse =
+    appearanceStorage === undefined
+      ? loadLibraryBrowse()
+      : loadLibraryBrowse(appearanceStorage);
   const initialPresentation = {
     ...DEFAULT_PRESENTATION,
+    libraryBrowse,
     ...navigation,
     ...appearance,
     speedRange: speedPreferences.range,
@@ -274,7 +311,8 @@ export function createInspectionStore(
             destination === "library"
               ? state.presentation.libraryDetailOpen
               : false,
-          sidebarOpen: false,
+          // The drawer stays open: switching destination changes the
+          // categories it shows, which are usually the next choice.
           detailTarget: null,
         };
         persistNavigation(navigationPreferencesFor(presentation));
@@ -293,14 +331,57 @@ export function createInspectionStore(
         return { presentation };
       });
     },
+    updateLibraryBrowse: (change) => {
+      set((state) => {
+        const libraryBrowse = {
+          ...state.presentation.libraryBrowse,
+          page: 0,
+          ...change,
+        };
+        if (appearanceStorage === undefined) saveLibraryBrowse(libraryBrowse);
+        else saveLibraryBrowse(libraryBrowse, appearanceStorage);
+        return {
+          presentation: {
+            ...state.presentation,
+            libraryBrowse,
+            libraryDetailOpen: false,
+          },
+        };
+      });
+    },
     selectTorrentCategory: (category) => {
       set((state) => {
         if (state.presentation.destination === "library") return state;
+        // Drop selected torrents the new category hides so bulk actions
+        // only reach rows the user can see.
+        const selection = normalizeTorrentSelection(
+          state.presentation.selectedTorrentIds.filter((torrentId) => {
+            const torrent = state.torrents[torrentId];
+            return (
+              torrent !== undefined && torrentMatchesCategory(torrent, category)
+            );
+          }),
+          state.presentation.currentTorrentId,
+          state.torrents,
+        );
+        const currentChanged =
+          selection.currentTorrentId !== state.presentation.currentTorrentId;
         const presentation = {
           ...state.presentation,
           ...(state.presentation.destination === "transfers"
             ? { transfersCategory: category }
             : { workbenchCategory: category }),
+          ...selection,
+          ...(currentChanged
+            ? {
+                currentPeerId: null,
+                detailTarget: null,
+                detailOpen:
+                  selection.currentTorrentId === null
+                    ? false
+                    : state.presentation.detailOpen,
+              }
+            : {}),
           sidebarOpen: false,
         };
         persistNavigation(navigationPreferencesFor(presentation));
@@ -371,6 +452,12 @@ export function createInspectionStore(
               ? state.presentation.selectedTorrentIds
               : [torrentId],
             currentPeerId: null,
+            // A narrow torrent detail shows only torrent tabs.
+            activeTab:
+              state.presentation.layout === "phone" &&
+              isSessionTab(state.presentation.activeTab)
+                ? "general"
+                : state.presentation.activeTab,
             detailOpen: true,
             libraryDetailOpen: false,
             detailTarget: null,
@@ -489,6 +576,21 @@ export function createInspectionStore(
         presentation: { ...state.presentation, activeTab, detailTarget: null },
       }));
     },
+    openSessionView: (activeTab) => {
+      set((state) => {
+        const presentation = {
+          ...state.presentation,
+          destination: "workbench" as const,
+          activeTab,
+          detailOpen: true,
+          libraryDetailOpen: false,
+          detailTarget: null,
+          sidebarOpen: false,
+        };
+        persistNavigation(navigationPreferencesFor(presentation));
+        return { presentation };
+      });
+    },
     setSpeedRange: (speedRange) => {
       set((state) => {
         const speed = {
@@ -518,6 +620,18 @@ export function createInspectionStore(
         else saveSpeedPreferences(speed, appearanceStorage);
         return { presentation: { ...state.presentation, speedMetrics } };
       });
+    },
+    resetSpeedPreferences: () => {
+      const speed = { range: DEFAULT_SPEED_RANGE, metrics: DEFAULT_SPEED_METRICS };
+      if (appearanceStorage === undefined) saveSpeedPreferences(speed);
+      else saveSpeedPreferences(speed, appearanceStorage);
+      set((state) => ({
+        presentation: {
+          ...state.presentation,
+          speedRange: speed.range,
+          speedMetrics: speed.metrics,
+        },
+      }));
     },
     setDhtVisualizationMode: (dhtVisualizationMode) => {
       if (appearanceStorage === undefined) {
@@ -558,6 +672,35 @@ export function createInspectionStore(
       set((state) => ({
         presentation: { ...state.presentation, sidebarOpen: false },
       }));
+    },
+    openSettings: (settingsCategory) => {
+      set((state) => ({
+        presentation: { ...state.presentation, settingsCategory },
+      }));
+    },
+    selectSettingsCategory: (settingsCategory) => {
+      set((state) =>
+        state.presentation.settingsCategory === null
+          ? state
+          : { presentation: { ...state.presentation, settingsCategory } },
+      );
+    },
+    closeSettings: () => {
+      set((state) =>
+        state.presentation.settingsBusy ||
+        state.presentation.settingsCategory === null
+          ? state
+          : {
+              presentation: { ...state.presentation, settingsCategory: null },
+            },
+      );
+    },
+    setSettingsBusy: (settingsBusy) => {
+      set((state) =>
+        state.presentation.settingsBusy === settingsBusy
+          ? state
+          : { presentation: { ...state.presentation, settingsBusy } },
+      );
     },
     setLayout: (layout) => {
       set((state) => ({
@@ -913,6 +1056,8 @@ export function reduceInspectionUpdate(
     swarmByTorrent,
     filesByTorrent,
     mediaByTorrent,
+    libraryMedia:
+      update.libraryMedia === undefined ? state.libraryMedia : update.libraryMedia,
     trackersByTorrent,
     piecesByTorrent,
     disk,

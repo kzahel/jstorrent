@@ -1,7 +1,13 @@
+import { PlaybackProvider } from "./VideoPlayer";
+import jstorrentIcon from "../../assets/jstorrent.png";
 import { message as localizedMessage } from "../../localization/runtime";
+import { markStartup } from "../../startup-timing";
 import {
+  lazy,
+  Suspense,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -27,20 +33,29 @@ import {
   loadCredentialFreeNoticeDismissed,
   saveCredentialFreeNoticeDismissed,
 } from "../lan-none-notice";
-import type { ApplicationDestination } from "../model";
+import { layoutForWidth } from "../layout";
 import { MAX_DETAIL_PANE_PERCENT, MIN_DETAIL_PANE_PERCENT } from "../state";
+import { withHostProduct, type AboutFacts } from "../support/about";
 import type { DesktopUpdater, UpdaterState } from "../updater/types";
 import { useDesktopUpdater } from "../updater/useDesktopUpdater";
+import {
+  ConnectionOverlay,
+  connectionInterrupted,
+  useConnectionClock,
+} from "./ConnectionOverlay";
 import { DetailPane } from "./DetailPane";
-import { Icon, type IconName } from "./Icon";
+import { Icon } from "./Icon";
 import { LibraryView } from "./LibraryView";
 import { ScenarioBar } from "./ScenarioBar";
-import { SettingsDialog, type SettingsCategory } from "./SettingsDialog";
-import { Sidebar } from "./Sidebar";
+import { navigationTitle, Sidebar } from "./Sidebar";
 import { TorrentActions } from "./TorrentActions";
+import { AddTorrentForm, TorrentAddProvider } from "./TorrentAdd";
 import { TorrentActionProvider } from "./TorrentActionContext";
+import { UpdateOutcomeNotice } from "./UpdateOutcomeNotice";
+import { ToastProvider } from "./Toast";
 import { TorrentTable } from "./TorrentTable";
 import { TransfersView } from "./TransfersView";
+import { TableToolbarSlot } from "./VirtualTable";
 import styles from "./App.module.css";
 import type { WebAuthClient } from "../../web-auth-client";
 import type { DesktopExternalIntake } from "../../desktop-external-intake";
@@ -48,22 +63,13 @@ import { DesktopExternalIntakeProvider } from "../desktop-external-intake-contex
 import type { DesktopNotifications } from "../desktop-notifications/types";
 import type { DesktopPower } from "../desktop-power/types";
 import type { DesktopRemoteAccess } from "../remote-access/types";
+import type { LocalVideoPlayback } from "../video-playback";
 import type {
   HostedAccessMode,
   HostedProduct,
 } from "../../headless-updater";
 import type { ProductPrivacyController } from "../product-privacy/types";
 import { ProductDisclosure } from "./ProductPrivacy";
-
-const DESTINATIONS: readonly {
-  readonly id: ApplicationDestination;
-  readonly label: string;
-  readonly icon: IconName;
-}[] = [
-  { id: "library", label: localizedMessage("inspection.components.app.library"), icon: "library" },
-  { id: "transfers", label: localizedMessage("inspection.components.app.transfers"), icon: "transfers" },
-  { id: "workbench", label: localizedMessage("inspection.components.app.workbench"), icon: "workbench" },
-];
 
 function waitForTorrentRemoval(
   controller: InspectionController,
@@ -105,10 +111,21 @@ export interface AppProps {
   readonly notifications?: DesktopNotifications | undefined;
   readonly power?: DesktopPower | undefined;
   readonly remoteAccess?: DesktopRemoteAccess | undefined;
+  readonly localPlayback?: LocalVideoPlayback | undefined;
   readonly accessMode?: HostedAccessMode | undefined;
   readonly hostedProduct?: HostedProduct | undefined;
   readonly productPrivacy?: ProductPrivacyController | undefined;
+  readonly about?: AboutFacts | undefined;
 }
+
+// Tactical 352: Settings loads on first open; App prefetches it once the
+// library has arrived so opening it does not wait on the network.
+const loadSettingsDialog = () => import("./SettingsDialog");
+const SettingsDialog = lazy(() =>
+  loadSettingsDialog().then(({ SettingsDialog }) => ({
+    default: SettingsDialog,
+  })),
+);
 
 export function App({
   oneCurrentRoot,
@@ -118,55 +135,90 @@ export function App({
   notifications,
   power,
   remoteAccess,
+  localPlayback,
   accessMode,
   hostedProduct,
   productPrivacy,
+  about,
 }: AppProps) {
+  const connection = useInspectionStore((state) => state.session.connection);
+  const controller = useInspectionController();
+  useEffect(() => markStartup("shell_rendered"), []);
+  const connectionNowMs = useConnectionClock(connection.type === "reconnecting");
+  const interrupted = connectionInterrupted(connection, connectionNowMs);
   return (
-    <DesktopExternalIntakeProvider intake={externalIntake}>
-      <TorrentActionProvider>
-        <AppContent
-          webAuth={webAuth}
-          updater={updater}
-          notifications={notifications}
-          power={power}
-          remoteAccess={remoteAccess}
-          accessMode={accessMode}
-          hostedProduct={hostedProduct}
-          productPrivacy={productPrivacy}
-          oneCurrentRoot={oneCurrentRoot}
-        />
-      </TorrentActionProvider>
-    </DesktopExternalIntakeProvider>
+    <ToastProvider>
+      <DesktopExternalIntakeProvider intake={externalIntake}>
+        <PlaybackProvider remoteAccess={remoteAccess} localPlayback={localPlayback}>
+          <TorrentActionProvider>
+            <AppContent
+              interrupted={interrupted}
+              webAuth={webAuth}
+              updater={updater}
+              notifications={notifications}
+              power={power}
+              remoteAccess={remoteAccess}
+              accessMode={accessMode}
+              hostedProduct={hostedProduct}
+              productPrivacy={productPrivacy}
+              about={about}
+              oneCurrentRoot={oneCurrentRoot}
+            />
+            {interrupted ? (
+              <ConnectionOverlay
+                connection={connection}
+                nowMs={connectionNowMs}
+                onRetry={() => controller.reconnectNow()}
+                onReload={() => window.location.reload()}
+              />
+            ) : null}
+          </TorrentActionProvider>
+        </PlaybackProvider>
+      </DesktopExternalIntakeProvider>
+    </ToastProvider>
   );
 }
 
 function AppContent({
+  interrupted,
   oneCurrentRoot,
   webAuth,
-  updater,
+  updater: suppliedUpdater,
   notifications,
   power,
   remoteAccess,
   accessMode,
   hostedProduct,
   productPrivacy,
-}: AppProps) {
+  about,
+}: AppProps & { readonly interrupted: boolean }) {
   const session = useInspectionStore((state) => state.session);
   const demo = useInspectionStore((state) => state.demo);
   const storage = useInspectionStore((state) => state.storage);
   const clientSettings = useInspectionStore((state) => state.clientSettings);
+  // Storage and client settings arrive with the library view.
+  const libraryLoading = useInspectionStore(
+    (state) => state.viewStatus.library.status === "loading",
+  );
+  useEffect(() => {
+    if (!libraryLoading) void loadSettingsDialog();
+  }, [libraryLoading]);
   const execute = useInspectionCommand();
   const controller = useInspectionController();
+  const updater = suppliedUpdater ?? controller.application.updater;
   const destination = useInspectionStore(
     (state) => state.presentation.destination,
   );
   const detailOpen = useInspectionStore(
     (state) => state.presentation.detailOpen,
   );
+  const libraryDetailOpen = useInspectionStore(
+    (state) => state.presentation.libraryDetailOpen,
+  );
   const sidebarOpen = useInspectionStore(
     (state) => state.presentation.sidebarOpen,
   );
+  const layout = useInspectionStore((state) => state.presentation.layout);
   const detailPanePercent = useInspectionStore(
     (state) => state.presentation.detailPanePercent,
   );
@@ -177,8 +229,8 @@ function AppContent({
     (state) => state.presentation.colorTheme,
   );
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
-  const selectDestination = useInspectionStore(
-    (state) => state.selectDestination,
+  const title = useInspectionStore((state) =>
+    navigationTitle(state.presentation),
   );
   const toggleSidebar = useInspectionStore((state) => state.toggleSidebar);
   const closeSidebar = useInspectionStore((state) => state.closeSidebar);
@@ -191,7 +243,16 @@ function AppContent({
   );
   const setColorTheme = useInspectionStore((state) => state.setColorTheme);
   const setDataUnits = useInspectionStore((state) => state.setDataUnits);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsCategory = useInspectionStore(
+    (state) => state.presentation.settingsCategory,
+  );
+  const settingsOpen = settingsCategory !== null;
+  const openSettings = useInspectionStore((state) => state.openSettings);
+  const selectSettingsCategory = useInspectionStore(
+    (state) => state.selectSettingsCategory,
+  );
+  const closeSettings = useInspectionStore((state) => state.closeSettings);
+  const setSettingsBusy = useInspectionStore((state) => state.setSettingsBusy);
   const waitingForUnmeteredNetwork =
     clientSettings.application_network.requested_prerequisite ===
       "waiting_for_unmetered_network" &&
@@ -200,16 +261,21 @@ function AppContent({
     accessMode === "lan_none" || accessMode === "network_none"
       ? accessMode
       : null;
-  const [credentialFreeNoticeDismissed, setCredentialFreeNoticeDismissed] =
-    useState(() =>
-      credentialFreeAccessMode === null
-        ? false
-        : loadCredentialFreeNoticeDismissed(credentialFreeAccessMode),
-    );
-  const [settingsCategory, setSettingsCategory] =
-    useState<SettingsCategory>("appearance");
+  // The access mode can arrive after the first render (Tactical 352).
+  const [dismissedNoticeMode, setDismissedNoticeMode] = useState<
+    typeof credentialFreeAccessMode
+  >(null);
+  const credentialFreeNoticeDismissed = useMemo(
+    () =>
+      credentialFreeAccessMode !== null &&
+      (dismissedNoticeMode === credentialFreeAccessMode ||
+        loadCredentialFreeNoticeDismissed(credentialFreeAccessMode)),
+    [credentialFreeAccessMode, dismissedNoticeMode],
+  );
   const updaterSnapshot = useDesktopUpdater(updater);
   const [resizingDetail, setResizingDetail] = useState(false);
+  const [collectionToolbar, setCollectionToolbar] =
+    useState<HTMLDivElement | null>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   const splitterRef = useRef<HTMLDivElement>(null);
@@ -225,12 +291,13 @@ function AppContent({
       updaterSnapshot !== undefined &&
       presentsManualUpdateResult(updaterSnapshot.state)
     ) {
-      setSettingsCategory("updates");
-      setSettingsOpen(true);
+      openSettings("about");
     }
-  }, [updaterSnapshot]);
+  }, [openSettings, updaterSnapshot]);
 
   const desiredDocumentTitle = documentTitleForSession(session, dataUnits);
+  const showRates =
+    session.downloadRate > 0 || (session.uploadRate ?? 0) > 0;
 
   useEffect(() => {
     const throttle =
@@ -250,15 +317,7 @@ function AppContent({
   }, []);
 
   useEffect(() => {
-    const update = () => {
-      setLayout(
-        window.innerWidth < 680
-          ? "phone"
-          : window.innerWidth < 1_100
-            ? "compact"
-            : "wide",
-      );
-    };
+    const update = () => setLayout(layoutForWidth(window.innerWidth));
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
@@ -325,10 +384,17 @@ function AppContent({
   } as CSSProperties;
 
   return (
+    <TorrentAddProvider
+      showCrostiniStorageHelp={hostedProduct === "crostini"}
+      oneCurrentRoot={oneCurrentRoot === true}
+    >
     <div
       className={styles.app}
+      inert={interrupted}
+      data-connection={session.connection.type}
       data-destination={destination}
       data-detail-open={detailOpen}
+      data-library-detail-open={libraryDetailOpen}
       data-interface-size={interfaceSize}
       data-sidebar-open={sidebarOpen}
     >
@@ -336,46 +402,38 @@ function AppContent({
         <button
           className={styles.menuButton}
           type="button"
-          aria-label={`Toggle ${destinationLabel(destination)} filters`}
+          aria-label={localizedMessage("inspection.components.app.toggle.navigation")}
           aria-expanded={sidebarOpen}
           onClick={toggleSidebar}
         >
           <Icon name="menu" />
         </button>
         <div className={styles.brand}>
-          <span aria-hidden="true">{localizedMessage("inspection.components.app.rs")}</span>
+          <img src={jstorrentIcon} width="32" height="32" alt="" />
           <strong>{localizedMessage("inspection.components.app.rstorrent")}</strong>
         </div>
-        <nav className={styles.primaryNavigation} aria-label={localizedMessage("inspection.components.app.primary")}>
-          {DESTINATIONS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              aria-current={destination === item.id ? "page" : undefined}
-              onClick={() => selectDestination(item.id)}
-            >
-              <Icon name={item.icon} />
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-        <div
-          className={styles.sessionStats}
-          aria-label={localizedMessage("inspection.components.app.session.transfer.rates")}
-        >
-          <span>
-            <b aria-hidden="true">↓</b>{" "}
-            {formatRate(session.downloadRate, dataUnits)}
-          </span>
-          <span>
-            <b aria-hidden="true">↑</b>{" "}
-            {formatRate(session.uploadRate, dataUnits)}
-          </span>
-        </div>
-        <div className={styles.connection} data-state={session.connection}>
-          <span aria-hidden="true" />
-          {session.connection === "demo" ? localizedMessage("inspection.components.app.demo.adapter") : session.connection}
-        </div>
+        <strong className={styles.locationTitle}>{title}</strong>
+        {/* Where there is room, adding works from every destination. */}
+        {layout === "phone" ? null : (
+          <div className={styles.headerAdd}>
+            <AddTorrentForm />
+          </div>
+        )}
+        {showRates ? (
+          <div
+            className={styles.sessionStats}
+            aria-label={localizedMessage("inspection.components.app.session.transfer.rates")}
+          >
+            <span>
+              <b aria-hidden="true">↓</b>{" "}
+              {formatRate(session.downloadRate, dataUnits)}
+            </span>
+            <span>
+              <b aria-hidden="true">↑</b>{" "}
+              {formatRate(session.uploadRate, dataUnits)}
+            </span>
+          </div>
+        ) : null}
         {credentialFreeAccessMode !== null ? (
           <span
             className={styles.lanAccessStatus}
@@ -392,8 +450,7 @@ function AppContent({
           aria-expanded={settingsOpen}
           title={localizedMessage("inspection.components.app.settings")}
           onClick={() => {
-            setSettingsCategory("appearance");
-            setSettingsOpen(true);
+            openSettings("appearance");
           }}
         >
           <Icon name="settings" />
@@ -409,7 +466,7 @@ function AppContent({
               role="status"
               aria-label={localizedMessage("inspection.components.app.network.prerequisite.status")}
             >
-              <strong>{localizedMessage("inspection.components.app.waiting.for.an.unmetered.network")}</strong>
+              <strong>{localizedMessage("inspection.components.app.waiting.for.wifi")}</strong>
               <span>{localizedMessage("inspection.components.app.transfers.will.resume.automatically.when.one.is")}</span>
             </aside>
           ) : null}
@@ -430,7 +487,7 @@ function AppContent({
               <button
                 type="button"
                 onClick={() => {
-                  setCredentialFreeNoticeDismissed(true);
+                  setDismissedNoticeMode(credentialFreeAccessMode);
                   saveCredentialFreeNoticeDismissed(credentialFreeAccessMode);
                 }}
               >{localizedMessage("inspection.components.app.got.it")}</button>
@@ -448,7 +505,7 @@ function AppContent({
         <button
           className={styles.scrim}
           type="button"
-          aria-label={`Close ${destinationLabel(destination)} filters`}
+          aria-label={localizedMessage("inspection.components.app.close.navigation")}
           onClick={closeSidebar}
         />
         <main
@@ -461,10 +518,7 @@ function AppContent({
           {destination === "library" ? (
             <LibraryView />
           ) : destination === "transfers" ? (
-            <TransfersView
-              showCrostiniStorageHelp={hostedProduct === "crostini"}
-              oneCurrentRoot={oneCurrentRoot === true}
-            />
+            <TransfersView />
           ) : (
             <>
               <section
@@ -472,11 +526,15 @@ function AppContent({
                 aria-label={localizedMessage("inspection.components.app.workbench.torrent.collection")}
               >
                 <TorrentActions
-                  showCrostiniStorageHelp={hostedProduct === "crostini"}
-                  oneCurrentRoot={oneCurrentRoot === true}
+                  showAddForm={layout === "phone"}
+                  tableToolbarRef={setCollectionToolbar}
                 />
                 <div className={styles.tableWrap}>
-                  <TorrentTable />
+                  <TableToolbarSlot.Provider
+                    value={layout === "phone" ? null : collectionToolbar}
+                  >
+                    <TorrentTable />
+                  </TableToolbarSlot.Provider>
                 </div>
               </section>
               <div
@@ -511,17 +569,20 @@ function AppContent({
           )}
         </main>
       </div>
+      <UpdateOutcomeNotice snapshot={updaterSnapshot} />
       {updater !== undefined && updaterSnapshot?.state.phase === "available" ? (
         <aside className={styles.updateNotice} role="status">
           <div>
             <strong>{localizedMessage("inspection.components.app.rstorrent")}{" "}{updaterSnapshot.state.version}{" "}{localizedMessage("inspection.components.app.is.available")}</strong>
-            <span>{localizedMessage("inspection.components.app.review.the.update.when.you.are.ready")}</span>
+            <span>{updaterSnapshot.restartInSeconds === undefined ? (updaterSnapshot.updateMessage ?? localizedMessage("inspection.components.app.review.the.update.when.you.are.ready")) : localizedMessage("updates.restart-countdown", { seconds: updaterSnapshot.restartInSeconds })}</span>
           </div>
+          {updaterSnapshot.restartInSeconds === undefined ? null : (
+            <button type="button" onClick={() => void updater.install()}>{localizedMessage("inspection.components.about.updates.settings.section.install.and.restart")}</button>
+          )}
           <button
             type="button"
             onClick={() => {
-              setSettingsCategory("updates");
-              setSettingsOpen(true);
+              openSettings("about");
             }}
           >{localizedMessage("inspection.components.app.review.update")}</button>
           <button
@@ -531,7 +592,8 @@ function AppContent({
           >{localizedMessage("inspection.components.app.later")}</button>
         </aside>
       ) : null}
-      {settingsOpen ? (
+      {settingsCategory !== null ? (
+        <Suspense fallback={null}>
         <SettingsDialog
           colorTheme={colorTheme}
           interfaceSize={interfaceSize}
@@ -542,14 +604,18 @@ function AppContent({
           showCrostiniStorageHelp={hostedProduct === "crostini"}
           oneCurrentRoot={oneCurrentRoot === true}
           clientSettingsManageable
+          clientSettingsLoading={libraryLoading}
           notifications={notifications}
           power={power}
           remoteAccess={remoteAccess}
           webAuth={webAuth}
           updater={updater}
           updaterSnapshot={updaterSnapshot}
+          about={withHostProduct(about ?? (demo === null ? {} : { connection: "demo" }), session.host)}
           productPrivacy={productPrivacy}
           initialCategory={settingsCategory}
+          onCategoryChange={selectSettingsCategory}
+          onBusyChange={setSettingsBusy}
           returnFocus={settingsButtonRef}
           onColorThemeChange={setColorTheme}
           onInterfaceSizeChange={setInterfaceSize}
@@ -575,6 +641,16 @@ function AppContent({
           }}
           onClientSettingsSave={(patch) =>
             execute({ type: "update_client_settings", patch })
+          }
+          onExportTorrentList={
+            remoteAccess?.scope === "remote"
+              ? undefined
+              : controller.application.exportTorrentList
+          }
+          onImportTorrentBundle={
+            remoteAccess?.scope === "remote"
+              ? undefined
+              : controller.application.importTorrentBundle
           }
           deleteDataSupported={Object.values(controller.store.getState().torrents).every(
             (torrent) => torrent.deleteDataSupported,
@@ -666,22 +742,26 @@ function AppContent({
             if (power?.restartApplication !== undefined) {
               await power.restartApplication();
             } else {
+              // Cleared data starts on the default screen, not this Settings.
+              window.history.replaceState(
+                null,
+                "",
+                window.location.pathname + window.location.search,
+              );
               window.location.reload();
             }
           }}
           onWebAuthSignedOut={() => window.location.reload()}
-          onClose={() => setSettingsOpen(false)}
+          onClose={closeSettings}
         />
+        </Suspense>
       ) : null}
       {productPrivacy === undefined ? null : (
         <ProductDisclosure productPrivacy={productPrivacy} />
       )}
     </div>
+    </TorrentAddProvider>
   );
-}
-
-function destinationLabel(destination: ApplicationDestination): string {
-  return destination.slice(0, 1).toUpperCase() + destination.slice(1);
 }
 
 function presentsManualUpdateResult(state: UpdaterState): boolean {

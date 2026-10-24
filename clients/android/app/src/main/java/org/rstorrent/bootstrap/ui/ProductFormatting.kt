@@ -1,24 +1,26 @@
 package org.rstorrent.bootstrap.ui
 
-import android.icu.text.ListFormatter
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.max
 import org.rstorrent.bootstrap.R
-import org.rstorrent.session.uniffi.ClientSettingsApplicationState
-import org.rstorrent.session.uniffi.SeedAdmissionView
-import org.rstorrent.session.uniffi.SeedGoalView
+import org.rstorrent.session.uniffi.ProgressReason
+import org.rstorrent.session.uniffi.RemovalState
 import org.rstorrent.session.uniffi.TorrentEtaView
 import org.rstorrent.session.uniffi.TorrentOperationalState
 import org.rstorrent.session.uniffi.TorrentView
 
+internal fun productFailureDetail(error: Throwable, fallback: String): String =
+    error.message?.takeIf { it.isNotBlank() } ?: fallback
+
 internal fun formatBytes(decimal: String?): String {
     val bytes = decimal?.toDoubleOrNull() ?: return "—"
-    val units = arrayOf("B", "KiB", "MiB", "GiB", "TiB")
+    // 1024-based, labelled KB/MB like the original JSTorrent app.
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
     var value = bytes
     var unit = 0
     while (value >= 1024.0 && unit < units.lastIndex) {
@@ -34,6 +36,20 @@ internal fun formatRate(decimal: String?): String =
 
 internal fun torrentPresentationName(torrent: TorrentView): String =
     torrent.displayName ?: torrent.sourceDisplayName ?: torrent.torrentId
+
+/**
+ * The size a magnet link claimed (`xl`), only while the verified size is
+ * unknown. A claim from the link, never a verified size.
+ */
+internal fun linkClaimedSizeBytes(torrent: TorrentView): String? =
+    torrent.sourceSizeBytes?.takeIf { torrent.totalSizeBytes == null }
+
+/** The verified size, or before metadata the link's size labelled as such. */
+@Composable
+internal fun torrentSizeText(torrent: TorrentView): String {
+    val claimed = linkClaimedSizeBytes(torrent) ?: return formatBytes(torrent.totalSizeBytes)
+    return stringResource(R.string.detail_size_from_link, formatBytes(claimed))
+}
 
 @Composable
 internal fun formatDuration(seconds: ULong): String {
@@ -64,38 +80,6 @@ internal fun formatShareRatio(hundredths: String?): String {
     }.format(BigDecimal(value).movePointLeft(2))
 }
 
-@Composable
-internal fun seedAdmissionLabel(admission: SeedAdmissionView): String =
-    when (admission) {
-        SeedAdmissionView.ACTIVE -> stringResource(R.string.seed_active)
-        SeedAdmissionView.QUEUED -> stringResource(R.string.seed_queued)
-        SeedAdmissionView.INACTIVE_EXEMPT -> stringResource(R.string.seed_inactive_exempt)
-        SeedAdmissionView.INELIGIBLE -> stringResource(R.string.seed_ineligible)
-    }
-
-@Composable
-internal fun seedGoalLabel(goal: SeedGoalView?): String {
-    goal ?: return "—"
-    val configuration = LocalConfiguration.current
-    val thresholds =
-        buildList {
-            if (goal.shareRatioMet) add(stringResource(R.string.seed_goal_share_ratio))
-            if (goal.finishedDownloadRatioMet) {
-                add(stringResource(R.string.seed_goal_finished_download_ratio))
-            }
-            if (goal.finishedTimeMet) add(stringResource(R.string.seed_goal_finished_time))
-        }.ifEmpty { listOf(stringResource(R.string.seed_goal_none)) }
-    val status =
-        stringResource(
-            if (goal.status.name == "MET") R.string.seed_goal_met else R.string.seed_goal_unmet,
-        )
-    return stringResource(
-        R.string.seed_goal_summary,
-        status,
-        ListFormatter.getInstance(configuration.locales[0]).format(thresholds),
-    )
-}
-
 internal fun torrentProgress(torrent: TorrentView): Float {
     val required = torrent.requiredPayloadBytes?.toDoubleOrNull()
     val remaining = torrent.remainingPayloadBytes?.toDoubleOrNull()
@@ -120,25 +104,79 @@ internal fun torrentEta(torrent: TorrentView): String =
 
 @Composable
 internal fun operationalLabel(state: TorrentOperationalState): String =
-    stringResource(
-        when (state) {
-            TorrentOperationalState.QUEUED -> R.string.state_queued
-            TorrentOperationalState.STARTING -> R.string.state_starting
-            TorrentOperationalState.DOWNLOADING -> R.string.state_downloading
-            TorrentOperationalState.CHECKING -> R.string.state_checking
-            TorrentOperationalState.STOPPING -> R.string.state_stopping
-            TorrentOperationalState.SEEDING -> R.string.state_seeding
-            TorrentOperationalState.PAUSED -> R.string.state_paused
-            TorrentOperationalState.ERROR -> R.string.state_error
-        },
-    )
+    stringResource(operationalLabelRes(state))
+
+@StringRes
+internal fun operationalLabelRes(state: TorrentOperationalState): Int =
+    when (state) {
+        TorrentOperationalState.QUEUED -> R.string.state_queued
+        TorrentOperationalState.STARTING -> R.string.state_starting
+        TorrentOperationalState.DOWNLOADING -> R.string.state_downloading
+        TorrentOperationalState.CHECKING -> R.string.state_checking
+        TorrentOperationalState.STOPPING -> R.string.state_stopping
+        TorrentOperationalState.SEEDING -> R.string.state_seeding
+        TorrentOperationalState.PAUSED -> R.string.state_paused
+        TorrentOperationalState.ERROR -> R.string.state_error
+    }
+
+/** Its download folder is missing, removed or lost its Android access. */
+internal fun TorrentView.waitingForStorage(): Boolean =
+    progress.reason == ProgressReason.WAITING_FOR_STORAGE
 
 @Composable
-internal fun settingsApplicationLabel(state: ClientSettingsApplicationState): String =
-    when (state) {
-        ClientSettingsApplicationState.Applied -> stringResource(R.string.state_applied)
-        ClientSettingsApplicationState.Applying -> stringResource(R.string.state_applying)
-        is ClientSettingsApplicationState.Degraded -> state.detail
+internal fun torrentStatusLabel(torrent: TorrentView): String =
+    stringResource(torrentStatusLabelRes(torrent))
+
+/**
+ * Removal outranks every other state because the torrent is going away.
+ * Archived torrents are paused and inactive; show that instead of the paused
+ * state. A torrent the engine paused at a stop limit reads Seeding limit
+ * reached rather than Paused.
+ */
+@StringRes
+internal fun torrentStatusLabelRes(torrent: TorrentView): Int =
+    when {
+        torrent.removalActive -> R.string.state_removing
+        torrent.removalState == RemovalState.FAILED -> R.string.state_removal_failed
+        torrent.archived -> R.string.state_archived
+        torrent.waitingForStorage() -> R.string.state_folder_unavailable
+        torrent.operationalState == TorrentOperationalState.PAUSED && torrent.stoppedBySeedLimit ->
+            R.string.state_seed_limit_reached
+        else -> operationalLabelRes(torrent.operationalState)
+    }
+
+/** What the torrent is doing right now, for the Status tab. */
+@Composable
+internal fun torrentActivityLabel(torrent: TorrentView): String =
+    stringResource(torrentActivityLabelRes(torrent))
+
+@StringRes
+internal fun torrentActivityLabelRes(torrent: TorrentView): Int =
+    if (torrent.progress.reason == ProgressReason.PAUSED && torrent.stoppedBySeedLimit) {
+        R.string.state_seed_limit_reached
+    } else {
+        progressReasonLabelRes(torrent.progress.reason)
+    }
+
+@StringRes
+internal fun progressReasonLabelRes(reason: ProgressReason): Int =
+    when (reason) {
+        ProgressReason.NETWORK_DISABLED -> R.string.activity_network_off
+        ProgressReason.WAITING_FOR_UNMETERED_NETWORK -> R.string.status_waiting_unmetered
+        ProgressReason.DISCOVERING_PEERS,
+        ProgressReason.WAITING_FOR_DISCOVERY,
+        -> R.string.activity_finding_peers
+        ProgressReason.NO_ENABLED_DISCOVERY_SOURCE -> R.string.activity_no_peer_sources
+        ProgressReason.ACQUIRING_METADATA -> R.string.activity_getting_metadata
+        ProgressReason.PREPARING_STORAGE -> R.string.activity_preparing_files
+        ProgressReason.WAITING_FOR_STORAGE -> R.string.state_folder_unavailable
+        ProgressReason.PREPARING_INTEGRITY -> R.string.state_checking
+        ProgressReason.TRANSFERRING_PIECES -> R.string.state_downloading
+        ProgressReason.VERIFYING_PIECES -> R.string.activity_verifying
+        ProgressReason.PAUSED -> R.string.state_paused
+        ProgressReason.COMPLETE -> R.string.activity_complete
+        ProgressReason.NEEDS_REPAIR -> R.string.activity_needs_repair
+        ProgressReason.FAILED -> R.string.state_error
     }
 
 internal fun percentLabel(progress: Float): String =

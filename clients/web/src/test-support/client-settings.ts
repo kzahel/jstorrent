@@ -1,7 +1,9 @@
+import { DEFAULT_CLIENT_SETTINGS as FILE_SAFETY_DEFAULTS } from "../api";
 import type { ClientSettings, ClientSettingsRuntimeView } from "../api";
 
 export function clientSettingsFixture(): ClientSettings {
   return {
+    file_safety: FILE_SAFETY_DEFAULTS.file_safety,
     listener: { type: "disabled" },
     preferred_listen_port: 6_881,
     port_mapping: "disabled",
@@ -12,6 +14,8 @@ export function clientSettingsFixture(): ClientSettings {
     share_ratio_limit_percent: 200,
     finished_download_ratio_limit_percent: 700,
     finished_time_limit_seconds: 86_400,
+    seed_stop_ratio_percent: { type: "off" as const },
+    seed_stop_time_seconds: { type: "off" as const },
     upload_rate_limit: { type: "unlimited" },
     download_rate_limit: { type: "unlimited" },
     encryption: "allow",

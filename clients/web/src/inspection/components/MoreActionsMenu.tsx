@@ -6,6 +6,7 @@ import {
   type TestTorrentShortcut,
 } from "../testTorrents";
 import type { TorrentActionId } from "../torrent-actions";
+import { useNarrowViewport } from "../layout";
 import { Icon } from "./Icon";
 import type { ResolvedTorrentAction } from "./TorrentActionContext";
 import { TorrentActionMenuItems } from "./TorrentActionMenuItems";
@@ -39,6 +40,9 @@ export function MoreActionsMenu({
   onAddAllTestTorrents,
 }: MoreActionsMenuProps) {
   const [open, setOpen] = useState(false);
+  // Narrow toolbars show the overflow icon alone.
+  const narrow = useNarrowViewport();
+  const label = localizedMessage("inspection.components.more.actions.menu.more");
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -51,7 +55,14 @@ export function MoreActionsMenu({
       isOpen={open}
       onOpenChange={setOpen}
     >
-      <OverlayButton ref={triggerRef} className={styles.trigger!} isDisabled={disabled}>{localizedMessage("inspection.components.more.actions.menu.more")}{" "}<Icon name="chevronDown" />
+      <OverlayButton
+        ref={triggerRef}
+        className={styles.trigger!}
+        isDisabled={disabled}
+        {...(narrow ? { "aria-label": label } : {})}
+      >
+        {narrow ? null : <>{label}{" "}</>}
+        <Icon name={narrow ? "moreVertical" : "chevronDown"} />
       </OverlayButton>
       <ActionMenuPopover>
         <TorrentActionMenuItems actions={actions} onAction={(actionId) => onAction(actionId, triggerRef.current)} />

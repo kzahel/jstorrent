@@ -73,7 +73,7 @@ export const PEER_FLAG_DEFINITIONS: Readonly<
   },
   metadata_extension: {
     glyph: "m",
-    label: localizedMessage("inspection.peer.flags.metadata.extension"),
+    label: localizedMessage("inspection.peer.flags.can.send.torrent.info"),
     group: "Protocol",
   },
   utp: {

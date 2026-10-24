@@ -3,8 +3,9 @@ package org.rstorrent.bootstrap
 import org.rstorrent.session.uniffi.ActivePiece
 import org.rstorrent.session.uniffi.ActivePieceFieldUpdate
 import org.rstorrent.session.uniffi.ActivePieceUpdate
-import org.rstorrent.session.uniffi.ClientSettingsRuntimeView
+import org.rstorrent.session.uniffi.CatalogRecoveryStatus
 import org.rstorrent.session.uniffi.CatalogPageView
+import org.rstorrent.session.uniffi.ClientSettingsRuntimeView
 import org.rstorrent.session.uniffi.DhtInspectionView
 import org.rstorrent.session.uniffi.DiagnosticEvent
 import org.rstorrent.session.uniffi.DiskPieceView
@@ -14,11 +15,15 @@ import org.rstorrent.session.uniffi.FileFieldUpdate
 import org.rstorrent.session.uniffi.FileRowUpdate
 import org.rstorrent.session.uniffi.FileView
 import org.rstorrent.session.uniffi.IndexRange
+import org.rstorrent.session.uniffi.LibraryFacetsView
+import org.rstorrent.session.uniffi.LibraryGroupView
+import org.rstorrent.session.uniffi.LibraryMediaItemView
+import org.rstorrent.session.uniffi.LibraryMediaQuery
 import org.rstorrent.session.uniffi.MediaCatalogState
 import org.rstorrent.session.uniffi.MediaItemView
-import org.rstorrent.session.uniffi.PeerView
 import org.rstorrent.session.uniffi.PeerFieldUpdate
 import org.rstorrent.session.uniffi.PeerRowUpdate
+import org.rstorrent.session.uniffi.PeerView
 import org.rstorrent.session.uniffi.ProductSummary
 import org.rstorrent.session.uniffi.SessionCurrentRatesView
 import org.rstorrent.session.uniffi.SpeedHistoryAppend
@@ -27,13 +32,13 @@ import org.rstorrent.session.uniffi.StorageSettingsSnapshot
 import org.rstorrent.session.uniffi.SwarmCatalogState
 import org.rstorrent.session.uniffi.SwarmCountsView
 import org.rstorrent.session.uniffi.SwarmPeerView
+import org.rstorrent.session.uniffi.TorrentFieldUpdate
+import org.rstorrent.session.uniffi.TorrentPreparationView
+import org.rstorrent.session.uniffi.TorrentRowUpdate
+import org.rstorrent.session.uniffi.TorrentView
+import org.rstorrent.session.uniffi.TorrentViewChange
 import org.rstorrent.session.uniffi.TrackerCatalogState
 import org.rstorrent.session.uniffi.TrackerView
-import org.rstorrent.session.uniffi.TorrentView
-import org.rstorrent.session.uniffi.TorrentFieldUpdate
-import org.rstorrent.session.uniffi.TorrentRowUpdate
-import org.rstorrent.session.uniffi.TorrentPreparationView
-import org.rstorrent.session.uniffi.TorrentViewChange
 import org.rstorrent.session.uniffi.ViewPatch
 import org.rstorrent.session.uniffi.ViewSnapshot
 import org.rstorrent.session.uniffi.ViewUpdate
@@ -63,6 +68,23 @@ data class MediaCatalogViewState(
     val state: MediaCatalogState,
     val totalNonPaddingFiles: UInt,
     val items: Map<String, MediaItemView>,
+)
+
+/** One Library query and page, leased as `library_media` (Tactical 376). */
+data class LibraryMediaRequest(
+    val query: LibraryMediaQuery,
+    val offset: UInt,
+    val limit: UInt,
+)
+
+/** One page of the cross-torrent Library (Tactical 363). */
+data class LibraryMediaViewState(
+    val page: CatalogPageView,
+    val facets: LibraryFacetsView,
+    val items: List<LibraryMediaItemView>,
+    val groups: List<LibraryGroupView>,
+    /** The request this page answers; null until its lease stamps it. */
+    val request: LibraryMediaRequest? = null,
 )
 
 data class SwarmViewState(
@@ -104,6 +126,7 @@ sealed interface ProductError {
         SETTINGS_UPDATE_EMPTY,
         SETTINGS_LOADING,
         POWER_SETTING_SAVE_FAILED,
+        SHARE_SETTING_SAVE_FAILED,
         TORRENT_SETTINGS_UPDATE_EMPTY,
         TORRENT_MISSING,
         NETWORK_PREFERENCE_SAVE_FAILED,
@@ -134,19 +157,65 @@ data class ExternalIntakeNotice(
     val kind: ExternalIntakeNoticeKind,
 )
 
+/**
+ * Adds that matched torrents already in the session, shown once. Archived
+ * matches stay hidden from the library, so the notice offers to restore them.
+ */
+data class AlreadyPresentNotice(
+    val sequence: Long,
+    val count: Int,
+    val archivedTorrentIds: List<String>,
+    /** The add asked to start content, so a restore also resumes. */
+    val resumeOnRestore: Boolean,
+)
+
+internal fun alreadyPresentNotice(
+    sequence: Long,
+    torrentIds: List<String>,
+    torrents: Map<String, TorrentView>,
+    resumeOnRestore: Boolean,
+): AlreadyPresentNotice? {
+    val distinct = torrentIds.distinct()
+    if (distinct.isEmpty()) return null
+    return AlreadyPresentNotice(
+        sequence,
+        distinct.size,
+        distinct.filter { torrents[it]?.archived == true },
+        resumeOnRestore,
+    )
+}
+
+/** A rejected torrent command, shown once as a transient message. */
+data class TorrentCommandFailure(
+    val sequence: Long,
+    val detail: String,
+)
+
 data class ProductState(
+    val quickAddsInFlight: Int = 0,
     val ready: Boolean = false,
+    /** The service has shut down; a still-bound activity must rebind to a new one. */
+    val serviceStopped: Boolean = false,
     val error: ProductError? = null,
+    /** Tactical 369: the torrent catalog did not open; the UI shows recovery instead. */
+    val catalogRecovery: CatalogRecoveryStatus? = null,
     val storageRootReady: Boolean = false,
+    val storageRootChecking: Boolean = true,
     val storageRootLabel: String? = null,
     val externalIntake: ExternalIntakePresentation? = null,
     val externalIntakeDepth: Int = 0,
     val externalIntakeNotice: ExternalIntakeNotice? = null,
+    val alreadyPresentNotice: AlreadyPresentNotice? = null,
+    val torrentCommandFailure: TorrentCommandFailure? = null,
+    val torrentListActivity: TorrentListActivity? = null,
+    val torrentListNotice: TorrentListNotice? = null,
     val companionPort: UShort? = null,
+    val legacyChromeOsMigration: Boolean = false,
     val companionPairing: CompanionPairingState? = null,
     val mediaLaunchPending: Boolean = false,
     val lifecycle: ProductLifecycleState = ProductLifecycleState(),
     val preventSleepDuringActiveDownloads: Boolean = true,
+    val sharePeerHintChoice: SharePeerHintChoice = SharePeerHintChoice.ASK,
     val network: ProductNetworkState = ProductNetworkState(),
     val notifications: ProductNotificationState = ProductNotificationState(),
     val dataReset: ProductDataResetState? = null,
@@ -163,6 +232,7 @@ data class ProductState(
     val pieces: Map<String, PieceActivityState> = emptyMap(),
     val files: Map<String, FileCatalogViewState> = emptyMap(),
     val media: Map<String, MediaCatalogViewState> = emptyMap(),
+    val libraryMedia: LibraryMediaViewState? = null,
     val trackers: Map<String, TrackerCatalogViewState> = emptyMap(),
     val peers: Map<String, Map<String, PeerView>> = emptyMap(),
     val swarms: Map<String, SwarmViewState> = emptyMap(),
@@ -384,6 +454,16 @@ internal object ProductStateReducer {
                                     )
                             ),
                 )
+            is ViewSnapshot.LibraryMedia ->
+                state.copy(
+                    libraryMedia =
+                        LibraryMediaViewState(
+                            snapshot.page,
+                            snapshot.facets,
+                            snapshot.items,
+                            snapshot.groups,
+                        ),
+                )
             is ViewSnapshot.Diagnostics ->
                 state.copy(
                     diagnostics = snapshot.events.takeLast(512),
@@ -597,6 +677,21 @@ internal object ProductStateReducer {
                     trackers = state.trackers + (patch.torrentId to current.copy(trackers = trackers)),
                 )
             }
+            is ViewPatch.LibraryMedia -> {
+                val current = state.libraryMedia ?: return state
+                // Rows outside the delivered page arrive only through a snapshot.
+                val positions = current.items.withIndex().associate { it.value.itemId to it.index }
+                val items = current.items.toMutableList()
+                patch.upsert.forEach { item ->
+                    val position =
+                        positions[item.itemId]
+                            ?: throw ViewContinuityException(
+                                "library patch refers to an item outside its page",
+                            )
+                    items[position] = item
+                }
+                state.copy(libraryMedia = current.copy(items = items))
+            }
             is ViewPatch.Diagnostics -> {
                 val events =
                     (state.diagnostics + patch.events)
@@ -696,15 +791,18 @@ internal object ProductStateReducer {
         val next = current.copy()
         update.fields.forEach { field ->
             when (field) {
+                is TorrentFieldUpdate.SafetySummary -> next.safetySummary = field.value
                 is TorrentFieldUpdate.ProtocolIdentities -> next.protocolIdentities = field.value
                 is TorrentFieldUpdate.DisplayName -> next.displayName = field.value
                 is TorrentFieldUpdate.SourceDisplayName -> next.sourceDisplayName = field.value
+                is TorrentFieldUpdate.SourceSizeBytes -> next.sourceSizeBytes = field.value
                 is TorrentFieldUpdate.State -> next.state = field.value
                 is TorrentFieldUpdate.OperationalState -> next.operationalState = field.value
                 is TorrentFieldUpdate.DownloadQueuePosition -> next.downloadQueuePosition = field.value
                 is TorrentFieldUpdate.TransferLimits -> next.transferLimits = field.value
                 is TorrentFieldUpdate.StorageState -> next.storageState = field.value
                 is TorrentFieldUpdate.MetadataAvailable -> next.metadataAvailable = field.value
+                is TorrentFieldUpdate.PrivateTorrent -> next.privateTorrent = field.value
                 is TorrentFieldUpdate.AwaitingFileSelection ->
                     next.awaitingFileSelection = field.value
                 is TorrentFieldUpdate.PendingFileSelectionPosition ->
@@ -754,6 +852,7 @@ internal object ProductStateReducer {
         val next = current.copy()
         update.fields.forEach { field ->
             when (field) {
+                is FileFieldUpdate.Safety -> next.safety = field.value
                 is FileFieldUpdate.Selection -> next.selection = field.value
                 is FileFieldUpdate.DoneBytes -> next.doneBytes = field.value
                 is FileFieldUpdate.VerifiedBytes -> next.verifiedBytes = field.value
@@ -853,7 +952,7 @@ internal object ProductStateReducer {
         return draft.authority(
             key,
             revision,
-            torrent.transferLimits.fieldValues(),
+            torrent.settingsFieldValues(),
         )
     }
 
@@ -907,3 +1006,9 @@ internal object ProductStateReducer {
             }
         }
 }
+
+/** Startup has not established folder health; do not offer repair yet. */
+val ProductState.checkingStorage: Boolean
+    get() = storageRootChecking && (error == null ||
+        error == ProductError.Code.SELECT_DOWNLOAD_FOLDER ||
+        error == ProductError.Code.STORAGE_UNAVAILABLE)

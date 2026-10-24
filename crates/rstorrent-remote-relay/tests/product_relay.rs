@@ -228,9 +228,15 @@ async fn non_loopback_bind_and_non_https_origin_are_rejected() {
 #[tokio::test]
 async fn production_proxy_health_operator_metrics_and_kill_switch_are_bounded() {
     let root = TempDir::new().unwrap();
-    let options =
-        ProductRelayOptions::production("127.0.0.1".parse().unwrap(), OPERATOR_TOKEN.to_owned())
-            .unwrap();
+    let options = ProductRelayOptions::production_with_origins(
+        "127.0.0.1".parse().unwrap(),
+        OPERATOR_TOKEN.to_owned(),
+        vec![
+            "https://jstorrent.com".to_owned(),
+            "https://remote.jstorrent.com".to_owned(),
+        ],
+    )
+    .unwrap();
     let server =
         ProductRelayServer::bind_with_options("127.0.0.1:0".parse().unwrap(), root.path(), options)
             .await
@@ -244,6 +250,60 @@ async fn production_proxy_health_operator_metrics_and_kill_switch_are_bounded() 
     let health = client.get(format!("{base}/healthz")).send().await.unwrap();
     assert_eq!(health.status(), reqwest::StatusCode::OK);
     assert_eq!(health.text().await.unwrap(), r#"{"status":"ok"}"#);
+    // Real upgrades exercise the configured production origin, not just URL
+    // validation. The trusted proxy supplies an independently checked source.
+    for origin in [
+        "https://rstorrent.com",
+        "https://www.jstorrent.com",
+        "https://jstorrent.com:444",
+        "https://jstorrent.com.evil.test",
+    ] {
+        let mut request = format!("ws://{address}/client")
+            .into_client_request()
+            .unwrap();
+        request
+            .headers_mut()
+            .insert("origin", origin.parse().unwrap());
+        request
+            .headers_mut()
+            .insert("x-rstorrent-client-ip", "198.51.100.7".parse().unwrap());
+        assert!(
+            matches!(
+                connect_async(request).await,
+                Err(WebSocketError::Http(response)) if response.status() == 404
+            ),
+            "accepted {origin}"
+        );
+    }
+    for origin in ["https://jstorrent.com", "https://remote.jstorrent.com"] {
+        let mut request = format!("ws://{address}/client")
+            .into_client_request()
+            .unwrap();
+        request
+            .headers_mut()
+            .insert("origin", origin.parse().unwrap());
+        request
+            .headers_mut()
+            .insert("x-rstorrent-client-ip", "198.51.100.7".parse().unwrap());
+        let (mut controller, response) = connect_async(request).await.unwrap();
+        assert_eq!(response.status(), 101);
+        controller.close(None).await.unwrap();
+    }
+    let mut duplicate = format!("ws://{address}/client")
+        .into_client_request()
+        .unwrap();
+    duplicate
+        .headers_mut()
+        .append("origin", "https://jstorrent.com".parse().unwrap());
+    duplicate
+        .headers_mut()
+        .append("origin", "https://remote.jstorrent.com".parse().unwrap());
+    duplicate
+        .headers_mut()
+        .insert("x-rstorrent-client-ip", "198.51.100.7".parse().unwrap());
+    assert!(
+        matches!(connect_async(duplicate).await, Err(WebSocketError::Http(response)) if response.status() == 404)
+    );
     assert_eq!(
         client
             .get(format!("{base}/operator/v1/status"))

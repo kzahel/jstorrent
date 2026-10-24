@@ -13,14 +13,12 @@
 
 .badge {
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   padding: 0.22rem 0.52rem;
   color: var(--demo-strong);
   background: var(--demo);
   font-size: var(--ui-font-caption);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: var(--weight-strong);
 }
 
 .bar label {
@@ -28,18 +26,14 @@
   align-items: center;
   gap: 0.45rem;
   min-width: 0;
-  font-weight: 650;
+  font-weight: var(--weight-medium);
 }
 
 .bar select {
   width: min(15rem, 30vw);
-  height: var(--ui-control-height);
-  border: 1px solid var(--demo-control-border);
-  border-radius: 0.38rem;
-  padding: 0 1.8rem 0 0.5rem;
+  border-color: var(--demo-control-border);
   color: var(--demo-control-text);
-  background: var(--demo-control);
-  font: inherit;
+  background-color: var(--demo-control);
 }
 
 .clock {
@@ -61,12 +55,12 @@
   gap: 0.3rem;
   height: var(--ui-control-height);
   border: 1px solid var(--demo-control-border);
-  border-radius: 0.38rem;
+  border-radius: var(--radius-md);
   padding: 0 0.55rem;
-  color: var(--demo-text);
+  color: var(--demo-control-text);
   background: var(--demo-control);
   font: inherit;
-  font-weight: 650;
+  font-weight: var(--weight-medium);
   cursor: pointer;
 }
 

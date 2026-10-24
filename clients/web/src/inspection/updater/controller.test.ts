@@ -96,6 +96,34 @@ describe("desktop updater controller", () => {
     expect(backend.checks).toHaveLength(0);
   });
 
+  it.each([
+    ["msi", "Windows MSI"],
+    ["deb", "Linux DEB package"],
+    ["rpm", "Linux RPM package"],
+    ["unknown", "development build"],
+  ] as const)("%s starts and stays managed without timers or backend calls", async (bundleType, packageLabel) => {
+    vi.useFakeTimers();
+    const backend = new RecordingBackend();
+    const channel = vi.spyOn(backend, "selectChannel");
+    const controller = createController(backend, { ...info, bundleType });
+    const state = { phase: "manual-install", packageLabel };
+    expect(controller.getSnapshot().state).toEqual(state);
+    expect(vi.getTimerCount()).toBe(0);
+    controller.dismiss();
+    await controller.selectChannel("latest");
+    await controller.check("startup");
+    await controller.check("manual");
+    await controller.install();
+    await vi.advanceTimersByTimeAsync(PERIODIC_CHECK_INTERVAL_MS);
+    expect(controller.getSnapshot().state).toEqual(state);
+    expect(backend.checks).toHaveLength(0);
+    expect(channel).not.toHaveBeenCalled();
+    expect(backend.relaunches).toBe(0);
+    controller.close();
+    controller.close();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("keeps automatic failures quiet and exposes manual failures", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const backend = new RecordingBackend(async () => {

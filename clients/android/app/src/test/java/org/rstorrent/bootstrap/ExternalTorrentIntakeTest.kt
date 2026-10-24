@@ -202,6 +202,51 @@ class ExternalTorrentIntakeTest {
         assertTrue(bounded.toByteArray(Charsets.UTF_8).size <= MAX_EXTERNAL_DISPLAY_LABEL_BYTES)
     }
 
+    @Test
+    fun perAddSelectionChoiceSurvivesRootRepairAndRetry() {
+        listOf(false, true).forEach { chooseFiles ->
+            val controller = ExternalIntakeController()
+            val id = requireNotNull(controller.receive(source(1), false, rootReady = false).intakeId)
+            assertNull(controller.confirm(id, rootReady = false, awaitFileSelection = chooseFiles))
+            controller.rootAvailabilityChanged(true)
+            val work = requireNotNull(controller.confirm(id, rootReady = true))
+            assertEquals(chooseFiles, work.awaitFileSelection)
+            controller.failSubmission(id, retryable = true, rootReady = true)
+            assertEquals(chooseFiles, controller.retry(id, rootReady = true)?.awaitFileSelection)
+        }
+    }
+
+    @Test
+    fun heldInAppAddSubmitsWithItsChoiceOnceTheRootIsReady() {
+        val controller = ExternalIntakeController()
+        val held =
+            requireNotNull(
+                controller.receive(
+                    source(1),
+                    false,
+                    rootReady = false,
+                    heldInApp = true,
+                    awaitFileSelection = true,
+                ).intakeId,
+            )
+        val external = requireNotNull(controller.receive(source(2), false, rootReady = false).intakeId)
+        assertEquals(ExternalIntakePhase.AWAITING_ROOT, controller.snapshot().presentation?.phase)
+        assertNull(controller.takeHeldSubmission(rootReady = false))
+
+        controller.rootAvailabilityChanged(true)
+        val work = requireNotNull(controller.takeHeldSubmission(rootReady = true))
+        assertEquals(held, work.intakeId)
+        assertEquals(true, work.awaitFileSelection)
+        assertTrue(work.heldInApp)
+        // The submission is not presented as a confirmation.
+        assertNull(controller.snapshot().presentation)
+
+        assertTrue(controller.completeSubmission(held, rootReady = true))
+        assertEquals(external, controller.snapshot().presentation?.intakeId)
+        assertEquals(ExternalIntakePhase.PRESENTED, controller.snapshot().presentation?.phase)
+        assertNull(controller.takeHeldSubmission(rootReady = true))
+    }
+
     private fun source(index: Int): ExternalIntakeSource =
         ExternalIntakeSource.create(
             ExternalIntakeKind.MAGNET,

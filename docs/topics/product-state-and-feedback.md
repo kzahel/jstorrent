@@ -1,6 +1,93 @@
 # Installation Product State And Feedback
 
+## Maintainer policy, 2026-10-15
+
+Maintainer direction supersedes the narrower transmission rules below where
+they conflict. JSTorrent is open-source software in early release; the aim is
+best-effort trustworthiness, not a consent-tracking system.
+
+- **Opt-out statistics.** Basic usage and operational statistics are
+  collected unless the user opts out. One clear choice, shown on first run
+  (Android's first screen; desktop's first-run dialog), turns off all of it
+  except the minimum an update check needs (version, platform, ordinary
+  request metadata). The existing **Include usage statistics** preference is
+  that choice. No versioned legal assent record is kept beyond what the
+  preference already stores, and a disclosure text change does not require
+  re-acknowledgement.
+- **Opt-outs are counted.** Desktop update checks send `X-Statistics: on`,
+  `off` or `unreviewed` with no identifier, so the opted-in sample (unique
+  `X-CFU-Id` values) can be scaled to an estimated population. The update
+  server logs the allowlisted header values after Tactical
+  [371](../tactical/371-statistics-and-compatibility-rollout.md)'s steps 1–3
+  deployed on 2026-10-15. The maintainer's reporting script separates
+  choices and estimates the active header-reporting population using the
+  unique explicitly-on sample and on/off check ratio. It states the
+  equal-check-frequency assumption and reports unavailable until an
+  identified on sample exists; desktop release delivery remains separate.
+- **Compatibility reports** (Tactical
+  [370](../tactical/370-version-handshake-and-compatibility-reports.md)):
+  with statistics on, hosts and clients may send coarse version and
+  mismatch counts, stored like update-server request logs, to help operate
+  and fix the product.
+- **Remote access.** Using the hosted remote controller and relay is using
+  a website: the service may record basic operational data (product and
+  controller versions, connection counts and outcomes, usage metadata) to
+  operate the service and keep it reliable, regardless of the in-app
+  statistics preference. Never torrent names, hashes, paths, peers or
+  content.
+- **Privacy policy.** `website/public/privacy.html` is kept current with what
+  is collected; update it in the same change that adds collection.
+
+Tactical [321](../tactical/321-android-feedback-statistics-checkbox.md) verifies
+the deployed privacy, feedback, uninstall and bounded-parser source on
+2026-10-12 and enables Android's hosted-context gate. The feedback checkbox
+can include or omit the exact previewed statistics for one report, with proper
+toggle semantics and no interaction while the preview refreshes. Disclosure
+acknowledgement and the durable opt-out still control availability. Desktop
+and extension gates remain disabled; release delivery is separate.
+
+Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
+replaces the long React/Android first-use disclosure with one concise paragraph,
+a plain usage-statistics checkbox and the existing privacy link. It retains
+random/resettable identifier and basic-count purpose, update/feedback use and
+content exclusions. The detailed URL-recipient warning remains in the exact
+feedback preview. Defaults, acknowledgement version and transmission gates
+are unchanged; existing acknowledged installations are not prompted again.
+
+## Current store checkpoint, 2026-10-10
+
+Shipment295 saves the production Play privacy URL as
+https://jstorrent.com/privacy.html and submits the Android28 update with managed
+publishing on. The existing no-collection declaration is reconciled to optional
+Diagnostics for the four environment fields sent by the user-opened HTTPS
+feedback flow. The preview records non-ephemeral handling and Analytics purpose;
+the public policy explicitly explains recipient exposure before form submission.
+The provider/user-initiated transfer exemptions inform the no-shared-category
+answer. This is a source-aligned best-faith classification, not legal clearance.
+No account, automatic crash upload, new transmission or broader consent is added.
+Tactical208's hosted identifier/counter gate remains release-disabled.
+
+Separate078 owns actual saved/submission screenshots and official Play guidance;
+074 owns exact managed28 lifecycle evidence, and084 owns store presentation.
+The earlier proposal below is retained as dated history, not the current
+submission status. Asynchronous review is not approval or public delivery.
+
+Slice021 prepares exact extension1.1.2 permission/privacy field replacements
+from a fresh authenticated read-only dashboard observation. Old raw-I/O and
+browser-progress explanations remain; all nine data categories are unchecked.
+The local proposal distinguishes pairing/session credentials, local counters/
+content and the disabled hosted identifier/counter fields. Google guidance
+includes local handling; category interpretation and certifications remain
+account-owner review. No draft save, checkbox edit, submission or deployment
+occurs. Slice019 separately prepares three visibly labeled demo image candidates;
+actual installed connected/native screenshot selection remains open.
+
 Topic: `product-state-and-feedback`
+
+Tactical [`232`](../tactical/232-desktop-extension-control.md) keeps desktop
+product state under its existing native owner. Native bootstrap carries no
+product metrics or persistent browser credential, and the extension receives
+no new metrics/reset bridge. Existing extension-local disclosures remain.
 
 Tactical [`230`](../tactical/230-desktop-stable-latest-update-channels.md)
 keeps update check identity under native `product.db` preference authority
@@ -16,21 +103,32 @@ clipboard-denial fallback and exact download bytes pass browser evidence.
 [User guidance](../user-support.md) explains local reporting versus network
 and updater behavior without claiming the corrected hosted pages are deployed.
 
+On 2026-10-15 the maintainer replaced Tactical 216's no-context report links.
+About's **Report on GitHub** opens a new issue whose body carries the same
+bounded diagnostics report, and **Send feedback** opens `feedback.html` with
+platform, version, build, target, package and connection fields the page
+accepts. The user reviews the prefilled page and submitting it is the
+authorization; nothing is sent before then. **Help** opens the user-facing
+`jstorrent.com/support/` page, and `docs/user-support.md`, still linked by
+released builds, carries the same plain-language guidance.
+
 Status: Direction accepted on 2026-08-03 and the first bounded implementation
 landed on 2026-09-01 through Tactical
 [`208`](../tactical/208-installation-metrics-and-feedback-parity.md).
 Installation-wide identity, coarse engagement counters, and disclosed
 feedback/update/uninstall context now share one product-state boundary above
 every native profile; the extension retains its own installation-scoped local
-record. No general analytics service or prompt campaign exists. New optional
-feedback/uninstall identifier/counter query transmission remains release-
-disabled until the corrected hosted pages are deployed and publicly verified.
+record. No general analytics service or prompt campaign exists. Android's
+optional feedback identifier/counter query transmission is enabled in source
+after Tactical 321's hosted verification. Desktop feedback and extension
+uninstall transmission remain release-disabled.
 The separately disclosed updater boundary follows the acknowledged durable
 preference. Completed Tactical
 [`206`](../tactical/206-android-jstorrent-feedback-handoff.md) adds the one
 narrow Android-only external feedback navigation baseline described below.
 Tactical `208` widens the local preview and controls while its fail-closed
-hosted gate preserves that baseline URL. The desktop updater now reads its
+hosted gate preserved that baseline URL until Tactical 321. The desktop updater
+now reads its
 optional `desktop-update-v1` `X-CFU-Id` header from `product.db`; a valid
 legacy `cfu-id` is transactionally adopted and the old file removed only
 afterward, so no second identity authority remains. Tactical `162`'s versioned
@@ -93,7 +191,7 @@ Do not reuse one identifier across unrelated ownership boundaries:
 | --- | --- | --- |
 | Installation ID | One product installation across profiles and application updates | Random resettable 128-bit value in installation product state; may be sent only through the disclosed update, feedback, and extension-uninstall boundaries |
 | Profile ID | One torrent catalog, settings set, roots, and application-service instance | Stable beneath the profile root; never an analytics identity |
-| Client instance ID | One attached presentation lifetime and its reconnect/takeover ownership | Ephemeral; not product history |
+| Client instance ID | One attached client lifetime and its reconnect/takeover ownership | Ephemeral; not product history |
 | Report ID | One user-submitted feedback or support case | Generated for that submission; may be sent with the visible report |
 | Separate analytics ID | A second identity created only for remote measurement | Does not exist and is not needed by the accepted design; the installation ID is the sole disclosed pseudonymous product identity |
 
@@ -134,7 +232,7 @@ One product-lifetime owner above application-service instances owns
 `product.db`. Platform adapters supply the application-data root, current
 product version, wall-clock observation, and foreground lifecycle facts.
 Profile application services publish bounded semantic milestones upward only
-after the authoritative profile transition succeeds. Product clients read a
+after the authoritative profile transition succeeds. Clients read a
 typed summary and record prompt disposition through that owner; they do not
 open SQLite independently.
 
@@ -248,7 +346,7 @@ preference. Appropriate context is closed to:
 - product and platform version;
 - days since first use;
 - the closed aggregate counters;
-- whether the product has ever successfully connected to its engine/backend;
+- whether the product has ever successfully connected to its engine/host;
   and
 - Android's already accepted OS release and manufacturer/model fields.
 
@@ -286,11 +384,11 @@ manufacturer/model. Those fields are transmitted on navigation and may reach
 browser history, website logs/referrers, the embedded Google Form, and the
 page's existing analytics before form submission. No stable identifier,
 counter, error, runtime diagnostic, lifecycle fact, torrent/peer/storage fact,
-or user prose currently enters that URL. Tactical `208` has landed the
-accepted preview, privacy presentation, and controls, but its hosted gate
-keeps the richer product summary out of the URL until the corrected pages are
-deployed and publicly verified. Tactical `206`'s exact four-field URL remains
-the enabled authority meanwhile.
+or user prose entered that original URL. Tactical `208` landed the accepted
+preview, privacy presentation and controls. Tactical `321` verifies the hosted
+pages and enables the richer Android product summary only when disclosure,
+durable preference and per-report consent permit it. Opt-out retains Tactical
+`206`'s exact four-field URL.
 
 ## JSTorrent Reference Evidence
 
@@ -328,7 +426,7 @@ than describing navigation as a private local preview.
 ## Invariants
 
 - Product-state scope is one local installation, not one torrent profile,
-  presentation, process, device account, or remote user.
+  client, process, device account, or remote user.
 - Profile and transport identities are never repurposed as analytics identity.
 - The installation identity is pseudonymous, resettable, and never an
   authorization or hardware identity.
@@ -349,8 +447,15 @@ than describing navigation as a private local preview.
 
 ## Known Gaps And Next Work
 
-- Deploy and publicly verify sibling website commit `af615ce5` through a
-  separately authorized website operation, then flip the three reviewed
+- Finish-line Tactical [259](../tactical/259-jstorrent-finish-line-checks.md)
+  finds the historical sibling commit `af615ce5` unavailable in the current
+  checkout and its corrections absent from both source and the live policy.
+  New sibling source preparation corrects privacy copy and closed, bounded
+  text-only feedback/uninstall rendering. Eight parser/security cases, actual
+  baseline XSS reproduction and corrected desktop/mobile rendering pass;
+  all external requests are blocked or stubbed and no form is submitted.
+  Deploy and publicly verify the reviewed sibling source through a separately
+  authorized website operation, then qualify any change to the three reviewed
   hosted-context gates in one release-qualified change. Until then UUID, age,
   and counters remain absent from new feedback/uninstall traffic.
 - Run Tactical `208`'s physical ChromeOS Android/extension campaign and Apple

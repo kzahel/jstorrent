@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>JSTorrent Beta</title>
+    <title>JSTorrent</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
@@ -11,8 +11,8 @@
       <div class="brand-row">
         <img src="../icons/icon-32.png" width="32" height="32" alt="" />
         <div>
-          <h1>JSTorrent Beta</h1>
-          <p class="eyebrow">RSTorrent launch preview</p>
+          <h1>JSTorrent</h1>
+          <p class="eyebrow">Your torrent library</p>
         </div>
       </div>
 
@@ -23,50 +23,56 @@
           <div>
             <p id="status-title" class="status-title">Checking desktop setup…</p>
             <p id="status-detail" class="status-detail">
-              Looking for the RSTorrent native host.
+              Connecting to the desktop app.
             </p>
           </div>
         </div>
 
-        <button id="launch" type="button" disabled>Open RSTorrent Desktop</button>
+        <button id="launch" type="button" disabled>Open torrent library</button>
       </section>
 
       <section id="chromeos-surface" hidden>
-        <h2>Choose your Chromebook app</h2>
+        <h2>On your Chromebook</h2>
         <p class="surface-intro">
-          Both choices download torrents directly on your Chromebook.
+          Use the Android app to download torrents, then manage the same library here in Chrome.
         </p>
 
         <article class="choice-card android-card">
           <p class="choice-label">Android</p>
-          <h3>RSTorrent preview</h3>
+          <h3>JSTorrent for Android</h3>
           <p>
-            Run the Rust engine in the Android foreground service and use the
-            complete RSTorrent interface here in Chrome.
+            Your torrents and download folders stay in the Android app.
+            Open Android to finish setup, then connect to your library.
           </p>
-          <button id="connect-android" type="button">Connect Android app</button>
+          <a id="open-android" class="button-link" href="intent://chromeos-companion#Intent;scheme=jstorrent;package=com.jstorrent.app;end">Open JSTorrent Android</a>
+          <button id="connect-android" type="button">Connect in Chrome</button>
           <p id="android-status" class="status-detail" role="status"></p>
           <a
             id="android-link"
-            class="button-link"
+            class="button-link secondary"
             href="https://play.google.com/store/apps/details?id=com.jstorrent.app"
             target="_blank"
             rel="noopener noreferrer"
-          >Current JSTorrent on Google Play</a>
+          >Get or update the Android app</a>
+          <a class="button-link secondary" href="../crostini/setup.html#android" target="_blank" rel="noopener noreferrer">Setup and troubleshooting</a>
+          <a class="button-link secondary" href="../crostini/setup.html#linux" target="_blank" rel="noopener noreferrer">Use Linux instead</a>
         </article>
 
-        <article class="choice-card linux-card">
-          <p class="choice-label">ChromeOS Linux</p>
-          <h3>RSTorrent preview</h3>
-          <p>
-            Run the new Rust engine and complete RSTorrent interface in Linux.
-            If Linux is stopped, start <strong>RSTorrent for ChromeOS Linux</strong>
-            from the Chromebook Launcher first.
-          </p>
-          <button id="launch-linux" type="button">Open ChromeOS Linux UI</button>
-          <button id="linux-help" class="secondary" type="button">Setup and recovery</button>
-          <p id="linux-status" class="status-detail" role="status"></p>
-        </article>
+        <details class="linux-alternative">
+          <summary>Using ChromeOS Linux instead?</summary>
+          <article class="choice-card linux-card">
+            <p class="choice-label">ChromeOS Linux</p>
+            <h3>Linux preview</h3>
+            <p>
+              If you already use the separate Linux preview, start
+              <strong>JSTorrent for ChromeOS Linux</strong>
+              from the Chromebook Launcher first.
+            </p>
+            <button id="launch-linux" type="button">Open Linux library</button>
+            <button id="linux-help" class="secondary" type="button">Setup and recovery</button>
+            <p id="linux-status" class="status-detail" role="status"></p>
+          </article>
+        </details>
 
         <p class="footnote">
           Android and ChromeOS Linux keep separate torrent libraries, settings,
@@ -75,38 +81,40 @@
       </section>
 
       <section id="privacy-surface">
-        <h2>Privacy &amp; feedback</h2>
-        <div id="metrics-disclosure" class="choice-card" hidden>
-          <h3>Usage statistics</h3>
-          <p>
-            The extension keeps one random resettable installation identifier,
-            days since first use, visible sessions, and whether it has connected.
-            If enabled after you continue, those values may be placed in the
-            uninstall survey URL. Torrent names, hashes, paths, peers, trackers,
-            credentials, logs, and errors are never included.
+        <details id="privacy-details">
+          <summary>Privacy &amp; feedback</summary>
+          <div id="metrics-disclosure" class="choice-card" hidden>
+            <h3>Usage statistics</h3>
+            <p>
+              The extension keeps one random resettable installation identifier,
+              days since first use, visible sessions, and whether it has connected.
+              If enabled after you continue, those values may be placed in the
+              uninstall survey URL. Torrent names, hashes, paths, peers, trackers,
+              credentials, logs, and errors are never included.
+            </p>
+            <label>
+              <input id="metrics-disclosure-enabled" type="checkbox" checked />
+              Include pseudonymous usage statistics
+            </label>
+            <button id="metrics-continue" type="button">Save and continue</button>
+          </div>
+          <div id="metrics-settings" class="choice-card" hidden>
+            <label>
+              <input id="metrics-enabled" type="checkbox" />
+              Include pseudonymous usage statistics
+            </label>
+            <p id="metrics-summary" class="status-detail"></p>
+            <button id="metrics-reset" class="secondary" type="button">
+              Reset statistics and identifier
+            </button>
+          </div>
+          <p class="footnote">
+            The uninstall URL is stored locally by Chrome. Opening it can disclose
+            included values to browser history, website logs and referrers, the
+            survey form, and the page’s Cloudflare analytics.
           </p>
-          <label>
-            <input id="metrics-disclosure-enabled" type="checkbox" checked />
-            Include pseudonymous usage statistics
-          </label>
-          <button id="metrics-continue" type="button">Save and continue</button>
-        </div>
-        <div id="metrics-settings" class="choice-card" hidden>
-          <label>
-            <input id="metrics-enabled" type="checkbox" />
-            Include pseudonymous usage statistics
-          </label>
-          <p id="metrics-summary" class="status-detail"></p>
-          <button id="metrics-reset" class="secondary" type="button">
-            Reset statistics and identifier
-          </button>
-        </div>
-        <p class="footnote">
-          The uninstall URL is stored locally by Chrome. Opening it can disclose
-          included values to browser history, website logs and referrers, the
-          survey form, and the page’s Cloudflare analytics.
-        </p>
-        <button id="privacy-policy" class="secondary" type="button">Privacy policy</button>
+          <button id="privacy-policy" class="secondary" type="button">Privacy policy</button>
+        </details>
         <p id="metrics-status" class="status-detail" role="status"></p>
       </section>
     </main>

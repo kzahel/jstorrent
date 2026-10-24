@@ -5,13 +5,14 @@ import type { ApplicationViewClient } from "./api/client";
 import { RemoteOnlyApplicationClient } from "./remote-application-client";
 
 describe("remote-only application capability profile", () => {
-  it("removes media and bulk/platform methods from the client surface", async () => {
+  it("preserves media catalog inspection while excluding bulk/platform methods", async () => {
     const inner = {
       hello: async () => hello(),
     } as unknown as ApplicationViewClient;
     const remote = new RemoteOnlyApplicationClient(inner);
     expect((await remote.hello()).capabilities).toEqual([
       "torrent_list",
+      "torrent_media",
       "torrent_files",
     ]);
     expect("addTorrentBytes" in remote).toBe(false);

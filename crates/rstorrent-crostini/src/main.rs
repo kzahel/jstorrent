@@ -80,7 +80,7 @@ fn serve() -> ExitCode {
             .arg("--listen")
             .arg("0.0.0.0:3030")
             .arg("--origin")
-            .arg("http://penguin.linux.test:3030")
+            .arg("http://jstorrent.localhost:3030")
             .arg("--auth")
             .arg("local-open")
             .arg("--web-root")
@@ -104,7 +104,7 @@ fn status() -> ExitCode {
     match rstorrent_crostini::probe_system_gateway() {
         Ok(health) => {
             println!(
-                "RSTorrent Crostini {} is ready (launch protocol {}).",
+                "JSTorrent Crostini {} is ready (launch protocol {}).",
                 health.build_id, health.launch_protocol
             );
             ExitCode::SUCCESS
@@ -154,10 +154,10 @@ fn fail(error: impl std::fmt::Display) -> ExitCode {
 
 fn print_usage() {
     println!(
-        "RSTorrent for ChromeOS Linux\n\n\
+        "JSTorrent for ChromeOS Linux\n\n\
          Usage: rstorrent-crostini <command>\n\n\
          Commands:\n\
-           launch                 Start the service and open RSTorrent in Chrome\n\
+           launch                 Start the service and open JSTorrent in Chrome\n\
            serve                  Run the installed bundled backend\n\
            status                 Validate the local gateway identity\n\
            install --bundle DIR   Install one unpacked per-user bundle\n\

@@ -43,19 +43,18 @@ export function PreparationProgress({
         />
       )}
       {preparation.integrity === null ? null : (
-        <section className={styles.card} aria-label={localizedMessage("inspection.components.preparation.progress.piece.hash.preparation")}>
+        <section className={styles.card} aria-label={localizedMessage("inspection.components.preparation.progress.file.check.data")}>
           <header className={styles.header}>
             <div>
-              <p className={styles.eyebrow}>{localizedMessage("inspection.components.preparation.progress.content.preparation")}</p>
               <h3>
                 {preparation.integrity.phase === "waiting_for_peer"
-                  ? localizedMessage("inspection.components.preparation.progress.waiting.for.a.hash.capable.peer")
-                  : localizedMessage("inspection.components.preparation.progress.fetching.piece.hashes")}
+                  ? localizedMessage("inspection.components.preparation.progress.finding.peers")
+                  : localizedMessage("inspection.components.preparation.progress.getting.check.data")}
               </h3>
               <p>
                 {preparation.integrity.phase === "waiting_for_peer"
-                  ? localizedMessage("inspection.components.preparation.progress.the.selected.files.need.merkle.proof.data")
-                  : localizedMessage("inspection.components.preparation.progress.downloading.merkle.proof.data.needed.to.verify")}
+                  ? localizedMessage("inspection.components.preparation.progress.getting.data.to.check.files")
+                  : localizedMessage("inspection.components.preparation.progress.downloading.data.to.check.files")}
               </p>
             </div>
             <span className={styles.phase}>
@@ -64,16 +63,6 @@ export function PreparationProgress({
                 : localizedMessage("inspection.components.preparation.progress.active")}
             </span>
           </header>
-          <dl className={styles.metrics}>
-            <Metric
-              label={localizedMessage("inspection.components.preparation.progress.hash.ranges.needed")}
-              value={preparation.integrity.neededHashRanges.toLocaleString()}
-            />
-            <Metric
-              label={localizedMessage("inspection.components.preparation.progress.active.requests")}
-              value={preparation.integrity.activeRequests.toLocaleString()}
-            />
-          </dl>
         </section>
       )}
     </div>
@@ -92,23 +81,22 @@ function MetadataCard({
     total === null ? null : Math.min(1, metadata.receivedBytes / total);
   const progressText =
     total === null
-      ? "Discovering metadata size"
+      ? "Size not known yet"
       : `${formatBytes(metadata.receivedBytes, dataUnits)} of ${formatBytes(total, dataUnits)}`;
 
   return (
-    <section className={styles.card} aria-label={localizedMessage("inspection.components.preparation.progress.metadata.download.progress")}>
+    <section className={styles.card} aria-label={localizedMessage("inspection.components.preparation.progress.torrent.info.progress")}>
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>{localizedMessage("inspection.components.preparation.progress.metadata.preparation")}</p>
           <h3>
             {metadata.phase === "discovering"
-              ? localizedMessage("inspection.components.preparation.progress.finding.metadata")
-              : localizedMessage("inspection.components.preparation.progress.downloading.metadata")}
+              ? localizedMessage("inspection.components.preparation.progress.finding.peers")
+              : localizedMessage("inspection.components.preparation.progress.getting.torrent.info")}
           </h3>
           <p>
             {metadata.phase === "discovering"
-              ? localizedMessage("inspection.components.preparation.progress.waiting.for.a.metadata.capable.peer.to")
-              : localizedMessage("inspection.components.preparation.progress.receiving.the.verified.info.dictionary.before.file")}
+              ? localizedMessage("inspection.components.preparation.progress.looking.for.peers.with.torrent.info")
+              : localizedMessage("inspection.components.preparation.progress.file.list.appears.when.done")}
           </p>
         </div>
         <strong className={styles.progressText}>
@@ -117,24 +105,13 @@ function MetadataCard({
       </header>
       <div className={styles.progressRow}>
         <progress
-          aria-label={localizedMessage("inspection.components.preparation.progress.metadata.bytes.received")}
+          aria-label={localizedMessage("inspection.components.preparation.progress.torrent.info.received")}
           max={total ?? undefined}
           value={total === null ? undefined : metadata.receivedBytes}
         />
         <span>{progressText}</span>
       </div>
       {metadata.blockCount === 0 ? null : <MetadataBlockMap metadata={metadata} />}
-      <dl className={styles.metrics}>
-        <Metric
-          label={localizedMessage("inspection.components.preparation.progress.metadata.peers")}
-          value={metadata.activePeers.toLocaleString()}
-        />
-        <Metric
-          label={localizedMessage("inspection.components.preparation.progress.requests.in.flight")}
-          value={metadata.requestsInFlight.toLocaleString()}
-        />
-        <Metric label={localizedMessage("inspection.components.preparation.progress.hash.retries")} value={metadata.hashRetries.toLocaleString()} />
-      </dl>
     </section>
   );
 }
@@ -176,7 +153,7 @@ function MetadataBlockMap({
     return () => cancelAnimationFrame(frame);
   }, [geometry, metadata]);
 
-  const label = `${metadata.blockCount.toLocaleString()} metadata blocks: ${counts.received.toLocaleString()} received, ${counts.requested.toLocaleString()} requested, ${counts.missing.toLocaleString()} missing`;
+  const label = `Torrent info: ${counts.received.toLocaleString()} received, ${counts.requested.toLocaleString()} requested, ${counts.missing.toLocaleString()} missing`;
   return (
     <div className={styles.mapSection}>
       <div ref={wrapRef} className={styles.canvasWrap}>
@@ -187,11 +164,10 @@ function MetadataBlockMap({
           aria-label={label}
         />
       </div>
-      <div className={styles.legend} aria-label={localizedMessage("inspection.components.preparation.progress.metadata.block.state.legend")}>
+      <div className={styles.legend} aria-label={localizedMessage("inspection.components.preparation.progress.legend")}>
         <Legend label={localizedMessage("inspection.components.preparation.progress.missing")} state="missing" />
         <Legend label={localizedMessage("inspection.components.preparation.progress.requested")} state="requested" />
         <Legend label={localizedMessage("inspection.components.preparation.progress.received")} state="received" />
-        <span>{localizedMessage("inspection.components.preparation.progress.16.kib.per.block")}</span>
       </div>
     </div>
   );
@@ -230,9 +206,9 @@ function drawBlockMap(
   context.clearRect(0, 0, geometry.width, geometry.height);
   const computed = getComputedStyle(canvas);
   const colors = [
-    computed.getPropertyValue("--metadata-missing").trim() || "#edf1f5",
-    computed.getPropertyValue("--metadata-requested").trim() || "#d3982e",
-    computed.getPropertyValue("--metadata-received").trim() || "#2477d1",
+    computed.getPropertyValue("--metadata-missing").trim() || "#efebe6",
+    computed.getPropertyValue("--metadata-requested").trim() || "#d39a3a",
+    computed.getPropertyValue("--metadata-received").trim() || "#1f8eee",
   ];
   const stride = geometry.cellSize + geometry.gap;
   for (let index = 0; index < metadata.blockCount; index += 1) {
@@ -263,15 +239,6 @@ function blockStateCounts(metadata: MetadataAcquisitionProgress) {
     }
   }
   return counts;
-}
-
-function Metric({ label, value }: { readonly label: string; readonly value: string }) {
-  return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  );
 }
 
 function Legend({

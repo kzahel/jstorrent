@@ -14,6 +14,8 @@ import type {
   ApplicationWebSocket,
   ApplicationWebSocketFactory,
 } from "./websocket-view-client";
+import { UNSUPPORTED_CALL_MESSAGE } from "./api";
+import { clientIdentity } from "./client-identity";
 import { WebSocketApplicationViewClient } from "./websocket-view-client";
 import {
   clientSettingsFixture,
@@ -84,6 +86,145 @@ class FakeWebSocket implements ApplicationWebSocket {
 }
 
 describe("multiplexed application WebSocket adapter", () => {
+  it("keeps native Cancel connected and closes an aborted desktop picker owner", async () => {
+    let socket!: FakeWebSocket;
+    let cancelNormally = true;
+    const client = new WebSocketApplicationViewClient("http://127.0.0.1:3030", "token", (url) => {
+      socket = new FakeWebSocket(url, (frame, active) => queueMicrotask(() => {
+        if (frame.type === "connect") {
+          const greeting = connected();
+          if (greeting.type !== "connected") throw new Error("fixture");
+          greeting.hello.backend = { kind: "desktop", instance_id: "ab".repeat(16), profile_id: "default", product_version: "test", capability_profile: ["desktop_root_picker_v1"] };
+          active.server(greeting);
+        } else if (frame.type === "choose_download_root" && cancelNormally) {
+          active.server({ type: "download_root_chosen", call_id: frame.call_id, response: { root: null } });
+        }
+      }));
+      return socket;
+    }, clientInstanceId, { desktopRootPicker: true });
+    const selection = client.chooseDownloadRoot({});
+    socket.open();
+    expect(await selection).toBeNull();
+    expect(socket.closeEvents).toEqual([]);
+    cancelNormally = false;
+    const controller = new AbortController();
+    const interrupted = client.chooseDownloadRoot({ repair_root: "root-1" }, controller.signal);
+    const rejected = expect(interrupted).rejects.toThrow();
+    await Promise.resolve();
+    controller.abort();
+    await rejected;
+    expect(socket.closeEvents).toContainEqual({ code: 1000, reason: "folder request aborted" });
+    await client.close();
+  });
+
+  it("refuses the desktop picker when the backend has not advertised it", async () => {
+    let socket!: FakeWebSocket;
+    const client = new WebSocketApplicationViewClient("http://127.0.0.1:3030", "token", (url) => {
+      socket = new FakeWebSocket(url, (frame, active) => {
+        if (frame.type === "connect") queueMicrotask(() => active.server(connected()));
+      });
+      return socket;
+    }, clientInstanceId, { desktopRootPicker: true });
+    const selection = client.chooseDownloadRoot({});
+    const rejected = expect(selection).rejects.toThrow();
+    socket.open();
+    await rejected;
+    expect(socket.sent.some((frame) => frame.type === "choose_download_root")).toBe(false);
+    await client.close();
+  });
+
+  it("reports its identity in connect only when given one", async () => {
+    for (const identity of [clientIdentity("remote", { buildId: "abc123" }), undefined]) {
+      let socket!: FakeWebSocket;
+      const client = new WebSocketApplicationViewClient(
+        "http://127.0.0.1:3030",
+        "token",
+        (url) => {
+          socket = new FakeWebSocket(url, (frame, active) => {
+            if (frame.type === "connect") queueMicrotask(() => active.server(connected()));
+          });
+          return socket;
+        },
+        clientInstanceId,
+        identity === undefined ? {} : { client: identity },
+      );
+      const hello = client.hello();
+      socket.open();
+      await hello;
+      const connect = socket.sent[0] as Extract<ApplicationClientFrame, { type: "connect" }>;
+      expect(connect.client).toEqual(identity);
+      expect("client" in connect).toBe(identity !== undefined);
+      await client.close();
+    }
+  });
+
+  it("ignores a late reply to an aborted call and counts refusals by operation", async () => {
+    let socket!: FakeWebSocket;
+    const callIds: string[] = [];
+    const client = new WebSocketApplicationViewClient(
+      "http://127.0.0.1:3030",
+      "token",
+      (url) => {
+        socket = new FakeWebSocket(url, (frame, active) => {
+          if (frame.type === "connect") queueMicrotask(() => active.server(connected()));
+          if (frame.type === "call") callIds.push(frame.call_id);
+        });
+        return socket;
+      },
+      clientInstanceId,
+    );
+    const hello = client.hello();
+    socket.open();
+    await hello;
+    const refusal = (callId: string): ApplicationServerFrame => ({
+      type: "call_error",
+      call_id: callId,
+      error: { code: "invalid_call", message: UNSUPPORTED_CALL_MESSAGE },
+    });
+    const abort = new AbortController();
+    const aborted = client.dispatch(snapshotRequest("aborted"), abort.signal);
+    await Promise.resolve();
+    abort.abort();
+    await expect(aborted).rejects.toThrow("aborted");
+    // The host still answers the aborted call; that is not a protocol error.
+    socket.server(refusal(callIds[0]!));
+    const refused = client.dispatch(snapshotRequest("refused"));
+    await Promise.resolve();
+    socket.server(refusal(callIds[1]!));
+    await expect(refused).rejects.toMatchObject({ code: "invalid_call" });
+    expect(socket.closeEvents).toEqual([]);
+    expect(client.compatibility.snapshot()).toMatchObject([
+      { peer: "unreported", connections: 1, refusedCalls: { "dispatch:snapshot": 1 } },
+    ]);
+    // A reply to a call that never existed still fails the connection.
+    socket.server(refusal("never-sent"));
+    expect(socket.closeEvents).toHaveLength(1);
+    await client.close();
+  });
+
+  it("counts frames it cannot decode", async () => {
+    let socket!: FakeWebSocket;
+    const client = new WebSocketApplicationViewClient(
+      "http://127.0.0.1:3030",
+      "token",
+      (url) => {
+        socket = new FakeWebSocket(url, (frame, active) => {
+          if (frame.type === "connect") queueMicrotask(() => active.server(connected()));
+        });
+        return socket;
+      },
+      clientInstanceId,
+    );
+    const hello = client.hello();
+    socket.open();
+    await hello;
+    socket.serverRaw(JSON.stringify({ type: "future_frame" }));
+    expect(client.compatibility.snapshot()).toMatchObject([
+      { peer: "unreported", decodeFailures: { handshake: 0, frame: 1 } },
+    ]);
+    await client.close();
+  });
+
   it("creates an ephemeral media URL through the application call", async () => {
     let socket: FakeWebSocket | undefined;
     const factory: ApplicationWebSocketFactory = (url) => {
@@ -596,6 +737,7 @@ function opened(id = viewSetId): OpenViewSetResponse {
     effective_views: [listView],
     initial: {
       api_version: 1,
+      server_now_millis: "0",
       view_set_id: id,
       epoch: "1",
       base_cursor: "0",
@@ -624,6 +766,7 @@ function batch(
 ): UpdateBatch {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: id,
     epoch: "1",
     base_cursor: baseCursor,

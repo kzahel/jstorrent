@@ -26,6 +26,8 @@ export interface HostedHostIntegration {
   readonly product: HostedProduct;
   readonly accessMode?: HostedAccessMode;
   readonly updater?: DesktopUpdater;
+  /** Build the host reports in its health identity. */
+  readonly buildId?: string;
 }
 
 type Fetcher = (
@@ -63,7 +65,7 @@ export async function createHostedHostIntegration(
       ) {
         throw new Error("Crostini health identity is invalid");
       }
-      return { product: "crostini" };
+      return { product: "crostini", buildId: health.build_id };
     }
     if (!isRecord(health) || health.product !== "rstorrent-headless") {
       return undefined;
@@ -180,8 +182,11 @@ function parseCandidate(value: unknown): UpdateCandidate {
   if (
     !hasExactKeys(value, ["version", "release_url", "apply_command"]) ||
     !validVersion(value.version) ||
-    value.release_url !==
-      `https://github.com/kzahel/rstorrent/releases/tag/headless-v${value.version}` ||
+    typeof value.release_url !== "string" ||
+    ![
+      `https://github.com/kzahel/jstorrent/releases/tag/headless-v${value.version}`,
+      `https://github.com/kzahel/rstorrent/releases/tag/headless-v${value.version}`,
+    ].includes(value.release_url) ||
     value.apply_command !== APPLY_COMMAND
   ) {
     throw new Error("Headless update candidate is invalid");

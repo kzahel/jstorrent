@@ -1,17 +1,23 @@
 {
   "manifest_version": 3,
-  "name": "JSTorrent Beta",
+  "name": "JSTorrent",
   "version": "0.4.0",
-  "description": "Open RSTorrent Desktop, RSTorrent Android, or RSTorrent for ChromeOS Linux.",
+  "description": "Add and manage torrents with JSTorrent on desktop and Chromebook.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3AFwJOzp3W8MI77V5XNpz3uyzSmu1pPmzjvjyvM5v3KiPMGdzU3IQMlm2ErDgi6JWDYsmvF8OprEmGCf9HhAjKms2ZndB0gBcmyB8ssKCkwuHnWT5sIAx3dBr2fdJ240I2lHIisvaB3C39wY8tXYBxRE+8SyyOalRkapZyi2ZEvWj8GORGUGxebTQe0Czuep5NzYnE80fIGzKTJ3Yqd90rWwvc783ozX3WiuRcES4lN7UqzidHhSwJIwokY85+5ENW6X7Xk7XrReNJkXA7+hqPyN4bxpu7mMirnQXzdjXi1411k7qSb2eWcsrqdbSKifIyH/+H3/EOzYBACtcSMjeQIDAQAB",
-  "permissions": ["nativeMessaging", "storage"],
-  "optional_host_permissions": ["http://100.115.92.2/*"],
+  "permissions": [
+    "nativeMessaging",
+    "storage"
+  ],
+  "optional_host_permissions": [
+    "http://100.115.92.2/*",
+    "http://jstorrent.localhost/*"
+  ],
   "background": {
     "service_worker": "src/service-worker.js",
     "type": "module"
   },
   "action": {
-    "default_title": "JSTorrent Beta",
+    "default_title": "JSTorrent",
     "default_popup": "popup/popup.html"
   },
   "icons": {
@@ -19,9 +25,15 @@
     "128": "icons/icon-128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'none'; connect-src http://100.115.92.2:3030 http://100.115.92.2:3031 http://100.115.92.2:3032 http://100.115.92.2:3033 http://100.115.92.2:3034 ws://100.115.92.2:3030 ws://100.115.92.2:3031 ws://100.115.92.2:3032 ws://100.115.92.2:3033 ws://100.115.92.2:3034"
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src http://100.115.92.2:3030 http://100.115.92.2:3031 http://100.115.92.2:3032 http://100.115.92.2:3033 http://100.115.92.2:3034 ws://100.115.92.2:3030 ws://100.115.92.2:3031 ws://100.115.92.2:3032 ws://100.115.92.2:3033 ws://100.115.92.2:3034 http://100.115.92.2:7800 http://100.115.92.2:7805 http://100.115.92.2:7814 http://100.115.92.2:7827 http://100.115.92.2:7844 ws://127.0.0.1:* http://jstorrent.localhost:3030"
   },
   "externally_connectable": {
-    "matches": ["http://penguin.linux.test/*"]
-  }
+    "matches": [
+      "http://jstorrent.localhost/*",
+      "https://jstorrent.com/chrome-extension.html"
+    ]
+  },
+  "host_permissions": [
+    "http://127.0.0.1/*"
+  ]
 }

@@ -1,0 +1,207 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+
+    <script>
+      ;(function (i, s, o, g, r, a, m) {
+        i['GoogleAnalyticsObject'] = r
+        ;((i[r] =
+          i[r] ||
+          function () {
+            ;(i[r].q = i[r].q || []).push(arguments)
+          }),
+          (i[r].l = 1 * new Date()))
+        ;((a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]))
+        a.async = 1
+        a.src = g
+        m.parentNode.insertBefore(a, m)
+      })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga')
+
+      ga('create', 'UA-35025483-1', 'jstorrent.com')
+      ga('send', 'pageview')
+    </script>
+
+    <title>JSTorrent Share Page</title>
+
+    <style>
+      #content {
+        background-color: rgb(252, 252, 252);
+        border: 1px solid #aaa;
+        padding: 1em;
+        margin: 1em;
+      }
+
+      [data-loader] {
+        margin: 8px;
+      }
+      [data-loader='circle-side'] {
+        position: relative;
+
+        width: 25px;
+        height: 25px;
+        animation: circle infinite 0.75s linear;
+        border: 2px solid #fff;
+        border-top-color: rgba(0, 0, 0, 0.2);
+        border-right-color: rgba(0, 0, 0, 0.2);
+        border-bottom-color: rgba(0, 0, 0, 0.2);
+        border-radius: 100%;
+      }
+      @keyframes circle {
+        0% {
+          -webkit-transform: rotate(0);
+        }
+        100% {
+          -webkit-transform: rotate(360deg);
+        }
+      }
+
+      #migration-banner {
+        background-color: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 4px;
+        padding: 1em;
+        margin: 0.5em 0;
+      }
+      #migration-banner h3 {
+        margin-top: 0;
+      }
+      #migration-banner .migration-buttons {
+        margin-top: 0.75em;
+      }
+      #migration-banner .migration-buttons a,
+      #migration-banner .migration-buttons button {
+        display: inline-block;
+        margin-right: 0.5em;
+        margin-bottom: 0.5em;
+        padding: 0.4em 0.8em;
+        border-radius: 4px;
+        text-decoration: none;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      #migration-install {
+        background-color: #4285f4;
+        color: white;
+        border: none;
+      }
+      #migration-use-legacy {
+        background-color: transparent;
+        color: #555;
+        border: 1px solid #ccc;
+      }
+
+      #install-div a.install-link {
+        display: inline-block;
+        background-color: #4285f4;
+        color: white;
+        padding: 0.5em 1em;
+        border-radius: 4px;
+        text-decoration: none;
+        font-size: 14px;
+        margin-bottom: 0.5em;
+      }
+      #legacy-toggle {
+        font-size: 12px;
+        color: #888;
+        cursor: pointer;
+      }
+      #legacy-links {
+        font-size: 12px;
+        color: #666;
+        margin-top: 0.5em;
+      }
+      #legacy-links a {
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div style="height: 400px; overflow: hidden">
+      <a href="https://jstorrent.com"
+        ><img src="/images/JS-LOGO-2x.png" width="278" height="75"
+      /></a>
+
+      <div id="content">
+        <div id="loadingIcon" data-loader="circle-side"></div>
+
+        <div id="migration-banner" style="display: none">
+          <h3>JSTorrent has a new Chrome Extension</h3>
+          <p>
+            The JSTorrent Chrome App is being retired. Install the new extension for continued
+            support and updates.
+          </p>
+          <div class="migration-buttons">
+            <a id="migration-install" href="#">Install New Extension</a>
+            <button id="migration-use-legacy">Use legacy app this time</button>
+          </div>
+        </div>
+
+        <div id="install-div" style="display: none">
+          <a
+            class="install-link"
+            href="https://chromewebstore.google.com/detail/jstorrent/dbokmlpefliilbjldladbimlcfgbolhk"
+            target="_blank"
+            >Install JSTorrent Extension</a
+          >
+
+          <div>
+            <span>To download </span>
+            <span id="file-name">the file</span>,
+            <span> you need to install the JSTorrent Chrome Extension.</span>
+          </div>
+
+          <div style="margin-top: 1em">
+            <a id="legacy-toggle" href="#">Looking for the legacy Chrome App?</a>
+            <div id="legacy-links" style="display: none">
+              <p>These legacy versions are no longer being updated:</p>
+              <ul>
+                <li>
+                  <a
+                    href="https://chromewebstore.google.com/detail/jstorrent/anhdpjpojoipgpmfanmedjghaligalgb"
+                    target="_blank"
+                    >JSTorrent (legacy Chrome App)</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="https://chromewebstore.google.com/detail/jstorrent-lite/abmohcnlldaiaodkpacnldcdnjjgldfh"
+                    target="_blank"
+                    >JSTorrent Lite (legacy Chrome App)</a
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <span id="info"></span>
+        <div id="status-done"></div>
+        <span id="status"></span>
+
+        <script src="index.js"></script>
+
+        <div style="display: none" id="magnet-div">
+          <hr />
+          <a href="#" id="magnet-link"
+            ><img src="/images/torrent_magnet_link.png" width="12" height="12" />Magnet Link</a
+          >
+        </div>
+      </div>
+
+      <div id="footer" style="width: 50%">
+        <span style="font-size: 80%">
+          JSTorrent is a Torrent client for Chrome that works on any computer that can run Google
+          Chrome. It is fast and secure.
+          <a href="https://jstorrent.com">Learn more about JSTorrent</a>
+        </span>
+      </div>
+    </div>
+    <!-- Cloudflare Web Analytics -->
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "70816ac6e8564121b329ed89b3849dba"}'
+    ></script>
+    <!-- End Cloudflare Web Analytics -->
+  </body>
+</html>

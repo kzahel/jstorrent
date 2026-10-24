@@ -6,7 +6,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::net::{Ipv4Addr, SocketAddr};
 #[cfg(unix)]
 use std::os::fd::FromRawFd;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread::JoinHandle;
@@ -27,9 +27,10 @@ use rstorrent_protocol::identity::V1InfoHash;
 use rstorrent_protocol::metainfo::{BEP9_METAINFO_LIMITS, Metainfo};
 use rstorrent_session::{
     AddTorrentBytesRequest, ApplicationConfig, ApplicationNetworkPrerequisite, ApplicationService,
-    ConfiguredStorageRoot, MAX_STORAGE_ROOTS, MediaUrlResponse, NetworkPrerequisiteHandle,
-    PlatformRemovalPlan, ProductFeedbackEnvironment, ProductFeedbackPreview, ProductStateOwner,
-    ProductSummary, RequestEnvelope, ResponseEnvelope, StorageRootSnapshot,
+    ConfiguredStorageRoot, LegacyAndroidRootBinding, MAX_STORAGE_ROOTS, MediaUrlResponse,
+    NetworkPrerequisiteHandle, PathRootStartupPolicy, PlatformRemovalPlan,
+    ProductFeedbackEnvironment, ProductFeedbackPreview, ProductIdentity, ProductStateOwner,
+    ProductSummary, RequestEnvelope, ResponseEnvelope, SessionStore, StorageRootSnapshot,
     StorageSettingsSnapshot, SubscriptionSpec, ViewSubscription, ViewUpdate,
     build_product_feedback_preview,
 };
@@ -47,7 +48,8 @@ const MAX_FILE_SELECTIONS: usize = 1_024;
 const MAX_STORAGE_WRITE_DELAY_MILLIS: u64 = 5_000;
 const DESCRIPTOR_HASH_BUFFER: usize = 16 * 1024;
 const MAX_ANDROID_PATH_BYTES: usize = 4 * 1024;
-const HOSTED_PRODUCT_CONTEXT_READY: bool = false;
+// Hosted privacy, forms and bounded parser verified in Tactical 321.
+const HOSTED_PRODUCT_CONTEXT_READY: bool = true;
 
 uniffi::setup_scaffolding!();
 
@@ -65,6 +67,35 @@ pub extern "system" fn Java_org_rstorrent_bootstrap_PlatformTrustBootstrap_initi
         .resolve::<jni::errors::ThrowRuntimeExAndDefault>();
 }
 
+/// Private startup boundary, before any engine/session owner exists.
+#[uniffi::export]
+pub fn migrate_legacy_android(
+    profile_root: String,
+    source_database: String,
+    source_files: String,
+    snapshot_directory: String,
+    preferences_json: String,
+    current_bindings_json: String,
+) -> Result<String, AndroidClientError> {
+    if current_bindings_json.len() > 1024 * 1024 {
+        return Err(AndroidClientError::message("legacy bindings exceed bound"));
+    }
+    let bindings: Vec<LegacyAndroidRootBinding> = serde_json::from_str(&current_bindings_json)
+        .map_err(|_| AndroidClientError::message("invalid legacy bindings"))?;
+    let result = SessionStore::migrate_legacy_android(
+        &android_path(profile_root, "profile root")?,
+        "default",
+        &android_path(source_database, "source database")?,
+        &android_path(source_files, "source files")?,
+        &android_path(snapshot_directory, "snapshot directory")?,
+        &preferences_json,
+        &bindings,
+    )
+    .map_err(|error| AndroidClientError::message(error.to_string()))?;
+    serde_json::to_string(&result)
+        .map_err(|_| AndroidClientError::message("invalid migration result"))
+}
+
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct AndroidApplicationConfig {
     pub product_data_root: String,
@@ -78,6 +109,8 @@ pub struct AndroidApplicationConfig {
     pub initial_network_prerequisite: AndroidApplicationNetworkPrerequisite,
     pub peer_connect_timeout_seconds: u64,
     pub peer_io_timeout_seconds: u64,
+    /// Android application ID, reported with the version in the API hello.
+    pub application_id: String,
 }
 
 #[derive(Clone, Debug, uniffi::Record)]
@@ -131,6 +164,64 @@ pub struct AndroidDownloadResourceSnapshot {
     pub active_storage_writes_high_water: u64,
     pub active_storage_hashes: u64,
     pub active_storage_hashes_high_water: u64,
+}
+
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct AndroidIncomingRejectionCount {
+    pub reason: String,
+    pub count: u64,
+}
+
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct AndroidIncomingRejection {
+    pub reason: String,
+    pub info_hash: Option<String>,
+}
+
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct AndroidIncomingPeerSnapshot {
+    pub listen_port: u16,
+    pub registrations: u64,
+    pub pending: u64,
+    pub established: u64,
+    pub payload_bytes_sent: u64,
+    pub rejection_counts: Vec<AndroidIncomingRejectionCount>,
+    pub rejection_counts_truncated: bool,
+    pub recent_rejections: Vec<AndroidIncomingRejection>,
+    pub recent_rejections_truncated: bool,
+}
+
+fn incoming_peer_snapshot_view(
+    snapshot: rstorrent_engine::IncomingPeerServiceSnapshot,
+) -> AndroidIncomingPeerSnapshot {
+    AndroidIncomingPeerSnapshot {
+        listen_port: snapshot.listen_address.port(),
+        registrations: snapshot.registrations as u64,
+        pending: snapshot.pending as u64,
+        established: snapshot.established as u64,
+        payload_bytes_sent: snapshot.payload_bytes_sent,
+        rejection_counts_truncated: snapshot.rejection_counts.len() > 32,
+        rejection_counts: snapshot
+            .rejection_counts
+            .into_iter()
+            .take(32)
+            .map(|(reason, count)| AndroidIncomingRejectionCount {
+                reason: format!("{reason:?}"),
+                count,
+            })
+            .collect(),
+        recent_rejections_truncated: snapshot.recent_rejections.len() > 4,
+        recent_rejections: snapshot
+            .recent_rejections
+            .into_iter()
+            .rev()
+            .take(4)
+            .map(|entry| AndroidIncomingRejection {
+                reason: format!("{:?}", entry.reason),
+                info_hash: entry.info_hash.map(|hash| hex(&hash)),
+            })
+            .collect(),
+    }
 }
 
 #[derive(Clone, Debug, uniffi::Record)]
@@ -446,6 +537,37 @@ impl AndroidApplicationClient {
             .map_err(|error| AndroidClientError::message(error.to_string()))
     }
 
+    /// Tactical 348: the torrent list as a bundle for a SAF document.
+    pub async fn export_torrent_list(&self) -> Result<Vec<u8>, AndroidClientError> {
+        self.ensure_running()?;
+        self.service
+            .lock()
+            .await
+            .export_torrent_list()
+            .await
+            .map_err(|error| AndroidClientError::message(error.to_string()))
+    }
+
+    /// Tactical 348: imports a bundle read from a SAF document.
+    pub async fn import_torrent_bundle(
+        &self,
+        bundle: Vec<u8>,
+        target: rstorrent_session::TorrentListImportTarget,
+    ) -> Result<rstorrent_session::TorrentListImportReport, AndroidClientError> {
+        self.ensure_running()?;
+        if bundle.len() > rstorrent_session::MAX_TORRENT_LIST_BUNDLE_BYTES {
+            return Err(AndroidClientError::message(
+                "torrent list bundle is too large".to_owned(),
+            ));
+        }
+        self.service
+            .lock()
+            .await
+            .import_torrent_bundle(bundle, target)
+            .await
+            .map_err(|error| AndroidClientError::message(error.to_string()))
+    }
+
     pub async fn subscribe(
         &self,
         spec: SubscriptionSpec,
@@ -458,6 +580,18 @@ impl AndroidApplicationClient {
             .subscribe(spec)
             .map_err(|error| AndroidClientError::message(error.to_string()))?;
         Ok(Arc::new(AndroidViewSubscription { subscription }))
+    }
+
+    pub async fn incoming_peer_snapshot(
+        &self,
+    ) -> Result<Option<AndroidIncomingPeerSnapshot>, AndroidClientError> {
+        self.ensure_running()?;
+        Ok(self
+            .service
+            .lock()
+            .await
+            .incoming_peer_snapshot()
+            .map(incoming_peer_snapshot_view))
     }
 
     pub async fn mse_dh_work_snapshot(
@@ -562,6 +696,25 @@ impl AndroidApplicationClient {
         Ok(SafStorageRootMutation {
             root,
             restart_torrent_ids,
+        })
+    }
+
+    pub async fn detach_saf_storage_root(
+        &self,
+        root_id: String,
+    ) -> Result<SafStorageRootDetach, AndroidClientError> {
+        self.ensure_running()?;
+        let detach = self
+            .service
+            .lock()
+            .await
+            .detach_platform_storage_root(&root_id)
+            .await
+            .map_err(|error| AndroidClientError::message(error.to_string()))?;
+        Ok(SafStorageRootDetach {
+            removed: detach.removed,
+            affected_torrent_ids: detach.affected_torrent_ids,
+            default_root: detach.default_root,
         })
     }
 
@@ -967,7 +1120,7 @@ impl AndroidApplicationClient {
                     self.companion_platform.clone(),
                     self.service.clone(),
                     &self.companion_profile_id,
-                    env!("CARGO_PKG_VERSION"),
+                    &self.product_version,
                 )
                 .await
             }
@@ -977,7 +1130,7 @@ impl AndroidApplicationClient {
                     self.companion_platform.clone(),
                     self.service.clone(),
                     &self.companion_profile_id,
-                    env!("CARGO_PKG_VERSION"),
+                    &self.product_version,
                 )
                 .await
             }
@@ -1094,6 +1247,15 @@ fn validate_application_config(
             android_path(config.storage_root, "storage root")?,
         )]
     };
+    if !valid_application_id(&config.application_id) {
+        return Err(AndroidClientError::message(
+            "application ID must be 1..=128 bytes of letters, digits, '.' and '_'",
+        ));
+    }
+    let product = ProductIdentity {
+        identifier: Some(config.application_id),
+        ..ProductIdentity::for_this_build("android", &config.product_version)
+    };
     let network_policy = match config.network_policy {
         AndroidNetworkPolicy::Offline => NetworkPolicy::Offline,
         AndroidNetworkPolicy::LoopbackOnly => NetworkPolicy::LoopbackOnly,
@@ -1108,7 +1270,8 @@ fn validate_application_config(
             Duration::from_secs(config.peer_connect_timeout_seconds),
             Duration::from_secs(config.peer_io_timeout_seconds),
         ),
-    );
+    )
+    .with_product(product);
     application =
         application.with_initial_network_prerequisite(match config.initial_network_prerequisite {
             AndroidApplicationNetworkPrerequisite::Allowed => {
@@ -1121,9 +1284,21 @@ fn validate_application_config(
     if network_policy == NetworkPolicy::Online {
         application = application.with_fresh_profile_defaults();
     }
+    if config.platform_storage {
+        application =
+            application.with_path_root_startup_policy(PathRootStartupPolicy::PreserveUnavailable);
+    }
     application.download_resource_limits = DownloadResourceLimits::ANDROID;
     application.active_download_cap = Some(2);
     Ok(application)
+}
+
+fn valid_application_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'.' || byte == b'_')
 }
 
 fn android_path(value: String, label: &str) -> Result<PathBuf, AndroidClientError> {
@@ -1234,6 +1409,14 @@ pub struct SafStorageRequest {
 pub struct SafStorageRootMutation {
     pub root: StorageRootSnapshot,
     pub restart_torrent_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct SafStorageRootDetach {
+    /// The root was deleted because no torrent used it.
+    pub removed: bool,
+    pub affected_torrent_ids: Vec<String>,
+    pub default_root: Option<String>,
 }
 
 #[derive(Clone, Debug, uniffi::Record)]
@@ -1695,6 +1878,24 @@ impl Drop for EngineSession {
             control.cancel();
         }
     }
+}
+
+/// Tactical 369: why the torrent catalog under `profile_path` did not open,
+/// from its files and the open error. Reads only.
+#[uniffi::export]
+pub fn diagnose_catalog(
+    profile_path: String,
+    failure: String,
+) -> rstorrent_session::CatalogRecoveryStatus {
+    rstorrent_session::diagnose_catalog(Path::new(&profile_path), &failure)
+}
+
+/// Tactical 369: the torrent list bundle from a catalog that did not open,
+/// read from a private copy; the profile is never written.
+#[uniffi::export]
+pub fn export_torrent_list_read_only(profile_path: String) -> Result<Vec<u8>, AndroidClientError> {
+    rstorrent_session::export_torrent_list_read_only(Path::new(&profile_path))
+        .map_err(|error| AndroidClientError::message(error.to_string()))
 }
 
 #[uniffi::export]
@@ -2276,6 +2477,7 @@ mod tests {
             initial_network_prerequisite: AndroidApplicationNetworkPrerequisite::Allowed,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .expect("valid Android application config");
 
@@ -2319,10 +2521,18 @@ mod tests {
                 AndroidApplicationNetworkPrerequisite::WaitingForUnmeteredNetwork,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .await
         .expect("open initially blocked product application");
 
+        assert!(
+            client
+                .incoming_peer_snapshot()
+                .await
+                .expect("observe offline application")
+                .is_none()
+        );
         let allowed = client
             .set_network_prerequisite(AndroidApplicationNetworkPrerequisite::Allowed)
             .await
@@ -2346,12 +2556,164 @@ mod tests {
             .shutdown()
             .await
             .expect("shutdown product application");
+        assert!(client.incoming_peer_snapshot().await.is_err());
         drop(client);
         fs::remove_dir_all(root).expect("remove product fixture");
     }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn incoming_peer_observer_reports_real_rejections_with_bounded_history() {
+        let root = test_path("application-incoming-observer");
+        let content = root.join("content");
+        fs::create_dir_all(&content).expect("create content root");
+        let client = AndroidApplicationClient::open(AndroidApplicationConfig {
+            product_data_root: root.join("product").display().to_string(),
+            product_version: "0.1-test".to_owned(),
+            profile_root: root.join("profile").display().to_string(),
+            profile_id: "test".to_owned(),
+            storage_root: content.display().to_string(),
+            platform_storage: false,
+            platform_storage_roots: Vec::new(),
+            network_policy: AndroidNetworkPolicy::LoopbackOnly,
+            initial_network_prerequisite: AndroidApplicationNetworkPrerequisite::Allowed,
+            peer_connect_timeout_seconds: 15,
+            peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
+        })
+        .await
+        .expect("open loopback application");
+        client
+            .dispatch(RequestEnvelope {
+                version: rstorrent_session::CONTROL_VERSION,
+                request_id: "enable-owned-loopback-observer".to_owned(),
+                expected_revision: None,
+                command: rstorrent_session::Command::UpdateClientSettings {
+                    patch: rstorrent_session::ClientSettingsPatch {
+                        listener: Some(rstorrent_session::ListenerPolicy::AutomaticLoopback),
+                        ..Default::default()
+                    },
+                },
+            })
+            .await
+            .expect("enable only the owned loopback listener");
+        // Settings dispatch persists the request; the maintenance owner applies
+        // the listener asynchronously. Observe readiness rather than assuming
+        // dispatch completion also means the listener has converged.
+        let initial = tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if let Some(snapshot) = client
+                    .incoming_peer_snapshot()
+                    .await
+                    .expect("observe incoming")
+                {
+                    break snapshot;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("listener becomes active within the readiness deadline");
+        assert_ne!(initial.listen_port, 0);
+        assert_eq!(initial.registrations, 0);
+        assert_eq!(initial.pending, 0);
+        assert_eq!(initial.established, 0);
+        assert_eq!(initial.payload_bytes_sent, 0);
+        for _ in 0..6 {
+            let mut stream = std::net::TcpStream::connect_timeout(
+                &std::net::SocketAddr::from(([127, 0, 0, 1], initial.listen_port)),
+                Duration::from_secs(2),
+            )
+            .expect("connect bounded unknown peer");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .expect("bound peer read");
+            stream
+                .write_all(&rstorrent_protocol::peer_wire::encode_handshake(
+                    [0xab; 20], [7; 20],
+                ))
+                .expect("send unknown hash");
+            assert_eq!(
+                stream.read(&mut [0; 1]).expect("receive rejected peer EOF"),
+                0
+            );
+        }
+        let observed = client
+            .incoming_peer_snapshot()
+            .await
+            .expect("observe rejection")
+            .expect("listener remains active");
+        assert_eq!(observed.listen_port, initial.listen_port);
+        assert_eq!(observed.rejection_counts.len(), 1);
+        assert_eq!(observed.rejection_counts[0].reason, "UnknownTorrent");
+        assert_eq!(observed.rejection_counts[0].count, 6);
+        assert!(!observed.rejection_counts_truncated);
+        assert_eq!(observed.recent_rejections.len(), 4);
+        assert!(observed.recent_rejections_truncated);
+        assert!(
+            observed
+                .recent_rejections
+                .iter()
+                .all(|entry| entry.reason == "UnknownTorrent"
+                    && entry.info_hash.as_deref()
+                        == Some("abababababababababababababababababababab"))
+        );
+        assert!(!format!("{observed:?}").contains("127.0.0.1"));
+        client
+            .dispatch(RequestEnvelope {
+                version: rstorrent_session::CONTROL_VERSION,
+                request_id: "disable-owned-incoming".into(),
+                expected_revision: None,
+                command: rstorrent_session::Command::UpdateClientSettings {
+                    patch: rstorrent_session::ClientSettingsPatch {
+                        listener: Some(rstorrent_session::ListenerPolicy::Disabled),
+                        ..Default::default()
+                    },
+                },
+            })
+            .await
+            .unwrap();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while client.incoming_peer_snapshot().await.unwrap().is_some() {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+        let probe = tokio::net::UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))
+            .await
+            .unwrap();
+        let mut syn = [0_u8; 20];
+        syn[0] = 0x41;
+        syn[3] = 31;
+        syn[13] = 1;
+        syn[17] = 7;
+        probe
+            .send_to(&syn, (Ipv4Addr::LOCALHOST, initial.listen_port))
+            .await
+            .unwrap();
+        assert!(
+            tokio::time::timeout(
+                Duration::from_millis(150),
+                probe.recv_from(&mut [0_u8; 128])
+            )
+            .await
+            .is_err()
+        );
+        assert!(
+            std::net::TcpStream::connect_timeout(
+                &std::net::SocketAddr::from(([127, 0, 0, 1], initial.listen_port)),
+                Duration::from_millis(100)
+            )
+            .is_err()
+        );
+        client.shutdown().await.expect("join incoming application");
+        assert!(client.incoming_peer_snapshot().await.is_err());
+        drop(client);
+        fs::remove_dir_all(root).expect("remove incoming fixture");
+    }
+
     #[tokio::test]
-    async fn product_privacy_boundary_is_native_bounded_and_hosted_gated() {
+    async fn product_privacy_boundary_requires_disclosure_and_report_consent() {
         let root = test_path("application-product-privacy");
         let content = root.join("content");
         fs::create_dir_all(&content).expect("create content root");
@@ -2367,6 +2729,7 @@ mod tests {
             initial_network_prerequisite: AndroidApplicationNetworkPrerequisite::Allowed,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .await
         .expect("open product application");
@@ -2378,6 +2741,12 @@ mod tests {
                 .disclosure_version,
             0
         );
+        let undisclosed = client
+            .product_feedback_preview("15".to_owned(), "Google Pixel 9".to_owned(), true)
+            .expect("undisclosed preview");
+        assert!(undisclosed.hosted_context_ready);
+        assert!(!undisclosed.statistics_available);
+        assert!(!undisclosed.statistics_included);
         let acknowledged = client
             .acknowledge_product_disclosure(true)
             .expect("acknowledge disclosure");
@@ -2392,11 +2761,15 @@ mod tests {
         let preview = client
             .product_feedback_preview("15".to_owned(), "Google Pixel 9".to_owned(), true)
             .expect("preview feedback");
-        assert!(!preview.hosted_context_ready);
-        assert!(!preview.statistics_included);
+        assert!(preview.hosted_context_ready);
+        assert!(preview.statistics_available);
+        assert!(preview.statistics_included);
         assert_eq!(
             preview.url,
-            "https://jstorrent.com/feedback.html?platform=android&v=0.1-test&android=15&device=Google+Pixel+9"
+            format!(
+                "https://jstorrent.com/feedback.html?platform=android&v=0.1-test&android=15&device=Google+Pixel+9&id={}&days=0&added=0&completed=0&sessions=1",
+                acknowledged.installation_id
+            )
         );
         assert_eq!(
             client
@@ -2419,6 +2792,30 @@ mod tests {
                 )
                 .is_err()
         );
+        let omitted = client
+            .product_feedback_preview("15".to_owned(), "Google Pixel 9".to_owned(), false)
+            .expect("omit for this report");
+        assert!(omitted.statistics_available);
+        assert!(!omitted.statistics_included);
+        assert_eq!(omitted.url, undisclosed.url);
+        assert!(client.product_summary().unwrap().statistics_enabled);
+        assert!(
+            client
+                .confirm_product_feedback(
+                    "15".to_owned(),
+                    "Google Pixel 9".to_owned(),
+                    false,
+                    preview.url,
+                )
+                .is_err()
+        );
+        client.set_product_statistics_enabled(false).unwrap();
+        let disabled = client
+            .product_feedback_preview("15".to_owned(), "Google Pixel 9".to_owned(), true)
+            .expect("durable opt-out");
+        assert!(!disabled.statistics_available);
+        assert!(!disabled.statistics_included);
+        assert_eq!(disabled.url, undisclosed.url);
         client
             .shutdown()
             .await
@@ -2444,6 +2841,7 @@ mod tests {
             initial_network_prerequisite: AndroidApplicationNetworkPrerequisite::Allowed,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .await
         .expect("open product application");
@@ -2522,6 +2920,7 @@ mod tests {
             initial_network_prerequisite: AndroidApplicationNetworkPrerequisite::Allowed,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .await
         .expect("open product application");
@@ -2555,6 +2954,7 @@ mod tests {
             .shutdown()
             .await
             .expect("shutdown product application");
+        drop(client);
         fs::remove_dir_all(root).expect("remove product fixture");
     }
 
@@ -2576,6 +2976,7 @@ mod tests {
             initial_network_prerequisite: AndroidApplicationNetworkPrerequisite::Allowed,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .await
         .expect("open platform product application");
@@ -2593,6 +2994,7 @@ mod tests {
                 .expect("join platform probe")
                 .expect("cancelled probe result")
         );
+        drop(client);
         fs::remove_dir_all(root).expect("remove platform product fixture");
     }
 
@@ -2613,6 +3015,7 @@ mod tests {
             initial_network_prerequisite: AndroidApplicationNetworkPrerequisite::Allowed,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .await
         .expect("open product application");
@@ -2714,6 +3117,7 @@ mod tests {
             .shutdown()
             .await
             .expect("shutdown product application");
+        drop(client);
         fs::remove_dir_all(root).expect("remove companion product fixture");
     }
 

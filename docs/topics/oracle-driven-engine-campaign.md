@@ -1,6 +1,143 @@
 # Oracle-Driven Engine Campaign
 
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+implements download-safety policy and bitmap file sets using pinned BEP,
+libtorrent source/tests, qBittorrent OS-label behavior and sibling promotion
+history. Restart checkpoint: common implementation, controlled loopback
+skip/promotion/restart and real-browser safety actions pass. Workspace fmt/clippy/1,719 tests, 843 web tests, Android dual-ABI/207 JVM/lint
+checks and Swift app/test-target compilation pass. Native qualification limits
+are recorded in 373. Next platform actions require
+a healthy Windows test VM and a Machine Control Android emulator profile;
+no public swarm or release is implied.
+
+Tactical [340](../tactical/340-windows-quiet-network-startup.md) extends the
+desktop quiet-default/upgrade contract to Windows without changing shared engine
+policy. Restart checkpoint: implementation and bounded unsigned Windows VM
+evidence pass; owned app/rule/artifact cleanup and VM power-off are complete.
+Implementation is committed and pushed. Full
+native Windows engine/workspace validation retains recorded failures independent
+of this defaults slice. Signed shipping/regrant and external inbound/WAN remain
+separate work; Android runtime/defaults and generated contracts are unchanged.
+
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) completes quiet Mac startup and explicit incoming/
+forwarding settings, with pinned BEP/libtorrent source/tests, bounded ownership,
+shared TCP/uTP Off enforcement, repaired Fast availability, idle Mac DHT demand,
+Android common-engine boundary/build evidence and independently hashed native
+Mac outgoing transfers. Restart checkpoint: implementation and local Mac
+qualification are complete. Windows product testing, defaults/migration and
+native Cancel/retry/restart follow in 340. Signed Mac denial/regrant and branding
+remain separate shipping gates; no public swarm or release is implied.
+
+Tactical [335](../tactical/335-removal-pieces-and-disconnect-lifetime.md)
+repairs invalid Pieces removal patches and interrupted WebSocket deletion.
+Pinned removal source/tests, product failure history and the bounded owner map
+are recorded. Restart checkpoint: complete with projection/decode and real
+WebSocket regressions, workspace/web gates and the dual-ABI Android build.
+No next action remains in this slice; shipping and broader command lifetime
+changes remain separately owned. Other active work is independent.
+
+Tactical [313](../tactical/313-completed-remote-video-playback.md) completes
+local completed remote MP4/M4V playback through authenticated v2 ranges and
+playsvideo. Source/segment/HLS buffers and parent-circuit teardown are bounded.
+BBB decoded playback, seeking, EOF, close/reopen and circuit closure pass in
+real Chromium; no Android engine/storage semantics or hosting boundary changes.
+Restart checkpoint: complete with Rust/web gates, pinned dependency/license
+inputs and recorded local latency/resource evidence. Next: separately scoped
+WAN, high-bitrate, larger track-end mismatches or additional browser/format
+qualification. General Open and automatic resume remain outside this slice.
+
+Tactical [312](../tactical/312-reliable-credit-range-streams.md) lands
+reliable credit-based direct ranges without changing engine storage or mobile
+semantics. Pure bounds, real concurrent/cancelled browser ranges, v1 fallback,
+byte integrity and zero terminal owners pass. Corrected 100-ms RTT/rate shaping
+shows 0.58 -> 7.94 MiB/s; lossy throughput stays congestion limited. Restart
+checkpoint: complete with authenticated product, Rust/web and repeated local
+evidence. Next: 196 WAN/picker qualification or a bounded burst/loss/SCTP study;
+do not infer WAN qualification from these simulations.
+
+Completed local Tactical [309](../tactical/309-direct-file-transport-ceiling.md)
+separates verified reads, generated ranges and raw reliable RTC. Disk-save
+medians are 51.77/51.11 MiB/s; the stable tested raw operating point is
+68.50 MiB/s at 64-KiB outstanding. Larger raw buffers degrade throughput.
+No product optimization or dependency change follows this measurement.
+Next executable action is a separate controlled RTT/loss and transport
+stall/retransmission study with explicit throughput and memory targets.
+
+Tactical [308](../tactical/308-android-optional-add-selection.md) owns optional
+Android add-time selection. Pinned BEP 53 and libtorrent magnet/resume source
+and tests support pre-metadata durable intent; explicit all consent replaces
+pending source selection without changing protocol or integrity ownership.
+Restart checkpoint: complete with deterministic late-metadata/reopen and failed
+write rollback, Rust/web gates, generated Swift/Kotlin, both Android ABIs,
+API 28/35 Compose and controlled installed SAF/external-intake evidence.
+Next action: none in this slice; production qualification stays separately owned.
+
 Topic: `oracle-driven-engine-campaign`
+
+Completed local Tactical [307](../tactical/307-direct-file-save-throughput.md)
+selects a four-chunk/64-KiB direct-file write-credit window: repeated 256-MiB
+disk saves improve from 36.82 to 51.70 MiB/s on the controlled local host.
+Its source review, host-only applicability, owner map, bounded queues, exact
+bytes, real inactivity timeout, previous-consumer compatibility, authenticated
+product verifier and passing Rust/web checks are recorded. Restart checkpoint:
+this slice is complete; external picker/independent-network qualification
+remain with 196 and any further throughput work starts from 307's measured
+baseline. Other active engine and qualification tacticals remain independent.
+
+Completed [258](../tactical/258-cross-surface-branding-and-design-audit.md)
+changes only engine-facing presentation labels: RS peer-ID display and UPnP
+mapping description now say JSTorrent while their wire/ownership behavior stays
+unchanged. Its focused pinned-source/specification/test review and full passing
+workspace are recorded in the tactical and audit report. No active engine
+feature checkpoint, resource limit or next action is displaced by this cleanup.
+
+Tactical [253](../tactical/253-chromeos-onboarding-recovery-and-physical-qualification.md)
+has a bounded completion-projection checkpoint: the pinned admission oracle was
+re-inspected, the regression first failed on Downloading versus Seeding, and the
+fix preserves admission through content-task cleanup without changing policy,
+protocol or wire types. Workspace formatting, warning-denying clippy, 1,572 Rust
+tests (18 ignored), web typecheck and 462 web tests (two skipped) pass. Both
+Android ABIs and 113 JVM tests pass; a physical browser-controlled download
+remains connected at completion with an independent payload hash. Both final
+second-cohort 3,600-second observations now pass: Android browser completion and
+Linux runtime bytes, with their distinct limits recorded in 253's private HTML
+review and matrix.
+
+The startup follow-up now uses four caller-owned structural-observation
+futures, preserves file order and verification authority, and proves failure
+filtering/cancellation with four pending requests and zero descriptor opens.
+Workspace formatting/clippy and 1,574 tests (18 ignored), both Android ABIs
+and 116 JVM tests pass. Physical repeated startup and saved-pairing recovery
+are recorded in 253. The Linux blocker is narrowed to the ChromeOS 150
+Baguette empty-address registration path. Next work is the remaining store,
+full-device lifecycle and OS-fixed Linux browser acceptance matrix; the
+bounded projection/startup repairs are complete.
+
+Tactical [247](../tactical/247-android-ordinary-writer-upgrade.md) completes
+ordinary released Android writers and controlled installed upgrades on API 28/35:
+two SAF roots, supported settings, paused/partial torrents, running replacement,
+successor completion, process restart and reboot pass with independent hashes.
+Machine Control's ChromeOS/ARCVM route is confirmed; physical apps are preserved.
+This is disposable-signature emulator evidence, not physical/Play delivery.
+
+Tactical [246](../tactical/246-android-legacy-import-and-installed-upgrade.md)
+composes the existing validated intake and ordinary checker for Android
+legacy state; no new engine protocol or foreign resume authority. The pinned
+libtorrent resume/checking implementation and tests are re-inspected. Restart
+checkpoint: 246 is complete with API 28/35 upgrade/regrant/clear evidence, both
+native ABIs, generated Kotlin and Rust baseline checks. Next scope broader
+cutover qualification from the Android replacement topic. Unsupported VPN/battery
+settings are dropped by explicit direction, superseding 245's proposed hold.
+
+Android migration inventory checkpoint
+[245](../tactical/245-android-legacy-inventory-and-import-contract.md) pins
+Android 1.0.24 formats and inspects the same checker/resume oracle without
+changing engine behavior. Thirteen generated format cases/ten Python tests
+pass. Tactical 246 now implements its bounded Android importer/real-SAF upgrade
+checkpoint from
+[android-jstorrent-replacement](android-jstorrent-replacement.md); preserve
+source intent and use ordinary
+checking instead of foreign resume evidence. No Android importer ran in 245.
 
 Work-selection policy: this runbook may track multiple independent active
 engine tacticals, each with its own restart checkpoint and next action. It does
@@ -461,6 +598,23 @@ choice, or disagreement between RSTorrent and libtorrent architecture is not a
 reason to stop.
 
 ## Current Checkpoint
+
+Completed Tactical
+[`342`](../tactical/342-stream-dht-peers-during-lookup.md) delivers DHT peers
+to torrents per `get_peers` reply, following pinned libtorrent
+`get_peers::got_peers` and `test_get_peers`, instead of after the full lookup
+and announce. Delivery is bounded and non-blocking; the final result stays
+authoritative. Rust fmt/clippy/workspace and the Android dual-ABI/JVM build
+pass. Lookup scheduling, limits and protocol claims are unchanged.
+
+Completed application Tactical
+[`300`](../tactical/300-monotonic-tracker-view-deadlines.md) repairs tracker
+inspection timing only. Pinned announce-entry source/tests and BEP 15 review
+support stable deadlines; engine scheduling and protocol claims are unchanged.
+Deterministic reopen/replay and frontend clock regressions, controlled real
+gateway/browser sampling, shared generated boundaries, Android dual-ABI/JVM,
+Rust fmt/clippy/workspace and web suites pass. No tracker-policy follow-up is
+implied; installed release delivery remains separate.
 
 September 12 hosted qualification is complete on `release-readiness-ci`,
 avoiding `main`'s automatic website deployment. Run `34684328524` passes all
@@ -1242,6 +1396,19 @@ within the shared resource ceilings. The complete controlled oracle, bounded
 checkpoint profile, Android cross-build, SAF rename-death AVD, reactive AVD,
 workspace, and web gates pass. The accepted same-length mutation risk remains
 explicit and Force-detectable.
+
+Tactical [241](../tactical/241-atomic-legacy-desktop-import.md) composes the
+existing direct-path/full-check gate for desktop legacy conversion. It changes
+no engine/checker semantics: exact source authentication, empty have evidence
+and pending verification commit before an engine exists. Local source-offline
+valid/corrupt payload tests pass; Android import is inapplicable to this desktop
+KV/path format. Tacticals 242/243 qualify managed host fencing and bounded
+installed macOS/Windows/Linux replacement. 243 repairs Windows syncing of the
+private SQLite backup without opening the legacy source for write; 18 migration
+tests pass on each native platform. Tactical
+[244](../tactical/244-unavailable-storage-presentation.md) corrects shared React
+blocked-storage presentation without changing host/checker semantics. Next
+resolve production qualification.
 
 Completed Tactical
 [`191`](../tactical/191-direct-filesystem-storage.md) is the current

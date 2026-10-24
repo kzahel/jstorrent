@@ -15,10 +15,11 @@ from native_notices import sha
 
 ROOT = Path(__file__).resolve().parents[1]
 # Upstream release revision 536b068787179ea901964bd7dabc7bf61e4941c3.
+# Reviewed monthly rebuild: actions/runs/36815339264 (2026-10-01).
 # The continuous URL may move; the digest must be reviewed before updating.
 PLUGINS = {
-    'x86_64': '0441769ab38009504d2678c38cd7e526955388dd30a215b4a20afaa5471652f2',
-    'aarch64': 'ce574719bcf9cc1fb12728d60b17e48cc87d9b6c40f6f48b04cff7d273b5eb24',
+    'x86_64': '49d6a17160675a6bd1781699aae6bdf7692d98552e02a3671d2183d10547842e',
+    'aarch64': '518f4b49a561c157b23fd1ba4e857b8fa2271a038ac711bdedab6f018acbe7e5',
 }
 
 

@@ -1,6 +1,567 @@
 # Client Surfaces
 
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md) labels
+About's selector **Stable — Recommended** and **Latest — Early access**.
+Returning to Stable saves the choice and waits for a newer release that supports
+both the actual databases and their immutable migration history. Signed macOS
+ARM, Windows x64 and Linux x64 runs prove incompatible Stable waiting and
+compatible unattended catch-up. Closed-window macOS, foreground macOS,
+minimized Windows and Linux behind an independent editor retain their intended
+presentation; background typing checks pass. The user's separate automatic
+setting persists, and service permission gates each channel/native target.
+Intel macOS under Rosetta additionally passes input during the actual startup
+gap, without foreground reacquisition. Both channels are service-enabled for
+macOS ARM/x64, Windows x64 and Linux x64; Linux ARM stays manual. See 377 for
+exact evidence, remaining architecture coverage and release holds.
+
+Tactical [355](../tactical/355-automatic-updates.md) now implements unattended
+desktop updates through one native host owner, including with the window
+closed. Maintainer direction accepts restarting after 15 minutes without
+interaction, briefly interrupting and resuming downloads/seeding. Native,
+extension and remote interaction plus unfinished flows/playback gate restart.
+Relaunch preserves foreground versus non-foreground intent without restoring
+exact window stacking order; minimized and closed/hidden windows stay that
+way. Explicit Quit and newer focus choices take precedence. No notice,
+installer or startup window may interrupt another application.
+Qualification requires synthetic A-to-B signed updates in Machine Control
+VMs, with guest-native focus/visibility observation and keyboard input into
+an independent editor throughout background updates. Exact window ordering
+is outside the assertions. The native owner, shared activity/control UI and
+native synthetic runners are implemented. macOS ARM64 passes repeated window
+matrices, full idle intervals and controlled transfer resumption; Windows and
+Linux ARM64 synthetic presentation matrices also pass.
+Default-on for qualified targets, a 60-second notice and one-hour snooze are
+accepted. Tactical 377 extends this synthetic evidence with actual shipping-signed
+packages and explicit per-target rollout; unrun 355 cases remain separate
+qualification gaps rather than evidence for an untested architecture.
+
+Tactical [376](../tactical/376-android-media-library.md) adds the media
+Library to Android as a second primary destination, **Torrents | Library**:
+a navigation bar at compact widths, a rail from 600 dp, hidden while torrent
+selection owns the bottom bar, with the last destination remembered in
+`product_ui`. The torrent list is now called Torrents in code and copy. The
+Library leases one `library_media` page per query, shows only a page stamped
+with the current request, and offers the web presets, search, sort,
+availability and archived scope, in-place shows/albums/torrents with Back,
+pages and Files-tab-style rows with progress and a ⋮ sheet (Play, Open with…,
+Open containing folder, Show in torrent, which scrolls the torrent's Files tab
+to the file). Rows only; audio playback, cards and
+persisted filters are deferred. Fresh API 28 phone and API 35 tablet emulators
+and a live seeded-host scenario on phone and tablet AVDs pass.
+
+Tactical [374](../tactical/374-android-transfer-status-presentation.md) repairs
+Android transfer presentation: completed cards show uploaded totals and ratio,
+metadata acquisition is named explicitly, and only queued rows show queue
+positions. The idle-rate header and ongoing notification describe metadata,
+starting, checking and seeding work through the existing lifetime classifier.
+No engine or generated contract changes are included. Pixel Sintel diagnosis
+finds peer-metadata waiting and tracker timeouts; the debug sample's valid
+`xs` metainfo URL and `ws` webseed are not consumed by the current magnet parser.
+Validation and data-preserving development delivery are recorded in 374.
+
+
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+implements download-safety settings, Files reasons and explicit overrides in
+React, Compose and SwiftUI, backed by the common Rust policy/storage. Web and
+Compose All previews respect safety. Android/iOS omit the Windows/macOS label
+switch. Native builds and remaining runtime/platform qualification are recorded
+in 373; no unsupported-platform label support or release follows.
+
+Tactical [360](../tactical/360-remote-controller-subdomain.md) deploys the
+hosted controller independently at `remote.jstorrent.com`, starting with
+remote-v0.3.2. Main/PR builds test it; tagged releases gate production on the
+live compatibility matrix and an immutable root-hosted browser artifact.
+Marketing stays on main and old controller documents redirect with query and
+fragment continuity. Frozen old assets retain already-open tabs through the
+compatibility window. Fresh browser approval is required at the new origin;
+native clients and remote host support do not expand.
+
+Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
+orders Android pending-selection presentation requests before asynchronous
+service startup dispatch. A delayed initial clear cannot close a newer restored
+file-list subscription, and a dismissed selection cannot reopen. Two controlled
+dispatch-order regressions fail before and pass after the change.
+All 206 JVM cases, lint, the regenerated dual-ABI boundary and the full owned
+API 35 ARM64 SAF selection/restart/recheck/hash/removal profile pass locally.
+Handles peak at 3/40 for selective and 6/40 for Download all; AVD cleanup passes.
+Hosted x86_64 qualification of these edits remains separate.
+
+Tactical [340](../tactical/340-windows-quiet-network-startup.md) extends quiet
+fresh/first-upgrade incoming and UPnP defaults to Windows. Explicit later choices,
+ports, torrent intent/data and shell preferences survive. An isolated native
+Windows VM qualifies fresh/upgrade/relaunch, shared disclosure/atomic Off,
+persistent firewall Cancel, production-origin native attach and independently
+hashed cross-VM uTP/TCP downloads while Off and denied. The shared disclosure
+is platform-neutral; Network details offers conditional OS firewall recovery
+without inferring a grant. Signed shipping, regrant and external inbound/WAN
+reachability remain unqualified. Linux/Android/iOS defaults are unchanged.
+
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) implements quiet Mac defaults and first-upgrade
+network holds, complete common incoming-Off semantics, and two concise shared
+settings controls. Explicit forwarding gets an explanation before discovery.
+Native fresh/upgrade/relaunch, production-origin control and independently
+hashed outbound uTP/TCP fallback pass on the isolated Mac VM. Ad-hoc builds still
+show the executable name and repeat local-network requests after denial/relaunch;
+Developer ID denial persistence, regrant and branding remain shipping gates.
+Windows product defaults/migration and bounded firewall evidence follow in 340.
+Tactical 338 retains the earlier Mac/Windows research; its TCP-Off uTP admission
+and diagnostic payload failures describe the old source, corrected by 339.
+
+Tactical [337](../tactical/337-lightweight-macos-development-bundle.md) adds
+the separate macOS `scripts/desktop-bundle` development launcher. It assembles
+the ordinary debug client/helper into an ad-hoc signed `.app` with matching
+identity and icon, then execs the inner client in the foreground. The normal
+development library is shared with the unchanged raw `scripts/desktop` path;
+shipping data/identity remain separate. Build-only does not register anything;
+launching repairs Chrome's shared native-host route to the development bundle.
+Foreground/Ctrl+C, rebuild refusal and isolated production-ID extension
+launch/lifecycle qualification pass locally. This is not release packaging.
+
+Tactical [325](../tactical/325-android-ci-library-readiness.md) repairs the
+owned Android CI first-use assertion to observe All after statistics opt-out.
+The unchanged APK fails before and passes the full API 35 ARM64 SAF lifecycle
+after the harness fix, with exact hashes/removal, bounded handles and AVD
+cleanup. Product behavior is unchanged; release source 5fa018ff passes the hosted
+Android/SAF job in CI 38316599207.
+
+Tactical [322](../tactical/322-android-empty-filter-navigation.md) replaces
+Android's empty filtered-library hint with a `View all torrents` text button
+when All has torrents. The action selects and reveals All. An entirely empty
+library shows Add guidance on every tab; archive-only libraries retain the
+filter hint where All would also be empty.
+
+Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) locally
+qualifies Android-owned ChromeOS setup on both physical API-33 cohorts: a direct
+production JSTorrent link, native notification/companion setup, exact HTTPS
+UI-only return and explicit offline/permission/retry recovery. Actual pairing
+rejection/expiry, approval, reload, app restart and singleton checks pass with
+isolated identities. Public hosted/store delivery remains separate.
+
+
+Tactical [316](../tactical/316-archived-torrents-and-android-selection-actions.md)
+gives Android an Archived library tab; All and the other tabs exclude archived
+torrents. Selection mode uses a contextual top bar (close, count, select all),
+Back to exit, and a labeled bottom bar (Resume, Pause, Archive or Restore,
+Remove, More with queue moves, Force recheck and Copy magnet links). Actions
+apply only to eligible torrents. Archive/Restore offer Undo; the detail screen
+shows an Archived banner with Restore and gates Files Download now. Rejected
+torrent commands appear as a transient snackbar instead of the library error
+card. React disables Start, queue moves and Download now for archived rows.
+Tactical [318](../tactical/318-android-duplicate-add-feedback.md) makes every
+Android add report torrents already in the session; when a match is archived
+the snackbar offers Restore. Debug test torrents honor the file selection
+setting instead of always quick-adding.
+
+Tactical [314](../tactical/314-android-presentation-shutdown-race.md) repairs
+Android presentation requests racing native-client release. The repository
+closes terminally under its acquisition mutex, reports active setup errors,
+and releases partial subscription groups on failure/cancellation. The version-28
+production stack's exact generated line maps to the destroyed-client guard;
+local regressions and dual-ABI build pass. Store delivery remains separate.
+
+Completed remote MP4/M4V playback is implemented by the lazy browser
+playsvideo consumer in [313](../tactical/313-completed-remote-video-playback.md).
+Its Files/Library dialog reuses authenticated reliable ranges, owns cancellation
+and circuit teardown, and changes no native Android/iOS boundary. Initial
+qualification is local Playwright Chromium; Chrome/Edge are the intended scope,
+with broader codecs, browsers, high-bitrate movies and WAN evidence deferred.
+
+Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
+shortens the React/Android first-use statistics choice and leaves recipient
+details in the feedback preview. Android Library setup offers a folder first,
+then explicit background downloads with Enable/Not now. Enable uses the existing
+permission-and-preference action; permission alone cannot hide a disabled
+background setting. Background seeding stays separately off by default.
+
+Tactical [308](../tactical/308-android-optional-add-selection.md) makes Android
+magnet selection optional per add. Manual and external magnets offer Download
+all immediately or Choose files; external sources use one concise Add torrent
+confirmation with the available name and folder. Local file intake and restored
+pending adds can also proceed without waiting for a catalog. Explicit file
+selection keeps the bounded checklist, source defaults and future preference.
+Quick adds suppress intermediate pending presentation until the authoritative
+summary reflects confirmation. Web and iOS presentation stay unchanged.
+
+Tactical [302](../tactical/302-desktop-external-links.md) repairs shared About
+support and release navigation. Browser clients retain native isolated-tab
+anchors; desktop bootstrap injects the official Tauri opener through a small
+shared link provider. Desktop URL permissions cover only the approved support
+and release destinations, and opening failures show generic localized retry
+feedback. Engine/API/media authority and native Android/iOS presentation are
+unchanged. Exact validation and native handoff evidence are in the tactical.
+
+Tactical [291](../tactical/291-companion-shutdown-recovery-copy.md) locally
+clarifies normal Android launch before attach-only Retry after Shutdown and
+fixes dim companion troubleshooting links with the existing foreground token.
+Full web typecheck/481 cases,56 extension cases, localization, companion/CSP
+build and exact local production1.1.3 packaging pass. Six320/390/1100 source
+renderer captures reproduce before contrast and pass after accessibility,
+keyboard/overflow/cleanup checks; transport/view dependencies are injected.
+Slice055 verifies actual managed27 Shutdown guidance/readable links, stopped
+service after Retry and normal app-launch retained reconnect. Exact package/
+grants/notification preference and scoped cleanup/zero tabs/windows pass; four
+report checks reap their browser/server. Slice057 uploads the exact1.1.3 to the
+existing draft; native Reload verifies draft1.1.3/public1.1.1. Listing/screenshots/
+privacy remain. Submission and installed-store delivery remain under259; signed
+desktop/Android retain their source bindings.
+
+Tactical [283](../tactical/283-companion-update-recovery-guidance.md) adds
+component-specific recovery links and plain connection guidance in the
+packaged extension, preserving attach-only retries and existing discovery/
+pairing authority. The local source/render checkpoint remains separate from
+actual store delivery and installed mixed-version acceptance under259. The
+new production payload supersedes the prior source13dde build and source03e
+extension upload proposals for final qualification; historical evidence stays
+bound to its own bytes. No new build/store publication occurs.
+
+Tactical [281](../tactical/281-managed-package-update-status.md) locally
+repairs the actual MSI About-screen automatic-update contradiction. MSI/DEB/RPM
+and unknown packages start and stay in existing manual package guidance, own
+no check timers, and show no in-app check/install or automatic-check privacy
+copy. Host policy, trust/routes and preference behavior remain unchanged.
+Full web typecheck/478 tests (two existing skips),20 focused bundled-Chromium
+render/accessibility cases and16 inspected managed/theme/width captures pass.
+The exact original-signed a7 MSI now passes actual native About & updates
+checks, tray Quit/reopen and independent cabinet/installed-byte reconciliation
+under259. Initial and reopened screens both show manual guidance without
+automatic-update controls. Independent100-registry/nine-file restoration,
+owned cleanup, VM-off and claim-release pass. Earlier harness failures remain
+recorded; installer wizard, historical MSI migration, associations and complete
+installed acceptance remain separate. Renderer fixtures and source8c captures
+retain their original scope.
+
+Tactical [280](../tactical/280-desktop-executable-display-brand.md) locally
+corrects the desktop output to `jstorrent-client`, preventing the observed
+advanced-firewall filename from retaining the old display brand. The distinct
+name preserves released old-writer process detection. All41 Node/23 native
+distribution/85 Rust cases, clippy/fmt/workflow lint and the actual unsigned
+Mac bundle/inventory pass. Identifiers, host, profiles, networking and updater
+trust/routes remain intact. Fresh signed Windows system-label, migration and
+updater evidence remains required under259; source8c receipts are unchanged.
+
+Tactical [278](../tactical/278-android-shutdown-window-lifecycle.md) follows a
+real code26 managed menu failure: the engine joins successfully, but the bound
+activity still displays Live. The next local candidate27 routes Shutdown
+through the activity owner, requesting the existing terminal stop then removing
+the task so its binding is released. Engine/network/background/privacy policy
+is unchanged. At application source68e247ad, all122 release JVM cases/lint,
+original-key APK/AAB and independent package checks pass. Actual physical
+isolated normal-menu Shutdown removes the task/service with joined successful
+cleanup; normal launch restores a fresh Live service, the same complete row,
+independent payload hash and SAF registry. Exact owned cleanup passes, with
+managed code26 installation metadata unchanged. Code27 internal delivery and
+revised-source hosted CI remain separate unperformed steps.
+
 Topic: `client-surfaces`
+
+Tactical [269](../tactical/269-android-incoming-peer-diagnostic-evidence.md)
+is complete locally at application sourceaeaa72f9:15 Android Rust cases/clippy,
+normal original-key dual-ABI packaging,122 JVM cases/lint and actual bounded
+physical incoming snapshots pass. Full workspace1575 cases/fmt/clippy and
+web typecheck/470 cases also pass, with existing ignores/skips retained.
+The original failed probe observes zero then one native registration and two
+UnknownTorrent rejections for exactly its owned hash; it started before actual
+admission. Tactical270 is complete locally: fresh UID/exact-fixture registry
+readiness precedes independent upload. Both current-source original large
+fixtures verify/upload all28 MiB with120 empty files, retained diagnostic
+history/actual filters, joined shutdown and actual reopened Live/owned row,
+unchanged SAF registry/payload and cleanup. Readiness takes107.99/166.16 seconds.
+The original48 portable cases pass; earlier failed receipts remain scoped and intact.
+Normal diagnostic warnings intentionally remain across category filters. No
+engine/network/admission/retry policy changes. Default three-repetition/hour
+and managed delivery remain open under259; a short pass is not an hour.
+
+Tactical272 keeps the measured28-MiB upload's120-second allowance and scales
+the40-MiB hourly fixture to172 seconds, below the existing300-second helper
+bound. Native admission still has180 seconds; independent file hashes and
+joined cleanup remain mandatory. All51 qualification/five transport cases
+pass. Cohort A now passes the whole default source-aeaa run: three cold
+repetitions, 3,600-second detached observation, independent full 40-MiB
+download/upload, retained filters, joined actual Live reopen, SAF continuity
+and cleanup. Its loaded driver matches source09342f73 and retains the fixed
+120-second allowance; newer harness changes are not attributed to it. All
+seven current-APK SAF/source recovery cases also pass with independent
+hashes and cleanup. B's first proportional full run passes its
+hour/download/upload/filter components but fails fresh reopen while ARC is
+stopped/sleeping; failure/cleanup stay intact. Tactical 273 completes
+locally: all 54 portable/five transport cases and the 28-MiB targeted native
+wake pass. The fresh full B default repeat also passes all three cold
+repetitions, the hour, full 40-MiB hashes, filters, clean joined shutdown,
+native wake followed by fresh actual Live/owned row, unchanged SAF and
+cleanup. Native readiness is observed at 168.45 seconds; independent upload
+uses a 172-second allowance and its full verification call takes 159.35
+seconds. Zero XML captures are unavailable and two observed Back actions
+suffice. Exact staging/ marker cleanup passes with production metadata
+unchanged before/after. Tacticals 272/273 complete bounded scopes;
+managed/provider/reboot/network/sleep acceptance remains open.
+
+Both source0aa physical cohorts independently hash the installed APK and pass
+small foreground/background/reopened upload plus joined Live-library restart,
+retained SAF registry and cleanup. This closes Tactical260's bounded local
+shutdown evidence, not the failed large-metadata/hour or managed delivery gates.
+Tactical266's restored native retained history/Live-library component also passes
+both cohorts. Whole upload receipts remain failed; severity/category button
+changes alone cannot prove asynchronous filtering. Tactical267 now checks actual
+visible filtered rows, with26 passing portable driver cases.
+
+Tactical [268](../tactical/268-android-visible-error-fallback.md) replaces
+message-less/blank Android exception class-name fallbacks with catalog-owned
+product copy. Meaningful messages and complete technical logs remain. Portable
+formatting regression, 122 debug JVM cases, lint and all localization catalogs
+pass; normal original-signed packaging and independent package checks also
+pass. Latest-source physical delivery remains separately pending.
+This is a source-level leak prevention, not a reproduced runtime exception.
+
+Tactical [266](../tactical/266-android-diagnostic-history-resynchronization.md)
+repairs Android's diagnostic-only queue after a real 581,079-byte history cannot
+resynchronize through 256 KiB. Source `2adf2eb1` requests the existing 4-MiB
+subscription bound for retained history (2 MiB / 2,048 events); Kotlin still
+retains 512 rows. The real retention regression rejects the old budget, delivers
+473,255 bytes and resynchronizes unchanged history. Normal original-signed and
+isolated dual-ABI builds, 121 release JVM cases, lint and independent package
+checks pass. Full session checks pass 387 cases with two existing ignores.
+Bounded physical retained-history/Live return passes; large-fixture upload
+and managed delivery remain open under259/267. No store upload occurs.
+
+Tactical [267](../tactical/267-physical-upload-and-reopen-evidence.md) strengthens
+actual upload transport/readiness/counter and observed retained-settings
+navigation evidence. Both source-376 physical runs pass their full 3,600-second
+background transfer and whole 40-MiB hash; their subsequent upload phase fails.
+No complete end-to-end pass is inferred. Portable delayed-listener/failure
+ownership/refusal tests pass; short current-APK trials run before full retries.
+No engine/network/seeding policy changes or inherited app/data cleanup occurs.
+
+Tactical [262](../tactical/262-android-network-status-presentation.md) removes
+actual Android Network Settings class-name leaks through exhaustive localized
+listener/router descriptions, retaining endpoints, ports, failure and uncertain
+lease facts. Message-less feedback failures use product copy. Actual owned
+API-35 before/after captures and all 24 navigation cases pass, including the new
+status regression. Internal namespaces, generated ABI and network policy remain
+unchanged. Original-key production release from `37673687` passes 121 JVM
+cases, lint and independent APK/AAB checks; its actual production APK also
+passes the corrected native screen capture. Source-184's Android capsule is
+superseded. Store/physical delivery gates remain Tactical 259.
+
+Tactical [260](../tactical/260-android-shutdown-failure-containment.md) contains
+an observed physical Android shutdown exception at the client adapter boundary.
+Typed native cleanup errors remain visible after releasing the client; other
+failures and cancellation propagate. Both ABI builds, generated Kotlin and
+121 JVM tests pass. Physical shutdown/restart and endurance remain pending;
+engine, mapping leases and background policy are unchanged.
+
+Tactical [258](../tactical/258-cross-surface-branding-and-design-audit.md)
+completes a cross-surface JSTorrent branding audit. Native Android and iOS headers
+use the original box; iOS app/permission/catalog labels and AppIcon now match
+JSTorrent. Compiled phone/iPad and API-35 Android evidence, a validated macOS
+JSTorrent Preview bundle, shared React/extension rendering and source-only
+Windows/Linux limits are retained in the
+[audit execution record](../tactical/258-cross-surface-branding-and-design-audit.md). No engine owner,
+platform identity, persistence, updater trust or store route changes. The iOS
+runtime card, native onboarding hierarchy and current store screenshot campaign
+remain explicit design follow-ups.
+
+Tactical 253 now makes `http://jstorrent.localhost:3030` the primary Linux
+browser route. Its dedicated loopback name bypasses ChromeOS Linux DNS
+registration and keeps host-only cookies separate from bare localhost apps.
+Exact Host/Origin, extension handoff, optional permission and service identity
+checks remain. Both physical cohorts pass actual browser download, independent
+hash verification, source-offline process restart and tab reuse; cohort B also
+passes the installed launcher and real permission prompt. Cohort A uses an
+isolated runtime alongside its preserved installation. The old hostname route
+requires updating the Linux package and extension together; it is not an
+automatic fallback. These unsigned candidates do not qualify store delivery,
+ARM hardware, full-device suspend/reboot or forwarding endurance.
+
+Tactical 253's interruption follow-up preserves saved Android pairing after
+transport, connection-close and resource-limit handshake failures. Only an
+explicit `authentication_failed` response for a saved credential starts fresh
+approval; a rejected newly approved credential does not create another approval
+loop. Five focused cases, the 470-test web suite and extension packaging pass.
+The actual packaged extension also passes physical Android process restart,
+simulated page-owned socket interruption, worker stop/wake and real picker
+expiration followed by completed selection. Saved pairing is retained without
+new approval. These browser cases use an empty isolated library; native payload
+recovery is separately recorded. The initial localhost-marker proposal is superseded by the primary dedicated
+localhost route and physical product evidence above.
+
+Tactical 253's portable recovery checkpoint passes bounded Android discovery,
+manual recovery, detached-view cleanup, offline troubleshooting and explicit
+Linux guidance in the packaged extension. Host-built isolated candidates add
+cohort-A Android and Linux-runtime byte checks/repetitions, real Android
+pairing/manual recovery and extension file-input evidence. Both hosts finish
+controlled 60-minute byte-verified observations on cohort A; native actual
+Remove/keep and detached-view completion pass bounded checks. Final approval
+expiry/cancellation and foreground unavailable-service guidance pass without
+inferring Play, app presence or policy. The follow-up proves normal Terminal
+startup restores missing Linux hostname/container registration. The current
+isolated Linux browser connects, verifies real file-picker intake and retains
+the completed row/bytes after VM restart with the source offline. Its offline
+connection page offers exact-host optional access, bounded checks and manual
+recovery; fresh document navigation avoids retained old HTML cache. Current
+signed installation/registered candidate Launcher and full physical/store
+acceptance remain open. Cohort A retains
+legacy/debug apps. Cohort B is now reachable: its inherited Play app is legacy,
+while isolated Android/extension pairing, real folder/file picker cancellation,
+keep-data removal and corrected browser completion pass. Completed-library
+startup was slow with temporary unavailable-root presentation; the subsequent
+four-observation/checking-state repair reduces the 121-file case to 11–11.5
+seconds and removes that false presentation. Fresh Linux
+setup and signed public installation work, but the registered launcher's browser
+handoff was blocked by ChromeOS hostname registration, even after ordinary
+VM recovery, before the dedicated-localhost update above. Both full-hour controlled observations verify their bytes; Linux
+retains its original runtime-only limit; the new bounded route checks are
+recorded separately above. The local screenshot/HTML review retains exact
+candidate limits and the remaining startup/store/lifecycle gaps.
+Neither injected presentation nor appliance health qualifies Play installation.
+
+Priority accepted 2026-10-01: qualify ChromeOS onboarding and recovery on both
+available physical Chromebooks, starting with Play not enabled or Android
+installation failing. Tactical
+[253](../tactical/253-chromeos-onboarding-recovery-and-physical-qualification.md)
+owns pre-connection troubleshooting, explicit Linux fallback and bounded
+end-to-end hardware repetitions. Existing implemented Android/Crostini paths
+are foundations, not evidence that these customer journeys pass.
+
+Tactical [251](../tactical/251-jstorrent-ci-candidates-and-installed-update.md)
+completes a bounded production-identity CI attempt without publication. Windows
+and both Linux package lanes pass; Android passes building/tests/lint then fails
+its original-certificate gate. Fresh macOS notarization needs the team agreement
+resolved. Ordinary CI passes every executed job. The initial updater
+secret fails JSTorrent's original trust root; signed installed continuity remains
+open. An exact old macOS app checks its unchanged production route successfully.
+No product presentation, application DTO or engine behavior changes in this slice.
+The supplied original key is now provisioned and fresh CI nonce signing passes
+with the unchanged password. Eight available Windows/Linux package signatures
+now independently verify against the original root; complete-matrix and installed
+update gates remain open.
+
+Tactical [250](../tactical/250-jstorrent-production-identity-candidates.md)
+prepares production desktop/Android/extension identities and public trust
+configuration. Desktop has an explicit candidate overlay, Android release is
+`com.jstorrent.app`, and `package:jstorrent` selects the original extension ID.
+Normal debug builds stay isolated. Desktop updater routing and production
+extension-origin admission are corrected; Android keeps its existing exact
+origin boundary. No view DTO, generated contract or Compose presentation change
+is introduced. [Full signed/installed cutover](../jstorrent-cutover-checklist.md)
+remains unqualified.
+
+Tactical [249](../tactical/249-jstorrent-brand-and-extension-refresh.md) starts
+production branding: shared React/desktop window and Android presentation use
+JSTorrent; original desktop/tray, Android adaptive/launcher/store and extension
+icons are restored with exact MIT provenance and packaged notices. The extension
+popup and connection screen are refreshed. Desktop incubation bundle names,
+Android test/incubation IDs and the extension incubation Web Store key remain;
+this does not qualify production identity, signing, launch or store continuity.
+iOS and website branding are outside this three-surface slice.
+
+
+Tactical [248](../tactical/248-chromeos-staggered-upgrade.md) adds terminal
+Android-update and extension-update guidance to the packaged companion page,
+manual Retry and a Google Play action. Current compatible service discovery
+wins; old status discovery carries no credentials or legacy commands. Imported
+ChromeOS Compose libraries explain standalone use and updating/re-pairing the
+extension. Controlled API 28/35 released-extension writers cross an installed
+Android replacement into the same successor owner, with fresh pairing/control.
+This does not qualify production store identities or physical ARC replacement.
+
+Tactical [246](../tactical/246-android-legacy-import-and-installed-upgrade.md)
+implements Android legacy migration before the native application opens.
+Unmetered, lifecycle, wake and selection preferences use existing product
+semantics; unsupported settings are dropped. Incubation identities remain
+separate; only the same-package production identity runs migration, with an
+explicit debug-only package override for emulator qualification.
+
+Tactical [245](../tactical/245-android-legacy-inventory-and-import-contract.md)
+completes the pinned Android legacy inventory/format checkpoint and scopes its
+importer and same-package upgrade matrix. Thirteen generated cases and ten
+Python tests pass; no Android package, production key, grants or UI were
+changed. The importer and installed/Play replacement remain open.
+
+Tactical [240](../tactical/240-signed-desktop-control-qualification.md) completes
+signed current-source delivery with [Latest 0.2.801](../evidence/desktop-latest-v0.2.801.md).
+Exact-source CI, five signed package lanes, public signatures/checksums and both
+macOS notarized/stapled DMGs pass. Claimed macOS arm64 and Windows/Linux x64
+installations pass native 701-to-801 updating, signed/registered helper checks,
+background control, shared views, fresh browser-closed verified transfers,
+picker cleanup, explicit/passive relaunch and bounded registration repair.
+The Mac also installs the exact public DMG and recreates its bundled host.
+Physical sleep/wake, interrupted updates, broader endurance, Intel/minimum-macOS
+installed coverage and production graduation remain open. Tactical 241
+implements atomic local import; [242](../tactical/242-legacy-desktop-handoff-rehearsal.md)
+adds production-only old-host fencing and a bounded installed macOS replacement
+checkpoint with generated state. [243](../tactical/243-windows-linux-legacy-replacement.md)
+adds installed Windows NSIS/Linux AppImage checkpoints and repairs Windows
+snapshot syncing. [244](../tactical/244-unavailable-storage-presentation.md)
+corrects shared React blocked-storage labels and Needs attention membership
+with deterministic evidence. Signed production delivery,
+privacy/support continuity and full branding remain open.
+
+240 also fixes the macOS CFT support path to `Google/Chrome for Testing`.
+Its actual default-profile discovery/repair evidence supersedes the misspelled
+configured test root in 232. The app bundles the native host and installs a
+private per-user copy; no separate user-managed helper installer is needed.
+
+Selected three-platform beta replacement, rollback and native registration
+repair pass in [236](../tactical/236-desktop-compatibility-refusal-and-recovery.md)
+and [237](../tactical/237-macos-windows-package-recovery.md).
+[238](../tactical/238-signed-desktop-channel-recovery.md) now proves native signed
+0.2.301 → 0.2.501 updating and return-to-Stable without downgrade on all three
+platforms; that published cohort predates extension control.
+[239](../tactical/239-desktop-suspension-browser-recovery.md) proves same-runtime
+browser restart, independently verified 32-MiB completion and Quit without
+passive resurrection on all three, plus macOS VM suspend/resume. Linux's earlier
+lock blocker is superseded by authorized VM recreation with verified stored
+credentials. Its attempted native suspend-to-idle did not recover and required
+a supported forced stop; native sleep/wake remains unqualified. Owned test state
+is removed and claims released. 240 supplies signed current-source delivery.
+Next: bounded interrupted-update, physical sleep/wake and broader endurance
+evidence. Importer implementation and three-platform handoff checkpoints are
+recorded in 241/242/243; production qualification remains separate.
+
+Tactical [`236`](../tactical/236-desktop-compatibility-refusal-and-recovery.md)
+adds clear terminal desktop compatibility errors and attach-only Retry
+connection. Its installed Linux beta old/new extension/runtime combinations,
+open-page replacement, credential rotation, bounded registration repair and
+same-schema rollback preserve the controlled library. The macOS/Windows beta
+matrices now pass in 237. 240 supplies signed current-source delivery; original
+legacy browser-store pairs remain open. 243 adds the bounded Windows/Linux
+installed legacy migration checkpoint.
+
+Tactical [`235`](../tactical/235-linux-quit-launch-handoff.md) repairs the Linux
+Quit/launch overlap. A stopping owner returns Retry; the explicit launch process
+retains its arguments and waits within a bounded deadline before claiming the
+vacated singleton name. Passive activity never creates that launcher. Installed
+tray-Quit, native/background launch, actual magnet/file associations and a
+12-launch race pass. macOS/Windows retain their existing plugin; old Linux
+binaries retain the old race. Update compatibility remains a separate gate.
+
+Tactical [`234`](../tactical/234-desktop-user-intent-and-background-lifecycle.md)
+owns the accepted desktop lifetime follow-up: retain the tray/status-bar icon
+while the runtime runs, including idle/paused states; browser closure only
+detaches. Fresh toolbar, Start, or OS torrent-input intent may relaunch after
+Quit; page restoration, worker wake and retries only attach. Tray Open and
+OS magnet/file delivery always use the native window. No preferred surface,
+browser-profile routing, icon-hiding or automatic completion shutdown is added.
+Installed macOS/Windows/Linux debug builds pass the bounded browser-close,
+64 reload/worker-stop, discard and explicit/passive relaunch checkpoint.
+Desktop disconnect retires abandoned client views without disturbing native
+views. Broader endurance and installer/update compatibility remain open.
+Its macOS magnet regression found a Tauri plugin-lock reentry. URL intake now
+runs in the application Opened callback, after plugin dispatch, so a
+background owner can create its first native window without deadlocking.
+
+Tactical [`232`](../tactical/232-desktop-extension-control.md) implements the
+first desktop beta-extension client using the packaged shared React application.
+Native and extension views share one default library. Explicit extension open
+starts the runtime without creating a native window; ordinary desktop launch
+shows that window. Authenticated extension requests open a desktop-owned native
+picker on Linux, Windows and macOS; disconnect and Quit reap its helper. macOS
+completes AppKit accessory launch before panel activation and routes the
+application menu's Cmd-Q through the same joined shutdown as tray Quit.
+Installed unsigned debug-package, controlled transfer and lifecycle checkpoints
+pass on all three platforms. Media, updater and shell actions remain native;
+broader browser endurance, update compatibility and production readiness remain
+separate gates recorded in the tactical.
 
 Tactical [`229`](../tactical/229-web-desktop-data-reset.md) brings the reset
 and clear choices to shared React Settings for local browser and desktop
@@ -10,12 +571,12 @@ state before the client reloads. Remote clients and demo scenarios cannot clear
 the host profile.
 
 Tactical [`230`](../tactical/230-desktop-stable-latest-update-channels.md)
-adds desktop Stable/Latest source wiring. The native desktop client owns the
+adds desktop Stable/Latest source wiring. The native desktop app owns the
 saved selection and signed candidate; shared React exposes the choice only
 for app, NSIS, and AppImage installations. The signed five-target Latest
-release and production update routes pass; installed cross-channel evidence
-remains open. Android, iOS, headless, and Crostini retain
-their existing distribution policies.
+release and production update routes pass; 238 qualifies installed channel
+selection and 240 qualifies signed current-source desktop control. Android,
+iOS, headless, and Crostini retain their existing distribution policies.
 
 Completed local Tactical
 [`216`](../tactical/216-local-support-diagnostics-and-release-baseline.md)
@@ -54,7 +615,7 @@ implements the
 first migration-critical JSTorrent Android parity slice. On ChromeOS, the
 existing Android foreground service remains the sole Rust application,
 engine, profile, and SAF owner while the beta extension packages the shared
-React UI as a detachable authenticated presentation. The same React folder
+React UI as a detachable authenticated client. The same React folder
 action used by Crostini delegates to Android's SAF picker; a new current root
 does not discard grants required by older torrents. It does not recreate
 JSTorrent's extension-owned engine/raw IO daemon. Deterministic, Android,
@@ -75,10 +636,10 @@ explicit loopback validation composition. Publication and support remain later.
 
 The first-party product is implemented across a browser-hosted web view, a
 Tauri desktop webview, Android Compose, and the maintained iOS SwiftUI client.
-The same mature browser presentation is also packaged by completed Tactical `170`
+The same mature browser client is also packaged by completed Tactical `170`
 for one configured Linux headless service. Completed Tactical `174` attaches
 that one application owner to an exact LAN gateway and an exact loopback
-gateway behind Tailscale Serve without adding a second backend process.
+gateway behind Tailscale Serve without adding a second host process.
 Completed
 Tactical
 [`143`](../tactical/143-dual-identity-and-persistence-foundation.md) makes
@@ -101,7 +662,7 @@ identities remain visible/exportable while selection, promotion, progress,
 Files, restart, recheck, seeding, and removal remain format-neutral. The
 production browser and Android API 34 SAF profiles pass; Tauri builds and the
 unsigned iOS archive require no presentation fork or hybrid control. The
-Android foreground product client now uses durable SAF storage without
+Android foreground app now uses durable SAF storage without
 placing platform capabilities in the portable UI command contract. The
 one-command desktop launcher is smoke-tested on Apple silicon macOS as well as
 the original Linux development host. Closing its macOS window detaches that
@@ -187,7 +748,7 @@ Completed Tactical
 first UI-complete Android product for the current application boundary. Its
 single-stack Material 3 Library, six-tab torrent detail, Speed, dual-family
 DHT, structured Logs, and Settings hierarchy deliberately follow JSTorrent
-Android standalone with RSTorrent branding and honest capability gaps.
+Android standalone with JSTorrent branding and honest capability gaps.
 Completed Tactical
 [`172`](../tactical/172-provisional-magnet-display-name.md) gives the shared
 web, Android, iOS, and desktop-notification presentation boundary one
@@ -217,6 +778,11 @@ Tactical `036` introduced the production-built browser path behind
 `./scripts/webui`. Tactical `109` now gives it one fixed same-origin gateway:
 the root URL remains stable across restarts, the gateway serves both the UI
 and application transport, and the terminal owns one joined child process.
+Tactical [`226`](../tactical/226-live-webui-hot-reload.md) adds an optional
+`--reload` workflow at that same browser URL. Vite hot reloads React/CSS and
+proxies API, WebSocket, health, and media requests to a private loopback
+gateway with the same persistent profile and native folder picker. The
+ordinary launcher still serves the production bundle.
 It retains isolated persistent state, default online networking, and normal
 browser opening. Tactical `076`
 adds an explicit same-origin production build for one Basic-authenticated
@@ -227,7 +793,7 @@ same leased view-set semantics over acknowledged in-process Channel delivery;
 the desktop opens no loopback server. Tactical `037` adds the first live
 mutation to the new surface: bounded magnet intake through the semantic
 command boundary. Tactical `038`
-adds five curated public test-torrent shortcuts without adding a debug backend
+adds five curated public test-torrent shortcuts without adding a debug host
 command or bypassing application policy. Android remains intentionally
 unchanged. Tactical `071` adds a local selection-aware canonical magnet copy
 action. Tactical `107` replaces its presentation-only hash construction with
@@ -249,6 +815,13 @@ the three values through its existing grouped file actions, Android Compose
 replaces the binary checkbox with a three-value menu, and iOS SwiftUI displays
 and sets the same values. This presentation does not add a second scheduler or
 progressive Android/iOS playback.
+Tactical
+[`317`](../tactical/317-android-files-tab-rows-and-multiselect.md) replaces
+that Android menu and its three-band rows with compact file rows, an actions
+sheet whose priority is an explicit Skip/Normal/High segmented control, and
+multi-file selection that follows the Library's long-press mechanics and
+sends one bounded batch command per action. Selection is scoped to the
+presented catalog page; folder grouping remains absent.
 Completed Tactical
 [`072`](../tactical/072-derived-media-catalog.md) adds a media-first torrent
 detail to the shared React browser/Tauri presentation. It leases a generated
@@ -319,7 +892,7 @@ streaming presentation.
 
 ## Scope
 
-This topic owns the product-client surfaces above the shared application
+This topic owns the client side of each surface above the shared application
 service: the reusable web application, desktop shell, Android presentation
 adapter, generated client types, and the boundary between presentation and
 application control.
@@ -337,7 +910,7 @@ RSTorrent has three initial user-interface surfaces:
 - an Android Compose application adapted from the existing JSTorrent Android
   product.
 
-The maintained iOS 16+ client is a first-party SwiftUI product using the same
+The maintained iOS 16+ app is a first-party SwiftUI product using the same
 in-process Rust engine and typed application semantics. Completed Tactical
 `147` supplies generated Swift UniFFI, durable app-owned and qualified selected
 roots, and a coordinated descriptor-release seam. Completed Tactical `148`
@@ -371,27 +944,27 @@ Their transports differ:
   an explicitly selected loopback diagnostic comparison only; it is not a
   visible preference, automatic fallback or concurrent second lane.
 
-Transport reuse is not an end in itself. A local desktop product does not open
-a listener, allocate a port, serialize through a socket, or acquire network
-authentication machinery merely to resemble the remote path. Both transports
-adapt to the same semantic dispatcher and reactive-view contract.
+The native Tauri view stays in-process. Tactical `232` explicitly adds the
+bounded authenticated listener for extension clients; it does not route the
+native view through that socket. Both adapt to the same semantic dispatcher
+and reactive-view contract.
 
 The graduation direction adds the existing JSTorrent extension as a possible
-first-class presentation for a native desktop, Android, or Crostini backend.
-Desktop extension and Tauri presentations should attach to one desktop
-profile; ChromeOS Android and Crostini remain separate backend and data
+first-class client for a native desktop, Android, or Crostini host.
+Desktop extension and Tauri clients should attach to one desktop
+profile; ChromeOS Android and Crostini remain separate host and data
 authorities. That future product topology, handoff UX, and manual migration
 posture are recorded in
 [`product-surfaces-and-migration.md`](product-surfaces-and-migration.md). It
-does not make a production extension transport part of the currently
-implemented client surface.
+does not qualify a production extension rollout. Tactical `232` now supplies
+the first beta desktop control implementation.
 
 Tactical
 [`167`](../tactical/167-chromeos-crostini-bundled-web-launcher.md) makes one
 bounded refinement for the first ChromeOS Linux product: its package serves
 this same mature React application and same-origin gateway directly, while the
-beta extension launches, focuses, and explains that backend. This does not
-foreclose an extension-hosted presentation later and does not change the
+beta extension launches, focuses, and explains that host. This does not
+foreclose an extension-hosted client later and does not change the
 separate Android or desktop profile owners. The exact local x86_64 package is
 implemented and passes warm, twice-stopped-VM, repeated-singleton,
 detachable-transfer, uninstall/reinstall, and purge evidence on the physical
@@ -411,7 +984,7 @@ handoff pass without new permissions.
 Completed Tactical
 [`169`](../tactical/169-hosted-crostini-bootstrap-and-release.md) adds the
 release-ready website bootstrap and strict two-architecture signed-manifest
-workflow around that same bundled backend/frontend package. Its physical
+workflow around that same bundled host-and-UI package. Its physical
 x86_64 local signed fixture repairs the real installation, preserves profile
 bytes, launches the same UI, and rejects tampered or incompatible inputs before
 installation mutation. No exact public package, website deployment, or ARM64
@@ -473,7 +1046,7 @@ Tactical `117` makes that reuse direction concrete: a single-stack Material 3
 Library leads to one torrent detail route with Details, Status, Files,
 Trackers, Peers, and Pieces tabs, while Speed, dual-family DHT, structured
 Logs, and Settings remain global routes. Preserve JSTorrent's hierarchy,
-interaction rhythm, and density with RSTorrent branding. Replace QuickJS-
+interaction rhythm, and density with JSTorrent branding. Replace QuickJS-
 specific health presentation with Rust-native application metrics, and never
 enable a setting whose durable/effective behavior is absent.
 
@@ -728,7 +1301,7 @@ own correctness.
   cancellation path joins every gateway and the application owner before
   exiting; no synthetic view is retained while idle. Tactical
   [`171`](../tactical/171-signed-headless-release-and-lan-service.md) adds one
-  serialized backend signed-release checker. Browser startup/daily checks are
+  serialized host-side signed-release checker. Browser startup/daily checks are
   quiet on current or network failure, manual results are visible, and apply
   remains an explicit installed shell command; the browser never owns package
   replacement or service restart.
@@ -764,8 +1337,8 @@ adapter. Real adapter tests remain necessary when Rust projections connect;
 demo evidence does not claim engine behavior.
 
 Tactical `170` adds installed-service evidence beyond the temporary browser
-harness. On x86_64 Ubuntu, every presentation detached during an 8-MiB
-controlled transfer, a fresh presentation recovered complete durable state,
+harness. On x86_64 Ubuntu, every client detached during an 8-MiB
+controlled transfer, a fresh client recovered complete durable state,
 RSTorrent then seeded the exact payload back to pinned libtorrent, and the
 service remained healthy while idle with zero gateway sessions. Joined
 restart, rollback-safe repair, preservation-safe uninstall, and exact cleanup
@@ -922,8 +1495,9 @@ with exact SAF cleanup.
 - The React Library now has a rebuildable media-first torrent detail, but its
   top level remains torrent-backed. Library-wide item aggregation, durable
   media identity/organization, thumbnails or provider artwork, watched state,
-  and embedded in-application playback remain separate product capabilities.
-  Browser-native playback handoff exists for eligible Media rows, and Android
+  and embedded desktop playback remain separate product capabilities.
+  The browser-hosted UI plays completed MP4/M4V/MKV in an in-page dialog
+  (Tactical 362) and keeps the new-tab handoff for other files, and Android
   has native progressive playback from the Files surface. iOS has no
   corresponding progressive derived-media presentation.
 
@@ -997,7 +1571,7 @@ with exact SAF cleanup.
   unreleased `org.rstorrent.bootstrap` identity and retained diagnostic service
   remain explicit release-cleanup decisions rather than evidence that the
   Compose client is still an experiment.
-- Android now has a packaged extension presentation over the one
+- Android now has a packaged extension client over the one
   `ProductEngineService` application owner, with exact ARC host permission,
   explicit pairing, extension-triggered SAF picker, and retained multi-root
   registry. Physical Compose/React convergence and detached transfer pass.
@@ -1058,6 +1632,13 @@ with exact SAF cleanup.
   evidence passes; the supported-phone gate still awaits explicit physical-
   handoff authorization. VPN-grade leak prevention still requires Android
   network binding and race analysis; proxy remains separate.
+- Tactical [311](../tactical/311-android-notification-settings-consolidation.md)
+  consolidates Android Notifications into one permission/app/channel status row
+  opening Android system controls: Enable without permission, Manage otherwise.
+  System controls remain reachable after permission denial; completion and
+  attention preferences remain independent. The duplicate Open row is removed.
+  Debug build, 123 JVM cases, lint, catalog checks and two focused navigation
+  cases on each owned API 28/35 AVD pass.
 - Android's one service-native notification owner now reports generic
   foreground state and derives bounded completion plus fatal/storage-repair
   edges from the authoritative torrent-list stream. Default-on app preferences
@@ -1081,6 +1662,12 @@ with exact SAF cleanup.
   notification-Stop, relaunch, listener-refusal, and cleanup strengthening in
   addition to the original compositional close. VPN policy remains separate
   from Tactical `194`'s connection transport.
+- Tactical [319](../tactical/319-android-ongoing-notification-rates.md) shows
+  session payload download and upload rates in the ongoing notification while
+  downloading or seeding in the background, and in ready states while either
+  rate is nonzero. One state collector owns the notification content,
+  including data-reset progress; status changes post at once and rate-only
+  changes at most every two seconds.
 - Android now has Compose connection/seeding settings for backed peer, upload-
   slot, active-download, listener, port-mapping, IPv6, and encryption values,
   including configured/effective/application truth, plus backed session and
@@ -1176,3 +1763,8 @@ separates companion-extension packaging and release-tool checks from the shared
 web job so a packaging rejection cannot suppress contract/type/unit/E2E signal.
 Its companion validator admits reviewed FormatJS diagnostic links using exact
 host matching; the manifest permissions and exact ARC-only CSP are unchanged.
+
+Finish-line 259's physical picker harness now confirms the observed owned-folder
+breadcrumb after an entry tap. A refused/ineffective folder tap cannot authorize
+acceptance of the Downloads parent. Fourteen focused harness safety cases pass;
+physical retry remains in progress. No product SAF or lifecycle policy changes.

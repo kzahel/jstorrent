@@ -1,0 +1,83 @@
+{
+  "qualification": "Native touch regression and complete exact-source hosted CI pass",
+  "date": "2026-10-04",
+  "testSourceSha256": "577b3179599a0b0c7b4a8271f25adce7cfa9b337b3295fa8a4f4f61a247237ba",
+  "originalFailure": {
+    "run": "https://github.com/kzahel/rstorrent/actions/runs/37185108049",
+    "assertion": "Left overflow remains true after the next viewport reset",
+    "localEightfoldCpuReproduction": "1 of 3 original-helper repetitions failed; 5-pixel post-reset offset"
+  },
+  "rejectedSynthesizedRoute": {
+    "runs": [
+      "https://github.com/kzahel/rstorrent/actions/runs/37227315607",
+      "https://github.com/kzahel/rstorrent/actions/runs/37230272258"
+    ],
+    "hostedAssertion": "Native scroll effect remains zero",
+    "independentProbePlatform": "Ubuntu 24.04 ARM64, Node 22.23.3, Playwright 1.62.1, bundled headless Chromium 151.0.7922.34",
+    "contexts": [
+      "default desktop with explicit touch emulation",
+      "hasTouch context with explicit touch emulation"
+    ],
+    "trustedEventsPerContext": {
+      "touchstart": 1,
+      "touchmove": 0,
+      "touchend": 1
+    }
+  },
+  "nativeRoute": "CDP touch start/move/end with explicit drag-and-stationary-hold event timing; positive scroll and released native scrollend observed before resize/reset",
+  "localChecks": {
+    "macosOrdinaryRepetitions": 3,
+    "macosEightfoldCpuRepetitions": 6,
+    "linuxOrdinaryRepetitions": 3,
+    "linuxTwofoldCpuRepetitions": 3,
+    "linuxFinalCleanupStructureRepetitions": 1,
+    "webTypecheck": "passed",
+    "fullDeterministicBrowserTests": {
+      "passed": 46,
+      "skippedOptInLive": 14
+    },
+    "unchangedProductGates": {
+      "webUnitPassed": 470,
+      "webUnitSkipped": 2,
+      "productionBuildAndCsp": "passed"
+    }
+  },
+  "invariants": "All existing touch-effect, signed-distance, overflow, header/column-bounds and accessibility assertions remain; no product source change",
+  "cleanup": {
+    "ownedToolingSourceAndBrowserDirectoryRemoved": true,
+    "noOwnedBrowserProcessesRemained": true,
+    "originalOffBaselineRestoredByOrderlyShutdown": true,
+    "exclusiveClaimReleased": true
+  },
+  "hostedBrowserJob": {
+    "sourceSha": "f5860c99bbaf6b40c0ba40735071aff6a0b5527d",
+    "runUrl": "https://github.com/kzahel/rstorrent/actions/runs/37236977716",
+    "jobId": 111537962232,
+    "conclusion": "success",
+    "e2ePassed": 46,
+    "skippedOptInLive": 14
+  },
+  "auditCoverage": {
+    "privateControllerHistoryInspected": true,
+    "complete": false,
+    "limits": "No retrospective reconstruction; raw shell detail is not captured; claimant labels are self-asserted, not authenticated identity; retained events may be incomplete",
+    "currentLinuxClaimAndResourceCorrelated": true
+  },
+  "completeSourceCi": "https://github.com/kzahel/rstorrent/actions/runs/37236977716",
+  "externalIntakeUnitRace": {
+    "failedReleaseRun": "https://github.com/kzahel/rstorrent/actions/runs/37235683007",
+    "observation": "Second command submission can precede its async success/status and queue synchronization",
+    "repair": "Await all existing no-dialog, success-message and empty-queue assertions together",
+    "productBehaviorChanged": false,
+    "localAffectedFilePassed": 68,
+    "localFullUnitsPassed": 470,
+    "localSkipped": 2,
+    "typecheck": "passed",
+    "hostedBrowserRetry": {
+      "sourceSha": "f5860c99bbaf6b40c0ba40735071aff6a0b5527d",
+      "runUrl": "https://github.com/kzahel/rstorrent/actions/runs/37236977716",
+      "jobId": 111537962232,
+      "conclusion": "success"
+    }
+  }
+}

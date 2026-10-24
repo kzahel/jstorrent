@@ -9,7 +9,7 @@
   font-family:
     Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #e8f2f5;
-  background: #0a1014;
+  background: #0f172a;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -17,7 +17,7 @@
 html {
   min-width: 300px;
   min-height: 100%;
-  background: #0a1014;
+  background: #0f172a;
 }
 
 body {
@@ -25,9 +25,9 @@ body {
   margin: 0;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at 18% 18%, rgb(76 194 228 / 14%), transparent 30rem),
-    radial-gradient(circle at 85% 78%, rgb(255 139 92 / 8%), transparent 26rem),
-    #0a1014;
+    radial-gradient(circle at 18% 18%, rgb(59 130 246 / 14%), transparent 30rem),
+    radial-gradient(circle at 85% 78%, rgb(59 130 246 / 8%), transparent 26rem),
+    #0f172a;
 }
 
 body::before {
@@ -59,62 +59,10 @@ main {
 }
 
 .brand-mark {
-  position: relative;
-  display: grid;
+  display: block;
   width: clamp(8rem, 18vw, 11.5rem);
-  aspect-ratio: 1;
-  place-items: center;
-  border: 1px solid rgb(111 218 244 / 48%);
-  border-radius: 2rem;
-  background:
-    linear-gradient(145deg, rgb(76 194 228 / 17%), rgb(76 194 228 / 3%)),
-    rgb(13 23 29 / 88%);
-  box-shadow:
-    0 2.25rem 6rem rgb(0 0 0 / 38%),
-    inset 0 1px rgb(255 255 255 / 8%);
-  transform: rotate(-3deg);
-}
-
-.brand-mark::after {
-  position: absolute;
-  inset: 0.55rem;
-  content: "";
-  border: 1px solid rgb(255 255 255 / 6%);
-  border-radius: 1.55rem;
-}
-
-.brand-mark span {
-  color: #70dcf5;
-  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: clamp(2.65rem, 7vw, 4.4rem);
-  font-weight: 700;
-  letter-spacing: -0.12em;
-  line-height: 1;
-  transform: translateX(-0.06em);
-}
-
-.brand-mark i {
-  position: absolute;
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: #ff8b5c;
-  box-shadow: 0 0 1rem rgb(255 139 92 / 72%);
-}
-
-.brand-mark i:nth-of-type(1) {
-  top: 1.25rem;
-  right: 1.25rem;
-}
-
-.brand-mark i:nth-of-type(2) {
-  right: 1.25rem;
-  bottom: 1.25rem;
-}
-
-.brand-mark i:nth-of-type(3) {
-  bottom: 1.25rem;
-  left: 1.25rem;
+  height: auto;
+  filter: drop-shadow(0 1rem 2rem rgb(0 0 0 / 20%));
 }
 
 .copy {
@@ -138,8 +86,8 @@ main {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
-  background: #4cc2e4;
-  box-shadow: 0 0 1rem rgb(76 194 228 / 70%);
+  background: #60a5fa;
+  box-shadow: 0 0 1rem rgb(59 130 246 / 70%);
 }
 
 h1 {
@@ -174,13 +122,13 @@ h1 {
   min-height: 3rem;
   margin-top: 2rem;
   padding: 0 1.1rem;
-  border: 1px solid #4cc2e4;
+  border: 1px solid #60a5fa;
   border-radius: 0.65rem;
   color: #071014;
-  background: #70dcf5;
+  background: #93c5fd;
   font-weight: 700;
   text-decoration: none;
-  box-shadow: 0 0.8rem 2.4rem rgb(76 194 228 / 15%);
+  box-shadow: 0 0.8rem 2.4rem rgb(59 130 246 / 15%);
   transition:
     background-color 140ms ease,
     border-color 140ms ease,
@@ -195,14 +143,24 @@ h1 {
 
 .github-link:focus-visible,
 footer a:focus-visible {
-  outline: 3px solid #ff8b5c;
+  outline: 3px solid #93c5fd;
   outline-offset: 4px;
 }
 
 .availability {
   margin: 1rem 0 0;
-  color: #6f858e;
+  color: #94a3b8;
   font-size: 0.82rem;
+}
+
+.availability a {
+  color: #93c5fd;
+  text-underline-offset: 0.2em;
+}
+
+.availability a:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 4px;
 }
 
 footer {
@@ -212,7 +170,7 @@ footer {
   justify-content: center;
   padding: 1.25rem 1.5rem;
   border-top: 1px solid rgb(255 255 255 / 6%);
-  color: #667b83;
+  color: #94a3b8;
   font-size: 0.76rem;
   text-align: center;
 }

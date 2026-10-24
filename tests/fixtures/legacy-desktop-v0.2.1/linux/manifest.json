@@ -1,0 +1,297 @@
+{
+  "sourceCommit": "73427b7d3aef2eaf1c4ac1409922fbb52dff751d",
+  "hostSha256": "e7046ce3e957eb73296886faf84380b77c73e3b6b0392e7926afb93712b8a480",
+  "sourceTreeSha256": "4e7b3aaeee42e454f82c89dd1e4ee500d7ee649e74d1df33230c85e8cb4cc2a9",
+  "platform": "linux",
+  "kind": "released-host-and-pinned-engine-writer",
+  "profiles": [
+    {
+      "variant": "empty",
+      "sourceProfile": "e583bb3c-2d6e-42ec-a053-abf3ed0f692f",
+      "rootKey": "6c1eecd696aea198",
+      "location": "payload/empty",
+      "availability": "available",
+      "snapshot": "snapshots/empty.db",
+      "sha256": "3eb473aa3aa7deeb75b395391667c3cc3ffb93cb174f46bfabbdaa733cf31103",
+      "keys": [
+        "session:torrents"
+      ],
+      "records": []
+    },
+    {
+      "variant": "alpha",
+      "sourceProfile": "174502ed-e4b4-4852-8d65-f5960e348244",
+      "rootKey": "0468b5f7abfbbd27",
+      "location": "payload/shared",
+      "availability": "available",
+      "snapshot": "snapshots/alpha.db",
+      "sha256": "71afe1f8a6be88f00452ac4d2290cd3dab1a221c2025c9f33de9ebcc9b6c0329",
+      "keys": [
+        "session:torrent:8c02ecfd4d12122a27c81669d0e1fb9c42373671:state",
+        "session:torrent:8c02ecfd4d12122a27c81669d0e1fb9c42373671:torrentfile",
+        "session:torrents"
+      ],
+      "records": [
+        {
+          "infoHash": "8c02ecfd4d12122a27c81669d0e1fb9c42373671",
+          "source": "file",
+          "name": "shared.bin",
+          "bytes": 32768,
+          "verifiedPieces": 2,
+          "sha256": "0aac94eefd6537d5f4a44f60f0f8a8b576131d6564b458ffe107d1a103f9cc7f",
+          "intent": "stopped"
+        }
+      ]
+    },
+    {
+      "variant": "same",
+      "sourceProfile": "062791be-2802-4f09-aaae-7a7c38eb38db",
+      "rootKey": "0468b5f7abfbbd27",
+      "location": "payload/shared",
+      "availability": "available",
+      "snapshot": "snapshots/same.db",
+      "sha256": "6ada7293a508b49546a0fc53c5b5054779584f55bb1ca02b83ee9d1e3f69f8ce",
+      "keys": [
+        "session:torrent:8c02ecfd4d12122a27c81669d0e1fb9c42373671:state",
+        "session:torrent:8c02ecfd4d12122a27c81669d0e1fb9c42373671:torrentfile",
+        "session:torrents"
+      ],
+      "records": [
+        {
+          "infoHash": "8c02ecfd4d12122a27c81669d0e1fb9c42373671",
+          "source": "file",
+          "name": "shared.bin",
+          "bytes": 32768,
+          "verifiedPieces": 2,
+          "sha256": "0aac94eefd6537d5f4a44f60f0f8a8b576131d6564b458ffe107d1a103f9cc7f",
+          "intent": "stopped"
+        }
+      ]
+    },
+    {
+      "variant": "conflict",
+      "sourceProfile": "8c8ce6ba-a069-40f5-ab06-a0d948e39f45",
+      "rootKey": "310c1d82af4430ae",
+      "location": "payload/conflict",
+      "availability": "available",
+      "snapshot": "snapshots/conflict.db",
+      "sha256": "082510122cec570bc94bcc86faf6b4ec3cd08b3977263755dc9380079a32d49e",
+      "keys": [
+        "session:torrent:8c02ecfd4d12122a27c81669d0e1fb9c42373671:state",
+        "session:torrent:8c02ecfd4d12122a27c81669d0e1fb9c42373671:torrentfile",
+        "session:torrents"
+      ],
+      "records": [
+        {
+          "infoHash": "8c02ecfd4d12122a27c81669d0e1fb9c42373671",
+          "source": "file",
+          "name": "shared.bin",
+          "bytes": 16384,
+          "verifiedPieces": 1,
+          "sha256": "d2abff29788fad70135f0536db9dad06a62a33d54cdc5c223d072a8db92071f4",
+          "intent": "active"
+        }
+      ]
+    },
+    {
+      "variant": "disjoint",
+      "sourceProfile": "bcd02e47-bb83-41af-9c5b-b7af9c7bfed3",
+      "rootKey": "67444af49600b405",
+      "location": "payload/disjoint",
+      "availability": "available",
+      "snapshot": "snapshots/disjoint.db",
+      "sha256": "311fa7fb6bc3daaa14b331664fd47c30bd003d81d0de5305fd51f09ac90ddc7a",
+      "keys": [
+        "session:torrent:0d74acfbd2fc27f15db895585d9edff9583f240c:state",
+        "session:torrent:0d74acfbd2fc27f15db895585d9edff9583f240c:torrentfile",
+        "session:torrent:1234567890abcdef1234567890abcdef12345678:state",
+        "session:torrents"
+      ],
+      "records": [
+        {
+          "infoHash": "0d74acfbd2fc27f15db895585d9edff9583f240c",
+          "source": "file",
+          "name": "\u72ec\u7acb.bin",
+          "bytes": 32768,
+          "verifiedPieces": 2,
+          "sha256": "95a8d7b7cf1f0e97ea1fcccb68a9e9cda60ae05d26f04db585b8e000035b2230",
+          "intent": "stopped"
+        },
+        {
+          "infoHash": "1234567890abcdef1234567890abcdef12345678",
+          "source": "magnet",
+          "intent": "stopped"
+        }
+      ]
+    },
+    {
+      "variant": "unavailable",
+      "sourceProfile": "b1fda06e-1f16-429f-bbba-4a604f70892f",
+      "rootKey": "cf5dea7e8559ab8f",
+      "location": "payload/unavailable",
+      "availability": "missing",
+      "snapshot": "snapshots/unavailable.db",
+      "sha256": "d418c17722572d4968f05ecb7c9198875f9f44e6626a5260bae3d38ee5acef08",
+      "keys": [
+        "session:torrent:8c02ecfd4d12122a27c81669d0e1fb9c42373671:state",
+        "session:torrent:8c02ecfd4d12122a27c81669d0e1fb9c42373671:torrentfile",
+        "session:torrents"
+      ],
+      "records": [
+        {
+          "infoHash": "8c02ecfd4d12122a27c81669d0e1fb9c42373671",
+          "source": "file",
+          "name": "shared.bin",
+          "bytes": 32768,
+          "verifiedPieces": 2,
+          "sha256": "0aac94eefd6537d5f4a44f60f0f8a8b576131d6564b458ffe107d1a103f9cc7f",
+          "intent": "stopped"
+        }
+      ]
+    },
+    {
+      "variant": "multifile",
+      "sourceProfile": "41f2941b-018a-42d1-a7e6-d7d5e5fa747c",
+      "rootKey": "b39196611ceb5724",
+      "location": "payload/multifile",
+      "availability": "available",
+      "snapshot": "snapshots/multifile.db",
+      "sha256": "f9aa701b86389f6ddb1241816673505db26dfa6078a43fdb23696a6ce49a8f9e",
+      "keys": [
+        "session:torrent:14ad47b0fa7a55b5ba07520cfe69e0109b797d7d:state",
+        "session:torrent:14ad47b0fa7a55b5ba07520cfe69e0109b797d7d:torrentfile",
+        "session:torrent:8c02ecfd4d12122a27c81669d0e1fb9c42373671:state",
+        "session:torrent:8c02ecfd4d12122a27c81669d0e1fb9c42373671:torrentfile",
+        "session:torrents"
+      ],
+      "records": [
+        {
+          "infoHash": "8c02ecfd4d12122a27c81669d0e1fb9c42373671",
+          "source": "file",
+          "name": "shared.bin",
+          "bytes": 32768,
+          "verifiedPieces": 2,
+          "sha256": "0aac94eefd6537d5f4a44f60f0f8a8b576131d6564b458ffe107d1a103f9cc7f",
+          "intent": "stopped"
+        },
+        {
+          "infoHash": "14ad47b0fa7a55b5ba07520cfe69e0109b797d7d",
+          "source": "file",
+          "name": "bundle/\u9078\u629e.bin",
+          "bytes": 16384,
+          "verifiedPieces": 1,
+          "filePriorities": [
+            0,
+            1
+          ],
+          "sha256": "1bd4db450abc8914c2fac721cace2704ff4c16028e6d07293154dad289835694",
+          "intent": "stopped"
+        }
+      ]
+    }
+  ],
+  "expectedUnion": [
+    {
+      "infoHash": "0d74acfbd2fc27f15db895585d9edff9583f240c",
+      "sources": [
+        {
+          "profile": "disjoint",
+          "location": "payload/disjoint",
+          "availability": "available",
+          "source": "file",
+          "intent": "stopped"
+        }
+      ],
+      "disposition": "inactive-pending-reverification"
+    },
+    {
+      "infoHash": "1234567890abcdef1234567890abcdef12345678",
+      "sources": [
+        {
+          "profile": "disjoint",
+          "location": "payload/disjoint",
+          "availability": "available",
+          "source": "magnet",
+          "intent": "stopped"
+        }
+      ],
+      "disposition": "held-metadata"
+    },
+    {
+      "infoHash": "14ad47b0fa7a55b5ba07520cfe69e0109b797d7d",
+      "sources": [
+        {
+          "profile": "multifile",
+          "location": "payload/multifile",
+          "availability": "available",
+          "source": "file",
+          "intent": "stopped"
+        }
+      ],
+      "disposition": "inactive-pending-reverification"
+    },
+    {
+      "infoHash": "8c02ecfd4d12122a27c81669d0e1fb9c42373671",
+      "sources": [
+        {
+          "profile": "alpha",
+          "location": "payload/shared",
+          "availability": "available",
+          "source": "file",
+          "intent": "stopped"
+        },
+        {
+          "profile": "same",
+          "location": "payload/shared",
+          "availability": "available",
+          "source": "file",
+          "intent": "stopped"
+        },
+        {
+          "profile": "conflict",
+          "location": "payload/conflict",
+          "availability": "available",
+          "source": "file",
+          "intent": "active"
+        },
+        {
+          "profile": "unavailable",
+          "location": "payload/unavailable",
+          "availability": "missing",
+          "source": "file",
+          "intent": "stopped"
+        },
+        {
+          "profile": "multifile",
+          "location": "payload/multifile",
+          "availability": "available",
+          "source": "file",
+          "intent": "stopped"
+        }
+      ],
+      "disposition": "held-location-conflict"
+    }
+  ],
+  "syntheticMutations": [
+    {
+      "kind": "colliding-root-key",
+      "derivedFrom": "snapshots/conflict.db",
+      "originalSha256": "082510122cec570bc94bcc86faf6b4ec3cd08b3977263755dc9380079a32d49e",
+      "snapshot": "snapshots/colliding-root-key.db",
+      "sha256": "6e33124311adad7ee698cc992672da4d26e1a5b8f7df50a8ea1529a4ec964aab",
+      "rootKey": "0468b5f7abfbbd27",
+      "location": "payload/conflict",
+      "expected": "source-qualified-location-conflict"
+    },
+    {
+      "kind": "invalid-state-json",
+      "derivedFrom": "snapshots/alpha.db",
+      "originalSha256": "71afe1f8a6be88f00452ac4d2290cd3dab1a221c2025c9f33de9ebcc9b6c0329",
+      "snapshot": "snapshots/invalid-state-json.db",
+      "sha256": "65f2280cce3f3a2a4746edda9565308a1bc0d7577ed1e9d8c6677d0d674cf21d",
+      "rootKey": "0468b5f7abfbbd27",
+      "location": "payload/shared",
+      "expected": "visible-held-invalid-state"
+    }
+  ]
+}

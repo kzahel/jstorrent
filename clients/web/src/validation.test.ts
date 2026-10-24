@@ -6,6 +6,7 @@ import {
 } from "./api";
 import {
   ContractError,
+  decodeApiHello,
   decodeApplicationServerFrame,
   decodeChooseDownloadRootResponse,
   decodeMediaUrlResponse,
@@ -13,9 +14,68 @@ import {
   decodeUpdateBatch,
 } from "./validation";
 import { clientSettingsRuntimeFixture } from "./test-support/client-settings";
+import { libraryItemView, librarySnapshot } from "./test-support/library-media";
+import { reduceUpdateBatch } from "./view-set-reducer";
 
 const TEST_TORRENT_ID = "t1-00000000000000000000000000000000";
 const OTHER_TORRENT_ID = "t1-11111111111111111111111111111111";
+
+describe("large file selection response", () => {
+  it("accepts metadata-bounded legacy arrays above the former 512-KiB response ceiling", () => {
+    const indices = Array.from({ length: 120_000 }, (_, index) => index);
+    const snapshot = { profile_id: "default", revision: "1", storage: { roots: [], show_add_options: true, show_file_selection: true }, torrents: [{
+      torrent_id: TEST_TORRENT_ID, protocol_identities: { v1: "0".repeat(40) }, storage_root: "downloads", state: "paused", storage_state: "available", metadata_available: true,
+      selectable_file_count: 120000, selected_file_count: 0, selectable_file_bytes: "120000", selected_file_bytes: "0", piece_count: 1, verified_piece_count: 0, skip_files: indices, high_priority_files: [], selection_exceptions: indices,
+    }] };
+    const encoded = JSON.stringify({ version: 1, request_id: "large-selection", revision: "1", status: "success", snapshot });
+    expect(encoded.length).toBeGreaterThan(512 * 1024);
+    const response = decodeResponseEnvelope(encoded);
+    expect(response.status === "success" && response.snapshot.torrents[0]?.skip_files.length).toBe(120_000);
+  });
+});
+
+describe("API hello product validation", () => {
+  const base = {
+    api: { current: 1, minimum: 1 },
+    encodings: ["json"],
+    deliveries: ["stream"],
+    capabilities: ["torrent_list"],
+    limits: {
+      max_view_sets_per_owner: 8,
+      max_views_per_set: 16,
+      max_view_id_bytes: 64,
+      min_queue_bytes: 16_384,
+      default_queue_bytes: 262_144,
+      max_queue_bytes: 524_288,
+      max_snapshot_bytes: 16_777_216,
+      max_wait_millis: 20_000,
+      lease_millis: "300000",
+    },
+  };
+  const product = {
+    kind: "desktop",
+    version: "0.3.1",
+    build_id: "0123456789abcdef0123456789abcdef01234567",
+    target: "aarch64-apple-darwin",
+    identifier: "com.jstorrent.desktop",
+    profile_id: "default",
+    profile_location: "/Users/test/Library/Application Support/com.jstorrent.desktop/profile",
+  };
+
+  it("accepts a hello with or without host product facts", () => {
+    expect(decodeApiHello(JSON.stringify(base)).product).toBeUndefined();
+    expect(decodeApiHello(JSON.stringify({ ...base, product })).product).toEqual(product);
+    const { identifier: _identifier, profile_location: _location, ...minimal } = product;
+    expect(decodeApiHello(JSON.stringify({ ...base, product: minimal })).product).toEqual(minimal);
+  });
+
+  it("rejects oversized or missing product facts", () => {
+    expect(() => decodeApiHello(JSON.stringify({ ...base, product: { ...product, version: "1".repeat(65) } })))
+      .toThrow(ContractError);
+    const { profile_id: _profile, ...missing } = product;
+    expect(() => decodeApiHello(JSON.stringify({ ...base, product: missing }))).toThrow(ContractError);
+  });
+});
 
 describe("download folder response validation", () => {
   it("accepts selection or cancellation and rejects an oversized label", () => {
@@ -118,6 +178,50 @@ describe("magnet export validation", () => {
       /exported magnet exceeds 16384 UTF-8 bytes/,
     );
   });
+
+  it("accepts reported peer hints and rejects unknown or excess values", () => {
+    const response = (result: Record<string, unknown>) =>
+      JSON.stringify({
+        version: 1,
+        request_id: "export-2",
+        revision: "4",
+        result: {
+          type: "export_magnet",
+          result: {
+            magnet:
+              "magnet:?xt=urn:btih:000102030405060708090a0b0c0d0e0f10111213",
+            source: "synthesized",
+            omitted_tracker_count: 0,
+            ...result,
+          },
+        },
+        status: "success",
+        snapshot: {
+          profile_id: "default",
+          revision: "4",
+          storage: { roots: [], show_add_options: true, show_file_selection: true },
+          torrents: [],
+        },
+      });
+    const hint = { endpoint: "192.168.1.20:6881", scope: "local_network" };
+    expect(() =>
+      decodeResponseEnvelope(response({ peer_hints: [hint] })),
+    ).not.toThrow();
+    expect(() =>
+      decodeResponseEnvelope(response({ peer_hint_omission: "not_reachable" })),
+    ).not.toThrow();
+    expect(() =>
+      decodeResponseEnvelope(response({ peer_hints: [hint, hint, hint] })),
+    ).toThrow(ContractError);
+    expect(() =>
+      decodeResponseEnvelope(
+        response({ peer_hints: [{ ...hint, scope: "global" }] }),
+      ),
+    ).toThrow(ContractError);
+    expect(() =>
+      decodeResponseEnvelope(response({ peer_hint_omission: "unknown" })),
+    ).toThrow(ContractError);
+  });
 });
 
 describe("client settings validation", () => {
@@ -139,6 +243,7 @@ describe("client settings validation", () => {
     expect(response.status).toBe("success");
     if (response.status === "success") {
       expect(response.snapshot.client_settings).toEqual({
+        file_safety: { enabled: true, preset: "recommended", custom_extensions: [], mark_internet_origin: true },
         listener: { type: "automatic_local_network" },
         preferred_listen_port: 6_881,
         port_mapping: "upnp",
@@ -149,6 +254,8 @@ describe("client settings validation", () => {
         share_ratio_limit_percent: 200,
         finished_download_ratio_limit_percent: 700,
         finished_time_limit_seconds: 86_400,
+        seed_stop_ratio_percent: { type: "off" },
+        seed_stop_time_seconds: { type: "off" },
         upload_rate_limit: { type: "unlimited" },
         download_rate_limit: { type: "unlimited" },
         encryption: "allow",
@@ -175,14 +282,12 @@ describe("client settings validation", () => {
     }
   });
 
-  it("rejects additional, malformed, and inconsistent runtime settings", () => {
+  it("accepts settings a newer host adds and rejects malformed or inconsistent ones", () => {
     const additional = torrentBatch("Additional");
     const additionalSettings = additional.updates[0]!.snapshot
       .client_settings.configured as unknown as Record<string, unknown>;
     additionalSettings.invented = true;
-    expect(() => decodeUpdateBatch(JSON.stringify(additional))).toThrow(
-      ContractError,
-    );
+    expect(() => decodeUpdateBatch(JSON.stringify(additional))).not.toThrow();
 
     const fractional = torrentBatch("Fractional");
     fractional.updates[0]!.snapshot.client_settings.configured.upload_slots = 1.5;
@@ -627,6 +732,36 @@ describe("checker progress validation", () => {
 });
 
 describe("tracker view validation", () => {
+  it("fills tracker timing an older host does not send with null", () => {
+    // Desktop 0.3.0 and Android 1.0.28 predate these fields
+    // (compat/captures, Tactical 359); absent there means unknown.
+    const batch = trackerBatch();
+    const tracker = batch.updates[0]!.snapshot.trackers[0]! as Record<string, unknown>;
+    delete tracker.next_action_at_millis;
+    delete tracker.last_success_at_millis;
+    delete tracker.last_failure_at_millis;
+    const update = decodeUpdateBatch(JSON.stringify(batch)).updates[0]!;
+    expect(update.type === "snapshot" && update.snapshot.type === "trackers"
+      ? update.snapshot.trackers[0]
+      : null).toMatchObject({
+      next_action_at_millis: null,
+      last_success_at_millis: null,
+      last_failure_at_millis: null,
+    });
+  });
+
+  it("requires a canonical server clock and tracker instants", () => {
+    for (const clock of ["-1", "1.5", "01", "184467440737095516160"]) {
+      expect(() => decodeUpdateBatch(JSON.stringify({ ...trackerBatch(), server_now_millis: clock }))).toThrow(ContractError);
+    }
+    // Hosts before 0.3.1 send no clock (and no tracker instants): it defaults to 0.
+    const legacy = trackerBatch() as Partial<ReturnType<typeof trackerBatch>>;
+    delete legacy.server_now_millis;
+    expect(decodeUpdateBatch(JSON.stringify(legacy)).server_now_millis).toBe("0");
+    const batch = trackerBatch();
+    batch.updates[0]!.snapshot.trackers[0]!.next_action_at_millis = "-1";
+    expect(() => decodeUpdateBatch(JSON.stringify(batch))).toThrow(ContractError);
+  });
   it("accepts bounded state and rejects an oversized retained error", () => {
     const batch = trackerBatch();
     expect(decodeUpdateBatch(JSON.stringify(batch)).updates).toHaveLength(1);
@@ -692,6 +827,42 @@ describe("speed view validation", () => {
 });
 
 describe("piece activity validation", () => {
+  it("decodes removal snapshots and clears verified pieces and active attempts", () => {
+    const initial = pieceBatch();
+    const state = reduceUpdateBatch(undefined, decodeUpdateBatch(JSON.stringify(initial)));
+    const removed = {
+      ...initial,
+      base_cursor: "1",
+      cursor: "2",
+      durable_revision: "2",
+      updates: [{
+        type: "snapshot",
+        view_id: "pieces",
+        snapshot: {
+          type: "piece_activity",
+          torrent_id: TEST_TORRENT_ID,
+          piece_count: 0,
+          verified: [],
+          active: [],
+        },
+      }],
+    };
+    const next = reduceUpdateBatch(state, decodeUpdateBatch(JSON.stringify(removed)));
+    expect(next.views.pieces).toEqual(removed.updates[0]!.snapshot);
+    // The old invalid removal patch must continue to be rejected.
+    const invalid = {
+      ...removed,
+      updates: [{ type: "patch", view_id: "pieces", patch: {
+        type: "piece_activity", torrent_id: TEST_TORRENT_ID, piece_count: 0,
+        verified: [], cleared: [{ start: 2, end_exclusive: 3 }],
+        active_upsert: [], active_updates: [], active_removed: ["0:1"],
+      }}],
+    };
+    expect(() => decodeUpdateBatch(JSON.stringify(invalid))).toThrow(
+      "cleared pieces are not canonical and bounded",
+    );
+  });
+
   it("accepts keyed attempts and rejects overlapping lifecycle ranges", () => {
     const batch = pieceBatch();
     expect(decodeUpdateBatch(JSON.stringify(batch)).updates).toHaveLength(1);
@@ -748,6 +919,7 @@ describe("diagnostic validation", () => {
 function preparationBatch() {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -781,6 +953,7 @@ function preparationBatch() {
 function diagnosticBatch() {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -825,6 +998,7 @@ function diagnosticBatch() {
 function speedBatch() {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -885,6 +1059,7 @@ function dhtBatch() {
   };
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -965,6 +1140,7 @@ function dhtBatch() {
 function pieceBatch() {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -1046,6 +1222,7 @@ function diskBatch() {
   };
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -1088,6 +1265,7 @@ function diskBatch() {
 function trackerBatch() {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -1120,9 +1298,9 @@ function trackerBatch() {
               leechers: null,
               interval_seconds: null,
               next_action: "retry",
-              next_action_in_millis: "17000",
-              last_success_age_millis: null,
-              last_failure_age_millis: "100",
+              next_action_at_millis: "17000",
+              last_success_at_millis: null,
+              last_failure_at_millis: "100",
               last_error: "timeout",
             },
           ],
@@ -1135,6 +1313,7 @@ function trackerBatch() {
 function torrentBatch(displayName: string) {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -1209,6 +1388,7 @@ function torrentBatch(displayName: string) {
 function peerBatch(torrentId: string) {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -1284,6 +1464,7 @@ function peerBatch(torrentId: string) {
 function swarmBatch() {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -1340,3 +1521,55 @@ function swarmBatch() {
     ],
   };
 }
+
+describe("Library media validation", () => {
+  const libraryBatch = (snapshot: unknown) => ({
+    api_version: 1,
+    server_now_millis: "0",
+    view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
+    epoch: "1",
+    base_cursor: "0",
+    cursor: "1",
+    durable_revision: "1",
+    updates: [{ type: "snapshot", view_id: "library-media", snapshot }],
+  });
+
+  it("accepts a consistent page of items or groups", () => {
+    expect(() =>
+      decodeUpdateBatch(
+        JSON.stringify(libraryBatch(librarySnapshot([libraryItemView(0)]))),
+      ),
+    ).not.toThrow();
+    const grouped = {
+      ...librarySnapshot([]),
+      page: { offset: 0, limit: 100, total: 1, next_offset: null },
+      groups: [
+        {
+          group_id: "series:north shore stories",
+          title: "North Shore Stories",
+          item_count: 6,
+          offline_count: 2,
+          total_bytes: "6000",
+          season_count: 2,
+          torrent_count: 1,
+        },
+      ],
+    };
+    expect(() => decodeUpdateBatch(JSON.stringify(libraryBatch(grouped)))).not.toThrow();
+  });
+
+  it("rejects contradictory progress, foreign IDs and pages that do not add up", () => {
+    for (const snapshot of [
+      librarySnapshot([libraryItemView(0, { offline: true })]),
+      librarySnapshot([libraryItemView(0, { verified_bytes: "2000" })]),
+      librarySnapshot([libraryItemView(0, { item_id: "t1-ffffffffffffffffffffffffffffffff:0" })]),
+      librarySnapshot([libraryItemView(0, { title: "x".repeat(257) })]),
+      librarySnapshot([libraryItemView(0)], 5),
+      { ...librarySnapshot([libraryItemView(0)]), page: { offset: 0, limit: 129, total: 1, next_offset: null } },
+    ]) {
+      expect(() => decodeUpdateBatch(JSON.stringify(libraryBatch(snapshot)))).toThrow(
+        ContractError,
+      );
+    }
+  });
+});

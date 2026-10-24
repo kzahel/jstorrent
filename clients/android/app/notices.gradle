@@ -17,7 +17,7 @@ androidComponents.onVariants(androidComponents.selector().all()) { variant ->
     def runtime = configurations.named("${variantName}RuntimeClasspath")
     def prepare = tasks.register("prepare${variantName.capitalize()}Notices", PrepareAndroidNotices) {
         inputs.files(runtime)
-        inputs.files(file('../../../Cargo.lock'), file('notices.gradle'),
+        inputs.files(file('../../../Cargo.lock'), file('../../../distribution/branding/JSTorrent-LICENSE.txt'), file('notices.gradle'),
             file('../../../scripts/prepare-android-notices.py'),
             file('../../../scripts/prepare-release-notices.py'))
         inputs.dir(file('../../../distribution'))

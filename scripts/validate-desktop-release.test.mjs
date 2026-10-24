@@ -52,7 +52,7 @@ test("rejects updater route and public-key drift", () => {
   );
 });
 
-test("rejects updater restart that bypasses joined native shutdown", () => {
+test("rejects updater installation that bypasses native shutdown", () => {
   const permissionFixture = repositoryFixture();
   permissionFixture.capability.permissions.push("process:default");
   assert.throws(
@@ -62,12 +62,12 @@ test("rejects updater restart that bypasses joined native shutdown", () => {
 
   const webFixture = repositoryFixture();
   webFixture.tauriUpdater = webFixture.tauriUpdater.replace(
-    'relaunch: () => invoke("application_restart")',
-    "relaunch: rawProcessRestart",
+    'invoke("desktop_install_update"',
+    'invoke("raw_install_update"',
   );
   assert.throws(
     () => validateDesktopReleaseConfiguration(webFixture),
-    /web updater does not use joined native restart/,
+    /web updater does not use native update installation/,
   );
 });
 
@@ -146,6 +146,16 @@ test("rejects desktop association and command-quoting drift", () => {
     /must quote the executable and input path/,
   );
 
+  const openedFixture = repositoryFixture();
+  openedFixture.desktopSource = openedFixture.desktopSource.replace(
+    "handle_external_activation_values(handle, urls.iter().map(url::Url::as_str));",
+    "// dropped OS inputs",
+  );
+  assert.throws(
+    () => validateDesktopReleaseConfiguration(openedFixture),
+    /desktop external activation integration is missing/,
+  );
+
   const linuxFixture = repositoryFixture();
   linuxFixture.linuxDesktop = linuxFixture.linuxDesktop.replace(" %U", "");
   assert.throws(
@@ -162,10 +172,19 @@ test("rejects incompatible plugin registration", () => {
     /single-instance dependency must use its compatible deep-link integration/,
   );
 
+  const missingFixture = repositoryFixture();
+  missingFixture.desktopSource = missingFixture.desktopSource.replace(
+    ".plugin(single_instance_plugin())", "",
+  );
+  assert.throws(
+    () => validateDesktopReleaseConfiguration(missingFixture),
+    /single-instance must be registered before the deep-link plugin/,
+  );
+
   const orderFixture = repositoryFixture();
   orderFixture.desktopSource = orderFixture.desktopSource.replace(
-    ".plugin(tauri_plugin_single_instance::init(",
-    ".plugin(tauri_plugin_deep_link::init())\n        .plugin(tauri_plugin_single_instance::init(",
+    ".plugin(single_instance_plugin())",
+    ".plugin(tauri_plugin_deep_link::init())\n        .plugin(single_instance_plugin())",
   );
   assert.throws(
     () => validateDesktopReleaseConfiguration(orderFixture),
@@ -320,4 +339,41 @@ test("rejects a disabled native notice hook or shared tool cache", () => {
   const release = repositoryFixture();
   release.releaseTauri.build.beforeBundleCommand = "true";
   assert.throws(() => validateDesktopReleaseConfiguration(release), /native notice hook/);
+});
+
+test("rejects old output target and bundle-only executable overrides", () => {
+  const target = repositoryFixture();
+  target.cargo = target.cargo.replace('default-run = "jstorrent-client"',
+    'default-run = "rstorrent-desktop"');
+  assert.throws(() => validateDesktopReleaseConfiguration(target), /desktop output must be/u);
+  const overlay = repositoryFixture();
+  overlay.releaseTauri.mainBinaryName = "rstorrent-desktop";
+  assert.throws(() => validateDesktopReleaseConfiguration(overlay), /must not override/u);
+});
+
+
+test("rejects preview feed selection without its own package marker", () => {
+  const fixture = repositoryFixture();
+  delete fixture.product.channels.stable.requiredAsset;
+  assert.throws(() => validateDesktopReleaseConfiguration(fixture), /unexpected updater product config/);
+  const mixed = repositoryFixture();
+  mixed.product.channels.latest.requiredAsset = "JSTorrent_x64.app.tar.gz";
+  assert.throws(() => validateDesktopReleaseConfiguration(mixed), /unexpected updater product config/);
+});
+
+// Scoped opener permissions are objects, not string permission identifiers.
+test("rejects broadened, duplicated and foreign desktop external-link scopes", () => {
+  for (const mutate of [
+    permission => permission.allow[0].url = "https://github.com/*",
+    permission => permission.allow[0].url = "https://github.com/kzahel/jstorrent-typescript/issues",
+    permission => permission.allow.push(permission.allow[0]),
+    permission => permission.deny = [],
+  ]) {
+    const fixture = repositoryFixture();
+    mutate(fixture.capability.permissions.find(permission => typeof permission === "object"));
+    assert.throws(() => validateDesktopReleaseConfiguration(fixture), /exact scoped opener/);
+  }
+  const fixture = repositoryFixture();
+  fixture.capability.permissions.push("opener:default");
+  assert.throws(() => validateDesktopReleaseConfiguration(fixture), /exact scoped opener/);
 });

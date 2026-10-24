@@ -17,7 +17,7 @@
 
 .state[data-state="connecting"] > span,
 .state[data-state="handshaking"] > span {
-  background: var(--accent);
+  background: var(--water);
 }
 
 .state[data-state="choked"] > span {
@@ -39,8 +39,9 @@
   display: grid;
   gap: 0.2rem;
   padding: 0.38rem 0.48rem 0.42rem;
-  font-size: 0.6875rem;
-  font-weight: 400;
+  /* A dense hover legend, one step below caption. */
+  font-size: calc(var(--ui-font-caption) - 1px);
+  font-weight: var(--weight-regular);
   line-height: 1.05;
 }
 
@@ -60,10 +61,8 @@
   border-bottom: 1px solid var(--border-soft);
   padding: 0.03rem 0 0.07rem;
   font-size: inherit;
-  font-weight: 400;
-  letter-spacing: 0.03em;
+  font-weight: var(--weight-regular);
   line-height: 1;
-  text-transform: uppercase;
 }
 
 .legend dl {
@@ -85,13 +84,13 @@
 .legendRow code {
   color: var(--accent-strong);
   font-family: var(--font-mono);
-  font-weight: 400;
+  font-weight: var(--weight-regular);
   text-align: center;
 }
 
 .legendRow dd {
   overflow: hidden;
-  font-weight: 400;
+  font-weight: var(--weight-regular);
   line-height: 1.05;
   text-overflow: ellipsis;
   white-space: nowrap;

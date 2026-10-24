@@ -18,6 +18,7 @@ import styles from "./PeerTable.module.css";
 const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
   {
     id: "state",
+    listRole: "trailing",
     label: localizedMessage("inspection.components.peer.table.state"),
     width: 104,
     sortable: true,
@@ -39,6 +40,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
   },
   {
     id: "endpoint",
+    listRole: "subtitle",
     label: localizedMessage("inspection.components.peer.table.address"),
     width: 188,
     sortable: true,
@@ -47,6 +49,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
   },
   {
     id: "client",
+    listRole: "title",
     label: localizedMessage("inspection.components.peer.table.client"),
     width: 154,
     sortable: true,
@@ -65,6 +68,8 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
   },
   {
     id: "progress",
+    listRole: "detail",
+    listLabel: null,
     label: "%",
     width: 64,
     align: "right",
@@ -76,6 +81,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
   },
   {
     id: "down",
+    listRole: "detail",
     label: localizedMessage("inspection.components.peer.table.down"),
     width: 96,
     align: "right",
@@ -86,6 +92,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
   },
   {
     id: "up",
+    listRole: "detail",
     label: localizedMessage("inspection.components.peer.table.up"),
     width: 96,
     align: "right",
@@ -151,7 +158,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
   },
   {
     id: "lastPayload",
-    label: localizedMessage("inspection.components.peer.table.last.payload"),
+    label: localizedMessage("inspection.components.peer.table.last.data"),
     width: 104,
     align: "right",
     sortable: true,
@@ -255,6 +262,7 @@ export function PeerTable({ torrentId }: { readonly torrentId: string }) {
 
   return (
     <VirtualTable
+      formatCount={(count) => localizedMessage("common.count.peers", { count })}
       tableId="peers"
       label={localizedMessage("inspection.components.peer.table.active.peer.connections")}
       rows={rows}
@@ -271,14 +279,16 @@ export function PeerTable({ torrentId }: { readonly torrentId: string }) {
 function peerEmptyMessage(materialization: ViewMaterialization): string {
   switch (materialization.status) {
     case "not_requested":
-      return localizedMessage("inspection.components.peer.table.peer.inspection.is.not.requested");
+      return localizedMessage("inspection.components.peer.table.nothing.to.show");
     case "loading":
-      return localizedMessage("inspection.components.peer.table.loading.active.peer.connections");
+      // Peer state usually arrives within a frame of switching torrents;
+      // a loading label there only reads as flicker.
+      return "";
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
-      return localizedMessage("inspection.components.peer.table.no.peer.connections.are.currently.active");
+      return localizedMessage("inspection.components.peer.table.no.peers.connected");
   }
 }

@@ -3,6 +3,9 @@ package org.rstorrent.bootstrap
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationManager
+import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -16,13 +19,24 @@ import android.provider.Settings
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.viewModels
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.io.File
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.rstorrent.bootstrap.ui.CatalogRecoveryScreen
+import org.rstorrent.bootstrap.ui.ChromeExtensionSetupDialog
+import org.rstorrent.bootstrap.ui.PrimaryDestination
 import org.rstorrent.bootstrap.ui.ProductApp
 import org.rstorrent.bootstrap.ui.ProductThemeMode
+import org.rstorrent.bootstrap.ui.RstorrentTheme
+import org.rstorrent.session.uniffi.CatalogRecoveryStatus
 import org.rstorrent.session.uniffi.FileIndexRange
 import org.rstorrent.session.uniffi.FileSelectionIntent
 
@@ -31,13 +45,23 @@ class MainActivity : ComponentActivity() {
     private val productService = mutableStateOf<ProductEngineService?>(null)
     private val notificationsGranted = mutableStateOf(false)
     private val notificationNavigation = mutableStateOf<ProductNotificationNavigation?>(null)
+    private val catalogRecovery: CatalogRecoveryModel by viewModels()
     private val themeMode = mutableStateOf(ProductThemeMode.SYSTEM)
     private val dynamicColor = mutableStateOf(true)
+    private var startDestination = PrimaryDestination.TORRENTS
+    private val chromeExtensionSetupVisible = mutableStateOf(false)
+    private val chromeExtensionSetupBusy = mutableStateOf(false)
+    private val chromeExtensionSetupFailed = mutableStateOf(false)
+    private var chromeExtensionSetupJob: Job? = null
     private var productBound = false
+    private var serviceStopWatch: Job? = null
     private var productMode = false
     private var productStartRequested = false
     private var pendingProductMagnet: String? = null
     private var pendingProductTorrentUri: String? = null
+    private var pendingProductTorrentUris: ArrayList<String>? = null
+    private var pendingTorrentListExportUri: String? = null
+    private var pendingTorrentListImportUri: String? = null
     private var pendingProductTorrentBase64: String? = null
     private var pendingProductTorrentSelection: FileSelectionIntent = FileSelectionIntent.All
     private var pendingProductTorrentStartContent = true
@@ -103,8 +127,24 @@ class MainActivity : ComponentActivity() {
                 false,
             )
             val data = result.data
-            val torrentUri = data?.data
-            if (result.resultCode != RESULT_OK || torrentUri == null) {
+            val picked = if (result.resultCode == RESULT_OK) pickedDocumentUris(data) else emptyList()
+            if (picked.size > 1) {
+                // No persistable grants: hundreds of them could evict the
+                // download folder grants. The adds read each file right away.
+                val service = productService.value
+                if (service == null) {
+                    pendingProductTorrentUris = ArrayList(picked.map(Uri::toString))
+                } else {
+                    service.addTorrentFiles(
+                        picked,
+                        awaitFileSelection = pendingProductTorrentAwaitFileSelection,
+                    )
+                    pendingProductTorrentAwaitFileSelection = false
+                }
+                return@registerForActivityResult
+            }
+            val torrentUri = picked.singleOrNull()
+            if (data == null || torrentUri == null) {
                 return@registerForActivityResult
             }
             val flags = data.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -120,6 +160,52 @@ class MainActivity : ComponentActivity() {
                 )
                 pendingProductTorrentStartContent = true
                 pendingProductTorrentAwaitFileSelection = false
+            }
+        }
+    private val torrentListExportPicker =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            ProductInteractionRegistry.setLease(
+                ProductEngineService.INTERACTION_TORRENT_LIST_DOCUMENT,
+                false,
+            )
+            val destination = result.data?.data
+            if (result.resultCode != RESULT_OK || destination == null) {
+                return@registerForActivityResult
+            }
+            val service = productService.value
+            if (service == null) {
+                pendingTorrentListExportUri = destination.toString()
+            } else {
+                service.exportTorrentList(destination)
+            }
+        }
+    private val catalogRecoveryExportPicker =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val destination = result.data?.data
+            if (result.resultCode != RESULT_OK || destination == null) {
+                return@registerForActivityResult
+            }
+            catalogRecovery.export(
+                applicationContext.contentResolver,
+                destination,
+                productProfileDirectory().absolutePath,
+            )
+        }
+    private val torrentListImportPicker =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            ProductInteractionRegistry.setLease(
+                ProductEngineService.INTERACTION_TORRENT_LIST_DOCUMENT,
+                false,
+            )
+            val source = result.data?.data
+            if (result.resultCode != RESULT_OK || source == null) {
+                return@registerForActivityResult
+            }
+            val service = productService.value
+            if (service == null) {
+                pendingTorrentListImportUri = source.toString()
+            } else {
+                service.importTorrentList(source)
             }
         }
     private val notificationPermissionRequest =
@@ -146,7 +232,10 @@ class MainActivity : ComponentActivity() {
                 binder: IBinder,
             ) {
                 val service = (binder as ProductEngineService.LocalBinder).service
-                if (pendingBackgroundEnable && notificationPermissionGranted()) {
+                if (
+                    pendingBackgroundEnable && !pendingNotificationSettingsReturn &&
+                        notificationPermissionGranted()
+                ) {
                     pendingBackgroundEnable = false
                     service.setBackgroundDownloadsEnabled(true)
                 }
@@ -165,6 +254,17 @@ class MainActivity : ComponentActivity() {
                     service.cancelCompanionRootRequest(it)
                 }
                 productService.value = service
+                serviceStopWatch?.cancel()
+                serviceStopWatch =
+                    lifecycleScope.launch {
+                        val settled = service.state.first { it.serviceStopped || it.catalogRecovery != null }
+                        val recovery = settled.catalogRecovery
+                        if (recovery != null) {
+                            enterCatalogRecovery(service, recovery)
+                        } else {
+                            reconnectStoppedProductService(service)
+                        }
+                    }
                 recordProductForegroundIfPending(service)
                 pendingProductMagnet?.let {
                     pendingProductMagnet = null
@@ -205,6 +305,22 @@ class MainActivity : ComponentActivity() {
                     )
                     pendingProductTorrentStartContent = true
                     pendingProductTorrentAwaitFileSelection = false
+                }
+                pendingProductTorrentUris?.let { encoded ->
+                    pendingProductTorrentUris = null
+                    service.addTorrentFiles(
+                        encoded.map(Uri::parse),
+                        awaitFileSelection = pendingProductTorrentAwaitFileSelection,
+                    )
+                    pendingProductTorrentAwaitFileSelection = false
+                }
+                pendingTorrentListExportUri?.let { encoded ->
+                    pendingTorrentListExportUri = null
+                    service.exportTorrentList(Uri.parse(encoded))
+                }
+                pendingTorrentListImportUri?.let { encoded ->
+                    pendingTorrentListImportUri = null
+                    service.importTorrentList(Uri.parse(encoded))
                 }
                 pendingProductTorrentBase64?.let { encoded ->
                     pendingProductTorrentBase64 = null
@@ -274,9 +390,53 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onServiceDisconnected(name: ComponentName) {
+                serviceStopWatch?.cancel()
+                serviceStopWatch = null
                 productService.value = null
             }
         }
+
+    /**
+     * Tactical 369: the catalog did not open. Show recovery and release the
+     * failed service so it can stop; nothing restarts it until the activity
+     * is created again, so the catalog is not retried behind the screen.
+     */
+    private fun enterCatalogRecovery(
+        failed: ProductEngineService,
+        status: CatalogRecoveryStatus,
+    ) {
+        catalogRecovery.enter(status)
+        serviceStopWatch = null
+        if (productService.value === failed && productBound) {
+            unbindService(productConnection)
+            productBound = false
+            productService.value = null
+        }
+    }
+
+    /**
+     * The service can stop itself while this activity is still bound, for
+     * example after a lifecycle stop decision. Its engine client is closed by
+     * then, so rebind to a fresh service instead of showing stale state that
+     * rejects every command.
+     */
+    private fun reconnectStoppedProductService(stopped: ProductEngineService) {
+        if (
+            productService.value !== stopped ||
+            !productBound ||
+            isFinishing ||
+            !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
+        ) {
+            return
+        }
+        android.util.Log.i("RSTorrentProduct", "product_service_reconnect")
+        serviceStopWatch = null
+        unbindService(productConnection)
+        productBound = false
+        productService.value = null
+        startProductService()
+        bindProductService()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -290,7 +450,18 @@ class MainActivity : ComponentActivity() {
                 )
             }.getOrDefault(ProductThemeMode.SYSTEM)
         dynamicColor.value = preferences.getBoolean(PREFERENCE_DYNAMIC_COLOR, true)
+        startDestination =
+            PrimaryDestination.fromPreference(
+                runCatching { preferences.getString(PREFERENCE_PRIMARY_DESTINATION, null) }
+                    .getOrNull(),
+            )
         pendingProductTorrentUri = savedInstanceState?.getString(STATE_PENDING_TORRENT_URI)
+        pendingProductTorrentUris =
+            savedInstanceState?.getStringArrayList(STATE_PENDING_TORRENT_URIS)
+        pendingTorrentListExportUri =
+            savedInstanceState?.getString(STATE_PENDING_TORRENT_LIST_EXPORT)
+        pendingTorrentListImportUri =
+            savedInstanceState?.getString(STATE_PENDING_TORRENT_LIST_IMPORT)
         pendingProductCompanionRootRequestId =
             savedInstanceState?.getString(STATE_PENDING_COMPANION_ROOT_REQUEST)
         pendingProductRepairRootId =
@@ -312,6 +483,13 @@ class MainActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         pendingProductTorrentUri?.let { outState.putString(STATE_PENDING_TORRENT_URI, it) }
+        pendingProductTorrentUris?.let { outState.putStringArrayList(STATE_PENDING_TORRENT_URIS, it) }
+        pendingTorrentListExportUri?.let {
+            outState.putString(STATE_PENDING_TORRENT_LIST_EXPORT, it)
+        }
+        pendingTorrentListImportUri?.let {
+            outState.putString(STATE_PENDING_TORRENT_LIST_IMPORT, it)
+        }
         pendingProductCompanionRootRequestId?.let {
             outState.putString(STATE_PENDING_COMPANION_ROOT_REQUEST, it)
         }
@@ -358,7 +536,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        ProductInteractionRegistry.setActivityVisible(true)
+        ProductInteractionRegistry.setActivityVisible(this, true)
         if (productMode) {
             if (!productStartRequested) startProductService()
             bindProductService()
@@ -374,12 +552,23 @@ class MainActivity : ComponentActivity() {
                 ProductEngineService.INTERACTION_NOTIFICATION_SETTINGS,
                 false,
             )
+            if (pendingBackgroundEnable && !notificationPermissionGranted()) {
+                pendingBackgroundEnable = false
+                productService.value?.setBackgroundDownloadsEnabled(true)
+            } else if (pendingBackgroundEnable) {
+                productService.value?.let { service ->
+                    pendingBackgroundEnable = false
+                    service.setBackgroundDownloadsEnabled(true)
+                }
+            }
         }
         productService.value?.refreshNotificationEligibility()
     }
 
     override fun onStop() {
-        ProductInteractionRegistry.setActivityVisible(false)
+        ProductInteractionRegistry.setActivityVisible(this, false)
+        serviceStopWatch?.cancel()
+        serviceStopWatch = null
         if (productBound) {
             unbindService(productConnection)
             productBound = false
@@ -524,7 +713,10 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (catalogRecovery.active) {
+            // Recovery mode does not open the catalog for an added torrent.
+            android.util.Log.i("RSTorrentProduct", "external_intake_skipped catalog_recovery=true")
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(serviceIntent)
         } else {
             startService(serviceIntent)
@@ -540,6 +732,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showProductSurface(command: Intent) {
+        if (isChromeOs() && isChromeOsCompanionLaunch(command)) {
+            chromeExtensionSetupVisible.value = true
+            chromeExtensionSetupFailed.value = false
+        }
         ProductForegroundSessionEpoch.showProductSurface()
         productService.value?.let(::recordProductForegroundIfPending)
         if (!ProductDataSyncQuotaFence.clearForUserVisibleStart(this)) {
@@ -564,28 +760,74 @@ class MainActivity : ComponentActivity() {
         if (!productMode) {
             productMode = true
             setContent {
-                ProductApp(
-                    service = productService.value,
-                    onSelectStorage = { launchProductTreePicker() },
-                    onRepairStorage = { launchProductTreePicker(it) },
-                    onBrowseTorrent = ::launchProductTorrentPicker,
-                    notificationsGranted = notificationsGranted.value,
-                    onRequestNotifications = ::requestNotificationPermission,
-                    onOpenNotificationSettings = ::openNotificationSettings,
-                    onOpenFeedback = ::openFeedback,
-                    onOpenPrivacy = ::openPrivacy,
-                    onBackgroundDownloads = ::setBackgroundDownloads,
-                    notificationNavigation = notificationNavigation.value,
-                    onNotificationNavigationConsumed = { sequence ->
-                        if (notificationNavigation.value?.sequence == sequence) {
-                            notificationNavigation.value = null
-                        }
-                    },
-                    themeMode = themeMode.value,
-                    dynamicColor = dynamicColor.value,
-                    onThemeMode = ::setThemeMode,
-                    onDynamicColor = ::setDynamicColor,
-                )
+                val recovery = catalogRecovery.status.collectAsStateWithLifecycle().value
+                if (recovery != null) {
+                    val exportState = catalogRecovery.export.collectAsStateWithLifecycle().value
+                    RstorrentTheme(mode = themeMode.value, dynamicColor = dynamicColor.value) {
+                        CatalogRecoveryScreen(
+                            status = recovery,
+                            exportState = exportState,
+                            onCheckForUpdates = ::openStoreListing,
+                            onExportTorrentList = ::launchCatalogRecoveryExport,
+                            onCopyDetails = { copyCatalogRecoveryDetails(recovery.details) },
+                            onReportProblem = ::openRecoveryFeedback,
+                            onClose = ::finish,
+                        )
+                    }
+                } else {
+                    ProductApp(
+                        service = productService.value,
+                        onSelectStorage = { launchProductTreePicker() },
+                        onRepairStorage = { launchProductTreePicker(it) },
+                        onBrowseTorrent = ::launchProductTorrentPicker,
+                        onExportTorrentList = ::launchTorrentListExport,
+                        onImportTorrentList = ::launchTorrentListImport,
+                        notificationsGranted = notificationsGranted.value,
+                        onRequestNotifications = ::requestNotificationPermission,
+                        onOpenNotificationSettings = ::openNotificationSettings,
+                        onOpenFeedback = ::openFeedback,
+                        onOpenPrivacy = ::openPrivacy,
+                        onConnectChromeExtension = if (isChromeOs()) {
+                            { chromeExtensionSetupVisible.value = true }
+                        } else {
+                            null
+                        },
+                        onShutdown = {
+                            productService.value?.shutdownFromUi()
+                            finishAndRemoveTask()
+                        },
+                        onBackgroundDownloads = ::setBackgroundDownloads,
+                        notificationNavigation = notificationNavigation.value,
+                        onNotificationNavigationConsumed = { sequence ->
+                            if (notificationNavigation.value?.sequence == sequence) {
+                                notificationNavigation.value = null
+                            }
+                        },
+                        themeMode = themeMode.value,
+                        dynamicColor = dynamicColor.value,
+                        onThemeMode = ::setThemeMode,
+                        onDynamicColor = ::setDynamicColor,
+                        startDestination = startDestination,
+                        onPrimaryDestination = ::setPrimaryDestination,
+                    )
+                    if (chromeExtensionSetupVisible.value) {
+                        val notifications = productService.value?.state
+                            ?.collectAsStateWithLifecycle()?.value?.notifications ?: ProductNotificationState()
+                        ChromeExtensionSetupDialog(
+                            ready = productService.value != null,
+                            busy = chromeExtensionSetupBusy.value,
+                            failed = chromeExtensionSetupFailed.value,
+                            onOpenChrome = ::openChromeExtension,
+                            notificationAction = ProductChromeExtensionSetup.notificationAction(notifications),
+                            onAllowNotifications = ::requestNotificationPermission,
+                            onOpenNotificationSettings = ::openNotificationSettings,
+                            onDismiss = {
+                                chromeExtensionSetupJob?.cancel()
+                                chromeExtensionSetupVisible.value = false
+                            },
+                        )
+                    }
+                }
             }
         }
         if (ProductSafDocuments.isDebuggable(this)) {
@@ -912,6 +1154,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startProductService(action: String? = null) {
+        // Recovery mode does not retry the catalog behind the screen.
+        if (catalogRecovery.active) return
         val serviceIntent =
             Intent(this, ProductEngineService::class.java)
                 .setAction(action)
@@ -969,6 +1213,7 @@ class MainActivity : ComponentActivity() {
                         Intent.EXTRA_MIME_TYPES,
                         arrayOf("application/x-bittorrent", "application/octet-stream"),
                     )
+                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
                 },
@@ -982,8 +1227,108 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Picked documents in order; a multiple-selection result carries them as clip data. */
+    private fun pickedDocumentUris(data: Intent?): List<Uri> {
+        if (data == null) return emptyList()
+        val clip = data.clipData
+        if (clip != null && clip.itemCount > 0) {
+            return (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }.distinct()
+        }
+        return listOfNotNull(data.data)
+    }
+
+    private fun launchTorrentListExport() {
+        launchTorrentListDocument(
+            torrentListExportPicker,
+            Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = TorrentListDocuments.EXPORT_MIME_TYPE
+                putExtra(Intent.EXTRA_TITLE, TorrentListDocuments.EXPORT_FILE_NAME)
+            },
+        )
+    }
+
+    private fun productProfileDirectory(): File =
+        File(filesDir, ProductPrivateProfileReset.PROFILE_DIRECTORY)
+
+    /** Needs no engine service, so it holds no interaction lease. */
+    private fun launchCatalogRecoveryExport() {
+        try {
+            catalogRecoveryExportPicker.launch(
+                Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = TorrentListDocuments.EXPORT_MIME_TYPE
+                    putExtra(Intent.EXTRA_TITLE, TorrentListDocuments.EXPORT_FILE_NAME)
+                },
+            )
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, R.string.torrent_list_no_document_app, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun openStoreListing() {
+        for (uri in catalogRecoveryStoreUris(packageName)) {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))
+                return
+            } catch (_: ActivityNotFoundException) {
+                continue
+            }
+        }
+        Toast.makeText(this, R.string.catalog_recovery_store_unavailable, Toast.LENGTH_LONG).show()
+    }
+
+    private fun copyCatalogRecoveryDetails(details: String) {
+        getSystemService(ClipboardManager::class.java)
+            .setPrimaryClip(
+                ClipData.newPlainText(getString(R.string.catalog_recovery_details_label), details),
+            )
+    }
+
+    /** The plain feedback page; recovery has no engine to prepare a reviewed URL. */
+    private fun openRecoveryFeedback() {
+        AndroidFeedbackLauncher.launchReviewed(
+            url = AndroidFeedbackUrl.BASE_URL,
+            startExternalActivity = ::startActivity,
+            onFailure = ::showFeedbackFailure,
+        )
+    }
+
+    private fun launchTorrentListImport() {
+        launchTorrentListDocument(
+            torrentListImportPicker,
+            Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+                putExtra(Intent.EXTRA_MIME_TYPES, TorrentListDocuments.IMPORT_MIME_TYPES)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            },
+        )
+    }
+
+    private fun launchTorrentListDocument(
+        launcher: androidx.activity.result.ActivityResultLauncher<Intent>,
+        picker: Intent,
+    ) {
+        ProductInteractionRegistry.setLease(
+            ProductEngineService.INTERACTION_TORRENT_LIST_DOCUMENT,
+            true,
+        )
+        try {
+            launcher.launch(picker)
+        } catch (error: RuntimeException) {
+            ProductInteractionRegistry.setLease(
+                ProductEngineService.INTERACTION_TORRENT_LIST_DOCUMENT,
+                false,
+            )
+            if (error !is android.content.ActivityNotFoundException) throw error
+            // No document app can handle the request; say so instead of crashing.
+            Toast.makeText(this, R.string.torrent_list_no_document_app, Toast.LENGTH_LONG).show()
+        }
+    }
+
     private fun bindProductService() {
-        if (productBound) return
+        if (productBound || catalogRecovery.active) return
         productBound =
             bindService(
                 Intent(this, ProductEngineService::class.java),
@@ -1031,7 +1376,7 @@ class MainActivity : ComponentActivity() {
         }
         val notifications = service.state.value.notifications
         if (!notifications.appNotificationsEnabled || !notifications.backgroundChannelEnabled) {
-            pendingBackgroundEnable = false
+            pendingBackgroundEnable = true
             openNotificationSettings()
             return
         }
@@ -1058,6 +1403,7 @@ class MainActivity : ComponentActivity() {
             )
         }.onFailure {
             pendingNotificationSettingsReturn = false
+            pendingBackgroundEnable = false
             ProductInteractionRegistry.setLease(
                 ProductEngineService.INTERACTION_NOTIFICATION_SETTINGS,
                 false,
@@ -1098,6 +1444,13 @@ class MainActivity : ComponentActivity() {
             .apply()
     }
 
+    private fun setPrimaryDestination(destination: PrimaryDestination) {
+        val preferences = getSharedPreferences(PRODUCT_PREFERENCES, Context.MODE_PRIVATE)
+        val stored = runCatching { preferences.getString(PREFERENCE_PRIMARY_DESTINATION, null) }
+        if (stored.getOrNull() == destination.name) return
+        preferences.edit().putString(PREFERENCE_PRIMARY_DESTINATION, destination.name).apply()
+    }
+
     private fun setDynamicColor(enabled: Boolean) {
         dynamicColor.value = enabled
         getSharedPreferences(PRODUCT_PREFERENCES, Context.MODE_PRIVATE)
@@ -1115,9 +1468,38 @@ class MainActivity : ComponentActivity() {
                 BootstrapContract.ACTION_VERIFY,
             )
 
-    private fun isChromeOsCompanionLaunch(command: Intent): Boolean =
-        command.data?.scheme == CHROMEOS_COMPANION_SCHEME &&
-            command.data?.host == CHROMEOS_COMPANION_HOST
+    private fun isChromeOs(): Boolean =
+        packageManager.hasSystemFeature("org.chromium.arc") ||
+            packageManager.hasSystemFeature("org.chromium.arc.device_management")
+
+    private fun openChromeExtension() {
+        if (!isChromeOs() || chromeExtensionSetupBusy.value) return
+        val service = productService.value ?: return
+        chromeExtensionSetupBusy.value = true
+        chromeExtensionSetupFailed.value = false
+        chromeExtensionSetupJob = lifecycleScope.launch {
+            try {
+                service.prepareChromeExtensionSetup()
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ProductChromeExtensionSetup.HANDOFF_URL)))
+                chromeExtensionSetupVisible.value = false
+            } catch (canceled: CancellationException) {
+                throw canceled
+            } catch (_: Exception) {
+                // No raw transport/platform error or URL authority enters UI.
+                chromeExtensionSetupFailed.value = true
+            } finally {
+                chromeExtensionSetupBusy.value = false
+            }
+        }
+    }
+
+    private fun isChromeOsCompanionLaunch(command: Intent): Boolean {
+        val uri = command.data ?: return false
+        return command.action == Intent.ACTION_VIEW &&
+            ProductChromeExtensionSetup.acceptsLaunch(
+                uri.scheme, uri.host, uri.path, uri.query, uri.fragment, uri.port, uri.userInfo,
+            )
+    }
 
     private fun finishIfRequested(command: Intent) {
         if (command.getBooleanExtra("finish_activity", false)) {
@@ -1144,7 +1526,11 @@ class MainActivity : ComponentActivity() {
         private const val PRODUCT_PREFERENCES = "product_ui"
         private const val PREFERENCE_THEME_MODE = "theme_mode"
         private const val PREFERENCE_DYNAMIC_COLOR = "dynamic_color"
+        private const val PREFERENCE_PRIMARY_DESTINATION = "primary_destination"
         private const val STATE_PENDING_TORRENT_URI = "pending_torrent_uri"
+        private const val STATE_PENDING_TORRENT_URIS = "pending_torrent_uris"
+        private const val STATE_PENDING_TORRENT_LIST_EXPORT = "pending_torrent_list_export"
+        private const val STATE_PENDING_TORRENT_LIST_IMPORT = "pending_torrent_list_import"
         private const val STATE_PENDING_TORRENT_START = "pending_torrent_start"
         private const val STATE_PENDING_TORRENT_FILE_SELECTION =
             "pending_torrent_file_selection"
@@ -1159,8 +1545,6 @@ class MainActivity : ComponentActivity() {
         private const val STATE_NOTIFICATION_ROUTE = "notification_route"
         private const val STATE_NOTIFICATION_TORRENT_ID = "notification_torrent_id"
         private const val STATE_NOTIFICATION_STORAGE_ROOT_ID = "notification_storage_root_id"
-        private const val CHROMEOS_COMPANION_SCHEME = "rstorrent"
-        private const val CHROMEOS_COMPANION_HOST = "chromeos-companion"
         private val TORRENT_ID_PATTERN = Regex("^t1-[0-9a-f]{32}$")
         const val EXTRA_PRODUCT_MAGNET = "product_magnet"
         const val EXTRA_PRODUCT_TRACKER_HTTPS_POLICY = "product_tracker_https_policy"

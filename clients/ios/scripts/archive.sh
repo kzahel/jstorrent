@@ -14,9 +14,7 @@ mode=$1
 output=$2
 [[ "${output}" = /* && "${output}" == *.xcarchive ]] || usage
 
-if [[ -f "${HOME}/.profile" ]]; then
-  source "${HOME}/.profile"
-fi
+source "${client_root}/../../scripts/dev-env.sh"
 "${script_root}/generate-project.sh"
 
 common=(

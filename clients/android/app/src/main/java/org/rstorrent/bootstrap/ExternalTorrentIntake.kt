@@ -147,10 +147,12 @@ internal data class ExternalIntakeWork(
     val source: ExternalIntakeSource,
     val knownLength: Long?,
     val startContent: Boolean,
+    val awaitFileSelection: Boolean? = null,
+    val heldInApp: Boolean = false,
 ) {
     override fun toString(): String =
         "ExternalIntakeWork(intakeId=$intakeId, source=$source, " +
-            "knownLength=$knownLength, startContent=$startContent)"
+            "knownLength=$knownLength, startContent=$startContent, heldInApp=$heldInApp)"
 }
 
 internal enum class ExternalAdmissionDisposition {
@@ -179,12 +181,16 @@ internal class ExternalIntakeController(
         var displayLabel: String? = null,
         var knownLength: Long? = null,
         var startContent: Boolean = true,
+        var awaitFileSelection: Boolean? = null,
         var retryUsed: Boolean = false,
+        // An in-app add waiting only for a download folder. It submits with
+        // its original choice once one is ready instead of asking again.
+        val heldInApp: Boolean = false,
     ) {
         override fun toString(): String =
             "Record(intakeId=$intakeId, source=$source, phase=$phase, " +
                 "displayLabel=$displayLabel, knownLength=$knownLength, " +
-                "startContent=$startContent, retryUsed=$retryUsed)"
+                "startContent=$startContent, retryUsed=$retryUsed, heldInApp=$heldInApp)"
     }
 
     private val records = mutableListOf<Record>()
@@ -198,6 +204,8 @@ internal class ExternalIntakeController(
         source: ExternalIntakeSource,
         needsMetadataValidation: Boolean,
         rootReady: Boolean,
+        heldInApp: Boolean = false,
+        awaitFileSelection: Boolean? = null,
     ): ExternalAdmissionResult {
         val duplicate = records.firstOrNull { it.source.sameSource(source) }
         if (duplicate != null) {
@@ -220,6 +228,8 @@ internal class ExternalIntakeController(
                     } else {
                         ExternalIntakePhase.QUEUED
                     },
+                awaitFileSelection = awaitFileSelection,
+                heldInApp = heldInApp,
             )
         promote(rootReady)
         return ExternalAdmissionResult(ExternalAdmissionDisposition.ADMITTED, intakeId)
@@ -275,6 +285,7 @@ internal class ExternalIntakeController(
     fun confirm(
         intakeId: Long,
         rootReady: Boolean,
+        awaitFileSelection: Boolean? = null,
     ): ExternalIntakeWork? {
         val record = records.firstOrNull { it.intakeId == intakeId } ?: return null
         if (
@@ -283,6 +294,7 @@ internal class ExternalIntakeController(
         ) {
             return null
         }
+        if (awaitFileSelection != null) record.awaitFileSelection = awaitFileSelection
         if (!rootReady) {
             record.phase = ExternalIntakePhase.AWAITING_ROOT
             return null
@@ -350,10 +362,28 @@ internal class ExternalIntakeController(
         promote(rootReady)
     }
 
+    /**
+     * Starts the current in-app add once a download folder is ready. External
+     * items still wait for the user to confirm.
+     */
+    fun takeHeldSubmission(rootReady: Boolean): ExternalIntakeWork? {
+        val current = records.firstOrNull() ?: return null
+        if (
+            !rootReady || !current.heldInApp ||
+            current.phase !in setOf(ExternalIntakePhase.PRESENTED, ExternalIntakePhase.AWAITING_ROOT)
+        ) {
+            return null
+        }
+        current.phase = ExternalIntakePhase.SUBMITTING
+        return current.toWork()
+    }
+
     fun snapshot(): ExternalIntakeSnapshot {
         val current = records.firstOrNull()
         val presentation =
             current
+                // An in-app add being submitted continues in the ordinary add UI.
+                ?.takeIf { !(it.heldInApp && it.phase == ExternalIntakePhase.SUBMITTING) }
                 ?.takeIf {
                     it.phase in
                         setOf(
@@ -403,7 +433,7 @@ internal class ExternalIntakeController(
     }
 
     private fun Record.toWork(): ExternalIntakeWork =
-        ExternalIntakeWork(intakeId, source, knownLength, startContent)
+        ExternalIntakeWork(intakeId, source, knownLength, startContent, awaitFileSelection, heldInApp)
 }
 
 internal fun boundedExternalDisplayLabel(value: String?): String? {

@@ -1,3 +1,5 @@
+pub(crate) mod file_state;
+pub(crate) mod safety;
 use std::error::Error;
 use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -12,7 +14,8 @@ use rstorrent_protocol::dht::{DhtEndpoint, DhtIp, NodeContact, NodeId};
 use rstorrent_protocol::identity::{FullInfoHash, InfoHashes, V1InfoHash, V2InfoHash};
 use rstorrent_protocol::magnet::{
     FileIndexRange as MagnetFileIndexRange, MAX_MAGNET_LENGTH, MAX_PEER_HINTS, MAX_TRACKERS,
-    Magnet, TrackerUrl, TrackerUrlTransport,
+    Magnet, MagnetShareParameters, PeerHint, SelectOnly, TrackerUrl, TrackerUrlTransport,
+    replace_share_parameters,
 };
 use rstorrent_protocol::metainfo::{
     DURABLE_METAINFO_LIMITS, EXPLICIT_IMPORT_METAINFO_LIMITS, Metainfo, MetainfoError,
@@ -25,9 +28,10 @@ use sha2::{Digest as Sha256Digest, Sha256};
 use crate::control::{
     AddTorrentBytesRequest, AddTorrentDisposition, AddTorrentResult, Command, CommandResult,
     ErrorCode, FilePriority, FileSelectionIntent, FileSelectionOverride,
-    MAX_FILE_SELECTION_ENTRIES, MagnetExportResult, MagnetExportSource, PendingFileSelectionBase,
-    RemovalDataPolicy, RemovalState, RequestEnvelope, ResponseEnvelope, ServiceSnapshot,
-    StorageState, TorrentSnapshot, TorrentState, encode_info_hash, parse_revision,
+    MAX_FILE_SELECTION_ENTRIES, MagnetExportOptions, MagnetExportResult, MagnetExportSource,
+    MagnetPeerHint, MagnetPeerHintOmission, PendingFileSelectionBase, RemovalDataPolicy,
+    RemovalState, RequestEnvelope, ResponseEnvelope, ServiceSnapshot, StorageState,
+    TorrentSnapshot, TorrentState, encode_info_hash, parse_revision,
     validate_add_torrent_bytes_request, validate_identifier, validate_request,
 };
 use crate::download_queue::{self, QueueEdge};
@@ -35,25 +39,37 @@ use crate::durable_state::{DerivedStateInput, VerificationState, derive_torrent_
 use crate::have::{HaveError, HaveState, MAX_DURABLE_HAVE_STATE_BYTES, MAX_DURABLE_PIECES};
 use crate::product_state::{ProductMilestone, ProductMilestoneKind};
 use crate::profile_reset::{
-    CatalogPreparation, DATABASE_FILENAME, ProfileResetReport, finish_catalog_creation,
-    prepare_catalog,
+    CatalogPreparation, DATABASE_FILENAME, ProfileResetReport, prepare_catalog,
+    write_pre_migration_copy,
 };
 use crate::settings::{
     ClientSettings, SettingsPersistenceError, StorageRootAvailability, StorageRootSnapshot,
-    StorageSettingsSnapshot, TorrentSettingsPatch, TorrentTransferLimits, TransferRateLimit,
-    create_client_settings, read_client_settings, replace_client_settings,
+    StorageSettingsSnapshot, TorrentSeedStopLimit, TorrentSeedStopLimits, TorrentSettingsPatch,
+    TorrentTransferLimits, TransferRateLimit, create_client_settings, read_client_settings,
+    replace_client_settings,
 };
+use crate::share_peer_hints::{ShareEndpointFacts, select_peer_hints};
 use crate::store_schema::{
-    DHT_TABLES_SQL, DOWNLOAD_QUEUE_INDEX_SQL, FILE_PRIORITIES_TABLE_SQL, REMOVAL_TABLE_SQL,
-    SCHEMA_VERSION, SOURCE_TABLES_SQL,
+    BASELINE_SCHEMA_VERSION, DHT_TABLES_SQL, DOWNLOAD_QUEUE_INDEX_SQL, FILE_PRIORITIES_TABLE_SQL,
+    REMOVAL_TABLE_SQL, SCHEMA_VERSION, SOURCE_TABLES_SQL,
 };
 
 const MAX_RECEIPTS: i64 = 1024;
+/// Tactical 339/340 quiet network defaults; see `apply_quiet_network_defaults_once`.
+const QUIET_NETWORK_DEFAULTS_VERSION: i64 = 1;
 const MAX_PENDING_PRODUCT_MILESTONES: i64 = 1024;
 pub(crate) const EPHEMERAL_SESSION_MAX_BYTES: u64 = 256 * 1024 * 1024;
 pub const MAX_STORAGE_ROOTS: usize = 32;
 pub const MAX_STORAGE_ROOT_LOCATOR_LENGTH: usize = 4096;
 const BUSY_TIMEOUT: Duration = Duration::from_secs(2);
+
+mod legacy_desktop;
+mod torrent_list_export;
+pub use legacy_desktop::{
+    LegacyAndroidBootstrap, LegacyAndroidRootBinding, LegacyDesktopImportReport,
+    LegacyDesktopRecordOutcome,
+};
+pub(crate) use torrent_list_export::torrent_list_export_from;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfiguredStorageRoot {
@@ -130,6 +146,8 @@ pub struct StoredTracker {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResumeRecord {
+    pub(crate) safety_policy: crate::file_safety::FileSafetyPolicy,
+    pub(crate) safety_allowed: crate::file_bitmap::FileBitmap,
     pub torrent_id: TorrentId,
     pub info_hashes: InfoHashes,
     pub magnet: String,
@@ -397,7 +415,7 @@ fn project_file_selection_refs(
         });
         if wanted {
             exceptions.push(index_u32);
-            if exceptions.len() > MAX_FILE_SELECTION_ENTRIES {
+            if exceptions.len() > rstorrent_protocol::metainfo::MAX_METAINFO_FILES {
                 return Err((
                     ErrorCode::ResourceLimit,
                     format!("file selection exceeds {MAX_FILE_SELECTION_ENTRIES} exceptions"),
@@ -533,12 +551,7 @@ impl SessionStore {
 
         if let Some(maximum_bytes) = ephemeral_maximum_bytes {
             configure_ephemeral_connection(&connection, maximum_bytes)?;
-            create_or_validate_schema_26(
-                &mut connection,
-                profile_id,
-                initial_client_settings,
-                None,
-            )?;
+            create_or_validate_catalog(&mut connection, profile_id, initial_client_settings)?;
         } else {
             connection.busy_timeout(BUSY_TIMEOUT)?;
             let (profile_root, preparation) =
@@ -546,27 +559,31 @@ impl SessionStore {
             match preparation {
                 CatalogPreparation::Current => {
                     configure_durable_connection(&connection)?;
-                    create_or_validate_schema_26(
+                    create_or_validate_catalog(
                         &mut connection,
                         profile_id,
                         initial_client_settings,
-                        None,
                     )?;
                 }
-                CatalogPreparation::Create { reset_report } => {
+                CatalogPreparation::Create => {
                     connection.pragma_update(None, "synchronous", "FULL")?;
-                    create_or_validate_schema_26(
+                    create_or_validate_catalog(
                         &mut connection,
                         profile_id,
                         initial_client_settings,
-                        reset_report.as_ref(),
                     )?;
-                    finish_catalog_creation(profile_root)?;
                     configure_durable_connection(&connection)?;
+                }
+                CatalogPreparation::Migrate { from } => {
+                    configure_durable_connection(&connection)?;
+                    write_pre_migration_copy(&connection, profile_root)?;
+                    crate::store_migration::migrate_catalog(&mut connection, from)?;
+                    validate_catalog(&connection, profile_id)?;
                 }
             }
         }
         register_storage_roots(&mut connection, storage_roots)?;
+        normalize_archived_intent(&mut connection)?;
 
         let store = Self {
             connection,
@@ -739,6 +756,14 @@ impl SessionStore {
         u64::try_from(value).map_err(|_| {
             StoreError::DurableState("product milestone drop count is invalid".to_owned())
         })
+    }
+
+    pub(crate) fn has_pending_file_selection(&self) -> Result<bool, StoreError> {
+        Ok(self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM torrents WHERE awaiting_file_selection = 1)",
+            [],
+            |row| row.get(0),
+        )?)
     }
 
     pub fn snapshot(&self) -> Result<ServiceSnapshot, StoreError> {
@@ -1012,6 +1037,56 @@ impl SessionStore {
         Ok(revision)
     }
 
+    /// Stops using a platform root. When it is the default, `replacement`
+    /// becomes the default, or none. The catalog row is deleted only when no
+    /// torrent references it; otherwise it stays so those torrents can be
+    /// repaired. Returns whether the row was deleted.
+    pub fn detach_platform_storage_root(
+        &mut self,
+        root_id: &str,
+        replacement: Option<&str>,
+    ) -> Result<bool, StoreError> {
+        let kind = self
+            .connection
+            .query_row(
+                "SELECT kind FROM storage_roots WHERE root_id = ?1",
+                [root_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .ok_or_else(|| {
+                StoreError::Configuration(format!("storage root {root_id} is not configured"))
+            })?;
+        if kind != "platform" {
+            return Err(StoreError::Configuration(format!(
+                "storage root {root_id} is not a platform capability"
+            )));
+        }
+        if replacement == Some(root_id) {
+            return Err(StoreError::Configuration(
+                "a detached storage root cannot replace itself".to_owned(),
+            ));
+        }
+        let transaction = self.connection.transaction()?;
+        increment_revision(&transaction)?;
+        transaction.execute(
+            "UPDATE storage_settings SET default_root = ?2
+             WHERE singleton = 1 AND default_root = ?1",
+            params![root_id, replacement],
+        )?;
+        let references: i64 = transaction.query_row(
+            "SELECT COUNT(*) FROM torrents WHERE storage_root = ?1",
+            [root_id],
+            |row| row.get(0),
+        )?;
+        let removed = references == 0;
+        if removed {
+            transaction.execute("DELETE FROM storage_roots WHERE root_id = ?1", [root_id])?;
+        }
+        transaction.commit()?;
+        Ok(removed)
+    }
+
     pub fn repair_path_storage_root(
         &mut self,
         root_id: &str,
@@ -1241,6 +1316,17 @@ impl SessionStore {
         &mut self,
         request: &RequestEnvelope,
     ) -> Result<ResponseEnvelope, StoreError> {
+        self.handle_durable_with_share_endpoints(request, None)
+    }
+
+    /// [`handle_durable`](Self::handle_durable) with the runtime's
+    /// reachability facts for a magnet export's peer hint. `None` means the
+    /// caller has no network runtime.
+    pub(crate) fn handle_durable_with_share_endpoints(
+        &mut self,
+        request: &RequestEnvelope,
+        share_endpoints: Option<&ShareEndpointFacts>,
+    ) -> Result<ResponseEnvelope, StoreError> {
         if let Err((code, message)) = validate_request(request) {
             return Ok(ResponseEnvelope::error(
                 request.request_id.clone(),
@@ -1255,9 +1341,19 @@ impl SessionStore {
                 self.revision()?,
                 self.snapshot()?,
             );
-            if let Command::ExportMagnet { torrent_id } = &request.command {
-                response = match self.export_magnet(torrent_id) {
-                    Ok(result) => response.with_result(CommandResult::ExportMagnet { result }),
+            if let Command::ExportMagnet {
+                torrent_id,
+                options,
+            } = &request.command
+            {
+                response = match self.export_magnet(torrent_id, options.as_ref(), share_endpoints) {
+                    Ok(Ok(result)) => response.with_result(CommandResult::ExportMagnet { result }),
+                    Ok(Err((code, message))) => ResponseEnvelope::error(
+                        request.request_id.clone(),
+                        self.revision()?,
+                        code,
+                        message,
+                    ),
                     Err(StoreError::UnknownTorrent(_)) => ResponseEnvelope::error(
                         request.request_id.clone(),
                         self.revision()?,
@@ -1318,13 +1414,21 @@ impl SessionStore {
                 ),
             )
         } else {
-            apply_mutation(
+            // A typed command rejection must not commit earlier writes made
+            // by that command. Keep its error receipt outside the savepoint.
+            transaction.execute_batch("SAVEPOINT command_mutation")?;
+            let response = apply_mutation(
                 &transaction,
                 request,
                 current_revision,
                 &self.profile_id,
                 &self.reset_client_settings,
-            )?
+            )?;
+            if matches!(response.outcome, crate::ResponseOutcome::Error { .. }) {
+                transaction.execute_batch("ROLLBACK TO command_mutation")?;
+            }
+            transaction.execute_batch("RELEASE command_mutation")?;
+            response
         };
 
         let response_json = serde_json::to_string(&response)?;
@@ -1481,7 +1585,8 @@ impl SessionStore {
             )
         })?;
         let skip_files = read_selection(&self.connection, &torrent_id)?;
-        let high_priority_files = read_high_priority_files(&self.connection, &torrent_id)?;
+        let mut high_priority_files = read_high_priority_files(&self.connection, &torrent_id)?;
+        high_priority_files.retain(|index| skip_files.binary_search(index).is_err());
         if high_priority_files
             .iter()
             .any(|index| skip_files.binary_search(index).is_ok())
@@ -1519,13 +1624,17 @@ impl SessionStore {
             (None, None, Some(v2)) => format!("magnet:?xt=urn:btmh:1220{v2}"),
             (None, _, _) => String::new(),
         };
+        // Operational magnets written before a presentation claim (`dn`,
+        // later `xl`) was retained recover it from the verified source.
         if let Ok(mut parsed) = Magnet::parse(&operational_magnet)
-            && parsed.display_name.is_none()
+            && (parsed.display_name.is_none() || parsed.exact_length.is_none())
             && let Some(source) =
                 read_verified_retained_magnet(&self.connection, &torrent_id, info_hashes)?
-            && source.parsed.display_name.is_some()
+            && (parsed.display_name.is_none() && source.parsed.display_name.is_some()
+                || parsed.exact_length.is_none() && source.parsed.exact_length.is_some())
         {
-            parsed.display_name = source.parsed.display_name;
+            parsed.display_name = parsed.display_name.or(source.parsed.display_name);
+            parsed.exact_length = parsed.exact_length.or(source.parsed.exact_length);
             operational_magnet = canonical_magnet(&parsed);
         }
         let desired_running = match row.6.as_str() {
@@ -1565,6 +1674,8 @@ impl SessionStore {
         let accounting =
             decode_torrent_accounting(row.11, row.12, row.13, row.14, row.15, row.16, row.17)?;
         Ok(ResumeRecord {
+            safety_policy: safety::read_policy(&self.connection, &torrent_id)?,
+            safety_allowed: file_state::read_mask(&self.connection, &torrent_id, "allowed")?,
             torrent_id,
             info_hashes,
             magnet: operational_magnet,
@@ -1585,36 +1696,30 @@ impl SessionStore {
         })
     }
 
-    fn export_magnet(&self, torrent_id: &str) -> Result<MagnetExportResult, StoreError> {
-        let torrent_id = decode_torrent_id(torrent_id)
-            .ok_or_else(|| StoreError::DurableState("invalid torrent identity".to_owned()))?;
-        let raw_info = self
-            .connection
-            .query_row(
-                "SELECT raw_info FROM torrents WHERE torrent_id = ?1",
-                [torrent_id.as_bytes()],
-                |row| row.get::<_, Option<Vec<u8>>>(0),
-            )
-            .optional()?
-            .ok_or_else(|| StoreError::UnknownTorrent(torrent_id.to_string()))?;
-        let content_name = raw_info.as_deref().map(durable_content_name).transpose()?;
-
-        let info_hashes = read_info_hashes(&self.connection, &torrent_id)?;
-        if let Some(retained) =
-            read_verified_retained_magnet(&self.connection, &torrent_id, info_hashes)?
-        {
-            return Ok(MagnetExportResult {
-                magnet: retained.magnet,
-                source: retained.source,
-                omitted_tracker_count: 0,
-            });
-        }
-
-        Ok(synthesize_magnet_export(
-            info_hashes,
-            content_name.as_deref(),
-            &read_trackers(&self.connection, &torrent_id)?,
+    fn export_magnet(
+        &self,
+        torrent_id: &str,
+        options: Option<&MagnetExportOptions>,
+        share_endpoints: Option<&ShareEndpointFacts>,
+    ) -> Result<Result<MagnetExportResult, (ErrorCode, String)>, StoreError> {
+        let (base, raw_info) = self.export_base_magnet(torrent_id)?;
+        let Some(options) = options else {
+            return Ok(Ok(base));
+        };
+        let content = raw_info.as_deref().map(share_content_facts).transpose()?;
+        Ok(apply_share_options(
+            base,
+            content.as_ref(),
+            options,
+            share_endpoints,
         ))
+    }
+
+    fn export_base_magnet(
+        &self,
+        torrent_id: &str,
+    ) -> Result<(MagnetExportResult, Option<Vec<u8>>), StoreError> {
+        export_base_magnet_from(&self.connection, torrent_id)
     }
 
     pub fn load_removal(&self, torrent_id: &str) -> Result<RemovalRecord, StoreError> {
@@ -1775,6 +1880,49 @@ impl SessionStore {
         Ok(revision)
     }
 
+    /// One-time desktop migration, before runtime construction. Retain data,
+    /// running intent and port preference; legacy defaults are not consent.
+    /// Applies the quiet network defaults (incoming listener and port mapping
+    /// off) once per profile and records that in the same transaction. When
+    /// `already_applied` says an older build applied them, only the marker is
+    /// set. Returns whether the defaults were applied now.
+    pub(crate) fn apply_quiet_network_defaults_once(
+        &mut self,
+        already_applied: bool,
+    ) -> Result<bool, StoreError> {
+        let transaction = self.connection.transaction()?;
+        let marker: i64 = transaction.query_row(
+            "SELECT network_defaults_version FROM client_settings WHERE singleton = 1",
+            [],
+            |row| row.get(0),
+        )?;
+        if marker >= QUIET_NETWORK_DEFAULTS_VERSION {
+            return Ok(false);
+        }
+        transaction.execute(
+            "UPDATE client_settings SET network_defaults_version = ?1 WHERE singleton = 1",
+            [QUIET_NETWORK_DEFAULTS_VERSION],
+        )?;
+        if already_applied {
+            transaction.commit()?;
+            return Ok(false);
+        }
+        let mut settings = read_client_settings(&transaction)?;
+        if let crate::ListenerPolicy::FixedLoopback { port }
+        | crate::ListenerPolicy::FixedLocalNetwork { port } = settings.listener
+        {
+            settings.preferred_listen_port = port;
+        }
+        settings.listener = crate::ListenerPolicy::Disabled;
+        settings.port_mapping = crate::PortMappingPolicy::Disabled;
+        if replace_client_settings(&transaction, &settings)? {
+            let revision = read_revision(&transaction)?;
+            next_revision_strict(&transaction, revision)?;
+        }
+        transaction.commit()?;
+        Ok(true)
+    }
+
     pub fn record_metadata(
         &mut self,
         torrent_id: &str,
@@ -1922,7 +2070,7 @@ impl SessionStore {
                         continue;
                     }
                     selected.push(index);
-                    if selected.len() > MAX_FILE_SELECTION_ENTRIES {
+                    if selected.len() > rstorrent_protocol::metainfo::MAX_METAINFO_FILES {
                         return Err(StoreError::ResourceLimit {
                             resource: "file selection exceptions",
                             actual: selected.len(),
@@ -1931,18 +2079,15 @@ impl SessionStore {
                     }
                 }
             }
-            for index in selected {
-                transaction.execute(
-                    "INSERT INTO file_selection(torrent_id, file_index, wanted)
-                     VALUES (?1, ?2, 1)",
-                    params![
-                        owner.as_bytes().as_slice(),
-                        i64::try_from(index).map_err(|_| StoreError::DurableState(
-                            "file index overflow".to_owned()
-                        ))?
-                    ],
-                )?;
-            }
+            file_state::write_mask(
+                &transaction,
+                &owner,
+                "exceptions",
+                &selected
+                    .iter()
+                    .map(|index| *index as u32)
+                    .collect::<Vec<_>>(),
+            )?;
             transaction.execute(
                 "DELETE FROM pending_selection_ranges WHERE torrent_id = ?1",
                 [owner.as_bytes().as_slice()],
@@ -1976,6 +2121,7 @@ impl SessionStore {
         if updated != 1 {
             return Err(StoreError::UnknownTorrent(torrent_id.to_string()));
         }
+        safety::initialize_matches(&transaction, &owner)?;
         transaction.commit()?;
         for loser in losers {
             self.pending_reconciliations.push(PendingReconciliation {
@@ -2315,6 +2461,43 @@ impl SessionStore {
         Ok(revision)
     }
 
+    /// Durably stops a running torrent whose seeding stop limit was reached.
+    /// Returns false, changing nothing, unless the torrent is running and not
+    /// archived, being removed or awaiting a file selection.
+    pub(crate) fn stop_at_seed_limit(&mut self, torrent_id: &str) -> Result<bool, StoreError> {
+        let torrent_id = decode_torrent_id(torrent_id)
+            .ok_or_else(|| StoreError::UnknownTorrent(torrent_id.to_owned()))?;
+        let transaction = self.connection.transaction()?;
+        let eligible: bool = transaction
+            .query_row(
+                "SELECT t.desired_state = 'running' AND t.archived = 0
+                        AND t.awaiting_file_selection = 0 AND r.torrent_id IS NULL
+                 FROM torrents t
+                 LEFT JOIN removal_jobs r ON r.torrent_id = t.torrent_id
+                 WHERE t.torrent_id = ?1",
+                [torrent_id.as_bytes()],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or_else(|| StoreError::UnknownTorrent(torrent_id.to_string()))?;
+        if !eligible {
+            return Ok(false);
+        }
+        let revision = next_revision_strict(&transaction, read_revision(&transaction)?)?;
+        transaction.execute(
+            "UPDATE torrents
+             SET desired_state = 'paused', seed_limit_stopped = 1, updated_revision = ?2
+             WHERE torrent_id = ?1",
+            params![
+                torrent_id.as_bytes(),
+                i64::try_from(revision)
+                    .map_err(|_| StoreError::DurableState("revision overflow".to_owned()))?
+            ],
+        )?;
+        transaction.commit()?;
+        Ok(true)
+    }
+
     pub fn mark_complete(&mut self, torrent_id: &str) -> Result<u64, StoreError> {
         let torrent_id = decode_torrent_id(torrent_id)
             .ok_or_else(|| StoreError::DurableState("invalid torrent identity".to_owned()))?;
@@ -2453,6 +2636,46 @@ struct VerifiedRetainedMagnet {
     parsed: Magnet,
 }
 
+fn export_base_magnet_from(
+    connection: &Connection,
+    torrent_id: &str,
+) -> Result<(MagnetExportResult, Option<Vec<u8>>), StoreError> {
+    let torrent_id = decode_torrent_id(torrent_id)
+        .ok_or_else(|| StoreError::DurableState("invalid torrent identity".to_owned()))?;
+    let raw_info = connection
+        .query_row(
+            "SELECT raw_info FROM torrents WHERE torrent_id = ?1",
+            [torrent_id.as_bytes()],
+            |row| row.get::<_, Option<Vec<u8>>>(0),
+        )
+        .optional()?
+        .ok_or_else(|| StoreError::UnknownTorrent(torrent_id.to_string()))?;
+    let content_name = raw_info.as_deref().map(durable_content_name).transpose()?;
+
+    let info_hashes = read_info_hashes(connection, &torrent_id)?;
+    if let Some(retained) = read_verified_retained_magnet(connection, &torrent_id, info_hashes)? {
+        return Ok((
+            MagnetExportResult {
+                magnet: retained.magnet,
+                source: retained.source,
+                omitted_tracker_count: 0,
+                peer_hints: Vec::new(),
+                peer_hint_omission: None,
+            },
+            raw_info,
+        ));
+    }
+
+    Ok((
+        synthesize_magnet_export(
+            info_hashes,
+            content_name.as_deref(),
+            &read_trackers(connection, &torrent_id)?,
+        ),
+        raw_info,
+    ))
+}
+
 fn read_verified_retained_magnet(
     connection: &Connection,
     torrent_id: &TorrentId,
@@ -2532,6 +2755,12 @@ pub enum StoreError {
         actual: i64,
         maximum: i64,
     },
+    /// A catalog from before the supported baseline. It is left unchanged;
+    /// only the user's Clear app data replaces it.
+    RetiredSchema {
+        actual: i64,
+        minimum: i64,
+    },
     ProfileResetBusy,
     UnsafeProfileFile {
         basename: &'static str,
@@ -2563,8 +2792,13 @@ impl fmt::Display for StoreError {
                 formatter,
                 "session schema {actual} is newer than supported version {maximum}"
             ),
+            Self::RetiredSchema { actual, minimum } => write!(
+                formatter,
+                "session schema {actual} predates supported version {minimum}; \
+                 it was left unchanged and can be discarded only by clearing app data"
+            ),
             Self::ProfileResetBusy => {
-                formatter.write_str("session database is busy and cannot be reset safely")
+                formatter.write_str("session database is busy; it was left unchanged")
             }
             Self::UnsafeProfileFile { basename, reason } => {
                 write!(
@@ -2938,17 +3172,32 @@ fn append_product_milestone(
     Ok(true)
 }
 
-fn create_or_validate_schema_26(
+fn create_or_validate_catalog(
     connection: &mut Connection,
     profile_id: &str,
     initial_client_settings: &ClientSettings,
-    reset_report: Option<&ProfileResetReport>,
 ) -> Result<(), StoreError> {
     let version: i64 = connection.pragma_query_value(None, "user_version", |row| row.get(0))?;
     if version != 0 {
-        return validate_schema_26(connection, profile_id);
+        return validate_catalog(connection, profile_id);
     }
     let transaction = connection.transaction()?;
+    create_schema_26(&transaction, profile_id, initial_client_settings)?;
+    crate::store_migration::upgrade_fresh_catalog(&transaction)?;
+    // The frozen baseline writes only baseline settings columns.
+    replace_client_settings(&transaction, initial_client_settings)?;
+    transaction.commit()?;
+    validate_catalog(connection, profile_id)
+}
+
+/// Creates the frozen schema-26 baseline that every public release shipped.
+/// Never edit these definitions: a schema change appends a step in
+/// `store_migration`, and fresh catalogs run every step after this.
+fn create_schema_26(
+    transaction: &Transaction<'_>,
+    profile_id: &str,
+    initial_client_settings: &ClientSettings,
+) -> Result<(), StoreError> {
     transaction.execute_batch(
         "CREATE TABLE profile_state (
             singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
@@ -3150,31 +3399,17 @@ fn create_or_validate_schema_26(
          ) VALUES (1, ?1, 1, 0)",
         [source_epoch.as_slice()],
     )?;
-    if let Some(report) = reset_report {
-        transaction.execute(
-            "INSERT INTO profile_reset_report(
-                singleton, previous_schema_version, discarded_categories_json,
-                database_basenames_json, external_payload_modified
-             ) VALUES (1, ?1, ?2, ?3, 0)",
-            params![
-                report.previous_schema_version,
-                serde_json::to_string(&report.discarded_categories)?,
-                serde_json::to_string(&report.database_basenames_considered)?,
-            ],
-        )?;
-    }
-    create_client_settings(&transaction, initial_client_settings)?;
+    create_client_settings(transaction, initial_client_settings)?;
     transaction.execute_batch(DHT_TABLES_SQL)?;
     transaction.execute_batch(REMOVAL_TABLE_SQL)?;
     transaction.execute_batch(SOURCE_TABLES_SQL)?;
     transaction.execute_batch(DOWNLOAD_QUEUE_INDEX_SQL)?;
     transaction.execute_batch(FILE_PRIORITIES_TABLE_SQL)?;
-    transaction.pragma_update(None, "user_version", SCHEMA_VERSION)?;
-    transaction.commit()?;
-    validate_schema_26(connection, profile_id)
+    transaction.pragma_update(None, "user_version", BASELINE_SCHEMA_VERSION)?;
+    Ok(())
 }
 
-fn validate_schema_26(connection: &Connection, profile_id: &str) -> Result<(), StoreError> {
+fn validate_catalog(connection: &Connection, profile_id: &str) -> Result<(), StoreError> {
     let version: i64 = connection.pragma_query_value(None, "user_version", |row| row.get(0))?;
     if version != SCHEMA_VERSION {
         return Err(StoreError::UnsupportedSchema {
@@ -3397,6 +3632,37 @@ fn read_storage_settings(connection: &Connection) -> Result<StorageSettingsSnaps
     })
 }
 
+/// Profiles written before archive implied paused intent may hold archived
+/// rows that are running or awaiting add-time selection. Neither state can be
+/// reached by current commands, so normalize them once in a single revision.
+fn normalize_archived_intent(connection: &mut Connection) -> Result<(), StoreError> {
+    let transaction = connection.transaction()?;
+    let stale: i64 = transaction.query_row(
+        "SELECT count(*) FROM torrents
+         WHERE archived = 1
+           AND (desired_state = 'running' OR awaiting_file_selection = 1)",
+        [],
+        |row| row.get(0),
+    )?;
+    if stale == 0 {
+        return Ok(());
+    }
+    let revision = next_revision_strict(&transaction, read_revision(&transaction)?)?;
+    let revision_sql = sql_revision(revision)?;
+    transaction.execute(
+        "UPDATE torrents SET archived = 0, updated_revision = ?1
+         WHERE archived = 1 AND awaiting_file_selection = 1",
+        [revision_sql],
+    )?;
+    transaction.execute(
+        "UPDATE torrents SET desired_state = 'paused', updated_revision = ?1
+         WHERE archived = 1 AND desired_state = 'running'",
+        [revision_sql],
+    )?;
+    transaction.commit()?;
+    Ok(())
+}
+
 fn register_storage_roots(
     connection: &mut Connection,
     storage_roots: &[ConfiguredStorageRoot],
@@ -3533,6 +3799,20 @@ fn apply_mutation(
         };
     }
     let result = match &request.command {
+        Command::UpdateFileSafetySettings { settings } => {
+            safety::update_settings(transaction, settings, current_revision)
+        }
+        Command::SetFileSafetyOverride {
+            torrent_id,
+            file_indices,
+            allowed,
+        } => safety::set_override(
+            transaction,
+            torrent_id,
+            file_indices,
+            *allowed,
+            current_revision,
+        ),
         Command::AddMagnet { .. } => unreachable!("magnet adds are handled above"),
         Command::SetFilePriority {
             torrent_id,
@@ -3593,6 +3873,10 @@ fn apply_mutation(
             *disable_future,
             current_revision,
         ),
+        Command::DownloadAllPendingAdd {
+            torrent_id,
+            disable_future,
+        } => download_all_pending_add(transaction, torrent_id, *disable_future, current_revision),
         Command::CancelPendingAdd { torrent_id } => {
             cancel_pending_add(transaction, torrent_id, current_revision)
         }
@@ -3808,20 +4092,10 @@ fn add_torrent_bytes(
             )
             .map_err(|error| AddTorrentBytesError::Store(StoreError::Sqlite(error)))?;
     }
-    let exception_wanted = selection_default == FilePriority::Skip;
-    for file_index in selection_exceptions {
-        transaction
-            .execute(
-                "INSERT INTO file_selection(torrent_id, file_index, wanted)
-                 VALUES (?1, ?2, ?3)",
-                params![
-                    torrent_id.as_bytes().as_slice(),
-                    i64::from(*file_index),
-                    exception_wanted
-                ],
-            )
-            .map_err(|error| AddTorrentBytesError::Store(StoreError::Sqlite(error)))?;
-    }
+    file_state::write_mask(transaction, &torrent_id, "exceptions", selection_exceptions)
+        .map_err(AddTorrentBytesError::Store)?;
+    safety::capture(transaction, &torrent_id).map_err(AddTorrentBytesError::Store)?;
+    safety::initialize_matches(transaction, &torrent_id).map_err(AddTorrentBytesError::Store)?;
     append_product_milestone(transaction, ProductMilestoneKind::TorrentAdded)
         .map_err(AddTorrentBytesError::Store)?;
     Ok((
@@ -4065,20 +4339,6 @@ fn remove_storage_root(
             format!("storage root {storage_root} is not configured"),
         ));
     }
-    let is_default = transaction
-        .query_row(
-            "SELECT COALESCE(default_root = ?1, 0)
-             FROM storage_settings WHERE singleton = 1",
-            [storage_root],
-            |row| row.get::<_, bool>(0),
-        )
-        .map_err(internal_error)?;
-    if is_default {
-        return Err((
-            ErrorCode::StorageRootInUse,
-            format!("storage root {storage_root} is the current download root"),
-        ));
-    }
     let references: i64 = transaction
         .query_row(
             "SELECT COUNT(*) FROM torrents WHERE storage_root = ?1",
@@ -4093,6 +4353,18 @@ fn remove_storage_root(
         ));
     }
     let revision = next_revision(transaction, current_revision)?;
+    // A removed default is replaced by the first other root, or none, as when
+    // a platform root is detached.
+    transaction
+        .execute(
+            "UPDATE storage_settings SET default_root = (
+                SELECT root_id FROM storage_roots WHERE root_id <> ?1
+                ORDER BY root_id LIMIT 1
+             )
+             WHERE singleton = 1 AND default_root = ?1",
+            [storage_root],
+        )
+        .map_err(internal_error)?;
     transaction
         .execute(
             "DELETE FROM storage_roots WHERE root_id = ?1",
@@ -4213,25 +4485,13 @@ fn add_magnet(
         }
         let revision = next_revision(transaction, current_revision)?;
         if let Some((wanted_value, changes)) = &file_plan {
+            let mut mask = file_state::read_mask(transaction, &torrent_id, "exceptions")
+                .map_err(|error| internal_message(&error.to_string()))?;
             for index in changes {
-                if *wanted_value {
-                    transaction
-                        .execute(
-                            "INSERT INTO file_selection(torrent_id, file_index, wanted)
-                         VALUES (?1, ?2, 1)",
-                            params![torrent_id.as_bytes().as_slice(), i64::from(*index)],
-                        )
-                        .map_err(internal_error)?;
-                } else {
-                    transaction
-                        .execute(
-                            "DELETE FROM file_selection
-                         WHERE torrent_id = ?1 AND file_index = ?2 AND wanted = 0",
-                            params![torrent_id.as_bytes().as_slice(), i64::from(*index)],
-                        )
-                        .map_err(internal_error)?;
-                }
+                mask.set(*index, *wanted_value).map_err(internal_message)?;
             }
+            file_state::write_mask(transaction, &torrent_id, "exceptions", &mask.indices())
+                .map_err(|error| internal_message(&error.to_string()))?;
         }
         if let Some(ranges) = &pending_plan {
             write_pending_ranges(transaction, &torrent_id, ranges)?;
@@ -4388,18 +4648,13 @@ fn add_magnet(
             )
             .map_err(internal_error)?;
     }
-    for file_index in skip_files {
-        transaction
-            .execute(
-                "INSERT INTO file_selection(torrent_id, file_index, wanted)
-                 VALUES (?1, ?2, 0)",
-                params![torrent_id.as_bytes().as_slice(), i64::from(*file_index)],
-            )
-            .map_err(internal_error)?;
-    }
+    file_state::write_mask(transaction, &torrent_id, "exceptions", skip_files)
+        .map_err(|error| internal_message(&error.to_string()))?;
     if let Some(selection) = &magnet.select_only {
         write_pending_ranges(transaction, &torrent_id, selection.ranges())?;
     }
+    safety::capture(transaction, &torrent_id)
+        .map_err(|error| internal_message(&error.to_string()))?;
     append_product_milestone(transaction, ProductMilestoneKind::TorrentAdded)
         .map_err(|error| internal_message(&error.to_string()))?;
     Ok((
@@ -4465,7 +4720,9 @@ fn plan_duplicate_selection(
             }
         }
     }
-    if wanted_value && exceptions.len() + changes.len() > MAX_FILE_SELECTION_ENTRIES {
+    if wanted_value
+        && exceptions.len() + changes.len() > rstorrent_protocol::metainfo::MAX_METAINFO_FILES
+    {
         return Err((
             ErrorCode::ResourceLimit,
             format!("file selection exceeds {MAX_FILE_SELECTION_ENTRIES} exceptions"),
@@ -4563,6 +4820,22 @@ fn download_files(
     file_indices: &[u32],
     current_revision: u64,
 ) -> Result<u64, (ErrorCode, String)> {
+    let id = decode_torrent_id(torrent_id)
+        .ok_or_else(|| (ErrorCode::InvalidRequest, "invalid torrent identity".into()))?;
+    let blocked =
+        safety::matched_mask(transaction, &id).map_err(|e| internal_message(&e.to_string()))?;
+    let allowed = file_state::read_mask(transaction, &id, "allowed")
+        .map_err(|e| internal_message(&e.to_string()))?;
+    if file_indices
+        .iter()
+        .any(|index| blocked.contains(*index) && !allowed.contains(*index))
+    {
+        return Err((
+            ErrorCode::InvalidRequest,
+            "File skipped by safety settings; use Download anyway in an up-to-date Files tab"
+                .into(),
+        ));
+    }
     set_file_priority_indices(
         transaction,
         torrent_id,
@@ -4669,32 +4942,32 @@ where
         .map_err(|error| internal_message(&error.to_string()))?;
     let initial_exceptions = exceptions.clone();
     let initial_high_priority_files = high_priority_files.clone();
+    let mut exception_mask =
+        crate::file_bitmap::FileBitmap::from_indices(&exceptions).map_err(internal_message)?;
+    let mut high_mask = crate::file_bitmap::FileBitmap::from_indices(&high_priority_files)
+        .map_err(internal_message)?;
     for file_index in file_indices.clone() {
         let selection_priority = if priority == FilePriority::Skip {
             FilePriority::Skip
         } else {
             FilePriority::Normal
         };
-        if selection_priority == selection_default {
-            exceptions.retain(|index| *index != file_index);
-        } else if let Err(position) = exceptions.binary_search(&file_index) {
-            exceptions.insert(position, file_index);
-        }
-        if priority == FilePriority::High {
-            if let Err(position) = high_priority_files.binary_search(&file_index) {
-                high_priority_files.insert(position, file_index);
-            }
-        } else {
-            high_priority_files.retain(|index| *index != file_index);
-        }
+        exception_mask
+            .set(file_index, selection_priority != selection_default)
+            .map_err(internal_message)?;
+        high_mask
+            .set(file_index, priority == FilePriority::High)
+            .map_err(internal_message)?;
     }
-    if exceptions.len() > MAX_FILE_SELECTION_ENTRIES {
+    exceptions = exception_mask.indices();
+    high_priority_files = high_mask.indices();
+    if exceptions.len() > rstorrent_protocol::metainfo::MAX_METAINFO_FILES {
         return Err((
             ErrorCode::ResourceLimit,
             format!("file selection exceeds {MAX_FILE_SELECTION_ENTRIES} exceptions"),
         ));
     }
-    if high_priority_files.len() > MAX_FILE_SELECTION_ENTRIES {
+    if high_priority_files.len() > rstorrent_protocol::metainfo::MAX_METAINFO_FILES {
         return Err((
             ErrorCode::ResourceLimit,
             format!("file priority exceeds {MAX_FILE_SELECTION_ENTRIES} overrides"),
@@ -4743,43 +5016,12 @@ where
     }
     let revision = next_revision(transaction, current_revision)?;
     if selection_changed {
-        transaction
-            .execute(
-                "DELETE FROM file_selection WHERE torrent_id = ?1",
-                [torrent_id.as_bytes()],
-            )
-            .map_err(internal_error)?;
-        let exception_wanted = selection_default == FilePriority::Skip;
-        for file_index in exceptions {
-            transaction
-                .execute(
-                    "INSERT INTO file_selection(torrent_id, file_index, wanted)
-                     VALUES (?1, ?2, ?3)",
-                    params![
-                        torrent_id.as_bytes(),
-                        i64::from(file_index),
-                        exception_wanted
-                    ],
-                )
-                .map_err(internal_error)?;
-        }
+        file_state::write_mask(transaction, &torrent_id, "exceptions", &exceptions)
+            .map_err(|error| internal_message(&error.to_string()))?;
     }
     if priority_changed {
-        transaction
-            .execute(
-                "DELETE FROM file_priorities WHERE torrent_id = ?1",
-                [torrent_id.as_bytes()],
-            )
-            .map_err(internal_error)?;
-        for file_index in high_priority_files {
-            transaction
-                .execute(
-                    "INSERT INTO file_priorities(torrent_id, file_index, priority)
-                     VALUES (?1, ?2, 'high')",
-                    params![torrent_id.as_bytes(), i64::from(file_index)],
-                )
-                .map_err(internal_error)?;
-        }
+        file_state::write_mask(transaction, &torrent_id, "high", &high_priority_files)
+            .map_err(|error| internal_message(&error.to_string()))?;
     }
     let desired_state = if set_running {
         "running"
@@ -4789,7 +5031,8 @@ where
     transaction
         .execute(
             "UPDATE torrents
-             SET desired_state = ?2, error = NULL, updated_revision = ?3
+             SET desired_state = ?2, error = NULL, updated_revision = ?3,
+                 seed_limit_stopped = CASE WHEN ?2 = 'running' THEN 0 ELSE seed_limit_stopped END
              WHERE torrent_id = ?1",
             params![
                 torrent_id.as_bytes(),
@@ -4829,7 +5072,8 @@ fn set_desired_state(
     let row = transaction
         .query_row(
             "SELECT t.desired_state, t.quarantine_reason,
-                    r.torrent_id IS NOT NULL, t.awaiting_file_selection
+                    r.torrent_id IS NOT NULL, t.awaiting_file_selection, t.archived,
+                    t.seed_limit_stopped
              FROM torrents t
              LEFT JOIN removal_jobs r ON r.torrent_id = t.torrent_id
              WHERE t.torrent_id = ?1",
@@ -4840,6 +5084,8 @@ fn set_desired_state(
                     row.get::<_, Option<String>>(1)?,
                     row.get::<_, bool>(2)?,
                     row.get::<_, bool>(3)?,
+                    row.get::<_, bool>(4)?,
+                    row.get::<_, bool>(5)?,
                 ))
             },
         )
@@ -4861,6 +5107,12 @@ fn set_desired_state(
         return Err((
             ErrorCode::InvalidTorrentState,
             "torrent must confirm its pending file selection before resuming".to_owned(),
+        ));
+    }
+    if running && row.4 {
+        return Err((
+            ErrorCode::InvalidTorrentState,
+            "archived torrent must be restored before starting".to_owned(),
         ));
     }
     let desired = if running { "running" } else { "paused" };
@@ -4893,12 +5145,20 @@ fn set_desired_state(
             [revision_sql],
         )
         .map_err(internal_error)?;
+    // Resuming a torrent that a seeding limit stopped means keep seeding:
+    // its own limits become No limit so the next check does not stop it.
+    let keep_seeding = running && row.5;
     transaction
         .execute(
             "UPDATE torrents
-             SET desired_state = ?2, error = NULL, updated_revision = ?3
+             SET desired_state = ?2, error = NULL, updated_revision = ?3,
+                 seed_limit_stopped = CASE WHEN ?2 = 'running' THEN 0 ELSE seed_limit_stopped END,
+                 seed_stop_ratio_percent =
+                    CASE WHEN ?4 THEN -1 ELSE seed_stop_ratio_percent END,
+                 seed_stop_time_seconds =
+                    CASE WHEN ?4 THEN -1 ELSE seed_stop_time_seconds END
              WHERE torrent_id = ?1",
-            params![torrent_id.as_bytes(), desired, revision_sql],
+            params![torrent_id.as_bytes(), desired, revision_sql, keep_seeding],
         )
         .map_err(internal_error)?;
     if append_missing {
@@ -4945,12 +5205,18 @@ fn set_archived(
     })?;
     let current = transaction
         .query_row(
-            "SELECT t.archived, r.torrent_id IS NOT NULL
+            "SELECT t.archived, r.torrent_id IS NOT NULL, t.awaiting_file_selection
              FROM torrents t
              LEFT JOIN removal_jobs r ON r.torrent_id = t.torrent_id
              WHERE t.torrent_id = ?1",
             [torrent_id.as_bytes()],
-            |row| Ok((row.get::<_, bool>(0)?, row.get::<_, bool>(1)?)),
+            |row| {
+                Ok((
+                    row.get::<_, bool>(0)?,
+                    row.get::<_, bool>(1)?,
+                    row.get::<_, bool>(2)?,
+                ))
+            },
         )
         .optional()
         .map_err(internal_error)?
@@ -4969,10 +5235,20 @@ fn set_archived(
     if current.0 == archived {
         return Ok(current_revision);
     }
+    if archived && current.2 {
+        return Err((
+            ErrorCode::InvalidTorrentState,
+            "torrent must confirm or cancel its pending file selection before archiving".to_owned(),
+        ));
+    }
     let revision = next_revision(transaction, current_revision)?;
+    // Archived torrents are inactive: archiving also persists paused intent,
+    // and restoring leaves the torrent paused until it is started again.
     transaction
         .execute(
-            "UPDATE torrents SET archived = ?2, updated_revision = ?3
+            "UPDATE torrents
+             SET archived = ?2, updated_revision = ?3,
+                 desired_state = CASE WHEN ?2 THEN 'paused' ELSE desired_state END
              WHERE torrent_id = ?1",
             params![
                 torrent_id.as_bytes(),
@@ -5119,7 +5395,7 @@ fn confirm_pending_file_selection(
             );
         if selected != default_selected {
             exceptions.push(index_u32);
-            if exceptions.len() > MAX_FILE_SELECTION_ENTRIES {
+            if exceptions.len() > rstorrent_protocol::metainfo::MAX_METAINFO_FILES {
                 return Err((
                     ErrorCode::ResourceLimit,
                     format!("file selection exceeds {MAX_FILE_SELECTION_ENTRIES} exceptions"),
@@ -5129,35 +5405,17 @@ fn confirm_pending_file_selection(
     }
 
     let revision = next_revision(transaction, current_revision)?;
-    transaction
-        .execute(
-            "DELETE FROM file_selection WHERE torrent_id = ?1",
-            [torrent_id.as_bytes()],
-        )
-        .map_err(internal_error)?;
-    transaction
-        .execute(
-            "DELETE FROM file_priorities WHERE torrent_id = ?1",
-            [torrent_id.as_bytes()],
-        )
-        .map_err(internal_error)?;
-    let exception_wanted = selection_default == FilePriority::Skip;
-    for index in exceptions {
-        transaction
-            .execute(
-                "INSERT INTO file_selection(torrent_id, file_index, wanted)
-                 VALUES (?1, ?2, ?3)",
-                params![torrent_id.as_bytes(), i64::from(index), exception_wanted],
-            )
-            .map_err(internal_error)?;
-    }
+    file_state::write_mask(transaction, &torrent_id, "exceptions", &exceptions)
+        .map_err(|error| internal_message(&error.to_string()))?;
+    file_state::write_mask(transaction, &torrent_id, "high", &[])
+        .map_err(|error| internal_message(&error.to_string()))?;
     let revision_sql =
         i64::try_from(revision).map_err(|_| internal_message("profile revision overflow"))?;
     transaction
         .execute(
             "UPDATE torrents
              SET selection_default = ?2, awaiting_file_selection = 0,
-                 desired_state = 'running', error = NULL, updated_revision = ?3
+                 desired_state = 'running', seed_limit_stopped = 0, error = NULL, updated_revision = ?3
              WHERE torrent_id = ?1",
             params![
                 torrent_id.as_bytes(),
@@ -5173,12 +5431,147 @@ fn confirm_pending_file_selection(
     download_queue::append(transaction, &torrent_id)
         .map_err(|error| internal_message(&error.to_string()))?;
     if disable_future {
-        transaction
-            .execute(
-                "UPDATE storage_settings SET show_file_selection = 0 WHERE singleton = 1",
-                [],
+        disable_future_file_selection(transaction, revision)?;
+    }
+    Ok(revision)
+}
+
+/// A "don't show again" choice commits with the add it accompanies, so a
+/// rejected add never silently changes the preference.
+///
+/// The same choice releases every other queued add with the selection it
+/// already holds, exactly as if it had been added with the dialog off, so the
+/// user is not asked again for adds made before the choice. Torrents being
+/// removed or needing storage repair stay queued for their own dialog.
+fn disable_future_file_selection(
+    transaction: &Transaction<'_>,
+    revision: u64,
+) -> Result<(), (ErrorCode, String)> {
+    transaction
+        .execute(
+            "UPDATE storage_settings SET show_file_selection = 0 WHERE singleton = 1",
+            [],
+        )
+        .map_err(internal_error)?;
+    let queued = {
+        let mut statement = transaction
+            .prepare(
+                "SELECT t.torrent_id FROM torrents t
+                 LEFT JOIN removal_jobs r ON r.torrent_id = t.torrent_id
+                 WHERE t.awaiting_file_selection = 1
+                   AND t.quarantine_reason IS NULL
+                   AND r.torrent_id IS NULL
+                 ORDER BY t.created_revision, t.torrent_id",
             )
             .map_err(internal_error)?;
+        statement
+            .query_map([], |row| row.get::<_, Vec<u8>>(0))
+            .map_err(internal_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(internal_error)?
+    };
+    let revision_sql =
+        i64::try_from(revision).map_err(|_| internal_message("profile revision overflow"))?;
+    for bytes in queued {
+        let torrent_id = decode_stored_torrent_id(bytes)
+            .map_err(|error| (ErrorCode::InvalidDurableState, error.to_string()))?;
+        transaction
+            .execute(
+                "UPDATE torrents
+                 SET awaiting_file_selection = 0, desired_state = 'running', seed_limit_stopped = 0,
+                     error = NULL, updated_revision = ?2
+                 WHERE torrent_id = ?1",
+                params![torrent_id.as_bytes(), revision_sql],
+            )
+            .map_err(internal_error)?;
+        download_queue::append(transaction, &torrent_id)
+            .map_err(|error| internal_message(&error.to_string()))?;
+    }
+    Ok(())
+}
+
+/// Explicit all-files consent needs no catalog, so magnets can leave the
+/// selection stage before metadata arrives. The transaction is the authority
+/// for both selection and runtime admission, including after process restart.
+fn download_all_pending_add(
+    transaction: &Transaction<'_>,
+    torrent_id: &str,
+    disable_future: bool,
+    current_revision: u64,
+) -> Result<u64, (ErrorCode, String)> {
+    let decoded = decode_torrent_id(torrent_id).ok_or_else(|| {
+        (
+            ErrorCode::InvalidRequest,
+            "invalid torrent identity".to_owned(),
+        )
+    })?;
+    let (pending, quarantine, removing) = transaction
+        .query_row(
+            "SELECT t.awaiting_file_selection, t.quarantine_reason,
+                    r.torrent_id IS NOT NULL
+             FROM torrents t LEFT JOIN removal_jobs r ON r.torrent_id = t.torrent_id
+             WHERE t.torrent_id = ?1",
+            [decoded.as_bytes()],
+            |row| {
+                Ok((
+                    row.get::<_, bool>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, bool>(2)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(internal_error)?
+        .ok_or_else(|| {
+            (
+                ErrorCode::UnknownTorrent,
+                format!("torrent {decoded} is not in the profile"),
+            )
+        })?;
+    if !pending || removing {
+        return Err((
+            ErrorCode::InvalidTorrentState,
+            "torrent is no longer awaiting file selection".to_owned(),
+        ));
+    }
+    if quarantine.is_some() {
+        return Err((
+            ErrorCode::StorageNeedsRepair,
+            "torrent storage needs repair before downloading".to_owned(),
+        ));
+    }
+    let revision = next_revision(transaction, current_revision)?;
+    file_state::write_mask(transaction, &decoded, "exceptions", &[])
+        .map_err(|error| internal_message(&error.to_string()))?;
+    file_state::write_mask(transaction, &decoded, "high", &[])
+        .map_err(|error| internal_message(&error.to_string()))?;
+    for table in [
+        "file_selection",
+        "file_priorities",
+        "pending_selection_ranges",
+    ] {
+        transaction
+            .execute(
+                &format!("DELETE FROM {table} WHERE torrent_id = ?1"),
+                [decoded.as_bytes()],
+            )
+            .map_err(internal_error)?;
+    }
+    transaction
+        .execute(
+            "UPDATE torrents SET selection_default = 'wanted', awaiting_file_selection = 0,
+         desired_state = 'running', seed_limit_stopped = 0, error = NULL, updated_revision = ?2 WHERE torrent_id = ?1",
+            params![
+                decoded.as_bytes(),
+                i64::try_from(revision)
+                    .map_err(|_| internal_message("profile revision overflow"))?
+            ],
+        )
+        .map_err(internal_error)?;
+    download_queue::append(transaction, &decoded)
+        .map_err(|error| internal_message(&error.to_string()))?;
+    if disable_future {
+        disable_future_file_selection(transaction, revision)?;
     }
     Ok(revision)
 }
@@ -5330,10 +5723,18 @@ fn update_torrent_settings(
     })?;
     let current = transaction
         .query_row(
-            "SELECT upload_rate_limit, download_rate_limit
+            "SELECT upload_rate_limit, download_rate_limit,
+                    seed_stop_ratio_percent, seed_stop_time_seconds
              FROM torrents WHERE torrent_id = ?1",
             [torrent_id.as_bytes()],
-            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, Option<i64>>(2)?,
+                    row.get::<_, Option<i64>>(3)?,
+                ))
+            },
         )
         .optional()
         .map_err(internal_error)?
@@ -5350,10 +5751,20 @@ fn update_torrent_settings(
             internal_message(&format!("invalid durable download limit: {error}"))
         })?,
     };
+    let current_stop = read_seed_stop_limits(current.2, current.3)
+        .map_err(|error| internal_message(&error.to_string()))?;
     let limits = patch
         .apply_to(current_limits)
         .map_err(|error| (ErrorCode::InvalidRequest, error.to_string()))?;
-    let desired = (limits.upload.persisted(), limits.download.persisted());
+    let stop = patch
+        .apply_to_seed_stop(current_stop)
+        .map_err(|error| (ErrorCode::InvalidRequest, error.to_string()))?;
+    let desired = (
+        limits.upload.persisted(),
+        limits.download.persisted(),
+        stop.ratio_percent.persisted(),
+        stop.time_seconds.persisted(),
+    );
     if current == desired {
         return Ok(current_revision);
     }
@@ -5362,22 +5773,40 @@ fn update_torrent_settings(
         .execute(
             "UPDATE torrents
              SET upload_rate_limit = ?2, download_rate_limit = ?3,
-                 updated_revision = ?4
+                 seed_stop_ratio_percent = ?4, seed_stop_time_seconds = ?5,
+                 updated_revision = ?6
              WHERE torrent_id = ?1",
             params![
                 torrent_id.as_bytes(),
                 desired.0,
                 desired.1,
+                desired.2,
+                desired.3,
                 i64::try_from(revision).map_err(|_| internal_message("revision overflow"))?,
             ],
         )
         .map_err(internal_error)?;
     if changed != 1 {
         return Err(internal_message(
-            "torrent transfer-limit update changed an unexpected row count",
+            "torrent settings update changed an unexpected row count",
         ));
     }
     Ok(revision)
+}
+
+fn read_seed_stop_limits(
+    ratio_percent: Option<i64>,
+    time_seconds: Option<i64>,
+) -> Result<TorrentSeedStopLimits, StoreError> {
+    let invalid = |error: crate::ClientSettingsError| {
+        StoreError::DurableState(format!("invalid torrent seed stop limit: {error}"))
+    };
+    Ok(TorrentSeedStopLimits {
+        ratio_percent: TorrentSeedStopLimit::from_persisted("seed stop ratio", ratio_percent)
+            .map_err(invalid)?,
+        time_seconds: TorrentSeedStopLimit::from_persisted("seed stop time", time_seconds)
+            .map_err(invalid)?,
+    })
 }
 
 fn next_revision_strict(
@@ -5407,7 +5836,8 @@ fn read_snapshot(connection: &Connection, profile_id: &str) -> Result<ServiceSna
                 t.desired_state, t.verification_requested,
                 t.verification_completed, t.quarantine_reason,
                 t.upload_rate_limit, t.download_rate_limit,
-                t.awaiting_file_selection
+                t.awaiting_file_selection, t.seed_stop_ratio_percent,
+                t.seed_stop_time_seconds, t.seed_limit_stopped
          FROM torrents t
          LEFT JOIN removal_jobs r ON r.torrent_id = t.torrent_id
          ORDER BY t.torrent_id",
@@ -5431,6 +5861,9 @@ fn read_snapshot(connection: &Connection, profile_id: &str) -> Result<ServiceSna
             row.get::<_, i64>(14)?,
             row.get::<_, i64>(15)?,
             row.get::<_, bool>(16)?,
+            row.get::<_, Option<i64>>(17)?,
+            row.get::<_, Option<i64>>(18)?,
+            row.get::<_, bool>(19)?,
         ))
     })?;
     let mut torrents = Vec::new();
@@ -5475,12 +5908,9 @@ fn read_snapshot(connection: &Connection, profile_id: &str) -> Result<ServiceSna
             || (row.4.is_some() && have.is_none());
         let (selection_default, selection_exceptions) =
             read_selection_state(connection, &torrent_id)?;
-        let skip_files = if selection_default == FilePriority::Normal {
-            selection_exceptions.clone()
-        } else {
-            read_selection(connection, &torrent_id)?
-        };
-        let high_priority_files = read_high_priority_files(connection, &torrent_id)?;
+        let skip_files = read_selection(connection, &torrent_id)?;
+        let mut high_priority_files = read_high_priority_files(connection, &torrent_id)?;
+        high_priority_files.retain(|index| skip_files.binary_search(index).is_err());
         let metainfo_source = read_verbatim_metainfo_source(connection, &torrent_id)?;
         let (has_wanted_pieces, all_wanted_verified, evidence_error) = match (&row.2, &have) {
             (Some(raw_info), Some(have)) => {
@@ -5516,6 +5946,7 @@ fn read_snapshot(connection: &Connection, profile_id: &str) -> Result<ServiceSna
         } else {
             have.as_ref().map_or(0, HaveState::verified_count)
         };
+        let safety_summary = safety::summary(connection, &torrent_id)?;
         let (
             file_catalog_id,
             selectable_file_count,
@@ -5545,8 +5976,7 @@ fn read_snapshot(connection: &Connection, profile_id: &str) -> Result<ServiceSna
                         let index = u32::try_from(index).map_err(|_| {
                             StoreError::DurableState("file index overflow".to_owned())
                         })?;
-                        let selected = selection_exceptions.binary_search(&index).is_err()
-                            == (selection_default == FilePriority::Normal);
+                        let selected = skip_files.binary_search(&index).is_err();
                         if selected {
                             selected_count += 1;
                             selected_bytes =
@@ -5571,6 +6001,7 @@ fn read_snapshot(connection: &Connection, profile_id: &str) -> Result<ServiceSna
             (None, 0, 0, "0".to_owned(), "0".to_owned())
         };
         torrents.push(TorrentSnapshot {
+            safety_summary: row.2.as_ref().map(|_| safety_summary),
             torrent_id: torrent_id.to_string(),
             protocol_identities,
             storage_root: row.1,
@@ -5598,6 +6029,8 @@ fn read_snapshot(connection: &Connection, profile_id: &str) -> Result<ServiceSna
                     StoreError::DurableState(format!("invalid torrent download rate: {error}"))
                 })?,
             },
+            seed_stop_limits: read_seed_stop_limits(row.17, row.18)?,
+            seed_limit_stopped: row.19,
             skip_files: if selection_default == FilePriority::Normal {
                 selection_exceptions.clone()
             } else {
@@ -5693,6 +6126,22 @@ fn removal_record(torrent_id: &str, row: RemovalRow) -> Result<RemovalRecord, St
 }
 
 fn read_selection(connection: &Connection, torrent_id: &TorrentId) -> Result<Vec<u32>, StoreError> {
+    let ordinary = read_ordinary_selection(connection, torrent_id)?;
+    let blocked = safety::matched_mask(connection, torrent_id)?;
+    if blocked.bytes().is_empty() {
+        return Ok(ordinary);
+    }
+    let allowed = file_state::read_mask(connection, torrent_id, "allowed")?;
+    let mut skipped = crate::file_bitmap::FileBitmap::from_indices(&ordinary)
+        .map_err(|e| StoreError::DurableState(e.into()))?;
+    skipped.include_unallowed(&blocked, &allowed);
+    Ok(skipped.indices())
+}
+
+fn read_ordinary_selection(
+    connection: &Connection,
+    torrent_id: &TorrentId,
+) -> Result<Vec<u32>, StoreError> {
     let (default, exceptions) = read_selection_state(connection, torrent_id)?;
     if default == FilePriority::Normal {
         return Ok(exceptions);
@@ -5722,39 +6171,7 @@ fn read_high_priority_files(
     connection: &Connection,
     torrent_id: &TorrentId,
 ) -> Result<Vec<u32>, StoreError> {
-    let mut statement = connection.prepare(
-        "SELECT file_index, priority FROM file_priorities
-         WHERE torrent_id = ?1 ORDER BY file_index",
-    )?;
-    let rows = statement.query_map([torrent_id.as_bytes()], |row| {
-        Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
-    })?;
-    let mut priorities = Vec::new();
-    for row in rows {
-        let (index, priority) = row?;
-        if priority != "high" {
-            return Err(StoreError::DurableState(
-                "invalid persisted file priority".to_owned(),
-            ));
-        }
-        if !(0..i64::try_from(DURABLE_METAINFO_LIMITS.max_files).expect("file bound fits i64"))
-            .contains(&index)
-        {
-            return Err(StoreError::DurableState(
-                "invalid file priority index".to_owned(),
-            ));
-        }
-        priorities.push(
-            u32::try_from(index)
-                .map_err(|_| StoreError::DurableState("priority index overflow".to_owned()))?,
-        );
-    }
-    if priorities.len() > MAX_FILE_SELECTION_ENTRIES {
-        return Err(StoreError::DurableState(
-            "file priority count exceeds the supported bound".to_owned(),
-        ));
-    }
-    Ok(priorities)
+    Ok(file_state::read_mask(connection, torrent_id, "high")?.indices())
 }
 
 fn read_selection_state(
@@ -5766,43 +6183,19 @@ fn read_selection_state(
         [torrent_id.as_bytes()],
         |row| row.get(0),
     )?;
-    let (default, expected_wanted) = match default.as_str() {
-        "wanted" => (FilePriority::Normal, false),
-        "skipped" => (FilePriority::Skip, true),
+    let default = match default.as_str() {
+        "wanted" => FilePriority::Normal,
+        "skipped" => FilePriority::Skip,
         _ => {
             return Err(StoreError::DurableState(
                 "invalid selection default".to_owned(),
             ));
         }
     };
-    let mut statement = connection.prepare(
-        "SELECT file_index, wanted FROM file_selection
-         WHERE torrent_id = ?1 ORDER BY file_index",
-    )?;
-    let rows = statement.query_map([torrent_id.as_bytes()], |row| {
-        Ok((row.get::<_, i64>(0)?, row.get::<_, bool>(1)?))
-    })?;
-    let mut selection = Vec::new();
-    for row in rows {
-        let (index, wanted) = row?;
-        if wanted != expected_wanted {
-            return Err(StoreError::DurableState(
-                "selection exception matches its default".to_owned(),
-            ));
-        }
-        if !(0..i64::try_from(DURABLE_METAINFO_LIMITS.max_files).expect("file bound fits i64"))
-            .contains(&index)
-        {
-            return Err(StoreError::DurableState(
-                "invalid file selection index".to_owned(),
-            ));
-        }
-        selection.push(
-            u32::try_from(index)
-                .map_err(|_| StoreError::DurableState("selection index overflow".to_owned()))?,
-        );
-    }
-    Ok((default, selection))
+    Ok((
+        default,
+        file_state::read_mask(connection, torrent_id, "exceptions")?.indices(),
+    ))
 }
 
 fn read_trackers(
@@ -6223,6 +6616,7 @@ fn map_durable_metainfo_error(error: MetainfoError) -> StoreError {
 }
 
 struct DurableContentDescriptor {
+    name: String,
     info_hashes: InfoHashes,
     layout: ContentLayout,
 }
@@ -6254,6 +6648,7 @@ fn parse_durable_content_descriptor(
                 ));
             }
             Ok(DurableContentDescriptor {
+                name: projection.content.name().to_owned(),
                 info_hashes: projection.content.info_hashes(),
                 layout: ContentLayout::from_content(&projection.content),
             })
@@ -6300,6 +6695,11 @@ fn parse_durable_content_descriptor(
                 },
             };
             Ok(DurableContentDescriptor {
+                name: match parsed.kind() {
+                    ParsedInfoKind::V1(info) => info.name.clone(),
+                    ParsedInfoKind::V2(info) => info.name.clone(),
+                    ParsedInfoKind::Hybrid(info) => info.v2.name.clone(),
+                },
                 info_hashes: parsed.info_hashes(),
                 layout,
             })
@@ -6363,17 +6763,13 @@ fn canonical_magnet(magnet: &Magnet) -> String {
         output.push_str("&dn=");
         percent_encode_query_value(&mut output, display_name.as_bytes());
     }
+    if let Some(exact_length) = magnet.exact_length {
+        output.push_str("&xl=");
+        output.push_str(&exact_length.to_string());
+    }
     for hint in &magnet.peer_hints {
         output.push_str("&x.pe=");
-        if hint.host.contains(':') {
-            output.push('[');
-            output.push_str(&hint.host);
-            output.push(']');
-        } else {
-            output.push_str(&hint.host);
-        }
-        output.push(':');
-        output.push_str(&hint.port.to_string());
+        output.push_str(&hint.magnet_value());
     }
     for tracker in &magnet.trackers {
         output.push_str("&tr=");
@@ -6424,7 +6820,165 @@ fn synthesize_magnet_export(
         magnet,
         source: MagnetExportSource::Synthesized,
         omitted_tracker_count: u32::try_from(omitted_trackers).unwrap_or(u32::MAX),
+        peer_hints: Vec::new(),
+        peer_hint_omission: None,
     }
+}
+
+/// Verified metainfo facts a share export may publish.
+struct ShareContentFacts {
+    total_length: u64,
+    private: bool,
+    /// One entry per file in the `FileView::file_index` space; true for a
+    /// BEP 47 padding file.
+    padding: Vec<bool>,
+}
+
+fn share_content_facts(raw_info: &[u8]) -> Result<ShareContentFacts, StoreError> {
+    validate_raw_info_length(raw_info)?;
+    let parsed = ParsedInfo::from_bytes_with_limits(raw_info, DURABLE_METAINFO_LIMITS)
+        .map_err(map_durable_metainfo_error)?;
+    Ok(match parsed.kind() {
+        ParsedInfoKind::V1(metainfo) => ShareContentFacts {
+            total_length: metainfo.total_length,
+            private: metainfo.private,
+            padding: metainfo.files.iter().map(|file| file.padding).collect(),
+        },
+        ParsedInfoKind::V2(metainfo) => ShareContentFacts {
+            total_length: metainfo.total_length,
+            private: metainfo.private,
+            padding: vec![false; metainfo.files.len()],
+        },
+        ParsedInfoKind::Hybrid(metainfo) => ShareContentFacts {
+            total_length: metainfo.v2.total_length,
+            private: metainfo.v2.private,
+            padding: vec![false; metainfo.v2.files.len()],
+        },
+    })
+}
+
+/// Apply [`MagnetExportOptions`] to a base export. Existing `xl`, `so` and
+/// `x.pe` parameters are replaced, never passed through: every published
+/// value comes from verified metadata or the session's own endpoints.
+fn apply_share_options(
+    base: MagnetExportResult,
+    content: Option<&ShareContentFacts>,
+    options: &MagnetExportOptions,
+    share_endpoints: Option<&ShareEndpointFacts>,
+) -> Result<MagnetExportResult, (ErrorCode, String)> {
+    let exact_length = content
+        .filter(|_| options.include_size)
+        .map(|content| content.total_length)
+        .filter(|length| *length > 0);
+    let select_only = if options.file_indices.is_empty() {
+        None
+    } else {
+        let content = content.ok_or_else(|| {
+            (
+                ErrorCode::InvalidTorrentState,
+                "sharing files requires verified metadata".to_owned(),
+            )
+        })?;
+        Some(share_select_only(&options.file_indices, &content.padding)?)
+    };
+    let (hints, peer_hint_omission) = if !options.peer_hint {
+        (Vec::new(), None)
+    } else {
+        match content {
+            None => (Vec::new(), Some(MagnetPeerHintOmission::MetadataPending)),
+            Some(content) if content.private => {
+                (Vec::new(), Some(MagnetPeerHintOmission::PrivateTorrent))
+            }
+            Some(_) => match select_peer_hints(share_endpoints) {
+                Ok(hints) => (hints, None),
+                Err(omission) => (Vec::new(), Some(omission)),
+            },
+        }
+    };
+    let magnet_hints = hints
+        .iter()
+        .map(|hint| PeerHint {
+            host: hint.endpoint.ip().to_string(),
+            port: hint.endpoint.port(),
+        })
+        .collect::<Vec<_>>();
+    let magnet = replace_share_parameters(
+        &base.magnet,
+        MagnetShareParameters {
+            exact_length,
+            select_only: select_only.as_ref(),
+            peer_hints: &magnet_hints,
+        },
+    );
+    if magnet.len() > MAX_MAGNET_LENGTH {
+        return Err((
+            ErrorCode::ResourceLimit,
+            format!("shared magnet exceeds {MAX_MAGNET_LENGTH} bytes"),
+        ));
+    }
+    Ok(MagnetExportResult {
+        magnet,
+        source: base.source,
+        omitted_tracker_count: base.omitted_tracker_count,
+        peer_hints: hints
+            .into_iter()
+            .zip(&magnet_hints)
+            .map(|(hint, magnet_hint)| MagnetPeerHint {
+                endpoint: magnet_hint.magnet_value(),
+                scope: hint.scope,
+            })
+            .collect(),
+        peer_hint_omission,
+    })
+}
+
+/// Encode sorted, unique file indices as BEP 53 ranges after checking each
+/// against the verified file list. A gap made only of padding files joins
+/// its neighbours, since no client downloads a padding file.
+fn share_select_only(
+    file_indices: &[u32],
+    padding: &[bool],
+) -> Result<SelectOnly, (ErrorCode, String)> {
+    let mut ranges: Vec<MagnetFileIndexRange> = Vec::new();
+    for &index in file_indices {
+        match usize::try_from(index)
+            .ok()
+            .and_then(|position| padding.get(position))
+        {
+            None => {
+                return Err((
+                    ErrorCode::InvalidRequest,
+                    format!("file index {index} is outside the torrent file list"),
+                ));
+            }
+            Some(true) => {
+                return Err((
+                    ErrorCode::InvalidRequest,
+                    format!("file index {index} is a padding file"),
+                ));
+            }
+            Some(false) => {}
+        }
+        if let Some(last) = ranges.last_mut()
+            && index > last.end
+            && padding[last.end as usize + 1..index as usize]
+                .iter()
+                .all(|padding| *padding)
+        {
+            last.end = index;
+        } else {
+            ranges.push(MagnetFileIndexRange {
+                start: index,
+                end: index,
+            });
+        }
+    }
+    SelectOnly::from_ranges(ranges).ok_or_else(|| {
+        (
+            ErrorCode::InvalidRequest,
+            "shared file selection cannot be encoded".to_owned(),
+        )
+    })
 }
 
 fn append_magnet_identities(output: &mut String, identities: InfoHashes) {
@@ -6497,9 +7051,22 @@ fn internal_message(message: &str) -> (ErrorCode, String) {
 }
 
 #[cfg(test)]
+impl SessionStore {
+    pub(crate) fn connection(&self) -> &Connection {
+        &self.connection
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn create_baseline_for_test(transaction: &Transaction<'_>) {
+    create_schema_26(transaction, "default", &ClientSettings::default())
+        .expect("create baseline catalog");
+}
+
+#[cfg(test)]
 mod tests {
     use std::fs;
-    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddrV4};
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -6514,13 +7081,14 @@ mod tests {
     use sha2::Sha256;
 
     use super::{
-        ConfiguredStorageRoot, MAX_ACCOUNTING_BATCH, MAX_PENDING_PRODUCT_MILESTONES,
-        PendingReconciliation, SCHEMA_VERSION, SessionStore, StoreError, StoredTracker,
-        StoredTrackerSource, StoredTrackerTransport, TorrentAccounting, TorrentAccountingUpdate,
-        append_product_milestone, synthesize_magnet_export,
+        ConfiguredStorageRoot, MAX_ACCOUNTING_BATCH, MAX_FILE_SELECTION_ENTRIES,
+        MAX_PENDING_PRODUCT_MILESTONES, PendingReconciliation, SCHEMA_VERSION, SessionStore,
+        StoreError, StoredTracker, StoredTrackerSource, StoredTrackerTransport, TorrentAccounting,
+        TorrentAccountingUpdate, append_product_milestone, synthesize_magnet_export,
     };
     use crate::ClientSettings;
     use crate::have::{HaveState, MAX_DURABLE_HAVE_STATE_BYTES, MAX_DURABLE_PIECES};
+    use crate::share_peer_hints::ShareEndpointFacts;
     use crate::{
         ActiveSeedLimit, AddTorrentBytesRequest, CONTROL_VERSION, Command, EncryptionPolicy,
         ErrorCode, FileIndexRange, FilePriority, FileSelectionIntent,
@@ -6528,6 +7096,7 @@ mod tests {
         ProductMilestoneKind, RemovalDataPolicy, RemovalState, RequestEnvelope, ResponseOutcome,
         StorageState, TorrentState, TorrentTransferLimits, TransferRateLimit,
     };
+    use crate::{MagnetExportOptions, MagnetPeerHint, MagnetPeerHintOmission, MagnetPeerHintScope};
 
     static NEXT_TEST: AtomicU64 = AtomicU64::new(0);
 
@@ -6686,7 +7255,9 @@ mod tests {
         let hashes = super::read_info_hashes(&store.connection, &owner).expect("aliases");
         assert!(hashes.is_hybrid());
         assert_eq!(hashes.v2_hash(), Some(V2InfoHash::new([0xaa; 32])));
-        let export = store.export_magnet(&torrent_id).expect("hybrid export");
+        let (export, _) = store
+            .export_base_magnet(&torrent_id)
+            .expect("hybrid export");
         assert_eq!(export.magnet, source);
     }
 
@@ -6900,7 +7471,7 @@ mod tests {
         let configured = configured_root(&root);
         let source = "magnet:?dn=Original%20Name&ws=https%3A%2F%2Fseed.example%2Ffile\
              &tr=udp%3A%2F%2Ftracker.example%3A6969%2Fannounce\
-             &xt=urn:btih:000102030405060708090A0B0C0D0E0F10111213";
+             &xt=urn:btih:000102030405060708090A0B0C0D0E0F10111213&xl=4096";
         let mut store = SessionStore::open(&root, "default", &[configured]).expect("open");
         let added = store
             .handle_durable(&RequestEnvelope {
@@ -6919,13 +7490,9 @@ mod tests {
         assert_eq!(added.revision, "1");
         let torrent_id = added_torrent_id(&added);
         let resume = store.load_resume(&torrent_id).expect("load named source");
-        assert_eq!(
-            Magnet::parse(&resume.magnet)
-                .expect("parse operational magnet")
-                .display_name
-                .as_deref(),
-            Some("Original Name")
-        );
+        let operational = Magnet::parse(&resume.magnet).expect("parse operational magnet");
+        assert_eq!(operational.display_name.as_deref(), Some("Original Name"));
+        assert_eq!(operational.exact_length, Some(4096));
 
         let owner = super::decode_torrent_id(&torrent_id).expect("owner");
         store
@@ -6942,13 +7509,9 @@ mod tests {
         let recovered = store
             .load_resume(&torrent_id)
             .expect("recover retained source name");
-        assert_eq!(
-            Magnet::parse(&recovered.magnet)
-                .expect("parse recovered operational magnet")
-                .display_name
-                .as_deref(),
-            Some("Original Name")
-        );
+        let recovered = Magnet::parse(&recovered.magnet).expect("parse recovered magnet");
+        assert_eq!(recovered.display_name.as_deref(), Some("Original Name"));
+        assert_eq!(recovered.exact_length, Some(4096));
 
         let export = store
             .handle_durable(&export_request("export-verbatim", &torrent_id))
@@ -7858,8 +8421,292 @@ mod tests {
             expected_revision: None,
             command: Command::ExportMagnet {
                 torrent_id: torrent_id.to_owned(),
+                options: None,
             },
         }
+    }
+
+    fn share_request(
+        request_id: &str,
+        torrent_id: &str,
+        options: MagnetExportOptions,
+    ) -> RequestEnvelope {
+        RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: request_id.to_owned(),
+            expected_revision: None,
+            command: Command::ExportMagnet {
+                torrent_id: torrent_id.to_owned(),
+                options: Some(options),
+            },
+        }
+    }
+
+    fn export_result(response: crate::ResponseEnvelope) -> crate::MagnetExportResult {
+        match response.result.expect("export result") {
+            crate::CommandResult::ExportMagnet { result } => result,
+            crate::CommandResult::AddTorrent { .. } => panic!("unexpected add result"),
+        }
+    }
+
+    fn error_code(response: &crate::ResponseEnvelope) -> ErrorCode {
+        match &response.outcome {
+            ResponseOutcome::Error { error } => error.code,
+            ResponseOutcome::Success { .. } => panic!("expected an error response"),
+        }
+    }
+
+    /// Four files: `a` (2 bytes), a padding file, `b` and `c` (4 bytes each).
+    fn share_raw_info(private: bool) -> Vec<u8> {
+        let files = concat!(
+            "d6:lengthi2e4:pathl1:aee",
+            "d4:attr1:p6:lengthi2ee",
+            "d6:lengthi4e4:pathl1:bee",
+            "d6:lengthi4e4:pathl1:cee",
+        );
+        let mut raw =
+            format!("d5:filesl{files}e4:name5:share12:piece lengthi4e6:pieces60:").into_bytes();
+        raw.extend_from_slice(&[7; 60]);
+        if private {
+            raw.extend_from_slice(b"7:privatei1e");
+        }
+        raw.push(b'e');
+        raw
+    }
+
+    fn add_share_torrent(
+        store: &mut SessionStore,
+        request_id: &str,
+        raw_info: &[u8],
+    ) -> (String, String) {
+        let hash = super::encode_hex(&Sha1::digest(raw_info));
+        let source = format!(
+            "magnet:?xt=urn:btih:{hash}&dn=Shared&xl=999&so=3&x.pe=10.0.0.9:1\
+             &tr=udp%3A%2F%2Ftracker.example%3A6969"
+        );
+        let added = store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: request_id.to_owned(),
+                expected_revision: None,
+                command: Command::AddMagnet {
+                    magnet: source.clone(),
+                    storage_root: "downloads".to_owned(),
+                    start_content: false,
+                    await_file_selection: false,
+                    skip_files: Vec::new(),
+                },
+            })
+            .expect("add share magnet");
+        (added_torrent_id(&added), source)
+    }
+
+    fn lan_facts() -> ShareEndpointFacts {
+        ShareEndpointFacts {
+            ipv4_listener: Some(SocketAddrV4::new(Ipv4Addr::new(192, 168, 1, 20), 6881)),
+            ..ShareEndpointFacts::default()
+        }
+    }
+
+    #[test]
+    fn share_export_replaces_owned_parameters_from_verified_metadata() {
+        let root = test_root("share-export");
+        let configured = configured_root(&root);
+        let mut store = SessionStore::open(&root, "default", &[configured]).expect("open");
+        let raw_info = share_raw_info(false);
+        let (torrent_id, source) = add_share_torrent(&mut store, "add-share", &raw_info);
+
+        // Before metadata: no verified size or file list, and no hint.
+        let pending = export_result(
+            store
+                .handle_durable_with_share_endpoints(
+                    &share_request(
+                        "share-pending",
+                        &torrent_id,
+                        MagnetExportOptions {
+                            include_size: true,
+                            file_indices: Vec::new(),
+                            peer_hint: true,
+                        },
+                    ),
+                    Some(&lan_facts()),
+                )
+                .expect("share before metadata"),
+        );
+        let hash = super::encode_hex(&Sha1::digest(&raw_info));
+        assert_eq!(
+            pending.magnet,
+            format!("magnet:?xt=urn:btih:{hash}&dn=Shared&tr=udp%3A%2F%2Ftracker.example%3A6969")
+        );
+        assert!(pending.peer_hints.is_empty());
+        assert_eq!(
+            pending.peer_hint_omission,
+            Some(MagnetPeerHintOmission::MetadataPending)
+        );
+        let selection_pending = store
+            .handle_durable(&share_request(
+                "share-pending-files",
+                &torrent_id,
+                MagnetExportOptions {
+                    file_indices: vec![0],
+                    ..MagnetExportOptions::default()
+                },
+            ))
+            .expect("typed pending selection error");
+        assert_eq!(
+            error_code(&selection_pending),
+            ErrorCode::InvalidTorrentState
+        );
+
+        store
+            .record_metadata(&torrent_id, &raw_info)
+            .expect("record metadata");
+
+        // Without options the retained source is still exported verbatim,
+        // and the wire result carries no share fields.
+        let plain = store
+            .handle_durable(&export_request("share-plain", &torrent_id))
+            .expect("plain export");
+        let wire = serde_json::to_value(plain.result.as_ref().expect("result")).expect("wire");
+        assert!(wire["result"].get("peer_hints").is_none());
+        assert!(wire["result"].get("peer_hint_omission").is_none());
+        let plain = export_result(plain);
+        assert_eq!(plain.magnet, source);
+        assert_eq!(plain.source, MagnetExportSource::Verbatim);
+
+        let shared = export_result(
+            store
+                .handle_durable_with_share_endpoints(
+                    &share_request(
+                        "share-rich",
+                        &torrent_id,
+                        MagnetExportOptions {
+                            include_size: true,
+                            file_indices: vec![0, 2],
+                            peer_hint: true,
+                        },
+                    ),
+                    Some(&lan_facts()),
+                )
+                .expect("rich share"),
+        );
+        assert_eq!(
+            shared.magnet,
+            format!(
+                "magnet:?xt=urn:btih:{hash}&dn=Shared&tr=udp%3A%2F%2Ftracker.example%3A6969\
+                 &xl=12&so=0-2&x.pe=192.168.1.20:6881"
+            )
+        );
+        assert_eq!(shared.source, MagnetExportSource::Verbatim);
+        assert_eq!(
+            shared.peer_hints,
+            vec![MagnetPeerHint {
+                endpoint: "192.168.1.20:6881".to_owned(),
+                scope: MagnetPeerHintScope::LocalNetwork,
+            }]
+        );
+        assert_eq!(shared.peer_hint_omission, None);
+        let parsed = Magnet::parse(&shared.magnet).expect("shared magnet parses");
+        assert_eq!(parsed.exact_length, Some(12));
+        assert_eq!(parsed.select_only.expect("selection").canonical(), "0-2");
+
+        // A gap holding a real file is kept; options can also drop keys.
+        let split = export_result(
+            store
+                .handle_durable(&share_request(
+                    "share-split",
+                    &torrent_id,
+                    MagnetExportOptions {
+                        file_indices: vec![0, 3],
+                        ..MagnetExportOptions::default()
+                    },
+                ))
+                .expect("split share"),
+        );
+        assert!(split.magnet.ends_with("&so=0,3"), "{}", split.magnet);
+        assert!(!split.magnet.contains("xl="));
+        assert!(!split.magnet.contains("x.pe="));
+
+        // Without a network runtime a requested hint reports why.
+        let offline = export_result(
+            store
+                .handle_durable(&share_request(
+                    "share-offline",
+                    &torrent_id,
+                    MagnetExportOptions {
+                        peer_hint: true,
+                        ..MagnetExportOptions::default()
+                    },
+                ))
+                .expect("offline share"),
+        );
+        assert_eq!(
+            offline.peer_hint_omission,
+            Some(MagnetPeerHintOmission::IncomingDisabled)
+        );
+
+        for (request_id, indices, code) in [
+            ("share-padding", vec![1], ErrorCode::InvalidRequest),
+            ("share-outside", vec![4], ErrorCode::InvalidRequest),
+            ("share-unsorted", vec![2, 0], ErrorCode::InvalidRequest),
+            ("share-duplicate", vec![2, 2], ErrorCode::InvalidRequest),
+            (
+                "share-too-many",
+                (0..=MAX_FILE_SELECTION_ENTRIES as u32).collect(),
+                ErrorCode::InvalidRequest,
+            ),
+        ] {
+            let rejected = store
+                .handle_durable(&share_request(
+                    request_id,
+                    &torrent_id,
+                    MagnetExportOptions {
+                        file_indices: indices,
+                        ..MagnetExportOptions::default()
+                    },
+                ))
+                .expect("typed selection error");
+            assert_eq!(error_code(&rejected), code, "{request_id}");
+        }
+        drop(store);
+        fs::remove_dir_all(root).expect("remove test profile");
+    }
+
+    #[test]
+    fn share_export_never_hints_a_private_torrent() {
+        let root = test_root("share-private");
+        let configured = configured_root(&root);
+        let mut store = SessionStore::open(&root, "default", &[configured]).expect("open");
+        let raw_info = share_raw_info(true);
+        let (torrent_id, _) = add_share_torrent(&mut store, "add-private-share", &raw_info);
+        store
+            .record_metadata(&torrent_id, &raw_info)
+            .expect("record private metadata");
+        let shared = export_result(
+            store
+                .handle_durable_with_share_endpoints(
+                    &share_request(
+                        "share-private",
+                        &torrent_id,
+                        MagnetExportOptions {
+                            include_size: true,
+                            file_indices: Vec::new(),
+                            peer_hint: true,
+                        },
+                    ),
+                    Some(&lan_facts()),
+                )
+                .expect("private share"),
+        );
+        assert!(shared.peer_hints.is_empty());
+        assert_eq!(
+            shared.peer_hint_omission,
+            Some(MagnetPeerHintOmission::PrivateTorrent)
+        );
+        assert!(!shared.magnet.contains("x.pe="), "{}", shared.magnet);
+        assert!(shared.magnet.contains("&xl=12"), "{}", shared.magnet);
+        drop(store);
+        fs::remove_dir_all(root).expect("remove test profile");
     }
 
     fn torrent_bytes_request(request_id: &str, source: &[u8]) -> AddTorrentBytesRequest {
@@ -8411,6 +9258,177 @@ mod tests {
     }
 
     #[test]
+    fn download_all_pending_magnet_survives_reopen_and_late_metadata() {
+        let root = test_root("pending-all-before-metadata");
+        let configured = configured_root(&root);
+        let mut store =
+            SessionStore::open(&root, "default", std::slice::from_ref(&configured)).unwrap();
+        let raw_info = multi_file_info();
+        let info_hash: [u8; 20] = Sha1::digest(&raw_info).into();
+        let mut add = add_request("pending-all-add");
+        if let Command::AddMagnet {
+            magnet,
+            skip_files,
+            await_file_selection,
+            ..
+        } = &mut add.command
+        {
+            *magnet = format!("magnet:?xt=urn:btih:{}&so=1", super::encode_hex(&info_hash));
+            skip_files.clear();
+            *await_file_selection = true;
+        }
+        let added = store.handle_durable(&add).unwrap();
+        let torrent_id = added_torrent_id(&added);
+        let pending = store.snapshot().unwrap();
+        assert!(pending.torrents[0].awaiting_file_selection);
+        assert!(pending.torrents[0].file_catalog_id.is_none());
+        let request = RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: "pending-download-all".into(),
+            expected_revision: None,
+            command: Command::DownloadAllPendingAdd {
+                torrent_id: torrent_id.clone(),
+                disable_future: false,
+            },
+        };
+        // A failed durable write must leave the pending choice and source ranges intact.
+        store
+            .connection
+            .execute_batch(
+                "CREATE TRIGGER reject_pending_all BEFORE UPDATE ON torrents
+            BEGIN SELECT RAISE(ABORT, 'injected pending write failure'); END;",
+            )
+            .unwrap();
+        let before_failure = store.revision().unwrap();
+        let failed = store.handle_durable(&request).unwrap();
+        assert!(matches!(
+            failed.outcome,
+            crate::ResponseOutcome::Error { .. }
+        ));
+        assert_eq!(store.revision().unwrap(), before_failure);
+        assert_eq!(
+            store.snapshot().unwrap().torrents[0].selection_default,
+            FilePriority::Skip
+        );
+        assert!(store.snapshot().unwrap().torrents[0].awaiting_file_selection);
+        store
+            .connection
+            .execute_batch("DROP TRIGGER reject_pending_all")
+            .unwrap();
+        assert_eq!(store.handle_durable(&request).unwrap(), failed);
+        assert_eq!(store.revision().unwrap(), before_failure);
+        let mut request = request;
+        request.request_id = "pending-download-all-retry".into();
+        let response = store.handle_durable(&request).unwrap();
+        assert!(matches!(
+            response.outcome,
+            crate::ResponseOutcome::Success { .. }
+        ));
+        let revision = store.revision().unwrap();
+        assert_eq!(store.handle_durable(&request).unwrap(), response);
+        assert_eq!(store.revision().unwrap(), revision);
+        drop(store);
+        let mut store = SessionStore::open(&root, "default", &[configured]).unwrap();
+        let snapshot = store.snapshot().unwrap();
+        assert!(!snapshot.torrents[0].awaiting_file_selection);
+        assert!(snapshot.torrents[0].desired_running);
+        assert!(snapshot.storage.show_file_selection);
+        assert_eq!(snapshot.torrents[0].selection_default, FilePriority::Normal);
+        assert!(snapshot.torrents[0].selection_exceptions.is_empty());
+        // Delayed catalog arrival cannot resurrect the magnet's select-only ranges.
+        store.record_metadata(&torrent_id, &raw_info).unwrap();
+        let resume = store.load_resume(&torrent_id).unwrap();
+        assert!(resume.skip_files.is_empty());
+        assert!(resume.desired_running);
+        let mut all = request.clone();
+        let before = store.revision().unwrap();
+        all.request_id = "reject-existing-all".into();
+        let rejected = store.handle_durable(&all).unwrap();
+        assert!(matches!(
+            rejected.outcome,
+            crate::ResponseOutcome::Error {
+                error: crate::ErrorResponse {
+                    code: ErrorCode::InvalidTorrentState,
+                    ..
+                }
+            }
+        ));
+        assert_eq!(store.revision().unwrap(), before);
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn download_all_pending_add_disables_future_selection_atomically() {
+        let root = test_root("pending-all-disable-future");
+        let configured = configured_root(&root);
+        let mut store =
+            SessionStore::open(&root, "default", std::slice::from_ref(&configured)).unwrap();
+        let mut add = add_request("pending-all-disable-add");
+        if let Command::AddMagnet {
+            skip_files,
+            await_file_selection,
+            ..
+        } = &mut add.command
+        {
+            skip_files.clear();
+            *await_file_selection = true;
+        }
+        let torrent_id = added_torrent_id(&store.handle_durable(&add).unwrap());
+        assert!(
+            store.snapshot().unwrap().torrents[0]
+                .file_catalog_id
+                .is_none()
+        );
+        let mut request = RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: "pending-all-disable".into(),
+            expected_revision: None,
+            command: Command::DownloadAllPendingAdd {
+                torrent_id,
+                disable_future: true,
+            },
+        };
+        // The preference is written last; its failure must also roll back the add.
+        store
+            .connection
+            .execute_batch(
+                "CREATE TRIGGER reject_preference BEFORE UPDATE ON storage_settings
+            BEGIN SELECT RAISE(ABORT, 'injected preference write failure'); END;",
+            )
+            .unwrap();
+        let before_failure = store.revision().unwrap();
+        let failed = store.handle_durable(&request).unwrap();
+        assert!(matches!(
+            failed.outcome,
+            crate::ResponseOutcome::Error { .. }
+        ));
+        assert_eq!(store.revision().unwrap(), before_failure);
+        let snapshot = store.snapshot().unwrap();
+        assert!(snapshot.torrents[0].awaiting_file_selection);
+        assert!(!snapshot.torrents[0].desired_running);
+        assert!(snapshot.storage.show_file_selection);
+        store
+            .connection
+            .execute_batch("DROP TRIGGER reject_preference")
+            .unwrap();
+        request.request_id = "pending-all-disable-retry".into();
+        let response = store.handle_durable(&request).unwrap();
+        assert!(matches!(
+            response.outcome,
+            crate::ResponseOutcome::Success { .. }
+        ));
+        drop(store);
+        let store = SessionStore::open(&root, "default", &[configured]).unwrap();
+        let snapshot = store.snapshot().unwrap();
+        assert!(!snapshot.torrents[0].awaiting_file_selection);
+        assert!(snapshot.torrents[0].desired_running);
+        assert!(!snapshot.storage.show_file_selection);
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn pending_add_selection_confirms_atomically_and_survives_reopen() {
         let root = test_root("pending-add-selection");
         let configured = configured_root(&root);
@@ -8495,7 +9513,133 @@ mod tests {
     }
 
     #[test]
-    fn select_only_exception_budget_rejects_metadata_atomically() {
+    fn disabling_file_selection_releases_queued_adds_with_their_selection() {
+        let root = test_root("pending-add-release-queue");
+        let configured = configured_root(&root);
+        let mut store = SessionStore::open(&root, "default", std::slice::from_ref(&configured))
+            .expect("open store");
+        let add_pending = |store: &mut SessionStore, request_id: &str, file_count: u32| {
+            let source = multi_file_torrent_source(file_count);
+            let mut request = torrent_bytes_request(request_id, &source);
+            request.await_file_selection = true;
+            added_torrent_id(
+                &store
+                    .handle_torrent_bytes(&request, source)
+                    .expect("add pending torrent"),
+            )
+        };
+        let current = add_pending(&mut store, "pending-current", 2);
+        let queued = add_pending(&mut store, "pending-queued", 3);
+        let mut magnet = add_request("pending-select-only");
+        if let Command::AddMagnet {
+            magnet,
+            skip_files,
+            await_file_selection,
+            ..
+        } = &mut magnet.command
+        {
+            *magnet = format!("magnet:?xt=urn:btih:{}&so=1", "ab".repeat(20));
+            skip_files.clear();
+            *await_file_selection = true;
+        }
+        let select_only = added_torrent_id(&store.handle_durable(&magnet).unwrap());
+        let cancelled = add_pending(&mut store, "pending-cancelled", 4);
+        let cancel = store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "cancel-pending".to_owned(),
+                expected_revision: None,
+                command: Command::CancelPendingAdd {
+                    torrent_id: cancelled.clone(),
+                },
+            })
+            .expect("cancel pending add");
+        assert!(matches!(
+            cancel.outcome,
+            crate::ResponseOutcome::Success { .. }
+        ));
+        let catalog_id = store
+            .snapshot()
+            .unwrap()
+            .torrents
+            .into_iter()
+            .find(|torrent| torrent.torrent_id == current)
+            .and_then(|torrent| torrent.file_catalog_id)
+            .expect("catalog identity");
+
+        let confirmed = store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "confirm-none-disable".to_owned(),
+                expected_revision: None,
+                command: Command::ConfirmPendingFileSelection {
+                    torrent_id: current.clone(),
+                    catalog_id,
+                    base: crate::PendingFileSelectionBase::None,
+                    overrides: Vec::new(),
+                    disable_future: true,
+                },
+            })
+            .expect("confirm selection");
+        assert!(matches!(
+            confirmed.outcome,
+            crate::ResponseOutcome::Success { .. }
+        ));
+
+        drop(store);
+        let store = SessionStore::open(&root, "default", &[configured]).expect("reopen store");
+        let snapshot = store.snapshot().expect("released snapshot");
+        assert!(!snapshot.storage.show_file_selection);
+        let find = |torrent_id: &str| {
+            snapshot
+                .torrents
+                .iter()
+                .find(|torrent| torrent.torrent_id == torrent_id)
+                .expect("torrent in snapshot")
+        };
+        // The confirmed torrent keeps its own choice; queued torrents keep
+        // their add-time selection rather than inheriting it.
+        assert_eq!(find(&current).selection_default, FilePriority::Skip);
+        let released = find(&queued);
+        assert!(!released.awaiting_file_selection);
+        assert!(released.desired_running);
+        assert_eq!(released.selection_default, FilePriority::Normal);
+        assert!(released.skip_files.is_empty());
+        let released = find(&select_only);
+        assert!(!released.awaiting_file_selection);
+        assert!(released.desired_running);
+        assert_eq!(released.selection_default, FilePriority::Skip);
+        let pending_ranges: i64 = store
+            .connection
+            .query_row(
+                "SELECT count(*) FROM pending_selection_ranges WHERE torrent_id = ?1",
+                [super::decode_torrent_id(&select_only).unwrap().as_bytes()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(pending_ranges, 1);
+        // Released adds join the download queue in add order.
+        let order: Vec<_> = [&current, &queued, &select_only]
+            .into_iter()
+            .map(|torrent_id| find(torrent_id).download_queue_position.expect("queued"))
+            .collect();
+        assert!(order[0] < order[1] && order[1] < order[2]);
+        // A torrent already being removed is never revived.
+        let cancelled_pending: bool = store
+            .connection
+            .query_row(
+                "SELECT awaiting_file_selection FROM torrents WHERE torrent_id = ?1",
+                [super::decode_torrent_id(&cancelled).unwrap().as_bytes()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(cancelled_pending);
+        drop(store);
+        fs::remove_dir_all(root).expect("remove profile");
+    }
+
+    #[test]
+    fn select_only_beyond_old_exception_budget_survives_metadata_and_reopen() {
         let root = test_root("select-only-budget");
         let configured = configured_root(&root);
         let mut store = SessionStore::open(&root, "default", &[configured]).expect("open store");
@@ -8524,16 +9668,36 @@ mod tests {
             })
             .expect("persist compact pending range");
         let torrent_id = only_torrent_id(&store);
-        let revision = store.revision().expect("add revision");
-        assert!(matches!(
-            store.record_metadata(&torrent_id, raw_info),
-            Err(StoreError::ResourceLimit {
-                resource: "file selection exceptions",
-                ..
-            })
-        ));
-        assert_eq!(store.revision().expect("unchanged revision"), revision);
-        assert!(!store.snapshot().expect("pending snapshot").torrents[0].metadata_available);
+        store
+            .record_metadata(&torrent_id, raw_info)
+            .expect("bitmap selection accepts 4097 files");
+        assert!(
+            store
+                .load_resume(&torrent_id)
+                .unwrap()
+                .skip_files
+                .is_empty()
+        );
+        assert_eq!(
+            super::file_state::read_mask(
+                store.connection(),
+                &super::decode_torrent_id(&torrent_id).unwrap(),
+                "exceptions"
+            )
+            .unwrap()
+            .indices()
+            .len(),
+            4097
+        );
+        drop(store);
+        let store = SessionStore::open(&root, "default", &[configured_root(&root)]).unwrap();
+        assert!(
+            store
+                .load_resume(&torrent_id)
+                .unwrap()
+                .skip_files
+                .is_empty()
+        );
         drop(store);
         fs::remove_dir_all(root).expect("remove test profile");
     }
@@ -8836,139 +10000,138 @@ mod tests {
     }
 
     #[test]
-    fn recognized_recent_schemas_reset_without_retaining_profile_state() {
-        for previous_version in [19_i64, 20_i64, 21_i64, 22_i64] {
-            let root = test_root(&format!("schema-{previous_version}-to-23"));
-            let configured = configured_root(&root);
-            let mut store = SessionStore::open(&root, "default", std::slice::from_ref(&configured))
-                .expect("open current profile");
-            store
-                .handle_durable(&add_request("discarded-owner"))
-                .expect("add disposable owner");
-            assert_eq!(
-                store.snapshot().expect("populated snapshot").torrents.len(),
-                1
-            );
-            let database_path = store.database_path().expect("database path").to_owned();
-            drop(store);
+    fn seed_stop_limits_persist_stop_and_keep_seeding_atomically() {
+        let root = test_root("seed-stop-store");
+        let configured = configured_root(&root);
+        let mut store =
+            SessionStore::open(&root, "default", std::slice::from_ref(&configured)).expect("open");
+        let added = store
+            .handle_durable(&add_request("seed-stop-owner"))
+            .expect("add torrent");
+        let torrent_id = added_torrent_id(&added);
+        let update = |request_id: &str, patch: crate::TorrentSettingsPatch| RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: request_id.to_owned(),
+            expected_revision: None,
+            command: Command::UpdateTorrentSettings {
+                torrent_id: torrent_id.clone(),
+                patch,
+            },
+        };
+        let own = crate::TorrentSeedStopLimits {
+            ratio_percent: crate::TorrentSeedStopLimit::Limited { value: 150 },
+            time_seconds: crate::TorrentSeedStopLimit::Off,
+        };
+        let response = store
+            .handle_durable(&update(
+                "own-stop-limits",
+                crate::TorrentSettingsPatch {
+                    seed_stop_ratio_percent: Some(own.ratio_percent),
+                    seed_stop_time_seconds: Some(own.time_seconds),
+                    ..Default::default()
+                },
+            ))
+            .expect("set stop limits");
+        assert!(matches!(response.outcome, ResponseOutcome::Success { .. }));
+        assert_eq!(store.snapshot().unwrap().torrents[0].seed_stop_limits, own);
+        let invalid = store
+            .handle_durable(&update(
+                "invalid-stop-limit",
+                crate::TorrentSettingsPatch {
+                    seed_stop_time_seconds: Some(crate::TorrentSeedStopLimit::Limited {
+                        value: u32::MAX,
+                    }),
+                    ..Default::default()
+                },
+            ))
+            .expect("reject invalid limit");
+        assert!(matches!(invalid.outcome, ResponseOutcome::Error { .. }));
+        assert_eq!(store.snapshot().unwrap().torrents[0].seed_stop_limits, own);
 
-            let connection = Connection::open(&database_path).expect("open prior catalog");
-            if previous_version == 19 {
-                connection
-                    .execute_batch("DROP TABLE file_priorities;")
-                    .expect("reconstruct schema 19 delta");
-            }
-            connection
-                .pragma_update(None, "user_version", previous_version)
-                .expect("set prior schema version");
-            drop(connection);
-
-            let payload = root.join("payload").join("sentinel");
-            fs::create_dir_all(payload.parent().expect("payload parent"))
-                .expect("create payload root");
-            fs::write(&payload, b"untouched").expect("payload sentinel");
-
-            let reopened = SessionStore::open(&root, "default", &[configured])
-                .expect("reset disposable profile");
-            assert_eq!(reopened.revision().expect("fresh revision"), 0);
-            assert!(
-                reopened
-                    .snapshot()
-                    .expect("fresh snapshot")
-                    .torrents
-                    .is_empty()
-            );
-            let report = reopened
-                .pending_profile_reset_report()
-                .expect("read reset report")
-                .expect("reset report");
-            assert_eq!(report.previous_schema_version, previous_version);
-            assert!(!report.external_payload_modified);
-            assert_eq!(fs::read(&payload).expect("payload survives"), b"untouched");
-            assert_eq!(
-                reopened
-                    .connection
-                    .pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
-                    .expect("current schema version"),
-                SCHEMA_VERSION
-            );
-            assert_eq!(
-                reopened
-                    .connection
-                    .query_row("SELECT count(*) FROM file_priorities", [], |row| {
-                        row.get::<_, i64>(0)
-                    })
-                    .expect("fresh priority table"),
-                0
-            );
-            drop(reopened);
-            fs::remove_dir_all(root).expect("remove test profile");
-        }
-    }
-
-    #[test]
-    fn recognized_profile_resets_to_empty_current_schema_with_one_report() {
-        let root = test_root("schema-reset-current");
-        fs::create_dir_all(&root).expect("create profile root");
-        let database = root.join("session.db");
-        let connection = Connection::open(&database).expect("legacy database");
-        connection
-            .execute_batch(
-                "CREATE TABLE request_receipts(request_id TEXT PRIMARY KEY);
-                 INSERT INTO request_receipts VALUES ('old-receipt');
-                 PRAGMA user_version = 18;",
-            )
-            .expect("legacy catalog");
-        drop(connection);
-        let payload = root.join("payload-sentinel");
-        fs::write(&payload, b"untouched").expect("payload sentinel");
-
-        let mut store = SessionStore::open(&root, "default", &[]).expect("reset profile");
-        assert_eq!(store.revision().expect("fresh revision"), 0);
+        // Running torrents stop once; a paused one is not eligible.
+        assert!(store.stop_at_seed_limit(&torrent_id).expect("stop"));
         assert!(
-            store
-                .snapshot()
-                .expect("fresh snapshot")
-                .torrents
-                .is_empty()
+            !store
+                .stop_at_seed_limit(&torrent_id)
+                .expect("already stopped")
         );
-        let report = store
-            .pending_profile_reset_report()
-            .expect("read reset report")
-            .expect("reset report");
-        assert_eq!(report.previous_schema_version, 18);
-        assert_eq!(
-            report.database_basenames_considered,
-            ["session.db", "session.db-wal", "session.db-shm"]
-        );
-        assert!(!report.external_payload_modified);
-        assert_eq!(fs::read(&payload).expect("payload survives"), b"untouched");
-        let receipt_count: i64 = store
-            .connection
-            .query_row("SELECT count(*) FROM request_receipts", [], |row| {
-                row.get(0)
-            })
-            .expect("fresh receipt catalog");
-        assert_eq!(receipt_count, 0);
-        store
-            .acknowledge_profile_reset_report()
-            .expect("acknowledge report");
-        assert!(
-            store
-                .pending_profile_reset_report()
-                .expect("read acknowledged report")
-                .is_none()
-        );
+        let stopped = &store.snapshot().unwrap().torrents[0];
+        assert!(!stopped.desired_running && stopped.seed_limit_stopped);
         drop(store);
 
-        let reopened = SessionStore::open(&root, "default", &[]).expect("reopen current schema");
-        assert!(
-            reopened
-                .pending_profile_reset_report()
-                .expect("report remains acknowledged")
-                .is_none()
+        let mut store = SessionStore::open(&root, "default", std::slice::from_ref(&configured))
+            .expect("reopen");
+        assert!(store.snapshot().unwrap().torrents[0].seed_limit_stopped);
+        store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "keep-seeding".to_owned(),
+                expected_revision: None,
+                command: Command::Resume {
+                    torrent_id: torrent_id.clone(),
+                },
+            })
+            .expect("keep seeding");
+        let kept = &store.snapshot().unwrap().torrents[0];
+        assert!(kept.desired_running && !kept.seed_limit_stopped);
+        assert_eq!(
+            kept.seed_stop_limits,
+            crate::TorrentSeedStopLimits {
+                ratio_percent: crate::TorrentSeedStopLimit::Off,
+                time_seconds: crate::TorrentSeedStopLimit::Off,
+            }
         );
-        drop(reopened);
+
+        // A user pause is never marked as a limit stop, and its resume keeps
+        // the torrent's own limits.
+        for (request_id, command) in [
+            (
+                "own-limits-again",
+                Command::UpdateTorrentSettings {
+                    torrent_id: torrent_id.clone(),
+                    patch: crate::TorrentSettingsPatch {
+                        seed_stop_ratio_percent: Some(own.ratio_percent),
+                        ..Default::default()
+                    },
+                },
+            ),
+            (
+                "user-pause",
+                Command::Pause {
+                    torrent_id: torrent_id.clone(),
+                },
+            ),
+            (
+                "user-resume",
+                Command::Resume {
+                    torrent_id: torrent_id.clone(),
+                },
+            ),
+        ] {
+            store
+                .handle_durable(&RequestEnvelope {
+                    version: CONTROL_VERSION,
+                    request_id: request_id.to_owned(),
+                    expected_revision: None,
+                    command,
+                })
+                .expect(request_id);
+        }
+        let resumed = &store.snapshot().unwrap().torrents[0];
+        assert!(resumed.desired_running && !resumed.seed_limit_stopped);
+        assert_eq!(
+            resumed.seed_stop_limits.ratio_percent,
+            crate::TorrentSeedStopLimit::Limited { value: 150 }
+        );
+
+        // The catalog refuses a limit stop on a running torrent.
+        assert!(
+            store
+                .connection
+                .execute("UPDATE torrents SET seed_limit_stopped = 1", [])
+                .is_err()
+        );
+        drop(store);
         fs::remove_dir_all(root).expect("remove test profile");
     }
 
@@ -9120,6 +10283,56 @@ mod tests {
     }
 
     #[test]
+    fn removing_unreferenced_default_root_promotes_next_root_or_none() {
+        let root = test_root("remove-default-root");
+        let mut store = SessionStore::open(&root, "default", &[]).expect("open fresh profile");
+        let mut paths = Vec::new();
+        for name in ["first", "second"] {
+            let path = root.join(name);
+            fs::create_dir_all(&path).expect("create payload root");
+            paths.push(fs::canonicalize(&path).expect("canonical payload root"));
+        }
+        let (_, first) = store
+            .install_path_storage_root("root_00000000000000000000000000000000", "First", &paths[0])
+            .expect("install first root");
+        let (_, second) = store
+            .install_path_storage_root("root_11111111111111111111111111111111", "Second", &paths[1])
+            .expect("install second root");
+        let remove = |request_id: &str, storage_root: &str| RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: request_id.to_owned(),
+            expected_revision: None,
+            command: Command::RemoveStorageRoot {
+                storage_root: storage_root.to_owned(),
+            },
+        };
+
+        let removed = store
+            .handle_durable(&remove("remove-default", &first))
+            .expect("default removal response");
+        assert!(matches!(removed.outcome, ResponseOutcome::Success { .. }));
+        let promoted = store.snapshot().expect("promoted snapshot");
+        assert_eq!(promoted.storage.roots.len(), 1);
+        assert_eq!(
+            promoted.storage.default_root.as_deref(),
+            Some(second.as_str())
+        );
+
+        let removed = store
+            .handle_durable(&remove("remove-last", &second))
+            .expect("last removal response");
+        assert!(matches!(removed.outcome, ResponseOutcome::Success { .. }));
+        drop(store);
+
+        let reopened = SessionStore::open(&root, "default", &[]).expect("reopen profile");
+        let persisted = reopened.snapshot().expect("persisted snapshot");
+        assert!(persisted.storage.roots.is_empty());
+        assert_eq!(persisted.storage.default_root, None);
+        drop(reopened);
+        fs::remove_dir_all(root).expect("remove test profile");
+    }
+
+    #[test]
     fn platform_roots_install_repair_and_change_default_without_rebinding() {
         let root = test_root("platform-root-registry");
         let mut store = SessionStore::open(&root, "default", &[]).expect("open fresh profile");
@@ -9138,26 +10351,6 @@ mod tests {
         let snapshot = store.snapshot().expect("platform root snapshot");
         assert_eq!(snapshot.storage.roots.len(), 2);
         assert_eq!(snapshot.storage.default_root.as_deref(), Some("root_b"));
-
-        let current_removal = store
-            .handle_durable(&RequestEnvelope {
-                version: CONTROL_VERSION,
-                request_id: "remove-current-platform-root".to_owned(),
-                expected_revision: None,
-                command: Command::RemoveStorageRoot {
-                    storage_root: "root_b".to_owned(),
-                },
-            })
-            .expect("current root removal response");
-        assert!(matches!(
-            current_removal.outcome,
-            ResponseOutcome::Error {
-                error: crate::ErrorResponse {
-                    code: ErrorCode::StorageRootInUse,
-                    ..
-                }
-            }
-        ));
 
         let mut add = add_request("add-platform-a");
         let Command::AddMagnet { storage_root, .. } = &mut add.command else {
@@ -9469,6 +10662,215 @@ mod tests {
             first
         );
         drop(reopened);
+        fs::remove_dir_all(root).expect("remove test profile");
+    }
+
+    #[test]
+    fn archive_persists_paused_intent_and_blocks_starting_until_restored() {
+        let root = test_root("archive-paused");
+        let configured = configured_root(&root);
+        let mut store =
+            SessionStore::open(&root, "default", std::slice::from_ref(&configured)).expect("open");
+        let added = store
+            .handle_durable(&add_request("add-archive"))
+            .expect("add torrent");
+        let torrent_id = added_torrent_id(&added);
+        assert!(
+            store
+                .load_resume(&torrent_id)
+                .expect("resume")
+                .desired_running
+        );
+        let request = |request_id: &str, command: Command| RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: request_id.to_owned(),
+            expected_revision: None,
+            command,
+        };
+        let id = || torrent_id.clone();
+
+        store
+            .handle_durable(&request("archive", Command::Archive { torrent_id: id() }))
+            .expect("archive");
+        let archived_revision = store.revision().expect("archived revision");
+        let resume = store.load_resume(&torrent_id).expect("archived resume");
+        assert!(!resume.desired_running);
+        assert!(store.snapshot().expect("snapshot").torrents[0].archived);
+
+        for (request_id, command) in [
+            // DownloadFiles on an archived torrent with metadata is covered by
+            // download_files_commits_one_replay_safe_wanted_and_running_revision.
+            ("resume", Command::Resume { torrent_id: id() }),
+            ("move-top", Command::MoveDownloadToTop { torrent_id: id() }),
+        ] {
+            let response = store
+                .handle_durable(&request(request_id, command))
+                .expect("durable response");
+            assert!(
+                matches!(
+                    response.outcome,
+                    ResponseOutcome::Error {
+                        ref error,
+                    } if error.code == ErrorCode::InvalidTorrentState
+                        && (error.message.contains("archived")
+                            || error.message.contains("queue movement"))
+                ),
+                "{request_id} must be rejected while archived: {:?}",
+                response.outcome
+            );
+        }
+        assert_eq!(store.revision().expect("unchanged"), archived_revision);
+        assert!(
+            !store
+                .load_resume(&torrent_id)
+                .expect("resume")
+                .desired_running
+        );
+
+        store
+            .handle_durable(&request(
+                "restore",
+                Command::RestoreArchive { torrent_id: id() },
+            ))
+            .expect("restore");
+        assert!(!store.snapshot().expect("snapshot").torrents[0].archived);
+        assert!(
+            !store
+                .load_resume(&torrent_id)
+                .expect("resume")
+                .desired_running
+        );
+        store
+            .handle_durable(&request("start", Command::Resume { torrent_id: id() }))
+            .expect("start after restore");
+        assert!(
+            store
+                .load_resume(&torrent_id)
+                .expect("resume")
+                .desired_running
+        );
+        drop(store);
+        fs::remove_dir_all(root).expect("remove test profile");
+    }
+
+    #[test]
+    fn archive_rejects_pending_file_selection() {
+        let root = test_root("archive-pending");
+        let configured = configured_root(&root);
+        let mut store = SessionStore::open(&root, "default", &[configured]).expect("open");
+        let mut add = add_request("add-pending");
+        if let Command::AddMagnet {
+            await_file_selection,
+            skip_files,
+            ..
+        } = &mut add.command
+        {
+            *await_file_selection = true;
+            skip_files.clear();
+        }
+        let torrent_id = added_torrent_id(&store.handle_durable(&add).expect("add pending"));
+        let revision = store.revision().expect("revision");
+        let response = store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "archive-pending".to_owned(),
+                expected_revision: None,
+                command: Command::Archive {
+                    torrent_id: torrent_id.clone(),
+                },
+            })
+            .expect("durable response");
+        assert!(matches!(
+            response.outcome,
+            ResponseOutcome::Error { ref error } if error.code == ErrorCode::InvalidTorrentState
+        ));
+        assert_eq!(store.revision().expect("unchanged"), revision);
+        assert!(!store.snapshot().expect("snapshot").torrents[0].archived);
+        drop(store);
+        fs::remove_dir_all(root).expect("remove test profile");
+    }
+
+    #[test]
+    fn open_normalizes_archived_rows_written_before_archive_implied_pause() {
+        let root = test_root("archive-normalize");
+        let configured = configured_root(&root);
+        let mut store =
+            SessionStore::open(&root, "default", std::slice::from_ref(&configured)).expect("open");
+        let running = added_torrent_id(
+            &store
+                .handle_durable(&add_hash_request("add-running", 0x21))
+                .expect("add running"),
+        );
+        let mut pending_add = add_hash_request("add-pending", 0x22);
+        if let Command::AddMagnet {
+            await_file_selection,
+            ..
+        } = &mut pending_add.command
+        {
+            *await_file_selection = true;
+        }
+        let pending = added_torrent_id(&store.handle_durable(&pending_add).expect("add pending"));
+        let paused = added_torrent_id(
+            &store
+                .handle_durable(&add_hash_request("add-paused", 0x23))
+                .expect("add paused"),
+        );
+        store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "archive-paused".to_owned(),
+                expected_revision: None,
+                command: Command::Archive {
+                    torrent_id: paused.clone(),
+                },
+            })
+            .expect("archive paused");
+        let database_path = store.database_path().expect("durable path").to_owned();
+        drop(store);
+
+        // Simulate rows committed by a build where archive kept running intent.
+        let connection = Connection::open(&database_path).expect("open raw database");
+        connection
+            .execute(
+                "UPDATE torrents SET archived = 1 WHERE torrent_id IN (?1, ?2)",
+                params![
+                    super::decode_torrent_id(&running)
+                        .expect("running id")
+                        .as_bytes(),
+                    super::decode_torrent_id(&pending)
+                        .expect("pending id")
+                        .as_bytes(),
+                ],
+            )
+            .expect("write legacy archive rows");
+        drop(connection);
+
+        let store = SessionStore::open(&root, "default", std::slice::from_ref(&configured))
+            .expect("reopen");
+        let normalized_revision = store.revision().expect("revision");
+        let snapshot = store.snapshot().expect("snapshot");
+        let torrent = |id: &str| {
+            snapshot
+                .torrents
+                .iter()
+                .find(|torrent| torrent.torrent_id == id)
+                .expect("torrent")
+        };
+        assert!(torrent(&running).archived);
+        assert!(
+            !store
+                .load_resume(&running)
+                .expect("running")
+                .desired_running
+        );
+        assert!(!torrent(&pending).archived);
+        assert!(torrent(&pending).awaiting_file_selection);
+        assert!(torrent(&paused).archived);
+        drop(store);
+
+        let store = SessionStore::open(&root, "default", &[configured]).expect("reopen again");
+        assert_eq!(store.revision().expect("idempotent"), normalized_revision);
+        drop(store);
         fs::remove_dir_all(root).expect("remove test profile");
     }
 
@@ -10410,6 +11812,134 @@ mod tests {
     }
 
     #[test]
+    fn network_opt_in_upgrade_preserves_running_intent_data_and_port_preference() {
+        let root = test_root("network-opt-in-upgrade");
+        let configured = configured_root(&root);
+        let mut store = SessionStore::open_with_initial_client_settings(
+            &root,
+            "default",
+            std::slice::from_ref(&configured),
+            &ClientSettings::fresh_profile_default(),
+        )
+        .unwrap();
+        let added = store
+            .handle_durable(&add_hash_request("network-upgrade-torrent", 8))
+            .unwrap();
+        let torrent_id = added_torrent_id(&added);
+        let paused = store
+            .handle_durable(&add_hash_request("network-upgrade-paused-torrent", 9))
+            .unwrap();
+        let paused_id = added_torrent_id(&paused);
+        store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "pause-network-upgrade-torrent".into(),
+                expected_revision: None,
+                command: Command::Pause {
+                    torrent_id: paused_id.clone(),
+                },
+            })
+            .unwrap();
+        let prior = ClientSettings {
+            listener: ListenerPolicy::FixedLocalNetwork { port: 42123 },
+            upload_slots: 7,
+            ..ClientSettings::fresh_profile_default()
+        };
+        store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "legacy-network-settings".into(),
+                expected_revision: None,
+                command: Command::UpdateClientSettings {
+                    patch: prior.clone().into(),
+                },
+            })
+            .unwrap();
+        let before = store.snapshot().unwrap();
+        assert!(
+            before
+                .torrents
+                .iter()
+                .any(|t| t.torrent_id == torrent_id && t.desired_running)
+        );
+        assert!(
+            before
+                .torrents
+                .iter()
+                .any(|t| t.torrent_id == paused_id && !t.desired_running)
+        );
+        assert!(store.apply_quiet_network_defaults_once(false).unwrap());
+        let after = store.snapshot().unwrap();
+        assert_eq!(after.torrents, before.torrents);
+        assert_eq!(after.torrents.len(), 2);
+        assert_eq!(after.client_settings.listener, ListenerPolicy::Disabled);
+        assert_eq!(
+            after.client_settings.port_mapping,
+            PortMappingPolicy::Disabled
+        );
+        assert_eq!(after.client_settings.preferred_listen_port, 42123);
+        assert_eq!(after.client_settings.upload_slots, 7);
+        // The marker is durable: re-enabled networking is never held again,
+        // and Restore defaults keeps the marker.
+        let enabled = ClientSettings {
+            listener: ListenerPolicy::AutomaticLocalNetwork,
+            port_mapping: PortMappingPolicy::Upnp,
+            ..after.client_settings.clone()
+        };
+        store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "user-enables-network".into(),
+                expected_revision: None,
+                command: Command::UpdateClientSettings {
+                    patch: enabled.clone().into(),
+                },
+            })
+            .unwrap();
+        store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "restore-defaults".into(),
+                expected_revision: None,
+                command: Command::ResetClientSettings,
+            })
+            .unwrap();
+        drop(store);
+        let mut store =
+            SessionStore::open(&root, "default", std::slice::from_ref(&configured)).unwrap();
+        let revision = store.revision().unwrap();
+        assert!(!store.apply_quiet_network_defaults_once(false).unwrap());
+        assert_eq!(store.revision().unwrap(), revision);
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn legacy_network_defaults_marker_is_recorded_without_changing_settings() {
+        let root = test_root("legacy-network-defaults");
+        let configured = configured_root(&root);
+        let enabled = ClientSettings {
+            listener: ListenerPolicy::AutomaticLocalNetwork,
+            port_mapping: PortMappingPolicy::Upnp,
+            ..ClientSettings::default()
+        };
+        let mut store = SessionStore::open_with_initial_client_settings(
+            &root,
+            "default",
+            std::slice::from_ref(&configured),
+            &enabled,
+        )
+        .unwrap();
+        let revision = store.revision().unwrap();
+        assert!(!store.apply_quiet_network_defaults_once(true).unwrap());
+        assert!(!store.apply_quiet_network_defaults_once(false).unwrap());
+        assert_eq!(store.client_settings().unwrap(), enabled);
+        assert_eq!(store.revision().unwrap(), revision);
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn reset_client_settings_is_atomic_replayable_and_preserves_profile_state() {
         let root = test_root("reset-client-settings");
         let configured = configured_root(&root);
@@ -10427,6 +11957,7 @@ mod tests {
         let torrent_id = added_torrent_id(&added);
 
         let changed = ClientSettings {
+            file_safety: Default::default(),
             listener: ListenerPolicy::FixedLoopback { port: 7_001 },
             preferred_listen_port: 7_002,
             port_mapping: PortMappingPolicy::Disabled,
@@ -10437,6 +11968,8 @@ mod tests {
             share_ratio_limit_percent: 101,
             finished_download_ratio_limit_percent: 102,
             finished_time_limit_seconds: 103,
+            seed_stop_ratio_percent: crate::SeedStopLimit::Off,
+            seed_stop_time_seconds: crate::SeedStopLimit::Off,
             upload_rate_limit: TransferRateLimit::Limited {
                 bytes_per_second: 4_096,
             },
@@ -10678,6 +12211,7 @@ mod tests {
                         bytes_per_second: 24 * 1_024,
                     }),
                     download_rate_limit: None,
+                    ..Default::default()
                 },
             },
         };
@@ -10751,6 +12285,7 @@ mod tests {
                         download_rate_limit: Some(TransferRateLimit::Limited {
                             bytes_per_second: 1_023,
                         }),
+                        ..Default::default()
                     },
                 },
             ),
@@ -11102,5 +12637,320 @@ mod tests {
         };
         assert!(matches!(error, StoreError::DurableState(_)));
         fs::remove_dir_all(root).expect("remove profile");
+    }
+
+    fn safety_command(
+        store: &mut SessionStore,
+        id: &str,
+        command: Command,
+    ) -> crate::ResponseEnvelope {
+        store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: id.into(),
+                expected_revision: None,
+                command,
+            })
+            .unwrap()
+    }
+
+    #[test]
+    fn safety_corrupt_or_missing_bitmaps_fail_closed_without_repairing_data() {
+        let root = test_root("safety-corrupt-bitmap");
+        let mut store = SessionStore::open(&root, "default", &[configured_root(&root)]).unwrap();
+        safety_command(
+            &mut store,
+            "add-corrupt",
+            Command::AddMagnet {
+                magnet: format!(
+                    "magnet:?xt=urn:btih:{}",
+                    crate::control::encode_info_hash(Sha1::digest(multi_file_info()).into())
+                ),
+                storage_root: "downloads".into(),
+                start_content: false,
+                await_file_selection: false,
+                skip_files: vec![],
+            },
+        );
+        let id = only_torrent_id(&store);
+        store.record_metadata(&id, &multi_file_info()).unwrap();
+        store
+            .connection
+            .execute("UPDATE file_state SET exceptions = X'00'", [])
+            .unwrap();
+        assert!(store.load_resume(&id).is_err());
+        assert_eq!(
+            store
+                .connection
+                .query_row("SELECT exceptions FROM file_state", [], |row| row
+                    .get::<_, Vec<u8>>(0))
+                .unwrap(),
+            [0]
+        );
+        store
+            .connection
+            .execute("UPDATE file_state SET exceptions = X'80'", [])
+            .unwrap();
+        assert!(
+            store.load_resume(&id).is_err(),
+            "indices must fit this torrent, not just the global maximum"
+        );
+        store
+            .connection
+            .execute(
+                "UPDATE file_state SET exceptions = X'', metadata_fingerprint = NULL",
+                [],
+            )
+            .unwrap();
+        assert!(
+            store.load_resume(&id).is_err(),
+            "missing metadata identity must not silently permit all files"
+        );
+        store
+            .connection
+            .execute("DELETE FROM file_state", [])
+            .unwrap();
+        assert!(store.load_resume(&id).is_err());
+        assert!(store.snapshot().is_err());
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn safety_magnet_capture_all_override_priority_and_restart() {
+        let root = test_root("safety-magnet");
+        let configured = configured_root(&root);
+        let mut store =
+            SessionStore::open(&root, "default", std::slice::from_ref(&configured)).unwrap();
+        let raw_info = String::from_utf8(multi_file_info())
+            .unwrap()
+            .replace("a.bin", "a.exe")
+            .into_bytes();
+        let hash = crate::control::encode_info_hash(Sha1::digest(&raw_info).into());
+        safety_command(
+            &mut store,
+            "safety-add",
+            Command::AddMagnet {
+                magnet: format!("magnet:?xt=urn:btih:{hash}&so=0"),
+                storage_root: "downloads".into(),
+                start_content: false,
+                await_file_selection: true,
+                skip_files: vec![],
+            },
+        );
+        let id = only_torrent_id(&store);
+        safety_command(
+            &mut store,
+            "safety-all",
+            Command::DownloadAllPendingAdd {
+                torrent_id: id.clone(),
+                disable_future: true,
+            },
+        );
+        let disabled = crate::FileSafetySettings {
+            enabled: false,
+            ..Default::default()
+        };
+        safety_command(
+            &mut store,
+            "safety-off-future",
+            Command::UpdateFileSafetySettings { settings: disabled },
+        );
+        drop(store);
+        let mut store =
+            SessionStore::open(&root, "default", std::slice::from_ref(&configured)).unwrap();
+        store.record_metadata(&id, &raw_info).unwrap();
+        assert_eq!(store.load_resume(&id).unwrap().skip_files, [0]);
+        assert_eq!(
+            store.snapshot().unwrap().torrents[0]
+                .safety_summary
+                .as_ref()
+                .unwrap()
+                .blocked_file_count,
+            1
+        );
+        safety_command(
+            &mut store,
+            "safety-pause",
+            Command::Pause {
+                torrent_id: id.clone(),
+            },
+        );
+        let denied = safety_command(
+            &mut store,
+            "safety-legacy-download",
+            Command::DownloadFiles {
+                torrent_id: id.clone(),
+                file_indices: vec![0],
+            },
+        );
+        assert!(matches!(
+            denied.outcome,
+            crate::ResponseOutcome::Error { .. }
+        ));
+        safety_command(
+            &mut store,
+            "safety-high",
+            Command::SetFilePriority {
+                torrent_id: id.clone(),
+                file_indices: vec![0],
+                priority: FilePriority::High,
+            },
+        );
+        assert_eq!(store.load_resume(&id).unwrap().skip_files, [0]);
+        let command = Command::SetFileSafetyOverride {
+            torrent_id: id.clone(),
+            file_indices: vec![0],
+            allowed: true,
+        };
+        let first = safety_command(&mut store, "safety-allow", command.clone());
+        let replay = safety_command(&mut store, "safety-allow", command);
+        assert_eq!(first, replay);
+        let resume = store.load_resume(&id).unwrap();
+        assert!(resume.skip_files.is_empty());
+        assert_eq!(resume.high_priority_files, [0]);
+        assert!(
+            !resume.desired_running,
+            "allowance never resumes paused intent"
+        );
+        assert!(
+            resume.download_queue_position.is_some(),
+            "allowance retains a promotion turn even with verified shared pieces"
+        );
+        drop(store);
+        let mut store = SessionStore::open(&root, "default", &[configured]).unwrap();
+        assert!(store.load_resume(&id).unwrap().skip_files.is_empty());
+        assert_eq!(store.load_resume(&id).unwrap().high_priority_files, [0]);
+        safety_command(
+            &mut store,
+            "safety-undo",
+            Command::SetFileSafetyOverride {
+                torrent_id: id.clone(),
+                file_indices: vec![0],
+                allowed: false,
+            },
+        );
+        assert_eq!(store.load_resume(&id).unwrap().skip_files, [0]);
+        assert!(
+            !store
+                .snapshot()
+                .unwrap()
+                .client_settings
+                .file_safety
+                .enabled
+        );
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn safety_known_import_all_excluded_and_failed_override_are_atomic() {
+        let root = test_root("safety-import");
+        let mut store = SessionStore::open(&root, "default", &[configured_root(&root)]).unwrap();
+        let raw_info = String::from_utf8(multi_file_info())
+            .unwrap()
+            .replace("a.bin", "a.exe")
+            .replace("b.bin", "b.exe")
+            .into_bytes();
+        let source = [b"d4:info".as_slice(), &raw_info, b"e"].concat();
+        let mut request = torrent_bytes_request("safety-import", &source);
+        request.start_content = true;
+        let response = store.handle_torrent_bytes(&request, source).unwrap();
+        let id = added_torrent_id(&response);
+        let resume = store.load_resume(&id).unwrap();
+        assert_eq!(resume.skip_files, [0, 1]);
+        assert_eq!(
+            resume.state,
+            TorrentState::Paused,
+            "all excluded is never completed"
+        );
+        assert_eq!(
+            store.snapshot().unwrap().torrents[0]
+                .safety_summary
+                .as_ref()
+                .unwrap()
+                .blocked_file_bytes,
+            "8"
+        );
+        let before = store.snapshot().unwrap();
+        let response = safety_command(
+            &mut store,
+            "bad-allow",
+            Command::SetFileSafetyOverride {
+                torrent_id: id,
+                file_indices: vec![0, 2],
+                allowed: true,
+            },
+        );
+        assert!(matches!(
+            response.outcome,
+            crate::ResponseOutcome::Error { .. }
+        ));
+        assert_eq!(store.snapshot().unwrap(), before);
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn bitmap_large_ranges_and_high_priorities_survive_reopen() {
+        let root = test_root("bitmap-large-ranges");
+        let mut store = SessionStore::open(&root, "default", &[configured_root(&root)]).unwrap();
+        let source = multi_file_torrent_source(10_000);
+        let request = torrent_bytes_request("bitmap-import", &source);
+        let response = store.handle_torrent_bytes(&request, source).unwrap();
+        let id = added_torrent_id(&response);
+        for (label, start, end, priority) in [
+            ("bitmap-skip", 0, 5000, FilePriority::Skip),
+            ("bitmap-high", 5000, 10000, FilePriority::High),
+        ] {
+            let response = safety_command(
+                &mut store,
+                label,
+                Command::SetFilePriorityRanges {
+                    torrent_id: id.clone(),
+                    ranges: vec![crate::FileIndexRange {
+                        start,
+                        end_exclusive: end,
+                    }],
+                    priority,
+                },
+            );
+            assert!(matches!(
+                response.outcome,
+                crate::ResponseOutcome::Success { .. }
+            ));
+        }
+        drop(store);
+        let mut store = SessionStore::open(&root, "default", &[configured_root(&root)]).unwrap();
+        let resume = store.load_resume(&id).unwrap();
+        assert_eq!(resume.skip_files.len(), 5000);
+        assert_eq!(resume.high_priority_files.len(), 5000);
+        safety_command(
+            &mut store,
+            "bitmap-clear-range",
+            Command::SetFilePriorityRanges {
+                torrent_id: id.clone(),
+                ranges: vec![crate::FileIndexRange {
+                    start: 0,
+                    end_exclusive: 10000,
+                }],
+                priority: FilePriority::Normal,
+            },
+        );
+        let resume = store.load_resume(&id).unwrap();
+        assert!(resume.skip_files.is_empty());
+        assert!(resume.high_priority_files.is_empty());
+        // The replacement holds packed bytes, not 10,000 exception rows.
+        let bytes: i64 = store
+            .connection()
+            .query_row(
+                "SELECT length(exceptions) + length(high) + length(allowed) FROM file_state",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(bytes, 0);
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
     }
 }

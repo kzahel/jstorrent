@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JSTorrent Privacy Policy</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/js-32.png" />
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        max-width: 700px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.6;
+        color: #333;
+      }
+      h1 {
+        margin-bottom: 1.5rem;
+      }
+      h2 {
+        margin-top: 2rem;
+      }
+      a {
+        color: #3ba8c7;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0d1117;
+          color: #e6edf3;
+        }
+        a {
+          color: #5dd4f5;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>JSTorrent Privacy Policy</h1>
+    <p><em>Updated October 15, 2026</em></p>
+    <p>
+      This policy covers JSTorrent's Chrome extension, desktop application and Android app, and the
+      JSTorrent website. Behavior varies between the legacy application and the replacement
+      currently being qualified; the replacement's new optional hosted context remains disabled
+      until deployment and verification are complete.
+    </p>
+
+    <h2>Local application data</h2>
+    <p>
+      Torrent metadata, download-folder access, settings and pairing information are stored locally.
+      The native application owns downloaded files and the torrent engine. The extension connects to
+      that application on your device. JSTorrent does not collect a general browsing history.
+      Pairing credentials are local connection authority, not analytics identifiers.
+    </p>
+    <p>
+      The replacement keeps a random resettable installation identifier and coarse local counts of
+      added torrents, completed downloads and foreground sessions. These values are separate from
+      torrent names, hashes, paths, peers, trackers, logs and error text. They are pseudonymous, not
+      anonymous: permitted requests can be correlated until the identifier is reset.
+    </p>
+
+    <h2>Update checks and network activity</h2>
+    <p>
+      Ordinary BitTorrent operation contacts peers and discovery services, which can observe network
+      addresses and protocol information. Desktop update checks contact the update service with
+      version and platform information and whether usage statistics are on, off or not yet chosen.
+      That choice is sent without any identifier, so we can count how many installations opt out. Depending on the version and disclosed statistics
+      preference, an update check may also include the installation identifier. The replacement can
+      preserve an older desktop installation's existing update identifier until you review the new
+      disclosure. Once you review it, disabling statistics omits that identifier from update checks.
+      Fresh installations do not send a new identifier before that review.
+    </p>
+    <p>
+      Usage statistics are on unless you turn them off. The choice is shown when you first open the
+      app and stays available in its settings. Turning statistics off stops everything described in
+      this section except what an update check needs: the version, platform and statistics-choice
+      information above.
+    </p>
+    <p>
+      With statistics on, the app may also send basic compatibility information: which versions of
+      JSTorrent and its controllers (the extension, the remote controller) connected to each other,
+      and counts of requests one version could not handle. We use it to find and fix version
+      mismatches. It never includes torrent names, hashes, file paths, peers, trackers or content.
+    </p>
+    <p>
+      There is no automatic crash-report upload. This does not mean that update requests or
+      user-opened websites send no data: ordinary HTTP requests expose network addresses and request
+      information.
+    </p>
+
+    <h2>Shared links</h2>
+    <p>
+      Full share links keep torrent information in the link itself. If you enable Short link in
+      the web or desktop Share panel, your device encrypts that information and uploads an
+      encrypted copy to link.jstorrent.com, hosted by Cloudflare. Copies expire after 30 days.
+      The decryption key stays in the link's fragment and is not sent to the storage API;
+      the recipient's browser decrypts the copy before opening the share page. Anyone with the
+      complete link can read it. The service can observe network addresses, request times and
+      the padded size of the encrypted copy. It has no accounts, link listing or content analytics.
+      The Short link choice is remembered on that client and can be turned off in the Share panel.
+    </p>
+    <p>
+      Include my IP address is a separate choice: it puts a direct connection address in the
+      shared information. Leaving that unchecked does not hide your network address from a
+      service you contact or from BitTorrent peers.
+    </p>
+
+    <h2>Remote access</h2>
+    <p>
+      The remote controller at jstorrent.com and its relay are a hosted service. The connection
+      between your browser and your JSTorrent is end-to-end encrypted; the relay cannot read your
+      torrents or commands. To operate the service and keep it reliable, the service may record basic
+      operational data such as network addresses, connection times and outcomes, and the versions of
+      JSTorrent and the remote controller in use. This applies whenever you use remote access,
+      independent of the in-app statistics choice.
+    </p>
+
+    <h2>Feedback, uninstall surveys and the website</h2>
+    <p>
+      Feedback and uninstall pages embed Google Forms and use Cloudflare Web Analytics. Navigating
+      to a page can expose URL context to browser history, website logs and referrers, the embedded
+      form and website analytics before a form is submitted. Review the context shown by the
+      application before opening a feedback page and review your response before submission.
+    </p>
+    <p>
+      The replacement currently sends only its accepted environment fields to feedback: platform and
+      version, plus Android release and manufacturer/model where applicable. New optional
+      installation identifier, days since first use and aggregate usage fields remain
+      release-disabled. If enabled in a later verified release, they require the disclosed
+      preference and can be omitted for a feedback navigation. The extension has its own local
+      identifier and never adopts the native application's identity.
+    </p>
+    <p>
+      Older clients may construct different feedback context. Receiving pages accept only bounded
+      known fields and render values as text. Filtering a page's display or form does not erase a
+      URL already received by browser history or a website server.
+    </p>
+
+    <h2>Voluntary support reports and controls</h2>
+    <p>
+      Support diagnostics in the replacement produce a local, reviewable report of build, package
+      and closed update-status facts. Preparing, copying or saving that report uploads nothing
+      automatically. You choose whether to share it. Public issue reports and their attachments are
+      public; review screenshots, logs and other attachments for private information before
+      submitting.
+    </p>
+    <p>
+      Usage-statistics controls can disable permitted identifier/counter context; reset controls
+      create a new product identifier and clear local counters. These actions do not delete
+      downloaded content and cannot retract data previously sent to recipients. Website analytics
+      and submitted Google Forms have their own recipient policies.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      For privacy questions, use the
+      <a href="https://github.com/kzahel/jstorrent/issues">JSTorrent issue tracker</a>. Do not
+      include private library data or credentials in a public issue.
+    </p>
+    <!-- Cloudflare Web Analytics -->
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "70816ac6e8564121b329ed89b3849dba"}'
+    ></script>
+    <!-- End Cloudflare Web Analytics -->
+  </body>
+</html>

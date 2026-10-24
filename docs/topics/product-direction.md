@@ -2,11 +2,84 @@
 
 Topic: `product-direction`
 
+## Consumer scale envelope, accepted 2026-10-15
+
+JSTorrent is a consumer client. A host keeps the verified metadata and file
+list of every torrent in its profile resident, archived ones included, as
+qBittorrent and Transmission do: the view hub builds each torrent's
+`ContentLayout` and derived media catalog when the profile opens. The design
+target is the heaviest consumer users, long-time seeders and seedbox owners
+with several thousand torrents and a few hundred thousand files, where the
+resident model costs tens of megabytes. Libraries far beyond that, such as
+seeding a large share of all public torrents from unlimited storage, are a
+non-goal: they belong to a sharded service, not a single in-process host.
+
+Derived indexes over that resident state, such as the Library media index of
+[`media-library`](media-library.md), are therefore built in memory and are not
+persisted. Their contracts must not assume residency, though: clients query
+with a window and receive a page with totals, so a later host could keep cold
+torrents' file lists on disk and answer from a persisted index without a
+contract change. Revisit this decision with measured high-water marks, not
+before.
+
+## JSTorrent-only releases, accepted 2026-10-11
+
+JSTorrent is the sole active product and release identity. The RSTorrent
+incubation release track is frozen; no new releases or resumed nightly
+publication are planned for that flavor. The switch to JSTorrent's existing
+desktop signing key, `com.jstorrent.desktop` identity and updater endpoint has
+already occurred, with public desktop 0.3.0 recorded in Tactical
+[295](../tactical/295-qualified-candidate-shipment.md). It is not future
+provisioning work or a second product to maintain.
+
+Retained incubation descriptors, routes, package identities and artifacts are
+historical compatibility or isolated development infrastructure. They do not
+authorize new incubation publication, a signing-key rotation, or automatic
+conversion of an old RSTorrent installation into JSTorrent. The continuing
+[release and updater contract](product-surfaces-and-migration.md#jstorrent-only-release-policy-2026-10-11)
+owns the freeze and compatibility boundary. This supersedes earlier references
+to independent incubation releases continuing during qualification.
+
+## MIT licensing retained, accepted 2026-10-10
+
+The maintainer explicitly retains MIT for this public, open-source project.
+Do not adopt GPL terms for the combined Linux application as a release shortcut.
+Remove the GPL-only runtime library dependencies found in the AppImages while
+preserving product behavior through a bounded packaging fix. LGPL libraries
+remain permissible with their notice, source and modification/relink obligations
+satisfied; public first-party source alone does not provide every bundled
+third-party library's corresponding source. GPL build tools and unused GPL files
+in an upstream archive are distinct from linked runtime code. Tactical
+[294](../tactical/294-mit-compatible-linux-packaging.md) owns this work.
+Best-effort Linux compatibility scope and the exclusion of iOS remain unchanged.
+
+## Linux release scope accepted 2026-10-09
+
+Linux desktop support is best effort for the first JSTorrent replacement.
+The primary desktop download is an ordinary-user AppImage with maintained
+bundled libraries and documented minimum system requirements. DEB/RPM are
+excluded from the first-release offering. Tactical 285 makes the production
+workflow AppImage-only on Ubuntu 24.04; new signed/runtime qualification is
+still required. Existing preview package-manager channels are unchanged.
+There is no commitment to
+older-distribution WebKit backports or an exhaustive distro compatibility
+matrix. Older-system failures receive actionable guidance toward the native
+CLI/headless composition, subject to that binary's own requirements. Existing
+headless implementation evidence does not imply a promoted public download;
+its packaging and access instructions must be checked before advertising it.
+
+A truly webview-free tray/browser-controlled package is later work. Deferring
+a desktop window does not remove its linked WebKit dependencies. This policy
+narrows Linux compatibility qualification; it does not clear the old bundled
+WebKit/OpenSSL candidates, source/redistribution obligations or retained-data
+checks on the selected representative systems. ChromeOS Android qualification
+remains unchanged; older Crostini Linux configurations are best effort.
+
 Status: initial direction and successor vision accepted. Android storage
 foundations are proven on an AVD, Chromebook ARCVM, Pixel 7a, and Moto X4
 internal and removable exFAT storage; the in-process engine bootstrap is
-proven on the AVD, Chromebook, Pixel 7a, and Moto. Desktop and Android product
-clients now select explicit online tracker and peer networking while
+proven on the AVD, Chromebook, Pixel 7a, and Moto. Desktop and Android
+products now select explicit online tracker and peer networking while
 controlled tools retain loopback-only policy. Active magnets retain supervised
 scheduled UDP tracker discovery with bounded retry and reannounce behavior.
 Maintainer direction on 2026-08-09 additionally makes Android a
@@ -29,8 +102,8 @@ every accepted on-device root capability-qualified on physical hardware.
 This topic owns why the RSTorrent implementation exists, what initially
 distinguishes it from the current JSTorrent implementation, the engine
 constraints, the first platform posture, and the decisions that remain
-deliberately open. The likely long-term product succession is recorded in
-[`../vision.md`](../vision.md).
+deliberately open. The completed JSTorrent succession is recorded in
+[`../project-history.md`](../project-history.md).
 
 It does not prescribe the internal crate graph, select a UI toolkit, enumerate
 the final BitTorrent feature set, or serve as an implementation tactical.
@@ -60,19 +133,18 @@ tacticals and executable acceptance evidence.
 
 ## Accepted Initial Decisions
 
-### Independent RSTorrent product, possible later successor
+### JSTorrent production successor
 
-RSTorrent is implemented and released independently from the current JSTorrent
-engine and may coexist with it for the foreseeable product line. Maintainer
-direction on 2026-08-22 selects RSTorrent as the public identity rather than a
-temporary preview label. It may later graduate into a new generation of the
-JSTorrent product once evidence supports replacement. Maintainer direction on
-2026-08-23 clarifies that the expected desktop graduation is a normal
-JSTorrent update retaining the `com.jstorrent.desktop` application identity,
-JSTorrent branding, and its existing updater trust root while adopting the
-Rust engine and refreshed product surface. Legacy-state migration is best
-effort and scoped later. The incubation beta remains independent and does not
-begin with migration or parity obligations.
+Maintainer direction on 2026-09-30 selects a near-term in-place replacement of
+JSTorrent using this implementation, with JSTorrent branding and original icons.
+This supersedes the 2026-08-22 foreseeable independent RSTorrent product policy.
+Desktop retains `com.jstorrent.desktop` and its updater trust root, Android updates
+the existing `com.jstorrent.app` Play app, and this repo's extension updates the
+existing production Web Store item. Independent delivery and best-effort legacy
+migration follow [product-surfaces-and-migration](product-surfaces-and-migration.md).
+Separate incubation/test identities remain during qualification. Tactical
+[249](../tactical/249-jstorrent-brand-and-extension-refresh.md) starts branding and
+a focused extension refresh; production publication remains separate work.
 
 ### Disposable incubation line
 
@@ -97,7 +169,7 @@ these safety boundaries remain mandatory.
 The torrent engine is authored in this repository. libtorrent, librqbit, and
 other clients are references and test peers, not the runtime engine.
 
-Product clients are also first-party. A platform UI framework or operating
+Product surfaces are also first-party. A platform UI framework or operating
 system library is ordinary infrastructure; a generic remote UI controlling a
 third-party client would change the product. A future first-party JSTorrent
 extension may control this native engine through a deliberately narrow
@@ -153,7 +225,7 @@ introduced.
 
 ### In-process by default
 
-Desktop, Android, and the maintained iOS client normally load the engine
+Desktop, Android, and the maintained iOS app normally load the engine
 into their own process and communicate through a typed application API. A test
 driver or later remote-control feature must not force the product itself into
 a daemon architecture. A future extension control channel carries commands,
@@ -202,7 +274,7 @@ runtime to manufacture parity.
 
 ### Detailed desktop inspection and platform presentation split
 
-After the first engine-parity campaign produced a roughly functional client
+After the first engine-parity campaign produced a roughly functional product
 but an indirect interactive debugging loop, desktop/web becomes the detailed
 inspection surface as recorded in
 [`desktop-inspection-surface.md`](desktop-inspection-surface.md). Its product
@@ -414,7 +486,7 @@ testing evidence justifies it.
   Tacticals `147`--`149` build, archive, development-sign, install, and
   physically validate the product without publishing it.
 - Search plugins, streaming playback, or remote administration in the first
-  useful client.
+  useful product.
 - Exact JSTorrent API, engine, persistence, or feature parity. Completed
   Tactical
   [`117`](../tactical/117-jstorrent-shaped-android-product-ui.md)
@@ -499,8 +571,8 @@ This is recommended direction beyond the accepted first slice:
     diagnostics, and equivalent headless-tested web and Android presentation.
 14. Completed:
     [`013-explicit-live-network-policy.md`](../tactical/013-explicit-live-network-policy.md)
-    made outbound policy explicit, enabled routed networking in product
-    clients, retained loopback isolation in harnesses, and bounded individual
+    made outbound policy explicit, enabled routed networking in products,
+    retained loopback isolation in harnesses, and bounded individual
     network waits instead of whole torrent lifetime.
 15. Completed:
     [`014-scheduled-udp-tracker-lifecycle.md`](../tactical/014-scheduled-udp-tracker-lifecycle.md)
@@ -510,8 +582,8 @@ This is recommended direction beyond the accepted first slice:
 16. Grow the resulting thin surfaces only through capabilities the engine and
     application service actually own. Desktop content UI remains web-based;
     native desktop code owns the shell, tray, and operating-system integration.
-17. The accepted graduation-level backend/presentation choices, extension
-    control posture, handoff requirements, backend isolation, and best-effort
+17. The accepted graduation-level host/client choices, extension
+    control posture, handoff requirements, host isolation, and best-effort
     JSTorrent graduation direction are recorded in
     [`product-surfaces-and-migration.md`](product-surfaces-and-migration.md).
     Their implementation still requires separate bounded tacticals.

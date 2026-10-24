@@ -22,6 +22,7 @@ const metricsSummary = document.querySelector("#metrics-summary");
 const metricsReset = document.querySelector("#metrics-reset");
 const metricsStatus = document.querySelector("#metrics-status");
 const privacyPolicy = document.querySelector("#privacy-policy");
+const privacyDetails = document.querySelector("#privacy-details");
 
 function setStatus(kind, title, detail) {
   statusDot.className = `status-dot ${kind}`;
@@ -34,17 +35,17 @@ function request(op) {
 }
 
 async function checkDesktop() {
-  setStatus("checking", "Checking desktop setup…", "Looking for the RSTorrent native host.");
+  setStatus("checking", "Checking desktop setup…", "Connecting to the desktop app.");
   launchButton.disabled = true;
   try {
     const response = await request("hello");
     if (!response?.ok || response.result?.kind !== "hello") {
-      throw new Error(response?.error?.message || "RSTorrent Desktop is unavailable.");
+      throw new Error(response?.error?.message || "JSTorrent Desktop is unavailable.");
     }
     setStatus(
       "ready",
-      "RSTorrent Desktop is ready",
-      `Native bootstrap ${response.result.hostVersion} is installed.`,
+      "JSTorrent Desktop is ready",
+      "Open your library here. Downloads run in the desktop app.",
     );
     void updateMetrics("connected");
     launchButton.disabled = false;
@@ -54,29 +55,29 @@ async function checkDesktop() {
       "Desktop setup needed",
       error instanceof Error
         ? error.message
-        : "Install RSTorrent Desktop and open it once to finish setup.",
+        : "Install JSTorrent Desktop and open it once to finish setup.",
     );
   }
 }
 
 launchButton.addEventListener("click", async () => {
   launchButton.disabled = true;
-  setStatus("checking", "Opening RSTorrent…", "Sending a launch request to the desktop app.");
+  setStatus("checking", "Opening JSTorrent…", "Sending a launch request to the desktop app.");
   try {
-    const response = await request("launch");
-    if (!response?.ok || response.result?.status !== "requested") {
-      throw new Error(response?.error?.message || "RSTorrent could not be opened.");
+    const response = await chrome.runtime.sendMessage({ type: "desktopBootstrap", op: "open" });
+    if (!response?.ok || response.result?.kind !== "desktop_ui") {
+      throw new Error(response?.error?.message || "JSTorrent could not be opened.");
     }
     setStatus(
       "ready",
       "Launch requested",
-      "The desktop app should open or focus shortly.",
+      "Your desktop library is open in the browser.",
     );
   } catch (error) {
     setStatus(
       "error",
-      "RSTorrent did not open",
-      error instanceof Error ? error.message : "Open RSTorrent Desktop directly and try again.",
+      "JSTorrent did not open",
+      error instanceof Error ? error.message : "Open JSTorrent Desktop directly and try again.",
     );
     launchButton.disabled = false;
   }
@@ -88,15 +89,15 @@ linuxButton.addEventListener("click", async () => {
   try {
     const response = await requestCrostini();
     if (!response?.ok) {
-      throw new Error(response?.error?.message || "Chrome could not open RSTorrent Linux.");
+      throw new Error(response?.error?.message || "Chrome could not open the Linux preview.");
     }
     linuxStatus.textContent =
-      "Opened. If Chrome shows that the page is unavailable, launch RSTorrent for ChromeOS Linux from the Chromebook Launcher.";
+      "Page requested; Linux connection is not confirmed. Use its connection check and troubleshooting if Linux is stopped or unavailable.";
   } catch (error) {
     linuxStatus.textContent =
       error instanceof Error
         ? error.message
-        : "Use RSTorrent for ChromeOS Linux from the Chromebook Launcher.";
+        : "Use JSTorrent for ChromeOS Linux from the Chromebook Launcher.";
   } finally {
     linuxButton.disabled = false;
   }
@@ -126,7 +127,7 @@ androidButton.addEventListener("click", async () => {
       throw new Error(response?.error?.message || "Chrome could not start the Android flow.");
     }
     androidStatus.textContent =
-      "Launch requested. ChromeOS may ask which Android app to open; continue in the RSTorrent tab.";
+      "Connection page opened. If Android is not ready, use Open JSTorrent Android and finish setup there. App startup and pairing are not yet confirmed.";
   } catch (error) {
     androidStatus.textContent = error instanceof Error ? error.message : String(error);
   } finally {
@@ -153,6 +154,12 @@ async function initializePresentation() {
   });
   if (presentation.desktop) {
     await checkDesktop();
+    // Only an actual toolbar popup is fresh launch intent. This document can
+    // also be opened/restored as a tab, which must not resurrect a quit app.
+    if (!presentation.chromeos && !launchButton.disabled &&
+        chrome.extension.getViews({ type: "popup" }).includes(window)) {
+      launchButton.click();
+    }
   }
 }
 
@@ -162,6 +169,8 @@ function metricsRequest(op, extra = {}) {
 
 function renderMetrics(state) {
   const disclosed = state.disclosureVersion === 1;
+  // First-use disclosure stays visible; returning users can expand settings.
+  if (!disclosed) privacyDetails.open = true;
   metricsDisclosure.hidden = disclosed;
   metricsSettings.hidden = !disclosed;
   metricsEnabled.checked = state.statisticsEnabled;

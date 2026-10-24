@@ -8,6 +8,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant};
 
+use crate::range_protocol::{self as v2, Admission, CreditWindow};
+use crate::range_stream::RangeProducer;
 use bytes::BytesMut;
 use rstorrent_session::{ApplicationService, MediaRangeError, MediaReadError, MediaResolveError};
 use rtc::data_channel::RTCDataChannelId;
@@ -33,8 +35,9 @@ use rtc::stun::client::ClientBuilder as StunClientBuilder;
 use rtc::stun::message::{BINDING_REQUEST, Getter, Message as StunMessage, TransactionId};
 use rtc::stun::xoraddr::XorMappedAddress;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use tokio::net::UdpSocket;
-use tokio::sync::{Mutex, mpsc, oneshot};
+use tokio::sync::{Mutex, mpsc, oneshot, watch};
 use tokio::task::{JoinHandle, JoinSet};
 use tokio_util::sync::CancellationToken;
 
@@ -54,7 +57,7 @@ pub const STUN_BINDING_TIMEOUT: Duration = Duration::from_secs(4);
 pub const MDNS_RESOLUTION_TIMEOUT: Duration = Duration::from_secs(4);
 pub const NEGOTIATION_TIMEOUT: Duration = Duration::from_secs(20);
 pub const REQUEST_INACTIVE_TIMEOUT: Duration = Duration::from_secs(60);
-pub const EXPERIMENT_LIFETIME: Duration = Duration::from_secs(10 * 60);
+pub const PEER_MAX_LIFETIME: Duration = Duration::from_secs(12 * 60 * 60);
 pub const MAX_APPLICATION_QUEUE_BYTES: usize = 512 * 1024;
 pub const MAX_TRANSPORT_QUEUE_BYTES: usize = 512 * 1024;
 const TRANSPORT_QUEUE_LOW_BYTES: u32 = 256 * 1024;
@@ -63,7 +66,12 @@ const DRIVER_FALLBACK_TIMEOUT: Duration = Duration::from_secs(24 * 60 * 60);
 const STATS_INTERVAL: Duration = Duration::from_millis(250);
 const DATA_CHANNEL_LABEL: &str = "rstorrent-direct-file-v1";
 
-type SharedApplication = Arc<Mutex<ApplicationService>>;
+use crate::send_window::{MAX_SEND_WINDOW_BYTES, SendWindow, valid_window_bytes};
+
+// Four chunks overlap disk/network/write-credit latency without changing v1.
+const SEND_WINDOW_BYTES: usize = MAX_SEND_WINDOW_BYTES;
+
+pub(crate) type SharedApplication = Arc<Mutex<ApplicationService>>;
 
 #[derive(Debug)]
 pub enum DirectFileEndpointError {
@@ -126,11 +134,16 @@ pub struct DirectFileEndpointSnapshot {
     pub active_requests: usize,
     pub request_high_water: usize,
     pub queued_bytes: usize,
+    pub credit_reserved_bytes: usize,
+    pub credit_high_water: usize,
     pub queue_high_water: usize,
     pub transport_buffered_bytes: usize,
     pub transport_high_water: usize,
     pub bytes_sent: u64,
     pub bytes_received: u64,
+    pub network_dropped: usize,
+    pub network_queue_high_water: usize,
+    pub network_overflow: usize,
     pub remote_candidates: usize,
     pub signaling_bytes: usize,
     pub fingerprint_verified: bool,
@@ -139,7 +152,7 @@ pub struct DirectFileEndpointSnapshot {
 }
 
 #[derive(Debug, Default)]
-struct EndpointMetrics {
+pub(crate) struct EndpointMetrics {
     state: StdMutex<String>,
     terminal_reason: StdMutex<Option<String>>,
     active_tasks: AtomicUsize,
@@ -147,11 +160,17 @@ struct EndpointMetrics {
     active_requests: AtomicUsize,
     request_high_water: AtomicUsize,
     queued_bytes: AtomicUsize,
+    credit_reserved_bytes: AtomicUsize,
+    credit_high_water: AtomicUsize,
+    queue_space: tokio::sync::Notify,
     queue_high_water: AtomicUsize,
     transport_buffered_bytes: AtomicUsize,
     transport_high_water: AtomicUsize,
     bytes_sent: AtomicU64,
     bytes_received: AtomicU64,
+    network_dropped: AtomicUsize,
+    network_queue_high_water: AtomicUsize,
+    network_overflow: AtomicUsize,
     remote_candidates: AtomicUsize,
     signaling_bytes: AtomicUsize,
     fingerprint_verified: AtomicBool,
@@ -170,11 +189,16 @@ impl EndpointMetrics {
             active_requests: self.active_requests.load(Ordering::Acquire),
             request_high_water: self.request_high_water.load(Ordering::Acquire),
             queued_bytes: self.queued_bytes.load(Ordering::Acquire),
+            credit_reserved_bytes: self.credit_reserved_bytes.load(Ordering::Acquire),
+            credit_high_water: self.credit_high_water.load(Ordering::Acquire),
             queue_high_water: self.queue_high_water.load(Ordering::Acquire),
             transport_buffered_bytes: self.transport_buffered_bytes.load(Ordering::Acquire),
             transport_high_water: self.transport_high_water.load(Ordering::Acquire),
             bytes_sent: self.bytes_sent.load(Ordering::Acquire),
             bytes_received: self.bytes_received.load(Ordering::Acquire),
+            network_dropped: self.network_dropped.load(Ordering::Acquire),
+            network_queue_high_water: self.network_queue_high_water.load(Ordering::Acquire),
+            network_overflow: self.network_overflow.load(Ordering::Acquire),
             remote_candidates: self.remote_candidates.load(Ordering::Acquire),
             signaling_bytes: self.signaling_bytes.load(Ordering::Acquire),
             fingerprint_verified: self.fingerprint_verified.load(Ordering::Acquire),
@@ -235,8 +259,39 @@ trait LazyEndpointStarter: Send + Sync {
     ) -> ProductEndpointStartFuture;
 }
 
+#[derive(Clone, Copy, Default)]
+pub enum ExperimentSource {
+    #[default]
+    Verified,
+    #[cfg(feature = "experiment")]
+    GeneratedRanges,
+    #[cfg(feature = "experiment")]
+    LegacyVerified,
+    #[cfg(feature = "experiment")]
+    Network {
+        delay_ms: u64,
+        loss_every: u32,
+        rate_mib: u32,
+    },
+    #[cfg(feature = "experiment")]
+    Raw { length: usize, buffer_bytes: usize },
+}
+
+#[cfg(feature = "experiment")]
+pub(crate) fn generated_bytes(offset: u64, length: usize) -> Vec<u8> {
+    (offset..offset + length as u64)
+        .map(|index| {
+            index
+                .wrapping_mul(31)
+                .wrapping_add((index >> 8).wrapping_mul(17)) as u8
+        })
+        .collect()
+}
+
 struct RtcEndpointStarter {
     application: SharedApplication,
+    send_window_bytes: usize,
+    source: ExperimentSource,
 }
 
 impl LazyEndpointStarter for RtcEndpointStarter {
@@ -252,6 +307,8 @@ impl LazyEndpointStarter for RtcEndpointStarter {
             bind_ip,
             Vec::new(),
             offer,
+            self.send_window_bytes,
+            self.source,
         ))
     }
 
@@ -261,6 +318,8 @@ impl LazyEndpointStarter for RtcEndpointStarter {
         offer: RTCSessionDescription,
     ) -> ProductEndpointStartFuture {
         let application = self.application.clone();
+        let send_window_bytes = self.send_window_bytes;
+        let source = self.source;
         Box::pin(async move {
             validate_offer(&offer)?;
             let (bind_ip, stun_addresses) = match resolve_stun_route().await {
@@ -270,7 +329,16 @@ impl LazyEndpointStarter for RtcEndpointStarter {
                     None => return Err(stun_error),
                 },
             };
-            answer_offer(application, capability, bind_ip, stun_addresses, offer).await
+            answer_offer(
+                application,
+                capability,
+                bind_ip,
+                stun_addresses,
+                offer,
+                send_window_bytes,
+                source,
+            )
+            .await
         })
     }
 }
@@ -281,8 +349,52 @@ impl DirectFileEndpointFactory {
             // The dynamic lazy boundary makes the actual start path part of a
             // feature-on product binary while leaving all WebRTC resources
             // unopened until signaling supplies an offer.
-            starter: Arc::new(RtcEndpointStarter { application }),
+            starter: Arc::new(RtcEndpointStarter {
+                application,
+                send_window_bytes: SEND_WINDOW_BYTES,
+                source: ExperimentSource::Verified,
+            }),
         }
+    }
+
+    /// Bounded experiment control; product hosts use the measured constant.
+    #[cfg(feature = "experiment")]
+    pub fn with_send_window(application: SharedApplication, bytes: usize) -> Option<Self> {
+        Self::with_experiment_source(application, bytes, ExperimentSource::Verified)
+    }
+
+    /// Local diagnostic sources are never selected by product factories.
+    #[cfg(feature = "experiment")]
+    pub fn with_experiment_source(
+        application: SharedApplication,
+        bytes: usize,
+        source: ExperimentSource,
+    ) -> Option<Self> {
+        if let ExperimentSource::Raw {
+            length,
+            buffer_bytes,
+        } = source
+            && (!(1..=256 * 1024 * 1024).contains(&length)
+                || !(MAX_CHUNK_BYTES..=MAX_TRANSPORT_QUEUE_BYTES).contains(&buffer_bytes))
+        {
+            return None;
+        }
+        if let ExperimentSource::Network {
+            delay_ms,
+            loss_every,
+            rate_mib,
+        } = source
+            && (delay_ms > 250 || (loss_every > 0 && loss_every < 20) || rate_mib > 128)
+        {
+            return None;
+        }
+        valid_window_bytes(bytes).then(|| Self {
+            starter: Arc::new(RtcEndpointStarter {
+                application,
+                send_window_bytes: bytes,
+                source,
+            }),
+        })
     }
 
     pub fn idle_snapshot(&self) -> DirectFileEndpointSnapshot {
@@ -310,13 +422,17 @@ impl DirectFileEndpointFactory {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn answer_offer(
     application: SharedApplication,
     capability: String,
     bind_ip: IpAddr,
     stun_addresses: Vec<SocketAddr>,
     offer: RTCSessionDescription,
+    send_window_bytes: usize,
+    source: ExperimentSource,
 ) -> Result<(OfferAnswer, DirectFileEndpoint), DirectFileEndpointError> {
+    debug_assert!(valid_window_bytes(send_window_bytes));
     let remote_fingerprint = validate_offer(&offer)?;
     {
         let mut application = application.lock().await;
@@ -418,6 +534,8 @@ async fn answer_offer(
             command_rx,
             driver_cancellation,
             driver_metrics.clone(),
+            send_window_bytes,
+            source,
         )
         .await;
         driver_metrics.active_tasks.store(0, Ordering::Release);
@@ -535,13 +653,23 @@ enum EndpointCommand {
     Candidate(RTCIceCandidateInit, oneshot::Sender<Result<(), String>>),
 }
 
-struct OutboundFrame {
+pub(crate) struct OutboundFrame {
     bytes: Vec<u8>,
+    bulk: bool,
+    request_id: u32,
+    priority: u8,
 }
 
 struct ActiveRequest {
     cancellation: CancellationToken,
     ack: mpsc::Sender<u64>,
+    stream: Option<ActiveStream>,
+}
+
+struct ActiveStream {
+    state: Arc<StdMutex<CreditWindow>>,
+    updates: watch::Sender<()>,
+    reservation: usize,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -555,25 +683,77 @@ async fn run_driver(
     mut commands: mpsc::Receiver<EndpointCommand>,
     cancellation: CancellationToken,
     metrics: Arc<EndpointMetrics>,
+    send_window_bytes: usize,
+    source: ExperimentSource,
 ) -> Result<(), DirectFileEndpointError> {
     let (outbound_tx, mut outbound_rx) = mpsc::channel::<OutboundFrame>(8);
     let mut pending = VecDeque::<OutboundFrame>::new();
     let mut requests = HashMap::<u32, ActiveRequest>::new();
     let mut request_tasks = JoinSet::<(u32, &'static str)>::new();
     let mut channel_id: Option<RTCDataChannelId> = None;
+    let mut bulk_id: Option<RTCDataChannelId> = None;
+    let mut admission: Option<Admission> = None;
+    let mut stream_transport_limit = v2::MIN_TRANSPORT;
+    let mut last_scheduled = 0;
+    let mut urgent_run = 0;
     let mut receive_buffer = vec![0; MAX_DATAGRAM_BYTES];
     let mut mdns_receive_buffer = vec![0; MAX_DATAGRAM_BYTES];
     let negotiation_deadline = tokio::time::Instant::now() + NEGOTIATION_TIMEOUT;
-    let lifetime_deadline = tokio::time::Instant::now() + EXPERIMENT_LIFETIME;
+    let lifetime_deadline = tokio::time::Instant::now() + PEER_MAX_LIFETIME;
     let mut stats_tick = tokio::time::interval(STATS_INTERVAL);
     stats_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    #[cfg(feature = "experiment")]
+    let mut raw_sent = 0usize;
+    let allow_v2 = {
+        #[cfg(feature = "experiment")]
+        {
+            !matches!(source, ExperimentSource::LegacyVerified)
+        }
+        #[cfg(not(feature = "experiment"))]
+        {
+            true
+        }
+    };
+    #[cfg(feature = "experiment")]
+    let mut impairment = crate::impairment::Impairment::new(source);
+    let outcome = async {
     let terminal = 'driver: loop {
+        // A saturated diagnostic producer must still respond to cancellation.
+        if cancellation.is_cancelled() {
+            break 'driver "shutdown";
+        }
+        #[cfg(feature = "experiment")]
+        while let Some(datagram) = impairment.pop_due() {
+            if datagram.incoming {
+                peer.handle_read(TaggedBytesMut {
+                    now: Instant::now(),
+                    transport: TransportContext {
+                        local_addr,
+                        peer_addr: datagram.address,
+                        ecn: None,
+                        transport_protocol: TransportProtocol::UDP,
+                    },
+                    message: BytesMut::from(datagram.bytes.as_slice()),
+                })
+                .map_err(|error| DirectFileEndpointError::Driver(error.to_string()))?;
+            } else {
+                socket
+                    .send_to(&datagram.bytes, datagram.address)
+                    .await
+                    .map_err(|error| DirectFileEndpointError::Driver(error.to_string()))?;
+            }
+        }
         while let Some(transmit) = peer.poll_write() {
             let transmit_socket = if transmit.transport.peer_addr == MDNS_DEST_ADDR {
                 &mdns_socket
             } else {
                 &socket
             };
+            #[cfg(feature = "experiment")]
+            if impairment.enabled() && transmit.transport.peer_addr != MDNS_DEST_ADDR {
+                impairment.enqueue(false, transmit.transport.peer_addr, &transmit.message);
+                continue;
+            }
             transmit_socket
                 .send_to(&transmit.message, transmit.transport.peer_addr)
                 .await
@@ -602,21 +782,25 @@ async fn run_driver(
                                 "opened DataChannel disappeared".to_owned(),
                             )
                         })?;
-                        if channel.label() != DATA_CHANNEL_LABEL
-                            || !channel.ordered()
+                        if !channel.ordered()
                             || channel.max_packet_life_time().is_some()
                             || channel.max_retransmits().is_some()
                         {
                             break 'driver "unsupported_data_channel";
                         }
+                        match channel.label() {
+                            DATA_CHANNEL_LABEL if channel_id.is_none() => channel_id = Some(id),
+                            v2::BULK_LABEL if admission.is_some() && bulk_id.is_none() => {
+                                bulk_id = Some(id)
+                            }
+                            _ => break 'driver "unsupported_data_channel",
+                        }
                         channel.set_buffered_amount_low_threshold(TRANSPORT_QUEUE_LOW_BYTES);
-                        channel
-                            .set_buffered_amount_high_threshold(MAX_TRANSPORT_QUEUE_BYTES as u32);
-                        channel_id = Some(id);
+                        channel.set_buffered_amount_high_threshold(v2::MAX_BUDGET as u32);
                         metrics.set_state("ready");
                     }
                     RTCDataChannelEvent::OnClose(id) | RTCDataChannelEvent::OnError(id)
-                        if Some(id) == channel_id =>
+                        if Some(id) == channel_id || Some(id) == bulk_id =>
                     {
                         break 'driver "data_channel_closed";
                     }
@@ -642,6 +826,111 @@ async fn run_driver(
                 u64::try_from(message.data.len()).unwrap_or(u64::MAX),
                 Ordering::AcqRel,
             );
+            #[cfg(feature = "experiment")]
+            if matches!(source, ExperimentSource::Raw { .. }) {
+                break 'driver "unexpected_raw_input";
+            }
+            if allow_v2 && admission.is_none()
+                && requests.is_empty()
+                && let Some((budget, transport_limit)) = v2::hello(&message.data)
+            {
+                let length = {
+                    let lease = application
+                        .lock()
+                        .await
+                        .resolve_media_capability(&capability);
+                    match lease {
+                        Ok(lease) => lease.length(),
+                        Err(_) => break 'driver "capability_unavailable",
+                    }
+                };
+                let version: [u8; 32] = Sha256::digest(capability.as_bytes()).into();
+                try_queue_frame(
+                    &outbound_tx,
+                    &metrics,
+                    v2::opened(length, budget, transport_limit, &version),
+                );
+                admission = Some(Admission::new(budget));
+                stream_transport_limit = transport_limit;
+                update_transport_metrics(&mut peer, &metrics);
+                continue;
+            }
+            if let Some(pool) = admission.as_mut() {
+                match v2::decode(&message.data) {
+                    Ok(v2::Control::Read {
+                        id,
+                        start,
+                        end,
+                        window,
+                        priority,
+                    }) => {
+                        if bulk_id.is_none()
+                            || requests.len() >= MAX_RANGE_REQUESTS
+                            || pool.reserve(id, window as usize).is_err()
+                        {
+                            break 'driver "invalid_range_admission";
+                        }
+                        metrics.credit_reserved_bytes.store(pool.reserved, Ordering::Release);
+                        metrics.credit_high_water.fetch_max(pool.reserved, Ordering::AcqRel);
+                        let cancel = cancellation.child_token();
+                        let state = Arc::new(StdMutex::new(CreditWindow::new(start, end, window)));
+                        let (updates, receiver) = watch::channel(());
+                        let (ack, _) = mpsc::channel(1);
+                        requests.insert(
+                            id,
+                            ActiveRequest {
+                                cancellation: cancel.clone(),
+                                ack,
+                                stream: Some(ActiveStream {
+                                    state: state.clone(),
+                                    updates,
+                                    reservation: window as usize,
+                                }),
+                            },
+                        );
+                        let active = metrics.active_requests.fetch_add(1, Ordering::AcqRel) + 1;
+                        metrics
+                            .request_high_water
+                            .fetch_max(active, Ordering::AcqRel);
+                        let producer = RangeProducer {
+                            application: application.clone(),
+                            capability: capability.clone(),
+                            id,
+                            state,
+                            updates: receiver,
+                            outbound: outbound_tx.clone(),
+                            cancel,
+                            connection_cancel: cancellation.clone(),
+                            metrics: metrics.clone(),
+                            source,
+                            priority,
+                        };
+                        request_tasks.spawn(async move { (id, producer.run().await) });
+                    }
+                    Ok(v2::Control::Credit {
+                        id,
+                        consumed,
+                        limit,
+                    }) => {
+                        if let Some(stream) = requests.get(&id).and_then(|r| r.stream.as_ref()) {
+                            match stream.state.lock().unwrap().update(consumed, limit) {
+                                Ok(true) => { stream.updates.send_replace(()); },
+                                Ok(false) => {},
+                                Err(_) => break 'driver "invalid_consumption_credit",
+                            }
+                        } else if !pool.has_seen(id) {
+                            break 'driver "unknown_range_credit";
+                        }
+                    }
+                    Ok(v2::Control::Cancel { id }) => {
+                        if let Some(request) = requests.get(&id) {
+                            request.cancellation.cancel();
+                        }
+                    }
+                    Err(_) => break 'driver "malformed_stream_control",
+                }
+                continue;
+            }
             match decode_control(&message.data) {
                 Ok(ControlFrame::RangeRequest {
                     request_id,
@@ -662,12 +951,14 @@ async fn run_driver(
                         );
                     } else {
                         let request_cancellation = cancellation.child_token();
-                        let (ack_tx, ack_rx) = mpsc::channel(1);
+                        let (ack_tx, ack_rx) =
+                            mpsc::channel(MAX_SEND_WINDOW_BYTES / MAX_CHUNK_BYTES + 1);
                         requests.insert(
                             request_id,
                             ActiveRequest {
                                 cancellation: request_cancellation.clone(),
                                 ack: ack_tx,
+                                stream: None,
                             },
                         );
                         let active = metrics.active_requests.fetch_add(1, Ordering::AcqRel) + 1;
@@ -689,6 +980,8 @@ async fn run_driver(
                                 outbound,
                                 request_cancellation,
                                 request_metrics,
+                                send_window_bytes,
+                                source,
                             )
                             .await;
                             (request_id, terminal)
@@ -705,7 +998,22 @@ async fn run_driver(
                     next_offset,
                 }) => {
                     if let Some(request) = requests.get(&request_id) {
-                        let _ = request.ack.try_send(next_offset);
+                        if request.cancellation.is_cancelled() {
+                            continue;
+                        }
+                        if matches!(
+                            request.ack.try_send(next_offset),
+                            Err(mpsc::error::TrySendError::Full(_))
+                        ) {
+                            // An honest peer has at most four unacknowledged chunks.
+                            // Never silently drop the last credit or grow a flood queue.
+                            request.cancellation.cancel();
+                            try_queue_frame(
+                                &outbound_tx,
+                                &metrics,
+                                encode_range_error(request_id, RangeErrorCode::Malformed),
+                            );
+                        }
                     }
                 }
                 Err(_) => try_queue_frame(
@@ -720,29 +1028,117 @@ async fn run_driver(
             pending.push_back(frame);
         }
 
-        if let (Some(id), Some(frame)) = (channel_id, pending.front()) {
-            let mut channel = peer.data_channel(id).ok_or_else(|| {
-                DirectFileEndpointError::Driver("active DataChannel disappeared".to_owned())
-            })?;
-            let buffered = channel.outstanding_bytes();
-            metrics
-                .transport_buffered_bytes
-                .store(buffered, Ordering::Release);
-            metrics
-                .transport_high_water
-                .fetch_max(buffered, Ordering::AcqRel);
-            if buffered.saturating_add(frame.bytes.len()) <= MAX_TRANSPORT_QUEUE_BYTES {
-                let frame = pending.pop_front().expect("front frame exists");
-                channel
-                    .send(BytesMut::from(frame.bytes.as_slice()))
-                    .map_err(|error| DirectFileEndpointError::Driver(error.to_string()))?;
+        // Keep control responsive and rotate among ready range owners. Urgent
+        // probes get up to three turns before an available bulk owner.
+        let index = pending.iter().position(|f| !f.bulk).or_else(|| {
+            let preferred = if urgent_run < 3 { 1 } else { 0 };
+            pending
+                .iter()
+                .position(|f| f.priority == preferred && f.request_id != last_scheduled)
+                .or_else(|| pending.iter().position(|f| f.priority == preferred))
+                .or_else(|| pending.iter().position(|f| f.request_id != last_scheduled))
+                .or_else(|| (!pending.is_empty()).then_some(0))
+        });
+        if let Some(index) = index {
+            let frame = &pending[index];
+            let selected = if frame.bulk { bulk_id } else { channel_id };
+            if let Some(id) = selected {
+                let control_buffered = channel_id
+                    .and_then(|c| peer.data_channel(c))
+                    .map_or(0, |c| c.outstanding_bytes());
+                let bulk_buffered = bulk_id
+                    .and_then(|c| peer.data_channel(c))
+                    .map_or(0, |c| c.outstanding_bytes());
+                let buffered = control_buffered + bulk_buffered;
                 metrics
-                    .queued_bytes
-                    .fetch_sub(frame.bytes.len(), Ordering::AcqRel);
-                metrics.bytes_sent.fetch_add(
-                    u64::try_from(encoded_chunk_payload_bytes(&frame.bytes)).unwrap_or(u64::MAX),
-                    Ordering::AcqRel,
-                );
+                    .transport_buffered_bytes
+                    .store(buffered, Ordering::Release);
+                metrics
+                    .transport_high_water
+                    .fetch_max(buffered, Ordering::AcqRel);
+                let limit = if admission.is_some() {
+                    v2::transport_window(
+                        stream_transport_limit,
+                        metrics.rtt_micros.load(Ordering::Acquire),
+                    )
+                } else {
+                    MAX_TRANSPORT_QUEUE_BYTES
+                };
+                // Reserve a small independent control allowance; bulk never fills it.
+                let fits = if frame.bulk {
+                    bulk_buffered.saturating_add(frame.bytes.len()) <= limit
+                } else {
+                    control_buffered.saturating_add(frame.bytes.len()) <= MAX_TRANSPORT_QUEUE_BYTES
+                };
+                if fits {
+                    let frame = pending.remove(index).expect("selected frame exists");
+                    if frame.bulk {
+                        last_scheduled = frame.request_id;
+                        urgent_run = if frame.priority == 1 {
+                            urgent_run + 1
+                        } else {
+                            0
+                        };
+                    }
+                    let payload_bytes =
+                        if frame.bytes.first() == Some(&2) && frame.bytes.get(1) == Some(&0x82) {
+                            frame.bytes.len().saturating_sub(14)
+                        } else {
+                            encoded_chunk_payload_bytes(&frame.bytes)
+                        };
+                    let mut channel = peer.data_channel(id).ok_or_else(|| {
+                        DirectFileEndpointError::Driver("active DataChannel disappeared".to_owned())
+                    })?;
+                    channel
+                        .send(BytesMut::from(frame.bytes.as_slice()))
+                        .map_err(|error| DirectFileEndpointError::Driver(error.to_string()))?;
+                    let buffered = buffered + frame.bytes.len();
+                    metrics
+                        .transport_buffered_bytes
+                        .store(buffered, Ordering::Release);
+                    metrics
+                        .transport_high_water
+                        .fetch_max(buffered, Ordering::AcqRel);
+                    metrics
+                        .queued_bytes
+                        .fetch_sub(frame.bytes.len(), Ordering::AcqRel);
+                    metrics.queue_space.notify_waiters();
+                    metrics
+                        .bytes_sent
+                        .fetch_add(payload_bytes as u64, Ordering::AcqRel);
+                    continue;
+                }
+            }
+        }
+
+        #[cfg(feature = "experiment")]
+        if let (
+            Some(id),
+            ExperimentSource::Raw {
+                length,
+                buffer_bytes,
+            },
+        ) = (channel_id, source)
+            && raw_sent < length
+        {
+            let mut channel = peer.data_channel(id).ok_or_else(|| {
+                DirectFileEndpointError::Driver("raw DataChannel disappeared".to_owned())
+            })?;
+            let size = MAX_CHUNK_BYTES.min(length - raw_sent);
+            if channel.outstanding_bytes().saturating_add(size) <= buffer_bytes {
+                let bytes = generated_bytes(raw_sent as u64, size);
+                channel
+                    .send(BytesMut::from(bytes.as_slice()))
+                    .map_err(|error| DirectFileEndpointError::Driver(error.to_string()))?;
+                raw_sent += size;
+                let buffered = channel.outstanding_bytes();
+                metrics
+                    .transport_buffered_bytes
+                    .store(buffered, Ordering::Release);
+                metrics
+                    .transport_high_water
+                    .fetch_max(buffered, Ordering::AcqRel);
+                metrics.bytes_sent.fetch_add(size as u64, Ordering::AcqRel);
                 continue;
             }
         }
@@ -758,6 +1154,8 @@ async fn run_driver(
                 .map_err(|error| DirectFileEndpointError::Driver(error.to_string()))?;
             continue;
         }
+        #[cfg(feature = "experiment")]
+        let impairment_timer = tokio::time::sleep_until(impairment.deadline());
         let protocol_timer = tokio::time::sleep(timeout_delay);
         tokio::pin!(protocol_timer);
 
@@ -767,7 +1165,7 @@ async fn run_driver(
                 break 'driver "shutdown";
             }
             _ = tokio::time::sleep_until(lifetime_deadline) => {
-                break 'driver "experiment_lifetime";
+                break 'driver "peer_lifetime";
             }
             _ = tokio::time::sleep_until(negotiation_deadline), if channel_id.is_none() => {
                 break 'driver "negotiation_timeout";
@@ -782,12 +1180,30 @@ async fn run_driver(
             },
             Some(frame) = outbound_rx.recv() => pending.push_back(frame),
             Some(joined) = request_tasks.join_next(), if !request_tasks.is_empty() => {
-                if let Ok((request_id, _request_terminal)) = joined {
-                    requests.remove(&request_id);
+                if let Ok((request_id, request_terminal)) = joined {
+                    if matches!(request_terminal, "queue_closed" | "driver_closed") && !cancellation.is_cancelled() { break 'driver "range_producer_failed"; }
+                    if let Some(request) = requests.remove(&request_id)
+                        && let Some(stream) = request.stream
+                        && let Some(pool) = admission.as_mut()
+                    {
+                        let state = stream.state.lock().unwrap();
+                        if state.consumed != state.sent { break 'driver "unconsumed_range_terminal"; }
+                        pool.release(stream.reservation);
+                        metrics.credit_reserved_bytes.store(pool.reserved, Ordering::Release);
+                        let mut bytes = vec![2, 0x85]; bytes.extend(request_id.to_be_bytes());
+                        if reserve_queue(&metrics, bytes.len()).is_err() { break 'driver "control_queue_full"; }
+                        pending.push_back(OutboundFrame { bytes, bulk: false, request_id, priority: 0 });
+                    }
                     metrics.active_requests.fetch_sub(1, Ordering::AcqRel);
-                }
+                } else { break 'driver "range_producer_panicked"; }
             }
             _ = stats_tick.tick() => update_transport_metrics(&mut peer, &metrics),
+            _ = async {
+                #[cfg(feature = "experiment")]
+                impairment_timer.await;
+                #[cfg(not(feature = "experiment"))]
+                std::future::pending::<()>().await;
+            } => {},
             _ = &mut protocol_timer => {
                 peer.handle_timeout(Instant::now())
                     .map_err(|error| DirectFileEndpointError::Driver(error.to_string()))?;
@@ -795,6 +1211,11 @@ async fn run_driver(
             received = socket.recv_from(&mut receive_buffer) => {
                 let (length, peer_addr) = received
                     .map_err(|error| DirectFileEndpointError::Driver(error.to_string()))?;
+                #[cfg(feature = "experiment")]
+                if impairment.enabled() {
+                    impairment.enqueue(true, peer_addr, &receive_buffer[..length]);
+                    continue;
+                }
                 peer.handle_read(TaggedBytesMut {
                     now: Instant::now(),
                     transport: TransportContext {
@@ -828,20 +1249,41 @@ async fn run_driver(
         }
     };
 
+    Ok::<_, DirectFileEndpointError>(terminal)
+    }.await;
+    let terminal = match &outcome {
+        Ok(terminal) => *terminal,
+        Err(_) => "driver_failed",
+    };
+    #[cfg(feature = "experiment")]
+    {
+        metrics
+            .network_dropped
+            .store(impairment.dropped, Ordering::Release);
+        metrics
+            .network_queue_high_water
+            .store(impairment.high_water, Ordering::Release);
+        metrics
+            .network_overflow
+            .store(impairment.overflow, Ordering::Release);
+    }
     metrics.set_state("closing");
     metrics.set_terminal(terminal);
     cancellation.cancel();
     for request in requests.values() {
         request.cancellation.cancel();
     }
+    outbound_rx.close();
     while request_tasks.join_next().await.is_some() {}
     requests.clear();
     metrics.active_requests.store(0, Ordering::Release);
     pending.clear();
     while outbound_rx.try_recv().is_ok() {}
     metrics.queued_bytes.store(0, Ordering::Release);
-    peer.close()
-        .map_err(|error| DirectFileEndpointError::Driver(error.to_string()))?;
+    metrics.credit_reserved_bytes.store(0, Ordering::Release);
+    let close_result = peer
+        .close()
+        .map_err(|error| DirectFileEndpointError::Driver(error.to_string()));
     while let Some(transmit) = peer.poll_write() {
         let transmit_socket = if transmit.transport.peer_addr == MDNS_DEST_ADDR {
             &mdns_socket
@@ -854,7 +1296,7 @@ async fn run_driver(
     }
     metrics.transport_buffered_bytes.store(0, Ordering::Release);
     metrics.set_state("closed");
-    Ok(())
+    outcome.map(|_| ()).and(close_result)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -868,6 +1310,8 @@ async fn run_range_request(
     outbound: mpsc::Sender<OutboundFrame>,
     cancellation: CancellationToken,
     metrics: Arc<EndpointMetrics>,
+    send_window_bytes: usize,
+    source: ExperimentSource,
 ) -> &'static str {
     let lease = {
         let mut application = application.lock().await;
@@ -913,10 +1357,39 @@ async fn run_range_request(
         return "queue_closed";
     }
 
-    let mut current = offset;
-    while current < end {
-        let chunk_length = usize::try_from((end - current).min(MAX_CHUNK_BYTES as u64))
-            .expect("bounded chunk fits usize");
+    let mut window = SendWindow::new(offset, end, send_window_bytes);
+    while !window.complete() {
+        let Some((current, chunk_length)) = window.next_chunk() else {
+            let acknowledged = tokio::select! {
+                _ = cancellation.cancelled() => return "cancelled",
+                result = tokio::time::timeout(REQUEST_INACTIVE_TIMEOUT, acknowledgements.recv()) => result,
+            };
+            match acknowledged {
+                Ok(Some(next)) => match window.acknowledge(next) {
+                    Ok(released) => lease.touch_served(released),
+                    Err(()) => {
+                        queue_frame(
+                            &outbound,
+                            &metrics,
+                            encode_range_error(request_id, RangeErrorCode::Malformed),
+                        )
+                        .await;
+                        return "invalid_ack";
+                    }
+                },
+                Ok(None) => return "driver_closed",
+                Err(_) => {
+                    queue_frame(
+                        &outbound,
+                        &metrics,
+                        encode_range_error(request_id, RangeErrorCode::Inactive),
+                    )
+                    .await;
+                    return "inactive";
+                }
+            }
+            continue;
+        };
         let ready = lease.wait_for_range(current, chunk_length);
         let ready = tokio::select! {
             _ = cancellation.cancelled() => return "cancelled",
@@ -932,7 +1405,15 @@ async fn run_range_request(
             queue_frame(&outbound, &metrics, encode_range_error(request_id, code)).await;
             return "range_unavailable";
         }
-        let read = lease.read_range(current, chunk_length);
+        let read = async {
+            #[cfg(feature = "experiment")]
+            if matches!(source, ExperimentSource::GeneratedRanges) {
+                return Ok(generated_bytes(current, chunk_length));
+            }
+            #[cfg(not(feature = "experiment"))]
+            let _ = source;
+            lease.read_range(current, chunk_length).await
+        };
         let bytes = tokio::select! {
             _ = cancellation.cancelled() => return "cancelled",
             result = read => match result {
@@ -954,39 +1435,54 @@ async fn run_range_request(
         if !queue_frame(&outbound, &metrics, frame).await {
             return "queue_closed";
         }
-        let expected_next = current + chunk_length as u64;
-        let acknowledged = tokio::select! {
-            _ = cancellation.cancelled() => return "cancelled",
-            result = tokio::time::timeout(REQUEST_INACTIVE_TIMEOUT, acknowledgements.recv()) => result,
-        };
-        match acknowledged {
-            Ok(Some(next)) if next == expected_next => {
-                lease.touch_served(chunk_length);
-                current = expected_next;
-            }
-            Ok(Some(_)) => {
-                queue_frame(
-                    &outbound,
-                    &metrics,
-                    encode_range_error(request_id, RangeErrorCode::Malformed),
-                )
-                .await;
-                return "invalid_ack";
-            }
-            Ok(None) => return "driver_closed",
-            Err(_) => {
-                queue_frame(
-                    &outbound,
-                    &metrics,
-                    encode_range_error(request_id, RangeErrorCode::Inactive),
-                )
-                .await;
-                return "inactive";
-            }
-        }
+        window.record_sent(chunk_length);
     }
     queue_frame(&outbound, &metrics, encode_range_complete(request_id)).await;
     "complete"
+}
+
+pub(crate) async fn queue_frame_to(
+    outbound: &mpsc::Sender<OutboundFrame>,
+    metrics: &EndpointMetrics,
+    bytes: Vec<u8>,
+    bulk: bool,
+    request_id: u32,
+    priority: u8,
+) -> bool {
+    let Ok(permit) = outbound.reserve().await else {
+        return false;
+    };
+    loop {
+        let notified = metrics.queue_space.notified();
+        tokio::pin!(notified);
+        notified.as_mut().enable();
+        if reserve_counter(
+            &metrics.queued_bytes,
+            bytes.len(),
+            MAX_APPLICATION_QUEUE_BYTES - 4096,
+        )
+        .is_ok()
+        {
+            metrics.queue_high_water.fetch_max(
+                metrics.queued_bytes.load(Ordering::Acquire),
+                Ordering::AcqRel,
+            );
+            break;
+        }
+        if tokio::time::timeout(REQUEST_INACTIVE_TIMEOUT, notified)
+            .await
+            .is_err()
+        {
+            return false;
+        }
+    }
+    permit.send(OutboundFrame {
+        bytes,
+        bulk,
+        request_id,
+        priority,
+    });
+    true
 }
 
 async fn queue_frame(
@@ -998,7 +1494,16 @@ async fn queue_frame(
         return false;
     }
     let length = bytes.len();
-    if outbound.send(OutboundFrame { bytes }).await.is_err() {
+    if outbound
+        .send(OutboundFrame {
+            bytes,
+            bulk: false,
+            request_id: 0,
+            priority: 0,
+        })
+        .await
+        .is_err()
+    {
         metrics.queued_bytes.fetch_sub(length, Ordering::AcqRel);
         return false;
     }
@@ -1014,7 +1519,15 @@ fn try_queue_frame(
         return;
     }
     let length = bytes.len();
-    if outbound.try_send(OutboundFrame { bytes }).is_err() {
+    if outbound
+        .try_send(OutboundFrame {
+            bytes,
+            bulk: false,
+            request_id: 0,
+            priority: 0,
+        })
+        .is_err()
+    {
         metrics.queued_bytes.fetch_sub(length, Ordering::AcqRel);
     }
 }

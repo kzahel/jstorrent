@@ -1,6 +1,91 @@
 # Android SAF Storage
 
+Finish-line slice056 (2026-10-10) finds managed27 normal retained-folder Repair
+changing a Paused complete torrent to Seeding, while independently verified bytes
+remain intact. Cancel and normal original-path restoration/cleanup pass separately.
+[Tactical292](../tactical/292-android-repair-paused-intent.md) owns a bounded
+Android stale-view Resume correction and isolated before/after validation. Existing
+health/replacement evidence does not qualify paused intent for this candidate.
+
+
 Topic: `android-saf-storage`
+
+[Tactical292](../tactical/292-android-repair-paused-intent.md) completes a bounded
+Android correction: root probes reconcile durable run intent; delayed
+AwaitingStorage presentation no longer dispatches Resume. Unchanged API35
+normal Repair reproduces managed27's paused-to-Seeding failure. Fixed paused
+and running controls retain bytes and intent through Repair/cold reopen with
+the source closed. Android build/122 JVM cases/lint and owned AVD cleanup pass.
+This is debug/local qualification; new original-signed code>27 and managed
+repair evidence remain required. No Rust/JNI/schema or new grant policy changes.
+
+Tactical259 now adds actual Play-managed code27 owned-folder outage/restoration
+on physical cohort B. A normally closed, marker/inventory-checked test tree is
+renamed; the original path is not recreated and Library/Storage show retained
+library/Repair. Restoring its original path recovers available storage and the
+paused independently hashed file with the source paused. Original persisted URI
+grant identity/modes/time and package identity remain; normal owned cleanup
+retains only the empty selected folder/grant and closes every tab/window.
+This is path-availability evidence, not managed grant revocation/regrant, completed
+repair picking, two-tree, exact opaque-root-ID, removable-provider or reboot proof.
+
+Tactical
+[253](../tactical/253-chromeos-onboarding-recovery-and-physical-qualification.md)
+adds current isolated physical APK evidence on cohort A: the real picker
+commits its owned binary retained-root registry, controlled magnet/file-input
+bytes verify independently, and native restart retains the binding/library in
+bounded recovery. Inherited apps/grants are preserved. Second-cohort revoked
+grant/cancel/retry evidence is recorded below; real Play installation remains
+open. Retain 194's original bounded repair pass.
+
+Second-cohort Tactical 253 adds independently hashed download/restart and
+full-hour observation evidence. Its startup follow-up isolates the 121-file
+restoration cost to 126 serial SAF observations. A four-future window now
+uses the existing provider workers while preserving exact file validation,
+request bounds and cancellation. The native Library has a service-owned
+checking state independent of view-stream readiness, avoiding false repair,
+empty-library and torrent-error presentations before the initial probe finishes.
+Saved pairing and a completed browser row recover within the existing discovery
+budget. Both Android ABIs, generated Kotlin and 116 JVM tests pass. Exact
+before/after startup cohorts and screenshots belong to 253's follow-up review.
+The earlier rough 45-second observation remains historical, not a measured
+native-open timing or a revoked-grant test. The subsequent recovery slice
+corrects Library Repair to invoke the existing retained-root repair callback,
+rather than ordinary add-folder selection. Physical grant revocation fails
+closed, picker cancellation preserves the binding, and completed retry advances
+its generation under the same root ID with independently unchanged bytes.
+Renaming the owned folder fails closed without recreating it; selecting its
+relocated tree repairs the same root and retains verified bytes with the source
+offline. Three physical Compose click regressions preserve first selection and ordinary
+menu selection as separate actions. Fresh Play delivery and full-device
+lifecycle gates remain open.
+
+Tactical [248](../tactical/248-chromeos-staggered-upgrade.md) extends controlled
+API 28/35 upgrade evidence to the released extension engine/session writer:
+explicit per-torrent roots A/B, two real SAF grants, independent completed and
+resumed file hashes, restart and successor extension control retain the same
+Android bindings. The physical installed library remains untouched.
+
+Tactical [247](../tactical/247-android-ordinary-writer-upgrade.md) adds API 28/35
+upgrade evidence from the released app's actual settings/intake/session writers:
+two persisted SAF grants, paused and incomplete/running torrents, successor
+completion, process restart and reboot retain exact hashes and stable bindings.
+No source KV/preferences are seeded in this mode; physical apps are preserved.
+
+Tactical [246](../tactical/246-android-legacy-import-and-installed-upgrade.md)
+commits stable platform-root IDs and a private old-tree binding manifest with
+Android catalog migration. Startup bootstraps missing registry entries before
+engine open; existing repaired bindings win and removed catalog roots are
+filtered. Persisted read/write permission and real provider access, rather than
+legacy healthy hints, decide availability. Missing grants remain repairable.
+
+Tactical [245](../tactical/245-android-legacy-inventory-and-import-contract.md)
+pins the Android 1.0.24 root format and generated inventory fixtures. Its
+proposed handoff keeps runtime persisted read/write grants authoritative,
+retains revoked roots for repair, and derives the registry from atomically
+committed catalog bindings before startup. The old explicit private-download
+fallback is distinct from SAF. No importer, grant transfer or installed Android
+upgrade is implemented or qualified by this format audit.
 
 Completed local and hosted Tactical
 [`213`](../tactical/213-owned-android-runtime-ci.md) promotes the real Android
@@ -25,14 +110,14 @@ implements the first multi-root Android product extension of this boundary. It
 replaces the
 singleton tree URI with a bounded root-ID-to-grant registry, routes the
 existing root-tagged broker requests through the exact retained grant, and
-lets the shared React presentation invoke Android's SAF picker. One root is
+lets the shared React client invoke Android's SAF picker. One root is
 current for new downloads; earlier roots remain for torrents already bound to
 them and may be made current explicitly. The existing `tree-uri`/`downloads`
 pair migrates in place for RSTorrent users. No locator, descriptor, or payload
 path moves into the extension. Physical ChromeOS proves two independent roots,
 future-add current/default selection, durable old-torrent binding, referenced
 removal rejection, independent grant loss/repair, restart, Compose/React
-convergence, and exact cleanup. The companion presentation remains blocked by
+convergence, and exact cleanup. The companion client remains blocked by
 its LAN-reachable ChromeOS transport; that does not roll back the in-process
 Compose retained-root capability.
 
@@ -131,7 +216,7 @@ It complements:
   which owns shared positional I/O, durability epochs, and session/root
   scheduling; and
 - [`application-control.md`](application-control.md), which keeps platform
-  capabilities and descriptor values out of portable presentation commands.
+  capabilities and descriptor values out of portable client commands.
 
 This topic does not implement desktop-shaped per-add selection among retained
 Android roots, cloud document providers, torrent relocation, a general virtual
@@ -357,6 +442,18 @@ Repair preserves the stable root ID while replacing or refreshing its platform
 locator. It invalidates every pool entry under the old capability before work
 resumes. Grant loss leaves torrents waiting for repair. It never silently
 falls back to application-private storage or another root.
+
+Tactical [`329`](../tactical/329-android-remove-download-folder.md) lets the
+user remove any folder. `ApplicationService::detach_platform_storage_root`
+stops the root's torrents (join active content, invalidate pooled
+descriptors, mark awaiting storage) before Android releases the grant, because
+an open descriptor survives URI permission release. A root torrents still use
+keeps its catalog row and registry identity for repair; an unused root is
+deleted. A removed current root is replaced by the first other available
+root, or none. Android passes only granted roots to the engine at launch, so
+the engine's first-configured-root default rule cannot re-select a removed or
+unavailable folder. File deletion is an explicit option that runs the
+ordinary Delete data removal for those torrents first.
 
 ## Failure And Security Invariants
 

@@ -1,10 +1,15 @@
 import type {
+  ApiProductInfo,
   ClientSettings,
   ClientSettingsPatch,
   ClientSettingsRuntimeView,
   DiagnosticField,
   DiagnosticSubject,
   DhtInspectionView,
+  LibraryFacetsView,
+  LibraryMediaKind,
+  LibraryMediaQuery,
+  LibraryMediaRole,
   MediaFileAvailability,
   PeerDisconnectReason,
   PeerFlagView,
@@ -17,6 +22,7 @@ import type {
   SpeedSeriesView,
   SeedAdmissionView,
   SeedGoalView,
+  SeedStopView,
   SwarmCatalogState,
   SwarmCountsView,
   SwarmPeerState,
@@ -73,8 +79,37 @@ export type TorrentCategory =
   | "errors"
   | "archived";
 
+// Link between this UI and the engine, not the BitTorrent network. Times are
+// wall-clock milliseconds; `nextAttemptAt` is null while an attempt runs.
+export type SessionConnection =
+  | { readonly type: "demo" }
+  | { readonly type: "connecting" }
+  | { readonly type: "connected" }
+  | {
+      readonly type: "reconnecting";
+      readonly since: number;
+      readonly nextAttemptAt: number | null;
+    }
+  | {
+      readonly type: "stopped";
+      readonly reason: "signed_out" | "reload_required";
+    };
+
 export interface SessionSummary {
-  readonly connection: "demo" | "connected" | "reconnecting" | "offline";
+  readonly connection: SessionConnection;
+  /** What the connected host reports about itself, when it does. */
+  readonly host?: ApiProductInfo | null;
+  /**
+   * Capabilities the connected host advertises in its hello. Undefined when
+   * the application does not report them (the demo); see host-capabilities.
+   */
+  readonly hostCapabilities?: readonly string[] | null;
+  /**
+   * True when the host predates download_all_pending_add (desktop 0.3.0,
+   * Android 1.0.28): a pending add can download all files only once its
+   * file list loads. Absent means the host has the command.
+   */
+  readonly hostLacksDownloadAll?: boolean;
   readonly downloadRate: number;
   readonly uploadRate: number | null;
   readonly dhtNodes: number | null;
@@ -105,6 +140,8 @@ export type ViewMaterialization =
 
 export interface InspectionViewStatus {
   readonly library: ViewMaterialization;
+  /** The cross-torrent Library page (Tactical 363). */
+  readonly libraryMedia: ViewMaterialization;
   readonly torrentSummary: ViewMaterialization;
   readonly peers: ViewMaterialization;
   readonly swarm: ViewMaterialization;
@@ -118,8 +155,16 @@ export interface InspectionViewStatus {
   readonly logs: ViewMaterialization;
 }
 
+/** One page of a Library query, as leased from the host. */
+export interface LibraryMediaRequest {
+  readonly query: LibraryMediaQuery;
+  readonly offset: number;
+  readonly limit: number;
+}
+
 export interface DesiredInspectionViews {
   readonly library: boolean;
+  readonly libraryMedia?: LibraryMediaRequest | null;
   readonly torrentId: string | null;
   readonly detail:
     | "general"
@@ -214,6 +259,11 @@ export interface TorrentRow {
   readonly queuePosition: number | null;
   readonly transferLimits: TorrentTransferLimits;
   readonly sizeBytes: number | null;
+  /**
+   * Total size the source magnet's `xl` claims while metadata is not
+   * verified. A claim from the link, never a verified size.
+   */
+  readonly sourceSizeBytes?: number | null;
   readonly progress: number | null;
   readonly checking: TorrentCheckingProgress | null;
   readonly downloadRate: number;
@@ -235,14 +285,19 @@ export interface TorrentRow {
   readonly shareRatioHundredths: string | null;
   readonly seedAdmission: SeedAdmissionView;
   readonly seedGoal: SeedGoalView | null;
+  /** Absent or null while the torrent uses the session stop limits and is not stopped. */
+  readonly seedStop?: SeedStopView | null;
   readonly addedAtMs: number | null;
   readonly archived: boolean | null;
   readonly removalState: "pending" | "awaiting_platform" | "failed" | null;
   readonly deleteDataSupported: boolean;
   readonly forceRecheckAvailable: boolean;
+  /** Verified metainfo sets the BEP 27 private flag; false until metadata is verified. */
+  readonly privateTorrent: boolean;
   readonly awaitingFileSelection?: boolean;
   readonly pendingFileSelectionPosition?: number | null;
   readonly fileCatalogId?: string | null;
+  readonly safetySummary?: import("../api").FileSafetySummary | null;
   readonly selectableFileCount?: number;
   readonly selectedFileCount?: number;
   readonly selectableFileBytes?: string;
@@ -345,6 +400,7 @@ export interface SwarmSet {
 }
 
 export interface FileRow {
+  readonly safety?: import("../api").FileSafetyView | null;
   readonly id: string;
   readonly torrentId: string;
   readonly index: number;
@@ -405,6 +461,53 @@ export interface MediaSet {
   readonly rows: Readonly<Record<string, MediaRow>>;
 }
 
+export interface LibraryItemRow {
+  readonly id: string;
+  readonly torrentId: string;
+  readonly torrentName: string;
+  readonly fileIndex: number;
+  readonly fileName: string;
+  readonly title: string;
+  readonly kind: LibraryMediaKind;
+  readonly role: LibraryMediaRole;
+  readonly seriesTitle: string | null;
+  readonly seriesId: string | null;
+  readonly seasonNumber: number | null;
+  readonly episodeNumber: number | null;
+  readonly endingEpisodeNumber: number | null;
+  readonly albumTitle: string | null;
+  readonly albumId: string | null;
+  readonly discNumber: number | null;
+  readonly trackNumber: number | null;
+  readonly year: number | null;
+  readonly extension: string;
+  readonly lengthBytes: string;
+  readonly verifiedBytes: string;
+  readonly offline: boolean;
+  readonly archived: boolean;
+  readonly mediaAvailability: MediaFileAvailability;
+}
+
+export interface LibraryGroupRow {
+  readonly id: string;
+  readonly title: string;
+  readonly itemCount: number;
+  readonly offlineCount: number;
+  readonly totalBytes: string;
+  readonly seasonCount: number;
+  readonly torrentCount: number;
+  readonly year: number | null;
+}
+
+export interface LibraryMediaSet {
+  /** The request this page answers. */
+  readonly request: LibraryMediaRequest;
+  readonly page: CatalogPage;
+  readonly facets: LibraryFacetsView;
+  readonly items: readonly LibraryItemRow[];
+  readonly groups: readonly LibraryGroupRow[];
+}
+
 export interface TrackerRow {
   readonly id: string;
   readonly torrentId: string;
@@ -433,10 +536,9 @@ export interface TrackerRow {
   readonly leechers: number | null;
   readonly intervalSeconds: number | null;
   readonly nextAction: "announce" | "retry" | "reannounce" | null;
-  readonly nextActionInMs: number | null;
-  readonly observedAtMs: number;
-  readonly lastSuccessAgeMs: number | null;
-  readonly lastFailureAgeMs: number | null;
+  readonly nextActionAtMs: number | null;
+  readonly lastSuccessAtMs: number | null;
+  readonly lastFailureAtMs: number | null;
   readonly error: string | null;
 }
 
@@ -589,6 +691,7 @@ export interface InspectionSnapshot {
   readonly swarmByTorrent: Readonly<Record<string, SwarmSet>>;
   readonly filesByTorrent: Readonly<Record<string, FileSet>>;
   readonly mediaByTorrent: Readonly<Record<string, MediaSet>>;
+  readonly libraryMedia: LibraryMediaSet | null;
   readonly trackersByTorrent: Readonly<Record<string, TrackerSet>>;
   readonly piecesByTorrent: Readonly<Record<string, PieceMapSet>>;
   readonly disk: DiskSet;
@@ -646,6 +749,7 @@ export type InspectionUpdate =
         readonly state?: TrackerSet["state"];
         readonly order?: readonly string[];
       })[];
+      readonly libraryMedia?: LibraryMediaSet | null;
       readonly pieces?: Readonly<Record<string, PieceMapSet>>;
       readonly disk?: DiskSet;
       readonly speed?: SpeedInspectionView;
@@ -680,6 +784,8 @@ export type InspectionCommand =
       readonly startContent: boolean;
       readonly awaitFileSelection?: boolean;
     }
+  | { readonly type: "update_file_safety_settings"; readonly settings: import("../api").FileSafetySettings }
+  | { readonly type: "set_file_safety_override"; readonly torrentId: string; readonly fileIndices: readonly number[]; readonly allowed: boolean }
   | {
       readonly type: "set_file_priority";
       readonly torrentId: string;
@@ -712,6 +818,11 @@ export type InspectionCommand =
       }[];
       readonly disableFuture: boolean;
     }
+  | {
+      readonly type: "download_all_pending_add";
+      readonly torrentId: string;
+      readonly disableFuture: boolean;
+    }
   | { readonly type: "cancel_pending_add"; readonly torrentId: string }
   | { readonly type: "update_client_settings"; readonly patch: ClientSettingsPatch }
   | { readonly type: "reset_client_settings" }
@@ -722,7 +833,12 @@ export type InspectionCommand =
     }
   | { readonly type: "remove_download_root"; readonly rootId: string }
   | { readonly type: "clear_app_data" }
-  | { readonly type: "export_magnet"; readonly torrentId: string }
+  | {
+      readonly type: "export_magnet";
+      readonly torrentId: string;
+      /** Share parameters; absent exports the unchanged magnet. */
+      readonly options?: MagnetShareOptions;
+    }
   | { readonly type: "pause"; readonly torrentId: string }
   | { readonly type: "resume"; readonly torrentId: string }
   | { readonly type: "move_download_to_top"; readonly torrentId: string }
@@ -765,6 +881,7 @@ export type DemoScenarioId =
   | "speed-stale"
   | "speed-reset"
   | "dht-observatory"
+  | "seeding-limits"
   | "empty-library";
 
 export interface DemoScenarioSummary {
@@ -775,9 +892,23 @@ export interface DemoScenarioSummary {
   readonly autoplay: boolean;
 }
 
-export interface CommandResult {
-  readonly accepted: boolean;
+/**
+ * Accepted commands carry typed facts, not prose: each caller decides whether
+ * the outcome needs words (Tactical 346).
+ */
+export type CommandResult = CommandAccepted | CommandRejected;
+
+export interface CommandRejected {
+  readonly accepted: false;
   readonly message: string;
+  /** The application error code, when the host reported one. */
+  readonly code?: string;
+}
+
+export interface CommandAccepted {
+  readonly accepted: true;
+  /** Demo scenario commands describe themselves for the scenario bar. */
+  readonly message?: string;
   readonly requestId?: string;
   readonly resultingRevision?: string;
   readonly storageRoot?: DownloadRoot | null;
@@ -792,8 +923,34 @@ export interface CommandResult {
       };
 }
 
+export interface MagnetShareOptions {
+  /** Add `xl` from verified metadata. */
+  readonly includeSize?: boolean;
+  /** Sorted, unique `FileView` indices for BEP 53 `so`. */
+  readonly fileIndices?: readonly number[];
+  /** Add the engine's `x.pe` peer hints. */
+  readonly peerHint?: boolean;
+}
+
+export interface MagnetPeerHint {
+  /** The `x.pe` value, `ipv4:port` or `[ipv6]:port`. */
+  readonly endpoint: string;
+  readonly scope: "internet" | "local_network";
+}
+
+export type MagnetPeerHintOmission =
+  | "private_torrent"
+  | "metadata_pending"
+  | "incoming_disabled"
+  | "not_reachable"
+  | "no_address";
+
 export interface MagnetExport {
   readonly magnet: string;
   readonly source: "verbatim" | "canonicalized" | "synthesized";
   readonly omittedTrackerCount: number;
+  /** Peer hints included in `magnet`; empty unless requested. */
+  readonly peerHints?: readonly MagnetPeerHint[];
+  /** Why a requested peer hint was left out. */
+  readonly peerHintOmission?: MagnetPeerHintOmission | null;
 }

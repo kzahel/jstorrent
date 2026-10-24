@@ -143,9 +143,17 @@ Range and select-all resolve against the complete logical row model after the
 current filter and sort, not source insertion order or the virtual DOM window.
 
 Configured-visible columns likewise remain rendered independently of the
-virtual row window and viewport width. A narrow viewport scrolls horizontally
-through that complete configured set; responsive layout does not silently
-remove a checked column or change row selection, focus, or action scope.
+virtual row window. Above the narrow breakpoint (760 px) a viewport that is
+too narrow scrolls horizontally through the complete configured set.
+
+At and below that breakpoint, Tactical
+[`351`](../tactical/351-narrow-web-lists-and-flat-chrome.md) renders the same
+grid as stacked list items built from each table's declared list roles, with
+a Sort field in place of column headers. Responsive layout still does not
+change row selection, focus, or action scope. A list shows checkboxes only
+while several rows are selected; long press starts that, and a tap then
+toggles a row instead of making it the singleton current row. With one row
+selected, a tap opens it as before.
 
 Stable identity preserves selected and current rows through sorting and live
 updates. Disappearing selected rows are pruned. If current disappears while
@@ -153,12 +161,19 @@ other selected rows remain, one of those rows becomes current; if none remain,
 current and detail clear. An explicitly empty selection does not invent a
 fallback on later updates.
 
-Transfers and Workbench share torrent selection across destinations. Targets
-hidden by a later filter remain selected, and status explicitly reports how
-many are outside the current view. Individual checkbox and modifier toggles,
-and the header checkbox, preserve hidden selection. Singleton row activation,
-Shift ranges, and Command/Control+A are exact replacement gestures and discard
-targets outside their new logical selection.
+Transfers and Workbench share torrent selection across destinations. Choosing
+a torrent category drops selected targets the category hides, matching Android
+tab changes, so bulk actions never reach rows the user just filtered away; if
+current is dropped, the first remaining target becomes current, otherwise
+current and detail clear. Targets can still be outside the current view after
+switching destination, and status then explicitly reports how many. Individual
+checkbox and modifier toggles, and the header checkbox, preserve hidden
+selection. Singleton row activation, Shift ranges, and Command/Control+A are
+exact replacement gestures and discard targets outside their new logical
+selection.
+
+When a category hides every torrent, the empty table names that category and
+offers Show all torrents; an empty session keeps its first-run guidance.
 
 Changing sort or filter invalidates a range anchor only when its row is no
 longer in the logical table. The next Shift gesture falls back to current and

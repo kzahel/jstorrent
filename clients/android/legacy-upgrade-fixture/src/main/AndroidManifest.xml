@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:allowBackup="false" android:label="Legacy upgrade test fixture" />
+    <instrumentation android:name="org.rstorrent.legacyfixture.LegacySourceInstrumentation"
+        android:targetPackage="com.jstorrent.app" android:functionalTest="true" />
+</manifest>

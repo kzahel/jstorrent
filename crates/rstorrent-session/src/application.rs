@@ -62,10 +62,12 @@ use crate::media::{
 use crate::product_state::ProductStateOwner;
 use crate::seed_policy::{
     AUTO_MANAGE_INTERVAL_SECONDS, HARD_ACTIVE_TORRENT_LIMIT, InactivityState, SeedGoalInput,
-    SeedGoalLimits, SeedRankInput, assess_seed_goals, rate_is_inactive, seed_rank,
+    SeedGoalLimits, SeedRankInput, SeedStopLimits, SeedStopReason, assess_seed_goals,
+    rate_is_inactive, seed_rank, seed_stop_reached,
 };
 use crate::session_network::{SessionNetworkConfig, SessionNetworkError, SessionNetworkRuntime};
 use crate::settings::{StorageRootSnapshot, TorrentTransferLimits};
+use crate::shutdown::{CleanupCutoff, ShutdownOptions, ShutdownProgress};
 use crate::speed::{PreparedSpeedHistory, SessionSpeedRecorder, SpeedHistoryRuntime};
 use crate::store::{
     ConfiguredStorageRoot, RemovalRecord, ResumeRecord, SessionStore, StorageRootLocation,
@@ -300,6 +302,10 @@ use crate::{
     ViewSetOwner,
 };
 
+fn torrent_wants_discovery(torrent: &crate::control::TorrentSnapshot) -> bool {
+    torrent.desired_running && !torrent.archived && torrent.removal_state.is_none()
+}
+
 #[derive(Clone, Debug)]
 pub struct ApplicationConfig {
     pub persistence: ApplicationPersistence,
@@ -312,6 +318,14 @@ pub struct ApplicationConfig {
     pub network: NetworkConfig,
     pub initial_network_prerequisite: ApplicationNetworkPrerequisite,
     pub initial_client_settings: crate::ClientSettings,
+    /// Desktop applies the quiet network defaults (incoming listener and port
+    /// mapping off) once per profile before starting sockets.
+    pub reset_unconfirmed_network_features: bool,
+    /// An older desktop build already applied the quiet network defaults and
+    /// recorded that outside the catalog; record it without changing settings.
+    pub legacy_network_defaults_applied: bool,
+    /// Keep DHT dormant for an idle desktop library, independently of preference.
+    pub defer_idle_dht: bool,
     pub peer_transport_policy: PeerTransportPolicy,
     pub download_resource_limits: DownloadResourceLimits,
     /// Maximum number of payload descriptors retained by this platform.
@@ -348,6 +362,50 @@ pub struct ApplicationConfig {
     /// Optional platform-owned installation product state. Headless and
     /// stateless configurations omit this owner.
     pub product_state: Option<ProductStateOwner>,
+    /// What the host reports about itself in the API hello.
+    pub product: Option<ProductIdentity>,
+}
+
+/// Host product facts that do not depend on the profile. The service adds
+/// the profile ID and location when it reports them.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProductIdentity {
+    /// `desktop`, `headless`, `android`, `crostini` or `gateway`.
+    pub kind: String,
+    pub version: String,
+    pub build_id: String,
+    pub target: String,
+    pub identifier: Option<String>,
+}
+
+impl ProductIdentity {
+    /// Identity with the source build ID and target this binary was built with.
+    pub fn for_this_build(kind: &str, version: &str) -> Self {
+        Self {
+            kind: kind.to_owned(),
+            version: version.to_owned(),
+            build_id: source_build_id().to_owned(),
+            target: build_target(),
+            identifier: None,
+        }
+    }
+}
+
+/// Target triple of the supported release toolchains for this OS.
+fn build_target() -> String {
+    let arch = std::env::consts::ARCH;
+    match std::env::consts::OS {
+        "macos" => format!("{arch}-apple-darwin"),
+        "windows" => format!("{arch}-pc-windows-msvc"),
+        "android" => format!("{arch}-linux-android"),
+        "linux" => format!("{arch}-unknown-linux-gnu"),
+        os => format!("{arch}-{os}"),
+    }
+}
+
+/// Source commit set by release pipelines, or `development` for local builds.
+pub fn source_build_id() -> &'static str {
+    option_env!("RSTORRENT_BUILD_ID").unwrap_or("development")
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -422,6 +480,9 @@ impl ApplicationConfig {
             network,
             initial_network_prerequisite: ApplicationNetworkPrerequisite::Allowed,
             initial_client_settings: crate::ClientSettings::default(),
+            reset_unconfirmed_network_features: false,
+            legacy_network_defaults_applied: false,
+            defer_idle_dht: false,
             peer_transport_policy: PeerTransportPolicy::PreferUtp,
             download_resource_limits: DownloadResourceLimits::DESKTOP,
             storage_file_limit: DEFAULT_STORAGE_FILE_LIMIT,
@@ -445,7 +506,13 @@ impl ApplicationConfig {
             checkpoint_stage_trace_for_testing: false,
             platform_storage_client: None,
             product_state: None,
+            product: None,
         }
+    }
+
+    pub fn with_product(mut self, product: ProductIdentity) -> Self {
+        self.product = Some(product);
+        self
     }
 
     pub fn durable_profile_root(&self) -> Option<&Path> {
@@ -510,6 +577,16 @@ pub struct PlatformRemovalPlan {
     pub directories: Vec<PlatformRemovalPath>,
 }
 
+/// Result of stopping use of a platform storage root.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PlatformStorageDetach {
+    /// The catalog row was deleted because no torrent referenced it.
+    pub removed: bool,
+    /// Torrents bound to the root, now awaiting storage.
+    pub affected_torrent_ids: Vec<String>,
+    pub default_root: Option<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlatformFilePlan {
     pub torrent_id: String,
@@ -526,6 +603,7 @@ pub struct CompletedMediaCapability {
 
 #[derive(Debug)]
 pub struct ApplicationService {
+    pub(crate) host_updates: Option<Arc<dyn crate::HostUpdateControl>>,
     reset_config: ApplicationConfig,
     reset_incomplete: bool,
     store: Arc<Mutex<SessionStore>>,
@@ -827,7 +905,7 @@ impl ApplicationService {
                 })?;
             }
         }
-        let store = match &config.persistence {
+        let mut store = match &config.persistence {
             ApplicationPersistence::Durable { profile_root } => {
                 SessionStore::open_with_initial_client_settings(
                     profile_root,
@@ -844,6 +922,9 @@ impl ApplicationService {
                 )?
             }
         };
+        if config.reset_unconfirmed_network_features {
+            store.apply_quiet_network_defaults_once(config.legacy_network_defaults_applied)?;
+        }
         let profile_reset_report = store.pending_profile_reset_report()?;
         let mut snapshot = store.snapshot()?;
         let active_client_settings = snapshot.client_settings.clone();
@@ -870,10 +951,14 @@ impl ApplicationService {
         let storage_file_pool =
             StorageFilePool::new(config.storage_file_limit, config.platform_storage_client)
                 .map_err(|error| ApplicationError::Configuration(error.to_owned()))?;
+        storage_file_pool
+            .set_mark_internet_origin(active_client_settings.file_safety.mark_internet_origin);
         storage_file_pool.set_platform_health_wake(admission_wake.clone());
         let initial_network_prerequisite = network_prerequisite.load();
         let session_network_config = SessionNetworkConfig {
             settings: active_client_settings.clone(),
+            defer_idle_dht: config.defer_idle_dht,
+            discovery_demand: snapshot.torrents.iter().any(torrent_wants_discovery),
             network,
             network_cancellation: network_prerequisite
                 .cancellation_token(initial_network_prerequisite),
@@ -970,6 +1055,7 @@ impl ApplicationService {
             .clone()
             .map(|owner| ProductMilestoneDrain::start(store.clone(), owner, views.clone()));
         let mut service = Self {
+            host_updates: None,
             reset_config,
             reset_incomplete: false,
             store,
@@ -1251,6 +1337,8 @@ impl ApplicationService {
         }
         let snapshot = self.store_mut()?.snapshot()?;
         self.session_network_config.settings = snapshot.client_settings.clone();
+        self.session_network_config.discovery_demand =
+            snapshot.torrents.iter().any(torrent_wants_discovery);
         let mut candidate_config = self.session_network_config.clone();
         candidate_config.network_cancellation =
             self.network_prerequisite.cancellation_token(requested);
@@ -1682,6 +1770,19 @@ impl ApplicationService {
         &mut self,
         request: RequestEnvelope,
     ) -> Result<ResponseEnvelope, ApplicationError> {
+        if let Some(updates) = &self.host_updates {
+            if updates.committed() {
+                return Ok(ResponseEnvelope::error(
+                    request.request_id,
+                    self.revision().unwrap_or_default(),
+                    ErrorCode::InvalidRequest,
+                    "JSTorrent is restarting for an update; retry after reconnecting",
+                ));
+            }
+            if !matches!(&request.command, Command::Snapshot) {
+                updates.interacted();
+            }
+        }
         self.reap_finished().await?;
         if self.reset_incomplete && !matches!(&request.command, Command::ClearAppData) {
             return Ok(ResponseEnvelope::error(
@@ -1764,7 +1865,7 @@ impl ApplicationService {
                     })
                 })
                 .unwrap_or(true),
-            Command::SetFilePriorityRanges { .. } => true,
+            Command::SetFilePriorityRanges { .. } | Command::SetFileSafetyOverride { .. } => true,
             Command::DownloadFiles {
                 torrent_id,
                 file_indices,
@@ -1814,7 +1915,8 @@ impl ApplicationService {
                 Some(storage_root.clone())
             }
             Command::SetDefaultStorageRoot { storage_root } => Some(storage_root.clone()),
-            Command::ConfirmPendingFileSelection { torrent_id, .. } => self
+            Command::ConfirmPendingFileSelection { torrent_id, .. }
+            | Command::DownloadAllPendingAdd { torrent_id, .. } => self
                 .store_mut()?
                 .load_resume(&torrent_id.to_ascii_lowercase())
                 .ok()
@@ -1845,6 +1947,30 @@ impl ApplicationService {
                 },
             ));
         }
+        // Disabling file selection also releases the rest of the add queue in
+        // the same transaction; remember it so each release reaches runtime.
+        let queued_selection = match &command {
+            Command::ConfirmPendingFileSelection {
+                torrent_id,
+                disable_future: true,
+                ..
+            }
+            | Command::DownloadAllPendingAdd {
+                torrent_id,
+                disable_future: true,
+            } => self
+                .store_mut()?
+                .snapshot()?
+                .torrents
+                .into_iter()
+                .filter(|torrent| {
+                    torrent.awaiting_file_selection
+                        && !torrent.torrent_id.eq_ignore_ascii_case(torrent_id)
+                })
+                .map(|torrent| torrent.torrent_id)
+                .collect(),
+            _ => Vec::new(),
+        };
         let incoming_fence = match &command {
             Command::Pause { torrent_id }
             | Command::ForceRecheck { torrent_id }
@@ -1894,9 +2020,21 @@ impl ApplicationService {
             self.join_active_content(torrent_id).await?;
         }
         let revision_before = self.store_mut()?.revision()?;
+        // Only a peer-hint export reads the session's reachability facts.
+        let share_endpoints = match &command {
+            Command::ExportMagnet {
+                options: Some(options),
+                ..
+            } if options.peer_hint => self.session_network.as_ref().map(|network| {
+                network
+                    .advertised_endpoint()
+                    .share_endpoint_facts(Instant::now())
+            }),
+            _ => None,
+        };
         let durable_result = {
             let mut store = self.store_mut()?;
-            store.handle_durable(&request)
+            store.handle_durable_with_share_endpoints(&request, share_endpoints.as_ref())
         };
         if durable_result.is_ok()
             && let Some(drain) = &self.product_milestone_drain
@@ -2047,7 +2185,8 @@ impl ApplicationService {
                 self.start_recheck_if_possible(&torrent_id).await?;
             }
             Command::SetFilePriority { torrent_id, .. }
-            | Command::SetFilePriorityRanges { torrent_id, .. } => {
+            | Command::SetFilePriorityRanges { torrent_id, .. }
+            | Command::SetFileSafetyOverride { torrent_id, .. } => {
                 let torrent_id = torrent_id.to_ascii_lowercase();
                 self.views.record_diagnostic(
                     DiagnosticSeverity::Info,
@@ -2161,7 +2300,8 @@ impl ApplicationService {
                     self.start_if_possible(&torrent_id).await?;
                 }
             }
-            Command::ConfirmPendingFileSelection { torrent_id, .. } => {
+            Command::ConfirmPendingFileSelection { torrent_id, .. }
+            | Command::DownloadAllPendingAdd { torrent_id, .. } => {
                 let torrent_id = torrent_id.to_ascii_lowercase();
                 self.views.record_diagnostic(
                     DiagnosticSeverity::Info,
@@ -2171,8 +2311,36 @@ impl ApplicationService {
                     "Add-time file selection confirmed",
                     &[],
                 )?;
+                let still_queued: std::collections::BTreeSet<_> = if queued_selection.is_empty() {
+                    Default::default()
+                } else {
+                    self.store_mut()?
+                        .snapshot()?
+                        .torrents
+                        .into_iter()
+                        .filter(|torrent| torrent.awaiting_file_selection)
+                        .map(|torrent| torrent.torrent_id)
+                        .collect()
+                };
+                let released: Vec<_> = queued_selection
+                    .into_iter()
+                    .filter(|queued| !still_queued.contains(queued))
+                    .collect();
+                for queued in &released {
+                    self.views.record_diagnostic(
+                        DiagnosticSeverity::Info,
+                        category::LIFECYCLE_TORRENT,
+                        "pending_file_selection_released",
+                        Some(queued),
+                        "Queued add released when file selection was turned off",
+                        &[],
+                    )?;
+                }
                 self.start_if_possible(&torrent_id).await?;
                 self.reconcile_incoming_torrent(&torrent_id).await?;
+                for queued in &released {
+                    self.reconcile_incoming_torrent(queued).await?;
+                }
             }
             Command::Archive { torrent_id } => {
                 let torrent_id = torrent_id.to_ascii_lowercase();
@@ -2184,7 +2352,15 @@ impl ApplicationService {
                     "Torrent archived",
                     &[],
                 )?;
-                self.reconcile_incoming_torrent(&torrent_id).await?;
+                // Archive persists paused intent. Unlike Pause, a running
+                // checker is joined rather than parked: an archived torrent
+                // cannot resume it, and a parked checker would hold the only
+                // verification slot. Pending verification restarts on Resume.
+                self.unregister_incoming(&torrent_id).await?;
+                let joined = self.join_active_content(&torrent_id).await;
+                let incoming = self.reconcile_incoming_torrent(&torrent_id).await;
+                joined.and(incoming)?;
+                self.reconcile_admission().await?;
             }
             Command::RestoreArchive { torrent_id } => {
                 let torrent_id = torrent_id.to_ascii_lowercase();
@@ -2231,8 +2407,12 @@ impl ApplicationService {
             | Command::SetShowAddOptions { .. }
             | Command::SetShowFileSelection { .. } => {}
             Command::MoveDownloadToTop { .. } | Command::MoveDownloadToBottom { .. } => {}
-            Command::UpdateClientSettings { .. } | Command::ResetClientSettings => {
+            Command::UpdateClientSettings { .. }
+            | Command::UpdateFileSafetySettings { .. }
+            | Command::ResetClientSettings => {
                 let settings = self.store_mut()?.snapshot()?.client_settings;
+                self.storage_file_pool
+                    .set_mark_internet_origin(settings.file_safety.mark_internet_origin);
                 self.session_network_config.settings = settings.clone();
                 if let Some(session_network) = self.session_network.as_mut() {
                     session_network.submit_settings(settings)?;
@@ -2278,6 +2458,17 @@ impl ApplicationService {
         request: AddTorrentBytesRequest,
         source: Vec<u8>,
     ) -> Result<ResponseEnvelope, ApplicationError> {
+        if let Some(updates) = &self.host_updates {
+            if updates.committed() {
+                return Ok(ResponseEnvelope::error(
+                    request.request_id,
+                    self.revision().unwrap_or_default(),
+                    ErrorCode::InvalidRequest,
+                    "JSTorrent is restarting for an update; retry after reconnecting",
+                ));
+            }
+            updates.interacted();
+        }
         if self.reset_incomplete {
             return Err(ApplicationError::Configuration(
                 "app data clear is incomplete; retry the clear action".to_owned(),
@@ -2519,6 +2710,9 @@ impl ApplicationService {
     }
 
     async fn reconcile_platform_root_failures(&mut self) -> Result<(), ApplicationError> {
+        if self.storage_file_pool.take_origin_marking_failures() != 0 {
+            self.views.record_diagnostic(DiagnosticSeverity::Warning, category::STORAGE_IO, "internet_origin_marking_failed", None, "OS internet-origin marking failed; the destination may not support download labels", &[])?;
+        }
         let failures = self.storage_file_pool.take_platform_root_failures();
         if failures.is_empty() {
             return Ok(());
@@ -3092,6 +3286,82 @@ impl ApplicationService {
         Ok((root, restarts))
     }
 
+    /// Stops all torrent I/O under a platform root before the platform
+    /// releases its grant. Torrents bound to it keep their binding and verified
+    /// state and wait for the root to be repaired; an unreferenced root is
+    /// deleted. A current root is replaced by the first other available root.
+    pub async fn detach_platform_storage_root(
+        &mut self,
+        root_id: &str,
+    ) -> Result<PlatformStorageDetach, ApplicationError> {
+        self.reap_finished().await?;
+        if !self.configured_platform_root(root_id)? {
+            return Err(ApplicationError::Configuration(format!(
+                "storage root {root_id} is not a platform capability"
+            )));
+        }
+        // Platform deletion of a removed torrent's files needs the grant.
+        if let Some(removal) = self
+            .store_mut()?
+            .load_removals()?
+            .into_iter()
+            .find(|removal| removal.storage_root == root_id)
+        {
+            return Err(ApplicationError::Busy(removal.torrent_id));
+        }
+        // Make the root unavailable first so admission cannot restart its
+        // torrents while they are joined.
+        self.healthy_platform_roots.remove(root_id);
+        self.reload_storage_roots()?;
+        let affected = self
+            .store_mut()?
+            .snapshot()?
+            .torrents
+            .into_iter()
+            .filter(|torrent| torrent.storage_root == root_id)
+            .map(|torrent| torrent.torrent_id)
+            .collect::<Vec<_>>();
+        for torrent_id in &affected {
+            self.media.revoke_torrent(torrent_id);
+            self.unregister_incoming(torrent_id).await?;
+            self.join_active_content(torrent_id).await?;
+            self.storage_file_pool.invalidate_storage(torrent_id);
+            self.store_mut()?
+                .mark_awaiting_storage(torrent_id, Some("download folder was removed"))?;
+        }
+        let replacement = self
+            .storage_roots
+            .keys()
+            .find(|candidate| candidate.as_str() != root_id)
+            .cloned();
+        let removed = self
+            .store_mut()?
+            .detach_platform_storage_root(root_id, replacement.as_deref())?;
+        self.storage_file_pool.clear_platform_root_failure(root_id);
+        self.reload_storage_roots()?;
+        self.views.record_diagnostic(
+            DiagnosticSeverity::Info,
+            category::PLATFORM_ADAPTER,
+            "platform_storage_root_detached",
+            None,
+            "Platform storage root detached",
+            &[
+                ("root", root_id),
+                ("removed", if removed { "true" } else { "false" }),
+                ("torrents", &affected.len().to_string()),
+            ],
+        )?;
+        self.reconcile_admission().await?;
+        self.reconcile_incoming_catalog().await?;
+        self.reconcile_discovery_catalog().await?;
+        self.refresh_views()?;
+        Ok(PlatformStorageDetach {
+            removed,
+            affected_torrent_ids: affected,
+            default_root: self.storage_snapshot()?.default_root,
+        })
+    }
+
     async fn probe_platform_storage_root_candidate(
         &mut self,
         root_id: &str,
@@ -3205,9 +3475,49 @@ impl ApplicationService {
         }))
     }
 
+    pub fn set_host_update_control(&mut self, updates: Arc<dyn crate::HostUpdateControl>) {
+        self.host_updates = Some(updates);
+    }
+
+    pub fn host_update_client_connected(&self, owner: &ViewSetOwner) {
+        if let Some(updates) = &self.host_updates {
+            updates.connected(owner.as_str());
+        }
+    }
+
+    pub fn automatic_update_blocked(&self) -> bool {
+        let media = self.media_resource_snapshot();
+        media.active_bodies != 0
+            || media.active_streaming_leases != 0
+            || self.store.lock().map_or(true, |store| {
+                store.has_pending_file_selection().unwrap_or(true)
+            })
+    }
+
     pub fn api_hello(&self) -> crate::ApiHello {
         let mut hello = crate::ApiHello::default();
+        if self.host_updates.is_none() {
+            hello
+                .capabilities
+                .retain(|capability| capability != crate::host_capabilities::DESKTOP_AUTO_UPDATES);
+        }
         hello.limits.lease_millis = self.views.view_set_lease().as_millis().to_string();
+        hello.product = self
+            .reset_config
+            .product
+            .as_ref()
+            .map(|product| crate::ApiProductInfo {
+                kind: product.kind.clone(),
+                version: product.version.clone(),
+                build_id: product.build_id.clone(),
+                target: product.target.clone(),
+                identifier: product.identifier.clone(),
+                profile_id: self.reset_config.profile_id.clone(),
+                profile_location: self
+                    .reset_config
+                    .durable_profile_root()
+                    .map(|root| root.display().to_string()),
+            });
         hello
     }
 
@@ -3250,6 +3560,13 @@ impl ApplicationService {
 
     pub fn close_view_sets(&self) {
         self.views.close_all_view_sets();
+    }
+
+    pub fn close_owner_view_sets(&self, owner: &ViewSetOwner) {
+        if let Some(updates) = &self.host_updates {
+            updates.disconnected(owner.as_str());
+        }
+        self.views.close_owner_view_sets(owner);
     }
 
     pub async fn platform_file_plan(
@@ -3548,6 +3865,17 @@ impl ApplicationService {
     }
 
     pub async fn shutdown(&mut self) -> Result<(), ApplicationError> {
+        self.shutdown_with(ShutdownOptions::default()).await
+    }
+
+    /// Stops every owner and persists final state. Tracker `stopped`
+    /// announces and port-mapping removal share `options`'s network cleanup
+    /// budget and end early when its hurry token is cancelled; work cut short
+    /// is reported through progress, not returned as an error.
+    pub async fn shutdown_with(
+        &mut self,
+        options: ShutdownOptions,
+    ) -> Result<(), ApplicationError> {
         let mut active_join_error = None;
         let mut shutdown_error = None;
         self.media.revoke_all();
@@ -3573,6 +3901,9 @@ impl ApplicationService {
             session_network.begin_shutdown();
         }
         let active_ids = self.active_download_ids();
+        options.report(ShutdownProgress::StoppingTorrents {
+            count: active_ids.len(),
+        });
         for torrent_id in &active_ids {
             if let Some(active) = self.active_download_for(torrent_id) {
                 active.control.cancel();
@@ -3601,8 +3932,28 @@ impl ApplicationService {
                 active_join_error = Some(format!("torrent ETA deactivation: {error}"));
             }
         }
+        // Persist transfer totals before network cleanup so that a process
+        // ended during it loses at most the DHT routing snapshot. Incoming
+        // uploads until the listener closes are flushed again below.
+        if let Err(error) = self.flush_accounting(true) {
+            shutdown_error = Some(error);
+        }
         if let Some(session_network) = self.session_network.take() {
-            let terminal = session_network.shutdown(&self.views).await;
+            options.report(ShutdownProgress::NetworkCleanup {
+                budget: options.network_cleanup_budget,
+            });
+            let cutoff =
+                CleanupCutoff::starting_now(options.network_cleanup_budget, options.hurry.clone());
+            let terminal = session_network.shutdown(&self.views, &cutoff).await;
+            if terminal.tracker_stops_cut_short > 0 {
+                options.report(ShutdownProgress::TrackerStopsCutShort {
+                    torrents: terminal.tracker_stops_cut_short,
+                });
+            }
+            for detail in terminal.port_mappings_left {
+                options.report(ShutdownProgress::PortMappingLeft { detail });
+            }
+            options.report(ShutdownProgress::NetworkStopped);
             if let Some(snapshot) = terminal.dht_snapshot
                 && let Err(error) = self
                     .store_mut()
@@ -3619,6 +3970,7 @@ impl ApplicationService {
                 active_join_error = Some(error);
             }
         }
+        options.report(ShutdownProgress::SavingState);
         if let Err(error) = self.flush_accounting(true) {
             shutdown_error = Some(error);
         }
@@ -3674,6 +4026,7 @@ impl ApplicationService {
             active_join_error = Some(format!("view-set lease reaper: {error}"));
         }
         self.close_view_sets();
+        options.report(ShutdownProgress::Finished);
         if let Some(error) = shutdown_error {
             return Err(error);
         }
@@ -3923,7 +4276,10 @@ impl ApplicationService {
         }
         self.maintain_admission_inactivity()?;
         self.maintain_accounting(false)?;
-        let snapshot = self.store_mut()?.snapshot()?;
+        let mut snapshot = self.store_mut()?.snapshot()?;
+        if self.enforce_seed_stop_limits(&snapshot).await? {
+            snapshot = self.store_mut()?.snapshot()?;
+        }
         let effective_download_limit = snapshot
             .client_settings
             .active_downloads
@@ -3954,7 +4310,9 @@ impl ApplicationService {
             };
             let is_checking = resume.state == TorrentState::Checking;
             let active = self.active_download_for(&torrent.torrent_id).is_some();
-            if is_checking {
+            // Archived torrents are inactive: their pending verification waits
+            // for Restore instead of occupying the single checker slot.
+            if is_checking && !torrent.archived {
                 checking.push((
                     resume.download_queue_position.unwrap_or(i64::MAX),
                     torrent.torrent_id.clone(),
@@ -4200,6 +4558,13 @@ impl ApplicationService {
             }
         };
         let platform_root = matches!(root, StorageRootLocation::PlatformCapability);
+        let root_path = match &root {
+            StorageRootLocation::Path(root) => root.clone(),
+            StorageRootLocation::PlatformCapability => PathBuf::new(),
+        };
+        // Platform storage needs a resolved content manifest before opening
+        // descriptors. Direct paths retain their metadata peer and reload the
+        // same selection through the checkpoint before any payload is opened.
         if platform_root && resume.raw_info.is_none() {
             let identity = magnet_runtime_identity(identity, &resume.magnet)?;
             let checkpoints = Arc::new(StoreCheckpointSink {
@@ -4255,6 +4620,9 @@ impl ApplicationService {
                     let resume = store
                         .load_resume(&checkpoints.torrent_id)
                         .map_err(|error| DownloadError::Checkpoint(error.to_string()))?;
+                    if !resume.desired_running || resume.state == TorrentState::Paused {
+                        return Ok(ApplicationTaskReport::Metadata);
+                    }
                     let skip_files = resume
                         .skip_files
                         .into_iter()
@@ -4286,19 +4654,21 @@ impl ApplicationService {
                         parse_peer_metainfo(&raw_info).map_err(DownloadError::Metainfo)?,
                     )
                 };
-                task_control.set_platform_storage(PlatformStorageSpec {
-                    pool: storage_pool,
-                    root_id,
-                    storage_id,
-                    content_shape: ContentShape::from_content(&content),
-                    content_name: content.name().to_owned(),
-                    storage_generation: 0,
-                });
+                if platform_root {
+                    task_control.set_platform_storage(PlatformStorageSpec {
+                        pool: storage_pool,
+                        root_id,
+                        storage_id,
+                        content_shape: ContentShape::from_content(&content),
+                        content_name: content.name().to_owned(),
+                        storage_generation: 0,
+                    });
+                }
                 resume_magnet_with_control(
                     ResumableMagnetDownloadConfig {
                         identity,
                         magnet,
-                        storage_root: PathBuf::new(),
+                        storage_root: root_path,
                         network,
                         peer_budget,
                         mse_dh,
@@ -4332,10 +4702,6 @@ impl ApplicationService {
             )?;
             return Ok(());
         }
-        let root_path = match &root {
-            StorageRootLocation::Path(root) => root.clone(),
-            StorageRootLocation::PlatformCapability => PathBuf::new(),
-        };
         if resume.raw_info.is_none() && !resume.desired_running {
             let checkpoints = Arc::new(StoreCheckpointSink {
                 store: self.store.clone(),
@@ -4642,6 +5008,78 @@ impl ApplicationService {
         Ok(resume)
     }
 
+    /// Stops every running finished torrent that has reached a seeding stop
+    /// limit, durably and through the same path as a user pause. Returns
+    /// whether any torrent stopped.
+    async fn enforce_seed_stop_limits(
+        &mut self,
+        snapshot: &crate::ServiceSnapshot,
+    ) -> Result<bool, ApplicationError> {
+        let mut reached = Vec::new();
+        for torrent in &snapshot.torrents {
+            if torrent.state != TorrentState::Complete
+                || torrent.download_queue_position.is_some()
+                || !torrent.desired_running
+                || torrent.archived
+                || torrent.removal_state.is_some()
+                || torrent.awaiting_file_selection
+            {
+                continue;
+            }
+            let limits = effective_seed_stop_limits(&snapshot.client_settings, torrent);
+            if limits == SeedStopLimits::default() {
+                continue;
+            }
+            let Some(runtime) = self.torrent_runtimes.get(&torrent.torrent_id) else {
+                continue;
+            };
+            let accounting = self
+                .accounting
+                .current(
+                    runtime.handle().identity().torrent_id(),
+                    runtime.generation(),
+                )
+                .map_err(|error| ApplicationError::Persistence(error.to_string()))?;
+            let resume = self.load_resume_conservative(&torrent.torrent_id)?;
+            let total_size = parse_resume_content(&resume)
+                .map(|content| ContentLayout::from_content(&content).total_length())
+                .map_err(|error| ApplicationError::Configuration(error.to_string()))?;
+            let input = SeedGoalInput {
+                total_uploaded: accounting.total_uploaded,
+                total_downloaded: accounting.total_downloaded,
+                total_size,
+                active_seconds: accounting.active_seconds,
+                finished_seconds: accounting.finished_seconds,
+            };
+            if let Some(reason) = seed_stop_reached(input, limits) {
+                reached.push((torrent.torrent_id.clone(), reason));
+            }
+        }
+        let mut stopped = false;
+        for (torrent_id, reason) in reached {
+            if !self.store_mut()?.stop_at_seed_limit(&torrent_id)? {
+                continue;
+            }
+            stopped = true;
+            self.views.record_diagnostic(
+                DiagnosticSeverity::Info,
+                category::LIFECYCLE_TORRENT,
+                "torrent_seed_limit_reached",
+                Some(&torrent_id),
+                "Seeding stop limit reached; torrent stopped",
+                &[(
+                    "limit",
+                    match reason {
+                        SeedStopReason::ShareRatio => "share_ratio",
+                        SeedStopReason::SeedingTime => "seeding_time",
+                    },
+                )],
+            )?;
+            self.pause(&torrent_id).await?;
+        }
+        Ok(stopped)
+    }
+
     async fn pause(&mut self, torrent_id: &str) -> Result<(), ApplicationError> {
         self.unregister_incoming(torrent_id).await?;
         let checker_retained = self
@@ -4915,9 +5353,11 @@ impl ApplicationService {
         if self.session_network.is_none() {
             return Ok(());
         }
-        let torrent_ids = self
-            .store_mut()?
-            .snapshot()?
+        let snapshot = self.store_mut()?.snapshot()?;
+        let demand = snapshot.torrents.iter().any(torrent_wants_discovery);
+        self.session_network_config.discovery_demand = demand;
+        self.session_network().set_discovery_demand(demand);
+        let torrent_ids = snapshot
             .torrents
             .into_iter()
             .map(|torrent| torrent.torrent_id)
@@ -5878,6 +6318,26 @@ impl DownloadCheckpointSink for StoreCheckpointSink {
             .map_err(|error| error.to_string())
     }
 
+    fn metadata_file_selection(&self) -> Result<Option<FileSelectionUpdate>, String> {
+        let store = self.store()?;
+        let resume = store
+            .load_resume(&self.torrent_id)
+            .map_err(|error| error.to_string())?;
+        Ok(Some(FileSelectionUpdate {
+            revision: store.revision().map_err(|error| error.to_string())?,
+            skip_files: resume
+                .skip_files
+                .into_iter()
+                .map(|index| index as usize)
+                .collect(),
+            high_priority_files: resume
+                .high_priority_files
+                .into_iter()
+                .map(|index| index as usize)
+                .collect(),
+        }))
+    }
+
     fn storage_prepared(&self, storage: ResumedStorage) -> Result<(), String> {
         let storage_kind = match storage {
             ResumedStorage::Created => "created",
@@ -6196,6 +6656,7 @@ impl DownloadActivitySink for ViewActivitySink {
             return;
         }
         if let DownloadActivityEvent::TrackerState(snapshot) = &event {
+            let captured_at = Instant::now();
             let complete = snapshot
                 .records
                 .iter()
@@ -6212,7 +6673,9 @@ impl DownloadActivitySink for ViewActivitySink {
                 complete,
                 incomplete,
             );
-            let _ = self.views.record_tracker_state(&self.torrent_id, snapshot);
+            let _ = self
+                .views
+                .record_tracker_state_at(&self.torrent_id, snapshot, captured_at);
             return;
         }
         if let DownloadActivityEvent::StorageState(snapshot) = &event {
@@ -6975,6 +7438,32 @@ fn torrent_lifetime_view(
     }
 }
 
+fn effective_seed_stop_limits(
+    settings: &crate::ClientSettings,
+    torrent: &crate::TorrentSnapshot,
+) -> SeedStopLimits {
+    SeedStopLimits {
+        share_ratio_percent: torrent
+            .seed_stop_limits
+            .ratio_percent
+            .resolve(settings.seed_stop_ratio_percent)
+            .value(),
+        seeding_seconds: torrent
+            .seed_stop_limits
+            .time_seconds
+            .resolve(settings.seed_stop_time_seconds)
+            .value(),
+    }
+}
+
+fn seed_stop_view(torrent: &crate::TorrentSnapshot) -> Option<crate::SeedStopView> {
+    let view = crate::SeedStopView {
+        limits: torrent.seed_stop_limits,
+        stopped: torrent.seed_limit_stopped,
+    };
+    (view != crate::SeedStopView::default()).then_some(view)
+}
+
 fn torrent_seed_goal_view(
     accounting: crate::store::TorrentAccounting,
     total_size: u64,
@@ -7031,6 +7520,8 @@ fn durable_view_state(
                 DurableTorrentViewState {
                     display_name: None,
                     source_display_name: None,
+                    source_size_bytes: None,
+                    private_torrent: false,
                     checking_generation: None,
                     verified: Vec::new(),
                     files: None,
@@ -7038,7 +7529,10 @@ fn durable_view_state(
                     trackers: TrackerViewModel::default(),
                     total_size: 0,
                     lifetime: crate::TorrentLifetimeView::default(),
-                    seeding: crate::TorrentSeedingView::default(),
+                    seeding: crate::TorrentSeedingView {
+                        stop: seed_stop_view(torrent),
+                        ..crate::TorrentSeedingView::default()
+                    },
                 },
             );
             continue;
@@ -7056,9 +7550,16 @@ fn durable_view_state(
             .as_ref()
             .and_then(|_| parse_resume_content(&resume).ok());
         let display_name = content.as_ref().map(|content| content.name().to_owned());
-        let source_display_name = Magnet::parse(&resume.magnet)
-            .ok()
-            .and_then(|magnet| magnet.display_name);
+        // Only parsed, stored metainfo carries a trustworthy BEP 27 flag;
+        // a magnet awaiting metadata or corrupt metadata reports public.
+        let private_torrent = content.as_ref().is_some_and(|content| content.private());
+        let source_magnet = Magnet::parse(&resume.magnet).ok();
+        // The magnet's size claim only stands in until metadata exists.
+        let source_size_bytes = source_magnet
+            .as_ref()
+            .filter(|_| resume.raw_info.is_none())
+            .and_then(|magnet| magnet.exact_length);
+        let source_display_name = source_magnet.and_then(|magnet| magnet.display_name);
         let files = if let Some(content) = content.as_ref() {
             let filesystem_content_base = filesystem_content_base(
                 storage_roots.get(&resume.storage_root),
@@ -7074,6 +7575,9 @@ fn durable_view_state(
                 media_catalog_availability(torrent, &resume, storage_roots),
             )
             .ok()
+            .map(|files| {
+                files.with_safety(resume.safety_policy.clone(), resume.safety_allowed.clone())
+            })
         } else {
             None
         };
@@ -7110,15 +7614,21 @@ fn durable_view_state(
                     total_size,
                     goal_limits,
                 )?),
+                stop: seed_stop_view(torrent),
             }
         } else {
-            crate::TorrentSeedingView::default()
+            crate::TorrentSeedingView {
+                stop: seed_stop_view(torrent),
+                ..crate::TorrentSeedingView::default()
+            }
         };
         durable.insert(
             torrent.torrent_id.clone(),
             DurableTorrentViewState {
                 display_name,
                 source_display_name,
+                source_size_bytes,
+                private_torrent,
                 checking_generation: resume
                     .verification
                     .is_pending()
@@ -7339,6 +7849,8 @@ pub fn application_error_response(
     ResponseEnvelope::error(request_id, revision, code, error.to_string())
 }
 
+mod torrent_list;
+
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeMap, BTreeSet};
@@ -7399,6 +7911,8 @@ mod tests {
         ViewPatch, ViewProjection, ViewSelector, ViewSetError, ViewSetOwner, ViewSetUpdate,
         ViewSnapshot, ViewSpec, ViewUpdatePayload,
     };
+    use crate::{ShutdownOptions, ShutdownProgress};
+    use tokio_util::sync::CancellationToken;
 
     static NEXT_TEST: AtomicU64 = AtomicU64::new(0);
 
@@ -7627,6 +8141,40 @@ mod tests {
             offline.initial_client_settings.port_mapping,
             crate::PortMappingPolicy::Disabled
         );
+    }
+
+    #[tokio::test]
+    async fn hello_reports_the_host_product_and_its_profile() {
+        let root = test_root("hello-product");
+        let mut application = ApplicationService::open(default_config(&root))
+            .await
+            .expect("open application without product");
+        assert_eq!(application.api_hello().product, None);
+        application.shutdown().await.expect("join application");
+        // Shadowing would keep the first service, and its catalog, open.
+        drop(application);
+
+        let product = super::ProductIdentity {
+            identifier: Some("com.jstorrent.check".to_owned()),
+            ..super::ProductIdentity::for_this_build("desktop", "0.3.1")
+        };
+        let mut application = ApplicationService::open(default_config(&root).with_product(product))
+            .await
+            .expect("open application with product");
+        let reported = application.api_hello().product.expect("hello product");
+        assert_eq!(reported.kind, "desktop");
+        assert_eq!(reported.version, "0.3.1");
+        assert_eq!(reported.build_id, super::source_build_id());
+        assert!(!reported.target.is_empty());
+        assert_eq!(reported.identifier.as_deref(), Some("com.jstorrent.check"));
+        assert_eq!(reported.profile_id, "test");
+        assert_eq!(
+            reported.profile_location,
+            Some(root.join("profile").display().to_string())
+        );
+        application.shutdown().await.expect("join application");
+        drop(application);
+        fs::remove_dir_all(root).expect("remove test root");
     }
 
     #[test]
@@ -9416,6 +9964,557 @@ mod tests {
         fs::remove_dir_all(root).expect("remove seed-goal root");
     }
 
+    #[tokio::test]
+    async fn seed_stop_limit_stops_durably_and_keep_seeding_survives_restart() {
+        let root = test_root("seed-stop-limit");
+        let configuration = config(&root);
+        persist_client_settings(
+            &configuration,
+            ClientSettings {
+                listener: ListenerPolicy::AutomaticLoopback,
+                seed_stop_ratio_percent: crate::SeedStopLimit::Limited { value: 200 },
+                ..ClientSettings::default()
+            },
+        );
+        fs::create_dir_all(root.join("payload")).expect("create seed payload root");
+        let payload = b"abcdefg";
+        let name = "stop-limit-seed.bin";
+        let raw_info = single_file_info(name, payload, payload.len());
+        let info_hash: [u8; 20] = Sha1::digest(&raw_info).into();
+        let mut store = SessionStore::open(
+            configuration
+                .durable_profile_root()
+                .expect("durable profile root"),
+            &configuration.profile_id,
+            &configuration.storage_roots,
+        )
+        .expect("open stop-limit store");
+        let torrent_id = add_store_torrent(
+            &mut store,
+            "add-stop-limit-seed",
+            &super::encode_info_hash(info_hash),
+        );
+        store
+            .record_metadata(&torrent_id, &raw_info)
+            .expect("record seed metadata");
+        store
+            .record_pieces(&torrent_id, &[0])
+            .expect("record seed piece");
+        store.mark_complete(&torrent_id).expect("complete seed");
+        fs::write(root.join("payload").join(name), payload).expect("write seed payload");
+        store
+            .replace_accounting_batch(&[crate::store::TorrentAccountingUpdate {
+                torrent_id: torrent_id.parse().expect("seed owner"),
+                accounting: crate::store::TorrentAccounting {
+                    total_uploaded: 13,
+                    total_downloaded: 7,
+                    active_seconds: 100,
+                    finished_seconds: 100,
+                    seeding_seconds: 100,
+                    tracker_complete: None,
+                    tracker_incomplete: None,
+                },
+            }])
+            .expect("just-below-limit accounting");
+        drop(store);
+
+        let mut service = ApplicationService::open(configuration.clone())
+            .await
+            .expect("open stop-limit service");
+        wait_for_seed_registrations(&service, 1).await;
+        let below = torrent_summary(&service, &torrent_id).await;
+        assert_eq!(
+            below.operational_state,
+            crate::TorrentOperationalState::Seeding
+        );
+        assert_eq!(below.seeding.stop, None);
+
+        // One uploaded byte reaches exactly 200%.
+        let (mut peer, mut decoder, mut pending) =
+            connect_application_seed_with_expected_availability(
+                &service,
+                info_hash,
+                *b"-RS-STOP-LIMIT-00000",
+                false,
+                vec![0b1000_0000],
+            )
+            .await;
+        peer.write_all(&encode_message(&PeerMessage::Interested).expect("encode interest"))
+            .await
+            .expect("send interest");
+        assert_eq!(
+            read_peer_message(&mut peer, &mut decoder, &mut pending).await,
+            PeerMessage::Unchoke
+        );
+        peer.write_all(
+            &encode_message(&PeerMessage::Request(BlockRequest {
+                index: 0,
+                begin: 0,
+                length: 1,
+            }))
+            .expect("encode one-byte request"),
+        )
+        .await
+        .expect("request limit-crossing byte");
+        assert_eq!(
+            read_peer_message(&mut peer, &mut decoder, &mut pending).await,
+            PeerMessage::Piece {
+                index: 0,
+                begin: 0,
+                block: b"a".to_vec(),
+            }
+        );
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "reconcile-stop-limit".to_owned(),
+                expected_revision: None,
+                command: Command::Snapshot,
+            })
+            .await
+            .expect("reconcile reached stop limit");
+        assert_eq!(peer.read(&mut [0; 1]).await.expect("stopped peer close"), 0);
+        wait_for_seed_registrations(&service, 0).await;
+        let stopped = torrent_summary(&service, &torrent_id).await;
+        assert_eq!(
+            stopped.operational_state,
+            crate::TorrentOperationalState::Paused
+        );
+        assert_eq!(
+            stopped.seeding.stop,
+            Some(crate::SeedStopView {
+                limits: crate::TorrentSeedStopLimits::default(),
+                stopped: true,
+            })
+        );
+        let resume = service
+            .store_mut()
+            .unwrap()
+            .load_resume(&torrent_id)
+            .unwrap();
+        assert!(!resume.desired_running);
+
+        // A user Pause of a limit-stopped torrent keeps the limit reason.
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "pause-limit-stopped".to_owned(),
+                expected_revision: None,
+                command: Command::Pause {
+                    torrent_id: torrent_id.clone(),
+                },
+            })
+            .await
+            .expect("pause limit-stopped torrent");
+        assert!(
+            torrent_summary(&service, &torrent_id)
+                .await
+                .seeding
+                .stop
+                .is_some_and(|stop| stop.stopped)
+        );
+
+        // Resume means keep seeding: the torrent's own limits become off.
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "keep-seeding".to_owned(),
+                expected_revision: None,
+                command: Command::Resume {
+                    torrent_id: torrent_id.clone(),
+                },
+            })
+            .await
+            .expect("keep seeding");
+        wait_for_seed_registrations(&service, 1).await;
+        let kept = crate::SeedStopView {
+            limits: crate::TorrentSeedStopLimits {
+                ratio_percent: crate::TorrentSeedStopLimit::Off,
+                time_seconds: crate::TorrentSeedStopLimit::Off,
+            },
+            stopped: false,
+        };
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "reconcile-kept".to_owned(),
+                expected_revision: None,
+                command: Command::Snapshot,
+            })
+            .await
+            .expect("reconcile kept seed");
+        let resumed = torrent_summary(&service, &torrent_id).await;
+        assert_eq!(
+            resumed.operational_state,
+            crate::TorrentOperationalState::Seeding
+        );
+        assert_eq!(resumed.seeding.stop, Some(kept.clone()));
+
+        service
+            .shutdown()
+            .await
+            .expect("shutdown stop-limit service");
+        drop(service);
+        let mut reopened = ApplicationService::open(configuration)
+            .await
+            .expect("reopen stop-limit service");
+        wait_for_seed_registrations(&reopened, 1).await;
+        assert_eq!(
+            torrent_summary(&reopened, &torrent_id).await.seeding.stop,
+            Some(kept)
+        );
+        reopened
+            .shutdown()
+            .await
+            .expect("shutdown reopened service");
+        drop(reopened);
+        fs::remove_dir_all(root).expect("remove stop-limit root");
+    }
+
+    #[tokio::test]
+    async fn lowered_seed_time_limit_stops_active_and_queued_seeds() {
+        let root = test_root("seed-stop-time");
+        let configuration = config(&root);
+        persist_client_settings(
+            &configuration,
+            ClientSettings {
+                listener: ListenerPolicy::AutomaticLoopback,
+                active_seeds: crate::ActiveSeedLimit::Limited { torrents: 1 },
+                ..ClientSettings::default()
+            },
+        );
+        fs::create_dir_all(root.join("payload")).expect("create seed payload root");
+        let payload = b"abcdefg";
+        let mut store = SessionStore::open(
+            configuration
+                .durable_profile_root()
+                .expect("durable profile root"),
+            &configuration.profile_id,
+            &configuration.storage_roots,
+        )
+        .expect("open time-limit store");
+        let mut seeds = Vec::new();
+        for (sequence, finished_seconds) in [(0, 100_u64), (1, 40)] {
+            let name = format!("time-limit-seed-{sequence}.bin");
+            let raw_info = single_file_info(&name, payload, payload.len());
+            let info_hash: [u8; 20] = Sha1::digest(&raw_info).into();
+            let torrent_id = add_store_torrent(
+                &mut store,
+                &format!("add-time-limit-seed-{sequence}"),
+                &super::encode_info_hash(info_hash),
+            );
+            store
+                .record_metadata(&torrent_id, &raw_info)
+                .expect("metadata");
+            store.record_pieces(&torrent_id, &[0]).expect("piece");
+            store.mark_complete(&torrent_id).expect("complete");
+            fs::write(root.join("payload").join(name), payload).expect("payload");
+            store
+                .replace_accounting_batch(&[crate::store::TorrentAccountingUpdate {
+                    torrent_id: torrent_id.parse().expect("owner"),
+                    accounting: crate::store::TorrentAccounting {
+                        total_uploaded: 0,
+                        total_downloaded: 7,
+                        active_seconds: finished_seconds,
+                        finished_seconds,
+                        seeding_seconds: finished_seconds,
+                        tracker_complete: None,
+                        tracker_incomplete: None,
+                    },
+                }])
+                .expect("accounting");
+            seeds.push((torrent_id, finished_seconds));
+        }
+        drop(store);
+
+        let mut service = ApplicationService::open(configuration.clone())
+            .await
+            .expect("open time-limit service");
+        wait_for_seed_registrations(&service, 1).await;
+
+        // 60 seconds stops the 100-second seed, whether active or queued,
+        // and leaves the 40-second seed running.
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "lower-time-limit".to_owned(),
+                expected_revision: None,
+                command: Command::UpdateClientSettings {
+                    patch: crate::ClientSettingsPatch {
+                        seed_stop_time_seconds: Some(crate::SeedStopLimit::Limited { value: 60 }),
+                        ..crate::ClientSettingsPatch::default()
+                    },
+                },
+            })
+            .await
+            .expect("lower seed time limit");
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "reconcile-time-limit".to_owned(),
+                expected_revision: None,
+                command: Command::Snapshot,
+            })
+            .await
+            .expect("reconcile time limit");
+        wait_for_seed_registrations(&service, 1).await;
+        for (torrent_id, finished_seconds) in &seeds {
+            let resume = service
+                .store_mut()
+                .unwrap()
+                .load_resume(torrent_id)
+                .unwrap();
+            let view = torrent_summary(&service, torrent_id).await;
+            if *finished_seconds >= 60 {
+                assert!(!resume.desired_running, "{torrent_id} must stop");
+                assert!(view.seeding.stop.is_some_and(|stop| stop.stopped));
+            } else {
+                assert!(resume.desired_running, "{torrent_id} must keep running");
+                assert_eq!(view.seeding.stop, None);
+                assert!(service.admitted_seeds.contains(torrent_id));
+            }
+        }
+
+        // Raising the limit does not restart a stopped torrent.
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "clear-time-limit".to_owned(),
+                expected_revision: None,
+                command: Command::UpdateClientSettings {
+                    patch: crate::ClientSettingsPatch {
+                        seed_stop_time_seconds: Some(crate::SeedStopLimit::Off),
+                        ..crate::ClientSettingsPatch::default()
+                    },
+                },
+            })
+            .await
+            .expect("clear seed time limit");
+        assert!(
+            !service
+                .store_mut()
+                .unwrap()
+                .load_resume(&seeds[0].0)
+                .unwrap()
+                .desired_running
+        );
+        service
+            .shutdown()
+            .await
+            .expect("shutdown time-limit service");
+        drop(service);
+        fs::remove_dir_all(root).expect("remove time-limit root");
+    }
+
+    #[tokio::test]
+    async fn torrent_list_round_trips_into_a_fresh_profile_and_reimport_adds_nothing() {
+        let source_root = test_root("torrent-list-source");
+        let mut source = ApplicationService::open(config(&source_root))
+            .await
+            .expect("open source profile");
+        let payload = (0..32_768)
+            .map(|offset| ((offset * 31 + offset / 13) & 0xff) as u8)
+            .collect::<Vec<_>>();
+        let metainfo = |info: &[u8]| {
+            let mut bytes = b"d4:info".to_vec();
+            bytes.extend_from_slice(info);
+            bytes.push(b'e');
+            bytes
+        };
+        let add = |request_id: &str, bytes: &[u8], start: bool| AddTorrentBytesRequest {
+            version: CONTROL_VERSION,
+            request_id: request_id.to_owned(),
+            expected_revision: None,
+            storage_root: "downloads".to_owned(),
+            start_content: start,
+            await_file_selection: false,
+            selection: crate::FileSelectionIntent::All,
+            source_length: bytes.len() as u32,
+        };
+        let added_id = |response: crate::ResponseEnvelope| match response.result {
+            Some(CommandResult::AddTorrent { result }) => result.torrent_id,
+            _ => panic!("add did not report a torrent: {response:?}"),
+        };
+        let existing = metainfo(&single_file_info("existing.bin", &payload, 16_384));
+        let existing_id = added_id(
+            source
+                .add_torrent_bytes(add("add-existing", &existing, true), existing.clone())
+                .await
+                .expect("add existing"),
+        );
+        let multi = metainfo(&multi_file_info());
+        let multi_id = added_id(
+            source
+                .add_torrent_bytes(add("add-multi", &multi, false), multi.clone())
+                .await
+                .expect("add multi"),
+        );
+        let archived = metainfo(&single_file_info("archived.bin", b"archived", 8));
+        let archived_id = added_id(
+            source
+                .add_torrent_bytes(add("add-archived", &archived, false), archived.clone())
+                .await
+                .expect("add archived"),
+        );
+        let magnet_id = added_id(
+            source
+                .dispatch(add_request("add-magnet", &"ab".repeat(20)))
+                .await
+                .expect("add magnet"),
+        );
+        let own_limits = crate::TorrentSettingsPatch {
+            upload_rate_limit: Some(crate::TransferRateLimit::Limited {
+                bytes_per_second: 64 * 1_024,
+            }),
+            seed_stop_ratio_percent: Some(crate::TorrentSeedStopLimit::Limited { value: 150 }),
+            ..Default::default()
+        };
+        for (request_id, command) in [
+            (
+                "skip-b",
+                Command::SetFilePriority {
+                    torrent_id: multi_id.clone(),
+                    file_indices: vec![1],
+                    priority: FilePriority::Skip,
+                },
+            ),
+            (
+                "high-a",
+                Command::SetFilePriority {
+                    torrent_id: multi_id.clone(),
+                    file_indices: vec![0],
+                    priority: FilePriority::High,
+                },
+            ),
+            (
+                "multi-limits",
+                Command::UpdateTorrentSettings {
+                    torrent_id: multi_id.clone(),
+                    patch: own_limits,
+                },
+            ),
+            (
+                "archive",
+                Command::Archive {
+                    torrent_id: archived_id.clone(),
+                },
+            ),
+        ] {
+            let response = source
+                .dispatch(RequestEnvelope {
+                    version: CONTROL_VERSION,
+                    request_id: request_id.to_owned(),
+                    expected_revision: None,
+                    command,
+                })
+                .await
+                .expect(request_id);
+            assert!(
+                matches!(response.outcome, ResponseOutcome::Success { .. }),
+                "{request_id}: {response:?}"
+            );
+        }
+        let bundle = source.export_torrent_list().await.expect("export");
+        let expected = source.store_mut().unwrap().snapshot().unwrap().torrents;
+        source.shutdown().await.expect("shutdown source");
+        drop(source);
+
+        let target_root = test_root("torrent-list-target");
+        let target_configuration = config(&target_root);
+        let existing_output = target_root.join("payload/existing.bin");
+        fs::create_dir_all(existing_output.parent().unwrap()).expect("target payload root");
+        fs::write(&existing_output, &payload).expect("existing payload on disk");
+        let mut target = ApplicationService::open(target_configuration)
+            .await
+            .expect("open target profile");
+        let destination = crate::TorrentListImportTarget {
+            storage_root: "downloads".to_owned(),
+            keep_matching_locations: true,
+        };
+        let report = target
+            .import_torrent_bundle(bundle.clone(), destination.clone())
+            .await
+            .expect("import bundle");
+        assert_eq!(
+            report,
+            crate::TorrentListImportReport {
+                added: 4,
+                already_present: 0,
+                failed: Vec::new(),
+            }
+        );
+        let imported = target.store_mut().unwrap().snapshot().unwrap().torrents;
+        let by_identity = |torrents: &[crate::TorrentSnapshot]| {
+            torrents
+                .iter()
+                .map(|torrent| (torrent.protocol_identities.clone().v1, torrent.clone()))
+                .collect::<BTreeMap<_, _>>()
+        };
+        let expected = by_identity(&expected);
+        let imported = by_identity(&imported);
+        assert_eq!(
+            expected.keys().collect::<Vec<_>>(),
+            imported.keys().collect::<Vec<_>>()
+        );
+        for (identity, original) in &expected {
+            let copy = &imported[identity];
+            assert_eq!(
+                copy.desired_running, original.desired_running,
+                "{identity:?}"
+            );
+            assert_eq!(copy.archived, original.archived, "{identity:?}");
+            assert_eq!(copy.selection_default, original.selection_default);
+            assert_eq!(copy.selection_exceptions, original.selection_exceptions);
+            assert_eq!(copy.high_priority_files, original.high_priority_files);
+            assert_eq!(copy.transfer_limits, original.transfer_limits);
+            assert_eq!(copy.seed_stop_limits, original.seed_stop_limits);
+            assert_eq!(copy.metadata_available, original.metadata_available);
+        }
+        let ids = [&existing_id, &multi_id, &archived_id, &magnet_id];
+        assert_eq!(ids.len(), 4);
+        let existing_copy = imported
+            .values()
+            .find(|torrent| torrent.desired_running && torrent.metadata_available)
+            .expect("imported running torrent")
+            .torrent_id
+            .clone();
+        wait_for_torrent_state(
+            &mut target,
+            &existing_copy,
+            TorrentState::Complete,
+            "imported-existing-payload",
+        )
+        .await;
+        assert_eq!(fs::read(&existing_output).expect("payload kept"), payload);
+
+        let again = target
+            .import_torrent_bundle(bundle, destination)
+            .await
+            .expect("import again");
+        assert_eq!(
+            again,
+            crate::TorrentListImportReport {
+                added: 0,
+                already_present: 4,
+                failed: Vec::new(),
+            }
+        );
+        let unknown_root = target
+            .import_torrent_bundle(
+                Vec::new(),
+                crate::TorrentListImportTarget {
+                    storage_root: "downloads".to_owned(),
+                    keep_matching_locations: false,
+                },
+            )
+            .await;
+        assert!(unknown_root.is_err(), "an unreadable bundle adds nothing");
+        target.shutdown().await.expect("shutdown target");
+        drop(target);
+        fs::remove_dir_all(source_root).expect("remove source root");
+        fs::remove_dir_all(target_root).expect("remove target root");
+    }
+
     async fn serve_single_piece_peer(
         listener: TcpListener,
         info_hash: [u8; 20],
@@ -10736,6 +11835,203 @@ mod tests {
         fs::remove_dir_all(root).expect("remove test root");
     }
 
+    /// Adds a magnet whose tracker answers `started` and never answers
+    /// `stopped`, shuts down with `budget` (cancelling hurry once `stopped`
+    /// arrives when `hurry_on_stopped` is set), then reopens the profile.
+    /// Returns the progress, the time spent in shutdown, and whether the
+    /// reopened profile still lists the torrent.
+    async fn shutdown_against_stalled_stopped_tracker(
+        name: &str,
+        budget: Duration,
+        hurry_on_stopped: bool,
+    ) -> (Vec<ShutdownProgress>, Duration, bool) {
+        let root = test_root(name);
+        let info_hash = [0x5d_u8; 20];
+        let torrent_id = super::encode_info_hash(info_hash);
+        let tracker = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind stalled-stop tracker");
+        let tracker_url = format!(
+            "http://{}/announce",
+            tracker.local_addr().expect("tracker address")
+        );
+        let (started_sender, started_receiver) = tokio::sync::oneshot::channel();
+        let (stopped_sender, stopped_receiver) = tokio::sync::oneshot::channel();
+        let tracker_task = tokio::spawn(async move {
+            let mut started_sender = Some(started_sender);
+            let mut stopped_sender = Some(stopped_sender);
+            let mut held = Vec::new();
+            loop {
+                let (mut stream, _) = tracker.accept().await.expect("accept tracker announce");
+                let request = read_http_request(&mut stream).await;
+                if request.contains("&event=stopped ") {
+                    if let Some(sender) = stopped_sender.take() {
+                        let _ = sender.send(());
+                    }
+                    // Hold the connection without answering.
+                    held.push(stream);
+                    continue;
+                }
+                stream
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 26\r\nConnection: close\r\n\r\nd8:intervali900e5:peers0:e")
+                    .await
+                    .expect("write tracker response");
+                stream.shutdown().await.expect("close tracker response");
+                if let Some(sender) = started_sender.take() {
+                    let _ = sender.send(());
+                }
+            }
+        });
+
+        let mut service = ApplicationService::open(config(&root))
+            .await
+            .expect("open application");
+        let response = service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: format!("{name}-add"),
+                expected_revision: None,
+                command: Command::AddMagnet {
+                    magnet: format!(
+                        "magnet:?xt=urn:btih:{torrent_id}&tr={}",
+                        percent_encode_magnet_value(&tracker_url)
+                    ),
+                    storage_root: "downloads".to_owned(),
+                    start_content: true,
+                    await_file_selection: false,
+                    skip_files: Vec::new(),
+                },
+            })
+            .await
+            .expect("add stalled-stop tracker magnet");
+        let torrent_id = match response.result {
+            Some(CommandResult::AddTorrent { result }) => result.torrent_id,
+            _ => panic!("stalled-stop tracker add result"),
+        };
+        tokio::time::timeout(Duration::from_secs(5), started_receiver)
+            .await
+            .expect("started announce deadline")
+            .expect("started announce report");
+        // A stopped announce follows only a started announce the session has
+        // seen succeed.
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let trackers = torrent_tracker_views(&service, &torrent_id).await;
+                if trackers
+                    .iter()
+                    .any(|tracker| tracker.last_success_at_millis.is_some())
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("started announce recorded as successful");
+
+        let progress = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let sink_progress = progress.clone();
+        let hurry = CancellationToken::new();
+        let hurry_trigger = hurry.clone();
+        let hurry_task = tokio::spawn(async move {
+            let stopped = stopped_receiver.await.is_ok();
+            if stopped && hurry_on_stopped {
+                hurry_trigger.cancel();
+            }
+            stopped
+        });
+        let started = std::time::Instant::now();
+        tokio::time::timeout(
+            Duration::from_secs(20),
+            service.shutdown_with(ShutdownOptions {
+                network_cleanup_budget: budget,
+                hurry,
+                progress: Some(Arc::new(move |event| {
+                    sink_progress.lock().unwrap().push(event);
+                })),
+            }),
+        )
+        .await
+        .expect("bounded application shutdown returns")
+        .expect("bounded application shutdown");
+        let elapsed = started.elapsed();
+        drop(service);
+        tracker_task.abort();
+        assert!(
+            hurry_task.await.expect("stopped observer"),
+            "shutdown must still send the stopped announce"
+        );
+
+        let mut reopened = ApplicationService::open(config(&root))
+            .await
+            .expect("reopen application");
+        let response = reopened
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: format!("{name}-reopened-snapshot"),
+                expected_revision: None,
+                command: Command::Snapshot,
+            })
+            .await
+            .expect("reopened snapshot");
+        let ResponseOutcome::Success { snapshot } = response.outcome else {
+            panic!("reopened snapshot should succeed");
+        };
+        let listed = snapshot
+            .torrents
+            .iter()
+            .any(|torrent| torrent.torrent_id == torrent_id);
+        reopened.shutdown().await.expect("shutdown reopened");
+        drop(reopened);
+        fs::remove_dir_all(root).expect("remove test root");
+        let progress = progress.lock().unwrap().clone();
+        (progress, elapsed, listed)
+    }
+
+    #[tokio::test]
+    async fn shutdown_budget_bounds_a_stalled_stopped_announce() {
+        let (progress, elapsed, listed) = shutdown_against_stalled_stopped_tracker(
+            "stalled-stop-budget",
+            Duration::from_millis(500),
+            false,
+        )
+        .await;
+
+        // Tracker stops get three quarters of the budget; the rest is kept
+        // for port-mapping removal, which this profile does not have.
+        assert!(elapsed >= Duration::from_millis(375), "{elapsed:?}");
+        assert!(elapsed < Duration::from_secs(3), "{elapsed:?}");
+        assert!(listed, "the torrent survives a bounded shutdown");
+        assert_eq!(
+            progress,
+            [
+                ShutdownProgress::StoppingTorrents { count: 1 },
+                ShutdownProgress::NetworkCleanup {
+                    budget: Duration::from_millis(500)
+                },
+                ShutdownProgress::TrackerStopsCutShort { torrents: 1 },
+                ShutdownProgress::NetworkStopped,
+                ShutdownProgress::SavingState,
+                ShutdownProgress::Finished,
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn shutdown_hurry_ends_a_stalled_stopped_announce() {
+        let (progress, elapsed, listed) = shutdown_against_stalled_stopped_tracker(
+            "stalled-stop-hurry",
+            Duration::from_secs(30),
+            true,
+        )
+        .await;
+
+        assert!(elapsed < Duration::from_secs(3), "{elapsed:?}");
+        assert!(listed, "the torrent survives a hurried shutdown");
+        assert!(progress.contains(&ShutdownProgress::TrackerStopsCutShort { torrents: 1 }));
+        assert_eq!(progress.last(), Some(&ShutdownProgress::Finished));
+    }
+
     #[tokio::test]
     async fn application_shutdown_closes_view_sets_and_wakes_waiters() {
         let root = test_root("view-set-shutdown");
@@ -10839,6 +12135,75 @@ mod tests {
         assert!(!paths.part.exists());
         reopened.shutdown().await.expect("shutdown reopened");
         drop(reopened);
+        fs::remove_dir_all(root).expect("remove test root");
+    }
+
+    #[tokio::test]
+    async fn disabling_file_selection_releases_the_queued_adds() {
+        let root = test_root("pending-release-queue");
+        let mut service = ApplicationService::open(config(&root))
+            .await
+            .expect("open application");
+        let mut torrent_ids = Vec::new();
+        for (request_id, raw_info) in [
+            ("pending-current", multi_file_info()),
+            ("pending-queued", single_file_info("queued", b"data", 4)),
+        ] {
+            let mut source = b"d4:info".to_vec();
+            source.extend_from_slice(&raw_info);
+            source.push(b'e');
+            let mut request = torrent_bytes_request(request_id, &source, true);
+            request.await_file_selection = true;
+            let response = service
+                .add_torrent_bytes(request, source)
+                .await
+                .expect("add pending torrent bytes");
+            torrent_ids.push(match response.result {
+                Some(CommandResult::AddTorrent { result }) => result.torrent_id,
+                _ => panic!("pending torrent bytes add result"),
+            });
+        }
+        let snapshot = service
+            .store_mut()
+            .expect("store")
+            .snapshot()
+            .expect("pending snapshot");
+        let catalog_id = snapshot
+            .torrents
+            .iter()
+            .find(|torrent| torrent.torrent_id == torrent_ids[0])
+            .and_then(|torrent| torrent.file_catalog_id.clone())
+            .expect("pending file catalog");
+        let response = service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "confirm-disable-future".to_owned(),
+                expected_revision: None,
+                command: Command::ConfirmPendingFileSelection {
+                    torrent_id: torrent_ids[0].clone(),
+                    catalog_id,
+                    base: crate::PendingFileSelectionBase::Current,
+                    overrides: Vec::new(),
+                    disable_future: true,
+                },
+            })
+            .await
+            .expect("confirm with disable future");
+        assert!(matches!(response.outcome, ResponseOutcome::Success { .. }));
+
+        let snapshot = service
+            .store_mut()
+            .expect("store")
+            .snapshot()
+            .expect("released snapshot");
+        assert!(!snapshot.storage.show_file_selection);
+        for torrent in &snapshot.torrents {
+            assert!(!torrent.awaiting_file_selection);
+            assert!(torrent.desired_running);
+            assert!(torrent.download_queue_position.is_some());
+        }
+        service.shutdown().await.expect("shutdown application");
+        drop(service);
         fs::remove_dir_all(root).expect("remove test root");
     }
 
@@ -12170,6 +13535,90 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn download_all_pending_add_admits_late_metadata_without_another_confirmation() {
+        let root = test_root("pending-all-late-metadata");
+        let raw_info = multi_file_info();
+        let hash: [u8; 20] = Sha1::digest(&raw_info).into();
+        let (peer, release, peer_task) = spawn_gated_metadata_peer(raw_info).await;
+        let mut service = ApplicationService::open(config(&root)).await.unwrap();
+        let added = service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "pending-add".into(),
+                expected_revision: None,
+                command: Command::AddMagnet {
+                    magnet: format!(
+                        "magnet:?xt=urn:btih:{}&x.pe={peer}&so=1",
+                        super::encode_info_hash(hash)
+                    ),
+                    storage_root: "downloads".into(),
+                    start_content: true,
+                    await_file_selection: true,
+                    skip_files: vec![],
+                },
+            })
+            .await
+            .unwrap();
+        let Some(CommandResult::AddTorrent { result }) = added.result else {
+            panic!("add result")
+        };
+        let id = result.torrent_id;
+        let paths =
+            torrent_storage_paths(&root.join("payload"), "multi", id.parse().unwrap()).unwrap();
+        assert!(!paths.content.exists());
+        assert!(!paths.part.exists());
+        let confirmed = service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "download-all".into(),
+                expected_revision: None,
+                command: Command::DownloadAllPendingAdd {
+                    torrent_id: id.clone(),
+                    disable_future: false,
+                },
+            })
+            .await
+            .unwrap();
+        assert!(matches!(confirmed.outcome, ResponseOutcome::Success { .. }));
+        release.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let response = service
+                    .dispatch(RequestEnvelope {
+                        version: CONTROL_VERSION,
+                        request_id: "all-snapshot".into(),
+                        expected_revision: None,
+                        command: Command::Snapshot,
+                    })
+                    .await
+                    .unwrap();
+                let ResponseOutcome::Success { snapshot } = response.outcome else {
+                    panic!("snapshot")
+                };
+                if snapshot.torrents[0].metadata_available {
+                    assert!(!snapshot.torrents[0].awaiting_file_selection);
+                    assert!(snapshot.torrents[0].desired_running);
+                    assert_eq!(
+                        snapshot.torrents[0].selected_file_count,
+                        snapshot.torrents[0].selectable_file_count
+                    );
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("late metadata admitted");
+        tokio::time::timeout(Duration::from_secs(2), peer_task)
+            .await
+            .unwrap()
+            .unwrap();
+        service.shutdown().await.unwrap();
+        drop(service);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
     async fn pending_selection_add_verifies_metadata_without_content_artifacts() {
         assert_metadata_only_add(true).await;
     }
@@ -12717,6 +14166,7 @@ mod tests {
                         download_rate_limit: Some(crate::TransferRateLimit::Limited {
                             bytes_per_second: 128 * 1_024,
                         }),
+                        ..Default::default()
                     },
                 },
             })
@@ -13056,6 +14506,156 @@ mod tests {
         assert!(application.session_network.is_none());
         drop(application);
         fs::remove_dir_all(root).expect("remove test root");
+    }
+
+    #[tokio::test]
+    async fn incoming_off_closes_pending_inbound_and_preserves_outgoing_udp_generation() {
+        let root = test_root("incoming-off-preserves-outgoing");
+        let mut config = default_config(&root);
+        config.initial_client_settings.listener = ListenerPolicy::AutomaticLoopback;
+        config.initial_client_settings.ipv6_enabled = false;
+        config.initial_client_settings.dht_enabled = false;
+        let mut application = ApplicationService::open(config).await.unwrap();
+        let generation = application.session_network().session_udp_generation();
+        let handle = application.session_network().utp_handle().unwrap();
+        let address = application
+            .session_network()
+            .session_udp_local_address_for(rstorrent_engine::AddressFamily::Ipv4)
+            .unwrap();
+        let socket = tokio::net::UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))
+            .await
+            .unwrap();
+        let (mut remote_udp, remote_dht) =
+            rstorrent_engine::SessionUdpService::start(socket).unwrap();
+        let mut remote_utp = rstorrent_engine::UtpService::start(&mut remote_udp).unwrap();
+        let (outgoing, received) = tokio::time::timeout(Duration::from_secs(2), async {
+            tokio::join!(
+                handle.connect(remote_udp.local_address()),
+                remote_utp.accept()
+            )
+        })
+        .await
+        .unwrap();
+        let mut outgoing = outgoing.unwrap();
+        let mut received = received.unwrap();
+        let inbound = remote_utp
+            .handle()
+            .connect_with_timeout(address, Duration::from_secs(2))
+            .await
+            .unwrap();
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if application.incoming_peer_snapshot().unwrap().pending == 1 {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+        application
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "incoming-off".into(),
+                expected_revision: None,
+                command: Command::UpdateClientSettings {
+                    patch: crate::ClientSettingsPatch {
+                        listener: Some(ListenerPolicy::Disabled),
+                        ..Default::default()
+                    },
+                },
+            })
+            .await
+            .unwrap();
+        wait_for_client_settings(&application, |s| {
+            matches!(s.listener_status, crate::ListenerStatus::Disabled)
+                && s.transport_application == crate::ClientSettingsApplicationState::Applied
+        })
+        .await;
+        assert_eq!(
+            application.session_network().session_udp_generation(),
+            generation
+        );
+        assert_eq!(handle.snapshot().active_connections, 1);
+        assert!(application.incoming_peer_snapshot().is_none());
+        tokio::time::timeout(Duration::from_secs(2), async {
+            outgoing.write_all(b"alive").await.unwrap();
+            outgoing.flush().await.unwrap();
+            let mut bytes = [0; 5];
+            received.read_exact(&mut bytes).await.unwrap();
+            assert_eq!(&bytes, b"alive");
+            received.write_all(b"reply").await.unwrap();
+            received.flush().await.unwrap();
+            outgoing.read_exact(&mut bytes).await.unwrap();
+            assert_eq!(&bytes, b"reply");
+        })
+        .await
+        .unwrap();
+        assert!(
+            remote_utp
+                .handle()
+                .connect_with_timeout(address, Duration::from_millis(150))
+                .await
+                .is_err()
+        );
+        drop(inbound);
+        drop(outgoing);
+        drop(received);
+        application.shutdown().await.unwrap();
+        remote_utp.shutdown().await.unwrap();
+        drop(remote_dht);
+        remote_udp.shutdown().await.unwrap();
+        drop(application);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn idle_dht_follows_running_library_intent_without_changing_preference() {
+        let root = test_root("idle-dht-library-intent");
+        let mut config = default_config(&root);
+        config.defer_idle_dht = true;
+        let mut application = ApplicationService::open(config).await.unwrap();
+        wait_for_client_settings(&application, |s| {
+            s.configured.dht_enabled && !s.effective_dht_enabled
+        })
+        .await;
+        let added = application
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "discovery-work".into(),
+                expected_revision: None,
+                command: Command::AddMagnet {
+                    magnet: format!("magnet:?xt=urn:btih:{}", "ab".repeat(20)),
+                    storage_root: "downloads".into(),
+                    start_content: true,
+                    await_file_selection: false,
+                    skip_files: Vec::new(),
+                },
+            })
+            .await
+            .unwrap();
+        let Some(crate::CommandResult::AddTorrent { result }) = added.result else {
+            panic!("missing added torrent");
+        };
+        wait_for_client_settings(&application, |s| s.effective_dht_enabled).await;
+        application
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "pause-discovery-work".into(),
+                expected_revision: None,
+                command: Command::Pause {
+                    torrent_id: result.torrent_id,
+                },
+            })
+            .await
+            .unwrap();
+        wait_for_client_settings(&application, |s| {
+            s.configured.dht_enabled && !s.effective_dht_enabled
+        })
+        .await;
+        application.shutdown().await.unwrap();
+        drop(application);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[tokio::test]
@@ -14767,6 +16367,115 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn archive_joins_a_running_checker_instead_of_parking_it() {
+        let root = test_root("archive-running-checker");
+        let mut configuration = config(&root);
+        configuration.storage_hash_delay_for_testing = Duration::from_millis(150);
+        configuration.storage_hash_concurrency_for_testing = 1;
+        let piece_length = 16_384;
+        let payload = (0..(8 * piece_length))
+            .map(|offset| ((offset * 31 + offset / 13) & 0xff) as u8)
+            .collect::<Vec<_>>();
+        let raw_info = single_file_info("archive-checker.bin", &payload, piece_length);
+        let info_hash: [u8; 20] = Sha1::digest(&raw_info).into();
+        let torrent_id = super::encode_info_hash(info_hash);
+        let mut store = SessionStore::open(
+            configuration
+                .durable_profile_root()
+                .expect("durable profile root"),
+            &configuration.profile_id,
+            &configuration.storage_roots,
+        )
+        .expect("open setup store");
+        let torrent_id = add_store_torrent(&mut store, "add-archive-checker", &torrent_id);
+        store
+            .record_metadata(&torrent_id, &raw_info)
+            .expect("record metadata");
+        store
+            .record_pieces(&torrent_id, &(0..8).collect::<Vec<_>>())
+            .expect("record old have");
+        store.mark_complete(&torrent_id).expect("mark complete");
+        store.begin_recheck(&torrent_id).expect("begin recheck");
+        drop(store);
+        let output = root.join("payload/archive-checker.bin");
+        fs::create_dir_all(output.parent().expect("payload parent")).expect("create payload root");
+        fs::write(&output, &payload).expect("write direct payload");
+
+        let mut service = ApplicationService::open(configuration)
+            .await
+            .expect("open checking application");
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while !service.active_download().is_some_and(|active| {
+                active
+                    .1
+                    .control
+                    .checker_snapshot()
+                    .is_some_and(|progress| progress.active_hash_jobs == 1)
+            }) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("checker hash did not start");
+
+        let dispatch = |request_id: &str, command: Command| RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: request_id.to_owned(),
+            expected_revision: None,
+            command,
+        };
+        service
+            .dispatch(dispatch(
+                "archive-running-checker",
+                Command::Archive {
+                    torrent_id: torrent_id.clone(),
+                },
+            ))
+            .await
+            .expect("archive checker");
+        // The checker is joined, not parked, so it cannot hold the
+        // verification slot while the torrent stays archived.
+        assert!(service.active_download().is_none());
+        let resume = service
+            .store_mut()
+            .expect("store")
+            .load_resume(&torrent_id)
+            .expect("archived resume");
+        assert!(!resume.desired_running);
+        assert!(resume.verification.is_pending());
+
+        service
+            .dispatch(dispatch(
+                "restore-checker",
+                Command::RestoreArchive {
+                    torrent_id: torrent_id.clone(),
+                },
+            ))
+            .await
+            .expect("restore checker");
+        service
+            .dispatch(dispatch(
+                "resume-checker",
+                Command::Resume {
+                    torrent_id: torrent_id.clone(),
+                },
+            ))
+            .await
+            .expect("resume checker");
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while service.active_download().is_none() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("pending verification did not restart after restore");
+
+        service.shutdown().await.expect("shutdown");
+        drop(service);
+        fs::remove_dir_all(root).expect("remove test root");
+    }
+
+    #[tokio::test]
     async fn pause_and_resume_retain_the_active_checker_generation_and_cursor() {
         let root = test_root("pause-running-checker");
         let mut configuration = config(&root);
@@ -15468,6 +17177,19 @@ mod tests {
             })
             .await
             .expect("restore active content");
+        // Restore leaves the archived torrent paused until it is started again.
+        wait_for_active_route(&service, 0).await;
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "resume-restored-content".to_owned(),
+                expected_revision: None,
+                command: Command::Resume {
+                    torrent_id: torrent_id.clone(),
+                },
+            })
+            .await
+            .expect("resume restored content");
         wait_for_active_route(&service, 1).await;
         let removal_control = service
             .active_download()
@@ -16806,10 +18528,96 @@ mod tests {
             torrent.source_display_name.as_deref(),
             Some("Waiting for metadata")
         );
+        assert!(!torrent.private_torrent);
 
         service.shutdown().await.expect("shutdown");
         drop(service);
         fs::remove_dir_all(root).expect("remove magnet-name test root");
+    }
+
+    #[tokio::test]
+    async fn startup_projects_magnet_size_claim_until_metadata() {
+        async fn summary_row(configuration: &ApplicationConfig) -> crate::TorrentView {
+            let mut service = ApplicationService::open(configuration.clone())
+                .await
+                .expect("open service");
+            let summary = service
+                .subscribe(SubscriptionSpec {
+                    selector: ViewSelector::TorrentList,
+                    projection: ViewProjection::Summary,
+                    delivery: DeliveryPolicy {
+                        min_interval_millis: 0,
+                        max_queue_bytes: 256 * 1024,
+                    },
+                    diagnostics: None,
+                    catalog_page: None,
+                })
+                .expect("summary");
+            let update = summary.next_update().await.expect("summary snapshot");
+            let ViewUpdatePayload::Snapshot {
+                snapshot: ViewSnapshot::TorrentList { mut torrents, .. },
+            } = update.payload
+            else {
+                panic!("expected torrent-list snapshot");
+            };
+            drop(summary);
+            service.shutdown().await.expect("shutdown");
+            torrents.remove(0)
+        }
+
+        let root = test_root("magnet-size-claim");
+        let configuration = config(&root);
+        let raw_info = b"d5:filesld6:lengthi4e4:pathl8:file.bineee4:name5:sized12:piece lengthi4e6:pieces20:aaaaaaaaaaaaaaaaaaaae";
+        let info_hash = super::encode_info_hash(Sha1::digest(raw_info).into());
+        let open_store = || {
+            SessionStore::open(
+                configuration
+                    .durable_profile_root()
+                    .expect("durable profile root"),
+                &configuration.profile_id,
+                &configuration.storage_roots,
+            )
+            .expect("open store")
+        };
+        let mut store = open_store();
+        let response = store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "add-sized-magnet".to_owned(),
+                expected_revision: None,
+                command: Command::AddMagnet {
+                    magnet: format!("magnet:?xt=urn:btih:{info_hash}&xl=1048576"),
+                    storage_root: "downloads".to_owned(),
+                    start_content: false,
+                    await_file_selection: false,
+                    skip_files: Vec::new(),
+                },
+            })
+            .expect("add sized magnet");
+        let torrent_id = match response.result {
+            Some(CommandResult::AddTorrent { result }) => result.torrent_id,
+            _ => panic!("sized magnet add omitted its torrent owner"),
+        };
+        drop(store);
+
+        let claimed = summary_row(&configuration).await;
+        assert_eq!(claimed.source_size_bytes.as_deref(), Some("1048576"));
+        assert_eq!(claimed.total_size_bytes, None);
+        let wire = serde_json::to_value(&claimed).expect("serialize claimed row");
+        assert_eq!(wire["source_size_bytes"], "1048576");
+
+        let mut store = open_store();
+        store
+            .record_metadata(&torrent_id, raw_info)
+            .expect("record metadata");
+        drop(store);
+        let verified = summary_row(&configuration).await;
+        assert_eq!(verified.source_size_bytes, None);
+        assert_eq!(verified.total_size_bytes.as_deref(), Some("4"));
+        let wire = serde_json::to_value(&verified).expect("serialize verified row");
+        assert!(wire.get("source_size_bytes").is_none());
+
+        fs::remove_dir_all(root).expect("remove magnet-size test root");
     }
 
     #[tokio::test]
@@ -16857,6 +18665,7 @@ mod tests {
             panic!("expected torrent-list snapshot");
         };
         assert_eq!(torrents[0].display_name.as_deref(), Some("named"));
+        assert!(!torrents[0].private_torrent);
 
         let files = service
             .subscribe(SubscriptionSpec {
@@ -16891,6 +18700,60 @@ mod tests {
         service.shutdown().await.expect("shutdown");
         drop(service);
         fs::remove_dir_all(root).expect("remove metadata-name test root");
+    }
+
+    #[tokio::test]
+    async fn startup_projects_verified_private_flag() {
+        let root = test_root("metadata-private");
+        let configuration = config(&root);
+        let raw_info = b"d5:filesld6:lengthi4e4:pathl8:file.bineee4:name7:private12:piece lengthi4e6:pieces20:aaaaaaaaaaaaaaaaaaaa7:privatei1ee";
+        let info_hash: [u8; 20] = Sha1::digest(raw_info).into();
+        let torrent_id = super::encode_info_hash(info_hash);
+        let configured_root = configuration.storage_roots[0].clone();
+        let mut store = SessionStore::open(
+            configuration
+                .durable_profile_root()
+                .expect("durable profile root"),
+            &configuration.profile_id,
+            &[configured_root],
+        )
+        .expect("open store");
+        let torrent_id = add_store_torrent(&mut store, "add", &torrent_id);
+        store
+            .record_metadata(&torrent_id, raw_info)
+            .expect("record metadata");
+        drop(store);
+
+        let mut service = ApplicationService::open(configuration)
+            .await
+            .expect("open service");
+        let summary = service
+            .subscribe(SubscriptionSpec {
+                selector: ViewSelector::TorrentList,
+                projection: ViewProjection::Summary,
+                delivery: DeliveryPolicy {
+                    min_interval_millis: 0,
+                    max_queue_bytes: 256 * 1024,
+                },
+                diagnostics: None,
+                catalog_page: None,
+            })
+            .expect("summary");
+        let update = summary.next_update().await.expect("summary snapshot");
+        let ViewUpdatePayload::Snapshot {
+            snapshot: ViewSnapshot::TorrentList { torrents, .. },
+        } = update.payload
+        else {
+            panic!("expected torrent-list snapshot");
+        };
+        assert_eq!(torrents[0].display_name.as_deref(), Some("private"));
+        assert!(torrents[0].private_torrent);
+        let wire = serde_json::to_value(&torrents[0]).expect("serialize torrent view");
+        assert_eq!(wire["private_torrent"], serde_json::Value::Bool(true));
+
+        service.shutdown().await.expect("shutdown");
+        drop(service);
+        fs::remove_dir_all(root).expect("remove metadata-private test root");
     }
 
     #[tokio::test]
@@ -17360,6 +19223,170 @@ mod tests {
         );
         provider.await.expect("provider task");
         service.shutdown().await.expect("shutdown");
+        drop(service);
+        fs::remove_dir_all(root).expect("remove root");
+    }
+
+    /// Answers every platform probe with a healthy directory.
+    fn healthy_platform_provider(
+        broker: Arc<rstorrent_engine::PlatformStorageBroker>,
+    ) -> tokio::task::JoinHandle<()> {
+        tokio::spawn(async move {
+            while let Some(request) = broker.next_request().await {
+                assert_eq!(request.operation, PlatformStorageOperation::Observe);
+                broker.complete_observation(
+                    request.request_id,
+                    StorageObservation::present(StorageObjectKind::Directory, None, None)
+                        .expect("root observation"),
+                );
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn detaching_platform_root_keeps_bound_torrents_and_replaces_default() {
+        let root = test_root("platform-root-detach");
+        let mut configuration = config(&root);
+        configuration.storage_roots = vec![ConfiguredStorageRoot::platform("downloads")];
+        let (client, broker) = platform_storage_channel();
+        configuration.platform_storage_client = Some(client);
+        let torrent_id = {
+            let mut store = SessionStore::open(
+                configuration
+                    .durable_profile_root()
+                    .expect("durable profile"),
+                &configuration.profile_id,
+                &configuration.storage_roots,
+            )
+            .expect("open fixture store");
+            add_store_torrent(&mut store, "add", &"d".repeat(40))
+        };
+        let mut service = ApplicationService::open(configuration)
+            .await
+            .expect("open service");
+        let provider = healthy_platform_provider(broker);
+        assert!(service.probe_platform_storage_roots().await.expect("probe"));
+        service
+            .install_platform_storage_root("root_b", "Folder B", false)
+            .await
+            .expect("install second root");
+        assert_eq!(
+            service
+                .storage_snapshot()
+                .expect("storage")
+                .default_root
+                .as_deref(),
+            Some("downloads")
+        );
+
+        let detached = service
+            .detach_platform_storage_root("downloads")
+            .await
+            .expect("detach referenced current root");
+        assert!(!detached.removed);
+        assert_eq!(detached.affected_torrent_ids, vec![torrent_id.clone()]);
+        assert_eq!(detached.default_root.as_deref(), Some("root_b"));
+        let storage = service.storage_snapshot().expect("detached storage");
+        assert_eq!(storage.roots.len(), 2);
+        let downloads = storage
+            .roots
+            .iter()
+            .find(|root| root.root_id == "downloads")
+            .expect("retained root");
+        assert_eq!(
+            downloads.availability,
+            crate::StorageRootAvailability::Unavailable
+        );
+        let snapshot = service
+            .store_mut()
+            .expect("store")
+            .snapshot()
+            .expect("snapshot");
+        let torrent = snapshot
+            .torrents
+            .iter()
+            .find(|torrent| torrent.torrent_id == torrent_id)
+            .expect("torrent remains bound");
+        assert_eq!(torrent.storage_root, "downloads");
+        assert!(service.active_download_for(&torrent_id).is_none());
+
+        let removed = service
+            .detach_platform_storage_root("root_b")
+            .await
+            .expect("detach unreferenced current root");
+        assert!(removed.removed);
+        assert!(removed.affected_torrent_ids.is_empty());
+        assert_eq!(removed.default_root, None);
+        let storage = service.storage_snapshot().expect("removed storage");
+        assert_eq!(storage.roots.len(), 1);
+        assert_eq!(storage.default_root, None);
+
+        service.shutdown().await.expect("shutdown");
+        provider.abort();
+        drop(service);
+        fs::remove_dir_all(root).expect("remove root");
+    }
+
+    #[tokio::test]
+    async fn detaching_platform_root_waits_for_pending_platform_removal() {
+        let root = test_root("platform-root-detach-removal");
+        let mut configuration = config(&root);
+        configuration.storage_roots = vec![ConfiguredStorageRoot::platform("downloads")];
+        let (client, broker) = platform_storage_channel();
+        configuration.platform_storage_client = Some(client);
+        let raw_info = single_file_info("seed.bin", b"abcdefg", 4);
+        let info_hash: [u8; 20] = Sha1::digest(&raw_info).into();
+        let torrent_id = {
+            let mut store = SessionStore::open(
+                configuration
+                    .durable_profile_root()
+                    .expect("durable profile"),
+                &configuration.profile_id,
+                &configuration.storage_roots,
+            )
+            .expect("open fixture store");
+            let torrent_id = add_store_torrent(
+                &mut store,
+                "add",
+                &crate::control::encode_info_hash(info_hash),
+            );
+            store
+                .record_metadata(&torrent_id, &raw_info)
+                .expect("record metadata");
+            store
+                .handle_durable(&RequestEnvelope {
+                    version: CONTROL_VERSION,
+                    request_id: "remove".to_owned(),
+                    expected_revision: None,
+                    command: Command::RemoveTorrent {
+                        torrent_id: torrent_id.clone(),
+                        data: RemovalDataPolicy::DeleteData,
+                    },
+                })
+                .expect("begin removal");
+            torrent_id
+        };
+        let mut service = ApplicationService::open(configuration)
+            .await
+            .expect("open service");
+        let provider = healthy_platform_provider(broker);
+        assert!(service.probe_platform_storage_roots().await.expect("probe"));
+        let error = service
+            .detach_platform_storage_root("downloads")
+            .await
+            .expect_err("pending platform removal needs the root");
+        assert!(matches!(error, ApplicationError::Busy(owner) if owner == torrent_id));
+        assert_eq!(
+            service
+                .storage_snapshot()
+                .expect("storage")
+                .default_root
+                .as_deref(),
+            Some("downloads")
+        );
+
+        service.shutdown().await.expect("shutdown");
+        provider.abort();
         drop(service);
         fs::remove_dir_all(root).expect("remove root");
     }
@@ -17971,6 +19998,18 @@ mod tests {
             })
             .await
             .expect("restore seed");
+        wait_for_seed_registrations(&second, 0).await;
+        second
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "resume-restored-seed".to_owned(),
+                expected_revision: None,
+                command: Command::Resume {
+                    torrent_id: torrent_id.clone(),
+                },
+            })
+            .await
+            .expect("resume restored seed");
         wait_for_seed_registrations(&second, 1).await;
         assert_eq!(
             second
@@ -18279,9 +20318,15 @@ mod tests {
         assert!(diagnostics.contains("incoming_listener_bind_failed"));
         assert!(diagnostics.contains("address_in_use"));
 
+        // A blocked ephemeral port's successor may be excluded by Windows.
+        // Probe an independent TCP/UDP port for repair instead of relying on
+        // adjacent-port allocation; retain the blocker for the fixed retry.
+        let repair_port = available_port_on(Ipv4Addr::LOCALHOST)
+            .await
+            .expect("find automatic listener repair port");
         let repaired = ClientSettings {
             listener: ListenerPolicy::AutomaticLoopback,
-            preferred_listen_port: port,
+            preferred_listen_port: repair_port,
             port_mapping: crate::PortMappingPolicy::Disabled,
             peer_connection_limit: 321,
             upload_slots: 0,
@@ -18333,6 +20378,7 @@ mod tests {
         assert_eq!(incoming.peer_budget.effective_limit, 5);
         assert_eq!(incoming.peer_budget.incoming_slack, 10);
         let automatic_port = incoming.listen_address.port();
+        assert_ne!(automatic_port, port, "fixed port remains blocked");
         let fixed = ClientSettings {
             listener: ListenerPolicy::FixedLoopback { port },
             ..repaired.clone()

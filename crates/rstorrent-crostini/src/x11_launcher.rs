@@ -289,7 +289,7 @@ fn set_window_properties<C: Connection>(
     window: Window,
     atoms: &Atoms,
 ) -> Result<(), String> {
-    let title = b"Launching RSTorrent";
+    let title = b"Launching JSTorrent";
     connection
         .change_property8(
             PropMode::REPLACE,
@@ -403,7 +403,7 @@ fn draw<C: Connection>(
                 layout,
                 50,
                 34,
-                "RSTORRENT",
+                "JSTORRENT",
             )?;
             draw_text(
                 connection,
@@ -423,7 +423,7 @@ fn draw<C: Connection>(
                 layout,
                 50,
                 28,
-                "RSTORRENT",
+                "JSTORRENT",
             )?;
             draw_text(
                 connection,

@@ -286,10 +286,12 @@ class AndroidNotificationPolicyTest {
         error: String? = null,
     ): TorrentView =
         TorrentView(
+            safetySummary = null,
             torrentId = id,
             protocolIdentities = TorrentProtocolIdentities(v1 = null, v2 = null),
             displayName = displayName,
             sourceDisplayName = sourceDisplayName,
+            sourceSizeBytes = null,
             state = state,
             operationalState = TorrentOperationalState.DOWNLOADING,
             downloadQueuePosition = null,
@@ -298,6 +300,7 @@ class AndroidNotificationPolicyTest {
             storageState = storage,
             storageRoot = "downloads",
             metadataAvailable = true,
+            privateTorrent = false,
             awaitingFileSelection = false,
             pendingFileSelectionPosition = null,
             fileCatalogId = null,
@@ -319,7 +322,7 @@ class AndroidNotificationPolicyTest {
             etaPayloadDownloadRateBytes = "1",
             eta = TorrentEtaView.Unavailable,
             lifetime = TorrentLifetimeView("0", received.toString(), "0", "0", "0", "0"),
-            seeding = TorrentSeedingView(SeedAdmissionView.INELIGIBLE, null),
+            seeding = TorrentSeedingView(SeedAdmissionView.INELIGIBLE, null, null),
             progress =
                 ProgressAssessment(
                     ProgressDisposition.ACTIVE,

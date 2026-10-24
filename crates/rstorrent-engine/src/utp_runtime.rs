@@ -340,6 +340,7 @@ struct UtpConnectionKey {
 
 #[derive(Debug)]
 struct UtpRoute {
+    incoming: bool,
     ingress: mpsc::Sender<Vec<u8>>,
     cancellation: CancellationToken,
 }
@@ -363,9 +364,34 @@ enum UtpServiceCommand {
 pub struct UtpHandle {
     commands: mpsc::Sender<UtpServiceCommand>,
     stats: Arc<UtpStats>,
+    incoming_policy: Arc<Mutex<IncomingUtpPolicy>>,
+}
+
+#[derive(Debug)]
+struct IncomingUtpPolicy {
+    enabled: bool,
+    cancellation: CancellationToken,
 }
 
 impl UtpHandle {
+    /// Incoming policy is independent of outgoing dials and their responses.
+    /// A disabled generation can never be revived by a later enable.
+    pub fn set_incoming_enabled(&self, enabled: bool) {
+        let mut policy = self
+            .incoming_policy
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        if policy.enabled == enabled {
+            return;
+        }
+        policy.enabled = enabled;
+        if enabled {
+            policy.cancellation = CancellationToken::new();
+        } else {
+            policy.cancellation.cancel();
+        }
+    }
+
     pub async fn connect(&self, target: SocketAddr) -> Result<UtpStream, UtpRuntimeError> {
         self.connect_inner(target, None).await
     }
@@ -470,20 +496,28 @@ pub struct UtpService {
 
 impl UtpService {
     pub fn start(udp: &mut SessionUdpService) -> Result<Self, UtpRuntimeError> {
+        Self::start_with_incoming_enabled(udp, true)
+    }
+
+    pub fn start_with_incoming_enabled(
+        udp: &mut SessionUdpService,
+        incoming_enabled: bool,
+    ) -> Result<Self, UtpRuntimeError> {
         let config = product_runtime_config(udp.ipv4_fragmentation_protection_status());
-        Self::start_with_config(udp, config)
+        Self::start_with_config(udp, config, incoming_enabled)
     }
 
     pub fn start_diagnostic(
         udp: &mut SessionUdpService,
         config: UtpRuntimeConfig,
     ) -> Result<Self, UtpRuntimeError> {
-        Self::start_with_config(udp, config)
+        Self::start_with_config(udp, config, true)
     }
 
     fn start_with_config(
         udp: &mut SessionUdpService,
         config: UtpRuntimeConfig,
+        incoming_enabled: bool,
     ) -> Result<Self, UtpRuntimeError> {
         let config = config.validate()?;
         let profile = config.profile();
@@ -498,6 +532,10 @@ impl UtpService {
         let (incoming_sender, incoming) = mpsc::channel(UTP_INCOMING_STREAM_QUEUE);
         let stats = Arc::new(UtpStats::with_profile(profile));
         let cancellation = CancellationToken::new();
+        let incoming_policy = Arc::new(Mutex::new(IncomingUtpPolicy {
+            enabled: incoming_enabled,
+            cancellation: CancellationToken::new(),
+        }));
         let task = tokio::spawn(run_service(
             transport,
             command_ingress,
@@ -505,9 +543,14 @@ impl UtpService {
             stats.clone(),
             cancellation.clone(),
             config,
+            incoming_policy.clone(),
         ));
         Ok(Self {
-            handle: UtpHandle { commands, stats },
+            handle: UtpHandle {
+                commands,
+                stats,
+                incoming_policy,
+            },
             incoming,
             cancellation,
             task: Some(task),
@@ -1363,6 +1406,7 @@ async fn run_service(
     stats: Arc<UtpStats>,
     cancellation: CancellationToken,
     config: UtpRuntimeConfig,
+    incoming_policy: Arc<Mutex<IncomingUtpPolicy>>,
 ) -> Result<UtpServiceSnapshot, UtpRuntimeError> {
     let send = transport.send_handle();
     let generations = transport.generation_changes();
@@ -1406,6 +1450,7 @@ async fn run_service(
                     &mut routes,
                     &mut workers,
                     config,
+                    &incoming_policy,
                 );
             }
         }
@@ -1651,6 +1696,7 @@ fn handle_datagram(
     routes: &mut BTreeMap<UtpConnectionKey, UtpRoute>,
     workers: &mut WorkerSet,
     config: UtpRuntimeConfig,
+    incoming_policy: &Mutex<IncomingUtpPolicy>,
 ) {
     if family != AddressFamily::Ipv4 {
         saturating_increment(&stats.unknown_connection_datagrams, 1);
@@ -1679,6 +1725,10 @@ fn handle_datagram(
         receive_connection_id,
     };
     if let Some(route) = routes.get(&key) {
+        if route.incoming && route.cancellation.is_cancelled() {
+            saturating_increment(&stats.connection_datagrams_dropped, 1);
+            return;
+        }
         route_existing_datagram(route, bytes, stats);
         return;
     }
@@ -1686,6 +1736,11 @@ fn handle_datagram(
         if packet.header.packet_type != PacketType::Reset {
             saturating_increment(&stats.unknown_connection_datagrams, 1);
         }
+        return;
+    }
+    let policy = incoming_policy.lock().unwrap_or_else(|p| p.into_inner());
+    if !policy.enabled {
+        saturating_increment(&stats.connection_datagrams_dropped, 1);
         return;
     }
     if routes.len() >= MAX_UTP_CONNECTIONS
@@ -1737,7 +1792,7 @@ fn handle_datagram(
         routes,
         workers,
         true,
-        CancellationToken::new(),
+        policy.cancellation.child_token(),
         None,
     );
 }
@@ -2155,6 +2210,7 @@ fn spawn_worker(
     routes.insert(
         key,
         UtpRoute {
+            incoming,
             ingress,
             cancellation: cancellation.clone(),
         },
@@ -2255,6 +2311,9 @@ impl UtpWorker {
 
     async fn run_loop(&mut self) -> Result<WorkerTerminal, UtpRuntimeError> {
         loop {
+            if self.cancellation.is_cancelled() {
+                return Ok(WorkerTerminal::ServiceCancelled);
+            }
             self.consume_application_bytes()?;
             self.flush_application_write_if_ready()?;
             self.flush_delivery();
@@ -3014,6 +3073,85 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn incoming_off_rejects_syn_without_allocating_and_reenable_is_fresh() {
+        let (udp, dht, mut utp) = service().await;
+        let sender = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+        let address = udp.local_address();
+        let syn = packet(PacketType::Syn, 500, 600, 0, &[]);
+        utp.handle().set_incoming_enabled(false);
+        for _ in 0..3 {
+            sender.send_to(&syn, address).await.unwrap();
+        }
+        wait_for(|| utp.snapshot().connection_datagrams_dropped == 3).await;
+        let mut bytes = [0; 128];
+        assert!(
+            timeout(Duration::from_millis(100), sender.recv_from(&mut bytes))
+                .await
+                .is_err()
+        );
+        assert_eq!(utp.snapshot().connections_started, 0);
+        assert_eq!(utp.snapshot().incoming_half_open_high_water, 0);
+        utp.handle().set_incoming_enabled(true);
+        sender.send_to(&syn, address).await.unwrap();
+        let (length, source) = timeout(Duration::from_secs(2), sender.recv_from(&mut bytes))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(source, address);
+        let reply = decode_packet(&bytes[..length]).unwrap();
+        assert_eq!(reply.header.packet_type, PacketType::State);
+        assert_eq!(reply.header.connection_id, 500);
+        assert_eq!(
+            reply.header.acknowledgement_number,
+            SequenceNumber::new(600)
+        );
+        let accepted = utp.accept().await.unwrap();
+        utp.handle().set_incoming_enabled(false);
+        wait_for(|| utp.snapshot().active_connections == 0).await;
+        assert!(
+            accepted.cancellation.is_cancelled() || accepted.terminal.lock().unwrap().is_some()
+        );
+        drop(accepted);
+        utp.shutdown().await.unwrap();
+        drop(dht);
+        udp.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn incoming_off_preserves_outgoing_stream_and_cancels_inbound_stream() {
+        let (left_udp, left_dht, left_utp, mut left, right_udp, right_dht, right_utp, mut right) =
+            connected_pair().await;
+        left_utp.handle().set_incoming_enabled(false);
+        timeout(Duration::from_secs(2), async {
+            left.write_all(b"outbound survives").await.unwrap();
+            left.flush().await.unwrap();
+            let mut bytes = [0; 17];
+            right.read_exact(&mut bytes).await.unwrap();
+            assert_eq!(&bytes, b"outbound survives");
+            right.write_all(b"reply survives").await.unwrap();
+            right.flush().await.unwrap();
+            let mut reply = [0; 14];
+            left.read_exact(&mut reply).await.unwrap();
+            assert_eq!(&reply, b"reply survives");
+        })
+        .await
+        .unwrap();
+        assert_eq!(left_utp.snapshot().active_connections, 1);
+        right_utp.handle().set_incoming_enabled(false);
+        wait_for(|| right_utp.snapshot().active_connections == 0).await;
+        drop(left);
+        drop(right);
+        let left_terminal = left_utp.shutdown().await.unwrap();
+        let right_terminal = right_utp.shutdown().await.unwrap();
+        assert_eq!(left_terminal.active_connections, 0);
+        assert_eq!(right_terminal.active_connections, 0);
+        drop(left_dht);
+        drop(right_dht);
+        left_udp.shutdown().await.unwrap();
+        right_udp.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
     async fn loopback_stream_is_ordered_duplex_and_closes_gracefully() {
         let (left_udp, left_dht, left_utp, mut left, right_udp, right_dht, right_utp, mut right) =
             connected_pair().await;
@@ -3581,6 +3719,7 @@ mod tests {
     fn per_connection_datagram_queue_saturates_and_drops_only_new_work() {
         let (ingress, mut receiver) = mpsc::channel(UTP_CONNECTION_DATAGRAM_QUEUE);
         let route = UtpRoute {
+            incoming: false,
             ingress,
             cancellation: CancellationToken::new(),
         };
@@ -3657,6 +3796,7 @@ mod tests {
         let mut routes = BTreeMap::from([(
             key,
             UtpRoute {
+                incoming: false,
                 ingress,
                 cancellation: CancellationToken::new(),
             },
@@ -3722,6 +3862,7 @@ mod tests {
         routes.insert(
             key,
             UtpRoute {
+                incoming: false,
                 ingress,
                 cancellation: CancellationToken::new(),
             },

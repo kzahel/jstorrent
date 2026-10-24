@@ -1,0 +1,223 @@
+---
+import { productionSiteRelease, sourceRepositoryUrl } from '../lib/production-site'
+---
+
+<section id="help" class="section">
+  <div class="container">
+    <h2>Help / FAQ</h2>
+
+    <p>
+      Bug reports and feature requests are welcome on the
+      {' '}<a href={`${sourceRepositoryUrl}/issues`}>JSTorrent GitHub page</a>.
+    </p>
+
+    <div class="faq">
+      <details class="faq-item" id="platforms">
+        <summary><a href="#platforms" class="faq-anchor" aria-hidden="true">#</a>What platforms are supported?</summary>
+        <div class="faq-answer">
+          <p>JSTorrent runs on Windows, Mac, Linux, ChromeOS, and Android.</p>
+          <ul>
+            <li>
+              <strong>Desktop</strong> (Windows/Mac/Linux): Install the standalone desktop app,
+              or use the Chrome extension paired with the desktop app.
+            </li>
+            <li>
+              <strong>ChromeOS</strong>: Install the Android app from the Play Store, or use the
+              Chrome extension paired with the Android companion app.
+            </li>
+            <li>
+              <strong>Android</strong>: Install the Android app from the Play Store. It works as
+              a standalone torrent client.
+            </li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="faq-item" id="chrome-extension">
+        <summary><a href="#chrome-extension" class="faq-anchor" aria-hidden="true">#</a>Do I need the Chrome extension?</summary>
+        <div class="faq-answer">
+          <p>
+            No. The desktop app and Android app both work standalone without the extension. The
+            extension is optional and provides browser integration (intercepting magnet links,
+            right-click to add torrents, etc.).
+          </p>
+        </div>
+      </details>
+
+      <details class="faq-item" id="add-torrent">
+        <summary><a href="#add-torrent" class="faq-anchor" aria-hidden="true">#</a>How do I add a torrent?</summary>
+        <div class="faq-answer">
+          <p>Find a torrent file or magnet link on the web, then either:</p>
+          <ul>
+            <li>Click a magnet link (JSTorrent will handle it automatically)</li>
+            <li>Download a .torrent file and open it with JSTorrent</li>
+            <li>Paste a magnet link or torrent URL into the app</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="faq-item" id="download-location">
+        <summary><a href="#download-location" class="faq-anchor" aria-hidden="true">#</a>Where do the files download to?</summary>
+        <div class="faq-answer">
+          <p>
+            On desktop, files download to your configured download folder (defaults to your
+            Downloads directory). On Android, you choose a storage location when you first add a
+            torrent.
+          </p>
+        </div>
+      </details>
+
+      <details class="faq-item" id="not-downloading">
+        <summary><a href="#not-downloading" class="faq-anchor" aria-hidden="true">#</a>My torrent isn't downloading!</summary>
+        <div class="faq-answer">
+          <p>
+            Check that you have peers available for the torrent. Some torrents have very few
+            seeders and may be slow or unavailable.
+          </p>
+          <p>
+            If you still have issues, please report them on the
+            {' '}<a href={`${sourceRepositoryUrl}/issues`}>GitHub issue tracker</a>.
+          </p>
+        </div>
+      </details>
+
+      <details class="faq-item" id="safe">
+        <summary><a href="#safe" class="faq-anchor" aria-hidden="true">#</a>Is JSTorrent safe to install?</summary>
+        <div class="faq-answer">
+          <p>
+            Yes. JSTorrent is
+            {' '}<a href={sourceRepositoryUrl}>open source</a> and release builds use
+            {' '}<a href={sourceRepositoryUrl + '/actions'}>GitHub Actions CI</a>
+            with platform signing checks.
+          </p>
+          <ul>
+            <li>
+              <strong>macOS:</strong> Signed with an Apple Developer ID certificate and notarized
+              by Apple.
+            </li>
+            <li>
+              <strong>Windows:</strong> Installers identify the publisher through Azure Trusted Signing.
+            </li>
+            <li>
+              <strong>Android:</strong> Release bundles use the upload certificate; Google Play signs the
+              distributed app with the managed app-signing certificate.
+            </li>
+            <li>
+              <strong>Chrome extension:</strong> Reviewed and distributed through the Chrome Web
+              Store.
+            </li>
+            <li>
+              <strong>Auto-updates:</strong> Desktop updates are signature-verified before
+              installation.
+            </li>
+          </ul>
+          <p>
+            You can audit the full build pipeline in the
+            {' '}<a href={sourceRepositoryUrl + '/tree/main/.github/workflows'}>CI workflows</a>
+            and verify that release artifacts match the tagged source code.
+          </p>
+        </div>
+      </details>
+
+      <details class="faq-item" id="private-trackers">
+        <summary><a href="#private-trackers" class="faq-anchor" aria-hidden="true">#</a>Does this work with private trackers?</summary>
+        <div class="faq-answer">
+          <p>
+            Yes. Download the .torrent file from your tracker's website first, then load it
+            into JSTorrent. Many trackers employ a whitelist for allowed clients. Contact your
+            tracker's administrators if JSTorrent is not whitelisted.
+          </p>
+        </div>
+      </details>
+
+      <details class="faq-item" id="chromeos">
+        <summary><a href="#chromeos" class="faq-anchor" aria-hidden="true">#</a>How does ChromeOS work?</summary>
+        <div class="faq-answer">
+          <p>
+            On ChromeOS, you can use the Android app from the Play Store as a standalone torrent
+            client &mdash; no extension needed.
+          </p>
+          <p>
+            Alternatively, install the Chrome extension alongside the Android companion app. The
+            extension provides the UI, while the Android app handles file I/O and networking. A
+            one-time pairing step connects them, and after that the extension automatically
+            connects whenever you open it.
+          </p>
+        </div>
+      </details>
+
+      <details class="faq-item" id="no-play-store">
+        <summary><a href="#no-play-store" class="faq-anchor" aria-hidden="true">#</a>My Chromebook doesn't have the Play Store. Can I still use JSTorrent?</summary>
+        <div class="faq-answer">
+          {productionSiteRelease ? (
+            <>
+              <p>
+                You can use JSTorrent in your Chromebook's Linux development environment
+                if it supports the Linux desktop app. Linux support is best effort.
+              </p>
+              <ol>
+                <li>
+                  Enable Linux in{' '}
+                  <strong>Chrome Settings &rarr; About ChromeOS &rarr; Linux development environment</strong>.
+                </li>
+                <li>
+                  Choose your Linux architecture in <a href="#download">Download</a>,
+                  then download and open the JSTorrent AppImage. You can use the desktop
+                  app directly without the Chrome extension.
+                </li>
+              </ol>
+              <p>
+                If the desktop app cannot start in your Linux environment, see
+                {' '}<a href={`${sourceRepositoryUrl}/blob/main/DEVELOPMENT.md#packaging-and-running-the-linux-headless-service`}>headless setup from source</a>.
+                This requires building and configuring the service; it is not a separate
+                published download. Android and Linux libraries are separate.
+              </p>
+            </>
+          ) : (
+            <>
+              <p>
+                Yes! Some Chromebooks (especially those running ChromeOS Flex) don't have access to the
+                Google Play Store. You can use JSTorrent by installing the Chrome extension paired with
+                a lightweight background daemon running in Linux (Crostini).
+              </p>
+              <ol>
+                <li>
+                  Enable Linux on your Chromebook: go to
+                  <strong>Chrome Settings &rarr; About ChromeOS &rarr; Linux development environment</strong>
+                  and follow the prompts to set it up.
+                </li>
+                <li>
+                  Open the Linux terminal and run:
+                  <pre><code>curl -fsSL https://jstorrent.com/install-crostini.sh | bash</code></pre>
+                </li>
+                <li>
+                  Install the
+                  {' '}<a href="https://chromewebstore.google.com/detail/jstorrent/dbokmlpefliilbjldladbimlcfgbolhk">Chrome extension</a>
+                  from the Chrome Web Store. It will automatically connect to the daemon.
+                </li>
+              </ol>
+              <p>
+                Files download to your Linux <code>~/Downloads</code> folder by default. To uninstall
+                the daemon later, run the same script with <code>--uninstall</code>.
+              </p>
+            </>
+          )}
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<script>
+  function openFaqFromHash() {
+    const hash = location.hash.slice(1);
+    if (!hash) return;
+    const el = document.getElementById(hash);
+    if (el instanceof HTMLDetailsElement && el.classList.contains('faq-item')) {
+      el.open = true;
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+  openFaqFromHash();
+  window.addEventListener('hashchange', openFaqFromHash);
+</script>

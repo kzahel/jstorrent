@@ -1,0 +1,123 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -8,6 +8,8 @@
+ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+ 
+ # Options
++
++option(ENABLE_DESKTOP_SHORTCUTS "Enable desktop-file shortcut menus (requires libayatana-indicator)" ON)
+ 
+ option(ENABLE_TESTS "Enable all tests and checks" OFF)
+ option(ENABLE_COVERAGE "Enable coverage reports (includes enabling all tests and checks)" OFF)
+@@ -45,17 +47,26 @@
+ if (FLAVOUR_GTK3)
+     set(DEPS
+         ${DEPS}
+-        ayatana-indicator3-0.4>=0.8.4
+         gtk+-3.0>=3.24
+         dbusmenu-gtk3-0.4
+     )
+ elseif (FLAVOUR_GTK2)
+     set(DEPS
+         ${DEPS}
+-        ayatana-indicator-0.4>=0.8.4
+         gtk+-2.0>=2.18
+         dbusmenu-gtk-0.4
+     )
++endif()
++
++if(ENABLE_DESKTOP_SHORTCUTS)
++    if(FLAVOUR_GTK3)
++        set(DESKTOP_SHORTCUT_REQUIRES ayatana-indicator3-0.4)
++    else()
++        set(DESKTOP_SHORTCUT_REQUIRES ayatana-indicator-0.4)
++    endif()
++    set(DEPS ${DEPS} ${DESKTOP_SHORTCUT_REQUIRES}>=0.8.4)
++else()
++    add_compile_definitions(APP_INDICATOR_DISABLE_DESKTOP_SHORTCUTS)
+ endif()
+ 
+ if(ENABLE_TESTS)
+--- a/src/app-indicator.c
++++ b/src/app-indicator.c
+@@ -39,7 +39,9 @@
+ #include <libdbusmenu-gtk/client.h>
+ #include <libdbusmenu-gtk/parser.h>
+ 
++#ifndef APP_INDICATOR_DISABLE_DESKTOP_SHORTCUTS
+ #include <libayatana-indicator/indicator-desktop-shortcuts.h>
++#endif
+ 
+ #include <stdlib.h>
+ 
+@@ -106,7 +108,11 @@
+ 	guint                 watcher_id;
+ 
+ 	/* Might be used */
++#ifndef APP_INDICATOR_DISABLE_DESKTOP_SHORTCUTS
+ 	IndicatorDesktopShortcuts * shorties;
++#else
++	GObject * shorties;
++#endif
+ } AppIndicatorPrivate;
+ 
+ /* Signals Stuff */
+@@ -2582,6 +2588,7 @@
+ 	return GTK_WIDGET(priv->sec_activate_target);
+ }
+ 
++#ifndef APP_INDICATOR_DISABLE_DESKTOP_SHORTCUTS
+ #define APP_INDICATOR_SHORTY_NICK "app-indicator-shorty-nick"
+ 
+ /* Callback when an item from the desktop shortcuts gets
+@@ -2603,6 +2610,8 @@
+ 	return;
+ }
+ 
++#endif
++
+ /**
+  * app_indicator_build_menu_from_desktop:
+  * @self: The #AppIndicator object to use
+@@ -2615,6 +2624,12 @@
+ void
+ app_indicator_build_menu_from_desktop (AppIndicator * self, const gchar * desktop_file, const gchar * desktop_profile)
+ {
++#ifdef APP_INDICATOR_DISABLE_DESKTOP_SHORTCUTS
++	g_return_if_fail(IS_APP_INDICATOR(self));
++	(void)desktop_file;
++	(void)desktop_profile;
++	g_warning("Desktop-file shortcut menus are disabled in this build; use app_indicator_set_menu");
++#else
+ 	g_return_if_fail(IS_APP_INDICATOR(self));
+ 	AppIndicatorPrivate * priv = app_indicator_get_instance_private(self);
+ 
+@@ -2660,4 +2675,5 @@
+ 	}
+ 
+ 	return;
+-}
++#endif
++}
+--- a/src/ayatana-appindicator3-0.1.pc.in
++++ b/src/ayatana-appindicator3-0.1.pc.in
+@@ -5,7 +5,7 @@
+ includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@
+ 
+ Cflags: -I${includedir}/libayatana-appindicator3-0.1
+-Requires: ayatana-indicator3-0.4 dbusmenu-glib-0.4 glib-2.0 gtk+-3.0
++Requires: @DESKTOP_SHORTCUT_REQUIRES@ dbusmenu-glib-0.4 glib-2.0 gtk+-3.0
+ Libs: -L${libdir} -layatana-appindicator3
+ 
+ Name: ayatana-appindicator3-0.1
+--- a/src/ayatana-appindicator-0.1.pc.in
++++ b/src/ayatana-appindicator-0.1.pc.in
+@@ -5,7 +5,7 @@
+ includedir=@includedir@
+ 
+ Cflags: -I${includedir}/libayatana-appindicator-0.1
+-Requires: ayatana-indicator-0.4 dbusmenu-glib-0.4 gtk+-2.0
++Requires: @DESKTOP_SHORTCUT_REQUIRES@ dbusmenu-glib-0.4 gtk+-2.0
+ Libs: -L${libdir} -layatana-appindicator
+ 
+ Name: ayatana-appindicator-0.1

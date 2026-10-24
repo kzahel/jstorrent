@@ -19,9 +19,11 @@ pub use installer::{install_bundle, uninstall};
 pub use x11_launcher::run_launcher_window;
 
 pub const APPLICATION_ID: &str = "com.jstorrent.rstorrent.crostini";
-pub const PRODUCT_NAME: &str = "RSTorrent for ChromeOS Linux";
+pub const PRODUCT_NAME: &str = "JSTorrent for ChromeOS Linux";
 pub const SERVICE_NAME: &str = "com.jstorrent.rstorrent.crostini.service";
-pub const CROSTINI_HOST: &str = "penguin.linux.test";
+// A dedicated loopback name bypasses ChromeOS Linux DNS registration without
+// sharing host-only browser cookies with applications on bare localhost.
+pub const CROSTINI_HOST: &str = "jstorrent.localhost";
 pub const CROSTINI_PORT: u16 = 3030;
 pub const CROSTINI_PRODUCT: &str = "rstorrent-crostini";
 pub const LAUNCH_PROTOCOL_VERSION: u16 = 1;
@@ -53,7 +55,7 @@ impl LaunchBackend for SystemBackend {
             Command::new("systemctl")
                 .args(["--user", "start", "--no-block", SERVICE_NAME])
                 .output(),
-            "start RSTorrent for ChromeOS Linux",
+            "start JSTorrent for ChromeOS Linux",
         )
     }
 
@@ -64,7 +66,7 @@ impl LaunchBackend for SystemBackend {
     fn open_handoff(&self) -> Result<(), String> {
         checked_command(
             Command::new("xdg-open").arg(handoff_url()).output(),
-            "open RSTorrent in Chrome",
+            "open JSTorrent in Chrome",
         )
     }
 }
@@ -114,7 +116,7 @@ fn execute_launch_with_retry(
             sleep(retry_delay);
         }
     }
-    Err(format!("RSTorrent did not become ready: {last_error}"))
+    Err(format!("JSTorrent did not become ready: {last_error}"))
 }
 
 pub fn handoff_url() -> String {
@@ -149,7 +151,7 @@ fn validate_health(health: GatewayHealth) -> Result<GatewayHealth, String> {
         return Err("gateway health is not ready".to_owned());
     }
     if health.product != CROSTINI_PRODUCT {
-        return Err("the listener is not the RSTorrent Crostini gateway".to_owned());
+        return Err("the listener is not the JSTorrent Crostini gateway".to_owned());
     }
     if health.launch_protocol != LAUNCH_PROTOCOL_VERSION {
         return Err(format!(
@@ -286,7 +288,7 @@ mod tests {
         };
         let error = execute_launch_with_retry(&backend, 1, Duration::ZERO, |_| {}, &mut |_| {})
             .expect_err("wrong identity");
-        assert!(error.contains("not the RSTorrent"));
+        assert!(error.contains("not the JSTorrent"));
         assert_eq!(backend.opens.load(Ordering::Relaxed), 0);
     }
 

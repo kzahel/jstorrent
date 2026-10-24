@@ -1,0 +1,79 @@
+/* Local packaged connection UI shares the product's appearance variables;
+   companion-main imports global.css through companion-bootstrap. */
+body:has(#companion-bootstrap) {
+  margin: 0;
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+}
+
+#companion-bootstrap {
+  width: min(28rem, calc(100% - 2rem));
+  margin: clamp(2rem, 12vh, 7rem) auto;
+  padding: 2rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-dialog);
+}
+
+#companion-bootstrap .companion-logo { object-fit: contain; }
+#companion-bootstrap h1 { margin: 1rem 0 0.75rem; font-size: var(--ui-font-display); font-weight: var(--weight-strong); }
+#companion-status { color: var(--text-secondary); line-height: 1.6; overflow-wrap: anywhere; }
+#companion-bootstrap button,
+#companion-update-android,
+#companion-bootstrap .companion-action-link {
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: var(--weight-medium);
+  text-align: center;
+}
+#companion-bootstrap button:hover:not(:disabled) { background: var(--surface-hover); }
+#companion-bootstrap #companion-update-android,
+#companion-bootstrap .companion-action-link {
+  border-color: var(--accent-action);
+  background: var(--accent-action);
+  color: var(--on-accent);
+  text-decoration: none;
+}
+#companion-bootstrap #companion-update-android:hover,
+#companion-bootstrap .companion-action-link:hover {
+  border-color: var(--accent-action-hover);
+  background: var(--accent-action-hover);
+}
+#companion-bootstrap button:not(:disabled) { cursor: pointer; }
+#companion-bootstrap a, #companion-identity a { color: var(--accent-strong); }
+#companion-context { box-sizing: border-box; width: 100%; resize: vertical; }
+#companion-bootstrap p { overflow-wrap: anywhere; }
+#companion-identity {
+  display: flex;
+  height: 40px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0 0.8rem;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-primary);
+  color: var(--text-secondary);
+  font-size: var(--ui-font-small);
+}
+#companion-identity button {
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  font: inherit;
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+#companion-identity button:hover { background: var(--surface-hover); }
+#companion-bootstrap [hidden], #companion-identity[hidden] { display: none; }
+body:has(#companion-identity:not([hidden])) { --ui-app-top-offset: 40px; }
+body:has(#companion-identity:not([hidden])) #app > div { height: calc(100dvh - 40px); }

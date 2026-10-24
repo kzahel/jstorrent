@@ -51,6 +51,15 @@ export function validateDesktopReleaseConfiguration({
   if (new Set(Object.values(versions)).size !== 1) {
     fail(`desktop version drift: ${JSON.stringify(versions)}`);
   }
+  if (!/^default-run\s*=\s*"jstorrent-client"$/m.test(cargo) ||
+      !/\[\[bin\]\]\s*name\s*=\s*"jstorrent-client"\s*path\s*=\s*"src\/main\.rs"/u.test(cargo)) {
+    fail("desktop output must be jstorrent-client without changing the Rust package");
+  }
+  for (const config of [tauri, developmentTauri, packageTauri, releaseTauri]) {
+    if (config.mainBinaryName !== undefined) {
+      fail("desktop overlays must not override the branded Cargo executable");
+    }
+  }
   const version = tauri.version;
   if (!/^\d+\.\d+\.\d+$/.test(version)) {
     fail(`desktop version is not stable semver: ${version}`);
@@ -61,7 +70,7 @@ export function validateDesktopReleaseConfiguration({
   if (!changelog.includes(`## [${version}]`)) {
     fail(`CHANGELOG.md has no ${version} entry`);
   }
-  if (tauri.productName !== "RSTorrent") {
+  if (tauri.productName !== "JSTorrent Preview") {
     fail(`unexpected desktop product name: ${tauri.productName}`);
   }
   if (tauri.identifier !== EXPECTED_IDENTIFIER) {
@@ -176,15 +185,36 @@ export function validateDesktopReleaseConfiguration({
   ) {
     fail("RSTorrent updater public key is malformed");
   }
-  const permissions = new Set(capability.permissions ?? []);
+  const entries = capability.permissions ?? [];
+  const permissions = new Set(entries.map(permission =>
+    typeof permission === "string" ? permission : permission?.identifier));
   if (!permissions.has("updater:default")) {
     fail("missing desktop permission updater:default");
   }
   if (permissions.has("process:default")) {
     fail("raw process restart permission must stay disabled");
   }
-  if ([...permissions].some((permission) => permission.startsWith("notification:"))) {
+  if ([...permissions].some((permission) => typeof permission === "string" && permission.startsWith("notification:"))) {
     fail("webview notification permissions must stay disabled");
+  }
+  const approvedUrls = [
+    "https://github.com/kzahel/jstorrent/issues",
+    "https://github.com/kzahel/jstorrent/issues/new",
+    "https://github.com/kzahel/jstorrent/issues/new[?]*",
+    "https://jstorrent.com/feedback.html[?]*",
+    "https://jstorrent.com/support/",
+    "https://github.com/kzahel/jstorrent/releases/latest",
+    "https://github.com/kzahel/jstorrent/releases/tag/*",
+  ];
+  const scoped = entries.filter(permission => typeof permission !== "string");
+  if (scoped.length !== 1 || scoped[0]?.identifier !== "opener:allow-open-url" ||
+      Object.keys(scoped[0]).sort().join() !== "allow,identifier" ||
+      !Array.isArray(scoped[0].allow) || scoped[0].allow.length !== approvedUrls.length ||
+      scoped[0].allow.some((entry, index) => Object.keys(entry ?? {}).join() !== "url" ||
+        entry.url !== approvedUrls[index]) ||
+      [...permissions].some(permission => typeof permission === "string" &&
+        permission.startsWith("opener:") && permission !== "opener:allow-open-url")) {
+    fail("desktop external links must retain the exact scoped opener permission");
   }
   if (!cargo.includes("tauri-plugin-updater =")) {
     fail("missing Rust dependency tauri-plugin-updater");
@@ -236,18 +266,18 @@ export function validateDesktopReleaseConfiguration({
   ) {
     fail("desktop joined restart command is missing");
   }
-  if (!tauriUpdater.includes('relaunch: () => invoke("application_restart")')) {
-    fail("web updater does not use joined native restart");
+  if (!tauriUpdater.includes('invoke("desktop_install_update"')) {
+    fail("web updater does not use native update installation");
   }
   if (
-    !desktopMain.includes(
-      '#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]',
+    !desktopMain.replace(/\s+/gu, "").includes(
+      '#![cfg_attr(any(not(debug_assertions),feature="update-qualification"),windows_subsystem="windows")]',
     )
   ) {
     fail("release desktop binary must use the Windows GUI subsystem");
   }
   const singleInstancePlugin = desktopSource.indexOf(
-    ".plugin(tauri_plugin_single_instance::init(",
+    ".plugin(single_instance_plugin())",
   );
   const deepLinkPlugin = desktopSource.indexOf(
     ".plugin(tauri_plugin_deep_link::init())",
@@ -317,7 +347,7 @@ export function validateDesktopReleaseConfiguration({
     ".deep_link()\n                    .register_all()",
     "RunEvent::Opened { urls }",
     'url.scheme().eq_ignore_ascii_case("magnet")',
-    'url.scheme().eq_ignore_ascii_case("file")',
+    "handle_external_activation_values(handle, urls.iter().map(url::Url::as_str));",
   ]) {
     if (!desktopSource.includes(requiredSource)) {
       fail(`desktop external activation integration is missing ${requiredSource}`);
@@ -326,10 +356,10 @@ export function validateDesktopReleaseConfiguration({
 
   const expectedProduct = {
     id: "rstorrent",
-    displayName: "RSTorrent",
+    displayName: "JSTorrent Preview",
     hostnames: ["updates.graehlarts.com"],
     pathPrefix: "/rstorrent",
-    githubRepo: "kzahel/rstorrent",
+    githubRepo: "kzahel/jstorrent",
     tagPrefix: "desktop-v",
     tauriUpdates: true,
     channels: {
@@ -337,11 +367,13 @@ export function validateDesktopReleaseConfiguration({
         displayName: "Stable",
         tagPrefix: "desktop-v",
         releaseKind: "release",
+        requiredAsset: "RSTorrent_x64.app.tar.gz",
       },
       latest: {
         displayName: "Latest",
         tagPrefix: "desktop-latest-v",
         releaseKind: "prerelease",
+        requiredAsset: "RSTorrent_x64.app.tar.gz",
       },
     },
   };

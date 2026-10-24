@@ -115,4 +115,39 @@ class ProductLifecycleCoordinatorTest {
             ),
         onDecision = onDecision,
     )
+
+    @Test
+    fun explicitSetupRenewsAnExpiredGraceWithoutResurrectingTerminalStop() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val decisions = CopyOnWriteArrayList<ProductLifetimeDecision>()
+        val now = java.util.concurrent.atomic.AtomicLong(0)
+        var scheduledDeadline: Long? = null
+        val coordinator = ProductLifecycleCoordinator(
+            scope = scope,
+            clockMillis = { now.get() },
+            initialPreferences = ProductLifecyclePreferences(),
+            initialNotificationEligible = true,
+            durations = ProductLifetimeDurations(companionGraceMillis = 80),
+            onDecision = { decisions += it.decision; scheduledDeadline = it.scheduledDeadlineMillis },
+        )
+        try {
+            coordinator.start()
+            coordinator.updateInteractions(visible = true, workflowLeaseCount = 0)
+            coordinator.updateWork(ProductLifetimeWork())
+            coordinator.companionStarted()
+            now.set(81)
+            coordinator.companionSetupRequested()
+            coordinator.updateInteractions(visible = false, workflowLeaseCount = 0)
+            val retained = decisions.last() as ProductLifetimeDecision.Retain
+            assertEquals(ProductLifetimeRetentionReason.CHROMEOS_RECONNECT_GRACE, retained.reason)
+            assertEquals(161L, scheduledDeadline)
+            coordinator.terminal(ProductLifetimeStopReason.EXPLICIT_STOP)
+            coordinator.companionSetupRequested()
+            assertEquals(ProductLifetimeStopReason.EXPLICIT_STOP,
+                (decisions.last() as ProductLifetimeDecision.Stop).reason)
+        } finally {
+            coordinator.close()
+            scope.cancel()
+        }
+    }
 }

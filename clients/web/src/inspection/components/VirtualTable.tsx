@@ -1,5 +1,8 @@
 import { message as localizedMessage } from "../../localization/runtime";
 import {
+  createContext,
+  isValidElement,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -18,6 +21,8 @@ import {
   INTERFACE_METRICS,
   type InterfaceSize,
 } from "../appearance";
+import { useNarrowViewport } from "../layout";
+import { createPortal } from "react-dom";
 import {
   ActionMenuTrigger,
   AnchoredDialog,
@@ -40,8 +45,22 @@ export interface VirtualColumn<Row> {
   readonly sortOrder?: readonly string[];
   readonly headerHelp?: ReactNode;
   readonly headerHelpWidth?: number;
+  /**
+   * Where the column appears when a narrow viewport renders the table as a
+   * list. Columns without a role are left out of the list; the first column
+   * is the title unless another column claims it.
+   */
+  readonly listRole?: VirtualListRole;
+  /** Detail label in the list; null shows the value alone. */
+  readonly listLabel?: string | null;
   readonly render: (row: Row) => ReactNode;
 }
+
+/**
+ * List item lines: the title with an optional trailing value, a subtitle,
+ * a full-width line such as a progress bar, and labelled details.
+ */
+export type VirtualListRole = "title" | "trailing" | "subtitle" | "wide" | "detail";
 
 export interface VirtualTableProps<Row> {
   readonly tableId: string;
@@ -51,13 +70,36 @@ export interface VirtualTableProps<Row> {
   readonly columns: readonly VirtualColumn<Row>[];
   readonly interfaceSize: InterfaceSize;
   readonly overscan?: number;
+  /** Reserve fixed virtual-row space when a column renders multiple list lines. */
+  readonly additionalListLines?: number;
   readonly currentRowId?: string | null;
   readonly selection?: VirtualTableSelection<Row>;
   readonly contextMenu?: VirtualTableContextMenu<Row>;
   readonly onActivate?: (row: Row) => void;
   readonly onClearCurrent?: () => void;
   readonly emptyMessage: string;
+  /**
+   * The rows have not arrived yet (Tactical 352): placeholder rows stand in
+   * for them, and the empty message is announced only to assistive
+   * technology. Ignored once there are rows.
+   */
+  readonly loading?: boolean;
+  /** Optional control under the empty message, such as clearing a filter. */
+  readonly emptyAction?: ReactNode;
+  /** Names the row count, such as "3 torrents"; defaults to rows. */
+  readonly formatCount?: (count: number) => string;
   readonly initialSort?: { readonly columnId: string; readonly direction: "asc" | "desc" };
+  /**
+   * The caller sorts the rows, as for one page of a host-sorted result:
+   * headers report the chosen sort and the table keeps the given order.
+   * Sortable columns still declare a sortValue.
+   */
+  readonly externalSort?: {
+    readonly sort: { readonly columnId: string; readonly direction: "asc" | "desc" } | null;
+    readonly onChange: (
+      sort: { readonly columnId: string; readonly direction: "asc" | "desc" } | null,
+    ) => void;
+  };
 }
 
 export interface VirtualTableContextMenu<Row> {
@@ -87,7 +129,21 @@ interface HorizontalOverflow {
   readonly right: boolean;
 }
 
+/**
+ * Where a surrounding bar wants the table's count, selection and column
+ * or sort controls, so they share its row instead of adding one. Bars too
+ * narrow to hold them provide null.
+ */
+export const TableToolbarSlot = createContext<HTMLElement | null>(null);
+
+/**
+ * Stored layouts of any version are read field by field, and a layout is
+ * written only after the user changes it, keeping columns and fields this
+ * version does not know (Tactical 358's preference-store rule).
+ */
 const TABLE_CONFIG_VERSION = 1;
+/** How long rows keep their order after the user last touched the table. */
+const ORDER_HOLD_MS = 2000;
 
 export function VirtualTable<Row>({
   tableId,
@@ -97,21 +153,34 @@ export function VirtualTable<Row>({
   columns,
   interfaceSize,
   overscan = 8,
+  additionalListLines = 0,
   currentRowId = null,
   selection,
   contextMenu,
   onActivate,
   onClearCurrent,
   emptyMessage,
+  loading = false,
+  emptyAction,
+  formatCount,
   initialSort,
+  externalSort,
 }: VirtualTableProps<Row>) {
-  const { tableHeaderHeight, tableRowHeight } =
-    INTERFACE_METRICS[interfaceSize];
+  const metrics = INTERFACE_METRICS[interfaceSize];
+  const list = useNarrowViewport();
+  const toolbarSlot = useContext(TableToolbarSlot);
+  const listLayout = useMemo(() => listLayoutFor(columns), [columns]);
+  // A list has no header row, and each item stacks its lines in one row.
+  const tableHeaderHeight = list ? 0 : metrics.tableHeaderHeight;
+  const tableRowHeight = list
+    ? listRowHeight(listLayout, metrics.tableRowHeight, additionalListLines)
+    : metrics.tableRowHeight;
   const tableStyle = {
     "--ui-table-header-height": `${tableHeaderHeight}px`,
     "--ui-table-row-height": `${tableRowHeight}px`,
   } as CSSProperties;
   const viewportRef = useRef<HTMLDivElement>(null);
+  const revealedCurrentRowIdRef = useRef<string | null>(null);
   const contextTriggerRef = useRef<HTMLButtonElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportSize, setViewportSize] = useState({ width: 960, height: 360 });
@@ -121,10 +190,18 @@ export function VirtualTable<Row>({
       right: false,
     });
   const [focusIndex, setFocusIndex] = useState(0);
-  const [sort, setSort] = useState<SortState | null>(initialSort ?? null);
-  const [liveSort, setLiveSort] = useState(false);
+  const [internalSort, setInternalSort] = useState<SortState | null>(initialSort ?? null);
+  const sort = externalSort === undefined ? internalSort : externalSort.sort;
+  const setSort = (next: SortState | null) => {
+    if (externalSort === undefined) setInternalSort(next);
+    else externalSort.onChange(next);
+  };
   const [contextOpenRowId, setContextOpenRowId] = useState<string | null>(null);
-  const [frozenOrder, setFrozenOrder] = useState<readonly string[] | null>(null);
+  // Live updates re-sort the rows, except while the user is interacting with
+  // the table, so a row does not move out from under a pending click.
+  const [recentActivity, setRecentActivity] = useState(false);
+  const activityTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+  const [heldOrder, setHeldOrder] = useState<readonly string[] | null>(null);
   const [hiddenColumns, setHiddenColumns] = useState<ReadonlySet<string>>(
     () => loadTableConfig(tableId, columns)?.hiddenColumns ?? defaultHiddenColumns(columns),
   );
@@ -155,27 +232,48 @@ export function VirtualTable<Row>({
     () => () => {
       const press = longPressRef.current;
       if (press !== null) globalThis.clearTimeout(press.timer);
+      if (activityTimerRef.current !== null) {
+        globalThis.clearTimeout(activityTimerRef.current);
+      }
     },
     [],
   );
 
+  // Callers pass initialSort inline, so depend on its values rather than its
+  // identity; otherwise every live update would reload the configuration.
+  const initialSortColumnId = initialSort?.columnId;
+  const initialSortDirection = initialSort?.direction;
+  // The layout as last loaded or saved; only a different layout is written.
+  const persistedLayoutRef = useRef<string | null>(null);
   useEffect(() => {
     const loaded = loadTableConfig(tableId, columns);
-    setHiddenColumns(loaded?.hiddenColumns ?? defaultHiddenColumns(columns));
-    setColumnWidths(loaded?.widths ?? {});
-    setSort(loaded?.sort ?? initialSort ?? null);
-    setLiveSort(loaded?.liveSort ?? false);
-    setFrozenOrder(null);
-  }, [columns, initialSort, tableId]);
+    const layout: PersistedTableConfig = {
+      hiddenColumns: loaded?.hiddenColumns ?? defaultHiddenColumns(columns),
+      widths: loaded?.widths ?? {},
+      sort:
+        loaded?.sort ??
+        (initialSortColumnId === undefined || initialSortDirection === undefined
+          ? null
+          : { columnId: initialSortColumnId, direction: initialSortDirection }),
+    };
+    persistedLayoutRef.current = layoutKey(tableId, layout);
+    setHiddenColumns(layout.hiddenColumns);
+    setColumnWidths(layout.widths);
+    setInternalSort(layout.sort);
+    setHeldOrder(null);
+  }, [columns, initialSortColumnId, initialSortDirection, tableId]);
 
   useEffect(() => {
-    saveTableConfig(tableId, {
+    const layout: PersistedTableConfig = {
       hiddenColumns,
       widths: columnWidths,
-      sort,
-      liveSort,
-    });
-  }, [columnWidths, hiddenColumns, liveSort, sort, tableId]);
+      sort: internalSort,
+    };
+    const key = layoutKey(tableId, layout);
+    if (persistedLayoutRef.current === null || key === persistedLayoutRef.current) return;
+    persistedLayoutRef.current = key;
+    saveTableConfig(tableId, columns, layout);
+  }, [columnWidths, columns, hiddenColumns, internalSort, tableId]);
 
   useEffect(() => {
     const element = viewportRef.current;
@@ -203,20 +301,54 @@ export function VirtualTable<Row>({
         })),
     [columnWidths, columns, hiddenColumns],
   );
-  const sortedRows = useMemo(() => {
-    if (sort === null) return rows;
+  const externallySorted = externalSort !== undefined;
+  const { sortedRows, orderHeld } = useMemo(() => {
+    if (sort === null || externallySorted) return { sortedRows: rows, orderHeld: false };
     const column = columns.find((candidate) => candidate.id === sort.columnId);
-    if (column?.sortValue === undefined) return rows;
-    if (liveSort || frozenOrder === null) {
-      return sortRows(rows, getRowId, column, sort.direction);
+    if (column?.sortValue === undefined) {
+      return { sortedRows: rows, orderHeld: false };
     }
+    const liveRows = sortRows(rows, getRowId, column, sort.direction);
+    if (heldOrder === null) return { sortedRows: liveRows, orderHeld: false };
     const byId = new Map(rows.map((row) => [getRowId(row), row]));
-    const retained = frozenOrder
+    const retained = heldOrder
       .map((id) => byId.get(id))
       .filter((row): row is Row => row !== undefined);
     const retainedIds = new Set(retained.map(getRowId));
-    return [...retained, ...rows.filter((row) => !retainedIds.has(getRowId(row)))];
-  }, [columns, frozenOrder, getRowId, liveSort, rows, sort]);
+    const held = [
+      ...retained,
+      ...liveRows.filter((row) => !retainedIds.has(getRowId(row))),
+    ];
+    return {
+      sortedRows: held,
+      orderHeld: held.some((row, index) => row !== liveRows[index]),
+    };
+  }, [columns, externallySorted, getRowId, heldOrder, rows, sort]);
+
+  const holdingOrder = recentActivity || contextOpenRowId !== null;
+  useEffect(() => {
+    if (!holdingOrder) setHeldOrder(null);
+    else if (heldOrder === null) setHeldOrder(sortedRows.map(getRowId));
+  }, [getRowId, heldOrder, holdingOrder, sortedRows]);
+
+  const noteActivity = () => {
+    setRecentActivity(true);
+    if (activityTimerRef.current !== null) {
+      globalThis.clearTimeout(activityTimerRef.current);
+    }
+    activityTimerRef.current = globalThis.setTimeout(() => {
+      activityTimerRef.current = null;
+      setRecentActivity(false);
+    }, ORDER_HOLD_MS);
+  };
+
+  const endActivity = () => {
+    if (activityTimerRef.current !== null) {
+      globalThis.clearTimeout(activityTimerRef.current);
+      activityTimerRef.current = null;
+    }
+    setRecentActivity(false);
+  };
 
   useEffect(() => {
     const currentIndex =
@@ -231,10 +363,14 @@ export function VirtualTable<Row>({
   }, [currentRowId, getRowId, sortedRows]);
 
   useEffect(() => {
+    // Refreshes must not undo manual scrolling away from the current row.
+    if (currentRowId === revealedCurrentRowIdRef.current) return;
+    revealedCurrentRowIdRef.current = null;
     if (currentRowId === null) return;
     const index = sortedRows.findIndex((row) => getRowId(row) === currentRowId);
     const viewport = viewportRef.current;
     if (index < 0 || viewport === null) return;
+    revealedCurrentRowIdRef.current = currentRowId;
     const top = tableHeaderHeight + index * tableRowHeight;
     if (top < viewport.scrollTop + tableHeaderHeight) {
       viewport.scrollTop = Math.max(0, top - tableHeaderHeight);
@@ -242,15 +378,6 @@ export function VirtualTable<Row>({
       viewport.scrollTop = top + tableRowHeight - viewport.clientHeight;
     }
   }, [currentRowId, getRowId, sortedRows, tableHeaderHeight, tableRowHeight]);
-
-  useEffect(() => {
-    if (sort === null || liveSort || frozenOrder !== null) return;
-    const column = columns.find((candidate) => candidate.id === sort.columnId);
-    if (column?.sortValue === undefined) return;
-    setFrozenOrder(
-      sortRows(rows, getRowId, column, sort.direction).map(getRowId),
-    );
-  }, [columns, frozenOrder, getRowId, liveSort, rows, sort]);
 
   const bodyScroll = Math.max(0, scrollTop - tableHeaderHeight);
   const firstIndex = Math.max(
@@ -282,13 +409,23 @@ export function VirtualTable<Row>({
   }, [contextOpenRowId, getRowId, renderedRows, selection]);
   const selectionAvailable = selection !== undefined;
   const selectionColumnWidth = selectionAvailable ? 44 : 0;
-  const gridTemplateColumns = [
-    ...(selectionAvailable ? [`${selectionColumnWidth}px`] : []),
-    ...visibleColumns.map((column) => `${column.width}px`),
-  ].join(" ");
-  const minimumWidth =
-    selectionColumnWidth +
-    visibleColumns.reduce((sum, column) => sum + column.width, 0);
+  // A list shows checkboxes only while several rows are selected; a tap
+  // then toggles rows rather than opening one.
+  const listSelecting =
+    list && selection !== undefined && selection.selectedIds.size > 1;
+  const showSelectionColumn = list ? listSelecting : selectionAvailable;
+  const gridTemplateColumns = list
+    ? showSelectionColumn
+      ? `${selectionColumnWidth}px minmax(0, 1fr)`
+      : "minmax(0, 1fr)"
+    : [
+        ...(selectionAvailable ? [`${selectionColumnWidth}px`] : []),
+        ...visibleColumns.map((column) => `${column.width}px`),
+      ].join(" ");
+  const minimumWidth = list
+    ? 0
+    : selectionColumnWidth +
+      visibleColumns.reduce((sum, column) => sum + column.width, 0);
   const gridStyle = {
     gridTemplateColumns,
     minWidth: `${minimumWidth}px`,
@@ -301,6 +438,7 @@ export function VirtualTable<Row>({
   }, [minimumWidth, tableId, viewportSize.width]);
 
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
+    noteActivity();
     setScrollTop(event.currentTarget.scrollTop);
     updateHorizontalOverflow(event.currentTarget, setHorizontalOverflow);
     if (longPressRef.current !== null) {
@@ -373,7 +511,10 @@ export function VirtualTable<Row>({
       replaceSelectionRange(row, rowId, true);
       return;
     }
-    if (selection !== undefined && (event.metaKey || event.ctrlKey)) {
+    if (
+      selection !== undefined &&
+      (event.metaKey || event.ctrlKey || listSelecting)
+    ) {
       toggleRowSelection(row, rowId);
       return;
     }
@@ -480,7 +621,8 @@ export function VirtualTable<Row>({
           : "asc",
     };
     setSort(next);
-    setFrozenOrder(sortRows(rows, getRowId, column, next.direction).map(getRowId));
+    // A requested sort applies at once, even while the order is held.
+    setHeldOrder(null);
   };
 
   const moveRowFocus = (nextIndex: number, extendSelection: boolean) => {
@@ -622,31 +764,40 @@ export function VirtualTable<Row>({
     selection.onChange([...next], nextCurrentId);
   };
 
-  return (
-    <div
-      className={styles.container}
-      style={tableStyle}
-      data-overflow-left={horizontalOverflow.left}
-      data-overflow-right={horizontalOverflow.right}
-    >
-      <div className={styles.toolbar}>
-        <span>
-          {localizedMessage("common.rows.total", { count: sortedRows.length })}</span>
-        {!showSelectionSummary || selection === undefined ? null : (
-          <>
-            <strong className={styles.selectionStatus} aria-live="polite">
-              {localizedMessage("common.rows.selected", {
-                count: selection.selectedIds.size,
-                hidden: hiddenSelectedCount,
-              })}
-            </strong>
-            <button
-              type="button"
-              aria-label={`Done selecting rows in ${label}`}
-              onClick={collapseSelectionToCurrent}
-            >{localizedMessage("inspection.components.virtual.table.done")}</button>
-          </>
-        )}
+  const placeholders = loading && sortedRows.length === 0;
+  const toolbar = (
+    <div className={styles.toolbar} data-slotted={toolbarSlot !== null}>
+      <span>
+        {placeholders
+          ? null
+          : formatCount === undefined
+            ? localizedMessage("common.rows.total", { count: sortedRows.length })
+            : formatCount(sortedRows.length)}</span>
+      {!showSelectionSummary || selection === undefined ? null : (
+        <>
+          <strong className={styles.selectionStatus} aria-live="polite">
+            {localizedMessage("common.rows.selected", {
+              count: selection.selectedIds.size,
+              hidden: hiddenSelectedCount,
+            })}
+          </strong>
+          <button
+            type="button"
+            aria-label={`Done selecting rows in ${label}`}
+            onClick={collapseSelectionToCurrent}
+          >{localizedMessage("inspection.components.virtual.table.done")}</button>
+        </>
+      )}
+      {list ? (
+        <ListSortControl
+          columns={columns}
+          sort={sort}
+          onChange={(next) => {
+            setSort(next);
+            setHeldOrder(null);
+          }}
+        />
+      ) : (
         <AnchoredDialogTrigger key={`columns-${tableId}`}>
           <OverlayButton>{localizedMessage("inspection.components.virtual.table.columns")}</OverlayButton>
           <AnchoredDialog
@@ -673,23 +824,6 @@ export function VirtualTable<Row>({
                 </label>
               );
             })}
-            <label className={styles.liveSort}>
-              <input
-                type="checkbox"
-                checked={liveSort}
-                onChange={(event) => {
-                  const enabled = event.currentTarget.checked;
-                  if (!enabled && sort !== null) {
-                    const column = columns.find((candidate) => candidate.id === sort.columnId);
-                    if (column?.sortValue !== undefined) {
-                      setFrozenOrder(
-                        sortRows(rows, getRowId, column, sort.direction).map(getRowId),
-                      );
-                    }
-                  }
-                  setLiveSort(enabled);
-                }}
-              />{localizedMessage("inspection.components.virtual.table.re.sort.live.updates")}</label>
             <button
               type="button"
               onClick={() => {
@@ -702,13 +836,24 @@ export function VirtualTable<Row>({
                 );
                 setColumnWidths({});
                 setSort(initialSort ?? null);
-                setLiveSort(false);
-                setFrozenOrder(null);
+                setHeldOrder(null);
               }}
             >{localizedMessage("inspection.components.virtual.table.reset.table")}</button>
           </AnchoredDialog>
         </AnchoredDialogTrigger>
-      </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div
+      className={styles.container}
+      style={tableStyle}
+      data-overflow-left={horizontalOverflow.left}
+      data-overflow-right={horizontalOverflow.right}
+      data-toolbar-slotted={toolbarSlot !== null}
+    >
+      {toolbarSlot === null ? toolbar : createPortal(toolbar, toolbarSlot)}
       <div
         ref={viewportRef}
         data-table-id={tableId}
@@ -716,14 +861,26 @@ export function VirtualTable<Row>({
         role="grid"
         tabIndex={-1}
         aria-label={label}
-        aria-rowcount={sortedRows.length + 1}
-        aria-colcount={visibleColumns.length + (selectionAvailable ? 1 : 0)}
+        aria-busy={placeholders || undefined}
+        aria-rowcount={sortedRows.length + (list ? 0 : 1)}
+        aria-colcount={
+          (list ? 1 : visibleColumns.length) + (showSelectionColumn ? 1 : 0)
+        }
+        data-list={list}
         aria-multiselectable={selectionAvailable ? true : undefined}
         onScroll={handleScroll}
+        onPointerMove={noteActivity}
+        onPointerDown={noteActivity}
+        onPointerLeave={(event) => {
+          // A touch leaves before its click lands, so only a mouse that
+          // moves away releases the order immediately.
+          if (event.pointerType === "mouse") endActivity();
+        }}
         onClick={(event) => {
           if (event.target === event.currentTarget) activateBackground();
         }}
         onKeyDown={(event) => {
+          noteActivity();
           if (
             event.key === "Escape" &&
             selection !== undefined &&
@@ -790,110 +947,135 @@ export function VirtualTable<Row>({
         }}
         data-testid="virtual-table"
       >
-      <div className={styles.header} role="row" style={gridStyle}>
-        {selection === undefined ? null : (
-          <div
-            className={styles.selectionHeaderCell}
-            role="columnheader"
-            aria-label={localizedMessage("inspection.components.virtual.table.selection")}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (event.target === event.currentTarget) {
-                selectionAnchorIdRef.current =
-                  sortedRows.length === 0 ? null : getRowId(sortedRows[0]!);
-                toggleAllVisibleSelection();
-              }
-            }}
-          >
-            <SelectionCheckbox
-              checked={allVisibleSelected}
-              indeterminate={
-                selectedVisibleCount > 0 && !allVisibleSelected
-              }
-              label={
-                allVisibleSelected
-                  ? localizedMessage("inspection.components.virtual.table.deselect.all.rows")
-                  : localizedMessage("inspection.components.virtual.table.select.all.rows")
-              }
-              onChange={() => {
-                selectionAnchorIdRef.current =
-                  sortedRows.length === 0 ? null : getRowId(sortedRows[0]!);
-                toggleAllVisibleSelection();
-              }}
-            />
-          </div>
-        )}
-        {visibleColumns.map((column) => {
-          const sorted = sort?.columnId === column.id;
-          return (
+      {list ? null : (
+        <div className={styles.header} role="row" style={gridStyle}>
+          {selection === undefined ? null : (
             <div
-              key={column.id}
-              className={styles.headerCell}
+              className={styles.selectionHeaderCell}
               role="columnheader"
-              aria-label={column.label}
-              aria-sort={
-                sorted
-                  ? sort.direction === "asc"
-                    ? "ascending"
-                    : "descending"
-                  : undefined
-              }
-              data-align={column.align ?? "left"}
+              aria-label={localizedMessage("inspection.components.virtual.table.selection")}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (event.target === event.currentTarget) {
+                  selectionAnchorIdRef.current =
+                    sortedRows.length === 0 ? null : getRowId(sortedRows[0]!);
+                  toggleAllVisibleSelection();
+                }
+              }}
             >
-              <button
-                className={styles.sortButton}
-                type="button"
-                onClick={() => changeSort(column)}
-                disabled={column.sortable === false || column.sortValue === undefined}
-              >
-                <span>{column.label}</span>
-                {sorted ? <span aria-hidden="true">{sort.direction === "asc" ? "▲" : "▼"}</span> : null}
-              </button>
-              {column.headerHelp !== undefined ? (
-                <AnchoredDialogTrigger
-                  key={`${tableId}-${column.id}-help`}
-                >
-                  <OverlayButton
-                    className={styles.headerHelpButton!}
-                    aria-label={`Explain ${column.label}`}
-                  >
-                    ?
-                  </OverlayButton>
-                  <AnchoredDialog
-                    className={styles.headerHelpPopover!}
-                    aria-label={`${column.label} column help`}
-                    style={
-                      {
-                        "--header-help-width": `${column.headerHelpWidth ?? 352}px`,
-                      } as CSSProperties
-                    }
-                  >
-                    {column.headerHelp}
-                  </AnchoredDialog>
-                </AnchoredDialogTrigger>
-              ) : null}
-              <div
-                className={styles.resizeHandle}
-                role="separator"
-                aria-label={`Resize ${column.label} column`}
-                aria-orientation="vertical"
-                aria-valuemin={column.minimumWidth ?? 52}
-                aria-valuemax={column.maximumWidth ?? 720}
-                aria-valuenow={column.width}
-                tabIndex={0}
-                onPointerDown={(event) => startResize(event, column)}
-                onPointerMove={(event) => continueResize(event, column)}
-                onPointerUp={stopResize}
-                onPointerCancel={stopResize}
-                onKeyDown={(event) => resizeWithKeyboard(event, column)}
+              <SelectionCheckbox
+                checked={allVisibleSelected}
+                indeterminate={
+                  selectedVisibleCount > 0 && !allVisibleSelected
+                }
+                label={
+                  allVisibleSelected
+                    ? localizedMessage("inspection.components.virtual.table.deselect.all.rows")
+                    : localizedMessage("inspection.components.virtual.table.select.all.rows")
+                }
+                onChange={() => {
+                  selectionAnchorIdRef.current =
+                    sortedRows.length === 0 ? null : getRowId(sortedRows[0]!);
+                  toggleAllVisibleSelection();
+                }}
               />
             </div>
-          );
-        })}
-      </div>
-      {sortedRows.length === 0 ? (
+          )}
+          {visibleColumns.map((column) => {
+            const sorted = sort?.columnId === column.id;
+            return (
+              <div
+                key={column.id}
+                className={styles.headerCell}
+                role="columnheader"
+                aria-label={column.label}
+                aria-sort={
+                  sorted
+                    ? sort.direction === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : undefined
+                }
+                data-align={column.align ?? "left"}
+              >
+                <button
+                  className={styles.sortButton}
+                  type="button"
+                  onClick={() => changeSort(column)}
+                  disabled={column.sortable === false || column.sortValue === undefined}
+                >
+                  <span>{column.label}</span>
+                  {sorted ? (
+                    <span
+                      className={styles.sortIndicator}
+                      aria-hidden="true"
+                      data-held={orderHeld}
+                    >
+                      {sort.direction === "asc" ? "▲" : "▼"}
+                    </span>
+                  ) : null}
+                </button>
+                {column.headerHelp !== undefined ? (
+                  <AnchoredDialogTrigger
+                    key={`${tableId}-${column.id}-help`}
+                  >
+                    <OverlayButton
+                      className={styles.headerHelpButton!}
+                      aria-label={`Explain ${column.label}`}
+                    >
+                      ?
+                    </OverlayButton>
+                    <AnchoredDialog
+                      className={styles.headerHelpPopover!}
+                      aria-label={`${column.label} column help`}
+                      style={
+                        {
+                          "--header-help-width": `${column.headerHelpWidth ?? 352}px`,
+                        } as CSSProperties
+                      }
+                    >
+                      {column.headerHelp}
+                    </AnchoredDialog>
+                  </AnchoredDialogTrigger>
+                ) : null}
+                <div
+                  className={styles.resizeHandle}
+                  role="separator"
+                  aria-label={`Resize ${column.label} column`}
+                  aria-orientation="vertical"
+                  aria-valuemin={column.minimumWidth ?? 52}
+                  aria-valuemax={column.maximumWidth ?? 720}
+                  aria-valuenow={column.width}
+                  tabIndex={0}
+                  onPointerDown={(event) => startResize(event, column)}
+                  onPointerMove={(event) => continueResize(event, column)}
+                  onPointerUp={stopResize}
+                  onPointerCancel={stopResize}
+                  onKeyDown={(event) => resizeWithKeyboard(event, column)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {placeholders ? (
+        <PlaceholderRows
+          count={Math.max(
+            3,
+            Math.min(12, Math.ceil(viewportSize.height / tableRowHeight)),
+          )}
+          list={list}
+          gridStyle={gridStyle}
+          columns={visibleColumns}
+          selectionColumn={selection !== undefined && showSelectionColumn}
+          status={emptyMessage}
+        />
+      ) : sortedRows.length === 0 ? (
         <div className={styles.empty} onClick={activateBackground}>
-          {emptyMessage}
+          <div className={styles.emptyContent}>
+            <span>{emptyMessage}</span>
+            {emptyAction}
+          </div>
         </div>
       ) : (
         <div
@@ -916,7 +1098,7 @@ export function VirtualTable<Row>({
                 key={rowId}
                 className={styles.row}
                 role="row"
-                aria-rowindex={index + 2}
+                aria-rowindex={index + (list ? 1 : 2)}
                 aria-selected={selectionAvailable ? checked : undefined}
                 aria-current={current ? "true" : undefined}
                 tabIndex={index === focusIndex ? 0 : -1}
@@ -984,7 +1166,7 @@ export function VirtualTable<Row>({
                       }
                 }
               >
-                {selection === undefined ? null : (
+                {selection === undefined || !showSelectionColumn ? null : (
                   <div
                     className={styles.selectionCell}
                     role="gridcell"
@@ -1008,16 +1190,20 @@ export function VirtualTable<Row>({
                     />
                   </div>
                 )}
-                {visibleColumns.map((column) => (
-                  <div
-                    key={column.id}
-                    className={styles.cell}
-                    role="gridcell"
-                    data-align={column.align ?? "left"}
-                  >
-                    {column.render(row)}
-                  </div>
-                ))}
+                {list ? (
+                  <ListItem layout={listLayout} row={row} />
+                ) : (
+                  visibleColumns.map((column) => (
+                    <div
+                      key={column.id}
+                      className={styles.cell}
+                      role="gridcell"
+                      data-align={column.align ?? "left"}
+                    >
+                      {column.render(row)}
+                    </div>
+                  ))
+                )}
               </div>
             );
             const targetIds =
@@ -1073,6 +1259,235 @@ export function VirtualTable<Row>({
         </ActionMenuTrigger>
       )}
     </div>
+  );
+}
+
+// Varied, fixed bar widths so placeholder rows read as rows of text.
+const PLACEHOLDER_WIDTHS = [72, 54, 86, 61, 78, 47, 68, 58];
+
+function PlaceholderRows<Row>({
+  count,
+  list,
+  gridStyle,
+  columns,
+  selectionColumn,
+  status,
+}: {
+  readonly count: number;
+  readonly list: boolean;
+  readonly gridStyle: CSSProperties;
+  readonly columns: readonly VirtualColumn<Row>[];
+  readonly selectionColumn: boolean;
+  readonly status: string;
+}) {
+  const width = (row: number, column: number) =>
+    `${PLACEHOLDER_WIDTHS[(row * 3 + column) % PLACEHOLDER_WIDTHS.length]}%`;
+  return (
+    <div className={styles.placeholders} data-testid="table-placeholders">
+      <span className={styles.srOnly} role="status">{status}</span>
+      {Array.from({ length: count }, (_, row) => (
+        <div
+          key={row}
+          className={styles.placeholderRow}
+          style={list ? undefined : gridStyle}
+          aria-hidden="true"
+        >
+          {list ? (
+            <div className={styles.listCell}>
+              <span className={styles.placeholderBar} style={{ width: width(row, 0) }} />
+              <span
+                className={styles.placeholderBar}
+                data-secondary="true"
+                style={{ width: width(row, 5) }}
+              />
+            </div>
+          ) : (
+            <>
+              {selectionColumn ? <div className={styles.cell} /> : null}
+              {columns.map((column, index) => (
+                <div
+                  key={column.id}
+                  className={styles.cell}
+                  data-align={column.align ?? "left"}
+                >
+                  <span
+                    className={styles.placeholderBar}
+                    style={{ width: width(row, index) }}
+                  />
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+interface ListLayout<Row> {
+  readonly title: VirtualColumn<Row> | undefined;
+  readonly trailing: readonly VirtualColumn<Row>[];
+  readonly subtitle: readonly VirtualColumn<Row>[];
+  readonly wide: readonly VirtualColumn<Row>[];
+  readonly detail: readonly VirtualColumn<Row>[];
+}
+
+function listLayoutFor<Row>(
+  columns: readonly VirtualColumn<Row>[],
+): ListLayout<Row> {
+  const withRole = (role: VirtualListRole) =>
+    columns.filter((column) => column.listRole === role);
+  return {
+    title: withRole("title")[0] ?? columns[0],
+    trailing: withRole("trailing"),
+    subtitle: withRole("subtitle"),
+    wide: withRole("wide"),
+    detail: withRole("detail"),
+  };
+}
+
+/** One list item: padding plus a line for each role the table uses. */
+function listRowHeight<Row>(
+  layout: ListLayout<Row>,
+  tableRowHeight: number,
+  additionalLines: number,
+): number {
+  const line = Math.round(tableRowHeight * 0.56);
+  const lines =
+    1 +
+    (layout.subtitle.length > 0 || layout.wide.length > 0 ? 1 : 0) +
+    (layout.detail.length > 0 ? 1 : 0);
+  return (lines + additionalLines) * line + Math.round(tableRowHeight * 0.5);
+}
+
+function ListItem<Row>({
+  layout,
+  row,
+}: {
+  readonly layout: ListLayout<Row>;
+  readonly row: Row;
+}) {
+  const details = present(layout.detail, row);
+  const subtitle = present(layout.subtitle, row);
+  return (
+    <div className={styles.listCell} role="gridcell">
+      <div className={styles.listTitleLine}>
+        <span className={styles.listTitle}>{layout.title?.render(row)}</span>
+        {layout.trailing.map((column) => (
+          <span key={column.id} className={styles.listTrailing}>
+            {column.render(row)}
+          </span>
+        ))}
+      </div>
+      {subtitle.length === 0 && layout.wide.length === 0 ? null : (
+        <div className={styles.listSubtitleLine}>
+          {subtitle.length === 0 ? null : (
+            <div className={styles.listLine}>
+              {subtitle.map(({ column, value }) => (
+                <span key={column.id}>{value}</span>
+              ))}
+            </div>
+          )}
+          {layout.wide.map((column) => (
+            <div key={column.id} className={styles.listWide}>
+              {column.render(row)}
+            </div>
+          ))}
+        </div>
+      )}
+      {layout.detail.length === 0 ? null : (
+        <div className={styles.listLine}>
+          {details.map(({ column, value }) => {
+            const detailLabel =
+              column.listLabel === undefined ? column.label : column.listLabel;
+            return (
+              <span key={column.id}>
+                {detailLabel === null ? null : (
+                  <span className={styles.listDetailLabel}>{detailLabel} </span>
+                )}
+                {value}
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Absent values are dropped from a list item rather than shown as "—". */
+function present<Row>(
+  columns: readonly VirtualColumn<Row>[],
+  row: Row,
+): readonly { readonly column: VirtualColumn<Row>; readonly value: ReactNode }[] {
+  return columns
+    .map((column) => ({ column, value: column.render(row) }))
+    .filter(({ value }) => !absent(value));
+}
+
+function absent(value: ReactNode): boolean {
+  if (value === null || value === undefined || value === "" || value === "—") {
+    return true;
+  }
+  // A labelled placeholder such as <span aria-label="ETA unavailable">—</span>.
+  return (
+    isValidElement<{ readonly children?: ReactNode }>(value) &&
+    absent(value.props.children)
+  );
+}
+
+/** Lists have no column headers, so sorting moves to the toolbar. */
+function ListSortControl<Row>({
+  columns,
+  sort,
+  onChange,
+}: {
+  readonly columns: readonly VirtualColumn<Row>[];
+  readonly sort: SortState | null;
+  readonly onChange: (sort: SortState | null) => void;
+}) {
+  const sortable = columns.filter(
+    (column) => column.sortable !== false && column.sortValue !== undefined,
+  );
+  if (sortable.length === 0) return null;
+  const direction = sort?.direction ?? "asc";
+  return (
+    <span className={styles.listSort}>
+      <select
+        aria-label={localizedMessage("inspection.components.virtual.table.sort.by")}
+        value={sort?.columnId ?? ""}
+        onChange={(event) => {
+          const columnId = event.currentTarget.value;
+          onChange(columnId === "" ? null : { columnId, direction });
+        }}
+      >
+        <option value="">{localizedMessage("inspection.components.virtual.table.unsorted")}</option>
+        {sortable.map((column) => (
+          <option key={column.id} value={column.id}>
+            {column.label}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        disabled={sort === null}
+        aria-label={
+          direction === "asc"
+            ? localizedMessage("inspection.components.virtual.table.sorted.ascending")
+            : localizedMessage("inspection.components.virtual.table.sorted.descending")
+        }
+        onClick={() =>
+          sort === null
+            ? undefined
+            : onChange({
+                columnId: sort.columnId,
+                direction: direction === "asc" ? "desc" : "asc",
+              })
+        }
+      >
+        {direction === "asc" ? "▲" : "▼"}
+      </button>
+    </span>
   );
 }
 
@@ -1262,7 +1677,6 @@ interface PersistedTableConfig {
   readonly hiddenColumns: ReadonlySet<string>;
   readonly widths: Readonly<Record<string, number>>;
   readonly sort: SortState | null;
-  readonly liveSort: boolean;
 }
 
 function loadTableConfig<Row>(
@@ -1277,9 +1691,9 @@ function loadTableConfig<Row>(
       hiddenColumns?: unknown;
       widths?: unknown;
       sort?: unknown;
-      liveSort?: unknown;
-    };
-    if (value.version !== TABLE_CONFIG_VERSION) return null;
+    } | null;
+    // Any version is read field by field; fields that do not fit are skipped.
+    if (typeof value !== "object" || value === null) return null;
     const knownColumns = new Map(columns.map((column) => [column.id, column]));
     let hiddenColumns = Array.isArray(value.hiddenColumns)
       ? new Set(
@@ -1333,27 +1747,68 @@ function loadTableConfig<Row>(
       sortColumn?.sortValue !== undefined && sortColumn.sortable !== false
         ? candidateSort
         : null;
-    return {
-      hiddenColumns,
-      widths,
-      sort,
-      liveSort: value.liveSort === true,
-    };
+    return { hiddenColumns, widths, sort };
   } catch {
     return null;
   }
 }
 
-function saveTableConfig(tableId: string, config: PersistedTableConfig): void {
+function layoutKey(tableId: string, config: PersistedTableConfig): string {
+  return JSON.stringify([
+    tableId,
+    [...config.hiddenColumns].sort(),
+    Object.entries(config.widths).sort(([left], [right]) => left.localeCompare(right)),
+    config.sort,
+  ]);
+}
+
+/**
+ * Writes the layout, keeping what this version does not own: hidden state and
+ * widths of unknown columns (a newer version's), other top-level fields, and
+ * a newer version number.
+ */
+function saveTableConfig<Row>(
+  tableId: string,
+  columns: readonly VirtualColumn<Row>[],
+  config: PersistedTableConfig,
+): void {
   try {
+    const key = `rstorrent.table.${tableId}`;
+    let stored: Record<string, unknown> = {};
+    try {
+      const parsed = JSON.parse(globalThis.localStorage?.getItem(key) ?? "null") as unknown;
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        stored = parsed as Record<string, unknown>;
+      }
+    } catch {
+      // An unreadable layout has nothing worth keeping.
+    }
+    const known = new Set(columns.map((column) => column.id));
+    const unknownHidden = Array.isArray(stored.hiddenColumns)
+      ? stored.hiddenColumns.filter(
+          (id): id is string => typeof id === "string" && !known.has(id),
+        )
+      : [];
+    const unknownWidths =
+      typeof stored.widths === "object" && stored.widths !== null
+        ? Object.fromEntries(
+            Object.entries(stored.widths).filter(
+              ([id, width]) => !known.has(id) && typeof width === "number",
+            ),
+          )
+        : {};
+    const storedVersion =
+      typeof stored.version === "number" && Number.isInteger(stored.version)
+        ? stored.version
+        : 0;
     globalThis.localStorage?.setItem(
-      `rstorrent.table.${tableId}`,
+      key,
       JSON.stringify({
-        version: TABLE_CONFIG_VERSION,
-        hiddenColumns: [...config.hiddenColumns],
-        widths: config.widths,
+        ...stored,
+        version: Math.max(storedVersion, TABLE_CONFIG_VERSION),
+        hiddenColumns: [...config.hiddenColumns, ...unknownHidden],
+        widths: { ...unknownWidths, ...config.widths },
         sort: config.sort,
-        liveSort: config.liveSort,
       }),
     );
   } catch {

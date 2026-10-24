@@ -1,6 +1,146 @@
 # Localization
 
+The October 17 hosted follow-up to 375 synchronizes Add-to-Settings UI tests
+on sheet disappearance and the next button's hittability. A captured failed
+run remained on the library after its immediate tap. Localization, navigation
+and lower-row reachability assertions are retained; product behavior is unchanged.
+
+Tactical [375](../tactical/375-ci-reconciliation-and-ui-regressions.md)
+updates iOS pseudo-locale reachability checks to scroll through the expanded
+Settings Form to the actual hittable background-notification switch, while
+retaining the runtime-row existence assertion. New safety settings can move
+these lazy rows below the fold. Existing localization and
+mirrored-toolbar assertions remain; shipping locale policy is unchanged.
+
+Tactical [367](../tactical/367-encrypted-short-links.md) adds four web
+messages for encrypted short links, disclosure, expiry and fallback, and
+renames the Share panel checkbox to **Include my IP address**. The separate
+Worker open page is English-only, with no new localization runtime.
+
+Tactical [357](../tactical/357-rich-share-links.md) adds 37 web messages
+(1,499 total) and 27 Android strings (580 total) for share panels, the
+address prompt, peer-hint results, file shares and sizes from the link.
+Shipping locales remain English.
+
+Tactical [350](../tactical/350-share-links-and-private-hint.md) adds the web
+share-link action, toast and private-hint messages and six Android strings
+for Copy share link and the private-torrent row and snackbars. Shipping
+locales remain English.
+
+Tactical [349](../tactical/349-general-tab-compact-header-and-links.md)
+moves the compact General header, copy actions and merged metrics into the
+catalog under the Tactical 333 plain-copy check: 10 messages removed, 16
+added, 1,352 to 1,358. Shipping locales remain English.
+
+Tactical [333](../tactical/333-web-settings-plain-copy.md) applies the
+Tactical 331 cleanup to the shared React catalog: 1,357 to 1,336 messages,
+with 184 removed and 163 added. Settings, the Torrent settings dialog and the
+General tab no longer show "Effective" runtime lines, engine detail, enum
+names or JSX-concatenated sentence fragments. The web catalog check now rejects
+maintainer vocabulary and leading-punctuation fragments in those message
+prefixes, and `replaceAll("_", " ")` enum display in their components.
+Diagnostics tabs are not covered. Shipping locales remain English.
+
+Tactical [331](../tactical/331-android-settings-plain-copy.md) rewrites
+Android Settings and torrent Details/Status copy in user vocabulary, removing
+48 resources (540 to 492). Settings rows no longer show engine application
+state, engine-authored detail or enum names; a failure shows one localized
+line. Sizes and rates display as KB/MB (1024-based) and the unmetered
+preference is labelled Wi-Fi only. The Android catalog check now rejects
+maintainer vocabulary (effective, applied, payload, root, KiB, ...) and raw
+`enum.name.lowercase()` in settings/detail sources. Shipping locales remain
+English; translations are a later tactical.
+
+Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) adds
+English setup, direct launch, permission and attach-only retry messages to the
+shared compiled catalog and Android resources. Android explains why notifications
+are required for Chrome without opting into standalone background preferences.
+Localization checks, full web validation and physical setup/recovery pass on
+both cohorts; shipping locales remain English.
+
+
+Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
+adds plain first-use statistics labels and Android background setup copy.
+Technical statistics controls and detailed feedback-recipient explanations
+remain in their focused settings/feedback surfaces. English-only shipping and
+all platform locale policies are unchanged.
+
+Tactical [302](../tactical/302-desktop-external-links.md) adds one shared
+English message for external-link opening failure and retry. Raw plugin errors
+are not shown; shipping locale policy and native catalogs remain unchanged.
+
+Tactical [291](../tactical/291-companion-shutdown-recovery-copy.md) locally
+clarifies normal Android launch before attach-only Retry after Shutdown and
+fixes dim companion troubleshooting links with the existing foreground token.
+Full web typecheck/481 cases,56 extension cases, localization, companion/CSP
+build and exact local production1.1.3 packaging pass. Six320/390/1100 source
+renderer captures reproduce before contrast and pass after accessibility,
+keyboard/overflow/cleanup checks; transport/view dependencies are injected.
+Slice055 verifies actual managed27 Shutdown guidance/readable links, stopped
+service after Retry and normal app-launch retained reconnect. Exact package/
+grants/notification preference and scoped cleanup/zero tabs/windows pass; four
+report checks reap their browser/server. Slice057 uploads the exact1.1.3 to the
+existing draft; native Reload verifies draft1.1.3/public1.1.1. Listing/screenshots/
+privacy remain. Submission and installed-store delivery remain under259; signed
+desktop/Android retain their source bindings.
+
+Tactical [283](../tactical/283-companion-update-recovery-guidance.md) adds
+component-specific recovery links and plain connection guidance in the
+packaged extension, preserving attach-only retries and existing discovery/
+pairing authority. The local source/render checkpoint remains separate from
+actual store delivery and installed mixed-version acceptance under259. The
+new production payload supersedes the prior source13dde build and source03e
+extension upload proposals for final qualification; historical evidence stays
+bound to its own bytes. No new build/store publication occurs.
+
 Topic: `localization`
+
+Tactical [268](../tactical/268-android-visible-error-fallback.md) replaces
+message-less/blank Android exception class-name fallbacks with catalog-owned
+product copy. Meaningful messages and complete technical logs remain. Portable
+formatting regression, 122 debug JVM cases, lint and all localization catalogs
+pass; normal original-signed packaging and independent package checks also
+pass. Latest-source physical delivery remains separately pending.
+This is a source-level leak prevention, not a reproduced runtime exception.
+
+Tactical [262](../tactical/262-android-network-status-presentation.md) removes
+actual Android Network Settings class-name leaks through exhaustive localized
+listener/router descriptions, retaining endpoints, ports, failure and uncertain
+lease facts. Message-less feedback failures use product copy. Actual owned
+API-35 before/after captures and all 24 navigation cases pass, including the new
+status regression. Internal namespaces, generated ABI and network policy remain
+unchanged. Original-key production release from `37673687` passes 121 JVM
+cases, lint and independent APK/AAB checks; its actual production APK also
+passes the corrected native screen capture. Source-184's Android capsule is
+superseded. Store/physical delivery gates remain Tactical 259.
+
+Tactical [258](../tactical/258-cross-surface-branding-and-design-audit.md)
+finishes remaining iOS product/system display names and auxiliary first-party
+labels as JSTorrent. The iOS lifecycle label becomes **App is active**, replacing
+Android-specific foreground-service wording. Three cataloged headless command-copy
+messages are added; semantic IDs, placeholders, internal identities and supported
+locale policy remain. All four catalog checks pass (1,331 web, 17 desktop, 445
+Android, 172 iOS product and six Info.plist values). A separate CI branding guard
+checks 2,013 display values and 40 original asset checksums. See the
+[audit execution record](../tactical/258-cross-surface-branding-and-design-audit.md) for source/rendered/native limits.
+
+Tactical 253 adds twelve cataloged shared connection/recovery messages, preserving
+English-only shipping and the unchanged native catalogs. All four catalog
+checks pass. Static extension setup remains an offline English document under
+the existing extension-source classification.
+
+Tactical [249](../tactical/249-jstorrent-brand-and-extension-refresh.md) changes
+shared React and Android presentation to JSTorrent, retaining semantic message
+IDs and all persistence/wire names. Two obsolete text lettermarks are replaced
+by the original icon and their messages removed. All four platform catalog
+checks pass; supported locales and the separate iOS branding remain unchanged.
+
+
+The signed-candidate guest rehearsal in [252](../tactical/252-jstorrent-opt-in-upgrade-rehearsal.md) exposes stale RSTorrent copy in the native Tauri catalog.
+The follow-up changes tray labels/tooltips, notifications, power text and error
+dialogs to JSTorrent, preserving all 17 semantic keys and placeholders. All four
+catalog checks and the focused Rust catalog test pass. The previously signed CI
+candidate predates this correction; a fresh signed package remains required.
 
 Tactical `216` adds thirteen English messages for the local support preview,
 copy/download and public-report guidance. Machine-readable report keys remain
@@ -169,8 +309,20 @@ React tests/typecheck, Android lint/unit/instrumentation assembly, and dual-ABI
 generated build pass. It selects no production locale; physical ChromeOS and
 Apple compile qualification remain open.
 
+Tactical [`346`](../tactical/346-action-feedback-toasts.md) removes success
+prose from React command results: accepted commands return typed facts and
+each caller chooses catalog copy. Its toast, Undo, failure-list, magnet,
+remote-access and settings-failure copy moves into the catalog under
+`feedback.*` with ICU plurals, and 15 orphaned result strings are removed;
+the checker reports 1,373 React messages. Remaining assembled English outside
+those feedback paths, such as torrent-action disabled reasons and
+confirmation prompts, is not yet extracted.
+
 A separate tactical is required to choose and ship the first real
 non-English cohort. Android replacement localization remains open until that
 cohort passes provenance, native review, lifecycle, layout, accessibility,
 and release disclosure. Website, store, marketing, and support-copy
 localization remain outside this owner until explicitly planned.
+
+The 375 navigation synchronization passes all five UI tests in a fresh owned
+iOS 26.5 simulator under Xcode 26.6; the simulator is deleted afterward.

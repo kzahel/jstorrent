@@ -56,16 +56,15 @@ describe("PreparationProgress", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Downloading metadata" }),
+      screen.getByRole("heading", { name: "Getting torrent info" }),
     ).toBeVisible();
     expect(screen.getByRole("progressbar")).toHaveAttribute("value", "16384");
-    expect(screen.getByText("16.0 KiB of 32.0 KiB")).toBeVisible();
+    expect(screen.getByText("16.0 KB of 32.0 KB")).toBeVisible();
     expect(
       screen.getByRole("img", {
-        name: "2 metadata blocks: 1 received, 1 requested, 0 missing",
+        name: "Torrent info: 1 received, 1 requested, 0 missing",
       }),
     ).toBeVisible();
-    expect(screen.getByText("Hash retries").nextSibling).toHaveTextContent("1");
   });
 
   it("keeps v2 hash preparation coarse and does not invent a percentage", () => {
@@ -81,11 +80,8 @@ describe("PreparationProgress", () => {
     render(<PreparationProgress preparation={preparation} dataUnits="binary" />);
 
     expect(
-      screen.getByRole("heading", { name: "Waiting for a hash-capable peer" }),
+      screen.getByRole("heading", { name: "Finding peers" }),
     ).toBeVisible();
-    expect(screen.getByText("Hash ranges needed").nextSibling).toHaveTextContent(
-      "3",
-    );
     expect(screen.queryByRole("progressbar")).toBeNull();
   });
 

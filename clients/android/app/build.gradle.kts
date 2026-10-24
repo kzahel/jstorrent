@@ -12,11 +12,11 @@ android {
     ndkVersion = "28.2.13676358"
 
     defaultConfig {
-        applicationId = "com.jstorrent.rstorrent"
+        applicationId = "com.jstorrent.app"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 32
+        versionName = "1.0.32"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
@@ -40,6 +40,9 @@ android {
         debug {
             isDebuggable = true
             isPseudoLocalesEnabled = true
+            if (providers.gradleProperty("legacyUpgradeTestPackage").isPresent) {
+                versionNameSuffix = "-upgrade-test"
+            }
         }
         release {
             signingConfig = signingConfigs.getByName("release")
@@ -52,6 +55,16 @@ android {
         getByName("main") {
             java.srcDir(layout.buildDirectory.dir("generated/source/uniffi"))
             jniLibs.srcDir(layout.buildDirectory.dir("generated/jniLibs"))
+        }
+        // Debug installs sit beside the Play app on a device. Label and tint
+        // each debug identity so it is not mistaken for production or for
+        // another debug install. The legacy upgrade identity stands in for
+        // production and keeps production branding.
+        getByName("debug") {
+            if (!providers.gradleProperty("legacyUpgradeTestPackage").isPresent) {
+                val qualification = providers.gradleProperty("chromeosQualificationTestPackage").isPresent
+                res.srcDir(if (qualification) "src/debugQualification/res" else "src/debugDev/res")
+            }
         }
     }
 
@@ -68,7 +81,13 @@ android {
 
 androidComponents {
     onVariants(selector().withBuildType("debug")) { variant ->
-        variant.applicationId.set("org.rstorrent.bootstrap")
+        val upgradePackage = providers.gradleProperty("legacyUpgradeTestPackage").orNull
+        val qualificationPackage = providers.gradleProperty("chromeosQualificationTestPackage").orNull
+        require(upgradePackage == null || upgradePackage == "com.jstorrent.app") { "unsupported upgrade test identity" }
+        require(qualificationPackage == null || qualificationPackage in setOf("org.rstorrent.qualification253", "org.jstorrent.setup320")) { "unsupported ChromeOS qualification identity" }
+        require(upgradePackage == null || qualificationPackage == null) { "test identities cannot be combined" }
+        variant.applicationId.set(qualificationPackage ?: upgradePackage ?: "org.rstorrent.bootstrap")
+        if (upgradePackage != null) variant.outputs.forEach { it.versionCode.set(25) }
     }
 }
 
@@ -105,6 +124,8 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.9.2")
     implementation("androidx.media3:media3-ui:1.9.2")
     implementation("androidx.navigation:navigation-compose:2.8.0")
+    // QR codes for share links (Tactical 357). Apache-2.0; no runtime dependencies.
+    implementation("com.google.zxing:core:3.5.4")
     implementation(platform("androidx.compose:compose-bom:2024.09.00"))
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material:material-icons-extended")
@@ -119,7 +140,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:core-ktx:1.6.1")
     androidTestImplementation("androidx.test:rules:1.6.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
@@ -128,6 +149,7 @@ dependencies {
 // AGP otherwise permits an unsigned release when no storeFile is configured.
 val requireReleaseSigning by tasks.registering {
     doLast {
+        require(!providers.gradleProperty("legacyUpgradeTestPackage").isPresent) { "upgrade test properties are debug-only" }
         for (name in listOf("UPLOAD_KEYSTORE_PATH", "UPLOAD_KEYSTORE_PASSWORD", "UPLOAD_KEY_ALIAS", "UPLOAD_KEY_PASSWORD")) {
             require(!providers.environmentVariable(name).orNull.isNullOrBlank()) {
                 "Release builds require $name; unsigned/debug-key fallback is disabled"

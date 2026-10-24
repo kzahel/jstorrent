@@ -112,6 +112,11 @@ pub async fn download_controlled_utp(
     let (mut peer, handshake) = handshake_over_utp(stream, metainfo.info_hash, false, network)
         .await
         .map_err(|error| ControlledUtpDownloadError::Peer(error.to_string()))?;
+    if handshake.supports_fast_extension() {
+        peer.send_message(&PeerMessage::HaveNone)
+            .await
+            .map_err(|error| ControlledUtpDownloadError::Peer(error.to_string()))?;
+    }
     peer.send_message(&PeerMessage::Interested)
         .await
         .map_err(|error| ControlledUtpDownloadError::Peer(error.to_string()))?;

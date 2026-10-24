@@ -1,6 +1,6 @@
 [Unit]
-Description=RSTorrent for ChromeOS Linux
-Documentation=https://github.com/kzahel/rstorrent
+Description=JSTorrent for ChromeOS Linux
+Documentation=https://github.com/kzahel/jstorrent
 
 [Service]
 Type=simple

@@ -21,18 +21,18 @@ const OPTIONS: readonly {
   {
     setting: "notify_download_complete",
     label: localizedMessage("inspection.components.notifications.settings.section.download.complete"),
-    description: localizedMessage("inspection.components.notifications.settings.section.notify.when.a.torrent.finishes.downloading"),
+    description: localizedMessage("inspection.components.notifications.settings.section.when.a.download.finishes"),
   },
   {
     setting: "notify_needs_attention",
     label: localizedMessage("inspection.components.notifications.settings.section.download.needs.attention"),
-    description: localizedMessage("inspection.components.notifications.settings.section.notify.when.a.torrent.enters.a.fatal"),
+    description: localizedMessage("inspection.components.notifications.settings.section.when.a.torrent.needs.action"),
   },
   {
     setting: "notify_while_focused",
     label: localizedMessage("inspection.components.notifications.settings.section.notify.while.rstorrent.is.focused"),
     description:
-      localizedMessage("inspection.components.notifications.settings.section.keep.showing.notifications.while.the.main.window"),
+      localizedMessage("inspection.components.notifications.settings.section.also.notify.while.using"),
   },
 ];
 
@@ -41,9 +41,7 @@ export function NotificationsSettingsSection({
 }: NotificationsSettingsSectionProps) {
   const [settings, setSettings] = useState(notifications.getSnapshot);
   const [pending, setPending] = useState(false);
-  const [status, setStatus] = useState<
-    { readonly type: "success" | "error"; readonly message: string } | null
-  >(null);
+  const [error, setError] = useState<string | null>(null);
 
   const change = async (setting: SettingName, checked: boolean) => {
     if (pending) return;
@@ -51,16 +49,12 @@ export function NotificationsSettingsSection({
     const next = { ...settings, [setting]: checked };
     setSettings(next);
     setPending(true);
-    setStatus(null);
+    setError(null);
     try {
       setSettings(await notifications.save(next));
-      setStatus({ type: "success", message: localizedMessage("inspection.components.notifications.settings.section.notification.settings.saved") });
-    } catch (error) {
+    } catch (cause) {
       setSettings(previous);
-      setStatus({
-        type: "error",
-        message: `Notification settings were not saved: ${errorMessage(error)}`,
-      });
+      setError(localizedMessage("feedback.notifications.save.failed", { error: errorMessage(cause) }));
     } finally {
       setPending(false);
     }
@@ -69,30 +63,26 @@ export function NotificationsSettingsSection({
   return (
     <fieldset className={styles.section} disabled={pending}>
       <legend>{localizedMessage("inspection.components.notifications.settings.section.notifications")}</legend>
-      <p className={styles.sectionIntroduction}>{localizedMessage("inspection.components.notifications.settings.section.native.desktop.notifications.are.edge.triggered.and")}</p>
-      {OPTIONS.map((option) => (
-        <label className={styles.preference} key={option.setting}>
-          <input
-            type="checkbox"
-            checked={settings[option.setting]}
-            onChange={(event) =>
-              void change(option.setting, event.currentTarget.checked)
-            }
-          />
-          <span>
-            <strong>{option.label}</strong>
-            <small>{option.description}</small>
-          </span>
-        </label>
-      ))}
-      {status === null ? null : (
-        <p
-          className={
-            status.type === "error" ? styles.errorStatus : styles.successStatus
-          }
-          role={status.type === "error" ? "alert" : "status"}
-        >
-          {status.message}
+      <div className={styles.rows}>
+        {OPTIONS.map((option) => (
+          <label className={styles.preference} key={option.setting}>
+            <input
+              type="checkbox"
+              checked={settings[option.setting]}
+              onChange={(event) =>
+                void change(option.setting, event.currentTarget.checked)
+              }
+            />
+            <span>
+              <strong>{option.label}</strong>
+              <small>{option.description}</small>
+            </span>
+          </label>
+        ))}
+      </div>
+      {error === null ? null : (
+        <p className={styles.errorStatus} role="alert">
+          {error}
         </p>
       )}
     </fieldset>
