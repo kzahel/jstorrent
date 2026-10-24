@@ -1,0 +1,194 @@
+name: Extension release
+
+# Tag extension-v<version> (scripts/release-extension.sh) to test, package and
+# submit the production JSTorrent extension to its existing Chrome Web Store
+# item. Google still reviews and publishes. Run with mode "check" to verify
+# store authentication without changing anything. Setup:
+# clients/extension/README.md ("Automated store releases").
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Build a package, or verify Web Store authentication without changing the store
+        type: choice
+        options: [package, check]
+        default: package
+  push:
+    tags: ["extension-v*"]
+  pull_request:
+    paths:
+      - "clients/extension/**"
+      - ".github/workflows/extension-release.yml"
+      - "scripts/release-extension.*"
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  package:
+    if: github.event_name != 'workflow_dispatch' || inputs.mode != 'check'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: clients/web/package-lock.json
+      - name: Check the release version
+        id: version
+        run: |
+          version=$(node -p "JSON.parse(require('fs').readFileSync('clients/extension/manifest.jstorrent.json')).version")
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            [[ "$GITHUB_REF_NAME" == "extension-v$version" ]] || { echo "::error::Tag must match manifest.jstorrent.json version $version"; exit 1; }
+            grep -Fq "## [$version]" clients/extension/CHANGELOG.md || { echo "::error::CHANGELOG has no $version entry"; exit 1; }
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Install dependencies
+        run: npm ci --prefix clients/web
+      # The companion pages are the shared web UI; its compatibility and
+      # released-host tests gate the extension too.
+      - name: Test the web client
+        run: |
+          npm run typecheck --prefix clients/web
+          npm run test --prefix clients/web
+      - name: Test and package the production extension
+        run: |
+          npm test --prefix clients/extension
+          npm run package:jstorrent --prefix clients/extension
+          test "$(node -p "require('./target/extension/build.json').sourceDirty")" = false
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: jstorrent-extension-${{ steps.version.outputs.version }}
+          path: target/extension/*
+          if-no-files-found: error
+          retention-days: 30
+
+  compatibility:
+    name: Live compatibility matrix
+    if: startsWith(github.ref, 'refs/tags/extension-v')
+    uses: ./.github/workflows/compat-live.yml
+
+  publish:
+    name: Submit to Chrome Web Store
+    if: github.repository == 'kzahel/jstorrent' && startsWith(github.ref, 'refs/tags/extension-v')
+    needs: [package, compatibility]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: chrome-web-store
+    concurrency:
+      group: chrome-web-store
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+      - name: Require a tagged main-branch release
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: jstorrent-extension-${{ needs.package.outputs.version }}
+          path: store-candidate
+      - name: Authenticate without a service-account key
+        id: google
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.CWS_WIF_PROVIDER }}
+          service_account: ${{ vars.CWS_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Upload the verified ZIP and submit for automatic publication after review
+        env:
+          CWS_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+        run: node clients/extension/scripts/publish-store.mjs publish store-candidate store-receipt.json
+      - name: Keep the store receipt
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: chrome-web-store-receipt
+          path: store-receipt.json
+          if-no-files-found: ignore
+
+  check-publishing:
+    name: Verify Web Store authentication (read only)
+    if: github.repository == 'kzahel/jstorrent' && github.event_name == 'workflow_dispatch' && inputs.mode == 'check' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: chrome-web-store
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+      - name: Authenticate without a service-account key
+        id: google
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.CWS_WIF_PROVIDER }}
+          service_account: ${{ vars.CWS_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Verify the store identity and read publication status
+        env:
+          CWS_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+        run: node clients/extension/scripts/publish-store.mjs check . store-receipt.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: chrome-web-store-status
+          path: store-receipt.json
+
+  github-release:
+    if: startsWith(github.ref, 'refs/tags/extension-v')
+    needs: [package, publish]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: jstorrent-extension-${{ needs.package.outputs.version }}
+          path: release
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: chrome-web-store-receipt
+          path: release
+      - name: Record the submitted store release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cat > /tmp/release-notes.md <<'NOTES'
+          Submitted to the Chrome Web Store for automatic publication after Google's review. The receipt records the API result; this release does not mean review has finished.
+
+          The ZIP is the exact package CI tested; its SHA-256, build record and store receipt are attached.
+          NOTES
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release/* --clobber
+            gh release edit "$GITHUB_REF_NAME" --draft=false --latest=false --notes-file /tmp/release-notes.md
+          else
+            gh release create "$GITHUB_REF_NAME" release/* --verify-tag --latest=false \
+              --title "JSTorrent extension ${GITHUB_REF_NAME#extension-v}" \
+              --notes-file /tmp/release-notes.md
+          fi

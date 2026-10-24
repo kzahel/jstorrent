@@ -1,5 +1,32 @@
 # Client Persistence And Session Boundary
 
+Tactical [355](../tactical/355-automatic-updates.md) appends product schema 4
+for the desktop's automatic-install preference, last attempt and bounded
+handoff intake. These are host-owned durable state, independent of an open
+client. The web client's `rstorrent.notice.updated-version.v1` local-storage
+field only suppresses a repeated foreground success toast for the same
+target/version. `rstorrent.notice.automatic-updates.v1` similarly suppresses
+the first-enabled-release explanation once per target. Missing or unavailable
+storage defaults to an unseen notice;
+it never changes updater policy or substitutes for the durable outcome.
+
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+adds schema 29: canonical bounded packed exception/High/allowance/match masks,
+per-torrent captured safety rules, and durable global safety/origin settings.
+Migration preserves existing torrents and pending magnets; legacy imports keep
+prior selections. Only bitmaps are authoritative after migration. The former
+4,096 persisted-exception ceiling is gone; incoming command targets/ranges stay
+bounded. [Download safety](download-safety.md) owns the policy and override
+semantics; the migration ledger owns retirement.
+
+Tactical [367](../tactical/367-encrypted-short-links.md) adds optional
+`shortLink: boolean` to the existing version-1 web share record. Missing,
+unreadable or newer values read as off without a write. A user change saves
+the checkbox; a remembered true allows uploads in subsequently opened Share
+panels. Current writes preserve independent address and unknown fields. Older
+clients can drop the opt-in when rewriting the record; that safely returns it
+to off. Only panel-lifetime encrypted-link results are cached, at most 16.
+
 ## Share-Link Address Preference
 
 Tactical [357](../tactical/357-rich-share-links.md) stores the remembered
@@ -9,12 +36,22 @@ Android SharedPreferences `product_share`/`peer_hint_choice`. Unreadable or
 newer values read as `ask` without being rewritten. Only Clear app data
 (web) or Clear all data (Android) removes it.
 
+## Library Browse Preferences
+
+Tactical [363](../tactical/363-library-media-index.md) stores the Library's
+preset, cards or list, sort, direction, archived scope and grouping in web
+local storage `rstorrent.presentation.library`. Each field that is missing
+or unreadable takes its default; writes happen only on a user change and
+keep fields a newer client added. Search text and page are not stored.
+
 ## Supported Catalog Contract
 
 Tactical [345](../tactical/345-supported-catalog-migrations.md) ends the
-disposable-catalog era. Every public release since `android-v0.1.0` and
-`desktop-v0.1.4`, including all JSTorrent production releases, ships session
-catalog schema 26, so schema 26 is the supported baseline:
+disposable-catalog era. Public releases from `android-v0.1.0` and
+`desktop-v0.1.4` through desktop 0.3.1 ship session catalog schema 26. Public Latest 0.3.2 ships session
+schema 29 and product schema 4; schema 26 remains the supported session
+baseline. Exact-release populated v29/v4 fixtures preserve these released
+formats alongside the frozen baseline fixtures:
 
 - The application never resets, replaces or discards a session catalog on its
   own. The automatic reset of older catalogs is removed. Only the user's
@@ -58,6 +95,11 @@ recording them share one transaction. Tactical 358 also moves `product.db` to
 the same baseline-plus-steps pattern (baseline 2, released fixture) and adds
 the desktop shell switches as product schema 3.
 
+A catalog that will not open (failed migration, newer, retired, locked or
+unreadable) shows a recovery screen on desktop and Android instead of crashing
+or a generic error, with update, read-only export and bug-report actions
+(Tactical [369](../tactical/369-catalog-recovery-screen.md)).
+
 The same rule covers every other durable format. Tactical 345 records the
 audit; [`durable-data-migrations`](durable-data-migrations.md) is the ledger
 of every migration and compatibility reader and when each may be retired.
@@ -67,6 +109,11 @@ portable torrent list bundle: a zip with a versioned `manifest.json` and one
 `.torrent` per torrent (original, synthesized from verified metadata, or a
 magnet). Readers ignore unknown fields and refuse newer versions. Import adds
 torrents through the ordinary add path and never trusts saved progress.
+
+Tactical [379](../tactical/379-release-security-dependencies.md) upgrades ZIP
+to 9.0.4 without changing this version-1 format or extraction-free bounded
+reader. A frozen ZIP-4-produced fixture preserves selections, intent and
+metainfo through the dependency upgrade; schemas and migrations are unchanged.
 
 Tactical [308](../tactical/308-android-optional-add-selection.md) reuses the
 current schema for explicit Download all on pending adds. Normal default,
@@ -415,7 +462,7 @@ Profile creation/deletion does not rotate the installation identity.
 This topic owns durable client state, resume and restart correctness, database
 portability, storage-root identity, and the boundary between the reusable
 torrent engine and the first-party application service shared by platform
-clients.
+surfaces.
 
 [`download-roots.md`](download-roots.md) owns how users acquire, default,
 select, repair, and remove those roots and how the desktop, WebUI, and Android
@@ -508,7 +555,7 @@ responsibilities:
 - A **platform adapter** owns operating-system capabilities such as the
   application-data directory, Android persisted SAF grants and descriptors,
   foreground-service lifetime, notifications, and desktop integration.
-- A **product client** owns presentation and user interaction. Android and
+- A **client** owns presentation and user interaction. Android and
   desktop clients consume the same application service in-process.
 
 The application service is native Rust product code. Placing SQLite there does
@@ -590,7 +637,7 @@ in-memory databases for one service lifetime. The mode creates no profile
 directory or database auxiliary files, preserves transactions, request
 idempotency and the ordinary owner/task lifecycle while open, and restores
 nothing after the service shuts down, joins its owners, is dropped, and closes
-its private SQLite connections. Detaching the last presentation or transport
+its private SQLite connections. Detaching the last client or transport
 connection does not stop the service or clear its state.
 
 Durable persistence remains the normal desktop and Android product mode.
@@ -1001,9 +1048,9 @@ owned queue or payload artifact.
 Tactical `176` composes a second bounded sparse set beside those rows. One
 transaction validates the complete file target, makes High/Normal wanted,
 removes High when Normal or Skip is selected, and advances the revision only
-when the semantic result changes. Both sparse sets retain the existing 4,096-
-entry ceiling; malformed, padding, out-of-range, duplicate, and oversized
-commands fail before mutation.
+when the semantic result changes. Tactical 373 replaces the historical persisted 4,096-entry ceiling with
+bitmaps; request target/range counts stay bounded. Malformed, padding, out-of-range, duplicate, and oversized
+commands still fail before mutation.
 
 Tactical
 [`100`](../tactical/100-bep53-select-only-and-duplicate-add-feedback.md)

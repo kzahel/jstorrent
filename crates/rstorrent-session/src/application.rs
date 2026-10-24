@@ -67,6 +67,7 @@ use crate::seed_policy::{
 };
 use crate::session_network::{SessionNetworkConfig, SessionNetworkError, SessionNetworkRuntime};
 use crate::settings::{StorageRootSnapshot, TorrentTransferLimits};
+use crate::shutdown::{CleanupCutoff, ShutdownOptions, ShutdownProgress};
 use crate::speed::{PreparedSpeedHistory, SessionSpeedRecorder, SpeedHistoryRuntime};
 use crate::store::{
     ConfiguredStorageRoot, RemovalRecord, ResumeRecord, SessionStore, StorageRootLocation,
@@ -602,6 +603,7 @@ pub struct CompletedMediaCapability {
 
 #[derive(Debug)]
 pub struct ApplicationService {
+    pub(crate) host_updates: Option<Arc<dyn crate::HostUpdateControl>>,
     reset_config: ApplicationConfig,
     reset_incomplete: bool,
     store: Arc<Mutex<SessionStore>>,
@@ -949,6 +951,8 @@ impl ApplicationService {
         let storage_file_pool =
             StorageFilePool::new(config.storage_file_limit, config.platform_storage_client)
                 .map_err(|error| ApplicationError::Configuration(error.to_owned()))?;
+        storage_file_pool
+            .set_mark_internet_origin(active_client_settings.file_safety.mark_internet_origin);
         storage_file_pool.set_platform_health_wake(admission_wake.clone());
         let initial_network_prerequisite = network_prerequisite.load();
         let session_network_config = SessionNetworkConfig {
@@ -1051,6 +1055,7 @@ impl ApplicationService {
             .clone()
             .map(|owner| ProductMilestoneDrain::start(store.clone(), owner, views.clone()));
         let mut service = Self {
+            host_updates: None,
             reset_config,
             reset_incomplete: false,
             store,
@@ -1765,6 +1770,19 @@ impl ApplicationService {
         &mut self,
         request: RequestEnvelope,
     ) -> Result<ResponseEnvelope, ApplicationError> {
+        if let Some(updates) = &self.host_updates {
+            if updates.committed() {
+                return Ok(ResponseEnvelope::error(
+                    request.request_id,
+                    self.revision().unwrap_or_default(),
+                    ErrorCode::InvalidRequest,
+                    "JSTorrent is restarting for an update; retry after reconnecting",
+                ));
+            }
+            if !matches!(&request.command, Command::Snapshot) {
+                updates.interacted();
+            }
+        }
         self.reap_finished().await?;
         if self.reset_incomplete && !matches!(&request.command, Command::ClearAppData) {
             return Ok(ResponseEnvelope::error(
@@ -1847,7 +1865,7 @@ impl ApplicationService {
                     })
                 })
                 .unwrap_or(true),
-            Command::SetFilePriorityRanges { .. } => true,
+            Command::SetFilePriorityRanges { .. } | Command::SetFileSafetyOverride { .. } => true,
             Command::DownloadFiles {
                 torrent_id,
                 file_indices,
@@ -2167,7 +2185,8 @@ impl ApplicationService {
                 self.start_recheck_if_possible(&torrent_id).await?;
             }
             Command::SetFilePriority { torrent_id, .. }
-            | Command::SetFilePriorityRanges { torrent_id, .. } => {
+            | Command::SetFilePriorityRanges { torrent_id, .. }
+            | Command::SetFileSafetyOverride { torrent_id, .. } => {
                 let torrent_id = torrent_id.to_ascii_lowercase();
                 self.views.record_diagnostic(
                     DiagnosticSeverity::Info,
@@ -2388,8 +2407,12 @@ impl ApplicationService {
             | Command::SetShowAddOptions { .. }
             | Command::SetShowFileSelection { .. } => {}
             Command::MoveDownloadToTop { .. } | Command::MoveDownloadToBottom { .. } => {}
-            Command::UpdateClientSettings { .. } | Command::ResetClientSettings => {
+            Command::UpdateClientSettings { .. }
+            | Command::UpdateFileSafetySettings { .. }
+            | Command::ResetClientSettings => {
                 let settings = self.store_mut()?.snapshot()?.client_settings;
+                self.storage_file_pool
+                    .set_mark_internet_origin(settings.file_safety.mark_internet_origin);
                 self.session_network_config.settings = settings.clone();
                 if let Some(session_network) = self.session_network.as_mut() {
                     session_network.submit_settings(settings)?;
@@ -2435,6 +2458,17 @@ impl ApplicationService {
         request: AddTorrentBytesRequest,
         source: Vec<u8>,
     ) -> Result<ResponseEnvelope, ApplicationError> {
+        if let Some(updates) = &self.host_updates {
+            if updates.committed() {
+                return Ok(ResponseEnvelope::error(
+                    request.request_id,
+                    self.revision().unwrap_or_default(),
+                    ErrorCode::InvalidRequest,
+                    "JSTorrent is restarting for an update; retry after reconnecting",
+                ));
+            }
+            updates.interacted();
+        }
         if self.reset_incomplete {
             return Err(ApplicationError::Configuration(
                 "app data clear is incomplete; retry the clear action".to_owned(),
@@ -2676,6 +2710,9 @@ impl ApplicationService {
     }
 
     async fn reconcile_platform_root_failures(&mut self) -> Result<(), ApplicationError> {
+        if self.storage_file_pool.take_origin_marking_failures() != 0 {
+            self.views.record_diagnostic(DiagnosticSeverity::Warning, category::STORAGE_IO, "internet_origin_marking_failed", None, "OS internet-origin marking failed; the destination may not support download labels", &[])?;
+        }
         let failures = self.storage_file_pool.take_platform_root_failures();
         if failures.is_empty() {
             return Ok(());
@@ -3438,8 +3475,32 @@ impl ApplicationService {
         }))
     }
 
+    pub fn set_host_update_control(&mut self, updates: Arc<dyn crate::HostUpdateControl>) {
+        self.host_updates = Some(updates);
+    }
+
+    pub fn host_update_client_connected(&self, owner: &ViewSetOwner) {
+        if let Some(updates) = &self.host_updates {
+            updates.connected(owner.as_str());
+        }
+    }
+
+    pub fn automatic_update_blocked(&self) -> bool {
+        let media = self.media_resource_snapshot();
+        media.active_bodies != 0
+            || media.active_streaming_leases != 0
+            || self.store.lock().map_or(true, |store| {
+                store.has_pending_file_selection().unwrap_or(true)
+            })
+    }
+
     pub fn api_hello(&self) -> crate::ApiHello {
         let mut hello = crate::ApiHello::default();
+        if self.host_updates.is_none() {
+            hello
+                .capabilities
+                .retain(|capability| capability != crate::host_capabilities::DESKTOP_AUTO_UPDATES);
+        }
         hello.limits.lease_millis = self.views.view_set_lease().as_millis().to_string();
         hello.product = self
             .reset_config
@@ -3502,6 +3563,9 @@ impl ApplicationService {
     }
 
     pub fn close_owner_view_sets(&self, owner: &ViewSetOwner) {
+        if let Some(updates) = &self.host_updates {
+            updates.disconnected(owner.as_str());
+        }
         self.views.close_owner_view_sets(owner);
     }
 
@@ -3801,6 +3865,17 @@ impl ApplicationService {
     }
 
     pub async fn shutdown(&mut self) -> Result<(), ApplicationError> {
+        self.shutdown_with(ShutdownOptions::default()).await
+    }
+
+    /// Stops every owner and persists final state. Tracker `stopped`
+    /// announces and port-mapping removal share `options`'s network cleanup
+    /// budget and end early when its hurry token is cancelled; work cut short
+    /// is reported through progress, not returned as an error.
+    pub async fn shutdown_with(
+        &mut self,
+        options: ShutdownOptions,
+    ) -> Result<(), ApplicationError> {
         let mut active_join_error = None;
         let mut shutdown_error = None;
         self.media.revoke_all();
@@ -3826,6 +3901,9 @@ impl ApplicationService {
             session_network.begin_shutdown();
         }
         let active_ids = self.active_download_ids();
+        options.report(ShutdownProgress::StoppingTorrents {
+            count: active_ids.len(),
+        });
         for torrent_id in &active_ids {
             if let Some(active) = self.active_download_for(torrent_id) {
                 active.control.cancel();
@@ -3854,8 +3932,28 @@ impl ApplicationService {
                 active_join_error = Some(format!("torrent ETA deactivation: {error}"));
             }
         }
+        // Persist transfer totals before network cleanup so that a process
+        // ended during it loses at most the DHT routing snapshot. Incoming
+        // uploads until the listener closes are flushed again below.
+        if let Err(error) = self.flush_accounting(true) {
+            shutdown_error = Some(error);
+        }
         if let Some(session_network) = self.session_network.take() {
-            let terminal = session_network.shutdown(&self.views).await;
+            options.report(ShutdownProgress::NetworkCleanup {
+                budget: options.network_cleanup_budget,
+            });
+            let cutoff =
+                CleanupCutoff::starting_now(options.network_cleanup_budget, options.hurry.clone());
+            let terminal = session_network.shutdown(&self.views, &cutoff).await;
+            if terminal.tracker_stops_cut_short > 0 {
+                options.report(ShutdownProgress::TrackerStopsCutShort {
+                    torrents: terminal.tracker_stops_cut_short,
+                });
+            }
+            for detail in terminal.port_mappings_left {
+                options.report(ShutdownProgress::PortMappingLeft { detail });
+            }
+            options.report(ShutdownProgress::NetworkStopped);
             if let Some(snapshot) = terminal.dht_snapshot
                 && let Err(error) = self
                     .store_mut()
@@ -3872,6 +3970,7 @@ impl ApplicationService {
                 active_join_error = Some(error);
             }
         }
+        options.report(ShutdownProgress::SavingState);
         if let Err(error) = self.flush_accounting(true) {
             shutdown_error = Some(error);
         }
@@ -3927,6 +4026,7 @@ impl ApplicationService {
             active_join_error = Some(format!("view-set lease reaper: {error}"));
         }
         self.close_view_sets();
+        options.report(ShutdownProgress::Finished);
         if let Some(error) = shutdown_error {
             return Err(error);
         }
@@ -4458,6 +4558,13 @@ impl ApplicationService {
             }
         };
         let platform_root = matches!(root, StorageRootLocation::PlatformCapability);
+        let root_path = match &root {
+            StorageRootLocation::Path(root) => root.clone(),
+            StorageRootLocation::PlatformCapability => PathBuf::new(),
+        };
+        // Platform storage needs a resolved content manifest before opening
+        // descriptors. Direct paths retain their metadata peer and reload the
+        // same selection through the checkpoint before any payload is opened.
         if platform_root && resume.raw_info.is_none() {
             let identity = magnet_runtime_identity(identity, &resume.magnet)?;
             let checkpoints = Arc::new(StoreCheckpointSink {
@@ -4513,6 +4620,9 @@ impl ApplicationService {
                     let resume = store
                         .load_resume(&checkpoints.torrent_id)
                         .map_err(|error| DownloadError::Checkpoint(error.to_string()))?;
+                    if !resume.desired_running || resume.state == TorrentState::Paused {
+                        return Ok(ApplicationTaskReport::Metadata);
+                    }
                     let skip_files = resume
                         .skip_files
                         .into_iter()
@@ -4544,19 +4654,21 @@ impl ApplicationService {
                         parse_peer_metainfo(&raw_info).map_err(DownloadError::Metainfo)?,
                     )
                 };
-                task_control.set_platform_storage(PlatformStorageSpec {
-                    pool: storage_pool,
-                    root_id,
-                    storage_id,
-                    content_shape: ContentShape::from_content(&content),
-                    content_name: content.name().to_owned(),
-                    storage_generation: 0,
-                });
+                if platform_root {
+                    task_control.set_platform_storage(PlatformStorageSpec {
+                        pool: storage_pool,
+                        root_id,
+                        storage_id,
+                        content_shape: ContentShape::from_content(&content),
+                        content_name: content.name().to_owned(),
+                        storage_generation: 0,
+                    });
+                }
                 resume_magnet_with_control(
                     ResumableMagnetDownloadConfig {
                         identity,
                         magnet,
-                        storage_root: PathBuf::new(),
+                        storage_root: root_path,
                         network,
                         peer_budget,
                         mse_dh,
@@ -4590,10 +4702,6 @@ impl ApplicationService {
             )?;
             return Ok(());
         }
-        let root_path = match &root {
-            StorageRootLocation::Path(root) => root.clone(),
-            StorageRootLocation::PlatformCapability => PathBuf::new(),
-        };
         if resume.raw_info.is_none() && !resume.desired_running {
             let checkpoints = Arc::new(StoreCheckpointSink {
                 store: self.store.clone(),
@@ -6210,6 +6318,26 @@ impl DownloadCheckpointSink for StoreCheckpointSink {
             .map_err(|error| error.to_string())
     }
 
+    fn metadata_file_selection(&self) -> Result<Option<FileSelectionUpdate>, String> {
+        let store = self.store()?;
+        let resume = store
+            .load_resume(&self.torrent_id)
+            .map_err(|error| error.to_string())?;
+        Ok(Some(FileSelectionUpdate {
+            revision: store.revision().map_err(|error| error.to_string())?,
+            skip_files: resume
+                .skip_files
+                .into_iter()
+                .map(|index| index as usize)
+                .collect(),
+            high_priority_files: resume
+                .high_priority_files
+                .into_iter()
+                .map(|index| index as usize)
+                .collect(),
+        }))
+    }
+
     fn storage_prepared(&self, storage: ResumedStorage) -> Result<(), String> {
         let storage_kind = match storage {
             ResumedStorage::Created => "created",
@@ -7447,6 +7575,9 @@ fn durable_view_state(
                 media_catalog_availability(torrent, &resume, storage_roots),
             )
             .ok()
+            .map(|files| {
+                files.with_safety(resume.safety_policy.clone(), resume.safety_allowed.clone())
+            })
         } else {
             None
         };
@@ -7780,6 +7911,8 @@ mod tests {
         ViewPatch, ViewProjection, ViewSelector, ViewSetError, ViewSetOwner, ViewSetUpdate,
         ViewSnapshot, ViewSpec, ViewUpdatePayload,
     };
+    use crate::{ShutdownOptions, ShutdownProgress};
+    use tokio_util::sync::CancellationToken;
 
     static NEXT_TEST: AtomicU64 = AtomicU64::new(0);
 
@@ -8018,6 +8151,8 @@ mod tests {
             .expect("open application without product");
         assert_eq!(application.api_hello().product, None);
         application.shutdown().await.expect("join application");
+        // Shadowing would keep the first service, and its catalog, open.
+        drop(application);
 
         let product = super::ProductIdentity {
             identifier: Some("com.jstorrent.check".to_owned()),
@@ -8038,6 +8173,7 @@ mod tests {
             Some(root.join("profile").display().to_string())
         );
         application.shutdown().await.expect("join application");
+        drop(application);
         fs::remove_dir_all(root).expect("remove test root");
     }
 
@@ -11697,6 +11833,203 @@ mod tests {
         service.shutdown().await.expect("shutdown application");
         drop(service);
         fs::remove_dir_all(root).expect("remove test root");
+    }
+
+    /// Adds a magnet whose tracker answers `started` and never answers
+    /// `stopped`, shuts down with `budget` (cancelling hurry once `stopped`
+    /// arrives when `hurry_on_stopped` is set), then reopens the profile.
+    /// Returns the progress, the time spent in shutdown, and whether the
+    /// reopened profile still lists the torrent.
+    async fn shutdown_against_stalled_stopped_tracker(
+        name: &str,
+        budget: Duration,
+        hurry_on_stopped: bool,
+    ) -> (Vec<ShutdownProgress>, Duration, bool) {
+        let root = test_root(name);
+        let info_hash = [0x5d_u8; 20];
+        let torrent_id = super::encode_info_hash(info_hash);
+        let tracker = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind stalled-stop tracker");
+        let tracker_url = format!(
+            "http://{}/announce",
+            tracker.local_addr().expect("tracker address")
+        );
+        let (started_sender, started_receiver) = tokio::sync::oneshot::channel();
+        let (stopped_sender, stopped_receiver) = tokio::sync::oneshot::channel();
+        let tracker_task = tokio::spawn(async move {
+            let mut started_sender = Some(started_sender);
+            let mut stopped_sender = Some(stopped_sender);
+            let mut held = Vec::new();
+            loop {
+                let (mut stream, _) = tracker.accept().await.expect("accept tracker announce");
+                let request = read_http_request(&mut stream).await;
+                if request.contains("&event=stopped ") {
+                    if let Some(sender) = stopped_sender.take() {
+                        let _ = sender.send(());
+                    }
+                    // Hold the connection without answering.
+                    held.push(stream);
+                    continue;
+                }
+                stream
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 26\r\nConnection: close\r\n\r\nd8:intervali900e5:peers0:e")
+                    .await
+                    .expect("write tracker response");
+                stream.shutdown().await.expect("close tracker response");
+                if let Some(sender) = started_sender.take() {
+                    let _ = sender.send(());
+                }
+            }
+        });
+
+        let mut service = ApplicationService::open(config(&root))
+            .await
+            .expect("open application");
+        let response = service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: format!("{name}-add"),
+                expected_revision: None,
+                command: Command::AddMagnet {
+                    magnet: format!(
+                        "magnet:?xt=urn:btih:{torrent_id}&tr={}",
+                        percent_encode_magnet_value(&tracker_url)
+                    ),
+                    storage_root: "downloads".to_owned(),
+                    start_content: true,
+                    await_file_selection: false,
+                    skip_files: Vec::new(),
+                },
+            })
+            .await
+            .expect("add stalled-stop tracker magnet");
+        let torrent_id = match response.result {
+            Some(CommandResult::AddTorrent { result }) => result.torrent_id,
+            _ => panic!("stalled-stop tracker add result"),
+        };
+        tokio::time::timeout(Duration::from_secs(5), started_receiver)
+            .await
+            .expect("started announce deadline")
+            .expect("started announce report");
+        // A stopped announce follows only a started announce the session has
+        // seen succeed.
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let trackers = torrent_tracker_views(&service, &torrent_id).await;
+                if trackers
+                    .iter()
+                    .any(|tracker| tracker.last_success_at_millis.is_some())
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("started announce recorded as successful");
+
+        let progress = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let sink_progress = progress.clone();
+        let hurry = CancellationToken::new();
+        let hurry_trigger = hurry.clone();
+        let hurry_task = tokio::spawn(async move {
+            let stopped = stopped_receiver.await.is_ok();
+            if stopped && hurry_on_stopped {
+                hurry_trigger.cancel();
+            }
+            stopped
+        });
+        let started = std::time::Instant::now();
+        tokio::time::timeout(
+            Duration::from_secs(20),
+            service.shutdown_with(ShutdownOptions {
+                network_cleanup_budget: budget,
+                hurry,
+                progress: Some(Arc::new(move |event| {
+                    sink_progress.lock().unwrap().push(event);
+                })),
+            }),
+        )
+        .await
+        .expect("bounded application shutdown returns")
+        .expect("bounded application shutdown");
+        let elapsed = started.elapsed();
+        drop(service);
+        tracker_task.abort();
+        assert!(
+            hurry_task.await.expect("stopped observer"),
+            "shutdown must still send the stopped announce"
+        );
+
+        let mut reopened = ApplicationService::open(config(&root))
+            .await
+            .expect("reopen application");
+        let response = reopened
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: format!("{name}-reopened-snapshot"),
+                expected_revision: None,
+                command: Command::Snapshot,
+            })
+            .await
+            .expect("reopened snapshot");
+        let ResponseOutcome::Success { snapshot } = response.outcome else {
+            panic!("reopened snapshot should succeed");
+        };
+        let listed = snapshot
+            .torrents
+            .iter()
+            .any(|torrent| torrent.torrent_id == torrent_id);
+        reopened.shutdown().await.expect("shutdown reopened");
+        drop(reopened);
+        fs::remove_dir_all(root).expect("remove test root");
+        let progress = progress.lock().unwrap().clone();
+        (progress, elapsed, listed)
+    }
+
+    #[tokio::test]
+    async fn shutdown_budget_bounds_a_stalled_stopped_announce() {
+        let (progress, elapsed, listed) = shutdown_against_stalled_stopped_tracker(
+            "stalled-stop-budget",
+            Duration::from_millis(500),
+            false,
+        )
+        .await;
+
+        // Tracker stops get three quarters of the budget; the rest is kept
+        // for port-mapping removal, which this profile does not have.
+        assert!(elapsed >= Duration::from_millis(375), "{elapsed:?}");
+        assert!(elapsed < Duration::from_secs(3), "{elapsed:?}");
+        assert!(listed, "the torrent survives a bounded shutdown");
+        assert_eq!(
+            progress,
+            [
+                ShutdownProgress::StoppingTorrents { count: 1 },
+                ShutdownProgress::NetworkCleanup {
+                    budget: Duration::from_millis(500)
+                },
+                ShutdownProgress::TrackerStopsCutShort { torrents: 1 },
+                ShutdownProgress::NetworkStopped,
+                ShutdownProgress::SavingState,
+                ShutdownProgress::Finished,
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn shutdown_hurry_ends_a_stalled_stopped_announce() {
+        let (progress, elapsed, listed) = shutdown_against_stalled_stopped_tracker(
+            "stalled-stop-hurry",
+            Duration::from_secs(30),
+            true,
+        )
+        .await;
+
+        assert!(elapsed < Duration::from_secs(3), "{elapsed:?}");
+        assert!(listed, "the torrent survives a hurried shutdown");
+        assert!(progress.contains(&ShutdownProgress::TrackerStopsCutShort { torrents: 1 }));
+        assert_eq!(progress.last(), Some(&ShutdownProgress::Finished));
     }
 
     #[tokio::test]

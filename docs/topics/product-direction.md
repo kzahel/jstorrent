@@ -2,6 +2,26 @@
 
 Topic: `product-direction`
 
+## Consumer scale envelope, accepted 2026-10-15
+
+JSTorrent is a consumer client. A host keeps the verified metadata and file
+list of every torrent in its profile resident, archived ones included, as
+qBittorrent and Transmission do: the view hub builds each torrent's
+`ContentLayout` and derived media catalog when the profile opens. The design
+target is the heaviest consumer users, long-time seeders and seedbox owners
+with several thousand torrents and a few hundred thousand files, where the
+resident model costs tens of megabytes. Libraries far beyond that, such as
+seeding a large share of all public torrents from unlimited storage, are a
+non-goal: they belong to a sharded service, not a single in-process host.
+
+Derived indexes over that resident state, such as the Library media index of
+[`media-library`](media-library.md), are therefore built in memory and are not
+persisted. Their contracts must not assume residency, though: clients query
+with a window and receive a page with totals, so a later host could keep cold
+torrents' file lists on disk and answer from a persisted index without a
+contract change. Revisit this decision with measured high-water marks, not
+before.
+
 ## JSTorrent-only releases, accepted 2026-10-11
 
 JSTorrent is the sole active product and release identity. The RSTorrent
@@ -58,8 +78,8 @@ remains unchanged; older Crostini Linux configurations are best effort.
 Status: initial direction and successor vision accepted. Android storage
 foundations are proven on an AVD, Chromebook ARCVM, Pixel 7a, and Moto X4
 internal and removable exFAT storage; the in-process engine bootstrap is
-proven on the AVD, Chromebook, Pixel 7a, and Moto. Desktop and Android product
-clients now select explicit online tracker and peer networking while
+proven on the AVD, Chromebook, Pixel 7a, and Moto. Desktop and Android
+products now select explicit online tracker and peer networking while
 controlled tools retain loopback-only policy. Active magnets retain supervised
 scheduled UDP tracker discovery with bounded retry and reannounce behavior.
 Maintainer direction on 2026-08-09 additionally makes Android a
@@ -82,8 +102,8 @@ every accepted on-device root capability-qualified on physical hardware.
 This topic owns why the RSTorrent implementation exists, what initially
 distinguishes it from the current JSTorrent implementation, the engine
 constraints, the first platform posture, and the decisions that remain
-deliberately open. The likely long-term product succession is recorded in
-[`../vision.md`](../vision.md).
+deliberately open. The completed JSTorrent succession is recorded in
+[`../project-history.md`](../project-history.md).
 
 It does not prescribe the internal crate graph, select a UI toolkit, enumerate
 the final BitTorrent feature set, or serve as an implementation tactical.
@@ -149,7 +169,7 @@ these safety boundaries remain mandatory.
 The torrent engine is authored in this repository. libtorrent, librqbit, and
 other clients are references and test peers, not the runtime engine.
 
-Product clients are also first-party. A platform UI framework or operating
+Product surfaces are also first-party. A platform UI framework or operating
 system library is ordinary infrastructure; a generic remote UI controlling a
 third-party client would change the product. A future first-party JSTorrent
 extension may control this native engine through a deliberately narrow
@@ -205,7 +225,7 @@ introduced.
 
 ### In-process by default
 
-Desktop, Android, and the maintained iOS client normally load the engine
+Desktop, Android, and the maintained iOS app normally load the engine
 into their own process and communicate through a typed application API. A test
 driver or later remote-control feature must not force the product itself into
 a daemon architecture. A future extension control channel carries commands,
@@ -254,7 +274,7 @@ runtime to manufacture parity.
 
 ### Detailed desktop inspection and platform presentation split
 
-After the first engine-parity campaign produced a roughly functional client
+After the first engine-parity campaign produced a roughly functional product
 but an indirect interactive debugging loop, desktop/web becomes the detailed
 inspection surface as recorded in
 [`desktop-inspection-surface.md`](desktop-inspection-surface.md). Its product
@@ -466,7 +486,7 @@ testing evidence justifies it.
   Tacticals `147`--`149` build, archive, development-sign, install, and
   physically validate the product without publishing it.
 - Search plugins, streaming playback, or remote administration in the first
-  useful client.
+  useful product.
 - Exact JSTorrent API, engine, persistence, or feature parity. Completed
   Tactical
   [`117`](../tactical/117-jstorrent-shaped-android-product-ui.md)
@@ -551,8 +571,8 @@ This is recommended direction beyond the accepted first slice:
     diagnostics, and equivalent headless-tested web and Android presentation.
 14. Completed:
     [`013-explicit-live-network-policy.md`](../tactical/013-explicit-live-network-policy.md)
-    made outbound policy explicit, enabled routed networking in product
-    clients, retained loopback isolation in harnesses, and bounded individual
+    made outbound policy explicit, enabled routed networking in products,
+    retained loopback isolation in harnesses, and bounded individual
     network waits instead of whole torrent lifetime.
 15. Completed:
     [`014-scheduled-udp-tracker-lifecycle.md`](../tactical/014-scheduled-udp-tracker-lifecycle.md)
@@ -562,8 +582,8 @@ This is recommended direction beyond the accepted first slice:
 16. Grow the resulting thin surfaces only through capabilities the engine and
     application service actually own. Desktop content UI remains web-based;
     native desktop code owns the shell, tray, and operating-system integration.
-17. The accepted graduation-level backend/presentation choices, extension
-    control posture, handoff requirements, backend isolation, and best-effort
+17. The accepted graduation-level host/client choices, extension
+    control posture, handoff requirements, host isolation, and best-effort
     JSTorrent graduation direction are recorded in
     [`product-surfaces-and-migration.md`](product-surfaces-and-migration.md).
     Their implementation still requires separate bounded tacticals.

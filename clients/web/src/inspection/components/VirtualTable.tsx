@@ -70,6 +70,8 @@ export interface VirtualTableProps<Row> {
   readonly columns: readonly VirtualColumn<Row>[];
   readonly interfaceSize: InterfaceSize;
   readonly overscan?: number;
+  /** Reserve fixed virtual-row space when a column renders multiple list lines. */
+  readonly additionalListLines?: number;
   readonly currentRowId?: string | null;
   readonly selection?: VirtualTableSelection<Row>;
   readonly contextMenu?: VirtualTableContextMenu<Row>;
@@ -87,6 +89,17 @@ export interface VirtualTableProps<Row> {
   /** Names the row count, such as "3 torrents"; defaults to rows. */
   readonly formatCount?: (count: number) => string;
   readonly initialSort?: { readonly columnId: string; readonly direction: "asc" | "desc" };
+  /**
+   * The caller sorts the rows, as for one page of a host-sorted result:
+   * headers report the chosen sort and the table keeps the given order.
+   * Sortable columns still declare a sortValue.
+   */
+  readonly externalSort?: {
+    readonly sort: { readonly columnId: string; readonly direction: "asc" | "desc" } | null;
+    readonly onChange: (
+      sort: { readonly columnId: string; readonly direction: "asc" | "desc" } | null,
+    ) => void;
+  };
 }
 
 export interface VirtualTableContextMenu<Row> {
@@ -123,6 +136,11 @@ interface HorizontalOverflow {
  */
 export const TableToolbarSlot = createContext<HTMLElement | null>(null);
 
+/**
+ * Stored layouts of any version are read field by field, and a layout is
+ * written only after the user changes it, keeping columns and fields this
+ * version does not know (Tactical 358's preference-store rule).
+ */
 const TABLE_CONFIG_VERSION = 1;
 /** How long rows keep their order after the user last touched the table. */
 const ORDER_HOLD_MS = 2000;
@@ -135,6 +153,7 @@ export function VirtualTable<Row>({
   columns,
   interfaceSize,
   overscan = 8,
+  additionalListLines = 0,
   currentRowId = null,
   selection,
   contextMenu,
@@ -145,6 +164,7 @@ export function VirtualTable<Row>({
   emptyAction,
   formatCount,
   initialSort,
+  externalSort,
 }: VirtualTableProps<Row>) {
   const metrics = INTERFACE_METRICS[interfaceSize];
   const list = useNarrowViewport();
@@ -153,7 +173,7 @@ export function VirtualTable<Row>({
   // A list has no header row, and each item stacks its lines in one row.
   const tableHeaderHeight = list ? 0 : metrics.tableHeaderHeight;
   const tableRowHeight = list
-    ? listRowHeight(listLayout, metrics.tableRowHeight)
+    ? listRowHeight(listLayout, metrics.tableRowHeight, additionalListLines)
     : metrics.tableRowHeight;
   const tableStyle = {
     "--ui-table-header-height": `${tableHeaderHeight}px`,
@@ -170,7 +190,12 @@ export function VirtualTable<Row>({
       right: false,
     });
   const [focusIndex, setFocusIndex] = useState(0);
-  const [sort, setSort] = useState<SortState | null>(initialSort ?? null);
+  const [internalSort, setInternalSort] = useState<SortState | null>(initialSort ?? null);
+  const sort = externalSort === undefined ? internalSort : externalSort.sort;
+  const setSort = (next: SortState | null) => {
+    if (externalSort === undefined) setInternalSort(next);
+    else externalSort.onChange(next);
+  };
   const [contextOpenRowId, setContextOpenRowId] = useState<string | null>(null);
   // Live updates re-sort the rows, except while the user is interacting with
   // the table, so a row does not move out from under a pending click.
@@ -218,26 +243,37 @@ export function VirtualTable<Row>({
   // identity; otherwise every live update would reload the configuration.
   const initialSortColumnId = initialSort?.columnId;
   const initialSortDirection = initialSort?.direction;
+  // The layout as last loaded or saved; only a different layout is written.
+  const persistedLayoutRef = useRef<string | null>(null);
   useEffect(() => {
     const loaded = loadTableConfig(tableId, columns);
-    setHiddenColumns(loaded?.hiddenColumns ?? defaultHiddenColumns(columns));
-    setColumnWidths(loaded?.widths ?? {});
-    setSort(
-      loaded?.sort ??
+    const layout: PersistedTableConfig = {
+      hiddenColumns: loaded?.hiddenColumns ?? defaultHiddenColumns(columns),
+      widths: loaded?.widths ?? {},
+      sort:
+        loaded?.sort ??
         (initialSortColumnId === undefined || initialSortDirection === undefined
           ? null
           : { columnId: initialSortColumnId, direction: initialSortDirection }),
-    );
+    };
+    persistedLayoutRef.current = layoutKey(tableId, layout);
+    setHiddenColumns(layout.hiddenColumns);
+    setColumnWidths(layout.widths);
+    setInternalSort(layout.sort);
     setHeldOrder(null);
   }, [columns, initialSortColumnId, initialSortDirection, tableId]);
 
   useEffect(() => {
-    saveTableConfig(tableId, {
+    const layout: PersistedTableConfig = {
       hiddenColumns,
       widths: columnWidths,
-      sort,
-    });
-  }, [columnWidths, hiddenColumns, sort, tableId]);
+      sort: internalSort,
+    };
+    const key = layoutKey(tableId, layout);
+    if (persistedLayoutRef.current === null || key === persistedLayoutRef.current) return;
+    persistedLayoutRef.current = key;
+    saveTableConfig(tableId, columns, layout);
+  }, [columnWidths, columns, hiddenColumns, internalSort, tableId]);
 
   useEffect(() => {
     const element = viewportRef.current;
@@ -265,8 +301,9 @@ export function VirtualTable<Row>({
         })),
     [columnWidths, columns, hiddenColumns],
   );
+  const externallySorted = externalSort !== undefined;
   const { sortedRows, orderHeld } = useMemo(() => {
-    if (sort === null) return { sortedRows: rows, orderHeld: false };
+    if (sort === null || externallySorted) return { sortedRows: rows, orderHeld: false };
     const column = columns.find((candidate) => candidate.id === sort.columnId);
     if (column?.sortValue === undefined) {
       return { sortedRows: rows, orderHeld: false };
@@ -286,7 +323,7 @@ export function VirtualTable<Row>({
       sortedRows: held,
       orderHeld: held.some((row, index) => row !== liveRows[index]),
     };
-  }, [columns, getRowId, heldOrder, rows, sort]);
+  }, [columns, externallySorted, getRowId, heldOrder, rows, sort]);
 
   const holdingOrder = recentActivity || contextOpenRowId !== null;
   useEffect(() => {
@@ -1313,13 +1350,14 @@ function listLayoutFor<Row>(
 function listRowHeight<Row>(
   layout: ListLayout<Row>,
   tableRowHeight: number,
+  additionalLines: number,
 ): number {
   const line = Math.round(tableRowHeight * 0.56);
   const lines =
     1 +
     (layout.subtitle.length > 0 || layout.wide.length > 0 ? 1 : 0) +
     (layout.detail.length > 0 ? 1 : 0);
-  return lines * line + Math.round(tableRowHeight * 0.5);
+  return (lines + additionalLines) * line + Math.round(tableRowHeight * 0.5);
 }
 
 function ListItem<Row>({
@@ -1653,8 +1691,9 @@ function loadTableConfig<Row>(
       hiddenColumns?: unknown;
       widths?: unknown;
       sort?: unknown;
-    };
-    if (value.version !== TABLE_CONFIG_VERSION) return null;
+    } | null;
+    // Any version is read field by field; fields that do not fit are skipped.
+    if (typeof value !== "object" || value === null) return null;
     const knownColumns = new Map(columns.map((column) => [column.id, column]));
     let hiddenColumns = Array.isArray(value.hiddenColumns)
       ? new Set(
@@ -1714,14 +1753,61 @@ function loadTableConfig<Row>(
   }
 }
 
-function saveTableConfig(tableId: string, config: PersistedTableConfig): void {
+function layoutKey(tableId: string, config: PersistedTableConfig): string {
+  return JSON.stringify([
+    tableId,
+    [...config.hiddenColumns].sort(),
+    Object.entries(config.widths).sort(([left], [right]) => left.localeCompare(right)),
+    config.sort,
+  ]);
+}
+
+/**
+ * Writes the layout, keeping what this version does not own: hidden state and
+ * widths of unknown columns (a newer version's), other top-level fields, and
+ * a newer version number.
+ */
+function saveTableConfig<Row>(
+  tableId: string,
+  columns: readonly VirtualColumn<Row>[],
+  config: PersistedTableConfig,
+): void {
   try {
+    const key = `rstorrent.table.${tableId}`;
+    let stored: Record<string, unknown> = {};
+    try {
+      const parsed = JSON.parse(globalThis.localStorage?.getItem(key) ?? "null") as unknown;
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        stored = parsed as Record<string, unknown>;
+      }
+    } catch {
+      // An unreadable layout has nothing worth keeping.
+    }
+    const known = new Set(columns.map((column) => column.id));
+    const unknownHidden = Array.isArray(stored.hiddenColumns)
+      ? stored.hiddenColumns.filter(
+          (id): id is string => typeof id === "string" && !known.has(id),
+        )
+      : [];
+    const unknownWidths =
+      typeof stored.widths === "object" && stored.widths !== null
+        ? Object.fromEntries(
+            Object.entries(stored.widths).filter(
+              ([id, width]) => !known.has(id) && typeof width === "number",
+            ),
+          )
+        : {};
+    const storedVersion =
+      typeof stored.version === "number" && Number.isInteger(stored.version)
+        ? stored.version
+        : 0;
     globalThis.localStorage?.setItem(
-      `rstorrent.table.${tableId}`,
+      key,
       JSON.stringify({
-        version: TABLE_CONFIG_VERSION,
-        hiddenColumns: [...config.hiddenColumns],
-        widths: config.widths,
+        ...stored,
+        version: Math.max(storedVersion, TABLE_CONFIG_VERSION),
+        hiddenColumns: [...config.hiddenColumns, ...unknownHidden],
+        widths: { ...unknownWidths, ...config.widths },
         sort: config.sort,
       }),
     );

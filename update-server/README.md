@@ -41,3 +41,9 @@ The [product and migration topic](../docs/topics/product-surfaces-and-migration.
 owns this policy. Tactical
 [296](../docs/tactical/296-production-preview-feed-separation.md) records why
 the historical package-family guard was introduced.
+
+JSTorrent releases at or above 0.3.2 require the signed `compatibility` envelope
+introduced by Tactical 377. The shared service preserves it in each platform
+response. The native host authenticates it and checks local database ranges
+and migration prefixes; it never sends database paths or contents to the
+server. Older Stable releases and old clients retain their existing contract.

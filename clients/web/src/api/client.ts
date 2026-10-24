@@ -14,6 +14,7 @@ import type {
   UpdateBatch,
   UpdateViewSetRequest,
 } from "./generated/v1";
+import type { CompatibilityObservations } from "../compatibility-observations";
 import { JsonApiCodec, type ApiCodec } from "./codec";
 import {
   isAbortError,
@@ -43,6 +44,11 @@ const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
 export const TORRENT_LIST_FILE_NAME = "jstorrent-torrents.zip";
 
 export interface ApplicationViewClient {
+  /** Native shell already supplies the update UI controller. */
+  readonly nativeUpdateUi?: boolean;
+  productUpdate?(request: import("./generated/v1").HostUpdateRequest): Promise<import("./generated/v1").HostUpdateSnapshot>;
+  /** Mismatch observations, on transports that keep them (Tactical 370). */
+  readonly compatibility?: CompatibilityObservations;
   hello(signal?: AbortSignal): Promise<ApiHello>;
   dispatch(
     request: RequestEnvelope,

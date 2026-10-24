@@ -27,8 +27,11 @@ do not repeat shipment checkpoints or migration rehearsal results.
 
 ## Contracts and evidence
 
-- [Engineering principles](engineering-principles.md) own invariant and
-  dependency rules; [vision](vision.md) records product direction.
+- The [glossary](glossary.md) defines host, client, peer and the other
+  overloaded words used across these documents.
+- [Engineering principles](engineering-principles.md) own engine invariant
+  and dependency rules; [project history](project-history.md) records how the
+  Rust implementation came to replace the original engine.
 - [Topics](topics/README.md) own current decisions and feature contracts.
   Read the relevant concern rather than the complete directory.
 - [Tacticals](tactical/README.md) retain bounded implementation decisions and

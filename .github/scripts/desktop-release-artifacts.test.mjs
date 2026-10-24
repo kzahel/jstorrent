@@ -271,6 +271,9 @@ test("source-bearing promotion binds an exact versioned archive and checksum inv
       digest:`sha256:${createHash("sha256").update(inventory).digest("hex")}` };
     const remote = { ...structuredClone(release), assets:[...release.assets,source,checksum] };
     await verifyProductionFinalDraft({ local:release,remote,checksumPath,sourcePath });
+    const latest = { ...release, tagName:`desktop-latest-v${version}`, isPrerelease:true };
+    await verifyProductionFinalDraft({ local:latest, remote:{...remote, tagName:latest.tagName, isPrerelease:true}, checksumPath, sourcePath });
+    await assert.rejects(verifyProductionFinalDraft({ local:{...latest,isPrerelease:false}, remote, checksumPath, sourcePath }), /matching Stable or Latest/u);
     for (const mutate of [
       value => value.assets.splice(value.assets.findIndex(asset => asset.name === source.name),1),
       value => value.assets.push(source),
@@ -289,4 +292,17 @@ test("source-bearing promotion binds an exact versioned archive and checksum inv
     writeFileSync(checksumPath,inventory);writeFileSync(sourcePath,Buffer.concat([sourceBytes,Buffer.from("altered")]));
     await assert.rejects(verifyProductionFinalDraft({ local:release,remote,checksumPath,sourcePath }),/checksum inventory/u);
   } finally { rmSync(data.root,{recursive:true,force:true}); }
+});
+
+test('private schema source receipts cannot be published or mixed across platforms',async()=>{
+ const data=fixture('JSTorrent');
+ try{
+  mkdirSync(join(data.root,'distribution'));
+  writeFileSync(join(data.root,'distribution/private-update-qualification.json'),JSON.stringify({privateQualification:true,sessionSchema:30,stableEnabled:true,files:{}}));
+  await data.stage();
+  await assert.rejects(()=>data.assemble({product:'JSTorrent',productionPublication:true}),/cannot be published/);
+  const file=join(data.input,`desktop-release-${RELEASE_LANES[0]}-${runId}-${attempt}`,'meta.json');
+  const meta=JSON.parse(readFileSync(file,'utf8'));delete meta.privateQualification;writeFileSync(file,JSON.stringify(meta));
+  await assert.rejects(()=>data.assemble({product:'JSTorrent',tag:''}),/Mixed private qualification/);
+ }finally{rmSync(data.root,{recursive:true,force:true});}
 });

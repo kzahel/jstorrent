@@ -1,0 +1,58 @@
+/* Native radios drawn as one segmented switch (settings, Library). */
+.segmented {
+  display: inline-flex;
+  flex: 0 0 auto;
+  border-radius: var(--radius-md);
+  padding: 2px;
+  background: var(--surface-tertiary);
+}
+
+.segment {
+  position: relative;
+  display: inline-grid;
+  min-height: calc(var(--ui-control-height) - 4px);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0 var(--ui-space-md);
+  color: var(--text-secondary);
+  font-size: var(--ui-font-small);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.segment input {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segment:hover {
+  color: var(--text-primary);
+}
+
+.segment:has(input:checked) {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--surface-primary);
+}
+
+.segment:has(input:disabled) {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.segment input:disabled {
+  cursor: default;
+}
+
+.segment:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}

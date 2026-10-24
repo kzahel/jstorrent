@@ -28,6 +28,21 @@ export const TORRENT_CATEGORIES = [
   "archived",
 ] as const;
 
+export const SETTINGS_CATEGORIES = [
+  "appearance",
+  "downloads",
+  "connection",
+  "notifications",
+  "power",
+  "remote-access",
+  "web-access",
+  "privacy",
+  "data-reset",
+  "about",
+] as const;
+
+export type SettingsCategory = (typeof SETTINGS_CATEGORIES)[number];
+
 export interface NavigationPreferences {
   readonly destination: ApplicationDestination;
   readonly libraryCategory: LibraryCategory;
@@ -114,6 +129,10 @@ export function isLibraryCategory(value: unknown): value is LibraryCategory {
 
 export function isTorrentCategory(value: unknown): value is TorrentCategory {
   return TORRENT_CATEGORIES.some((candidate) => candidate === value);
+}
+
+export function isSettingsCategory(value: unknown): value is SettingsCategory {
+  return SETTINGS_CATEGORIES.some((candidate) => candidate === value);
 }
 
 function defaultNavigationPreferences(): NavigationPreferences {

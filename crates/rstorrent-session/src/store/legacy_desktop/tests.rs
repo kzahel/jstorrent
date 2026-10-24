@@ -519,7 +519,7 @@ fn old_and_future_destinations_are_refused_without_reset() {
         let before = fs::read(fixture.destination.join(DATABASE_FILENAME)).unwrap();
         assert!(matches!(
             SessionStore::migrate_legacy_desktop(&fixture.destination, "default", &fixture.source),
-            Err(StoreError::UnsupportedSchema { .. })
+            Err(StoreError::UnsupportedSchema { .. } | StoreError::RetiredSchema { .. })
         ));
         assert_eq!(
             fs::read(fixture.destination.join(DATABASE_FILENAME)).unwrap(),
@@ -697,7 +697,7 @@ async fn ordinary_offline_checker_reuses_good_bytes_and_rejects_corruption() {
         let bytes = vec![42u8; 16384];
         let piece = <sha1::Sha1 as sha1::Digest>::digest(&bytes);
         let mut info =
-            b"d6:lengthi16384e4:name10:shared.bin12:piece lengthi16384e6:pieces20:".to_vec();
+            b"d6:lengthi16384e4:name10:shared.exe12:piece lengthi16384e6:pieces20:".to_vec();
         info.extend_from_slice(&piece);
         info.push(b'e');
         let hash = <sha1::Sha1 as sha1::Digest>::digest(&info)
@@ -712,7 +712,7 @@ async fn ordinary_offline_checker_reuses_good_bytes_and_rejects_corruption() {
         if corrupt {
             payload[0] ^= 1;
         }
-        fs::write(profile.download_roots[0].path.join("shared.bin"), &payload).unwrap();
+        fs::write(profile.download_roots[0].path.join("shared.exe"), &payload).unwrap();
         let database = fixture.database("alpha");
         database.execute_batch("DELETE FROM kv").unwrap();
         for (key, value) in [
@@ -723,6 +723,13 @@ async fn ordinary_offline_checker_reuses_good_bytes_and_rejects_corruption() {
         drop(database);
         fixture.migrate();
         let mut store = fixture.open();
+        let torrent_id = store.snapshot().unwrap().torrents[0].torrent_id.clone();
+        let imported = store.load_resume(&torrent_id).unwrap();
+        assert!(
+            imported.safety_policy.extensions.is_empty(),
+            "legacy import must retain executable-file intent"
+        );
+        assert!(imported.skip_files.is_empty());
         let transaction = store.connection.transaction().unwrap();
         replace_client_settings(
             &transaction,
@@ -774,7 +781,7 @@ async fn ordinary_offline_checker_reuses_good_bytes_and_rejects_corruption() {
         );
         service.shutdown().await.unwrap();
         assert_eq!(
-            fs::read(profile.download_roots[0].path.join("shared.bin")).unwrap(),
+            fs::read(profile.download_roots[0].path.join("shared.exe")).unwrap(),
             payload
         );
     }
@@ -906,4 +913,164 @@ fn read_only_source_snapshot_is_durable_without_changing_legacy_bytes() {
     assert_eq!(fs::read(&source_path).unwrap(), before);
     let snapshot = result.unwrap();
     assert_eq!(read_kv(&snapshot).unwrap()["session:torrents"], "unchanged");
+}
+
+#[test]
+fn desktop_and_android_startup_admit_released_catalog_without_migrating_it() {
+    for android in [false, true] {
+        let owned = tempfile::tempdir().unwrap();
+        let profile = owned.path().join("profile");
+        fs::create_dir(&profile).unwrap();
+        let database = profile.join(DATABASE_FILENAME);
+        fs::copy(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/catalog/v26.sqlite"),
+            &database,
+        )
+        .unwrap();
+        let before = fs::read(&database).unwrap();
+        let identities = |connection: &Connection| -> Vec<Vec<u8>> {
+            connection
+                .prepare("SELECT torrent_id FROM torrents ORDER BY torrent_id")
+                .unwrap()
+                .query_map([], |row| row.get(0))
+                .unwrap()
+                .collect::<Result<_, _>>()
+                .unwrap()
+        };
+        let original = identities(&Connection::open(&database).unwrap());
+        if android {
+            assert!(
+                SessionStore::migrate_legacy_android(
+                    &profile,
+                    "default",
+                    &owned.path().join("absent.db"),
+                    &owned.path().join("absent-files"),
+                    owned.path(),
+                    "{}",
+                    &[],
+                )
+                .unwrap()
+                .is_none()
+            );
+        } else {
+            assert!(
+                SessionStore::migrate_legacy_desktop(
+                    &profile,
+                    "default",
+                    &owned.path().join("absent-source"),
+                )
+                .unwrap()
+                .is_none()
+            );
+        }
+        assert_eq!(fs::read(&database).unwrap(), before);
+        let store = SessionStore::open(&profile, "default", &[]).unwrap();
+        assert_eq!(identities(&store.connection), original);
+        assert_eq!(
+            store
+                .connection
+                .pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
+                .unwrap(),
+            SCHEMA_VERSION,
+        );
+    }
+}
+
+#[test]
+fn both_startup_adapters_refuse_retired_future_and_unversioned_data_unchanged() {
+    for android in [false, true] {
+        for version in [0, BASELINE_SCHEMA_VERSION - 1, SCHEMA_VERSION + 1] {
+            let owned = tempfile::tempdir().unwrap();
+            let profile = owned.path().join("profile");
+            fs::create_dir(&profile).unwrap();
+            let database = profile.join(DATABASE_FILENAME);
+            let connection = Connection::open(&database).unwrap();
+            connection
+                .execute_batch(
+                    "CREATE TABLE retained(value TEXT); INSERT INTO retained VALUES ('keep');",
+                )
+                .unwrap();
+            connection
+                .pragma_update(None, "user_version", version)
+                .unwrap();
+            drop(connection);
+            let before = fs::read(&database).unwrap();
+            let result = if android {
+                SessionStore::migrate_legacy_android(
+                    &profile,
+                    "default",
+                    &owned.path().join("absent.db"),
+                    &owned.path().join("files"),
+                    owned.path(),
+                    "{}",
+                    &[],
+                )
+                .map(|_| ())
+            } else {
+                SessionStore::migrate_legacy_desktop(
+                    &profile,
+                    "default",
+                    &owned.path().join("source"),
+                )
+                .map(|_| ())
+            };
+            match version {
+                0 => assert!(matches!(result, Err(StoreError::UnsafeProfileFile { .. }))),
+                version if version < BASELINE_SCHEMA_VERSION => {
+                    assert!(matches!(result, Err(StoreError::RetiredSchema { .. })))
+                }
+                _ => assert!(matches!(result, Err(StoreError::UnsupportedSchema { .. }))),
+            }
+            assert_eq!(fs::read(&database).unwrap(), before);
+        }
+    }
+}
+
+#[test]
+fn legacy_source_validation_precedes_forward_migration_of_released_destination() {
+    let fixture = Fixture::cohort("linux");
+    fs::create_dir(&fixture.destination).unwrap();
+    let database = fixture.destination.join(DATABASE_FILENAME);
+    fs::copy(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/catalog/v26.sqlite"),
+        &database,
+    )
+    .unwrap();
+    let before = fs::read(&database).unwrap();
+    let discovery = fixture.source.join("rpc-info.json");
+    let valid = fs::read(&discovery).unwrap();
+    fs::write(&discovery, b"{").unwrap();
+    assert!(
+        SessionStore::migrate_legacy_desktop(&fixture.destination, "default", &fixture.source,)
+            .is_err()
+    );
+    assert_eq!(fs::read(&database).unwrap(), before);
+    assert!(
+        !fixture
+            .destination
+            .join("session.db.pre-migration")
+            .exists()
+    );
+    fs::write(discovery, valid).unwrap();
+    let report =
+        SessionStore::migrate_legacy_desktop(&fixture.destination, "default", &fixture.source)
+            .unwrap()
+            .unwrap();
+    assert!(report.imported > 0);
+    let store = fixture.open();
+    assert_eq!(
+        store
+            .connection
+            .pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
+            .unwrap(),
+        SCHEMA_VERSION,
+    );
+    assert!(
+        store
+            .connection
+            .query_row("SELECT count(*) FROM torrents", [], |row| row
+                .get::<_, i64>(0))
+            .unwrap()
+            > 7
+    );
 }

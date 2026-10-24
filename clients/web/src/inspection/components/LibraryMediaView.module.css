@@ -1,0 +1,442 @@
+.library {
+  display: grid;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  background: var(--surface-primary);
+}
+
+.heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--ui-space-md);
+  border-bottom: 1px solid var(--border-soft);
+  padding: var(--ui-space-md) var(--ui-space-lg);
+}
+
+.title {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.title h1,
+.title p {
+  margin: 0;
+}
+
+.title h1 {
+  overflow: hidden;
+  font-size: var(--ui-font-display);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title p {
+  margin-top: 0.2rem;
+  color: var(--text-muted);
+  font-size: var(--ui-font-small);
+}
+
+.back,
+.toggle,
+.pager button {
+  display: inline-flex;
+  height: var(--ui-control-height);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--ui-space-xs);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 0 var(--ui-space-md);
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  font: inherit;
+  font-size: var(--ui-font-small);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.back svg {
+  width: var(--ui-icon-size);
+  height: var(--ui-icon-size);
+}
+
+.back:hover,
+.toggle:hover,
+.pager button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.toolbar {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ui-space-sm);
+  border-bottom: 1px solid var(--border-soft);
+  padding: var(--ui-space-sm) var(--ui-space-lg);
+}
+
+.search {
+  height: var(--ui-control-height);
+  min-width: 12rem;
+  flex: 1 1 16rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 0 var(--ui-space-md);
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  font: inherit;
+  font-size: var(--ui-font-small);
+}
+
+.sort,
+.archived {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ui-space-xs);
+  color: var(--text-muted);
+  font-size: var(--ui-font-small);
+}
+
+.sort select {
+  height: var(--ui-control-height);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 0 var(--ui-space-sm);
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  font: inherit;
+}
+
+.viewport {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--ui-space-lg);
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* A page answering the previous search stays until the new one arrives. */
+.viewport[data-stale="true"] {
+  opacity: 0.6;
+}
+
+/* The list is a torrent-style table that scrolls by itself. */
+.viewport[data-layout="list"] {
+  display: grid;
+  overflow: hidden;
+  padding: 0;
+}
+
+.tableWrap {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+}
+
+.toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.grid {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: var(--ui-space-md);
+  list-style: none;
+}
+
+.card {
+  min-width: 0;
+}
+
+.card > button,
+.itemCard {
+  display: grid;
+  width: 100%;
+  height: 15rem;
+  min-width: 0;
+  overflow: hidden;
+  grid-template-rows: minmax(0, 1fr) auto;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 0;
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  font: inherit;
+  text-align: left;
+}
+
+.card > button {
+  cursor: pointer;
+}
+
+.card > button:hover,
+.itemCard:hover {
+  border-color: var(--border-strong);
+}
+
+.card button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The box fills with water as verified data arrives, as on torrent cards. */
+.art {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  overflow: hidden;
+  place-items: start;
+  border-bottom: 1px solid var(--border-soft);
+  padding: var(--ui-space-sm) var(--ui-space-md);
+  color: var(--clay-strong);
+  background: var(--clay-soft);
+  font-size: var(--ui-font-small);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.04em;
+}
+
+.art::before {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--water-level, 0%);
+  border-top: 2px solid var(--water);
+  background: var(--water-soft);
+  content: "";
+  transition: height 400ms ease;
+}
+
+.art[data-full="true"]::before {
+  border-top-color: transparent;
+}
+
+.art[data-full="true"] {
+  color: var(--accent-strong);
+}
+
+.art > span {
+  position: relative;
+}
+
+/* The kind of media, faint behind the water until there is artwork. */
+.art > .kind {
+  position: absolute;
+  inset: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin: auto;
+  color: var(--clay-strong);
+  opacity: 0.55;
+}
+
+.art[data-full="true"] > .kind {
+  color: var(--accent-strong);
+}
+
+.art .play {
+  position: absolute;
+  right: var(--ui-space-sm);
+  bottom: var(--ui-space-sm);
+}
+
+.cardBody {
+  display: grid;
+  min-width: 0;
+  gap: 0.18rem;
+  border: 0;
+  padding: var(--ui-space-sm) var(--ui-space-md);
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cardBody strong,
+.cardBody span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardBody strong {
+  font-size: var(--ui-font-body);
+}
+
+.cardBody span {
+  color: var(--text-muted);
+  font-size: var(--ui-font-caption);
+}
+
+.play {
+  display: inline-grid;
+  width: var(--ui-control-height);
+  height: var(--ui-control-height);
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.play:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.play:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ui-font-small);
+}
+
+.table th {
+  border-bottom: 1px solid var(--border-strong);
+  padding: var(--ui-space-xs) var(--ui-space-sm);
+  color: var(--text-muted);
+  font-weight: var(--weight-medium);
+  text-align: left;
+}
+
+.table td {
+  max-width: 24rem;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-soft);
+  padding: var(--ui-space-xs) var(--ui-space-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table tr[data-archived="true"] td {
+  color: var(--text-muted);
+}
+
+.link {
+  overflow: hidden;
+  max-width: 100%;
+  border: 0;
+  padding: 0;
+  color: var(--accent-strong);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ui-space-sm);
+  border-top: 1px solid var(--border-soft);
+  padding: var(--ui-space-sm) var(--ui-space-lg);
+  color: var(--text-muted);
+  font-size: var(--ui-font-small);
+}
+
+.pager span {
+  margin-right: auto;
+}
+
+.pager button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.message {
+  display: grid;
+  min-height: 14rem;
+  place-content: center;
+  justify-items: center;
+  gap: 0.45rem;
+  padding: 2rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.message > svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.message strong {
+  color: var(--text-primary);
+  font-size: var(--ui-font-heading);
+}
+
+.message p {
+  max-width: 36rem;
+  margin: 0;
+  font-size: var(--ui-font-small);
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .heading,
+  .toolbar,
+  .pager {
+    padding-right: var(--ui-space-md);
+    padding-left: var(--ui-space-md);
+  }
+
+  .viewport {
+    padding: var(--ui-space-sm);
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+    gap: var(--ui-space-sm);
+  }
+
+  .card > button,
+  .itemCard {
+    height: 12rem;
+  }
+
+  .back span {
+    display: none;
+  }
+
+  .table th:nth-child(3),
+  .table td:nth-child(3),
+  .table th:nth-child(6),
+  .table td:nth-child(6) {
+    display: none;
+  }
+
+  /* Titles wrap so the size and status stay on screen. */
+  .table td {
+    white-space: normal;
+  }
+}

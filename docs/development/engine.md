@@ -37,7 +37,7 @@ visible. All non-padding files are selected unless a magnet supplies `so`.
 
 The output directory defaults to the current directory. A cooperative lock
 coordinates same-user `rstorrent-download` processes, not other torrent clients;
-do not let another client write the same content concurrently.
+do not let another torrent client write the same content concurrently.
 
 For persistent state, restart behavior or completed seeding, use the controlled
 application scenarios or the [headless service](headless.md).

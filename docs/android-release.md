@@ -4,7 +4,9 @@ Android release targets the existing JSTorrent `com.jstorrent.app` app,
 with `android-vX.Y.Z` tags. Tactical
 [330](tactical/330-android-1-0-31-production-release.md) records the October 13
 1.0.31/code 31 production review submission at 100%, with automatic publication
-after approval. Quick checks are running; public availability remains pending.
+after approval. Authenticated inspection on October 20 confirms 31 active in
+production across 178 countries, with last publication on October 13.
+Tactical [380](tactical/380-product-release.md) prepares 1.0.32/code 32.
 Tactical [326](tactical/326-full-product-release.md) records the October 13 local-date
 1.0.30/code 30 production submission and confirmed publication at 100% in all
 178 targeted countries. Play shows Available on Google Play, released October

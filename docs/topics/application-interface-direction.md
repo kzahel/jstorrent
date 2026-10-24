@@ -18,6 +18,12 @@ aggregation remain absent.
 Tactical [`223`](../tactical/223-remove-library-capability-notices.md)
 keeps those boundaries in product documentation while removing their
 implementation-status notices from the Library sidebar and empty state.
+Tactical [`363`](../tactical/363-library-media-index.md) replaces the
+torrent-backed cards with a cross-torrent Library of video and audio files on
+hosts that offer the `library_media` projection: All media, TV shows, Movies,
+Music and By torrent presets, search, availability, sort, archived scope,
+cards or list, and pages. Hosts without it keep the torrent cards.
+[`media-library`](media-library.md) owns its model and contract.
 
 ## Purpose And Scope
 
@@ -41,7 +47,7 @@ This topic owns the desktop/web product information architecture:
 responsive behavior, accessibility, rendering, and browser-local presentation
 state. [`desktop-inspection-surface.md`](desktop-inspection-surface.md) owns why
 detailed torrent observation is a product and maintainer requirement.
-[`client-surfaces.md`](client-surfaces.md) owns the browser and Tauri hosts and
+[`client-surfaces.md`](client-surfaces.md) owns the browser and Tauri shells and
 their platform lifecycle.
 
 ## Previous Three-Destination Shape
@@ -226,8 +232,12 @@ the return-to-list control available at every width where Workbench detail
 replaces the torrent list.
 
 This direction applies to the shared desktop/browser presentation. It does not
-require the Android Compose client to adopt the same primary navigation,
-Library cards, or Workbench density.
+require the Android Compose client to adopt the same Library cards or
+Workbench density. Tactical
+[376](../tactical/376-android-media-library.md) adopts the same two primary
+destinations on Android, ordered Torrents then Library: a navigation bar at compact
+widths and a rail from 600 dp, hidden while torrent selection owns the bottom
+bar. Global screens stay in the overflow menu; Android has no drawer.
 
 ## Local Mockup Record
 
@@ -280,8 +290,8 @@ commit accidentally.
 
 ## Open Decisions
 
-- The durable Media Library relationship between rebuildable torrent/file
-  classifications, playable items, and user organization.
+- User organization of the Library (overrides, saved views, watched state);
+  [`media-library`](media-library.md) records where it would live.
 - Metadata, artwork, watched-state, privacy, cache, and offline behavior.
 - Playback application choice and the eventual verified-range data plane.
 - Whether Library includes incomplete but not-yet-playable media, and how that
@@ -298,10 +308,10 @@ commit accidentally.
 ## Recommended Next Work
 
 Use the implemented shell and torrent detail for product discussion before
-opening another interface tactical. The next bounded slice should choose one
-actual user need: Library-wide derived-item aggregation, playback presentation
-over the existing verified-range data plane, thumbnail generation/cache
-ownership, or richer durable content identity. Each remains an independent
+opening another interface tactical. Library-wide aggregation is implemented by
+Tactical `363`; the next bounded slice should choose one actual user need:
+playback presentation over the existing verified-range data plane,
+thumbnail generation/cache ownership, or richer durable content identity. Each remains an independent
 source- and edge-case-driven tactical because it introduces storage,
 persistence, metadata, privacy, or platform-lifecycle questions beyond this
 read-only detail.

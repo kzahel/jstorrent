@@ -9,17 +9,12 @@
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
 
-/remote/*
-  ! Content-Security-Policy
-  ! Permissions-Policy
-  ! Referrer-Policy
-  Cache-Control: no-store
-  Content-Security-Policy: default-src 'none'; base-uri 'none'; connect-src 'self' wss://relay.rstorrent.com; font-src 'self'; form-action 'none'; frame-ancestors 'none'; img-src 'self' data:; manifest-src 'none'; media-src blob:; object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; worker-src 'none'
-  Cross-Origin-Resource-Policy: same-origin
-  Permissions-Policy: accelerometer=(), autoplay=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
-  Referrer-Policy: no-referrer
-  X-Robots-Tag: noindex
-
+# Frozen compatibility chunks for already-open pre-cutover controllers.
 /remote/assets/*
-  ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
+  Cross-Origin-Resource-Policy: same-origin
+
+/remote
+  Cache-Control: no-store
+/remote/
+  Cache-Control: no-store

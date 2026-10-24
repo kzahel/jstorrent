@@ -286,6 +286,7 @@ class AndroidNotificationPolicyTest {
         error: String? = null,
     ): TorrentView =
         TorrentView(
+            safetySummary = null,
             torrentId = id,
             protocolIdentities = TorrentProtocolIdentities(v1 = null, v2 = null),
             displayName = displayName,

@@ -51,19 +51,7 @@ impl SessionStore {
         {
             regular_file(&database)?;
             let read = Connection::open_with_flags(&database, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-            let version: i64 = read.pragma_query_value(None, "user_version", |row| row.get(0))?;
-            existing = version == SCHEMA_VERSION;
-            let empty: bool = read.query_row(
-                "SELECT NOT EXISTS(SELECT 1 FROM sqlite_master)",
-                [],
-                |row| row.get(0),
-            )?;
-            if !existing && !(version == 0 && empty) {
-                return Err(StoreError::UnsupportedSchema {
-                    actual: version,
-                    maximum: SCHEMA_VERSION,
-                });
-            }
+            existing = destination_catalog_exists(&read)?;
             if let Some(bootstrap) = android_bootstrap(&read)? {
                 return Ok(Some(bootstrap));
             }

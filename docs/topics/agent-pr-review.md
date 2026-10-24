@@ -109,6 +109,11 @@ to head `cfc582203ac0baecedf4cfc9d082dd2281864e65`.
 This initial sample qualifies real inference, hosted OIDC enrollment, container
 execution and commit-bound publication. Its normal CI was cancelled to keep
 qualification bounded; this is not full platform/build evidence.
+The temporary sample PR was retired without merging on 2026-10-24. Its
+[review](https://github.com/kzahel/jstorrent/pull/25#pullrequestreview-5483172476)
+and [inline finding](https://github.com/kzahel/jstorrent/pull/25#discussion_r4241441872)
+retain the qualification evidence; the deliberately failing fixture stays out
+of the product.
 
 After [PR 26](https://github.com/kzahel/jstorrent/pull/26) passed full
 qualification and merged, automatic review/cache activation was enabled.

@@ -10,9 +10,10 @@ use axum::response::{IntoResponse, Response};
 use futures_util::{SinkExt, StreamExt};
 use rstorrent_session::{
     API_VERSION, AcknowledgedViewStream, AcknowledgedViewStreamError, AddTorrentBytesRequest,
-    ApiEncoding, ApiHello, ApplicationCall, ApplicationCallError, ApplicationCallResult,
-    ApplicationService, Command, DeliveryMode, UpdateBatch, ViewSetError, ViewSetOwner,
-    application_error_response, validate_add_torrent_bytes_request,
+    ApiClientInfo, ApiEncoding, ApiHello, ApplicationCall, ApplicationCallError,
+    ApplicationCallResult, ApplicationService, Command, DeliveryMode, UpdateBatch, ViewSetError,
+    ViewSetOwner, application_error_response, deserialize_client_info,
+    validate_add_torrent_bytes_request,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -71,6 +72,20 @@ pub struct ApplicationFrameMetrics {
     pub bytes: u64,
 }
 
+/// Distinct client identities counted before the rest share one bucket.
+const MAX_CLIENT_IDENTITIES: usize = 32;
+const UNIDENTIFIED_CLIENT: &str = "unidentified";
+const OTHER_CLIENTS: &str = "other";
+
+/// Connections and refused calls from one client kind and version.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+pub struct ClientIdentityMetrics {
+    pub connections: u64,
+    /// Calls refused with `UNSUPPORTED_CALL_MESSAGE`: requests this host
+    /// predates.
+    pub unsupported_calls: u64,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct ApplicationConnectionMetricsSnapshot {
     pub accepted_connections: u64,
@@ -100,6 +115,9 @@ pub struct ApplicationConnectionMetricsSnapshot {
     pub pings: u64,
     pub pongs: u64,
     pub heartbeat_timeouts: u64,
+    /// Keyed by `kind version`, `unidentified` for clients that report no
+    /// identity, and `other` once `MAX_CLIENT_IDENTITIES` keys exist.
+    pub clients: BTreeMap<String, ClientIdentityMetrics>,
 }
 
 #[derive(Clone, Default)]
@@ -136,6 +154,7 @@ struct ApplicationConnectionMetricAtoms {
     pings: AtomicU64,
     pongs: AtomicU64,
     heartbeat_timeouts: AtomicU64,
+    clients: StdMutex<BTreeMap<String, ClientIdentityMetrics>>,
 }
 
 #[derive(Default)]
@@ -207,7 +226,39 @@ impl ApplicationConnectionMetrics {
             pings: self.inner.pings.load(Ordering::Relaxed),
             pongs: self.inner.pongs.load(Ordering::Relaxed),
             heartbeat_timeouts: self.inner.heartbeat_timeouts.load(Ordering::Relaxed),
+            clients: self
+                .inner
+                .clients
+                .lock()
+                .expect("client metrics lock poisoned")
+                .clone(),
         }
+    }
+
+    fn client_connected(&self, key: &str) {
+        self.update_client(key, |metrics| {
+            metrics.connections = metrics.connections.saturating_add(1);
+        });
+    }
+
+    fn unsupported_call(&self, key: &str) {
+        self.update_client(key, |metrics| {
+            metrics.unsupported_calls = metrics.unsupported_calls.saturating_add(1);
+        });
+    }
+
+    fn update_client(&self, key: &str, update: impl FnOnce(&mut ClientIdentityMetrics)) {
+        let mut clients = self
+            .inner
+            .clients
+            .lock()
+            .expect("client metrics lock poisoned");
+        let key = if clients.contains_key(key) || clients.len() < MAX_CLIENT_IDENTITIES {
+            key
+        } else {
+            OTHER_CLIENTS
+        };
+        update(clients.entry(key.to_owned()).or_default());
     }
 
     fn rejected_origin(&self) {
@@ -385,6 +436,15 @@ pub enum ApplicationClientFrame {
         client_instance_id: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         token: Option<String>,
+        /// The client's own product identity. Hosts released before it
+        /// ignore it; a malformed identity is dropped, never fatal.
+        #[serde(
+            default,
+            deserialize_with = "deserialize_client_info",
+            skip_serializing_if = "Option::is_none"
+        )]
+        #[schemars(with = "Option<ApiClientInfo>")]
+        client: Option<ApiClientInfo>,
     },
     Call {
         call_id: String,
@@ -748,6 +808,7 @@ async fn serve_application_connection(
             encoding,
             client_instance_id,
             token,
+            client,
         },
         connect_bytes,
     )) = connected
@@ -769,9 +830,11 @@ async fn serve_application_connection(
             encoding,
             client_instance_id: client_instance_id.clone(),
             token: None,
+            client: None,
         },
         connect_bytes,
     );
+    let client_key = client_metrics_key(client.as_ref());
     if api_version != API_VERSION || encoding != ApiEncoding::Json {
         state.connection_metrics.rejected_handshake();
         fatal_connection(
@@ -819,6 +882,11 @@ async fn serve_application_connection(
         state.http_owner_namespace
     );
     let owner = ViewSetOwner::trusted(owner_key.clone());
+    state
+        .service
+        .lock()
+        .await
+        .host_update_client_connected(&owner);
     let connection_generation = state.connection_registry.generation();
     let takeover = state
         .connection_registry
@@ -832,6 +900,7 @@ async fn serve_application_connection(
     state
         .connection_metrics
         .accepted(takeover, handshake_started.elapsed());
+    state.connection_metrics.client_connected(&client_key);
     let mut hello = {
         let service = state.service.lock().await;
         application_hello(&service)
@@ -844,7 +913,7 @@ async fn serve_application_connection(
     {
         hello
             .capabilities
-            .retain(|capability| capability != "torrent_media");
+            .retain(|capability| capability != "torrent_media" && capability != "library_media");
     }
     if send_control(
         &control,
@@ -1002,6 +1071,18 @@ async fn serve_application_connection(
                     Message::Text(text) if text.len() <= MAX_INCOMING_MESSAGE_BYTES => {
                         let parsed = serde_json::from_str::<ApplicationClientFrame>(&text);
                         let Ok(frame) = parsed else {
+                            if let Some(call_id) = unsupported_call_id(&text)
+                                .filter(|call_id| !pending_contains(&pending_ids, call_id))
+                            {
+                                state.connection_metrics.unsupported_call(&client_key);
+                                send_call_error(
+                                    &control,
+                                    call_id,
+                                    ApplicationConnectionErrorCode::InvalidCall,
+                                    UNSUPPORTED_CALL_MESSAGE,
+                                ).await;
+                                continue;
+                            }
                             invalid_messages = invalid_messages.saturating_add(1);
                             if invalid_messages >= MAX_INVALID_MESSAGES {
                                 fatal_connection(
@@ -2023,6 +2104,39 @@ fn insert_pending(pending: &StdMutex<BTreeSet<String>>, call_id: &str) -> bool {
     true
 }
 
+fn pending_contains(pending: &StdMutex<BTreeSet<String>>, call_id: &str) -> bool {
+    pending
+        .lock()
+        .expect("pending call lock poisoned")
+        .contains(call_id)
+}
+
+fn client_metrics_key(client: Option<&ApiClientInfo>) -> String {
+    client.map_or_else(
+        || UNIDENTIFIED_CLIENT.to_owned(),
+        |client| format!("{} {}", client.kind, client.version),
+    )
+}
+
+/// Sent for a call this host cannot parse, typically a command or settings
+/// key from a newer client. See docs/topics/mixed-version-compatibility.md.
+pub const UNSUPPORTED_CALL_MESSAGE: &str =
+    "this JSTorrent version does not support this request; update it to use this feature";
+
+/// The call an unparseable frame belongs to. A newer client may send a
+/// command, settings key or frame this host predates; answering that call
+/// keeps the connection, where a protocol error would close it. Frames
+/// without a well-formed call ID, and `connect`, remain protocol errors.
+pub fn unsupported_call_id(text: &str) -> Option<String> {
+    let value = serde_json::from_str::<serde_json::Value>(text).ok()?;
+    let frame = value.as_object()?;
+    if frame.get("type")?.as_str()? == "connect" {
+        return None;
+    }
+    let call_id = frame.get("call_id")?.as_str()?;
+    valid_identifier(call_id).then(|| call_id.to_owned())
+}
+
 fn remove_pending(pending: &StdMutex<BTreeSet<String>>, call_id: &str) {
     pending
         .lock()
@@ -2072,7 +2186,9 @@ fn valid_application_call(call: &ApplicationCall) -> bool {
             torrent_id,
             file_index: _,
         } => valid_torrent_id(torrent_id),
-        ApplicationCall::Dispatch { .. } | ApplicationCall::OpenViewSet { .. } => true,
+        ApplicationCall::ProductUpdate { .. }
+        | ApplicationCall::Dispatch { .. }
+        | ApplicationCall::OpenViewSet { .. } => true,
     }
 }
 
@@ -2162,6 +2278,105 @@ fn acknowledged_stream_error(error: AcknowledgedViewStreamError) -> ApplicationC
 
 #[cfg(test)]
 mod tests {
+    use super::{ApiClientInfo, ApplicationConnectionMetrics};
+
+    fn connect_client(frame: &str) -> Option<ApiClientInfo> {
+        match serde_json::from_str::<ApplicationClientFrame>(frame).expect("connect parses") {
+            ApplicationClientFrame::Connect { client, .. } => client,
+            _ => panic!("not a connect frame"),
+        }
+    }
+
+    #[test]
+    fn connect_reads_a_client_identity_and_drops_a_malformed_one() {
+        let base = r#""type":"connect","api_version":1,"encoding":"json","client_instance_id":"00000000000000000000000000000001""#;
+        assert_eq!(connect_client(&format!("{{{base}}}")), None);
+        assert_eq!(
+            connect_client(&format!(
+                r#"{{{base},"client":{{"kind":"remote","version":"0.3.2","build_id":"abc","later":1}}}}"#
+            )),
+            Some(ApiClientInfo {
+                kind: "remote".into(),
+                version: "0.3.2".into(),
+                build_id: "abc".into(),
+            })
+        );
+        let long = "v".repeat(ApiClientInfo::MAX_VERSION_BYTES + 1);
+        for malformed in [
+            r#"null"#.to_owned(),
+            r#""remote""#.to_owned(),
+            r#"{"kind":"remote"}"#.to_owned(),
+            r#"{"kind":7,"version":"1","build_id":"b"}"#.to_owned(),
+            format!(r#"{{"kind":"remote","version":"{long}","build_id":"b"}}"#),
+            r#"{"kind":"re mote","version":"1","build_id":"b"}"#.to_owned(),
+            r#"{"kind":"","version":"1","build_id":"b"}"#.to_owned(),
+        ] {
+            assert_eq!(
+                connect_client(&format!(r#"{{{base},"client":{malformed}}}"#)),
+                None,
+                "{malformed}"
+            );
+        }
+    }
+
+    #[test]
+    fn connect_keeps_the_client_identity_when_forwarded() {
+        // The remote host bridge parses and re-serializes client frames.
+        let frame = r#"{"type":"connect","api_version":1,"encoding":"json","client_instance_id":"00000000000000000000000000000001","client":{"kind":"remote","version":"0.3.2","build_id":"abc"}}"#;
+        let parsed: ApplicationClientFrame = serde_json::from_str(frame).unwrap();
+        let forwarded = serde_json::to_string(&parsed).unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&forwarded).unwrap()["client"]["kind"],
+            "remote"
+        );
+    }
+
+    #[test]
+    fn client_metrics_bound_distinct_identities() {
+        let metrics = ApplicationConnectionMetrics::default();
+        for index in 0..40 {
+            metrics.client_connected(&format!("extension 1.1.{index}"));
+        }
+        metrics.unsupported_call("extension 1.1.0");
+        metrics.unsupported_call("extension 9.9.9");
+        let clients = metrics.snapshot().clients;
+        assert_eq!(clients.len(), super::MAX_CLIENT_IDENTITIES + 1);
+        assert_eq!(clients["other"].connections, 8);
+        assert_eq!(clients["other"].unsupported_calls, 1);
+        assert_eq!(clients["extension 1.1.0"].unsupported_calls, 1);
+    }
+
+    #[test]
+    fn only_a_well_formed_call_id_makes_a_call_unsupported() {
+        assert_eq!(
+            super::unsupported_call_id(
+                r#"{"type":"call","call_id":"c-1","operation":{"type":"future"}}"#
+            ),
+            Some("c-1".to_owned())
+        );
+        assert_eq!(
+            super::unsupported_call_id(r#"{"type":"future_frame","call_id":"c.2"}"#),
+            Some("c.2".to_owned())
+        );
+        for frame in [
+            r#"{}"#,
+            r#"not json"#,
+            r#"[]"#,
+            r#"{"type":"call","operation":{}}"#,
+            r#"{"type":"call","call_id":""}"#,
+            r#"{"type":"call","call_id":"has space"}"#,
+            r#"{"type":"call","call_id":7}"#,
+            r#"{"type":"connect","call_id":"c-3"}"#,
+            r#"{"call_id":"c-4"}"#,
+        ] {
+            assert_eq!(super::unsupported_call_id(frame), None, "{frame}");
+        }
+        let long = "a".repeat(super::MAX_IDENTIFIER_BYTES + 1);
+        assert_eq!(
+            super::unsupported_call_id(&format!(r#"{{"type":"call","call_id":"{long}"}}"#)),
+            None
+        );
+    }
     use super::{
         ApplicationClientFrame, ApplicationConnectionErrorCode, ApplicationConnectionRegistry,
         CLIENT_INSTANCE_ID_BYTES, MAX_PENDING_CALLS, insert_pending, valid_client_instance_id,

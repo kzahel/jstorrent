@@ -68,6 +68,7 @@ import org.rstorrent.bootstrap.uniffi.AndroidPlatformStorageRoot
 import org.rstorrent.bootstrap.uniffi.AndroidViewSubscription
 import org.rstorrent.bootstrap.uniffi.SafStorageFailureKind
 import org.rstorrent.bootstrap.uniffi.SafStorageOperation
+import org.rstorrent.bootstrap.uniffi.diagnoseCatalog
 import org.rstorrent.session.uniffi.Command
 import org.rstorrent.session.uniffi.CommandResult
 import org.rstorrent.session.uniffi.MagnetExportOptions
@@ -77,6 +78,7 @@ import org.rstorrent.session.uniffi.AddTorrentResult
 import org.rstorrent.session.uniffi.AddTorrentBytesRequest
 import org.rstorrent.session.uniffi.ActiveSeedLimit
 import org.rstorrent.session.uniffi.CatalogPageRequest
+import org.rstorrent.session.uniffi.CatalogRecoveryStatus
 import org.rstorrent.session.uniffi.ClientSettings
 import org.rstorrent.session.uniffi.ClientSettingsPatch
 import org.rstorrent.session.uniffi.ClientSettingsApplicationState
@@ -96,6 +98,8 @@ import org.rstorrent.session.uniffi.FileView
 import org.rstorrent.session.uniffi.HttpsServerAuthenticationPolicy
 import org.rstorrent.session.uniffi.ListenerPolicy
 import org.rstorrent.session.uniffi.ListenerStatus
+import org.rstorrent.session.uniffi.LibraryMediaItemView
+import org.rstorrent.session.uniffi.TorrentView
 import org.rstorrent.session.uniffi.MediaUrlOutcome
 import org.rstorrent.session.uniffi.PortMappingPolicy
 import org.rstorrent.session.uniffi.RequestEnvelope
@@ -150,6 +154,8 @@ class ProductEngineService : Service() {
     private val shutdownComplete = CompletableDeferred<Unit>()
     private val clientReady = CompletableDeferred<Unit>()
     private val presentationReady = CompletableDeferred<Unit>()
+    private val pendingSelectionPresentation = PendingSelectionPresentation(::withPresentation)
+    private val libraryPresentation = LatestPresentationRequest(::withPresentation)
     private val mutableState = MutableStateFlow(ProductState())
     val state: StateFlow<ProductState> = mutableState.asStateFlow()
 
@@ -415,11 +421,13 @@ class ProductEngineService : Service() {
                     presentationReady.completeExceptionally(error)
                 }
                 Log.e(TAG, "product service initialization failed", error)
+                val catalogRecovery = (error as? ProductCatalogOpenException)?.let(::diagnoseCatalogOpenFailure)
                 mutableState.update {
                     it.copy(
                         ready = false,
                         storageRootChecking = false,
                         error = ProductError.Technical(productFailureDetail(error, getString(R.string.error_operation_failed))),
+                        catalogRecovery = catalogRecovery,
                     )
                 }
                 notificationCoordinator.updateOngoingNotification(
@@ -480,6 +488,21 @@ class ProductEngineService : Service() {
         }
     }
 
+    /**
+     * Tactical 369: classifies a failed catalog open for the recovery screen.
+     * Reads only, and never throws: without a diagnosis the generic error
+     * remains.
+     */
+    private fun diagnoseCatalogOpenFailure(failure: ProductCatalogOpenException): CatalogRecoveryStatus? =
+        try {
+            diagnoseCatalog(failure.profile.absolutePath, failure.detail).also {
+                Log.i(TAG, "catalog_recovery reason=${it.reason.name} export=${it.exportAvailable}")
+            }
+        } catch (error: Throwable) {
+            Log.e(TAG, "catalog_recovery_diagnosis_failed", error)
+            null
+        }
+
     private suspend fun openProductApplication(
         safRegistry: ProductSafRootRegistryState,
         initialNetworkState: AndroidDefaultNetworkState,
@@ -494,27 +517,34 @@ class ProductEngineService : Service() {
         val profile = File(filesDir, ProductPrivateProfileReset.PROFILE_DIRECTORY)
         check(profile.mkdirs() || profile.isDirectory)
         val openedClient =
-            withTimeout(PRODUCT_LIFETIME_STARTUP_MILLIS) {
-                AndroidApplicationClient.open(
-                    AndroidApplicationConfig(
-                        File(noBackupFilesDir, PRODUCT_STATE_DIRECTORY).absolutePath,
-                        BuildConfig.VERSION_NAME,
-                        profile.absolutePath,
-                        "default",
-                        "",
-                        true,
-                        // A root without a grant stays in the engine catalog;
-                        // configuring it would let the engine make it current.
-                        safRegistry.roots
-                            .filter { ProductSafDocuments.hasGrant(this@ProductEngineService, Uri.parse(it.treeUri)) }
-                            .map { AndroidPlatformStorageRoot(it.rootId, it.label) },
-                        AndroidNetworkPolicy.ONLINE,
-                        desiredNetworkPrerequisite(initialNetworkState),
-                        15UL,
-                        60UL,
-                        packageName,
-                    ),
-                )
+            try {
+                withTimeout(PRODUCT_LIFETIME_STARTUP_MILLIS) {
+                    AndroidApplicationClient.open(
+                        AndroidApplicationConfig(
+                            File(noBackupFilesDir, PRODUCT_STATE_DIRECTORY).absolutePath,
+                            BuildConfig.VERSION_NAME,
+                            profile.absolutePath,
+                            "default",
+                            "",
+                            true,
+                            // A root without a grant stays in the engine catalog;
+                            // configuring it would let the engine make it current.
+                            safRegistry.roots
+                                .filter { ProductSafDocuments.hasGrant(this@ProductEngineService, Uri.parse(it.treeUri)) }
+                                .map { AndroidPlatformStorageRoot(it.rootId, it.label) },
+                            AndroidNetworkPolicy.ONLINE,
+                            desiredNetworkPrerequisite(initialNetworkState),
+                            15UL,
+                            60UL,
+                            packageName,
+                        ),
+                    )
+                }
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                // Tactical 369: the native open failed, typically on the
+                // torrent catalog; the outer handler classifies it.
+                throw ProductCatalogOpenException(profile, error)
             }
         startupCheckpoint("native_open")
         val productSummary = openedClient.productSummary()
@@ -1920,6 +1950,7 @@ class ProductEngineService : Service() {
                 dispatchAwait(
                     Command.UpdateClientSettings(
                         ClientSettings(
+                            fileSafety = org.rstorrent.session.uniffi.FileSafetySettings(true, org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, emptyList(), true),
                             listener = ListenerPolicy.Disabled,
                             preferredListenPort = 6_881U.toUShort(),
                             portMapping = PortMappingPolicy.DISABLED,
@@ -1987,6 +2018,7 @@ class ProductEngineService : Service() {
                 dispatchAwait(
                     Command.UpdateClientSettings(
                         ClientSettings(
+                            fileSafety = org.rstorrent.session.uniffi.FileSafetySettings(true, org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, emptyList(), true),
                             listener = ListenerPolicy.Disabled,
                             preferredListenPort = 6_881U.toUShort(),
                             portMapping = PortMappingPolicy.DISABLED,
@@ -3412,6 +3444,23 @@ class ProductEngineService : Service() {
         dispatch(Command.CancelPendingAdd(torrentId))
     }
 
+    fun setFileSafetyOverride(torrentId: String, files: List<UInt>, allowed: Boolean) {
+        if (files.isEmpty()) return
+        dispatchTorrentCommands(listOf(Command.SetFileSafetyOverride(torrentId, files, allowed)))
+    }
+
+    fun updateFileSafety(settings: org.rstorrent.session.uniffi.FileSafetySettings, expected: org.rstorrent.session.uniffi.FileSafetySettings) {
+        if (rejectMutationDuringDataReset()) return
+        scope.launch {
+            try {
+                clientReady.await()
+                val current = mutableState.value
+                check(current.clientSettings?.configured?.fileSafety == expected) { getString(R.string.safety_conflict) }
+                dispatchForResponse(Command.UpdateFileSafetySettings(settings), current.latestDurableRevision())
+            } catch (error: Throwable) { reportError(error) }
+        }
+    }
+
     fun setFilePriority(
         torrentId: String,
         fileIndices: List<UInt>,
@@ -3445,31 +3494,170 @@ class ProductEngineService : Service() {
         if (rejectMutationDuringDataReset()) return
         scope.launch(Dispatchers.IO) {
             try {
-                require(file.verifiedBytes == file.lengthBytes) { "File is not complete" }
-                val tree =
-                    ProductSafRootRegistry.treeForRoot(this@ProductEngineService, storageRoot)
-                        ?: error("Download folder is unavailable")
-                val path =
-                    if (file.path.firstOrNull() == torrentName) {
-                        file.path
-                    } else {
-                        listOf(torrentName) + file.path
-                    }
-                val document =
-                    ProductSafDocuments.contentDocument(this@ProductEngineService, tree, path)
-                        ?: error("Completed file is unavailable")
-                val mime = contentResolver.getType(document) ?: "application/octet-stream"
-                startActivity(
-                    Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(document, mime)
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    },
-                )
+                openCompletedDocument(storageRoot, torrentName, file, chooser = false)
             } catch (error: Throwable) {
                 reportError(error)
             }
         }
+    }
+
+    /** Library "Open with…": the system chooser for a complete file. */
+    fun openLibraryMedia(item: LibraryMediaItemView) {
+        if (rejectMutationDuringDataReset()) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                val torrent = libraryTorrent(item)
+                openCompletedDocument(
+                    torrent.storageRoot,
+                    libraryContentName(torrent),
+                    libraryFile(item),
+                    chooser = true,
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                reportError(error)
+            }
+        }
+    }
+
+    /** Opens the folder that holds a Library item in the system file manager. */
+    fun openLibraryFolder(item: LibraryMediaItemView) {
+        if (rejectMutationDuringDataReset()) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                val torrent = libraryTorrent(item)
+                val file = libraryFile(item)
+                val tree =
+                    ProductSafRootRegistry.treeForRoot(this@ProductEngineService, torrent.storageRoot)
+                        ?: error(getString(R.string.error_folder_unavailable))
+                val folder =
+                    ProductSafDocuments.containingFolder(
+                        this@ProductEngineService,
+                        tree,
+                        contentPath(libraryContentName(torrent), file),
+                    ) ?: error(getString(R.string.error_folder_unavailable))
+                withContext(Dispatchers.Main.immediate) { openFolderDocument(folder) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                reportError(error)
+            }
+        }
+    }
+
+    /** Library items exist only with metadata, which names the torrent's content. */
+    private fun libraryContentName(torrent: TorrentView): String =
+        torrent.displayName ?: error(getString(R.string.error_file_unavailable))
+
+    private fun libraryTorrent(item: LibraryMediaItemView): TorrentView =
+        mutableState.value.torrents[item.torrentId]
+            ?: error(getString(R.string.torrent_unavailable))
+
+    /**
+     * Library rows carry no path, so read the one catalog page that holds the
+     * item. Catalog rows are in file-index order, padding included.
+     */
+    private suspend fun libraryFile(item: LibraryMediaItemView): FileView {
+        clientReady.await()
+        val pageSize = FILE_CATALOG_PAGE_ROWS
+        val subscription =
+            client.subscribe(
+                SubscriptionSpec(
+                    ViewSelector.Torrent(item.torrentId),
+                    ViewProjection.FILES,
+                    DeliveryPolicy(0U, 512U * 1024U),
+                    null,
+                    CatalogPageRequest(item.fileIndex / pageSize * pageSize, pageSize),
+                ),
+            )
+        try {
+            return withTimeout(10_000) {
+                var files: ViewSnapshot.Files? = null
+                while (files == null) {
+                    val update = subscription.nextUpdate() ?: error("file view closed")
+                    when (val payload = update.payload) {
+                        is ViewUpdatePayload.Snapshot -> files = payload.snapshot as? ViewSnapshot.Files
+                        is ViewUpdatePayload.ResetRequired -> subscription.resync()
+                        is ViewUpdatePayload.Patch -> Unit
+                    }
+                }
+                files.files.firstOrNull { it.fileIndex == item.fileIndex }
+                    ?: error(getString(R.string.error_file_unavailable))
+            }
+        } finally {
+            subscription.close()
+        }
+    }
+
+    private fun contentPath(
+        torrentName: String,
+        file: FileView,
+    ): List<String> =
+        if (file.path.firstOrNull() == torrentName) {
+            file.path
+        } else {
+            listOf(torrentName) + file.path
+        }
+
+    private suspend fun openCompletedDocument(
+        storageRoot: String,
+        torrentName: String,
+        file: FileView,
+        chooser: Boolean,
+    ) {
+        require(file.verifiedBytes == file.lengthBytes) { "File is not complete" }
+        val tree =
+            ProductSafRootRegistry.treeForRoot(this, storageRoot)
+                ?: error("Download folder is unavailable")
+        val document =
+            ProductSafDocuments.contentDocument(this, tree, contentPath(torrentName, file))
+                ?: error("Completed file is unavailable")
+        val mime = contentResolver.getType(document) ?: "application/octet-stream"
+        val view =
+            Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(document, mime)
+                clipData = ClipData.newRawUri(null, document)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        withContext(Dispatchers.Main.immediate) {
+            startActivity(
+                if (chooser) {
+                    Intent.createChooser(view, getString(R.string.action_open_with))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                } else {
+                    view
+                },
+            )
+        }
+    }
+
+    /**
+     * Android has no single "show folder" intent. The system file manager
+     * views a directory document; Google Files and then any viewer are the
+     * fallbacks, as in the original JSTorrent app.
+     */
+    private fun openFolderDocument(folder: Uri) {
+        val attempts =
+            listOf(
+                Intent(Intent.ACTION_VIEW).setDataAndType(
+                    folder,
+                    DocumentsContract.Document.MIME_TYPE_DIR,
+                ),
+                Intent(Intent.ACTION_VIEW, folder).setPackage("com.google.android.apps.nbu.files"),
+                Intent(Intent.ACTION_VIEW, folder),
+            )
+        for (attempt in attempts) {
+            attempt.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            try {
+                startActivity(attempt)
+                return
+            } catch (_: android.content.ActivityNotFoundException) {
+                continue
+            }
+        }
+        error(getString(R.string.error_folder_viewer_unavailable))
     }
 
     fun playMedia(
@@ -3488,6 +3676,17 @@ class ProductEngineService : Service() {
             file.fileIndex,
             file.path.lastOrNull() ?: getString(R.string.media_fallback_title),
         )
+    }
+
+    fun playLibraryMedia(item: LibraryMediaItemView) {
+        if (rejectMutationDuringDataReset()) return
+        if (!AndroidMediaPlaybackPolicy.isLibraryPlayActionEnabled(item, launchPending = false)) {
+            mutableState.update {
+                it.copy(error = ProductError.MediaUnavailable(item.mediaAvailability))
+            }
+            return
+        }
+        startMediaPlayback(item.torrentId, item.fileIndex, item.title)
     }
 
     private fun startMediaPlayback(
@@ -4574,11 +4773,11 @@ class ProductEngineService : Service() {
         torrentId: String,
         offset: UInt,
     ) {
-        withPresentation { it.presentPendingFileSelection(torrentId, offset) }
+        pendingSelectionPresentation.present(torrentId, offset)
     }
 
     fun clearPendingFileSelection() {
-        withPresentation(AndroidPresentationRepository::clearPendingFileSelection)
+        pendingSelectionPresentation.clear()
     }
 
     fun presentGlobal(
@@ -4586,6 +4785,10 @@ class ProductEngineService : Service() {
         speedRange: SpeedRange = SpeedRange.MINUTES2,
     ) {
         withPresentation { it.presentGlobal(presentation, speedRange) }
+    }
+
+    fun presentLibrary(request: LibraryMediaRequest?) {
+        libraryPresentation.submit { it.presentLibrary(request) }
     }
 
     fun configureDiagnostics(

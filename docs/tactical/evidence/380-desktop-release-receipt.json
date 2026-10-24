@@ -1,0 +1,1415 @@
+{
+  "schema": 1,
+  "surface": "desktop",
+  "version": "0.3.4",
+  "source": "ecd65fe4e0fd274a3fc0538245334c528375a321",
+  "tag": "desktop-v0.3.4",
+  "firstPublic": "2026-10-22",
+  "verifiedAt": "2026-10-22T17:39:05.511450+00:00",
+  "minimumExtension": "1.1.5",
+  "qualification": {
+    "fullSourceCi": {
+      "run": 39803878465,
+      "conclusion": "success",
+      "url": "https://github.com/kzahel/jstorrent/actions/runs/39803878465"
+    },
+    "fastSourceCi": {
+      "run": 39803878513,
+      "conclusion": "success"
+    },
+    "signedBuildWorkflow": {
+      "run": 39811129985,
+      "url": "https://github.com/kzahel/jstorrent/actions/runs/39811129985",
+      "conclusion": "failure",
+      "successfulNativeTargets": [
+        "macOS arm64",
+        "macOS x86_64",
+        "Windows x86_64",
+        "Linux x86_64",
+        "Linux aarch64"
+      ],
+      "collectorFailure": "Missing reviewed corresponding-source inventory; draft remained private."
+    },
+    "sourceOnlyRecovery": {
+      "toolingCommit": "9bc0b3efa249fdbdedb4a8f4ff0e347982f2a890",
+      "allFourteenNativeAndSignatureAssetsMatchedSameRunAssembly": true,
+      "originalCiSignedMetadataRetained": true,
+      "completePrivateDraftValidatorsPassed": true,
+      "sourceHelperTestsPassed": 13,
+      "runtimeReview": {
+        "officialReleaseId": 417724209,
+        "upstreamBuild": "https://github.com/AppImage/type2-runtime/actions/runs/39320578745",
+        "sourceCommit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+        "priorSourceCommit": "8f39b89e2ac31e1640b3d3f7e9a5108e6ce805fa",
+        "sourceDiff": {
+          "ahead_by": 1,
+          "commits": [
+            {
+              "message": "Make dependency builds independent of the temporary directory path\n\nlibfuse is built with debug info, so the random mktemp path ends up in\nlibfuse3.a and, through static linking, in the runtime's debug info,\nbuild ID and .gnu_debuglink CRC. Two builds of the same build\nenvironment therefore yield different runtime binaries.\n\nMap the path to a fixed one using -ffile-prefix-map. With this change,\nseparate builds produce bit-identical runtime and .debug files (tested\nfor x86_64 and i686).\n\nRefs #133",
+              "sha": "fedfad51acc2860b2916a1eef32ba4a500ff31ef"
+            }
+          ],
+          "files": [
+            {
+              "filename": "scripts/common/install-dependencies.sh",
+              "patch": "@@ -18,20 +18,23 @@ this_dir=\"$(readlink -f \"$(dirname \"${BASH_SOURCE[0]}\")\")\"\n \n cd \"$tmpdir\"\n \n+# keep the random tmpdir path out of the debug info, it would end up in the runtime's build ID\n+prefix_map_flags=\"-ffile-prefix-map=$tmpdir=.\"\n+\n wget https://github.com/libfuse/libfuse/releases/download/fuse-3.15.0/fuse-3.15.0.tar.xz\n echo \"70589cfd5e1cff7ccd6ac91c86c01be340b227285c5e200baa284e401eea2ca0  fuse-3.15.0.tar.xz\" | sha256sum -c -\n tar xf fuse-3.*.tar.xz\n pushd fuse-3*/\n patch -p1 < \"$this_dir\"/../../patches/libfuse/mount.c.diff\n mkdir build\n cd build\n-meson setup --prefix=/usr ..\n+CFLAGS=\"$prefix_map_flags\" meson setup --prefix=/usr ..\n meson configure --default-library static\n ninja -v install\n popd\n \n # Minimize binary size\n-export CFLAGS=\"-ffunction-sections -fdata-sections -Os\"\n+export CFLAGS=\"-ffunction-sections -fdata-sections -Os $prefix_map_flags\"\n \n wget \"https://github.com/vasi/squashfuse/archive/0.5.2.tar.gz\"\n echo \"db0238c5981dabbd80ee09ae15387f390091668ca060a7bc38047912491443d3  0.5.2.tar.gz\" | sha256sum -c -",
+              "status": "modified"
+            }
+          ],
+          "status": "ahead"
+        },
+        "officialBinaryPrefixesMatchExceptNamed16BytePayloadDigest": true
+      }
+    },
+    "macPackages": [
+      {
+        "architecture": "arm64",
+        "asset": "JSTorrent_aarch64.app.tar.gz",
+        "deepStrictCodeSignatureVerified": true,
+        "nativeHostHelloPassed": true,
+        "nativeHostSha256": "970489d7821d63144a220cd97c0a0c2a7d0dcded01230d259a18fc6ae34d4662",
+        "execution": "native Apple Silicon",
+        "productApplicationLaunched": false
+      },
+      {
+        "architecture": "x86_64",
+        "asset": "JSTorrent_x64.app.tar.gz",
+        "deepStrictCodeSignatureVerified": true,
+        "nativeHostHelloPassed": true,
+        "nativeHostSha256": "f8ac38d4c5b5a5fe1f1690075fc93281eee9a3338b74c9ecd390ef62c42dbb1b",
+        "execution": "Rosetta on Apple Silicon",
+        "productApplicationLaunched": false
+      }
+    ],
+    "priorReleasedDatabaseHistory": {
+      "source": "ecd65fe4e0fd274a3fc0538245334c528375a321",
+      "priorReleases": [
+        {
+          "tag": "desktop-latest-v0.3.2",
+          "manifestSha256": "d1faf67db7b57ef9d5517baae4a5e3a15ca15d5e6d5b8f031dee70b21ade9f7a",
+          "signedDatabaseFactsVerified": true,
+          "releasedMigrationPrefixesPreserved": true
+        },
+        {
+          "tag": "desktop-latest-v0.3.3",
+          "manifestSha256": "03e0d7923332d4fac60ac6dc19d444782e4b0a973bddcafc541b4da3a034bc5f",
+          "signedDatabaseFactsVerified": true,
+          "releasedMigrationPrefixesPreserved": true
+        }
+      ]
+    },
+    "web": {
+      "typecheck": "passed",
+      "testsPassed": 886,
+      "testsSkipped": 3,
+      "testFilesPassed": 108,
+      "testFilesSkipped": 3
+    },
+    "compatibilityLedgerDeliveries": 15,
+    "databaseHistoryCheck": "passed"
+  },
+  "sourceCarrier": {
+    "schemaVersion": 2,
+    "sourceSha": "ecd65fe4e0fd274a3fc0538245334c528375a321",
+    "version": "0.3.4",
+    "prior": {
+      "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.1/JSTorrent_0.3.1_AppImage-sources-final.tar.gz",
+      "sha256": "3c24ec87f3bb5532b425467c06a849610bef2eff9f34161a08db3dfd2a3953cb",
+      "bytes": 925938523
+    },
+    "packagerSha256": "68bbe931810f0f80f0d125ac80c94bb9161a07041e61016fd787ee6c08c75f0e",
+    "inputPinsSha256": "39d9c0b08cdfb9dabb6c51c6ca0eba82b31b3189963990de18f2ac7e9096ba02",
+    "artifacts": [
+      {
+        "name": "JSTorrent_0.3.4_amd64.AppImage",
+        "sha256": "c7e3a7c4ce18206c89259148e7ff2cea5cd53cbb51daa2a75ac2ce2b4901514e",
+        "bytes": 102296056,
+        "runtime": {
+          "runtimeBytes": 944632,
+          "payloadDigestFieldOffset": 932096,
+          "excludedBytes": 16,
+          "normalizedRuntimeSha256": "617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46",
+          "sourceCommit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef"
+        }
+      },
+      {
+        "name": "JSTorrent_0.3.4_aarch64.AppImage",
+        "sha256": "26f52b05e2c67495b44e96fa4bcda072f1f70ba60e586f6299161a837ee71ee6",
+        "bytes": 100444680,
+        "runtime": {
+          "runtimeBytes": 936456,
+          "payloadDigestFieldOffset": 923920,
+          "excludedBytes": 16,
+          "normalizedRuntimeSha256": "9a72a744d221576c9347ec074243acc5c3c7568896b12714e0e82e9f0bf47900",
+          "sourceCommit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef"
+        }
+      }
+    ],
+    "newWebSources": [
+      {
+        "package": "@vitejs/plugin-react@6.1.2",
+        "distribution": "https://registry.npmjs.org/@vitejs/plugin-react/-/plugin-react-6.1.2.tgz",
+        "integrity": "sha512-fhJNGUdscQa4HkI0xFxwonWyhnVReCPDbXI7FH7jmzpnVCrFQI7PRrhWecO263610vOrs9tr2Y4xcf8uAdFxbw==",
+        "license": "MIT",
+        "preferred": {
+          "url": "https://codeload.github.com/vitejs/vite-plugin-react/tar.gz/ac47648e17674299accb51816e9e33b8a7b07b05",
+          "commit": "ac47648e17674299accb51816e9e33b8a7b07b05",
+          "sha256": "a74080a30c72c776c2b2b34e8cd367d37afec79ee418d607fbc16fabac465dd5"
+        },
+        "distributionSha256": "9f1049a369ebeb236b436a75843d80d4fbdcf74b17362bf452fbfe586753e0c3"
+      },
+      {
+        "package": "@vitest/expect@4.1.12",
+        "distribution": "https://registry.npmjs.org/@vitest/expect/-/expect-4.1.12.tgz",
+        "integrity": "sha512-vFlTt+YEu9WBpNjdGayNmlMVzrWPi1+sv853/7t2FU7hpO5gAFBKHzQmkCq5Xjpr+evegF2994LQT3hF3mRlqQ==",
+        "license": "MIT",
+        "preferred": {
+          "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+        },
+        "distributionSha256": "8c932064dafe90dca40312b44c5b63623c8c7e03bb9b38c4bd9af2f5701f7bb6"
+      },
+      {
+        "package": "@vitest/mocker@4.1.12",
+        "distribution": "https://registry.npmjs.org/@vitest/mocker/-/mocker-4.1.12.tgz",
+        "integrity": "sha512-fKShNpKZzupWZuY0z7egydvL0sqW4INEZBEExMBMAa6izlENEVHwoXgdaTCaBZ5fwlr4xf2o1wXC83n9RpO+NA==",
+        "license": "MIT",
+        "preferred": {
+          "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+        },
+        "distributionSha256": "8f9ac0144028329f5c649c031608b8877efea748cdbded0d7f41d60f9be49c52"
+      },
+      {
+        "package": "@vitest/pretty-format@4.1.12",
+        "distribution": "https://registry.npmjs.org/@vitest/pretty-format/-/pretty-format-4.1.12.tgz",
+        "integrity": "sha512-XW9O8+Mxx4VpCtkYdMJLZQQwsVryP9wk7cPKDxtXFfwSak6yRh5+2fep/Y0XF/ElBvJHq8bcYdi6aeuai0opZA==",
+        "license": "MIT",
+        "preferred": {
+          "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+        },
+        "distributionSha256": "929beb93dafed9e676e55f07919839643231679384020a5ef9c2d02022a5dd80"
+      },
+      {
+        "package": "@vitest/runner@4.1.12",
+        "distribution": "https://registry.npmjs.org/@vitest/runner/-/runner-4.1.12.tgz",
+        "integrity": "sha512-NKlVKCr5QnCe8jijdMnmkpHHU+WTqiLFR6G0pHji9uRjXK9xJl1k1nTw6F3pOOj2PDcsDt2GKQMI7wIsaT491w==",
+        "license": "MIT",
+        "preferred": {
+          "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+        },
+        "distributionSha256": "061db956dceb2b291e1a4ceb3c5b7e31c368e75b34411953402e339ef566e6cf"
+      },
+      {
+        "package": "@vitest/snapshot@4.1.12",
+        "distribution": "https://registry.npmjs.org/@vitest/snapshot/-/snapshot-4.1.12.tgz",
+        "integrity": "sha512-ko1y1Qgb/slzQ9mr+b89Cuqud8WG1TKtsPD8r7ZUBdvVOGt85Af2HwCqHujrhwJq95hs/9RM7fcAPg57o1vlzw==",
+        "license": "MIT",
+        "preferred": {
+          "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+        },
+        "distributionSha256": "10b57fb1cb37d110309dd64e22a154bf26bd98526cc1ea5307b2f2478cbdddf5"
+      },
+      {
+        "package": "@vitest/spy@4.1.12",
+        "distribution": "https://registry.npmjs.org/@vitest/spy/-/spy-4.1.12.tgz",
+        "integrity": "sha512-RGq9x4JNGNTZHEJxvN0oSiJjeSCExm0n2gZKKJZHY9cX5AVA6M7VJILBT3ZJ/tJ/0J9uWT7fETV9/btoi//vSg==",
+        "license": "MIT",
+        "preferred": {
+          "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+        },
+        "distributionSha256": "eb9a67720d1082f33bfc5cf3a41ee6d297e994cf26013dae0ad807a474fa44a3"
+      },
+      {
+        "package": "@vitest/utils@4.1.12",
+        "distribution": "https://registry.npmjs.org/@vitest/utils/-/utils-4.1.12.tgz",
+        "integrity": "sha512-Q3awXrwOfEV+qc3WmO5ONyE0yO7Q1gQ9/oyHxGLZ/pl7N3NO/ZztqQwKLuwMkV+CA1JYSIeO3gkHnRDIo4AVaA==",
+        "license": "MIT",
+        "preferred": {
+          "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+        },
+        "distributionSha256": "0c25f072d4afcb52fa48266177111ca90bc4116c66473170959aae1d57db347d"
+      },
+      {
+        "package": "chai@6.3.0",
+        "distribution": "https://registry.npmjs.org/chai/-/chai-6.3.0.tgz",
+        "integrity": "sha512-XWAtwJ6OHO+tj0EKCs0Y2UamnyOxseZWltU4x2U2wh8g4AigdjwvtUjvLP2tqkA/avxHEtzxNaqGq/YGNwckKg==",
+        "license": "MIT",
+        "preferred": {
+          "url": "https://codeload.github.com/chaijs/chai/tar.gz/d86de2a9519bdd0d89aa64c9fbcc0e880513b153",
+          "commit": "d86de2a9519bdd0d89aa64c9fbcc0e880513b153",
+          "sha256": "4bbcd0a7b2e8058afd0dc207cedb3b528dbf2fad6fe768aa9fe4e91d8c2adca5"
+        },
+        "distributionSha256": "ef5457b2ab9e011093f47f104fecc94e5b36ce729fdba6fbc8b0ce316c2e8f60"
+      },
+      {
+        "package": "tinyrainbow@3.2.0",
+        "distribution": "https://registry.npmjs.org/tinyrainbow/-/tinyrainbow-3.2.0.tgz",
+        "integrity": "sha512-LgO3D9yZJjApUiuUfl9iFAwrtaX4+lok3wJIqttGoKCHlWUqHqbQpnxCf82L8FjgKsh4iGo78hqJwgL8F6To2A==",
+        "license": "MIT",
+        "preferred": {
+          "url": "https://codeload.github.com/tinylibs/tinyrainbow/tar.gz/d7c7339e5e3b75349466f253f20a64880fda44c7",
+          "commit": "d7c7339e5e3b75349466f253f20a64880fda44c7",
+          "sha256": "a80df40b2c176fc45e03903abdc38a51c49c17993ca982bc7f4c28f3ed17276b"
+        },
+        "distributionSha256": "97d53ca3a53834d45c68bd6ec2c8a64cc2e3282d744c8dc4ee0ed7e6e2913636"
+      },
+      {
+        "package": "uqr@0.1.3",
+        "distribution": "https://registry.npmjs.org/uqr/-/uqr-0.1.3.tgz",
+        "integrity": "sha512-0rjE8iEJe4YmT9TOhwsZtqCMRLc5DXZUI2UEYUUg63ikBkqqE5EYWaI0etFe/5KUcmcYwLih2RND1kq+hrUJXA==",
+        "license": "MIT",
+        "preferred": {
+          "url": "https://codeload.github.com/unjs/uqr/tar.gz/23ac4e3c7a172da8f5f9e619ba6fa07394d9fd52",
+          "commit": "23ac4e3c7a172da8f5f9e619ba6fa07394d9fd52",
+          "sha256": "684d034377f9f7aae6be7eceb7041188186e0dbb0b886272eae405e98dfe41f0"
+        },
+        "distributionSha256": "5636ef70bfb9f2685d885a4c0fbfe53fec9d6e8346361bd3f149146f1a9ec1af"
+      },
+      {
+        "package": "vite@8.1.6",
+        "distribution": "https://registry.npmjs.org/vite/-/vite-8.1.6.tgz",
+        "integrity": "sha512-aRAHIxx5SW5zc1sMqFwJU/t5qaFfXb5Hj0J7W0VXihu/X99+346tz6080tO1T1xVIJORX/b3zVTXGFqUXh35uw==",
+        "license": "MIT",
+        "preferred": {
+          "url": "https://codeload.github.com/vitejs/vite/tar.gz/dade886f0cc17fedf777eff804593d2af182abd4",
+          "commit": "dade886f0cc17fedf777eff804593d2af182abd4",
+          "sha256": "67da5546f37ba172a41101e09f248a2227a015a169d58365718d73d4181a7cfa"
+        },
+        "distributionSha256": "4e512df2b82176a9b7462d72188e984bda6d55629a46d506f43cff7848957ee1"
+      },
+      {
+        "package": "vitest@4.1.12",
+        "distribution": "https://registry.npmjs.org/vitest/-/vitest-4.1.12.tgz",
+        "integrity": "sha512-5eWdz2yb3ajxWF3C8C4TjkXl7FGm3n2E/VlazALrQHzK7nYMSGFnCZto0bbPNl77AwkOZVLk0YnBAejUu0NiWA==",
+        "license": "MIT",
+        "preferred": {
+          "url": "https://codeload.github.com/vitest-dev/vitest/tar.gz/4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "commit": "4766ce1e72ded629d3a37637f57eeae643789a8c",
+          "sha256": "81fff29da2ae9c76c7b32594c00d19fb9cacf18835bd6febb31a40454fd5f4da"
+        },
+        "distributionSha256": "ac79c9561c99eabc1cc29e0a839cbd03d1ff0e45bbecb5a2edfa6c3827c823d1"
+      }
+    ],
+    "nativeSourcePairs": [
+      [
+        "at-spi2-core",
+        "2.52.0-1build1"
+      ],
+      [
+        "avahi",
+        "0.8-13ubuntu6.2"
+      ],
+      [
+        "ayatana-ido",
+        "0.10.1-1build2"
+      ],
+      [
+        "brotli",
+        "1.1.0-2build2"
+      ],
+      [
+        "bzip2",
+        "1.0.8-5.1ubuntu0.1"
+      ],
+      [
+        "cairo",
+        "1.18.0-3build1"
+      ],
+      [
+        "colord",
+        "1.4.7-1build2"
+      ],
+      [
+        "cups",
+        "2.4.7-1.2ubuntu7.14"
+      ],
+      [
+        "dbus",
+        "1.14.10-4ubuntu4.1"
+      ],
+      [
+        "elfutils",
+        "0.190-1.1ubuntu0.1"
+      ],
+      [
+        "enchant-2",
+        "2.3.3-2build2"
+      ],
+      [
+        "gcc-14",
+        "14.2.0-4ubuntu2~24.04.1"
+      ],
+      [
+        "gdk-pixbuf",
+        "2.42.10+dfsg-3ubuntu3.3"
+      ],
+      [
+        "glib-networking",
+        "2.80.0-1build1"
+      ],
+      [
+        "glib2.0",
+        "2.80.0-6ubuntu3.10"
+      ],
+      [
+        "gnutls28",
+        "3.8.3-1.1ubuntu3.6"
+      ],
+      [
+        "graphite2",
+        "1.3.14-2ubuntu0.24.04.1"
+      ],
+      [
+        "gst-plugins-base1.0",
+        "1.24.2-1ubuntu0.5"
+      ],
+      [
+        "gstreamer1.0",
+        "1.24.2-1ubuntu0.1"
+      ],
+      [
+        "gtk+3.0",
+        "3.24.41-4ubuntu1.3"
+      ],
+      [
+        "harfbuzz",
+        "8.3.0-2build2"
+      ],
+      [
+        "hyphen",
+        "2.8.8-7build3"
+      ],
+      [
+        "icu",
+        "74.2-1ubuntu3.1"
+      ],
+      [
+        "keyutils",
+        "1.6.3-3build1"
+      ],
+      [
+        "krb5",
+        "1.20.1-6ubuntu2.10"
+      ],
+      [
+        "lcms2",
+        "2.14-2ubuntu0.1"
+      ],
+      [
+        "lerc",
+        "4.0.0+ds-4ubuntu2"
+      ],
+      [
+        "libbsd",
+        "0.12.1-1build1.1"
+      ],
+      [
+        "libcap2",
+        "1:2.66-5ubuntu2.4"
+      ],
+      [
+        "libdatrie",
+        "0.2.13-3build1"
+      ],
+      [
+        "libdbusmenu",
+        "18.10.20180917~bzr492+repack1-3.1ubuntu5"
+      ],
+      [
+        "libdeflate",
+        "1.19-1build1.1"
+      ],
+      [
+        "libepoxy",
+        "1.5.10-1build1"
+      ],
+      [
+        "libevdev",
+        "1.13.1+dfsg-1build1"
+      ],
+      [
+        "libffi",
+        "3.4.6-1build1"
+      ],
+      [
+        "libgcrypt20",
+        "1.10.3-2ubuntu0.2"
+      ],
+      [
+        "libgudev",
+        "238-5ubuntu1"
+      ],
+      [
+        "libidn2",
+        "2.3.7-2build1.1"
+      ],
+      [
+        "libjpeg-turbo",
+        "2.1.5-2ubuntu2"
+      ],
+      [
+        "libmanette",
+        "0.2.7-1build2"
+      ],
+      [
+        "libmd",
+        "1.1.0-2build1.1"
+      ],
+      [
+        "libpng1.6",
+        "1.6.43-5ubuntu0.7"
+      ],
+      [
+        "libpsl",
+        "0.21.2-1.1build1"
+      ],
+      [
+        "librsvg",
+        "2.58.0+dfsg-1ubuntu0.1"
+      ],
+      [
+        "libseccomp",
+        "2.5.5-1ubuntu3.1"
+      ],
+      [
+        "libsecret",
+        "0.21.4-1build3"
+      ],
+      [
+        "libselinux",
+        "3.5-2ubuntu2.1"
+      ],
+      [
+        "libsoup3",
+        "3.4.4-5ubuntu0.9"
+      ],
+      [
+        "libtasn1-6",
+        "4.19.0-3ubuntu0.24.04.2"
+      ],
+      [
+        "libthai",
+        "0.1.29-2build1"
+      ],
+      [
+        "libunistring",
+        "1.1-2build1.1"
+      ],
+      [
+        "libunwind",
+        "1.6.2-3build1.1"
+      ],
+      [
+        "libwebp",
+        "1.3.2-0.4build3"
+      ],
+      [
+        "libxau",
+        "1:1.0.9-1build6"
+      ],
+      [
+        "libxcb",
+        "1.15-1ubuntu2"
+      ],
+      [
+        "libxcomposite",
+        "1:0.4.5-1build3"
+      ],
+      [
+        "libxcursor",
+        "1:1.2.1-1build1"
+      ],
+      [
+        "libxdamage",
+        "1:1.1.6-1build1"
+      ],
+      [
+        "libxdmcp",
+        "1:1.1.3-0ubuntu6"
+      ],
+      [
+        "libxext",
+        "2:1.3.4-1build2"
+      ],
+      [
+        "libxfixes",
+        "1:6.0.0-2build1"
+      ],
+      [
+        "libxi",
+        "2:1.8.1-1build1"
+      ],
+      [
+        "libxinerama",
+        "2:1.1.4-3build1"
+      ],
+      [
+        "libxkbcommon",
+        "1.6.0-1build1"
+      ],
+      [
+        "libxml2",
+        "2.9.14+dfsg-1.3ubuntu3.10"
+      ],
+      [
+        "libxrandr",
+        "2:1.5.2-2build1"
+      ],
+      [
+        "libxrender",
+        "1:0.9.10-1.1build1"
+      ],
+      [
+        "libxslt",
+        "1.1.39-0exp1ubuntu0.24.04.3"
+      ],
+      [
+        "libzstd",
+        "1.5.5+dfsg2-2build1.1"
+      ],
+      [
+        "lz4",
+        "1.9.4-1build1.1"
+      ],
+      [
+        "nettle",
+        "3.9.1-2.2build1.1"
+      ],
+      [
+        "nghttp2",
+        "1.59.0-1ubuntu0.4"
+      ],
+      [
+        "openssl",
+        "3.0.13-0ubuntu3.16"
+      ],
+      [
+        "orc",
+        "1:0.4.38-1ubuntu0.1"
+      ],
+      [
+        "p11-kit",
+        "0.25.3-4ubuntu2.2"
+      ],
+      [
+        "pango1.0",
+        "1.52.1+ds-1build1"
+      ],
+      [
+        "pcre2",
+        "10.42-4ubuntu2.1"
+      ],
+      [
+        "pixman",
+        "0.42.2-1build1"
+      ],
+      [
+        "sqlite3",
+        "3.45.1-1ubuntu2.8"
+      ],
+      [
+        "systemd",
+        "255.4-1ubuntu8.17"
+      ],
+      [
+        "util-linux",
+        "2.39.3-9ubuntu6.6"
+      ],
+      [
+        "wayland",
+        "1.22.0-2.1build1"
+      ],
+      [
+        "webkit2gtk",
+        "2.52.6-0ubuntu0.24.04.1"
+      ],
+      [
+        "xdg-utils",
+        "1.1.3-4.1ubuntu3"
+      ],
+      [
+        "xz-utils",
+        "5.6.1+really5.4.5-1ubuntu0.4"
+      ]
+    ],
+    "cargoPackages": 775,
+    "offlineMetadataTargets": [
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu"
+    ],
+    "newNativeSources": [
+      {
+        "sourcePackage": "glib2.0",
+        "sourceVersion": "2.80.0-6ubuntu3.10",
+        "authentication": "Primary HTTPS and exact descriptor identity; original OpenPGP retained, not independently verified",
+        "files": [
+          {
+            "filename": "glib2.0_2.80.0-6ubuntu3.10.dsc",
+            "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/glib2.0/2.80.0-6ubuntu3.10/glib2.0_2.80.0-6ubuntu3.10.dsc",
+            "sha256": "0ee18e055f5fba9a33763f94823b44ab38e4f677f625ba7540486fe03b436136",
+            "bytes": 4080
+          },
+          {
+            "filename": "glib2.0_2.80.0.orig-unicode-data.tar.xz",
+            "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/glib2.0/2.80.0-6ubuntu3.10/glib2.0_2.80.0.orig-unicode-data.tar.xz",
+            "sha256": "38680f78a0ae6258826418cb5096c19ae3566ba8fee0a2112a0ec40056e58729",
+            "bytes": 263364
+          },
+          {
+            "filename": "glib2.0_2.80.0.orig.tar.xz",
+            "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/glib2.0/2.80.0-6ubuntu3.10/glib2.0_2.80.0.orig.tar.xz",
+            "sha256": "8228a92f92a412160b139ae68b6345bd28f24434a7b5af150ebe21ff587a561d",
+            "bytes": 5510536
+          },
+          {
+            "filename": "glib2.0_2.80.0-6ubuntu3.10.debian.tar.xz",
+            "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/glib2.0/2.80.0-6ubuntu3.10/glib2.0_2.80.0-6ubuntu3.10.debian.tar.xz",
+            "sha256": "9790a8bbf6d775f8a482f3862a64b2127330a1866ceaf04c85be34fbd2698254",
+            "bytes": 178808
+          }
+        ]
+      },
+      {
+        "sourcePackage": "libxml2",
+        "sourceVersion": "2.9.14+dfsg-1.3ubuntu3.10",
+        "authentication": "Primary HTTPS and exact descriptor identity; original OpenPGP retained, not independently verified",
+        "files": [
+          {
+            "filename": "libxml2_2.9.14+dfsg-1.3ubuntu3.10.dsc",
+            "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libxml2/2.9.14+dfsg-1.3ubuntu3.10/libxml2_2.9.14+dfsg-1.3ubuntu3.10.dsc",
+            "sha256": "1e2a56b4ae292abd2715b1f411cfa30f1b31ef9013c60d2f906d4a68b165cd4c",
+            "bytes": 3083
+          },
+          {
+            "filename": "libxml2_2.9.14+dfsg.orig.tar.xz",
+            "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libxml2/2.9.14+dfsg-1.3ubuntu3.10/libxml2_2.9.14+dfsg.orig.tar.xz",
+            "sha256": "4fe913dec8b1ab89d13b489b419a8203176ea39e931eaa0d25b17eafb9c279e9",
+            "bytes": 2351200
+          },
+          {
+            "filename": "libxml2_2.9.14+dfsg-1.3ubuntu3.10.debian.tar.xz",
+            "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libxml2/2.9.14+dfsg-1.3ubuntu3.10/libxml2_2.9.14+dfsg-1.3ubuntu3.10.debian.tar.xz",
+            "sha256": "d2d821830eb60edbcfcbe30e2827420e9e439e98c85c812352969cdda764d60b",
+            "bytes": 61552
+          }
+        ]
+      },
+      {
+        "sourcePackage": "xz-utils",
+        "sourceVersion": "5.6.1+really5.4.5-1ubuntu0.4",
+        "authentication": "Primary HTTPS and exact descriptor identity; original OpenPGP retained, not independently verified",
+        "files": [
+          {
+            "filename": "xz-utils_5.6.1+really5.4.5-1ubuntu0.4.dsc",
+            "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/xz-utils/5.6.1+really5.4.5-1ubuntu0.4/xz-utils_5.6.1+really5.4.5-1ubuntu0.4.dsc",
+            "sha256": "a9d6c2e7561c928d75594277a3b9f2ffe3b61293d272e282aab5110de18d0109",
+            "bytes": 2684
+          },
+          {
+            "filename": "xz-utils_5.6.1+really5.4.5.orig.tar.xz",
+            "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/xz-utils/5.6.1+really5.4.5-1ubuntu0.4/xz-utils_5.6.1+really5.4.5.orig.tar.xz",
+            "sha256": "da9dec6c12cf2ecf269c31ab65b5de18e8e52b96f35d5bcd08c12b43e6878803",
+            "bytes": 1680520
+          },
+          {
+            "filename": "xz-utils_5.6.1+really5.4.5-1ubuntu0.4.debian.tar.xz",
+            "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/xz-utils/5.6.1+really5.4.5-1ubuntu0.4/xz-utils_5.6.1+really5.4.5-1ubuntu0.4.debian.tar.xz",
+            "sha256": "b11106c2e0e0898d87cf186d14073770c1ff8999e7c8c4cb02b55bfc0cc8b424",
+            "bytes": 33844
+          }
+        ]
+      }
+    ],
+    "newRuntimeSources": [
+      {
+        "architecture": "amd64",
+        "upstreamBinary": {
+          "url": "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64",
+          "sha256": "617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46",
+          "bytes": 944632
+        },
+        "binding": {
+          "runtimeBytes": 944632,
+          "payloadDigestFieldOffset": 932096,
+          "excludedBytes": 16,
+          "normalizedRuntimeSha256": "617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46",
+          "sourceCommit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef"
+        },
+        "source": {
+          "url": "https://codeload.github.com/AppImage/type2-runtime/tar.gz/fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+          "commit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+          "sha256": "e27ea3c837e9c660e1a9a2993b673ae93bbb53077330efba8654031e302d4e8e",
+          "filename": "type2-runtime-fedfad5.tar.gz"
+        }
+      },
+      {
+        "architecture": "aarch64",
+        "upstreamBinary": {
+          "url": "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-aarch64",
+          "sha256": "9a72a744d221576c9347ec074243acc5c3c7568896b12714e0e82e9f0bf47900",
+          "bytes": 936456
+        },
+        "binding": {
+          "runtimeBytes": 936456,
+          "payloadDigestFieldOffset": 923920,
+          "excludedBytes": 16,
+          "normalizedRuntimeSha256": "9a72a744d221576c9347ec074243acc5c3c7568896b12714e0e82e9f0bf47900",
+          "sourceCommit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef"
+        },
+        "source": {
+          "url": "https://codeload.github.com/AppImage/type2-runtime/tar.gz/fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+          "commit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+          "sha256": "e27ea3c837e9c660e1a9a2993b673ae93bbb53077330efba8654031e302d4e8e",
+          "filename": "type2-runtime-fedfad5.tar.gz"
+        }
+      }
+    ],
+    "applicationArchiveSha256": "06200ba37754f773c4fa4f1f22c2f84fa53029d3a19548079448dc0f5aef333f",
+    "verifiedMembers": 39249,
+    "archive": "JSTorrent_0.3.4_AppImage-sources-final.tar.gz",
+    "bytes": 1354607986,
+    "sha256": "2a68d389b8fd7b09452cb379df12263d392d491618cba2a5b119d7ba5675f6f0"
+  },
+  "latest": {
+    "tag": "desktop-latest-v0.3.4",
+    "source": "ecd65fe4e0fd274a3fc0538245334c528375a321",
+    "publishedAt": "2026-10-22T17:26:57Z",
+    "url": "https://github.com/kzahel/jstorrent/releases/tag/desktop-latest-v0.3.4",
+    "updaterPublicKeyId": "415D3DF4B3D0CFB8",
+    "assetCount": 17,
+    "updaterPlatformKeys": 11,
+    "verifiedPayloadSignatures": 6,
+    "signedCompatibilityVerified": true,
+    "databases": {
+      "schemaVersion": 1,
+      "stores": {
+        "session": {
+          "floor": 26,
+          "target": 29,
+          "lineage": {
+            "26": "4c15f8d8f5871f24bb12632bd0b642dcd568ac42001cc9cc888104c8cbf6c1ff",
+            "27": "2d2edc458762d0042d49e87c6c9fd3d5ed63c456b30195972911f4f6188f0863",
+            "28": "23f5e93b7fce16abbe8f94e018d38e716e612aa4ba15832232be3d708196e2d8",
+            "29": "1c6b958f9c8e459087399b32721fabea3b69d0c77f0cd7b1bb3ea9f4bae34b32"
+          }
+        },
+        "product": {
+          "floor": 2,
+          "target": 4,
+          "lineage": {
+            "2": "42f0f45dcd6bfa168bdfcbba0226211fe280ffc2adac73a247f4c731bdb15196",
+            "3": "5b34cfa9719cc3e5dfa8aed50d54bc15005f4e5cc9f488f59fcba6f02d731fd4",
+            "4": "83ac2475b1521639e74b166e7fc1c1cf4d39673810713d87d499cb9bdcd2d96a"
+          }
+        },
+        "metrics": {
+          "floor": 1,
+          "target": 1,
+          "lineage": {
+            "1": "8a1cf951bce44a1dab25fee9a34805974af366bbb7fe07c6ad71bb1af13b9652"
+          }
+        }
+      }
+    },
+    "assets": [
+      {
+        "name": "JSTorrent_0.3.4_aarch64.AppImage",
+        "bytes": 100444680,
+        "sha256": "26f52b05e2c67495b44e96fa4bcda072f1f70ba60e586f6299161a837ee71ee6"
+      },
+      {
+        "name": "JSTorrent_0.3.4_aarch64.AppImage.sig",
+        "bytes": 424,
+        "sha256": "373bfcf374f3b65e329a3d960b71bf22073ea78d40ce38002c06f154fa4e0a17"
+      },
+      {
+        "name": "JSTorrent_0.3.4_aarch64.dmg",
+        "bytes": 20264615,
+        "sha256": "c185496a1d24305cb9482677fe74f6f85ab25c28dc54b37cbfe227987a37278b"
+      },
+      {
+        "name": "JSTorrent_0.3.4_amd64.AppImage",
+        "bytes": 102296056,
+        "sha256": "c7e3a7c4ce18206c89259148e7ff2cea5cd53cbb51daa2a75ac2ce2b4901514e"
+      },
+      {
+        "name": "JSTorrent_0.3.4_amd64.AppImage.sig",
+        "bytes": 420,
+        "sha256": "fb910ff331d8c0d649e06de5ef3abb7b9b029d0dbadc60fae9ced863d425c601"
+      },
+      {
+        "name": "JSTorrent_0.3.4_AppImage-sources-final.tar.gz",
+        "bytes": 1354607986,
+        "sha256": "2a68d389b8fd7b09452cb379df12263d392d491618cba2a5b119d7ba5675f6f0"
+      },
+      {
+        "name": "JSTorrent_0.3.4_x64_en-US.msi",
+        "bytes": 21987328,
+        "sha256": "ca707496329f931a52331ee5f482e864bfd4d89680a112004bb29a77762ff0ad"
+      },
+      {
+        "name": "JSTorrent_0.3.4_x64_en-US.msi.sig",
+        "bytes": 420,
+        "sha256": "79df1fb639a2807a9bf47fe0a6bbcd015c65eb77d3855a7d5e0f5c10d1899ea6"
+      },
+      {
+        "name": "JSTorrent_0.3.4_x64-setup.exe",
+        "bytes": 15533680,
+        "sha256": "34f5ca6cd1e10efe664f5e381e0761ac9cc0dc6e3b6975bf075004233fcc1bc3"
+      },
+      {
+        "name": "JSTorrent_0.3.4_x64-setup.exe.sig",
+        "bytes": 420,
+        "sha256": "8b9457afb6a3e0dbb00c188fce4c7dae485b8dc413cc5c6c265b1e8af45ca50d"
+      },
+      {
+        "name": "JSTorrent_0.3.4_x64.dmg",
+        "bytes": 21972386,
+        "sha256": "3f455c95aa21e73b88a92a2337ce7030ba0566a6647776ff9e13c3abd962df01"
+      },
+      {
+        "name": "JSTorrent_aarch64.app.tar.gz",
+        "bytes": 20917301,
+        "sha256": "7c45399f1580a0d7f229f8ff47cae4b361f05769bf2e182f3aa3a9bdee03a5f3"
+      },
+      {
+        "name": "JSTorrent_aarch64.app.tar.gz.sig",
+        "bytes": 408,
+        "sha256": "77f9184aaceb375b3da3a9204d208ac774c04f29c7217fe0e3f825c1cc5a4a5a"
+      },
+      {
+        "name": "JSTorrent_x64.app.tar.gz",
+        "bytes": 22415362,
+        "sha256": "f0889603ffc8aedf8a89cb381dcfda13b5227f9ac9011758d51521c0b9583b3a"
+      },
+      {
+        "name": "JSTorrent_x64.app.tar.gz.sig",
+        "bytes": 408,
+        "sha256": "6ac5bc4332a0c297098a44123a61a9dfb8b34fbd9441178c0041bfb747788e6e"
+      },
+      {
+        "name": "latest.json",
+        "bytes": 16686,
+        "sha256": "838ba1ad32a9ded0025214626f0a08dea1d5bfdd9dc2acf0394c862145fdc238"
+      },
+      {
+        "name": "SHA256SUMS",
+        "bytes": 948,
+        "sha256": "72cabed02f3e703586130fc9dc9ec7f62dc8afcab85353241e16f519ec830d47"
+      }
+    ]
+  },
+  "stable": {
+    "tag": "desktop-v0.3.4",
+    "source": "ecd65fe4e0fd274a3fc0538245334c528375a321",
+    "publishedAt": "2026-10-22T17:32:04Z",
+    "url": "https://github.com/kzahel/jstorrent/releases/tag/desktop-v0.3.4",
+    "updaterPublicKeyId": "415D3DF4B3D0CFB8",
+    "assetCount": 17,
+    "updaterPlatformKeys": 11,
+    "verifiedPayloadSignatures": 6,
+    "signedCompatibilityVerified": true,
+    "databases": {
+      "schemaVersion": 1,
+      "stores": {
+        "session": {
+          "floor": 26,
+          "target": 29,
+          "lineage": {
+            "26": "4c15f8d8f5871f24bb12632bd0b642dcd568ac42001cc9cc888104c8cbf6c1ff",
+            "27": "2d2edc458762d0042d49e87c6c9fd3d5ed63c456b30195972911f4f6188f0863",
+            "28": "23f5e93b7fce16abbe8f94e018d38e716e612aa4ba15832232be3d708196e2d8",
+            "29": "1c6b958f9c8e459087399b32721fabea3b69d0c77f0cd7b1bb3ea9f4bae34b32"
+          }
+        },
+        "product": {
+          "floor": 2,
+          "target": 4,
+          "lineage": {
+            "2": "42f0f45dcd6bfa168bdfcbba0226211fe280ffc2adac73a247f4c731bdb15196",
+            "3": "5b34cfa9719cc3e5dfa8aed50d54bc15005f4e5cc9f488f59fcba6f02d731fd4",
+            "4": "83ac2475b1521639e74b166e7fc1c1cf4d39673810713d87d499cb9bdcd2d96a"
+          }
+        },
+        "metrics": {
+          "floor": 1,
+          "target": 1,
+          "lineage": {
+            "1": "8a1cf951bce44a1dab25fee9a34805974af366bbb7fe07c6ad71bb1af13b9652"
+          }
+        }
+      }
+    },
+    "assets": [
+      {
+        "name": "JSTorrent_0.3.4_aarch64.AppImage",
+        "bytes": 100444680,
+        "sha256": "26f52b05e2c67495b44e96fa4bcda072f1f70ba60e586f6299161a837ee71ee6"
+      },
+      {
+        "name": "JSTorrent_0.3.4_aarch64.AppImage.sig",
+        "bytes": 424,
+        "sha256": "373bfcf374f3b65e329a3d960b71bf22073ea78d40ce38002c06f154fa4e0a17"
+      },
+      {
+        "name": "JSTorrent_0.3.4_aarch64.dmg",
+        "bytes": 20264615,
+        "sha256": "c185496a1d24305cb9482677fe74f6f85ab25c28dc54b37cbfe227987a37278b"
+      },
+      {
+        "name": "JSTorrent_0.3.4_amd64.AppImage",
+        "bytes": 102296056,
+        "sha256": "c7e3a7c4ce18206c89259148e7ff2cea5cd53cbb51daa2a75ac2ce2b4901514e"
+      },
+      {
+        "name": "JSTorrent_0.3.4_amd64.AppImage.sig",
+        "bytes": 420,
+        "sha256": "fb910ff331d8c0d649e06de5ef3abb7b9b029d0dbadc60fae9ced863d425c601"
+      },
+      {
+        "name": "JSTorrent_0.3.4_AppImage-sources-final.tar.gz",
+        "bytes": 1354607986,
+        "sha256": "2a68d389b8fd7b09452cb379df12263d392d491618cba2a5b119d7ba5675f6f0"
+      },
+      {
+        "name": "JSTorrent_0.3.4_x64_en-US.msi",
+        "bytes": 21987328,
+        "sha256": "ca707496329f931a52331ee5f482e864bfd4d89680a112004bb29a77762ff0ad"
+      },
+      {
+        "name": "JSTorrent_0.3.4_x64_en-US.msi.sig",
+        "bytes": 420,
+        "sha256": "79df1fb639a2807a9bf47fe0a6bbcd015c65eb77d3855a7d5e0f5c10d1899ea6"
+      },
+      {
+        "name": "JSTorrent_0.3.4_x64-setup.exe",
+        "bytes": 15533680,
+        "sha256": "34f5ca6cd1e10efe664f5e381e0761ac9cc0dc6e3b6975bf075004233fcc1bc3"
+      },
+      {
+        "name": "JSTorrent_0.3.4_x64-setup.exe.sig",
+        "bytes": 420,
+        "sha256": "8b9457afb6a3e0dbb00c188fce4c7dae485b8dc413cc5c6c265b1e8af45ca50d"
+      },
+      {
+        "name": "JSTorrent_0.3.4_x64.dmg",
+        "bytes": 21972386,
+        "sha256": "3f455c95aa21e73b88a92a2337ce7030ba0566a6647776ff9e13c3abd962df01"
+      },
+      {
+        "name": "JSTorrent_aarch64.app.tar.gz",
+        "bytes": 20917301,
+        "sha256": "7c45399f1580a0d7f229f8ff47cae4b361f05769bf2e182f3aa3a9bdee03a5f3"
+      },
+      {
+        "name": "JSTorrent_aarch64.app.tar.gz.sig",
+        "bytes": 408,
+        "sha256": "77f9184aaceb375b3da3a9204d208ac774c04f29c7217fe0e3f825c1cc5a4a5a"
+      },
+      {
+        "name": "JSTorrent_x64.app.tar.gz",
+        "bytes": 22415362,
+        "sha256": "f0889603ffc8aedf8a89cb381dcfda13b5227f9ac9011758d51521c0b9583b3a"
+      },
+      {
+        "name": "JSTorrent_x64.app.tar.gz.sig",
+        "bytes": 408,
+        "sha256": "6ac5bc4332a0c297098a44123a61a9dfb8b34fbd9441178c0041bfb747788e6e"
+      },
+      {
+        "name": "latest.json",
+        "bytes": 16509,
+        "sha256": "e258f575cf8e45b982fb39abe6a10b09d7cfdc1b964dfcac4792230ee03d4d4a"
+      },
+      {
+        "name": "SHA256SUMS",
+        "bytes": 948,
+        "sha256": "3d3ba21bc345973b150991e5fcca664f08ff832f0b3be02ef2d75054eda9faea"
+      }
+    ]
+  },
+  "promotion": {
+    "run": 39823173729,
+    "url": "https://github.com/kzahel/jstorrent/actions/runs/39823173729",
+    "conclusion": "success",
+    "source": "ecd65fe4e0fd274a3fc0538245334c528375a321",
+    "unchangedAssets": [
+      "JSTorrent_0.3.4_AppImage-sources-final.tar.gz",
+      "JSTorrent_0.3.4_aarch64.AppImage",
+      "JSTorrent_0.3.4_aarch64.AppImage.sig",
+      "JSTorrent_0.3.4_aarch64.dmg",
+      "JSTorrent_0.3.4_amd64.AppImage",
+      "JSTorrent_0.3.4_amd64.AppImage.sig",
+      "JSTorrent_0.3.4_x64-setup.exe",
+      "JSTorrent_0.3.4_x64-setup.exe.sig",
+      "JSTorrent_0.3.4_x64.dmg",
+      "JSTorrent_0.3.4_x64_en-US.msi",
+      "JSTorrent_0.3.4_x64_en-US.msi.sig",
+      "JSTorrent_aarch64.app.tar.gz",
+      "JSTorrent_aarch64.app.tar.gz.sig",
+      "JSTorrent_x64.app.tar.gz",
+      "JSTorrent_x64.app.tar.gz.sig"
+    ],
+    "changedAssets": [
+      "SHA256SUMS",
+      "latest.json"
+    ],
+    "signedDatabaseFactsPreserved": true,
+    "rebuiltNativePackages": false
+  },
+  "updater": {
+    "stablePreservedUntilPromotion": {
+      "verifiedAt": "2026-10-22T17:27:57.364Z",
+      "offers": [
+        {
+          "target": "darwin-aarch64",
+          "current": "0.3.0",
+          "status": 200,
+          "version": "0.3.1",
+          "bodySha256": "925bc81b36d1decae128f7b9302a258462cffd21a0e0bde9541dbeb81e40c3f0",
+          "unchanged": true,
+          "automaticInstall": "true"
+        },
+        {
+          "target": "darwin-x86_64",
+          "current": "0.3.0",
+          "status": 200,
+          "version": "0.3.1",
+          "bodySha256": "13b735241bed0eb4a60480a8f2ef060d7670a6f555ef6966f7ce5a8381915bd7",
+          "unchanged": true,
+          "automaticInstall": "true"
+        },
+        {
+          "target": "windows-x86_64",
+          "current": "0.3.0",
+          "status": 200,
+          "version": "0.3.1",
+          "bodySha256": "4074708005138184a723235c5f198a08a219cbb00d79d2f9b5de3ed3fd53a2b5",
+          "unchanged": true,
+          "automaticInstall": "true"
+        },
+        {
+          "target": "linux-x86_64",
+          "current": "0.3.0",
+          "status": 200,
+          "version": "0.3.1",
+          "bodySha256": "4632a2b267cbc0887d7e7e2ec5f252a41b636c8f4b1bc2a95183793f727b2002",
+          "unchanged": true,
+          "automaticInstall": "true"
+        },
+        {
+          "target": "linux-aarch64",
+          "current": "0.3.0",
+          "status": 200,
+          "version": "0.3.1",
+          "bodySha256": "6e82e03d389b014d248db16ff717c83c6c26c2a4e91414630896f1a5be8b112c",
+          "unchanged": true,
+          "automaticInstall": "false"
+        }
+      ]
+    },
+    "latest": {
+      "channel": "latest",
+      "verifiedAt": "2026-10-22T17:29:43.338Z",
+      "offers": [
+        {
+          "target": "darwin-aarch64",
+          "current": "0.3.1",
+          "status": 200,
+          "automaticInstall": "true",
+          "bodySha256": "0a399fb8aa17dd30ab122a61233594c569871ae12cba8661c032ea32e338514a",
+          "version": "0.3.4",
+          "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-latest-v0.3.4/JSTorrent_aarch64.app.tar.gz"
+        },
+        {
+          "target": "darwin-aarch64",
+          "current": "0.3.4",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "darwin-aarch64",
+          "current": "0.3.5",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "darwin-x86_64",
+          "current": "0.3.1",
+          "status": 200,
+          "automaticInstall": "true",
+          "bodySha256": "7c572322e11b7c3abe1a94ac3881adba30dc193a09536629b95264fabcec6ce3",
+          "version": "0.3.4",
+          "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-latest-v0.3.4/JSTorrent_x64.app.tar.gz"
+        },
+        {
+          "target": "darwin-x86_64",
+          "current": "0.3.4",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "darwin-x86_64",
+          "current": "0.3.5",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "windows-x86_64",
+          "current": "0.3.1",
+          "status": 200,
+          "automaticInstall": "true",
+          "bodySha256": "8e48be67fcfb531ce2dcd15aa01a9db83673952ee7965126aeaa3f5e1ec83880",
+          "version": "0.3.4",
+          "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-latest-v0.3.4/JSTorrent_0.3.4_x64-setup.exe"
+        },
+        {
+          "target": "windows-x86_64",
+          "current": "0.3.4",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "windows-x86_64",
+          "current": "0.3.5",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "linux-x86_64",
+          "current": "0.3.1",
+          "status": 200,
+          "automaticInstall": "true",
+          "bodySha256": "903ce004f899f44787694337ed55e930b0bd202daa96dfaec5035725b4b30e74",
+          "version": "0.3.4",
+          "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-latest-v0.3.4/JSTorrent_0.3.4_amd64.AppImage"
+        },
+        {
+          "target": "linux-x86_64",
+          "current": "0.3.4",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "linux-x86_64",
+          "current": "0.3.5",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "linux-aarch64",
+          "current": "0.3.1",
+          "status": 200,
+          "automaticInstall": "false",
+          "bodySha256": "f7907e6831696e89b94449b4fccb953d3f04305fce1d8dafe1c39904271f8916",
+          "version": "0.3.4",
+          "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-latest-v0.3.4/JSTorrent_0.3.4_aarch64.AppImage"
+        },
+        {
+          "target": "linux-aarch64",
+          "current": "0.3.4",
+          "status": 204,
+          "automaticInstall": "false",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "linux-aarch64",
+          "current": "0.3.5",
+          "status": 204,
+          "automaticInstall": "false",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    "stable": {
+      "channel": "stable",
+      "verifiedAt": "2026-10-22T17:35:48.474Z",
+      "offers": [
+        {
+          "target": "darwin-aarch64",
+          "current": "0.3.1",
+          "status": 200,
+          "automaticInstall": "true",
+          "bodySha256": "431e07c87a62aca194d1504872396e7ca39c7d3cbd97ae6034bff78134f75429",
+          "version": "0.3.4",
+          "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.4/JSTorrent_aarch64.app.tar.gz"
+        },
+        {
+          "target": "darwin-aarch64",
+          "current": "0.3.4",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "darwin-aarch64",
+          "current": "0.3.5",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "darwin-x86_64",
+          "current": "0.3.1",
+          "status": 200,
+          "automaticInstall": "true",
+          "bodySha256": "4d103255d39b1ecdd66d195c98022b9075b47ad757c489b8d093ea47ef8b4f45",
+          "version": "0.3.4",
+          "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.4/JSTorrent_x64.app.tar.gz"
+        },
+        {
+          "target": "darwin-x86_64",
+          "current": "0.3.4",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "darwin-x86_64",
+          "current": "0.3.5",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "windows-x86_64",
+          "current": "0.3.1",
+          "status": 200,
+          "automaticInstall": "true",
+          "bodySha256": "374cd1f9e63bd2447a0fb037ef27ba134443c7bfa7fcc2f6f4ff3697d0bb871d",
+          "version": "0.3.4",
+          "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.4/JSTorrent_0.3.4_x64-setup.exe"
+        },
+        {
+          "target": "windows-x86_64",
+          "current": "0.3.4",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "windows-x86_64",
+          "current": "0.3.5",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "linux-x86_64",
+          "current": "0.3.1",
+          "status": 200,
+          "automaticInstall": "true",
+          "bodySha256": "f7af55d06434f54f39cd64ab8836d26a3804400794baa80ee98dba0144f0ac2f",
+          "version": "0.3.4",
+          "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.4/JSTorrent_0.3.4_amd64.AppImage"
+        },
+        {
+          "target": "linux-x86_64",
+          "current": "0.3.4",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "linux-x86_64",
+          "current": "0.3.5",
+          "status": 204,
+          "automaticInstall": "true",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "linux-aarch64",
+          "current": "0.3.1",
+          "status": 200,
+          "automaticInstall": "false",
+          "bodySha256": "86c9eef8d5369b146c4a3ab7fb1fdd33f3087590ca3cfb668f6e0ad0e1c734a7",
+          "version": "0.3.4",
+          "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.4/JSTorrent_0.3.4_aarch64.AppImage"
+        },
+        {
+          "target": "linux-aarch64",
+          "current": "0.3.4",
+          "status": 204,
+          "automaticInstall": "false",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "target": "linux-aarch64",
+          "current": "0.3.5",
+          "status": 204,
+          "automaticInstall": "false",
+          "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    "automaticTargets": [
+      "darwin-aarch64",
+      "darwin-x86_64",
+      "windows-x86_64",
+      "linux-x86_64"
+    ],
+    "manualTargets": [
+      "linux-aarch64"
+    ]
+  },
+  "website": {
+    "promotion": {
+      "run": 39824081164,
+      "conclusion": "success",
+      "url": "https://github.com/kzahel/jstorrent/actions/runs/39824081164"
+    },
+    "deployment": {
+      "run": 39824203043,
+      "conclusion": "success",
+      "url": "https://github.com/kzahel/jstorrent/actions/runs/39824203043"
+    },
+    "before": {
+      "sourceRepository": "kzahel/jstorrent",
+      "sourceSha": "6bd3df88900ff559b26aab38d61b7b7c6cacde2e",
+      "desktopVersion": "0.3.1"
+    },
+    "after": {
+      "provenance": {
+        "sourceRepository": "kzahel/jstorrent",
+        "sourceSha": "bdd9c4e976f48d5aaf4a9ea3097a6c8139cc4cf4",
+        "desktopVersion": "0.3.4"
+      },
+      "downloadLinks": [
+        "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.4/JSTorrent_0.3.4_AppImage-sources-final.tar.gz",
+        "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.4/JSTorrent_0.3.4_aarch64.AppImage",
+        "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.4/JSTorrent_0.3.4_aarch64.dmg",
+        "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.4/JSTorrent_0.3.4_amd64.AppImage",
+        "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.4/JSTorrent_0.3.4_x64-setup.exe",
+        "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.4/JSTorrent_0.3.4_x64.dmg"
+      ]
+    },
+    "unauthenticatedPublicProvenanceAndAllSixHomepageDownloadLinksVerified": true
+  },
+  "limits": [
+    "Mac Intel native-host execution used Rosetta on Apple Silicon, without a physical Intel claim.",
+    "No product application was launched on the maintainer profile.",
+    "Existing Tactical 377 installed-update cohorts qualify the unchanged updater framework; no new installed-update cohort is claimed.",
+    "Linux ARM remains manual."
+  ]
+}

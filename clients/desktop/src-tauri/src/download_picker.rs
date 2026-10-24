@@ -34,6 +34,10 @@ impl DesktopDownloadPicker {
         }
     }
 
+    pub fn is_busy(&self) -> bool {
+        self.permit.available_permits() == 0
+    }
+
     pub fn acquire(&self) -> Result<OwnedSemaphorePermit, PickerError> {
         if self.shutdown.is_cancelled() {
             return Err(PickerError::Failed("desktop is shutting down".into()));
@@ -48,8 +52,12 @@ impl DesktopDownloadPicker {
         Ok(permit)
     }
 
-    pub async fn shutdown(&self) {
+    pub fn begin_shutdown(&self) {
         self.shutdown.cancel();
+    }
+
+    pub async fn shutdown(&self) {
+        self.begin_shutdown();
         // The helper actor holds this permit until kill/wait has completed.
         let _joined = self.permit.acquire().await;
     }

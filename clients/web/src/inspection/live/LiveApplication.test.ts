@@ -1,3 +1,4 @@
+import Ajv2020 from "ajv/dist/2020.js";
 import { describe, expect, it, vi } from "vitest";
 
 import type {
@@ -21,8 +22,17 @@ import type {
 } from "../../api";
 import type { ApplicationViewClient, MediaOpenTarget } from "../../api/client";
 import { HttpApiError } from "../../api/client";
-import type { InspectionSnapshot } from "../model";
+import { ApplicationViewError } from "../../api/errors";
+import { HOST_CAPTURES, hostCapture, knownBreaks } from "../../compat/captures";
+import type { InspectionCommand, InspectionSnapshot } from "../model";
+import { CompatibilityObservations } from "../../compatibility-observations";
 import { LiveApplication } from "./LiveApplication";
+import {
+  DEFAULT_LIBRARY_BROWSE,
+  libraryMediaRequest,
+  libraryMediaViewId,
+} from "../library-browse";
+import { MAGNET_EXPORT_OPTIONS, SEED_STOP_LIMITS } from "../host-capabilities";
 import type { ViewSetState } from "../../view-set-reducer";
 import { torrentMatchesCategory } from "../state";
 import {
@@ -34,6 +44,7 @@ const TORRENT_ID = "t1-000102030405060708090a0b0c0d0e0f";
 const V1_INFO_HASH = "000102030405060708090a0b0c0d0e0f10111213";
 
 class FakeLiveClient implements ApplicationViewClient {
+  readonly compatibility = new CompatibilityObservations();
   readonly updates: UpdateViewSetRequest[] = [];
   readonly opens: OpenViewSetRequest[] = [];
   readonly requests: RequestEnvelope[] = [];
@@ -47,9 +58,15 @@ class FakeLiveClient implements ApplicationViewClient {
   openCount = 0;
   private rejectPoll: ((error: Error) => void) | null = null;
 
+  /** A released host's hello, for requests to that host. */
+  helloOverride: ApiHello | null = null;
+  /** "0" is what the decoder fills for hosts before 0.3.1, which omit it. */
+  serverNowMillis = "10000";
+
   constructor(private readonly torrentView: TorrentView = torrent()) {}
 
   async hello(): Promise<ApiHello> {
+    if (this.helloOverride !== null) return structuredClone(this.helloOverride);
     return {
       api: { current: 1, minimum: 1 },
       encodings: ["json"],
@@ -82,8 +99,11 @@ class FakeLiveClient implements ApplicationViewClient {
     };
   }
 
+  dispatchError: Error | null = null;
+
   async dispatch(request: RequestEnvelope): Promise<ResponseEnvelope> {
     this.requests.push(request);
+    if (this.dispatchError !== null) throw this.dispatchError;
     return {
       version: 1,
       request_id: request.request_id,
@@ -222,7 +242,7 @@ class FakeLiveClient implements ApplicationViewClient {
     const viewSetId = `vs_${String(this.openCount).padStart(32, "0")}`;
     const initial: UpdateBatch = {
       api_version: 1,
-      server_now_millis: "10000",
+      server_now_millis: this.serverNowMillis,
       view_set_id: viewSetId,
       epoch: String(this.openCount),
       base_cursor: "0",
@@ -651,6 +671,8 @@ describe("LiveApplication", () => {
 
   it("maps share options and reported peer hints", async () => {
     const client = new FakeLiveClient();
+    // A host that can add size, file picks and peer hints to a link.
+    client.helloOverride = { ...(await client.hello()), capabilities: [MAGNET_EXPORT_OPTIONS] };
     const application = await LiveApplication.open(client);
 
     const result = await application.dispatch({
@@ -739,6 +761,16 @@ describe("LiveApplication", () => {
     await application.close();
   });
 
+  it("never sends safety settings or an override to an older host", async () => {
+    const client = new FakeLiveClient();
+    const application = await LiveApplication.open(client);
+    const settings = { enabled: true, preset: "recommended" as const, custom_extensions: [], mark_internet_origin: true };
+    await expect(application.dispatch({ type: "update_file_safety_settings", settings })).resolves.toMatchObject({ accepted: false });
+    await expect(application.dispatch({ type: "set_file_safety_override", torrentId: torrent().torrent_id, fileIndices: [0], allowed: true })).resolves.toMatchObject({ accepted: false });
+    expect(client.requests).toHaveLength(0);
+    await application.close();
+  });
+
   it("never sends a setting the host does not advertise", async () => {
     // The fake host's hello predates seed_stop_limits, like a released host.
     const client = new FakeLiveClient();
@@ -769,6 +801,30 @@ describe("LiveApplication", () => {
       message: expect.stringContaining("newer JSTorrent"),
     });
     expect(client.requests).toHaveLength(1);
+    await application.close();
+  });
+
+  it("reports a call the host refuses without failing the connection", async () => {
+    const client = new FakeLiveClient();
+    const application = await LiveApplication.open(client);
+    client.dispatchError = new ApplicationViewError(
+      "invalid_call",
+      "this JSTorrent version does not support this request; update it to use this feature",
+    );
+    await expect(
+      application.dispatch({ type: "pause", torrentId: TORRENT_ID }),
+    ).resolves.toEqual({
+      accepted: false,
+      message: expect.stringContaining("older JSTorrent"),
+    });
+    client.dispatchError = new ApplicationViewError("invalid_call", "upload length differs");
+    await expect(
+      application.dispatch({ type: "pause", torrentId: TORRENT_ID }),
+    ).resolves.toEqual({ accepted: false, message: "upload length differs" });
+    client.dispatchError = new ApplicationViewError("resource_limit", "busy");
+    await expect(
+      application.dispatch({ type: "pause", torrentId: TORRENT_ID }),
+    ).rejects.toThrow("busy");
     await application.close();
   });
 
@@ -1199,6 +1255,89 @@ describe("LiveApplication", () => {
       "torrent_media",
     );
     expect(snapshots.at(-1)?.mediaByTorrent).toEqual({});
+    await application.close();
+  });
+
+  it("leases one Library page per request and keeps the last page while the next loads", async () => {
+    const client = new FakeLiveClient();
+    const hello = await client.hello();
+    client.helloOverride = {
+      ...hello,
+      capabilities: [...hello.capabilities, "library_media"],
+    };
+    const request = libraryMediaRequest(DEFAULT_LIBRARY_BROWSE);
+    const application = await LiveApplication.open(client, {
+      initialViews: {
+        library: true,
+        libraryMedia: request,
+        torrentId: null,
+        detail: null,
+        logCapture: null,
+      },
+    });
+    const snapshots: InspectionSnapshot[] = [];
+    application.subscribe((update) => {
+      if (update.type === "snapshot") snapshots.push(update.snapshot);
+    });
+    const spec = client.opens[0]?.views.find((view) => view.type === "library_media");
+    expect(spec).toMatchObject({
+      view_id: libraryMediaViewId(request),
+      query: request.query,
+      page: { offset: 0, limit: 100 },
+    });
+    expect(snapshots.at(-1)?.viewStatus.libraryMedia).toEqual({ status: "ready" });
+    expect(snapshots.at(-1)?.libraryMedia).toMatchObject({
+      request,
+      page: { total: 1, nextOffset: null },
+      items: [
+        {
+          id: `${TORRENT_ID}:0`,
+          title: "Show Name S01E02",
+          seriesTitle: "Show Name",
+          seasonNumber: 1,
+          episodeNumber: 2,
+          albumTitle: null,
+          offline: false,
+        },
+      ],
+    });
+
+    // The fake host never answers the new page, so the old one remains.
+    const next = libraryMediaRequest({ ...DEFAULT_LIBRARY_BROWSE, text: "show" });
+    await application.setViews({
+      library: true,
+      libraryMedia: next,
+      torrentId: null,
+      detail: null,
+      logCapture: null,
+    });
+    expect(snapshots.at(-1)?.viewStatus.libraryMedia).toEqual({ status: "loading" });
+    expect(snapshots.at(-1)?.libraryMedia?.request).toEqual(request);
+    expect(
+      client.updates.at(-1)?.views.find((view) => view.type === "library_media")
+        ?.view_id,
+    ).toBe(libraryMediaViewId(next));
+    await application.close();
+  });
+
+  it("reports the Library unsupported on hosts without the projection", async () => {
+    const client = new FakeLiveClient();
+    const application = await LiveApplication.open(client, {
+      initialViews: {
+        library: true,
+        libraryMedia: libraryMediaRequest(DEFAULT_LIBRARY_BROWSE),
+        torrentId: null,
+        detail: null,
+        logCapture: null,
+      },
+    });
+    const snapshots: InspectionSnapshot[] = [];
+    application.subscribe((update) => {
+      if (update.type === "snapshot") snapshots.push(update.snapshot);
+    });
+    expect(client.opens[0]?.views.map((view) => view.type)).not.toContain("library_media");
+    expect(snapshots.at(-1)?.viewStatus.libraryMedia.status).toBe("unsupported");
+    expect(snapshots.at(-1)?.libraryMedia).toBeNull();
     await application.close();
   });
 
@@ -1674,6 +1813,53 @@ function snapshotFor(
           ],
         },
       };
+    case "library_media":
+      return {
+        type: "snapshot",
+        view_id: view.view_id,
+        snapshot: {
+          type: "library_media",
+          page: { offset: 0, limit: 100, total: 1, next_offset: null },
+          facets: {
+            items: 1,
+            video: 1,
+            audio: 0,
+            episodes: 1,
+            movies: 0,
+            other_videos: 0,
+            tracks: 0,
+            offline: 0,
+            incomplete: 1,
+            series: 1,
+            albums: 0,
+            torrents: 1,
+            metadata_pending: 0,
+          },
+          items: [
+            {
+              item_id: `${TORRENT_ID}:0`,
+              torrent_id: TORRENT_ID,
+              torrent_name: "Show Name",
+              file_index: 0,
+              file_name: "Show.Name.S01E02.mkv",
+              title: "Show Name S01E02",
+              kind: "video",
+              role: "episode",
+              series_title: "Show Name",
+              series_id: "series:show name",
+              season_number: 1,
+              episode_number: 2,
+              extension: "mkv",
+              length_bytes: "16",
+              verified_bytes: String(generation),
+              offline: false,
+              archived: false,
+              media_availability: "unverified",
+            },
+          ],
+          groups: [],
+        },
+      };
     case "torrent_media":
       return {
         type: "snapshot",
@@ -2099,10 +2285,279 @@ function peer(generation: number): PeerView {
   };
 }
 
+function currentSnapshot(application: LiveApplication): InspectionSnapshot {
+  let snapshot: InspectionSnapshot | undefined;
+  application.subscribe((update) => {
+    if (update.type === "snapshot") snapshot = update.snapshot;
+  })();
+  return snapshot!;
+}
+
 async function waitUntil(predicate: () => boolean): Promise<void> {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (predicate()) return;
     await new Promise((resolve) => globalThis.setTimeout(resolve, 1));
   }
   throw new Error("condition was not reached");
+}
+
+describe("download all on hosts before 0.3.1", () => {
+  // Desktop 0.3.0 and Android 1.0.28: no product in the hello, and no server
+  // clock in view-set batches (decoded as "0"). compat/window.test.ts says
+  // when the fallback may go.
+  const RELEASED_HELLO = hostCapture("ff632f4588a474d7b169de3cea228bd406e6982d").hello;
+
+  async function open(serverNowMillis: string, view: TorrentView, hello = RELEASED_HELLO) {
+    const client = new FakeLiveClient(view);
+    client.helloOverride = hello;
+    client.serverNowMillis = serverNowMillis;
+    const application = await LiveApplication.open(client);
+    await waitUntil(() => currentSnapshot(application).torrents[TORRENT_ID] !== undefined);
+    return { client, application };
+  }
+
+  it("selects every file of the loaded list instead", async () => {
+    const { client, application } = await open("0", { ...torrent(), file_catalog_id: "c1" });
+    expect(currentSnapshot(application).session.hostLacksDownloadAll).toBe(true);
+    await expect(
+      application.dispatch({
+        type: "download_all_pending_add",
+        torrentId: TORRENT_ID,
+        disableFuture: true,
+      }),
+    ).resolves.toMatchObject({ accepted: true });
+    expect(client.requests.map((request) => request.command)).toEqual([
+      {
+        type: "confirm_pending_file_selection",
+        torrent_id: TORRENT_ID,
+        catalog_id: "c1",
+        base: "all",
+        overrides: [],
+        disable_future: true,
+      },
+    ]);
+    await application.close();
+  });
+
+  it("sends nothing before the file list loads", async () => {
+    const { client, application } = await open("0", torrent());
+    await expect(
+      application.dispatch({
+        type: "download_all_pending_add",
+        torrentId: TORRENT_ID,
+        disableFuture: false,
+      }),
+    ).resolves.toMatchObject({ accepted: false });
+    expect(client.requests).toEqual([]);
+    await application.close();
+  });
+
+  it("sends download all to later hosts", async () => {
+    for (const { clock, hello } of [
+      { clock: "10000", hello: RELEASED_HELLO },
+      {
+        clock: "0",
+        hello: {
+          ...RELEASED_HELLO,
+          product: {
+            kind: "desktop" as const,
+            version: "0.3.2",
+            build_id: "development",
+            target: "aarch64-apple-darwin",
+            identifier: "com.jstorrent.desktop",
+            profile_id: "default",
+            profile_location: "/profiles/default",
+          },
+        },
+      },
+    ]) {
+      const { client, application } = await open(clock, torrent(), hello);
+      expect(currentSnapshot(application).session.hostLacksDownloadAll).toBe(false);
+      await application.dispatch({
+        type: "download_all_pending_add",
+        torrentId: TORRENT_ID,
+        disableFuture: false,
+      });
+      expect(client.requests.map((request) => request.command.type)).toEqual([
+        "download_all_pending_add",
+      ]);
+      await application.close();
+    }
+  });
+});
+
+// R1 of the compatibility matrix: requests the current client really emits
+// to a released host, from its real dispatch against that host's hello,
+// checked against the host's exact request schema. A field the released
+// schema lacks is a finding even where the host's parser would ignore it:
+// the user's intent would be silently dropped.
+// docs/tactical/359-mixed-version-compatibility-matrix.md
+describe("requests to released hosts", () => {
+  const RELEASED_HOSTS = HOST_CAPTURES.map((capture) => ({
+    release: capture.deliveries,
+    commit: capture.commit,
+    hello: capture.hello,
+    schema: capture.schema,
+    // What the decoder makes of this release's view-set batches.
+    serverNowMillis: "server_now_millis" in capture.trace.open.initial ? "10000" : "0",
+  }));
+  const STORAGE_ROOT = "root_a";
+  const COMMANDS: readonly InspectionCommand[] = [
+    { type: "add_magnet", magnet: "magnet:?xt=urn:btih:" + "a".repeat(40), storageRoot: STORAGE_ROOT, startContent: true },
+    { type: "set_file_priority", torrentId: TORRENT_ID, fileIndices: [1, 0], priority: "high" },
+    { type: "download_files", torrentId: TORRENT_ID, fileIndices: [0] },
+    { type: "set_default_download_root", rootId: STORAGE_ROOT },
+    { type: "set_show_add_options", show: false },
+    { type: "set_show_file_selection", show: false },
+    {
+      type: "confirm_pending_file_selection",
+      torrentId: TORRENT_ID,
+      catalogId: "c1",
+      base: "all",
+      overrides: [{ start: 0, endExclusive: 1, selected: false }],
+      disableFuture: false,
+    },
+    { type: "download_all_pending_add", torrentId: TORRENT_ID, disableFuture: true },
+    { type: "cancel_pending_add", torrentId: TORRENT_ID },
+    { type: "update_client_settings", patch: { upload_slots: 4, dht_enabled: false } },
+    {
+      type: "update_client_settings",
+      patch: { share_ratio_limit_percent: 150, seed_stop_ratio_percent: { type: "off" } },
+    },
+    { type: "reset_client_settings" },
+    {
+      type: "update_torrent_settings",
+      torrentId: TORRENT_ID,
+      patch: { upload_rate_limit: { type: "limited", bytes_per_second: 32_768 } },
+    },
+    { type: "remove_download_root", rootId: STORAGE_ROOT },
+    { type: "clear_app_data" },
+    { type: "export_magnet", torrentId: TORRENT_ID },
+    {
+      type: "export_magnet",
+      torrentId: TORRENT_ID,
+      options: { includeSize: true, fileIndices: [0], peerHint: true },
+    },
+    { type: "pause", torrentId: TORRENT_ID },
+    { type: "resume", torrentId: TORRENT_ID },
+    { type: "move_download_to_top", torrentId: TORRENT_ID },
+    { type: "move_download_to_bottom", torrentId: TORRENT_ID },
+    { type: "force_recheck", torrentId: TORRENT_ID },
+    { type: "archive", torrentId: TORRENT_ID },
+    { type: "unarchive", torrentId: TORRENT_ID },
+    { type: "remove", torrentId: TORRENT_ID, deleteData: false },
+    { type: "remove", torrentId: TORRENT_ID, deleteData: true },
+  ];
+  /** Actions the released host cannot perform: refused locally, nothing sent. */
+  const GATED: readonly InspectionCommand[] = [
+    { type: "update_client_settings", patch: { seed_stop_time_seconds: { type: "off" } } },
+    {
+      type: "update_torrent_settings",
+      torrentId: TORRENT_ID,
+      patch: { seed_stop_ratio_percent: { type: "use_global" } },
+    },
+  ];
+
+  describe.each(RELEASED_HOSTS)("$release", ({ commit, hello, schema, serverNowMillis }) => {
+    const validate = exactRequestValidator(schema, "RequestEnvelope");
+    const validateUpload = exactRequestValidator(schema, "AddTorrentBytesRequest");
+
+    it("receives only requests valid against its exact schema", async () => {
+      const client = new FakeLiveClient({ ...torrent(), file_catalog_id: "c1" });
+      client.helloOverride = hello as ApiHello;
+      client.serverNowMillis = serverNowMillis;
+      const application = await LiveApplication.open(client);
+      await waitUntil(() => currentSnapshot(application).torrents[TORRENT_ID] !== undefined);
+      const problems: string[] = [];
+      for (const command of COMMANDS) {
+        const before = client.requests.length;
+        await application.dispatch(command).catch(() => undefined);
+        for (const request of client.requests.slice(before)) {
+          if (!validate(request)) {
+            problems.push(`${command.type}: ${JSON.stringify(validate.errors?.[0])}`);
+          }
+        }
+      }
+      await application.dispatch({
+        type: "add_torrent_bytes",
+        source: new Uint8Array([1, 2, 3]).buffer,
+        storageRoot: STORAGE_ROOT,
+        startContent: true,
+      });
+      for (const upload of client.uploads) {
+        if (!validateUpload(upload.request)) {
+          problems.push(`add_torrent_bytes: ${JSON.stringify(validateUpload.errors?.[0])}`);
+        }
+      }
+      // Commands this host rejects, recorded in compat/known-breaks.json.
+      expect([...new Set(problems.map((problem) => problem.split(":")[0]!))].sort()).toEqual(
+        knownBreaks([commit], "requests"),
+      );
+      // What was dropped or substituted for this host is observed.
+      const [observed] = application.compatibilityObservations();
+      expect(observed?.libraryAttached).toBe(true);
+      const capabilities = (hello as ApiHello).capabilities ?? [];
+      expect(Object.keys(observed?.strippedFields ?? {}).sort()).toEqual([
+        ...(!capabilities.includes(MAGNET_EXPORT_OPTIONS) ? ["export_magnet.options"] : []),
+        ...(!capabilities.includes(SEED_STOP_LIMITS)
+          ? ["update_client_settings.seed_stop_ratio_percent"] : []),
+      ]);
+      expect(observed?.degradedActions.download_all_pending_add ?? 0).toBe(
+        serverNowMillis === "0" ? 1 : 0,
+      );
+      await application.close();
+    });
+
+    it("gates seeding actions according to its advertised capabilities", async () => {
+      const client = new FakeLiveClient();
+      client.helloOverride = hello as ApiHello;
+      const application = await LiveApplication.open(client);
+      const supportsSeeding = ((hello as ApiHello).capabilities ?? []).includes(SEED_STOP_LIMITS);
+      for (const command of GATED) {
+        await expect(application.dispatch(command)).resolves.toMatchObject({ accepted: supportsSeeding });
+      }
+      if (supportsSeeding) {
+        expect(client.requests).toHaveLength(GATED.length);
+        for (const request of client.requests) expect(validate(request)).toBe(true);
+      } else {
+        expect(client.requests).toEqual([]);
+      }
+      await application.close();
+    });
+  });
+
+  it("flags a field the released schema lacks (negative control)", () => {
+    const validate = exactRequestValidator(HOST_CAPTURES[0]!.schema, "RequestEnvelope");
+    expect(
+      validate({
+        version: 1,
+        request_id: "r",
+        command: { type: "pause", torrent_id: TORRENT_ID, future_field: true },
+      }),
+    ).toBe(false);
+  });
+});
+
+/**
+ * A validator for a released request definition in which every object is
+ * closed, so a field that host does not know is reported rather than
+ * silently ignored by its parser.
+ */
+function exactRequestValidator(schema: unknown, definition: string) {
+  const closed = structuredClone(schema) as { $defs: Record<string, unknown> };
+  const close = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(close);
+    } else if (value !== null && typeof value === "object") {
+      const record = value as Record<string, unknown>;
+      if (record.properties !== undefined && record.additionalProperties === undefined) {
+        record.additionalProperties = false;
+      }
+      Object.values(record).forEach(close);
+    }
+  };
+  close(closed);
+  const ajv = new Ajv2020({ strict: false, allErrors: true, validateFormats: false });
+  ajv.addSchema(closed, "released");
+  return ajv.getSchema(`released#/$defs/${definition}`)!;
 }

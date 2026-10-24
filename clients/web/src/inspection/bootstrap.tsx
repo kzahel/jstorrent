@@ -1,5 +1,8 @@
 import { createRoot, type Root } from "react-dom/client";
-import { LocalizationProvider } from "../localization/runtime";
+import {
+  LocalizationProvider,
+  onMessageCatalogReplaced,
+} from "../localization/runtime";
 
 import { ExternalUrlProvider, type OpenExternalUrl } from "./external-links";
 import { App, type AppProps } from "./components/App";
@@ -7,11 +10,14 @@ import { WebAuthGate } from "./components/WebAuthGate";
 import { InspectionProvider } from "./context";
 import { InspectionController } from "./controller";
 import { LiveApplication } from "./live/LiveApplication";
+import { installRouteHistory } from "./route-history";
 import type { DemoScenarioId } from "./model";
 import type { DesktopRemoteAccess } from "./remote-access/types";
 import type { ApplicationViewClient } from "../api/client";
 import { WebAuthClient } from "../web-auth-client";
+import { createBrowserVideoPlayback } from "../browser-video-playback";
 import { createHostedHostIntegration } from "../headless-updater";
+import { clientIdentity } from "../client-identity";
 import { markStartup } from "../startup-timing";
 import "./global.css";
 
@@ -29,7 +35,14 @@ export async function startDemoInspection(
     : "healthy-download";
   const elapsedMs = parseElapsed(parameters.get("at"));
   const running = parameters.get("autoplay") !== "0";
-  const application = new DemoApplication({ scenarioId, elapsedMs, running });
+  // `library=cards` shows the torrent cards of hosts without the media library.
+  const mediaLibrary = parameters.get("library") !== "cards";
+  const application = new DemoApplication({
+    scenarioId,
+    elapsedMs,
+    running,
+    mediaLibrary,
+  });
   const controller = new InspectionController(application);
   renderInspection(controller, createRoot(applicationRoot()), {});
 }
@@ -80,13 +93,15 @@ export async function startLiveInspection(
     );
     return;
   }
+  // Hosts without browser-session authentication (development or bearer
+  // modes) report the store unavailable; offer no Web access settings there.
   await openLiveInspection(
     root,
     baseUrl,
     token,
     transport,
     waitMillis,
-    webAuth,
+    authStatus?.available === true ? webAuth : undefined,
   );
 }
 
@@ -112,15 +127,19 @@ async function openLiveInspection(
             )
           : import("../websocket-view-client").then(
               ({ WebSocketApplicationViewClient }) =>
-                new WebSocketApplicationViewClient(baseUrl.href, token),
+                new WebSocketApplicationViewClient(baseUrl.href, token, undefined, undefined, {
+                  client: clientIdentity("web"),
+                }),
             ),
       torrentListBundles: true,
     },
     { ...(waitMillis === undefined ? {} : { waitMillis }) },
   );
   application.installBrowserWakeHints(window, document);
+  const localPlayback = createBrowserVideoPlayback(application);
   const update = renderInspection(new InspectionController(application), root, {
     webAuth,
+    localPlayback,
     about: { connection: "server" },
   });
   const hosted = await createHostedHostIntegration(baseUrl).catch(
@@ -132,6 +151,7 @@ async function openLiveInspection(
   if (hosted === undefined) return;
   update({
     webAuth,
+    localPlayback,
     updater: hosted.updater,
     accessMode: hosted.accessMode,
     hostedProduct: hosted.product,
@@ -145,6 +165,17 @@ async function openLiveInspection(
 // Renders before any desktop adapter exists; each adapter tolerates absence
 // and arrives in one later render. Nothing here rejects after that render.
 export async function startTauriInspection(): Promise<void> {
+  // A torrent catalog that did not open shows recovery instead (Tactical 369).
+  const recovery = await import("../tauri-recovery")
+    .then(({ loadTauriRecovery }) => loadTauriRecovery())
+    .catch((error: unknown) => {
+      console.error("Desktop recovery status was unavailable:", error);
+      return null;
+    });
+  if (recovery !== null) {
+    await startTauriRecovery(recovery);
+    return;
+  }
   const application = LiveApplication.connect({
     load: () =>
       import("../tauri-view-client").then(
@@ -216,6 +247,30 @@ export async function startTauriInspection(): Promise<void> {
   });
 }
 
+async function startTauriRecovery(
+  recovery: import("../tauri-recovery").DesktopRecovery,
+): Promise<void> {
+  const { RecoveryScreen } = await import("./components/RecoveryScreen");
+  const root = createRoot(applicationRoot());
+  const render = (props: Omit<import("./components/RecoveryScreen").RecoveryScreenProps, "recovery">) =>
+    root.render(<RecoveryScreen recovery={recovery} {...props} />);
+  render({});
+  markStartup("shell_rendered");
+  const [updater, openExternalUrl] = await Promise.all([
+    adapter("updater", () =>
+      import("../tauri-updater").then(({ createTauriDesktopUpdater }) =>
+        createTauriDesktopUpdater(),
+      ),
+    ),
+    adapter("external links", () =>
+      import("../tauri-external-links").then(
+        ({ openTauriExternalUrl }) => openTauriExternalUrl,
+      ),
+    ),
+  ]);
+  render({ updater, openExternalUrl });
+}
+
 function adapter<T>(
   name: string,
   create: () => Promise<T>,
@@ -254,14 +309,21 @@ interface InspectionHost extends AppProps {
   readonly openExternalUrl?: OpenExternalUrl | undefined;
 }
 
-/** Renders the application and returns a re-render for later host facts. */
+/**
+ * Renders the application and returns a re-render for later host facts. The
+ * URL fragment and the message catalog stay attached for the page's life.
+ */
 function renderInspection(
   controller: InspectionController,
   root: Root,
   host: InspectionHost,
 ): (host: InspectionHost) => void {
   controller.start();
-  const render = ({ openExternalUrl, ...props }: InspectionHost) =>
+  installRouteHistory(controller.store, window);
+  let latest = host;
+  const render = (next: InspectionHost) => {
+    latest = next;
+    const { openExternalUrl, ...props } = next;
     root.render(
       <LocalizationProvider>
         <ExternalUrlProvider openUrl={openExternalUrl}>
@@ -271,6 +333,9 @@ function renderInspection(
         </ExternalUrlProvider>
       </LocalizationProvider>,
     );
+  };
+  // New elements re-render every component with the replaced catalog.
+  onMessageCatalogReplaced(() => render(latest));
   render(host);
   return render;
 }

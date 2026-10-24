@@ -1,4 +1,4 @@
-import { RemotePlaybackProvider } from "./RemoteVideoPlayer";
+import { PlaybackProvider } from "./VideoPlayer";
 import jstorrentIcon from "../../assets/jstorrent.png";
 import { message as localizedMessage } from "../../localization/runtime";
 import { markStartup } from "../../startup-timing";
@@ -47,10 +47,11 @@ import { DetailPane } from "./DetailPane";
 import { Icon } from "./Icon";
 import { LibraryView } from "./LibraryView";
 import { ScenarioBar } from "./ScenarioBar";
-import type { SettingsCategory } from "./SettingsDialog";
 import { navigationTitle, Sidebar } from "./Sidebar";
 import { TorrentActions } from "./TorrentActions";
+import { AddTorrentForm, TorrentAddProvider } from "./TorrentAdd";
 import { TorrentActionProvider } from "./TorrentActionContext";
+import { UpdateOutcomeNotice } from "./UpdateOutcomeNotice";
 import { ToastProvider } from "./Toast";
 import { TorrentTable } from "./TorrentTable";
 import { TransfersView } from "./TransfersView";
@@ -62,6 +63,7 @@ import { DesktopExternalIntakeProvider } from "../desktop-external-intake-contex
 import type { DesktopNotifications } from "../desktop-notifications/types";
 import type { DesktopPower } from "../desktop-power/types";
 import type { DesktopRemoteAccess } from "../remote-access/types";
+import type { LocalVideoPlayback } from "../video-playback";
 import type {
   HostedAccessMode,
   HostedProduct,
@@ -109,6 +111,7 @@ export interface AppProps {
   readonly notifications?: DesktopNotifications | undefined;
   readonly power?: DesktopPower | undefined;
   readonly remoteAccess?: DesktopRemoteAccess | undefined;
+  readonly localPlayback?: LocalVideoPlayback | undefined;
   readonly accessMode?: HostedAccessMode | undefined;
   readonly hostedProduct?: HostedProduct | undefined;
   readonly productPrivacy?: ProductPrivacyController | undefined;
@@ -132,6 +135,7 @@ export function App({
   notifications,
   power,
   remoteAccess,
+  localPlayback,
   accessMode,
   hostedProduct,
   productPrivacy,
@@ -145,7 +149,7 @@ export function App({
   return (
     <ToastProvider>
       <DesktopExternalIntakeProvider intake={externalIntake}>
-        <RemotePlaybackProvider remoteAccess={remoteAccess}>
+        <PlaybackProvider remoteAccess={remoteAccess} localPlayback={localPlayback}>
           <TorrentActionProvider>
             <AppContent
               interrupted={interrupted}
@@ -169,7 +173,7 @@ export function App({
               />
             ) : null}
           </TorrentActionProvider>
-        </RemotePlaybackProvider>
+        </PlaybackProvider>
       </DesktopExternalIntakeProvider>
     </ToastProvider>
   );
@@ -179,7 +183,7 @@ function AppContent({
   interrupted,
   oneCurrentRoot,
   webAuth,
-  updater,
+  updater: suppliedUpdater,
   notifications,
   power,
   remoteAccess,
@@ -201,6 +205,7 @@ function AppContent({
   }, [libraryLoading]);
   const execute = useInspectionCommand();
   const controller = useInspectionController();
+  const updater = suppliedUpdater ?? controller.application.updater;
   const destination = useInspectionStore(
     (state) => state.presentation.destination,
   );
@@ -238,7 +243,16 @@ function AppContent({
   );
   const setColorTheme = useInspectionStore((state) => state.setColorTheme);
   const setDataUnits = useInspectionStore((state) => state.setDataUnits);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsCategory = useInspectionStore(
+    (state) => state.presentation.settingsCategory,
+  );
+  const settingsOpen = settingsCategory !== null;
+  const openSettings = useInspectionStore((state) => state.openSettings);
+  const selectSettingsCategory = useInspectionStore(
+    (state) => state.selectSettingsCategory,
+  );
+  const closeSettings = useInspectionStore((state) => state.closeSettings);
+  const setSettingsBusy = useInspectionStore((state) => state.setSettingsBusy);
   const waitingForUnmeteredNetwork =
     clientSettings.application_network.requested_prerequisite ===
       "waiting_for_unmetered_network" &&
@@ -258,8 +272,6 @@ function AppContent({
         loadCredentialFreeNoticeDismissed(credentialFreeAccessMode)),
     [credentialFreeAccessMode, dismissedNoticeMode],
   );
-  const [settingsCategory, setSettingsCategory] =
-    useState<SettingsCategory>("appearance");
   const updaterSnapshot = useDesktopUpdater(updater);
   const [resizingDetail, setResizingDetail] = useState(false);
   const [collectionToolbar, setCollectionToolbar] =
@@ -279,10 +291,9 @@ function AppContent({
       updaterSnapshot !== undefined &&
       presentsManualUpdateResult(updaterSnapshot.state)
     ) {
-      setSettingsCategory("about");
-      setSettingsOpen(true);
+      openSettings("about");
     }
-  }, [updaterSnapshot]);
+  }, [openSettings, updaterSnapshot]);
 
   const desiredDocumentTitle = documentTitleForSession(session, dataUnits);
   const showRates =
@@ -373,6 +384,10 @@ function AppContent({
   } as CSSProperties;
 
   return (
+    <TorrentAddProvider
+      showCrostiniStorageHelp={hostedProduct === "crostini"}
+      oneCurrentRoot={oneCurrentRoot === true}
+    >
     <div
       className={styles.app}
       inert={interrupted}
@@ -398,6 +413,12 @@ function AppContent({
           <strong>{localizedMessage("inspection.components.app.rstorrent")}</strong>
         </div>
         <strong className={styles.locationTitle}>{title}</strong>
+        {/* Where there is room, adding works from every destination. */}
+        {layout === "phone" ? null : (
+          <div className={styles.headerAdd}>
+            <AddTorrentForm />
+          </div>
+        )}
         {showRates ? (
           <div
             className={styles.sessionStats}
@@ -429,8 +450,7 @@ function AppContent({
           aria-expanded={settingsOpen}
           title={localizedMessage("inspection.components.app.settings")}
           onClick={() => {
-            setSettingsCategory("appearance");
-            setSettingsOpen(true);
+            openSettings("appearance");
           }}
         >
           <Icon name="settings" />
@@ -498,10 +518,7 @@ function AppContent({
           {destination === "library" ? (
             <LibraryView />
           ) : destination === "transfers" ? (
-            <TransfersView
-              showCrostiniStorageHelp={hostedProduct === "crostini"}
-              oneCurrentRoot={oneCurrentRoot === true}
-            />
+            <TransfersView />
           ) : (
             <>
               <section
@@ -509,8 +526,7 @@ function AppContent({
                 aria-label={localizedMessage("inspection.components.app.workbench.torrent.collection")}
               >
                 <TorrentActions
-                  showCrostiniStorageHelp={hostedProduct === "crostini"}
-                  oneCurrentRoot={oneCurrentRoot === true}
+                  showAddForm={layout === "phone"}
                   tableToolbarRef={setCollectionToolbar}
                 />
                 <div className={styles.tableWrap}>
@@ -553,17 +569,20 @@ function AppContent({
           )}
         </main>
       </div>
+      <UpdateOutcomeNotice snapshot={updaterSnapshot} />
       {updater !== undefined && updaterSnapshot?.state.phase === "available" ? (
         <aside className={styles.updateNotice} role="status">
           <div>
             <strong>{localizedMessage("inspection.components.app.rstorrent")}{" "}{updaterSnapshot.state.version}{" "}{localizedMessage("inspection.components.app.is.available")}</strong>
-            <span>{localizedMessage("inspection.components.app.review.the.update.when.you.are.ready")}</span>
+            <span>{updaterSnapshot.restartInSeconds === undefined ? (updaterSnapshot.updateMessage ?? localizedMessage("inspection.components.app.review.the.update.when.you.are.ready")) : localizedMessage("updates.restart-countdown", { seconds: updaterSnapshot.restartInSeconds })}</span>
           </div>
+          {updaterSnapshot.restartInSeconds === undefined ? null : (
+            <button type="button" onClick={() => void updater.install()}>{localizedMessage("inspection.components.about.updates.settings.section.install.and.restart")}</button>
+          )}
           <button
             type="button"
             onClick={() => {
-              setSettingsCategory("about");
-              setSettingsOpen(true);
+              openSettings("about");
             }}
           >{localizedMessage("inspection.components.app.review.update")}</button>
           <button
@@ -573,7 +592,7 @@ function AppContent({
           >{localizedMessage("inspection.components.app.later")}</button>
         </aside>
       ) : null}
-      {settingsOpen ? (
+      {settingsCategory !== null ? (
         <Suspense fallback={null}>
         <SettingsDialog
           colorTheme={colorTheme}
@@ -595,6 +614,8 @@ function AppContent({
           about={withHostProduct(about ?? (demo === null ? {} : { connection: "demo" }), session.host)}
           productPrivacy={productPrivacy}
           initialCategory={settingsCategory}
+          onCategoryChange={selectSettingsCategory}
+          onBusyChange={setSettingsBusy}
           returnFocus={settingsButtonRef}
           onColorThemeChange={setColorTheme}
           onInterfaceSizeChange={setInterfaceSize}
@@ -721,11 +742,17 @@ function AppContent({
             if (power?.restartApplication !== undefined) {
               await power.restartApplication();
             } else {
+              // Cleared data starts on the default screen, not this Settings.
+              window.history.replaceState(
+                null,
+                "",
+                window.location.pathname + window.location.search,
+              );
               window.location.reload();
             }
           }}
           onWebAuthSignedOut={() => window.location.reload()}
-          onClose={() => setSettingsOpen(false)}
+          onClose={closeSettings}
         />
         </Suspense>
       ) : null}
@@ -733,6 +760,7 @@ function AppContent({
         <ProductDisclosure productPrivacy={productPrivacy} />
       )}
     </div>
+    </TorrentAddProvider>
   );
 }
 

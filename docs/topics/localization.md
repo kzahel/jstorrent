@@ -1,5 +1,22 @@
 # Localization
 
+The October 17 hosted follow-up to 375 synchronizes Add-to-Settings UI tests
+on sheet disappearance and the next button's hittability. A captured failed
+run remained on the library after its immediate tap. Localization, navigation
+and lower-row reachability assertions are retained; product behavior is unchanged.
+
+Tactical [375](../tactical/375-ci-reconciliation-and-ui-regressions.md)
+updates iOS pseudo-locale reachability checks to scroll through the expanded
+Settings Form to the actual hittable background-notification switch, while
+retaining the runtime-row existence assertion. New safety settings can move
+these lazy rows below the fold. Existing localization and
+mirrored-toolbar assertions remain; shipping locale policy is unchanged.
+
+Tactical [367](../tactical/367-encrypted-short-links.md) adds four web
+messages for encrypted short links, disclosure, expiry and fallback, and
+renames the Share panel checkbox to **Include my IP address**. The separate
+Worker open page is English-only, with no new localization runtime.
+
 Tactical [357](../tactical/357-rich-share-links.md) adds 37 web messages
 (1,499 total) and 27 Android strings (580 total) for share panels, the
 address prompt, peer-hint results, file shares and sizes from the link.
@@ -306,3 +323,6 @@ non-English cohort. Android replacement localization remains open until that
 cohort passes provenance, native review, lifecycle, layout, accessibility,
 and release disclosure. Website, store, marketing, and support-copy
 localization remain outside this owner until explicitly planned.
+
+The 375 navigation synchronization passes all five UI tests in a fresh owned
+iOS 26.5 simulator under Xcode 26.6; the simulator is deleted afterward.

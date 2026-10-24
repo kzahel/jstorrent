@@ -1,0 +1,97 @@
+.page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: var(--ui-space-lg);
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+}
+
+.card {
+  width: min(36rem, 100%);
+  box-sizing: border-box;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: clamp(1.4rem, 5vw, 2.4rem);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-dialog);
+}
+
+.brand {
+  display: block;
+  object-fit: contain;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+}
+
+.card h1 {
+  margin: var(--ui-space-lg) 0 var(--ui-space-sm);
+  font-size: calc(var(--ui-font-display) * 1.3);
+  font-weight: var(--weight-strong);
+  line-height: 1.25;
+}
+
+.card p {
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-space-sm);
+  margin-top: var(--ui-space-lg);
+}
+
+.actions button {
+  min-height: var(--ui-control-height);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 0 var(--ui-space-md);
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.actions button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.actions .primary {
+  border-color: var(--accent-action);
+  color: var(--on-accent);
+  background: var(--accent-action);
+  font-weight: var(--weight-medium);
+}
+
+.actions .primary:hover:not(:disabled) {
+  border-color: var(--accent-action-hover);
+  background: var(--accent-action-hover);
+}
+
+.actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.status {
+  margin-top: var(--ui-space-md);
+  font-size: var(--ui-font-small);
+}
+
+.error {
+  color: var(--danger-strong) !important;
+}
+
+.details {
+  margin-top: var(--ui-space-lg);
+  color: var(--text-muted);
+  font-size: var(--ui-font-small);
+}
+
+.details pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

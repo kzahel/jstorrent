@@ -153,7 +153,7 @@ not silently send file bytes through the control relay as a fallback.
   DTLS fingerprints, protocol negotiation, and transfer grants are typed and
   bounded messages protected by the existing owner-authenticated channel. No
   new unauthenticated signaling endpoint is introduced.
-- **The native host embeds the other peer.** Desktop and headless builds
+- **The host embeds the other peer.** Desktop and headless builds
   contain a Rust WebRTC endpoint when compiled with the feature. A hidden
   desktop WebView, browser extension, companion daemon, and Google libwebrtc
   process are not the selected architecture.
@@ -186,9 +186,10 @@ not silently send file bytes through the control relay as a fallback.
   public endpoint/timing metadata but no file or account identity, and cannot
   relay payload. Outage degrades to other direct candidates or a truthful
   unavailable result.
-- **No new mobile-host claim.** The first investigation targets the already
-  implemented desktop and configured headless remote hosts. Android and iOS
-  hosting, background policy, and platform file presentation remain separate.
+- **No new mobile-host claim.** The first investigation targets the desktop
+  and configured headless hosts that already implement remote access. Android
+  and iOS hosting, background policy, and platform file presentation remain
+  separate.
 
 ## Leading WebRTC Shape
 
@@ -272,7 +273,7 @@ HTTPS remote page, and make router state part of file authority.
 
 ## Rust Dependency Investigation
 
-The browser supplies its WebRTC peer. The native host still needs a conforming
+The browser supplies its WebRTC peer. The host still needs a conforming
 implementation of ICE/STUN, UDP connectivity checks, SDP negotiation, DTLS,
 SCTP/DataChannel, retransmission, timers, flow control, and shutdown. This is
 substantial protocol code even when no audio/video feature is used; RSTorrent
@@ -621,7 +622,7 @@ cost and success-rate evidence.
 - Publishing the existing loopback HTTP listener through UPnP or exposing an
   unauthenticated LAN/public file server.
 - Bundling camera, microphone, capture, codec, transcoding, SFU, RTP
-  media-track or screen-control functionality in the native host. Browser MP4
+  media-track or screen-control functionality in the host. Browser MP4
   demux/remux and rendering are separately accepted in Tactical 313.
 - Sharing a wildcard TLS private key among RSTorrent hosts.
 - Claiming that WebRTC always establishes a direct path without TURN.

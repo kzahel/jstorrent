@@ -1,5 +1,17 @@
 # Runtime Configurations And Headless Deployment
 
+Tactical [366](../tactical/366-bounded-host-shutdown.md) bounds application
+shutdown and makes it observable. Tracker `stopped` announces and UPnP removal
+share a 2 s budget (`ApplicationService::shutdown_with`), accounting is
+flushed before that network phase, and work cut short is reported rather than
+failing shutdown. The gateway prints `shutdown:` progress lines and escalates
+on repeated SIGINT/SIGTERM: graceful, then skip network cleanup, then exit
+130. `./scripts/webui` runs the gateway and Vite in their own process groups,
+relays that progress, and kills the gateway on a third Ctrl+C. Process tests
+confirm `session.db` passes `integrity_check` after every exit path,
+including SIGKILL. Desktop, Android and iOS get the shorter budget but no new
+signal or progress surface.
+
 Tactical [356](../tactical/356-precompressed-hosted-web-assets.md) makes the
 gateway's static fallback serve `.br` and `.gz` copies written by
 `npm run build:hosted`, which the headless and Crostini packages and
@@ -125,25 +137,25 @@ supported public listener.
 ## Purpose And Scope
 
 RSTorrent should support several useful runtime compositions without turning
-them into different torrent engines or allowing a presentation to own durable
+them into different torrent engines or allowing a client to own durable
 download state accidentally. This topic owns the continuing product direction
 for:
 
 - visible, hidden, and eventually absent desktop webview operation;
 - a first-class headless Linux service with no desktop or browser process
   requirement;
-- backend lifetime while zero, one, or several presentations are attached;
+- host lifetime while zero, one, or several clients are attached;
 - explicit listener, public-origin, authentication, and TLS-termination
   deployment choices;
 - the distinction among process availability, UI lifetime, service startup,
   torrent seeding intent, and remote access;
 - the relationship between local extension control and a later configured
-  remote-host target; and
+  host on another machine; and
 - packaging and evidence expected before calling a headless configuration a
   supported product surface.
 
 [`product-surfaces-and-migration.md`](product-surfaces-and-migration.md) owns
-the broader backend/presentation model and later JSTorrent graduation.
+the broader host/client model and later JSTorrent graduation.
 [`application-connection-architecture.md`](application-connection-architecture.md)
 owns the typed application protocol and its HTTP, WebSocket, Tauri, and future
 relay delivery adapters.
@@ -152,7 +164,7 @@ future owner passphrase login, host and device identity, remembered access,
 end-to-end record protection, and relay threat models.
 [`download-root-acquisition.md`](download-root-acquisition.md) owns the exact
 native-picker matrix and accepted validated absolute server-path entry for the
-Linux headless presentation.
+Linux headless web UI.
 [`incoming-reachability-and-seeding.md`](incoming-reachability-and-seeding.md)
 owns peer-listener and upload behavior. Decision-complete Tactical
 [`201`](../tactical/201-durable-seeding-goals-and-seed-admission.md) now owns
@@ -164,9 +176,9 @@ deployment equivalent to the future owner-remote product.
 
 ## Product Outcome
 
-One native backend owns one application-service instance, profile database,
+One host owns one application-service instance, profile database,
 torrent engine, network owners, storage roots, and background lifecycle. A
-presentation attaches to that backend through the shared semantic application
+client attaches to that host through the shared semantic application
 API and may detach without stopping it.
 
 ```text
@@ -184,30 +196,30 @@ desktop installation                 headless Linux installation
      Tauri webview   browser/extension   remote client
 ```
 
-The two installation columns are separate backend instances with separate
+The two installation columns are separate host instances with separate
 profiles. The diagram shows shared architecture, not a shared database across
-machines. Multiple presentations may attach to one backend only through its
+machines. Multiple clients may attach to one host only through its
 bounded application connection. They never share peer sockets, filesystem
 handles, piece payloads, or SQLite pages.
 
 Headless Linux is a first-party product host, not a compatibility IO daemon.
 It runs the same Rust application service and engine used by the desktop
-product, serves or accepts the same mature React presentation, and keeps peer
+product, serves or accepts the same mature React client, and keeps peer
 and file hot paths in-process. It does not require Tauri, a display server, an
 open browser, or an extension.
 
 ## Intended Runtime Configurations
 
-| Configuration | Backend owner | Presentation | Lifecycle authority |
+| Configuration | Host | Client | Lifecycle authority |
 | --- | --- | --- | --- |
 | Desktop, visible | Tauri process | Embedded React webview | Desktop shell and explicit Quit |
 | Desktop, background | Same Tauri process | Hidden or detached webview, tray, and later extension | Persisted **Run in Background** policy and tray Quit |
-| Desktop, windowless | Same single desktop backend | Extension or remote client; webview created only on demand | Future desktop/extension tactical |
-| Linux, headless | Native service process | Backend-served browser UI or remote first-party client | Explicit service-manager configuration |
-| ChromeOS Linux | Crostini user service | Backend-served React UI launched through the extension | Implemented on-demand Crostini service policy |
-| Remote controller | The selected desktop or headless backend | Browser, installed client, or later extension | Authenticated connection and backend service policy |
+| Desktop, windowless | Same single desktop host | Extension or remote client; webview created only on demand | Future desktop/extension tactical |
+| Linux, headless | Native service process | Host-served browser UI or remote first-party client | Explicit service-manager configuration |
+| ChromeOS Linux | Crostini user service | Host-served React UI launched through the extension | Implemented on-demand Crostini service policy |
+| Remote controller | The selected desktop or headless host | Browser, installed client, or later extension | Authenticated connection and host service policy |
 
-Desktop and mobile clients remain in-process by default. Accepting headless
+Desktop and mobile apps remain in-process by default. Accepting headless
 Linux does not require desktop to become a client of a separate daemon, and it
 does not move Android or iOS networking and storage out of their first-party
 processes.
@@ -217,12 +229,12 @@ processes.
 Several choices that are easy to describe as “run in the background” are
 independent and must remain separately configurable.
 
-### Backend availability
+### Host availability
 
-The backend may remain available even when no presentation is connected and
+The host may remain available even when no client is connected and
 no torrent is actively downloading. This is useful for remote intake,
 inspection, seeding, scheduled discovery, and accepting a later browser or
-extension connection. An idle backend does not need to manufacture UI leases
+extension connection. An idle host does not need to manufacture UI leases
 or keep an invisible high-frequency observer active.
 
 ### Desktop close behavior
@@ -233,7 +245,7 @@ engine, webview, subscriptions, and tray. Turning the preference off makes the
 next close perform joined shutdown.
 
 Tactical 232 implements extension-first startup without a native webview and
-creates/restores the native presentation on demand on the same service.
+creates/restores the webview client on demand on the same service.
 Tactical 234 qualifies the persistent tray and explicit-intent rules across
 browser departure, restoration and deliberate relaunch after Quit.
 
@@ -254,7 +266,7 @@ engine shutdown, and durable reopen.
 
 ### Seeding intent
 
-Process lifetime is not torrent policy. A backend may stay reachable while all
+Process lifetime is not torrent policy. A host may stay reachable while all
 torrents are paused, and a completed torrent may remain eligible to seed while
 no UI exists. Eventually each torrent or the profile may express such goals as
 indefinite seeding, a share ratio, elapsed seeding time, or explicit stop.
@@ -489,26 +501,26 @@ unavailable rather than being recreated. Non-browser profile roots are
 created owner-only after successful listener admission, so bind failure does
 not manufacture a new profile authority.
 
-## Presentation And Extension Routing
+## Client And Extension Routing
 
-The simplest remote presentation remains a browser tab opened at the selected
+The simplest remote client remains a browser tab opened at the selected
 headless host and authenticated there. It provides the complete React control
 surface without making extension installation a prerequisite for a server.
 
-The desktop extension path initially attaches to the local installed backend
+The desktop extension path initially attaches to the local installed host
 through native bootstrap plus a future persistent local application channel.
-A later extension may retain named remote-host configurations and route a
-captured magnet to one user-selected default host. That convenience must reuse
-the same authenticated application operation as the web UI and preserve these
-rules:
+A later extension may retain named configurations for hosts on other machines
+and route a captured magnet to one user-selected default host. That convenience
+must reuse the same authenticated application operation as the web UI and
+preserve these rules:
 
 - local native messaging cannot silently become remote authority;
-- each remote host has its own endpoint or routing identity, authentication,
-  compatibility, and revocation state;
+- each host on another machine has its own endpoint or routing identity,
+  authentication, compatibility, and revocation state;
 - choosing a default host does not merge profiles or torrent identity across
   machines;
 - a failed or ambiguous target is shown before submitting the magnet to a
-  different backend; and
+  different host; and
 - magnets, credentials, and resume secrets are not placed in query strings,
   extension logs, or relay-readable routing metadata.
 
@@ -564,7 +576,7 @@ The repository now proves these parts of this direction:
 - Tactical `171` adds strict bounded signed headless manifests, native x86_64
   and ARM64 draft jobs, a pinned-key website bootstrap, and the installed
   command's explicit `update --check` and `update --apply`. The shared React UI
-  uses the same backend verifier for quiet startup/daily or visible manual
+  uses the same host verifier for quiet startup/daily or visible manual
   checks and can only show the copyable shell apply command; it cannot replace
   or restart the service.
 - The exact final x86_64 package is enabled and healthy on the current machine
@@ -624,7 +636,7 @@ Completed Tacticals
 [`171`](../tactical/171-signed-headless-release-and-lan-service.md), plus
 Tactical [`174`](../tactical/174-exact-tailnet-headless-access.md), supply the
 first bounded Linux headless deployment, signed source update lane, and exact
-LAN/tailnet presentation paths.
+LAN/tailnet client paths.
 The next headless release operation may publish/promote an exact reviewed
 `headless-v*` candidate; the next platform campaign should install it on a
 native Raspberry Pi or other ARM64 host and prove service, reboot/mount,
@@ -637,7 +649,7 @@ single self-updating JSTorrent Linux CLI described in
 [Self-updating Linux CLI](#self-updating-linux-cli-direction-accepted-2026-10-14-not-scheduled).
 
 The desktop windowless/extension-attachment tactical can proceed independently
-because it uses the same application-service and presentation-lifecycle
+because it uses the same application-service and client-lifecycle
 invariants but a different OS shell and local authentication boundary.
 Completed Tactical `190` remains the ephemeral foundation. Completed Tactical
 `192` integrates a durable remote owner into the desktop and configured
@@ -662,5 +674,5 @@ activated and external-path/support evidence remains open.
   the first Linux package.
 - Solving multi-host extension UX, friend sharing, remote media streaming,
   public accounts, wake-up delivery, or NAT traversal in the headless baseline.
-- Coupling backend availability to an open view, active download, or one
+- Coupling host availability to an open view, active download, or one
   particular seeding-goal policy.

@@ -1,0 +1,76 @@
+{
+  "$comment": "Known incompatibilities between captured releases and current source, found by the compatibility matrix (docs/tactical/359-mixed-version-compatibility-matrix.md). Tests accept exactly these items for these captures and fail on anything else. Each entry records a maintainer decision: fix, or accept until the releases leave the support window.",
+  "breaks": [
+    {
+      "captures": [
+        "ff632f4588a474d7b169de3cea228bd406e6982d",
+        "b25482902a1b52a5216fafa460a91e58fc49f74b",
+        "bff14e72a26575ee5d042d1a6de3335d0898775e"
+      ],
+      "deliveries": "desktop 0.3.0, android 1.0.28, extension 1.1.3",
+      "check": "contract",
+      "items": [
+        "TrackerView.last_failure_age_millis removed",
+        "TrackerView.last_success_age_millis removed",
+        "TrackerView.next_action_in_millis removed"
+      ],
+      "impact": "Tracker timing moved from ages to instants anchored on UpdateBatch.server_now_millis in 0.3.1. Current clients default server_now_millis and fill the instants with null for these hosts (tracker timing shows as unknown). Extension 1.1.3 requires the age fields and rejects current hosts' tracker views.",
+      "decision": "Accepted: the instants show as unknown for desktop 0.3.0 and android 1.0.28 until they leave the support window, and extension 1.1.5 replaces 1.1.3."
+    },
+    {
+      "captures": [
+        "ff632f4588a474d7b169de3cea228bd406e6982d",
+        "b25482902a1b52a5216fafa460a91e58fc49f74b"
+      ],
+      "deliveries": "desktop 0.3.0, android 1.0.28",
+      "check": "client-sent",
+      "items": [
+        "Command type=download_all_pending_add has no capability"
+      ],
+      "impact": "download_all_pending_add (Download all on a pending add) is new since these hosts, which close the connection on it. Released hosts advertise no capabilities.",
+      "decision": "Fixed in the client, 2026-10-15: a host whose hello has no product and whose batches omit server_now_millis is one of these, and LiveApplication sends confirm_pending_file_selection with every file selected instead, once the file list has loaded (R1 checks the request). The schema-level entry stays while these releases are captured."
+    },
+    {
+      "captures": [
+        "8ddf2e8be2c50e957f2e4946dbde68e58ba76e4d"
+      ],
+      "deliveries": "android 1.0.29",
+      "check": "client-sent",
+      "items": [
+        "Command download_all_pending_add.disable_future has no capability"
+      ],
+      "impact": "Android 1.0.29 ignores disable_future, so \"don't ask again\" is not saved there.",
+      "decision": "Accepted until android 1.0.29 leaves the support window: only the preference is lost, and its hello cannot be told apart from later released hosts."
+    },
+    {
+      "captures": [
+        "8ddf2e8be2c50e957f2e4946dbde68e58ba76e4d"
+      ],
+      "deliveries": "android 1.0.29",
+      "check": "requests",
+      "items": [
+        "download_all_pending_add"
+      ],
+      "impact": "disable_future is ignored by android 1.0.29; desktop 0.3.0 and android 1.0.28 receive the fallback instead.",
+      "decision": "Accepted with the client-sent entry above."
+    },
+    {
+      "check": "live",
+      "host": "current",
+      "client": "bff14e72a26575ee5d042d1a6de3335d0898775e",
+      "deliveries": "current host, extension 1.1.3",
+      "failsAt": "connect",
+      "impact": "extension 1.1.3 validates host data strictly and rejects the stop-limit settings a host built from current main sends, so the companion cannot open its library. This is the release hold in clients/web/src/api/release-compatibility.json: hosts must not ship these additions until a tolerant extension has replaced it.",
+      "decision": "release hold; resolved by publishing extension 1.1.5 before a host release"
+    },
+    {
+      "check": "live",
+      "host": "current",
+      "client": "5fa018ff589f8058f6ed3910f5cea5fcd06410ab",
+      "deliveries": "current host, extension 1.1.4",
+      "failsAt": "connect",
+      "impact": "extension 1.1.4 validates host data strictly and rejects the stop-limit settings a host built from current main sends, so the companion cannot open its library. This is the release hold in clients/web/src/api/release-compatibility.json: hosts must not ship these additions until a tolerant extension has replaced it.",
+      "decision": "release hold; resolved by publishing extension 1.1.5 before a host release"
+    }
+  ]
+}

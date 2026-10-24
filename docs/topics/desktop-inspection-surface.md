@@ -133,8 +133,8 @@ the same components. This direction does not make a local socket service or
 remote daemon part of the desktop architecture.
 
 For eventual JSTorrent graduation, the browser extension is also an accepted
-first-class desktop presentation preference. It should attach to the same
-native desktop backend and profile as a Tauri webview rather than take over a
+first-class desktop client preference. It should attach to the same
+desktop host and profile as a Tauri webview rather than take over a
 second engine. The future lifecycle, native-messaging, handoff, and security
 work is owned by
 [`product-surfaces-and-migration.md`](product-surfaces-and-migration.md); it
@@ -203,7 +203,7 @@ surface, not the RSTorrent application-view architecture.
   remain usable while the detailed shell is introduced.
 - The shared web application remains headlessly exercisable without launching
   or focusing the Tauri window. Interactive desktop testing and automated
-  validation use different hosts for the same presentation.
+  validation run the same web UI in different shells.
 - Empty scaffolding is acceptable when it is honest. Controls that cannot act
   must not appear to succeed.
 
@@ -289,4 +289,4 @@ surface. A production-preview headless Chrome run traverses estimated,
 warming, unavailable, and stalled rows at wide and Compact presentation sizes,
 then verifies the phone-width ETA column rule and empty serious/critical axe
 results. The proof launches neither a visible Tauri window nor a second ETA
-owner; the same generated state drives browser and embedded desktop hosts.
+owner; the same generated state drives browser and embedded desktop shells.

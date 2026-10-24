@@ -43,6 +43,15 @@
       }
     ]
   },
+  "convert_case@0.4.0": {
+    "license": "MIT",
+    "manifest_sha256": "bbd8c27bde074b1c78539307cc2f1770efdaf890253cce4b9557cfdc32d4e605",
+    "source_revision": "300d9eef9e8c970e15f324afbc3df8b6a4ebbf71",
+    "source_repository": "https://github.com/rutrum/convert-case",
+    "files": [],
+    "declaration_only": true,
+    "review": "The exact published manifest and pinned upstream Cargo.toml declare MIT. The archive omits standalone license files and upstream LICENSE is absent at this revision. Preserve the manifest provenance and standard MIT terms without inventing an upstream notice."
+  },
   "crc32c@0.6.8": {
     "license": "Apache-2.0/MIT",
     "manifest_sha256": "ffe61d0e558aff076c6be396c1a1cd46bcaa9b56a0f0e9d609767fcdc7eb1d6d",
@@ -96,6 +105,14 @@
         "source": "https://raw.githubusercontent.com/OpenByteDev/dlopen2/cc80e4a0a90d499b677fdf7743699b4b3a43a989/LICENSE"
       }
     ]
+  },
+  "fxhash@0.2.1": {
+    "license": "Apache-2.0 OR MIT",
+    "manifest_sha256": "83bb4c3e7fbfb7380c175923ba7dfe150e4e09bd4ebfb45e65e5f8a494d36ab9",
+    "source_repository": "https://github.com/cbreeden/fxhash",
+    "files": [],
+    "declaration_only": true,
+    "review": "Exact registry archive manifest declares these terms but the archive omits standalone license/notice files. Preserve the published declaration, package source locator and standard terms; do not fabricate an upstream copyright notice. Original source and source headers remain part of corresponding-source delivery."
   },
   "jni-macros@0.22.4": {
     "license": "MIT OR Apache-2.0",
@@ -181,6 +198,23 @@
         "source": "https://raw.githubusercontent.com/h4llow3En/mac-notification-sys/deb559683962d314a7693478476bf8d052efa84e/LICENSE-MIT"
       }
     ]
+  },
+  "mac@0.1.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "6d465c5e5a4b3e197049e9fb7393b2f996c1c654e6ded700afce046fac2f7969",
+    "source_repository": "https://github.com/reem/rust-mac.git",
+    "files": [],
+    "declaration_only": true,
+    "review": "Exact registry archive manifest declares these terms but the archive omits standalone license/notice files. Preserve the published declaration, package source locator and standard terms; do not fabricate an upstream copyright notice. Original source and source headers remain part of corresponding-source delivery."
+  },
+  "match_token@0.1.0": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "ce3e991e47c0a60454734bcb53a84bfac039aae0daaf8a6a1253139b8b4838c8",
+    "source_repository": "https://github.com/servo/html5ever",
+    "files": [],
+    "declaration_only": true,
+    "review": "Exact registry archive manifest declares these terms but the archive omits standalone license/notice files. Preserve the published declaration, package source locator and standard terms; do not fabricate an upstream copyright notice. Original source and source headers remain part of corresponding-source delivery.",
+    "source_revision": "0e4e125b8672abad4ff14d1e0043d3be9305af6a"
   },
   "objc2-app-kit@0.3.2": {
     "license": "Zlib OR Apache-2.0 OR MIT",
@@ -299,6 +333,15 @@
       }
     ]
   },
+  "objc2-quartz-core@0.3.2": {
+    "license": "Zlib OR Apache-2.0 OR MIT",
+    "manifest_sha256": "7af27150fadd5ac0b3e86ec173b4e3e2b0dd42d614de963a0c9f0bf55cc7b4d9",
+    "source_repository": "https://github.com/madsmtm/objc2",
+    "files": [],
+    "declaration_only": true,
+    "review": "Exact registry archive manifest declares these terms but the archive omits standalone license/notice files. Preserve the published declaration, package source locator and standard terms; do not fabricate an upstream copyright notice. Original source and source headers remain part of corresponding-source delivery.",
+    "source_revision": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b"
+  },
   "objc2-web-kit@0.3.2": {
     "license": "Zlib OR Apache-2.0 OR MIT",
     "manifest_sha256": "ea592b63600b5ccb95b557ac0b648d922b6da8a5d00992baa1e9e0c634cb3ab3",
@@ -324,6 +367,78 @@
         "source": "https://raw.githubusercontent.com/madsmtm/objc2/8852b424193ca41602281b3d7540d7c8ed51e49a/LICENSE.md"
       }
     ]
+  },
+  "phf@0.10.1": {
+    "license": "MIT",
+    "manifest_sha256": "29149d1a0e11a422264675eb6229a7827acf187d1c5f8cc4b9c1cb2bf4ac9ae4",
+    "source_repository": "https://github.com/sfackler/rust-phf",
+    "files": [],
+    "declaration_only": true,
+    "review": "Exact registry archive manifest declares these terms but the archive omits standalone license/notice files. Preserve the published declaration, package source locator and standard terms; do not fabricate an upstream copyright notice. Original source and source headers remain part of corresponding-source delivery.",
+    "source_revision": "bed01538ae576876f11189d541875d228acef9e8"
+  },
+  "phf@0.8.0": {
+    "license": "MIT",
+    "manifest_sha256": "cf0f974f175cd6eb806b55258f4b481f59e5fdb069d4329d434dda3637908740",
+    "source_repository": "https://github.com/sfackler/rust-phf",
+    "files": [],
+    "declaration_only": true,
+    "review": "Exact registry archive manifest declares these terms but the archive omits standalone license/notice files. Preserve the published declaration, package source locator and standard terms; do not fabricate an upstream copyright notice. Original source and source headers remain part of corresponding-source delivery.",
+    "source_revision": "81c7cc5b48649108428671d3b8ad151f6fbdb359"
+  },
+  "phf_codegen@0.8.0": {
+    "license": "MIT",
+    "manifest_sha256": "beb84099249ec78df70970f4ee8f61d65ef3ec960bc221972641ac98dac2f465",
+    "source_repository": "https://github.com/sfackler/rust-phf",
+    "files": [],
+    "declaration_only": true,
+    "review": "Exact registry archive manifest declares these terms but the archive omits standalone license/notice files. Preserve the published declaration, package source locator and standard terms; do not fabricate an upstream copyright notice. Original source and source headers remain part of corresponding-source delivery.",
+    "source_revision": "81c7cc5b48649108428671d3b8ad151f6fbdb359"
+  },
+  "phf_generator@0.10.0": {
+    "license": "MIT",
+    "manifest_sha256": "46412745915006724fdfa342f9804013efa4b1413564fcff0dd4d795404018b2",
+    "source_repository": "https://github.com/sfackler/rust-phf",
+    "files": [],
+    "declaration_only": true,
+    "review": "Exact registry archive manifest declares these terms but the archive omits standalone license/notice files. Preserve the published declaration, package source locator and standard terms; do not fabricate an upstream copyright notice. Original source and source headers remain part of corresponding-source delivery.",
+    "source_revision": "3ea14b2166553ad6e7b9afe7244144f5d661b6c6"
+  },
+  "phf_generator@0.8.0": {
+    "license": "MIT",
+    "manifest_sha256": "ec1eb2e9f9c5a019eb9a45c09dad75a7b1a47423ca1af19909c2767aab66aa8a",
+    "source_repository": "https://github.com/sfackler/rust-phf",
+    "files": [],
+    "declaration_only": true,
+    "review": "Exact registry archive manifest declares these terms but the archive omits standalone license/notice files. Preserve the published declaration, package source locator and standard terms; do not fabricate an upstream copyright notice. Original source and source headers remain part of corresponding-source delivery.",
+    "source_revision": "81c7cc5b48649108428671d3b8ad151f6fbdb359"
+  },
+  "phf_macros@0.10.0": {
+    "license": "MIT",
+    "manifest_sha256": "f9628d68a6b9f56d0ad2053a3eea00f3b27af054c7942c14bd49cda6326f8db7",
+    "source_repository": "https://github.com/sfackler/rust-phf",
+    "files": [],
+    "declaration_only": true,
+    "review": "Exact registry archive manifest declares these terms but the archive omits standalone license/notice files. Preserve the published declaration, package source locator and standard terms; do not fabricate an upstream copyright notice. Original source and source headers remain part of corresponding-source delivery.",
+    "source_revision": "3cc6f05cb07933af4cf886645d1170bdcb306b6b"
+  },
+  "phf_shared@0.10.0": {
+    "license": "MIT",
+    "manifest_sha256": "dbcb7cd89d95fb146864c5d665496c1803561d5f7f1eea88c35a699f44375f29",
+    "source_repository": "https://github.com/sfackler/rust-phf",
+    "files": [],
+    "declaration_only": true,
+    "review": "Exact registry archive manifest declares these terms but the archive omits standalone license/notice files. Preserve the published declaration, package source locator and standard terms; do not fabricate an upstream copyright notice. Original source and source headers remain part of corresponding-source delivery.",
+    "source_revision": "3ea14b2166553ad6e7b9afe7244144f5d661b6c6"
+  },
+  "phf_shared@0.8.0": {
+    "license": "MIT",
+    "manifest_sha256": "e1cbc0067c00766b07d95d15ec1147aafdaef4532e4be57aafe322d61c4aa65b",
+    "source_repository": "https://github.com/sfackler/rust-phf",
+    "files": [],
+    "declaration_only": true,
+    "review": "Exact registry archive manifest declares these terms but the archive omits standalone license/notice files. Preserve the published declaration, package source locator and standard terms; do not fabricate an upstream copyright notice. Original source and source headers remain part of corresponding-source delivery.",
+    "source_revision": "81c7cc5b48649108428671d3b8ad151f6fbdb359"
   },
   "rtc-datachannel@0.20.4": {
     "license": "MIT/Apache-2.0",
@@ -601,6 +716,15 @@
     "declaration_only": true,
     "review": "Generated Maven delivery crate has no VCS record or packaged license. Preserve the registry manifest grant and standard terms; Android Maven dependencies remain a separate distribution graph.",
     "files": []
+  },
+  "selectors@0.24.0": {
+    "license": "MPL-2.0",
+    "manifest_sha256": "91c32902a8dc9d10d7192360b2ac3b06a88b23247976804979c4449d349520dc",
+    "source_repository": "https://github.com/servo/servo",
+    "files": [],
+    "declaration_only": true,
+    "review": "Exact registry archive manifest declares these terms but the archive omits standalone license/notice files. Preserve the published declaration, package source locator and standard terms; do not fabricate an upstream copyright notice. Original source and source headers remain part of corresponding-source delivery.",
+    "source_revision": "e82d7868d999d84f6d59719e4c397e5252aecb85"
   },
   "selectors@0.36.1": {
     "license": "MPL-2.0",

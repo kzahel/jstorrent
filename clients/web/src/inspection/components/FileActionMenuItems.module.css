@@ -1,0 +1,9 @@
+.trailingIcon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: var(--ui-space-sm);
+  box-sizing: content-box;
+  color: var(--text-muted);
+}

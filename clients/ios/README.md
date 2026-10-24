@@ -10,6 +10,15 @@ Generate bindings and the Xcode project before building:
 clients/ios/scripts/generate-project.sh
 ```
 
+Run the CI unit and UI test suite with an absolute, unused result-bundle path:
+
+```bash
+clients/ios/scripts/test.sh /absolute/path/RSTorrent.xcresult
+```
+
+The runner waits for the selected iPhone simulator to finish booting before
+starting Xcode's test and application-launch deadlines.
+
 Product English copy lives in `App/Localization/Localizable.xcstrings` and
 Info.plist presentation copy in `App/Localization/InfoPlist.xcstrings`.
 English is the only packaged locale; Xcode's double-length and RTL launch

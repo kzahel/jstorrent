@@ -2,8 +2,18 @@
 
 Topic: `remote-access-authentication`
 
-Tactical [303](../tactical/303-canonical-remote-origin.md) deploys the accepted
-canonical controller at jstorrent.com/remote/. Production relay admission selects
+Tactical [360](../tactical/360-remote-controller-subdomain.md) publishes the
+independently tagged controller at `https://remote.jstorrent.com/` on
+2026-10-16. Marketing and controller artifacts/deployments are separate.
+Production temporarily admits both exact new and previous controller origins;
+frozen old assets and admission remain through the compatibility window, with
+reviewed retirement no earlier than 2026-11-16. New-origin password sign-in,
+browser approval, resume and revocation pass a disposable public canary with
+signed cleanup. Host/relay authority and the existing unadvertised support
+scope remain unchanged. Browser credentials and pins are not copied.
+
+Historical predecessor Tactical [303](../tactical/303-canonical-remote-origin.md) deploys the accepted
+canonical controller at jstorrent.com/remote/. At that cutover relay admission selected
 only the exact jstorrent.com origin; the relay hostname, host authority and
 cryptographic protocol are retained. Former and foreign origins are rejected.
 Cloudflare hosting retains strict remote HTTP protections; browser authorization
@@ -167,8 +177,8 @@ Tactical
 [`109-stable-same-origin-web-launch.md`](../tactical/109-stable-same-origin-web-launch.md)
 removes caller-selected browser gateway destinations and makes hosted browser
 authority the exact page origin. That reduces local bootstrap ambiguity but
-does not supply remote host identity, owner authentication, a relay, or E2E
-encryption.
+does not supply host identity for remote access, owner authentication, a
+relay, or E2E encryption.
 
 [`http-file-serving-and-streaming.md`](http-file-serving-and-streaming.md)
 owns local verified-file capability URLs and future incomplete-file streaming.
@@ -268,7 +278,7 @@ key and proves possession of it on later connections.
 
 The host identity key answers which RSTorrent installation accepted the
 connection. A device key answers which remembered controller initiated it.
-The relay registration credential answers which backend may claim a routing
+The relay registration credential answers which host may claim a routing
 slot. A connection traffic key protects one connection generation. None is a
 substitute for the others.
 
@@ -739,7 +749,7 @@ production-shaped local Tactical `192` rather than being implied by the proof.
 Do not add a production remote listener from this topic alone. Completed
 Tactical
 [`190`](../tactical/190-opaque-wasm-relay-foundation.md) owns the controlled
-native-host/browser-Wasm construction and evidence record; its retired proof
+host/browser-Wasm construction and evidence record; its retired proof
 binary was never a product mode.
 
 Completed Tactical

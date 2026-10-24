@@ -29,6 +29,41 @@ import org.rstorrent.session.uniffi.ViewProjection
 import org.rstorrent.session.uniffi.ViewSelector
 import org.rstorrent.session.uniffi.ViewUpdate
 
+/** Rows in one file catalog page. Rows are in file-index order, padding included. */
+internal const val FILE_CATALOG_PAGE_ROWS = 1_024U
+
+/** Keeps UI request order across the service's asynchronous startup dispatch. */
+internal class LatestPresentationRequest(
+    private val dispatch: ((AndroidPresentationRepository) -> Unit) -> Unit,
+) {
+    private val ownership = Any()
+    private var latestRequest = 0L
+
+    fun submit(action: (AndroidPresentationRepository) -> Unit) {
+        // Reserve order before dispatch or readiness waits can reorder callers.
+        val request = synchronized(ownership) { ++latestRequest }
+        dispatch { repository ->
+            synchronized(ownership) {
+                if (request == latestRequest) action(repository)
+            }
+        }
+    }
+}
+
+internal class PendingSelectionPresentation(
+    dispatch: ((AndroidPresentationRepository) -> Unit) -> Unit,
+) {
+    private val latest = LatestPresentationRequest(dispatch)
+
+    fun present(torrentId: String, offset: UInt) {
+        latest.submit { it.presentPendingFileSelection(torrentId, offset) }
+    }
+
+    fun clear() {
+        latest.submit(AndroidPresentationRepository::clearPendingFileSelection)
+    }
+}
+
 /** Owns the bounded set of subscriptions that feed the Android product surface. */
 internal class AndroidPresentationRepository(
     private val scope: CoroutineScope,
@@ -50,6 +85,7 @@ internal class AndroidPresentationRepository(
     private var pendingSelection: OwnedSubscription? = null
     private var pendingSelectionTorrent: String? = null
     private val global = mutableListOf<OwnedSubscription>()
+    private var library: OwnedSubscription? = null
     private var diagnostics: OwnedSubscription? = null
     private var selectedTorrent: String? = null
     private var diagnosticProfile = DiagnosticProfile.NORMAL
@@ -59,6 +95,7 @@ internal class AndroidPresentationRepository(
     private val detailRequest = AtomicLong()
     private val pendingSelectionRequest = AtomicLong()
     private val globalRequest = AtomicLong()
+    private val libraryRequest = AtomicLong()
     private val diagnosticRequest = AtomicLong()
 
     suspend fun start(client: AndroidApplicationClient) {
@@ -198,6 +235,25 @@ internal class AndroidPresentationRepository(
         }
     }
 
+    /** Leases one Library page; null releases it. */
+    fun presentLibrary(request: LibraryMediaRequest?) {
+        val epoch = libraryRequest.incrementAndGet()
+        launchPresentation {
+            if (epoch != libraryRequest.get()) return@launchPresentation
+            library?.close()
+            library = null
+            // The previous collector has stopped, so its page cannot return.
+            state.update { it.copy(libraryMedia = null) }
+            if (request == null) return@launchPresentation
+            library =
+                subscribe(libraryMediaSpec(request), false) { reduced ->
+                    reduced.copy(
+                        libraryMedia = reduced.libraryMedia?.copy(request = request),
+                    )
+                }
+        }
+    }
+
     fun configureDiagnostics(
         profile: DiagnosticProfile,
         severity: DiagnosticSeverity,
@@ -219,6 +275,7 @@ internal class AndroidPresentationRepository(
         detailRequest.incrementAndGet()
         pendingSelectionRequest.incrementAndGet()
         globalRequest.incrementAndGet()
+        libraryRequest.incrementAndGet()
         diagnosticRequest.incrementAndGet()
         ownership.withLock {
             closed = true
@@ -231,6 +288,8 @@ internal class AndroidPresentationRepository(
             pendingSelection = null
             pendingSelectionTorrent = null
             closeAll(global)
+            library?.close()
+            library = null
             diagnostics?.close()
             diagnostics = null
         }
@@ -304,6 +363,8 @@ internal class AndroidPresentationRepository(
     private suspend fun subscribe(
         spec: SubscriptionSpec,
         driveSaf: Boolean,
+        // Applied in the same state update as the reduction.
+        annotate: (ProductState) -> ProductState = { it },
     ): OwnedSubscription {
         val subscription = client.subscribe(spec)
         val job =
@@ -314,7 +375,8 @@ internal class AndroidPresentationRepository(
                         try {
                             var reduced: ProductState? = null
                             state.update { current ->
-                                ProductStateReducer.reduce(current, update).also { reduced = it }
+                                annotate(ProductStateReducer.reduce(current, update))
+                                    .also { reduced = it }
                             }
                             val product = requireNotNull(reduced)
                             if (driveSaf) onTorrentListUpdate(update, product)
@@ -398,8 +460,17 @@ internal class AndroidPresentationRepository(
         projection,
         DeliveryPolicy(250U, 512U * 1024U),
         null,
-        CatalogPageRequest(offset, 1_024U),
+        CatalogPageRequest(offset, FILE_CATALOG_PAGE_ROWS),
     )
+
+    private fun libraryMediaSpec(request: LibraryMediaRequest) =
+        SubscriptionSpec(
+            ViewSelector.Library(request.query),
+            ViewProjection.LIBRARY_MEDIA,
+            DeliveryPolicy(250U, 512U * 1024U),
+            null,
+            CatalogPageRequest(request.offset, request.limit),
+        )
 
     private val speedMetrics =
         listOf(

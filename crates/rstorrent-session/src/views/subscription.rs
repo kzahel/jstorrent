@@ -288,18 +288,32 @@ pub(crate) fn validate_spec(spec: &SubscriptionSpec) -> Result<(), SubscriptionE
     if spec.projection != ViewProjection::Diagnostics && spec.diagnostics.is_some() {
         return Err(SubscriptionError::InvalidProjection);
     }
+    match (&spec.selector, spec.projection) {
+        (ViewSelector::Library { query }, ViewProjection::LibraryMedia) => {
+            query.validate().map_err(SubscriptionError::InvalidQuery)?;
+        }
+        (ViewSelector::Library { .. }, _) | (_, ViewProjection::LibraryMedia) => {
+            return Err(SubscriptionError::InvalidProjection);
+        }
+        _ => {}
+    }
     let catalog_projection = matches!(
         spec.projection,
-        ViewProjection::Files | ViewProjection::Trackers
+        ViewProjection::Files | ViewProjection::Trackers | ViewProjection::LibraryMedia
     );
     if catalog_projection != spec.catalog_page.is_some() {
         return Err(SubscriptionError::InvalidProjection);
     }
+    let maximum_rows = if spec.projection == ViewProjection::LibraryMedia {
+        crate::MAX_LIBRARY_PAGE_ROWS
+    } else {
+        MAX_CATALOG_PAGE_ROWS
+    };
     if let Some(page) = spec.catalog_page
-        && !(1..=MAX_CATALOG_PAGE_ROWS).contains(&page.limit)
+        && !(1..=maximum_rows).contains(&page.limit)
     {
         return Err(SubscriptionError::InvalidCatalogPage {
-            maximum: MAX_CATALOG_PAGE_ROWS,
+            maximum: maximum_rows,
         });
     }
     if let Some(filter) = &spec.diagnostics

@@ -37,7 +37,7 @@
   </head>
   <body>
     <h1>JSTorrent Privacy Policy</h1>
-    <p><em>Updated October 10, 2026</em></p>
+    <p><em>Updated October 15, 2026</em></p>
     <p>
       This policy covers JSTorrent's Chrome extension, desktop application and Android app, and the
       JSTorrent website. Behavior varies between the legacy application and the replacement
@@ -63,16 +63,56 @@
     <p>
       Ordinary BitTorrent operation contacts peers and discovery services, which can observe network
       addresses and protocol information. Desktop update checks contact the update service with
-      version and platform information. Depending on the version and disclosed statistics
+      version and platform information and whether usage statistics are on, off or not yet chosen.
+      That choice is sent without any identifier, so we can count how many installations opt out. Depending on the version and disclosed statistics
       preference, an update check may also include the installation identifier. The replacement can
       preserve an older desktop installation's existing update identifier until you review the new
       disclosure. Once you review it, disabling statistics omits that identifier from update checks.
       Fresh installations do not send a new identifier before that review.
     </p>
     <p>
-      There is no continuous product analytics event upload or automatic crash-report upload in the
-      replacement. This does not mean that update requests or user-opened websites send no data:
-      ordinary HTTP requests expose network addresses and request information.
+      Usage statistics are on unless you turn them off. The choice is shown when you first open the
+      app and stays available in its settings. Turning statistics off stops everything described in
+      this section except what an update check needs: the version, platform and statistics-choice
+      information above.
+    </p>
+    <p>
+      With statistics on, the app may also send basic compatibility information: which versions of
+      JSTorrent and its controllers (the extension, the remote controller) connected to each other,
+      and counts of requests one version could not handle. We use it to find and fix version
+      mismatches. It never includes torrent names, hashes, file paths, peers, trackers or content.
+    </p>
+    <p>
+      There is no automatic crash-report upload. This does not mean that update requests or
+      user-opened websites send no data: ordinary HTTP requests expose network addresses and request
+      information.
+    </p>
+
+    <h2>Shared links</h2>
+    <p>
+      Full share links keep torrent information in the link itself. If you enable Short link in
+      the web or desktop Share panel, your device encrypts that information and uploads an
+      encrypted copy to link.jstorrent.com, hosted by Cloudflare. Copies expire after 30 days.
+      The decryption key stays in the link's fragment and is not sent to the storage API;
+      the recipient's browser decrypts the copy before opening the share page. Anyone with the
+      complete link can read it. The service can observe network addresses, request times and
+      the padded size of the encrypted copy. It has no accounts, link listing or content analytics.
+      The Short link choice is remembered on that client and can be turned off in the Share panel.
+    </p>
+    <p>
+      Include my IP address is a separate choice: it puts a direct connection address in the
+      shared information. Leaving that unchecked does not hide your network address from a
+      service you contact or from BitTorrent peers.
+    </p>
+
+    <h2>Remote access</h2>
+    <p>
+      The remote controller at jstorrent.com and its relay are a hosted service. The connection
+      between your browser and your JSTorrent is end-to-end encrypted; the relay cannot read your
+      torrents or commands. To operate the service and keep it reliable, the service may record basic
+      operational data such as network addresses, connection times and outcomes, and the versions of
+      JSTorrent and the remote controller in use. This applies whenever you use remote access,
+      independent of the in-app statistics choice.
     </p>
 
     <h2>Feedback, uninstall surveys and the website</h2>

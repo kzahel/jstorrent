@@ -11,7 +11,8 @@ fixture README for the release-tag procedure, using
 
 | Fixture | Release tag | Commit | SHA-256 |
 | --- | --- | --- | --- |
-| `v2.sqlite` | `android-v1.0.31` (product schema 2, as every public release) | `70150ec99ff5613bb468fd816fed46c687ff7557` | `27f0f591f481c0d4498970bd00854382ec89f1f04111be2592f540f547797c96` |
+| `v2.sqlite` | `android-v1.0.31` (product schema 2, as public releases through desktop 0.3.1) | `70150ec99ff5613bb468fd816fed46c687ff7557` | `27f0f591f481c0d4498970bd00854382ec89f1f04111be2592f540f547797c96` |
+| `v4.sqlite` | `desktop-latest-v0.3.2` | `6ac2553d93788b12f5a7dc614e5920c9e4bb7488` | `e1da767bfef2f23900bb84715a55303c9391d8ab104fa3f6a6a6b18ae7499b35` |
 
 The fixture records an acknowledged disclosure with statistics turned off,
 one foreground session, one added and one completed torrent, one source

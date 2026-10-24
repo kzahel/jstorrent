@@ -1,5 +1,13 @@
 # Application View API
 
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+adds optional FileView.safety and TorrentView.safety_summary, with corresponding
+field updates. A row independently explains rule source, suffix, allowance and
+blocked state; safety never adds a priority enum value. All-selection previews
+subtract blocked file counts/bytes. Files stays paged. New commands are gated
+by file_safety; strict released field-delta exposure stays under the existing
+client-first release hold. See [download safety](download-safety.md).
+
 Tactical [357](../tactical/357-rich-share-links.md) gives `export_magnet`
 optional `options` (`include_size`, `file_indices`, `peer_hint`) and adds
 `peer_hints` and `peer_hint_omission` to its result. Without options the
@@ -930,7 +938,7 @@ GET    /api/v1/connect
 authenticates once and carries typed hello, command, view-set creation/update/
 close, attachment, batch and exact cursor-acknowledgement frames directly. It
 does not require an HTTP-created view set, and one socket multiplexes every
-bounded view attachment for that client/backend connection. The accepted
+bounded view attachment for that client/host connection. The accepted
 framing, ownership, resume and relay-compatible layering live in
 [`application-connection-architecture.md`](application-connection-architecture.md).
 
@@ -1370,6 +1378,29 @@ metadata transition uses the closed typed `TotalSizeBytes` sparse field;
 TypeScript, Android, and Swift reducers apply it exhaustively. Playback itself
 reuses the existing semantic media call and adds no view field or payload byte.
 
+## Library Media Extension
+
+Tactical [`363`](../tactical/363-library-media-index.md) adds
+`library_media`, the first cross-torrent projection. The view hub derives one
+in-memory index from every torrent's resident file catalog and evaluates a
+`LibraryMediaQuery` (words, kinds, roles, availability, archived scope,
+torrent, group, grouping, sort, direction) against current file progress. A
+view carries the query and a catalog page of 1 to 128 rows (default 100); the
+legacy subscription boundary expresses the same view as
+`ViewSelector::Library` with the `library_media` projection and a required
+page, which is how Android consumes it.
+
+The snapshot holds the page, facets over the text, archived and torrent scope,
+and either item rows or group rows. The only patch is an `upsert` of items
+already on the delivered page. The hub keeps the last result of each live
+`(query, page)`: progress that leaves every item's offline state unchanged
+patches memoized rows without re-evaluating, and any change to the page,
+order, totals, facets or groups replaces the view with a snapshot. Clients use
+one view ID per request, so a page answering an earlier query is never taken
+for the current one. Companion connections do not advertise the projection,
+as with `torrent_media`. [`media-library`](media-library.md) owns the item
+model and its rules.
+
 ## Live Trackers Extension
 
 Tactical `043` implements `torrent_trackers` as complete keyed rows derived
@@ -1411,7 +1442,7 @@ without changing its cursor or payload. These decimal instants are not Unix
 timestamps and cannot be persisted across application restart. The adapter
 anchors this clock to `performance.now()` once per view-set epoch; retained
 rows, partial patches, tab reopen and unrelated updates preserve deadlines.
-The React table ticks locally without backend timer patches. Transport delay
+The React table ticks locally without host timer patches. Transport delay
 can produce a small display offset; the engine remains scheduling authority.
 
 The torrent summary also carries an additive optional configured-tracker
@@ -1742,7 +1773,10 @@ this design.
   initially client-side within a bounded complete torrent list;
 - exact reset granularity when one view snapshot itself exceeds its bound;
 - remote authentication, pairing, TLS, exposure, and deployment posture;
-- browser router and navigation URL details;
+- deep links into the browser UI from outside it (notifications, the
+  extension, share links); Tactical
+  [`365`](../tactical/365-url-navigation-and-hot-reload.md) settles in-app
+  navigation URLs as a client-only fragment with no host contract;
 - the measured threshold for specialized field patches or binary encoding;
   and
 - durable label and queue semantics; archive and bounded removal/deletion are

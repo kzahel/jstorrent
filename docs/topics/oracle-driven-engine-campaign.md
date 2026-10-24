@@ -1,5 +1,15 @@
 # Oracle-Driven Engine Campaign
 
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+implements download-safety policy and bitmap file sets using pinned BEP,
+libtorrent source/tests, qBittorrent OS-label behavior and sibling promotion
+history. Restart checkpoint: common implementation, controlled loopback
+skip/promotion/restart and real-browser safety actions pass. Workspace fmt/clippy/1,719 tests, 843 web tests, Android dual-ABI/207 JVM/lint
+checks and Swift app/test-target compilation pass. Native qualification limits
+are recorded in 373. Next platform actions require
+a healthy Windows test VM and a Machine Control Android emulator profile;
+no public swarm or release is implied.
+
 Tactical [340](../tactical/340-windows-quiet-network-startup.md) extends the
 desktop quiet-default/upgrade contract to Windows without changing shared engine
 policy. Restart checkpoint: implementation and bounded unsigned Windows VM
@@ -1397,7 +1407,7 @@ installed macOS/Windows/Linux replacement. 243 repairs Windows syncing of the
 private SQLite backup without opening the legacy source for write; 18 migration
 tests pass on each native platform. Tactical
 [244](../tactical/244-unavailable-storage-presentation.md) corrects shared React
-blocked-storage presentation without changing backend/checker semantics. Next
+blocked-storage presentation without changing host/checker semantics. Next
 resolve production qualification.
 
 Completed Tactical

@@ -1,3 +1,4 @@
+import { HostOwnedUpdater, reportUpdateActivity } from "../updater/host-owned";
 import { message as localizedMessage } from "../../localization/runtime";
 import { markStartup } from "../../startup-timing";
 import type {
@@ -7,6 +8,8 @@ import type {
   CheckingProgressView,
   DiagnosticEvent,
   FileView,
+  LibraryGroupView,
+  LibraryMediaItemView,
   MagnetExportOptions,
   MediaItemView,
   PeerSourceView,
@@ -41,7 +44,10 @@ import {
 } from "../../view-connection";
 import type { ViewSetState } from "../../view-set-reducer";
 import type { InspectionApplication } from "../application";
-import { supportedPatch } from "../host-capabilities";
+import { supportedCommand, supportedPatch } from "../host-capabilities";
+import { UNSUPPORTED_CALL_MESSAGE, type Command } from "../../api";
+import type { CompatibilityObservation } from "../../compatibility-observations";
+import { ApplicationViewError } from "../../api/errors";
 import type {
   CommandResult,
   DesiredInspectionViews,
@@ -54,6 +60,10 @@ import type {
   InspectionUpdate,
   FileRow,
   FileSet,
+  LibraryGroupRow,
+  LibraryItemRow,
+  LibraryMediaRequest,
+  LibraryMediaSet,
   MediaRow,
   MediaSet,
   LogRow,
@@ -74,6 +84,7 @@ import type {
   ViewMaterialization,
 } from "../model";
 import { emptyDiskSet } from "../state";
+import { libraryMediaViewId, sameLibraryRequest } from "../library-browse";
 import { DEFAULT_SPEED_METRICS } from "../speed-preferences";
 import { mapPieceActivity, type MappedPieceActivity } from "./pieces";
 
@@ -129,8 +140,16 @@ export class LiveApplication implements InspectionApplication {
     readonly source: Extract<ViewSnapshot, { type: "media" }>;
     readonly value: MediaSet;
   } | null = null;
+  private mappedLibraryMedia: {
+    readonly source: Extract<ViewSnapshot, { type: "library_media" }>;
+    readonly value: LibraryMediaSet;
+  } | null = null;
   private mappedPieces: MappedPieceActivity | null = null;
   private hello: ApiHello | null = null;
+  updater: HostOwnedUpdater | undefined;
+  private stopUpdateActivity: ReturnType<typeof reportUpdateActivity> | undefined;
+  // The latest view-set batch had no server clock; see predatesDownloadAll.
+  private serverClockMissing = false;
   // False after the connection drops, until hello is read again.
   private helloCurrent = false;
   private client: ApplicationViewClient | null;
@@ -258,9 +277,10 @@ export class LiveApplication implements InspectionApplication {
     this.ensureOpen();
     this.hello = await client.hello(this.lifetime.signal);
     this.helloCurrent = true;
+    this.configureHostUpdates(client, this.hello);
     markStartup("hello");
     this.ensureOpen();
-    this.snapshot = withHost(this.snapshot, this.hello);
+    this.snapshot = withHost(this.snapshot, this.hello, this.serverClockMissing);
     const opened = { ...this.desired };
     const controller = await ViewController.open(
       client,
@@ -504,6 +524,8 @@ export class LiveApplication implements InspectionApplication {
     }
     if (
       command.type !== "add_magnet" &&
+      command.type !== "update_file_safety_settings" &&
+      command.type !== "set_file_safety_override" &&
       command.type !== "set_file_priority" &&
       command.type !== "download_files" &&
       command.type !== "set_default_download_root" &&
@@ -533,6 +555,25 @@ export class LiveApplication implements InspectionApplication {
       };
     }
     if (
+      command.type === "download_all_pending_add" &&
+      predatesDownloadAll(this.hello, this.serverClockMissing)
+    ) {
+      // Selecting every file in the loaded list does the same there.
+      this.client?.compatibility?.degradedAction("download_all_pending_add");
+      const catalogId = this.snapshot.torrents[command.torrentId]?.fileCatalogId;
+      if (catalogId === null || catalogId === undefined) {
+        return { accepted: false, message: localizedMessage("feedback.file.selection.not.ready") };
+      }
+      return this.dispatch({
+        type: "confirm_pending_file_selection",
+        torrentId: command.torrentId,
+        catalogId,
+        base: "all",
+        overrides: [],
+        disableFuture: command.disableFuture,
+      });
+    }
+    if (
       (command.type === "update_client_settings" ||
         command.type === "update_torrent_settings") &&
       Object.keys(command.patch).length > 0 &&
@@ -546,20 +587,26 @@ export class LiveApplication implements InspectionApplication {
         ),
       ).length === 0
     ) {
+      this.client?.compatibility?.degradedAction(command.type);
       return {
         accepted: false,
         message: localizedMessage("inspection.live.live.application.setting.needs.newer.host"),
       };
     }
+    if ((command.type === "update_file_safety_settings" || command.type === "set_file_safety_override") && !this.capabilities().has("file_safety")) {
+      return { accepted: false, message: localizedMessage("inspection.live.live.application.setting.needs.newer.host") };
+    }
     const request: RequestEnvelope = {
       version: 1,
       request_id: `web-${this.requestInstanceId}-${this.requestSequence++}`,
-      ...(command.type === "update_client_settings" ||
+      ...(command.type === "update_client_settings" || command.type === "update_file_safety_settings" ||
       command.type === "update_torrent_settings"
         ? { expected_revision: this.snapshot.durableRevision }
         : {}),
       command:
-        command.type === "add_magnet"
+        command.type === "update_file_safety_settings" ? { type: "update_file_safety_settings", settings: command.settings }
+        : command.type === "set_file_safety_override" ? { type: "set_file_safety_override", torrent_id: command.torrentId, file_indices: [...command.fileIndices], allowed: command.allowed }
+        : command.type === "add_magnet"
           ? {
               type: "add_magnet",
               magnet: command.magnet,
@@ -676,7 +723,25 @@ export class LiveApplication implements InspectionApplication {
                       torrent_id: command.torrentId,
                     },
     };
-    const response = await this.controller?.dispatch(request);
+    const outgoing = supportedCommand(request.command, this.capabilities());
+    this.observeStripped(command, request.command, outgoing);
+    let response;
+    try {
+      response = await this.controller?.dispatch({ ...request, command: outgoing });
+    } catch (error) {
+      // A host may refuse one call, for example a command it predates,
+      // without closing the connection.
+      if (error instanceof ApplicationViewError && error.code === "invalid_call") {
+        return {
+          accepted: false,
+          message:
+            error.detail === UNSUPPORTED_CALL_MESSAGE
+              ? localizedMessage("inspection.live.live.application.request.needs.newer.host")
+              : error.detail,
+        };
+      }
+      throw error;
+    }
     if (response === undefined) {
       return { accepted: false, message: localizedMessage("inspection.live.live.application.live.controller.is.unavailable") };
     }
@@ -691,7 +756,7 @@ export class LiveApplication implements InspectionApplication {
       return magnetCommandResult(response);
     }
     if (
-      command.type === "update_client_settings" ||
+      command.type === "update_client_settings" || command.type === "update_file_safety_settings" ||
       command.type === "update_torrent_settings"
     ) {
       this.controller?.requestImmediatePoll();
@@ -706,7 +771,7 @@ export class LiveApplication implements InspectionApplication {
     }
     return {
       accepted: true,
-      ...(command.type === "update_client_settings" ||
+      ...(command.type === "update_client_settings" || command.type === "update_file_safety_settings" ||
       command.type === "update_torrent_settings"
         ? {
             requestId: response.request_id,
@@ -714,6 +779,31 @@ export class LiveApplication implements InspectionApplication {
           }
         : {}),
     };
+  }
+
+  /** Resolves a file-scoped media URL for in-page playback. */
+  async createMediaUrl(
+    torrentId: string,
+    fileIndex: number,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    this.ensureOpen();
+    if (this.controller === null) await this.attached;
+    const client = this.client;
+    const createMediaUrl = client?.createMediaUrl?.bind(client);
+    if (createMediaUrl === undefined) {
+      throw new Error(localizedMessage("inspection.live.live.application.opening.files.is.unavailable.on.this.connection"));
+    }
+    const response = await createMediaUrl(
+      { torrent_id: torrentId, file_index: fileIndex },
+      signal === undefined
+        ? this.lifetime.signal
+        : AbortSignal.any([signal, this.lifetime.signal]),
+    );
+    if (response.outcome.type === "unavailable") {
+      throw new Error(mediaUnavailableMessage(response.outcome.reason));
+    }
+    return response.outcome.url;
   }
 
   requestImmediatePoll(): void {
@@ -746,6 +836,8 @@ export class LiveApplication implements InspectionApplication {
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
+    this.stopUpdateActivity?.();
+    this.updater?.close();
     this.lifetime.abort("live application closed");
     this.removeWakeHints?.();
     this.removeWakeHints = null;
@@ -758,6 +850,7 @@ export class LiveApplication implements InspectionApplication {
 
   private acceptState(state: ViewSetState): void {
     if (this.closed) return;
+    this.serverClockMissing = state.serverNowMillis === "0";
     if (
       this.trackerClock?.viewSetId !== state.viewSetId ||
       this.trackerClock.epoch !== state.epoch
@@ -775,7 +868,11 @@ export class LiveApplication implements InspectionApplication {
     const mediaSet = this.mapMedia(media);
     const pieces = projection(state, PIECES_VIEW_ID, "piece_activity");
     const pieceSet = this.mapPieces(pieces, state.epoch);
-    if (state.views[LIBRARY_VIEW_ID] !== undefined) markStartup("first_library");
+    const libraryMediaSet = this.mapLibraryMedia(state);
+    if (state.views[LIBRARY_VIEW_ID] !== undefined) {
+      markStartup("first_library");
+      this.client?.compatibility?.libraryAttached();
+    }
     this.snapshot = mapViewState(
       state,
       this.desired,
@@ -783,12 +880,13 @@ export class LiveApplication implements InspectionApplication {
       this.connection,
       fileSet,
       mediaSet,
+      libraryMediaSet,
       pieceSet,
       this.snapshot.storage,
       this.snapshot.clientSettings,
       this.trackerClock.offsetMs,
     );
-    this.snapshot = withHost(this.snapshot, this.hello);
+    this.snapshot = withHost(this.snapshot, this.hello, this.serverClockMissing);
     this.emit({ type: "snapshot", snapshot: this.snapshot });
   }
 
@@ -840,6 +938,29 @@ export class LiveApplication implements InspectionApplication {
     return value;
   }
 
+  /**
+   * The page answering the current Library request, or while it loads the
+   * last page shown, so a new search does not blank the Library.
+   */
+  private mapLibraryMedia(state: ViewSetState): LibraryMediaSet | null {
+    const request = this.desired.libraryMedia ?? null;
+    if (request === null) {
+      this.mappedLibraryMedia = null;
+      return null;
+    }
+    const source = projection(state, libraryMediaViewId(request), "library_media");
+    if (source === null) return this.mappedLibraryMedia?.value ?? null;
+    if (
+      this.mappedLibraryMedia?.source === source &&
+      sameLibraryRequest(this.mappedLibraryMedia.value.request, request)
+    ) {
+      return this.mappedLibraryMedia.value;
+    }
+    const value = mapLibraryMedia(source, request);
+    this.mappedLibraryMedia = { source, value };
+    return value;
+  }
+
   private acceptStatus(status: ViewConnectionStatus): void {
     if (this.closed) return;
     if (status.type === "retrying") this.helloCurrent = false;
@@ -864,6 +985,23 @@ export class LiveApplication implements InspectionApplication {
     this.emit({ type: "snapshot", snapshot: this.snapshot });
   }
 
+  private configureHostUpdates(client: ApplicationViewClient, hello: ApiHello): void {
+    if (client.productUpdate && !client.nativeUpdateUi && hello.capabilities.includes("desktop_auto_updates")) {
+      const request = client.productUpdate.bind(client);
+      if (!this.stopUpdateActivity) this.stopUpdateActivity = reportUpdateActivity(request);
+      else this.stopUpdateActivity.refresh();
+      const product = hello.product;
+      const info = { version: product?.version ?? "Not reported", buildId: product?.build_id ?? "unknown",
+        target: product?.target ?? "unknown", arch: "unknown", bundleType: "unknown" as const,
+        checkPrivacy: "preference-controlled" as const };
+      if (this.updater) this.updater.setInfo(info);
+      else this.updater = new HostOwnedUpdater(request, info);
+    } else {
+      this.stopUpdateActivity?.(); this.stopUpdateActivity = undefined;
+      this.updater?.close(); this.updater = undefined;
+    }
+  }
+
   private async refreshHello(): Promise<void> {
     const client = this.client;
     if (client === null) return;
@@ -879,7 +1017,8 @@ export class LiveApplication implements InspectionApplication {
     if (this.closed) return;
     const capabilitiesChanged = !sameStrings(this.hello?.capabilities ?? [], hello.capabilities);
     this.hello = hello;
-    this.snapshot = withHost(this.snapshot, hello);
+    this.configureHostUpdates(client, hello);
+    this.snapshot = withHost(this.snapshot, hello, this.serverClockMissing);
     this.emit({ type: "snapshot", snapshot: this.snapshot });
     if (capabilitiesChanged) await this.syncViews().catch(() => {});
   }
@@ -890,6 +1029,10 @@ export class LiveApplication implements InspectionApplication {
       ...this.snapshot,
       viewStatus: {
         library: staleIfMaterialized(this.snapshot.viewStatus.library, error),
+        libraryMedia: staleIfMaterialized(
+          this.snapshot.viewStatus.libraryMedia,
+          error,
+        ),
         torrentSummary: staleIfMaterialized(
           this.snapshot.viewStatus.torrentSummary,
           error,
@@ -922,6 +1065,28 @@ export class LiveApplication implements InspectionApplication {
     return client;
   }
 
+  /** What this application saw from each host version (Tactical 370). */
+  compatibilityObservations(): readonly CompatibilityObservation[] {
+    return this.client?.compatibility?.snapshot() ?? [];
+  }
+
+  /** Records command fields and settings keys dropped for this host. */
+  private observeStripped(command: InspectionCommand, built: Command, sent: Command): void {
+    const observations = this.client?.compatibility;
+    if (observations === undefined) return;
+    for (const key of Object.keys(built)) {
+      if (!(key in sent)) observations.strippedField(`${built.type}.${key}`);
+    }
+    if (
+      (command.type === "update_client_settings" || command.type === "update_torrent_settings") &&
+      "patch" in built
+    ) {
+      for (const key of Object.keys(command.patch)) {
+        if (!(key in built.patch)) observations.strippedField(`${command.type}.${key}`);
+      }
+    }
+  }
+
   private capabilities(): ReadonlySet<string> {
     return new Set(this.hello?.capabilities ?? []);
   }
@@ -935,6 +1100,15 @@ export class LiveApplication implements InspectionApplication {
         type: "torrent_list",
         view_id: LIBRARY_VIEW_ID,
         delivery: { min_interval_millis: 100 },
+      });
+    }
+    if (views.libraryMedia != null && capabilities.has("library_media")) {
+      specs.push({
+        type: "library_media",
+        view_id: libraryMediaViewId(views.libraryMedia),
+        query: views.libraryMedia.query,
+        page: { offset: views.libraryMedia.offset, limit: views.libraryMedia.limit },
+        delivery: { min_interval_millis: 250 },
       });
     }
     if (views.torrentId !== null && capabilities.has("torrent_summary")) {
@@ -1183,16 +1357,36 @@ function magnetExportOptions(options: MagnetShareOptions): MagnetExportOptions {
   };
 }
 
-function withHost(snapshot: InspectionSnapshot, hello: ApiHello | null): InspectionSnapshot {
+function withHost(
+  snapshot: InspectionSnapshot,
+  hello: ApiHello | null,
+  serverClockMissing: boolean,
+): InspectionSnapshot {
   const host = hello?.product ?? null;
   const hostCapabilities = hello?.capabilities ?? null;
+  const hostLacksDownloadAll = predatesDownloadAll(hello, serverClockMissing);
   if (
     (snapshot.session.host ?? null) === host &&
-    (snapshot.session.hostCapabilities ?? null) === hostCapabilities
+    (snapshot.session.hostCapabilities ?? null) === hostCapabilities &&
+    (snapshot.session.hostLacksDownloadAll ?? false) === hostLacksDownloadAll
   ) {
     return snapshot;
   }
-  return { ...snapshot, session: { ...snapshot.session, host, hostCapabilities } };
+  return {
+    ...snapshot,
+    session: { ...snapshot.session, host, hostCapabilities, hostLacksDownloadAll },
+  };
+}
+
+/**
+ * Desktop 0.3.0 and Android 1.0.28 predate download_all_pending_add and
+ * close the connection on it. Their hello is the same as later released
+ * hosts', but they omit UpdateBatch.server_now_millis (decoded as "0"; a
+ * later host's clock is past 0 by the time it serves a view set). Every
+ * host released since reports its product in the hello.
+ */
+function predatesDownloadAll(hello: ApiHello | null, serverClockMissing: boolean): boolean {
+  return hello !== null && (hello.product ?? null) === null && serverClockMissing;
 }
 
 function sameStrings(left: readonly string[], right: readonly string[]): boolean {
@@ -1206,6 +1400,7 @@ function mapViewState(
   connection: SessionConnection,
   fileSet: FileSet | null,
   mediaSet: MediaSet | null,
+  libraryMediaSet: LibraryMediaSet | null,
   pieceSet: PieceMapSet | null,
   previousStorage: DownloadStorageSettings,
   previousClientSettings: ClientSettingsRuntimeView,
@@ -1325,6 +1520,7 @@ function mapViewState(
     swarmByTorrent,
     filesByTorrent,
     mediaByTorrent,
+    libraryMedia: libraryMediaSet,
     trackersByTorrent,
     piecesByTorrent,
     disk: disk === null ? emptyDiskSet() : mapDisk(disk),
@@ -1351,6 +1547,13 @@ function mapViewState(
         capabilities.has("torrent_list"),
         library !== null,
         "Torrent library is unavailable",
+      ),
+      libraryMedia: materialization(
+        desired.libraryMedia != null,
+        capabilities.has("library_media"),
+        libraryMediaSet !== null &&
+          sameLibraryRequest(libraryMediaSet.request, desired.libraryMedia),
+        "The media library is unavailable",
       ),
       torrentSummary: materialization(
         desired.torrentId !== null,
@@ -1494,6 +1697,7 @@ function transitionSnapshot(
     swarmByTorrent: {},
     filesByTorrent: {},
     mediaByTorrent: {},
+    libraryMedia: desired.libraryMedia == null ? null : current.libraryMedia,
     trackersByTorrent: {},
     piecesByTorrent: {},
     disk: current.disk,
@@ -1509,6 +1713,14 @@ function transitionSnapshot(
         desired.library,
         capabilities.has("torrent_list"),
         current.viewStatus.library,
+      ),
+      libraryMedia: transitionStatus(
+        desired.libraryMedia != null,
+        capabilities.has("library_media"),
+        current.libraryMedia !== null &&
+          sameLibraryRequest(current.libraryMedia.request, desired.libraryMedia)
+          ? current.viewStatus.libraryMedia
+          : undefined,
       ),
       torrentSummary: transitionStatus(
         desired.torrentId !== null,
@@ -1636,6 +1848,7 @@ function mapTorrent(torrent: TorrentView): TorrentRow {
     pendingFileSelectionPosition:
       torrent.pending_file_selection_position ?? null,
     fileCatalogId: torrent.file_catalog_id ?? null,
+    safetySummary: torrent.safety_summary ?? null,
     selectableFileCount: torrent.selectable_file_count,
     selectedFileCount: torrent.selected_file_count,
     selectableFileBytes: torrent.selectable_file_bytes,
@@ -2010,6 +2223,7 @@ function mapFile(
     firstPiece: file.first_piece,
     lastPiece: file.last_piece,
     selection: file.selection,
+    safety: file.safety ?? null,
     padding: file.padding,
     doneBytes: file.done_bytes,
     verifiedBytes: file.verified_bytes,
@@ -2242,6 +2456,66 @@ function safeNumber(value: string): number {
   }
 }
 
+function mapLibraryMedia(
+  source: Extract<ViewSnapshot, { type: "library_media" }>,
+  request: LibraryMediaRequest,
+): LibraryMediaSet {
+  return {
+    request,
+    page: {
+      offset: source.page.offset,
+      limit: source.page.limit,
+      total: source.page.total,
+      nextOffset: source.page.next_offset,
+    },
+    facets: source.facets,
+    items: source.items.map(mapLibraryItem),
+    groups: source.groups.map(mapLibraryGroup),
+  };
+}
+
+function mapLibraryItem(item: LibraryMediaItemView): LibraryItemRow {
+  return {
+    id: item.item_id,
+    torrentId: item.torrent_id,
+    torrentName: item.torrent_name,
+    fileIndex: item.file_index,
+    fileName: item.file_name,
+    title: item.title,
+    kind: item.kind,
+    role: item.role,
+    seriesTitle: item.series_title ?? null,
+    seriesId: item.series_id ?? null,
+    seasonNumber: item.season_number ?? null,
+    episodeNumber: item.episode_number ?? null,
+    endingEpisodeNumber: item.ending_episode_number ?? null,
+    albumTitle: item.album_title ?? null,
+    albumId: item.album_id ?? null,
+    discNumber: item.disc_number ?? null,
+    trackNumber: item.track_number ?? null,
+    year: item.year ?? null,
+    extension: item.extension,
+    lengthBytes: item.length_bytes,
+    verifiedBytes: item.verified_bytes,
+    offline: item.offline,
+    archived: item.archived,
+    mediaAvailability: item.media_availability,
+  };
+}
+
+function mapLibraryGroup(group: LibraryGroupView): LibraryGroupRow {
+  return {
+    id: group.group_id,
+    title: group.title,
+    itemCount: group.item_count,
+    offlineCount: group.offline_count,
+    totalBytes: group.total_bytes,
+    seasonCount: group.season_count,
+    torrentCount: group.torrent_count,
+    year: group.year ?? null,
+  };
+}
+
 function emptyLiveSnapshot(
   desired: DesiredInspectionViews,
   connection: SessionConnection,
@@ -2265,6 +2539,7 @@ function emptyLiveSnapshot(
     swarmByTorrent: {},
     filesByTorrent: {},
     mediaByTorrent: {},
+    libraryMedia: null,
     trackersByTorrent: {},
     piecesByTorrent: {},
     disk: emptyDiskSet(),
@@ -2280,6 +2555,8 @@ function emptyLiveSnapshot(
     },
     viewStatus: {
       library: desired.library ? { status: "loading" } : { status: "not_requested" },
+      libraryMedia:
+        desired.libraryMedia == null ? { status: "not_requested" } : { status: "loading" },
       torrentSummary:
         desired.torrentId === null ? { status: "not_requested" } : { status: "loading" },
       peers: desired.detail === "peers" ? { status: "loading" } : { status: "not_requested" },
@@ -2320,6 +2597,7 @@ function sameViews(
 ): boolean {
   return (
     left.library === right.library &&
+    sameLibraryRequest(left.libraryMedia, right.libraryMedia) &&
     left.torrentId === right.torrentId &&
     left.detail === right.detail &&
     left.logCapture?.profile === right.logCapture?.profile &&

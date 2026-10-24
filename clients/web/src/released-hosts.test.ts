@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DEFAULT_CLIENT_SETTINGS, HOST_CAPABILITY_REGISTRY } from "./api";
-import hello031 from "./fixtures/released/desktop-v0.3.1/api-hello.json";
-import settings031 from "./fixtures/released/desktop-v0.3.1/client-settings-runtime-view.json";
-import trace031 from "./fixtures/released/desktop-v0.3.1/view-set-trace.json";
+import { HOST_CAPTURES } from "./compat/captures";
 import { hostSupports, supportedPatch } from "./inspection/host-capabilities";
 import {
   decodeApiHello,
@@ -12,19 +10,11 @@ import {
 } from "./validation";
 import { reduceOpenViewSet, reduceUpdateBatch } from "./view-set-reducer";
 
-// Frames and values produced by released host code, copied unchanged from
-// the release tag (see docs/topics/mixed-version-compatibility.md). The
-// current client must accept them and fill what those hosts never send.
-const RELEASED_HOSTS = [
-  {
-    tag: "desktop-v0.3.1",
-    hello: hello031,
-    settings: settings031,
-    trace: trace031,
-  },
-];
-
-describe.each(RELEASED_HOSTS)("released host $tag", ({ hello, settings, trace }) => {
+// D1 of the compatibility matrix: frames and values each released host's own
+// source produced (compat/captures, see
+// docs/tactical/359-mixed-version-compatibility-matrix.md). The current
+// client must accept them and fill what those hosts never send.
+describe.each(HOST_CAPTURES)("released host $deliveries", ({ hello, settings, trace }) => {
   it("accepts the hello and gates every newer capability", () => {
     const decoded = decodeApiHello(JSON.stringify(hello));
     for (const capability of HOST_CAPABILITY_REGISTRY) {

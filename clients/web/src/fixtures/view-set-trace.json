@@ -97,6 +97,12 @@
             },
             "client_settings": {
               "configured": {
+                "file_safety": {
+                  "enabled": true,
+                  "preset": "recommended",
+                  "custom_extensions": [],
+                  "mark_internet_origin": true
+                },
                 "listener": {
                   "type": "disabled"
                 },
@@ -423,6 +429,12 @@
             },
             "client_settings": {
               "configured": {
+                "file_safety": {
+                  "enabled": true,
+                  "preset": "recommended",
+                  "custom_extensions": [],
+                  "mark_internet_origin": true
+                },
                 "listener": {
                   "type": "disabled"
                 },

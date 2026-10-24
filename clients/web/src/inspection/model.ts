@@ -6,6 +6,10 @@ import type {
   DiagnosticField,
   DiagnosticSubject,
   DhtInspectionView,
+  LibraryFacetsView,
+  LibraryMediaKind,
+  LibraryMediaQuery,
+  LibraryMediaRole,
   MediaFileAvailability,
   PeerDisconnectReason,
   PeerFlagView,
@@ -100,6 +104,12 @@ export interface SessionSummary {
    * the application does not report them (the demo); see host-capabilities.
    */
   readonly hostCapabilities?: readonly string[] | null;
+  /**
+   * True when the host predates download_all_pending_add (desktop 0.3.0,
+   * Android 1.0.28): a pending add can download all files only once its
+   * file list loads. Absent means the host has the command.
+   */
+  readonly hostLacksDownloadAll?: boolean;
   readonly downloadRate: number;
   readonly uploadRate: number | null;
   readonly dhtNodes: number | null;
@@ -130,6 +140,8 @@ export type ViewMaterialization =
 
 export interface InspectionViewStatus {
   readonly library: ViewMaterialization;
+  /** The cross-torrent Library page (Tactical 363). */
+  readonly libraryMedia: ViewMaterialization;
   readonly torrentSummary: ViewMaterialization;
   readonly peers: ViewMaterialization;
   readonly swarm: ViewMaterialization;
@@ -143,8 +155,16 @@ export interface InspectionViewStatus {
   readonly logs: ViewMaterialization;
 }
 
+/** One page of a Library query, as leased from the host. */
+export interface LibraryMediaRequest {
+  readonly query: LibraryMediaQuery;
+  readonly offset: number;
+  readonly limit: number;
+}
+
 export interface DesiredInspectionViews {
   readonly library: boolean;
+  readonly libraryMedia?: LibraryMediaRequest | null;
   readonly torrentId: string | null;
   readonly detail:
     | "general"
@@ -277,6 +297,7 @@ export interface TorrentRow {
   readonly awaitingFileSelection?: boolean;
   readonly pendingFileSelectionPosition?: number | null;
   readonly fileCatalogId?: string | null;
+  readonly safetySummary?: import("../api").FileSafetySummary | null;
   readonly selectableFileCount?: number;
   readonly selectedFileCount?: number;
   readonly selectableFileBytes?: string;
@@ -379,6 +400,7 @@ export interface SwarmSet {
 }
 
 export interface FileRow {
+  readonly safety?: import("../api").FileSafetyView | null;
   readonly id: string;
   readonly torrentId: string;
   readonly index: number;
@@ -437,6 +459,53 @@ export interface MediaSet {
   readonly totalNonPaddingFiles: number;
   readonly order: readonly string[];
   readonly rows: Readonly<Record<string, MediaRow>>;
+}
+
+export interface LibraryItemRow {
+  readonly id: string;
+  readonly torrentId: string;
+  readonly torrentName: string;
+  readonly fileIndex: number;
+  readonly fileName: string;
+  readonly title: string;
+  readonly kind: LibraryMediaKind;
+  readonly role: LibraryMediaRole;
+  readonly seriesTitle: string | null;
+  readonly seriesId: string | null;
+  readonly seasonNumber: number | null;
+  readonly episodeNumber: number | null;
+  readonly endingEpisodeNumber: number | null;
+  readonly albumTitle: string | null;
+  readonly albumId: string | null;
+  readonly discNumber: number | null;
+  readonly trackNumber: number | null;
+  readonly year: number | null;
+  readonly extension: string;
+  readonly lengthBytes: string;
+  readonly verifiedBytes: string;
+  readonly offline: boolean;
+  readonly archived: boolean;
+  readonly mediaAvailability: MediaFileAvailability;
+}
+
+export interface LibraryGroupRow {
+  readonly id: string;
+  readonly title: string;
+  readonly itemCount: number;
+  readonly offlineCount: number;
+  readonly totalBytes: string;
+  readonly seasonCount: number;
+  readonly torrentCount: number;
+  readonly year: number | null;
+}
+
+export interface LibraryMediaSet {
+  /** The request this page answers. */
+  readonly request: LibraryMediaRequest;
+  readonly page: CatalogPage;
+  readonly facets: LibraryFacetsView;
+  readonly items: readonly LibraryItemRow[];
+  readonly groups: readonly LibraryGroupRow[];
 }
 
 export interface TrackerRow {
@@ -622,6 +691,7 @@ export interface InspectionSnapshot {
   readonly swarmByTorrent: Readonly<Record<string, SwarmSet>>;
   readonly filesByTorrent: Readonly<Record<string, FileSet>>;
   readonly mediaByTorrent: Readonly<Record<string, MediaSet>>;
+  readonly libraryMedia: LibraryMediaSet | null;
   readonly trackersByTorrent: Readonly<Record<string, TrackerSet>>;
   readonly piecesByTorrent: Readonly<Record<string, PieceMapSet>>;
   readonly disk: DiskSet;
@@ -679,6 +749,7 @@ export type InspectionUpdate =
         readonly state?: TrackerSet["state"];
         readonly order?: readonly string[];
       })[];
+      readonly libraryMedia?: LibraryMediaSet | null;
       readonly pieces?: Readonly<Record<string, PieceMapSet>>;
       readonly disk?: DiskSet;
       readonly speed?: SpeedInspectionView;
@@ -713,6 +784,8 @@ export type InspectionCommand =
       readonly startContent: boolean;
       readonly awaitFileSelection?: boolean;
     }
+  | { readonly type: "update_file_safety_settings"; readonly settings: import("../api").FileSafetySettings }
+  | { readonly type: "set_file_safety_override"; readonly torrentId: string; readonly fileIndices: readonly number[]; readonly allowed: boolean }
   | {
       readonly type: "set_file_priority";
       readonly torrentId: string;

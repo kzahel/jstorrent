@@ -40,6 +40,10 @@ if [[ -z "${simulator_id}" ]]; then
   exit 1
 fi
 
+# Finish simulator boot and first-boot setup before Xcode starts its launch
+# deadlines. -b also works when the selected simulator is already running.
+xcrun simctl bootstatus "${simulator_id}" -b
+
 xcodebuild \
   -project "${client_root}/RSTorrent.xcodeproj" \
   -scheme RSTorrent \

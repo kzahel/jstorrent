@@ -38,6 +38,8 @@ pub enum FileCatalogState {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct FileView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub safety: Option<crate::FileSafetyView>,
     pub file_id: String,
     pub file_index: u32,
     pub path: Vec<String>,
@@ -60,12 +62,26 @@ pub(crate) struct FileViewChange {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct FileCatalog {
+    safety_policy: crate::file_safety::FileSafetyPolicy,
+    safety_allowed: crate::file_bitmap::FileBitmap,
     layout: ContentLayout,
+    /// The folder a multi-file torrent's paths are relative to.
+    content_root: Option<String>,
     media: DerivedMediaCatalog,
     selection: FileSelection,
     high_priority_files: BTreeSet<usize>,
     filesystem_content_base: Option<String>,
     media_availability: MediaFileAvailability,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct FileCatalogIdentity(Arc<FileCatalog>);
+
+impl FileCatalogIdentity {
+    /// Whether `files` still uses this catalog.
+    pub(crate) fn is_catalog_of(&self, files: &FileProgressModel) -> bool {
+        Arc::ptr_eq(&self.0, &files.catalog)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -172,6 +188,13 @@ impl FileProgressModel {
     ) -> Result<Self, FileProgressError> {
         let layout = ContentLayout::from_content(content);
         let media = DerivedMediaCatalog::from_layout(&layout);
+        // A single-file torrent's one path is its name; any other layout is
+        // relative to a folder of that name.
+        let single_file = matches!(
+            layout.files().iter().filter(|file| !file.padding).collect::<Vec<_>>()[..],
+            [file] if file.path.len() == 1 && file.path[0] == content.name()
+        );
+        let content_root = (!single_file).then(|| content.name().to_owned());
         let skipped = skipped
             .iter()
             .map(|index| usize::try_from(*index).map_err(|_| FileProgressError::FileIndexOverflow))
@@ -187,7 +210,10 @@ impl FileProgressModel {
         u32::try_from(file_count).map_err(|_| FileProgressError::FileIndexOverflow)?;
         let mut model = Self {
             catalog: Arc::new(FileCatalog {
+                safety_policy: Default::default(),
+                safety_allowed: Default::default(),
                 layout,
+                content_root,
                 media,
                 selection,
                 high_priority_files,
@@ -200,6 +226,17 @@ impl FileProgressModel {
         };
         model.reconcile_verified(verified_pieces)?;
         Ok(model)
+    }
+
+    pub(crate) fn with_safety(
+        mut self,
+        policy: crate::file_safety::FileSafetyPolicy,
+        allowed: crate::file_bitmap::FileBitmap,
+    ) -> Self {
+        let catalog = Arc::make_mut(&mut self.catalog);
+        catalog.safety_policy = policy;
+        catalog.safety_allowed = allowed;
+        self
     }
 
     pub(crate) fn filesystem_content_base(&self) -> Option<&str> {
@@ -304,6 +341,22 @@ impl FileProgressModel {
             )
         };
         FileView {
+            safety: if file.padding {
+                None
+            } else {
+                self.catalog
+                    .safety_policy
+                    .match_file(self.catalog.content_root.as_deref(), &file.path)
+                    .map(|matched_extension| {
+                        let overridden = self.catalog.safety_allowed.contains(index as u32);
+                        crate::FileSafetyView {
+                            matched_extension,
+                            preset: self.catalog.safety_policy.preset,
+                            overridden,
+                            blocked: !overridden,
+                        }
+                    })
+            },
             file_id: index.to_string(),
             file_index: u32::try_from(index).expect("file index was validated at construction"),
             path: file.path.clone(),
@@ -325,21 +378,78 @@ impl FileProgressModel {
             padding: file.padding,
             done_bytes: counters.done.to_string(),
             verified_bytes: counters.verified.to_string(),
-            media_availability: match self.catalog.media_availability {
-                _ if file.padding => MediaFileAvailability::Padding,
-                MediaFileAvailability::Streamable
-                    if file.length != 0 && self.catalog.selection.is_wanted(index) =>
-                {
-                    MediaFileAvailability::Streamable
-                }
-                MediaFileAvailability::Streamable => MediaFileAvailability::Unverified,
-                MediaFileAvailability::Available if counters.verified == file.length => {
-                    MediaFileAvailability::Available
-                }
-                MediaFileAvailability::Available => MediaFileAvailability::Unverified,
-                availability => availability,
-            },
+            media_availability: self.availability_with_counters(index, counters),
         }
+    }
+
+    fn availability_with_counters(
+        &self,
+        index: usize,
+        counters: FileCounters,
+    ) -> MediaFileAvailability {
+        let file = &self.catalog.layout.files()[index];
+        match self.catalog.media_availability {
+            _ if file.padding => MediaFileAvailability::Padding,
+            MediaFileAvailability::Streamable
+                if file.length != 0 && self.catalog.selection.is_wanted(index) =>
+            {
+                MediaFileAvailability::Streamable
+            }
+            MediaFileAvailability::Streamable => MediaFileAvailability::Unverified,
+            MediaFileAvailability::Available if counters.verified == file.length => {
+                MediaFileAvailability::Available
+            }
+            MediaFileAvailability::Available => MediaFileAvailability::Unverified,
+            availability => availability,
+        }
+    }
+
+    /// Identity of the immutable catalog: equal identities share one layout,
+    /// selection and availability. Holding it keeps the catalog alive, so a
+    /// pointer cannot be reused while it is compared.
+    pub(crate) fn catalog_identity(&self) -> FileCatalogIdentity {
+        FileCatalogIdentity(Arc::clone(&self.catalog))
+    }
+
+    pub(crate) fn content_root(&self) -> Option<&str> {
+        self.catalog.content_root.as_deref()
+    }
+
+    /// Non-padding files as `(file index, path, length, wanted)`.
+    pub(crate) fn library_files(&self) -> impl Iterator<Item = (usize, &[String], u64, bool)> {
+        self.catalog
+            .layout
+            .files()
+            .iter()
+            .enumerate()
+            .filter(|(_, file)| !file.padding)
+            .map(|(index, file)| {
+                (
+                    index,
+                    file.path.as_slice(),
+                    file.length,
+                    self.catalog.selection.is_wanted(index),
+                )
+            })
+    }
+
+    /// Verified bytes and media availability of one file without building
+    /// its row.
+    pub(crate) fn file_progress(&self, index: usize) -> Option<(u64, MediaFileAvailability)> {
+        let counters = *self.counters.get(index)?;
+        Some((
+            counters.verified,
+            self.availability_with_counters(index, counters),
+        ))
+    }
+
+    pub(crate) fn file_name(&self, index: usize) -> Option<&str> {
+        self.catalog
+            .layout
+            .files()
+            .get(index)
+            .and_then(|file| file.path.last())
+            .map(String::as_str)
     }
 
     pub(crate) fn stored_block(

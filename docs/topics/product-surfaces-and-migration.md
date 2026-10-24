@@ -1,12 +1,51 @@
 # Product Surfaces And JSTorrent Migration
 
+Tactical [379](../tactical/379-release-security-dependencies.md) removes fresh
+dependency-audit blockers for 378's public Latest 0.3.2. It preserves the native
+updater version, product identity, store migrations and package formats while
+patching TLS and torrent-list ZIP handling. No Stable publication is implied.
+
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md) supplies
+the compatible Stable/Latest train and production-signed private update
+rehearsals. Promotion preserves tested native/source bytes and rechecks its
+Stable predecessor, Latest source and every asset digest before publication.
+Signed macOS ARM, Windows x64 and Linux x64 real-idle updates, schema refusal,
+compatible Stable catch-up and retained-data checks pass. The shared service
+controls automatic permission by channel and exact native target. Ordinary
+Stable bodies remain unchanged. Tactical
+[378](../tactical/378-public-latest-and-nightly.md) authorizes public Latest
+and a daily changed-main publisher, with a bounded eight-field exception
+requiring extension 1.1.5 or newer. Stable and Android keep their existing
+companion guard, including when promoting Latest packages to Stable.
+Intel macOS under Rosetta also passes the real-idle late-focus test and manual
+Stable catch-up. Both channels permit exactly the four tested updater targets;
+Linux ARM stays manual. Physical Intel coverage is not inferred.
+
+Tactical [355](../tactical/355-automatic-updates.md) implements fully unattended
+updates for JSTorrent macOS app, Windows NSIS and Linux AppImage. Maintainer
+direction on October 16 permits a brief transfer interruption and restart
+after 15 minutes without interaction. Existing identities, signing roots,
+channels, durable data and package ownership remain constraints; default-on
+activation follows the per-target signed qualification in 377. Android, store-managed extension
+updates and the future Linux CLI retain their separate distribution owners.
+This implementation does not change production routes or the 30-day compatibility policy.
+
+Tactical [361](../tactical/361-extension-store-publishing-setup.md) lets an
+`extension-v*` tag test, package and submit the production extension to its
+existing Web Store item without a stored key, through a sibling workload
+identity provider beside Yep Anywhere's on the same publisher. On 2026-10-15
+the store API reported 1.1.4 published, and the workflow submitted 1.1.5
+(the first tolerant companion) for automatic publication after review.
+Listing, permissions and visibility are unchanged.
+
 Tactical [336](../tactical/336-production-desktop-extension-control.md) repairs
 production desktop-extension admission. Released desktop 0.3.0/0.3.1 retain
 a native helper guard allowing only the beta ID, although registration and
 authenticated WebSocket admission already allow production. The source repair
 and an unpacked production 1.1.4/macOS candidate pass local launch/lifecycle
-qualification. A corrected signed desktop update is still required; retrying
-or reinstalling the unchanged extension cannot repair the released helper.
+qualification. Public Latest 0.3.2 now contains the corrected signed desktop helper.
+Stable 0.3.1 retains the guard; retrying or reinstalling the unchanged
+extension cannot repair that older host.
 
 Tactical [330](../tactical/330-android-1-0-31-production-release.md) submits
 Android 1.0.31/code 31 for production at 100%, automatically publishing after
@@ -74,10 +113,10 @@ The last recorded incubation desktop offers are Stable 0.1.4 and Latest
 0.2.801. Retain published historical artifacts and existing legacy route
 behavior while retiring release machinery; do not re-enable
 `INCUBATION_PUBLICATION_ENABLED`, create new incubation packages, or advance
-those channels. Old incubation clients trust a different updater key and must
+those channels. Old incubation apps trust a different updater key and must
 not be redirected to JSTorrent payloads as an automatic migration.
 
-For installed JSTorrent clients, preserve the existing update-check URL shape
+For installed JSTorrent apps, preserve the existing update-check URL shape
 `/tauri/{target}/{arch}/{current_version}`, implicit Stable selection when no
 channel is supplied, the Tauri response fields, HTTP 204 for no update, and
 the embedded signing trust root. The server may change its release discovery
@@ -679,7 +718,7 @@ ownership tests, six injected Android and ten injected Linux packaged-browser
 journeys, plus real HTTP-cache replacement. Android/Crostini
 libraries remain separate, with no inferred store/policy diagnosis or automatic
 switch. Exact host-built candidates pass bounded cohort-A Android and Linux
-runtime evidence, including three recovery repetitions per backend and both
+runtime evidence, including three recovery repetitions per host and both
 controlled 60-minute byte-verified observations. Owned test state is restored.
 Normal Terminal startup restores Linux registration after the earlier failed
 administrative LXC session. The isolated current Linux browser connects, verifies
@@ -837,7 +876,7 @@ updater public trust root and update channel; the existing private signing key
 is supplied through release infrastructure, never source control. Android ships
 as an update to the existing `com.jstorrent.app` Google Play app with signing
 continuity and a higher versionCode. The successor extension updates the existing
-production Web Store item, preserving its ID and backend origin admission.
+production Web Store item, preserving its ID and host origin admission.
 These are three independently delivered updates under the staggered contract
 below, rather than a required synchronized release.
 
@@ -864,7 +903,7 @@ This direction does not itself authorize store submission or publication.
 Maintainer direction on 2026-09-30 accepts independently staggered extension
 and Android updates. Crostini automatic legacy migration is outside this
 cutover. Android remains the sole successor engine, catalog and SAF owner;
-the extension becomes a detachable presentation of that library.
+the extension becomes a detachable client of that library.
 
 | Installed extension | Installed Android app | Required outcome |
 | --- | --- | --- |
@@ -980,13 +1019,13 @@ keeps RSTorrent's incubation app identity and updater trust root while adding
 two desktop update channels. It does not change the eventual JSTorrent
 graduation identity, route, or key.
 
-Status: The backend/presentation model, ChromeOS choices, and desktop extension
+Status: The host/client model, ChromeOS choices, and desktop extension
 direction were accepted in product discussion on 2026-08-02. This topic
 records graduation direction, not standing authorization for production
 remote control, legacy migration, or extension-hosted control. Exact
 unimplemented transports and security boundaries remain to be designed and
 validated in bounded tacticals. Maintainer direction on
-2026-08-09 accepts iOS as an eventual first-party in-process backend; Tactical
+2026-08-09 accepts iOS as an eventual first-party in-process host; Tactical
 [`116`](../tactical/116-platform-storage-coherence-and-ios-feasibility.md)
 front-loads the physical storage/network/lifecycle feasibility that shaped the
 common engine boundary. Explicit direction on 2026-08-13 schedules the first
@@ -1014,10 +1053,10 @@ topology.
 Subsequent maintainer direction on 2026-08-26 selects the first Crostini
 product slice in Tactical
 [`167`](../tactical/167-chromeos-crostini-bundled-web-launcher.md). The
-Crostini package serves the mature React application with its Rust backend;
+Crostini package serves the mature React application with its Rust host;
 the extension owns cold handoff, warm open/focus, setup, and later browser
 integration rather than carrying the initial full UI bundle. A future
-extension-hosted presentation remains possible but is not required for the
+extension-hosted client remains possible but is not required for the
 first ChromeOS Linux path. That bounded slice is complete after source gates
 and the available physical Chromebook warm, twice-stopped-VM,
 detachable-transfer, preservation, and purge matrix. Full reboot remains a
@@ -1044,14 +1083,14 @@ physical ARM64 runtime claim.
 
 Maintainer direction on 2026-08-26 additionally accepts first-class headless
 Linux as a product composition: one native service owns its profile and engine
-without Tauri or a graphical session, while the backend-served React UI and
-later authenticated remote clients attach as detachable presentations.
+without Tauri or a graphical session, while the host-served React UI and
+later authenticated remote clients attach as detachable clients.
 [`runtime-configurations-and-headless-deployment.md`](runtime-configurations-and-headless-deployment.md)
 owns that runtime, service, listener, authentication, and reverse-proxy
 direction. Configured Linux headless-service Tactical
 [`170`](../tactical/170-configured-linux-headless-service.md) completes the
 first implementation slice with one ordinary-user systemd service, detachable
-React presentations, strict hosted access, and data-preserving package
+React clients, strict hosted access, and data-preserving package
 lifecycle. Completed signed headless release and trusted-LAN Tactical
 [`171`](../tactical/171-signed-headless-release-and-lan-service.md) adds strict
 signed source update machinery, one exact no-credential private-LAN mode, and
@@ -1064,7 +1103,7 @@ extension control as migration-critical release-parity work in active Tactical
 the familiar JSTorrent launch, pairing, dense browser presentation, and
 background-service journey while reversing the old ownership: Android retains
 the only Rust application service, engine, profile, networking, hashing, and
-SAF authority; the extension is a detachable typed presentation. The same
+SAF authority; the extension is a detachable typed client. The same
 React root action used with Crostini invokes Android's SAF picker, and retained
 grants keep earlier torrents on their original roots when a new root becomes
 current. This is workflow continuity, not legacy-state import, a raw IO
@@ -1085,18 +1124,18 @@ current work.
 
 This topic owns the product shape that separates a native engine host from the
 UI used to control it, the resulting desktop and ChromeOS configurations,
-the eventual iOS backend shape, launch and handoff requirements,
-backend-visible state ownership, and the initial migration posture from
+the eventual iOS host shape, launch and handoff requirements,
+host-visible state ownership, and the initial migration posture from
 current JSTorrent installations.
 
 It complements:
 
-- [`../vision.md`](../vision.md), which owns the long-term JSTorrent succession
-  thesis and graduation evidence;
+- [`../project-history.md`](../project-history.md), which records the
+  JSTorrent succession and its graduation evidence;
 - [`product-direction.md`](product-direction.md), which owns engine and
   platform constraints;
 - [`client-surfaces.md`](client-surfaces.md), which owns the currently
-  implemented browser, Tauri, and Android presentation adapters;
+  implemented browser, Tauri, and Android client adapters;
 - [`application-control.md`](application-control.md) and
   [`application-view-api.md`](application-view-api.md), which own the semantic
   command and recoverable view contracts; and
@@ -1113,19 +1152,19 @@ migration an implicit beta requirement. The accepted first-party Linux
 headless service remains a product host around the same application service,
 not a peer, filesystem, or payload proxy.
 
-## Product Model: Backend And Presentation Are Separate
+## Product Model: Host And Client Are Separate
 
 The product should distinguish the process that owns torrent state from the
 surface through which a user views and controls it.
 
-A **backend** owns one application-service instance, its profile database,
+A **host** owns one application-service instance, its profile database,
 torrent engine, peer and tracker networking, hashing, scheduling, storage
-capabilities, and background lifecycle. A **presentation** attaches as a
-detachable client using application commands, snapshots, diffs, and events.
-Closing or replacing one presentation must not silently create a second engine
+capabilities, and background lifecycle. A **client** attaches as a
+detachable UI using application commands, snapshots, diffs, and events.
+Closing or replacing one client must not silently create a second engine
 or transfer profile ownership.
 
-The web presentation retains substantial JavaScript and TypeScript heritage.
+The web client retains substantial JavaScript and TypeScript heritage.
 That is intentional. Rust ownership of the engine hot path does not require
 removing the browser technology that makes JSTorrent's detailed interface and
 browser integration valuable.
@@ -1133,15 +1172,15 @@ browser integration valuable.
 The accepted product invariants are:
 
 - peer sockets, tracker and DHT work, hashing, scheduling, SQLite, and piece
-  payloads remain in the selected native backend;
+  payloads remain in the selected host;
 - an extension control channel carries bounded semantic commands and
   recoverable views, never raw socket, filesystem, or piece operations;
-- every attached UI identifies the exact backend instance and profile it is
+- every attached UI identifies the exact host instance and profile it is
   displaying;
-- UI preferences are presentation state and do not decide profile ownership;
-- more than one view may attach to one backend when the backend and transport
+- UI preferences are client state and do not decide profile ownership;
+- more than one view may attach to one host when the host and transport
   explicitly support it; and
-- different backends never imply a shared live database, storage capability,
+- different hosts never imply a shared live database, storage capability,
   or verified-piece authority merely because the same extension can reach
   both.
 
@@ -1149,29 +1188,29 @@ The accepted product invariants are:
 
 The likely successor has these useful compositions:
 
-| Platform | Backend | Presentation | State relationship |
+| Platform | Host | Client | State relationship |
 | --- | --- | --- | --- |
 | Desktop | Desktop Rust application service | Embedded Tauri webview | Owns the desktop profile |
 | Desktop | Same desktop Rust application service | Browser extension | Shares the desktop profile |
-| Linux server | Headless Rust application service | Backend-served React UI or authenticated remote client | Owns one explicit server profile and its configured roots |
-| ChromeOS | Rust application service in Crostini | Backend-served React UI, launched through the browser extension | Owns a Linux profile and roots |
+| Linux server | Headless Rust application service | Host-served React UI or authenticated remote client | Owns one explicit server profile and its configured roots |
+| ChromeOS | Rust application service in Crostini | Host-served React UI, launched through the browser extension | Owns a Linux profile and roots |
 | ChromeOS | Rust application service in the Android app | Browser extension | Shares the Android profile |
-| ChromeOS or Android | Same Android application service | Android Compose | Shares the Android backend and profile |
+| ChromeOS or Android | Same Android application service | Android Compose | Shares the Android host and profile |
 | iOS/iPadOS | Rust application service in the native app | First-party JSTorrent SwiftUI presentation adapted to typed RSTorrent models | Owns an iOS profile, app Documents, and qualified selected on-device roots |
 
-ChromeOS therefore has **two backends and three presentation
+ChromeOS therefore has **two hosts and three client
 configurations**:
 
 1. Crostini plus extension;
 2. Android plus extension; or
 3. Android alone through Compose.
 
-The second and third configurations are two views of the same Android backend.
-The Crostini configuration is a different backend with different state and
+The second and third configurations are two views of the same Android host.
+The Crostini configuration is a different host with different state and
 storage.
 
-The iOS application is another native backend, not a remote
-presentation of desktop or Android. It runs the first-party Rust engine
+The iOS application is another host, not a remote
+client of desktop or Android. It runs the first-party Rust engine
 in-process and owns its own profile, root capabilities, networking, and
 lifecycle. An Apple bookmark or File Provider identity cannot be shared with
 Android SAF or a desktop path, and matching filenames do not imply shared
@@ -1197,11 +1236,11 @@ scoped lease. None authorizes migration or public distribution.
 The embedded desktop webview is not the only legitimate desktop preference.
 Some users, including the maintainer, prefer the extension UI even when a
 desktop application is installed. The successor should treat the extension as
-a first-class desktop presentation rather than only a launcher, installation
+a first-class desktop client rather than only a launcher, installation
 probe, or reduced integration surface.
 
-The desired desktop ownership model is one native desktop backend with two
-possible web presentations:
+The desired desktop ownership model is one desktop host with two
+possible web clients:
 
 ```text
 Tauri webview ---------\
@@ -1211,8 +1250,8 @@ JSTorrent extension ---/
 
 When the extension is chosen, native messaging may start the installed desktop
 product without creating its webview window, or attach to an already running
-backend. Opening the desktop UI later should attach a webview to that same
-backend and profile. It must not start a competing application-service
+host. Opening the desktop UI later should attach a webview to that same
+host and profile. It must not start a competing application-service
 instance or require the user to take the profile away from the extension.
 The preferred successor interpretation is that the native host is a thin
 bootstrap and connection surface for the desktop product: **headless** means
@@ -1228,10 +1267,10 @@ ordinary act of switching UIs.
 
 The desktop handoff must eventually define and prove:
 
-- how native messaging finds or starts exactly one backend instance;
-- how a headless backend later creates or focuses the embedded desktop UI;
+- how native messaging finds or starts exactly one host instance;
+- how a headless host later creates or focuses the embedded desktop UI;
 - how an extension page is opened or focused without duplicating it;
-- whether both presentations may remain attached simultaneously;
+- whether both clients may remain attached simultaneously;
 - how update, tray, deep-link, file-association, and shutdown ownership work
   when no webview is open; and
 - how stale processes, incompatible versions, and profile conflicts recover
@@ -1261,16 +1300,16 @@ starts the cold app. Allow-listing the existing JSTorrent extension origin
 does not make that extension compatible while it still addresses legacy host
 `com.jstorrent.native`.
 
-## ChromeOS Backends
+## ChromeOS Hosts
 
 ### Crostini plus extension
 
-Crostini is implemented as a first-class ChromeOS backend rather than only an
+Crostini is implemented as a first-class ChromeOS host rather than only an
 emergency fallback. The first local x86_64 package bundles and serves the mature
 JavaScript/React control surface beside one native Linux process that owns the
 Rust application service, database, networking, hashing, and filesystem I/O.
 The extension is the Chrome-resident launch, focus, setup, and future
-integration surface. It may later host the same detachable React presentation,
+integration surface. It may later host the same detachable React client,
 but the initial product does not duplicate those assets inside the extension.
 
 The implementation adapts the proven `web-server-chrome` Crostini pattern:
@@ -1283,7 +1322,7 @@ The implementation adapts the proven `web-server-chrome` Crostini pattern:
 - a stable local controller endpoint with capability and version negotiation;
 - exact local-host admission and persistent browser-session authentication;
 - bundled setup, recovery, and uninstall guidance; and
-- a normal backend-served tab for routine control with extension setup and
+- a normal host-served tab for routine control with extension setup and
   recovery pages.
 
 RSTorrent adapts that pattern without copying web-server-specific policy. The
@@ -1314,7 +1353,7 @@ ChromeOS-only authenticated application-control surface to the extension.
 This is not the current raw IO-companion architecture: the Android foreground
 service owns the complete Rust application service and engine in-process,
 while the extension packages the shared React application as another
-presentation of its commands and views.
+client of its commands and views.
 
 The extension and Compose UI therefore see the same Android profile. Either
 surface may be attached without copying torrents or starting a second engine,
@@ -1336,9 +1375,9 @@ Android foreground service is already running,
 the extension can reconnect directly. Product copy must describe this rather
 than promise seamless launch.
 
-Root acquisition is also presentation-neutral. The shared
+Root acquisition is also client-neutral. The shared
 `chooseDownloadRoot` interaction uses a Linux path picker for Crostini and an
-Android-owned SAF picker for the Android backend. Android keeps the URI and
+Android-owned SAF picker for the Android host. Android keeps the URI and
 grant private and returns only the resulting root snapshot. A new selected
 tree becomes the one current/default root for future downloads; prior roots
 and grants remain registered for the torrents already bound to them, and a
@@ -1348,7 +1387,7 @@ referenced. The extension cannot submit a URI or silently redirect an existing
 torrent.
 
 Android plus extension remains a useful option for people who prefer the
-extension's dense UI or want the same Android profile in both presentations.
+extension's dense UI or want the same Android profile in both clients.
 It remains the intended companion lane for current JSTorrent users, but
 2026-09-30 direction permits a disclosed temporary browser-control gap during
 replacement and removes uninterrupted continuity as a desktop rollout gate.
@@ -1361,7 +1400,7 @@ The selected security and topology boundary is deliberately local and narrow:
 the extension uses the fixed ChromeOS ARC host and a bounded RSTorrent-only
 port list, requests its exact host permission at the user's connect action,
 and authenticates through explicit Android approval. Exact Host, extension
-Origin, bearer credential, backend/profile identity, resource bounds,
+Origin, bearer credential, host/profile identity, resource bounds,
 revocation, same-device routing evidence, and current Chrome Local Network
 Access behavior are release gates. There is no network discovery, arbitrary
 host input, LAN/tailnet/Internet claim, Android-served application shell, raw
@@ -1371,8 +1410,8 @@ file/socket/hash path, or media path in the first slice.
 
 The Compose application remains the simplest ChromeOS path for a user who
 wants Google Play installation and does not need the extension interface. It
-uses the same Android backend and profile as extension-controlled Android, so
-changing between those two presentations is not a migration.
+uses the same Android host and profile as extension-controlled Android, so
+changing between those two clients is not a migration.
 
 Completed Tactical
 [`117`](../tactical/117-jstorrent-shaped-android-product-ui.md) makes this a
@@ -1389,10 +1428,10 @@ failed/unavailable Android installation and an explicit Crostini route.
 Tactical [253](../tactical/253-chromeos-onboarding-recovery-and-physical-qualification.md)
 owns the bounded onboarding, in-product troubleshooting and physical matrix.
 Existing engine/emulator/one-device evidence does not close this gate.
-Troubleshooting must be reachable before backend connection and distinguish
+Troubleshooting must be reachable before host connection and distinguish
 observed failure stages from unknown Play/app/policy state. Android setup and
 connection failures offer an explicit Linux choice where supported; switching
-backends retains the separate-library contract below. Neither available means
+hosts retains the separate-library contract below. Neither available means
 honest unsupported guidance, not an installation/retry loop. This is a ChromeOS
 rollout priority and does not reinstate synchronized desktop/Android delivery.
 The same direction selects host-built artifacts from an x86_64 Linux
@@ -1440,24 +1479,24 @@ dedicated-localhost slice separately qualifies the browser route on both
 cohorts, as recorded at the top of this topic. Test-only state is removed,
 the inherited Play app is preserved, and final device doctor passes ten checks.
 
-The first-run UX should emphasize two backend choices:
+The first-run UX should emphasize two host choices:
 
 - **Use the Android app**, with optional extension remote control after the
-  Android backend is running; and
+  Android host is running; and
 - **Use ChromeOS Linux with the extension**.
 
 The product must not infer that Google Play, Android applications, or Crostini
 is available from weak platform heuristics. It may remember an explicit user
-choice and recognize a reachable, authenticated backend. The extension should
+choice and recognize a reachable, authenticated host. The extension should
 always display whether it currently controls **Android** or **ChromeOS Linux**.
 
-## Backend Identity, Switching, And Isolation
+## Host Identity, Switching, And Isolation
 
 The extension may remember separate pairings for desktop, Android, and
-Crostini. Each successful connection should expose at least a backend kind,
-stable backend instance identity, profile identity, application/control
+Crostini. Each successful connection should expose at least a host kind,
+stable host instance identity, profile identity, application/control
 protocol range, and current product version. Authentication tokens and
-transport endpoints are scoped to that backend identity.
+transport endpoints are scoped to that host identity.
 
 Switching the extension from Android to Crostini switches libraries. It does
 not move torrents, copy content, or reconcile progress. The UI must make that
@@ -1473,8 +1512,8 @@ Android and Crostini cannot share live data or state:
 - even when both can reach similarly named user files, concurrent ownership is
   unsafe without an explicit transfer and verification design.
 
-The same torrent may be added independently to both backends, but the product
-must not imply synchronized intent or progress. A later cross-backend move is
+The same torrent may be added independently to both hosts, but the product
+must not imply synchronized intent or progress. A later cross-host move is
 an explicit export/import operation, not live profile synchronization.
 
 ## Launch And Handoff UX
@@ -1485,13 +1524,13 @@ requires an explicit handoff model, not only a transport.
 
 Every supported configuration should strive for these properties:
 
-- the user can tell which backend is installed, running, paired, and selected;
-- one launch action opens or focuses the preferred presentation when the
+- the user can tell which host is installed, running, paired, and selected;
+- one launch action opens or focuses the preferred client when the
   platform permits it;
 - an action that merely requests another platform surface never reports that
   the surface definitely opened;
-- starting or focusing a UI does not transfer or duplicate backend ownership;
-- a stopped backend produces one actionable recovery path rather than a loop;
+- starting or focusing a UI does not transfer or duplicate host ownership;
+- a stopped host produces one actionable recovery path rather than a loop;
 - closing a view does not silently stop active torrents unless the user chose
   that product behavior; and
 - stale endpoints, tokens, versions, or instance identities fail closed and
@@ -1500,7 +1539,7 @@ Every supported configuration should strive for these properties:
 The unavoidable Android two-action cold start is an explicit exception, not a
 failure to acknowledge in copy. Crostini may use its registered Linux Launcher
 to wake the VM and then hand off to the extension. Desktop native messaging can
-start or attach to the native backend, but its exact window and process
+start or attach to the desktop host, but its exact window and process
 lifecycle still requires a tactical.
 
 ## Later JSTorrent Graduation
@@ -1518,7 +1557,7 @@ into the production JSTorrent application.
 The broad later goal is different: once the implementation is ready, ship it
 as a normal JSTorrent desktop update while retaining JSTorrent branding,
 `com.jstorrent.desktop`, and the updater trust root already embedded in
-installed JSTorrent clients. The new release may present a refreshed interface
+installed JSTorrent apps. The new release may present a refreshed interface
 while using the Rust engine underneath.
 
 Migration of useful legacy settings, torrent intent, and storage references is
@@ -1581,7 +1620,7 @@ Current repository evidence already supplies useful parts of this direction:
   with conservative recheck and transport-neutral commands.
 - The leased application-view contract supports independent detachable clients
   and recovery after a view disappears or suspends.
-- The Tauri and browser adapters already share one React presentation through
+- The Tauri and browser adapters already share one React client through
   different transports, while Android consumes the same semantic model through
   UniFFI and Compose.
 - Tactical `170` proves the separate Linux-server composition on x86_64: one
@@ -1605,7 +1644,7 @@ fixture, or wire contract from either sibling project.
 
 - Remaining store delivery and installed migration evidence after the desktop
   0.3.0 cutover through JSTorrent's existing product and updater identity.
-- The exact desktop native-host/backend process, single-instance, window, and
+- The exact desktop native-host and host process, single-instance, window, and
   shutdown ownership model. Desktop beta updating now adopts the external
   `desktop-update-v1` contract; its independent route/key, client presentation,
   and release pipeline are implemented through local gates, while hosted
@@ -1663,7 +1702,7 @@ public `crostini-v0.1.0` artifacts and exact x86_64 website-install acceptance;
 do not treat that as full extension control, physical ARM64 runtime,
 update/rollback, or legacy migration.
 Completed Tacticals `170` and `171` supply the first configured ordinary-user
-Linux headless backend, signed source update lane, exact trusted-LAN mode, and
+Linux headless host, signed source update lane, exact trusted-LAN mode, and
 installed x86_64 evidence. Treat public candidate/channel promotion,
 system-wide ownership, native ARM64 service/update evidence, and owner remote
 authentication as separate future operations or slices.

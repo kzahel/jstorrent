@@ -44,58 +44,6 @@
   cursor: default;
 }
 
-.addForm {
-  display: flex;
-  min-width: 10rem;
-  max-width: 30rem;
-  flex: 1 1 24rem;
-  align-items: center;
-  gap: var(--ui-space-xs);
-}
-
-.addInput {
-  min-width: 7rem;
-  height: var(--ui-control-height);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 0 var(--ui-space-sm);
-  flex: 1 1 auto;
-  color: var(--text-primary);
-  background: var(--surface-secondary);
-  font: inherit;
-  font-size: var(--ui-font-small);
-}
-
-.addInput::placeholder {
-  color: var(--text-muted);
-}
-
-.addInput:focus-visible {
-  border-color: var(--accent);
-  outline: 2px solid color-mix(in srgb, var(--focus) 42%, transparent);
-  outline-offset: 0;
-}
-
-.addInput[aria-invalid="true"] {
-  border-color: var(--danger);
-}
-
-.toolbar .addButton {
-  border-color: var(--border-strong);
-  color: var(--text-primary);
-  background: var(--surface-secondary);
-}
-
-.toolbar .primaryAction {
-  color: var(--on-accent);
-  background: var(--accent-action);
-}
-
-.toolbar .primaryAction:hover:not(:disabled) {
-  color: var(--on-accent);
-  background: var(--accent-action-hover);
-}
-
 .divider {
   width: 1px;
   height: 1.2rem;
@@ -110,18 +58,8 @@
   align-items: center;
 }
 
-/* Narrow bars keep one row: the field shrinks to fit icon actions. */
+/* Narrow bars keep one row with icon actions. */
 @media (max-width: 760px) {
-  .addForm {
-    min-width: 0;
-    max-width: none;
-    flex: 1 1 8rem;
-  }
-
-  .addInput {
-    min-width: 0;
-  }
-
   .toolbar button {
     padding-inline: 0.45rem;
   }

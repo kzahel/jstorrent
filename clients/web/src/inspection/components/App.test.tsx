@@ -1,3 +1,4 @@
+import { DEFAULT_CLIENT_SETTINGS as FILE_SAFETY_DEFAULTS } from "../../api";
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
@@ -43,6 +44,7 @@ import type { InspectionApplication } from "../application";
 import { InspectionProvider } from "../context";
 import { InspectionController } from "../controller";
 import { DemoApplication } from "../demo/DemoApplication";
+import { DEFAULT_LIBRARY_BROWSE, libraryMediaRequest } from "../library-browse";
 import {
   DEMO_PRIMARY_TORRENT_ID,
   buildScenarioSnapshot,
@@ -68,8 +70,8 @@ import type {
   DesktopPowerSettings,
 } from "../desktop-power/types";
 import type { DesktopRemoteAccess, RemoteCompletedFileSaveRequest } from "../remote-access/types";
-import released031Hello from "../../fixtures/released/desktop-v0.3.1/api-hello.json";
-import released031Trace from "../../fixtures/released/desktop-v0.3.1/view-set-trace.json";
+import type { LocalVideoPlayback } from "../video-playback";
+import { HOST_CAPTURES } from "../../compat/captures";
 import { decodeOpenViewSetResponse } from "../../validation";
 import { App } from "./App";
 import { RemoveTorrentDialog } from "./RemoveTorrentDialog";
@@ -134,6 +136,13 @@ afterEach(async () => {
     controllers.splice(0).map((controller) => controller.close()),
   );
 });
+
+// desktop 0.3.1 and Android 1.0.30, captured from their release commit.
+const released031 = HOST_CAPTURES.find(
+  (capture) => capture.commit === "5fa018ff589f8058f6ed3910f5cea5fcd06410ab",
+)!;
+const released031Hello = released031.hello;
+const released031Trace = released031.trace;
 
 describe("inspection application", () => {
   it("updates the tab title with live session rates and restores it on unmount", async () => {
@@ -608,7 +617,7 @@ describe("inspection application", () => {
     const panel = await screen.findByRole("dialog", { name: "Share torrent" });
     // A private torrent never carries the address, so there is no choice.
     expect(
-      within(panel).queryByRole("checkbox", { name: "Include my address" }),
+      within(panel).queryByRole("checkbox", { name: "Include my IP address" }),
     ).toBeNull();
     const copy = within(panel).getByRole("button", { name: "Copy" });
     await waitFor(() => expect(copy).toBeEnabled());
@@ -1611,7 +1620,7 @@ describe("inspection application", () => {
 
   it("keeps rendered rows and cards bounded for large logical collections", async () => {
     const user = userEvent.setup();
-    renderScenario("large-swarm", 0);
+    renderScenario("large-swarm", 0, undefined, undefined, undefined, undefined, false);
     const transferGrid = screen.getByRole("grid", { name: "Torrents" });
     expect(transferGrid).toHaveAttribute("aria-rowcount", "2001");
     expect(within(transferGrid).getAllByRole("row").length).toBeLessThanOrEqual(
@@ -1781,6 +1790,72 @@ describe("inspection application", () => {
     expect(screen.queryByText(/set to normal/i)).not.toBeInTheDocument();
   });
 
+  it("offers in-app Play before new-tab Open for a completed local video", async () => {
+    const user = userEvent.setup();
+    const base = buildScenarioSnapshot("file-progress", 24_000, false, 1);
+    const fileSet = base.filesByTorrent[DEMO_PRIMARY_TORRENT_ID]!;
+    const file = fileSet.order
+      .map((id) => fileSet.rows[id])
+      .find((candidate) => candidate?.padding === false)!;
+    const snapshot = {
+      ...base,
+      demo: null,
+      filesByTorrent: {
+        ...base.filesByTorrent,
+        [DEMO_PRIMARY_TORRENT_ID]: {
+          ...fileSet,
+          rows: {
+            ...fileSet.rows,
+            [file.id]: {
+              ...file,
+              name: "movie.mkv",
+              mediaAvailability: "available" as const,
+            },
+          },
+        },
+      },
+    };
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot,
+    });
+    const localPlayback: LocalVideoPlayback = {
+      play: vi.fn(async () => ({ close: async () => {} })),
+      openExternally: vi.fn(async () => {}),
+      mediaUrl: vi.fn(async () => "/media/v1/test"),
+    };
+    renderApplication(
+      application, undefined, undefined, undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined, localPlayback,
+    );
+
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "Files" }));
+    const files = screen.getByRole("grid", { name: "Torrent files" });
+    await user.click(within(files).getByText("movie.mkv"));
+    await user.click(screen.getByRole("button", { name: "More file actions" }));
+    const items = screen.getAllByRole("menuitem").map((item) => item.textContent);
+    expect(items.slice(0, 2)).toEqual(["Play", "Open"]);
+    const play = screen.getByRole("menuitem", { name: "Play" });
+    expect(play.querySelector("svg")).toBeNull();
+    await user.click(play);
+
+    await waitFor(() => expect(localPlayback.play).toHaveBeenCalledOnce());
+    expect(localPlayback.play).toHaveBeenCalledWith(
+      expect.objectContaining({
+        torrentId: DEMO_PRIMARY_TORRENT_ID,
+        fileIndex: file.index,
+        fileName: "movie.mkv",
+      }),
+    );
+    expect(screen.getByRole("dialog", { name: "Play movie.mkv" })).toBeTruthy();
+    expect(application.commands.some((command) => command.type === "open_file")).toBe(false);
+  });
+
   it("shows Open only for a single verified available file", async () => {
     const user = userEvent.setup();
     const base = buildScenarioSnapshot("file-progress", 24_000, false, 1);
@@ -1817,7 +1892,10 @@ describe("inspection application", () => {
     const files = screen.getByRole("grid", { name: "Torrent files" });
     await user.click(within(files).getByText(file.name));
     await user.click(screen.getByRole("button", { name: "More file actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Open" }));
+    const open = screen.getByRole("menuitem", { name: "Open" });
+    // The file opens in a new tab or app, so the item says so visually.
+    expect(open.querySelector("svg")).not.toBeNull();
+    await user.click(open);
 
     await waitFor(() =>
       expect(application.commands.at(-1)).toEqual({
@@ -2064,6 +2142,27 @@ describe("inspection application", () => {
     );
   });
 
+  it("explains a safety skip and sends explicit per-file allowance without Download now", async () => {
+    const user = userEvent.setup();
+    const base = { ...buildScenarioSnapshot("file-progress", 24_000, false, 1), demo: null };
+    const files = base.filesByTorrent[DEMO_PRIMARY_TORRENT_ID]!;
+    const first = files.order.map(id => files.rows[id]!).find(row => !row.padding)!;
+    const blocked: FileRow = { ...first, name: "movie.mkv.exe", path: ["movie.mkv.exe"], selection: "skipped", safety: { matched_extension: ".exe", preset: "recommended", overridden: false, blocked: true } };
+    const snapshot = { ...base, filesByTorrent: { ...base.filesByTorrent, [DEMO_PRIMARY_TORRENT_ID]: { ...files, rows: { ...files.rows, [blocked.id]: blocked } } } };
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+    renderApplication(application);
+    await user.click(within(screen.getByRole("navigation", { name: "Primary" })).getByRole("button", { name: "Torrents" }));
+    await user.click(screen.getByRole("tab", { name: "Files" }));
+    expect(screen.getByText(/Skipped by safety settings.*.exe/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Download anyway movie.mkv.exe" }));
+    await waitFor(() => expect(application.commands.at(-1)).toEqual({ type: "set_file_safety_override", torrentId: DEMO_PRIMARY_TORRENT_ID, fileIndices: [blocked.index], allowed: true }));
+    expect(application.commands.some(command => command.type === "download_files" || command.type === "resume")).toBe(false);
+    application.emitUpdate({ type: "snapshot", snapshot: { ...snapshot, filesByTorrent: { ...snapshot.filesByTorrent, [DEMO_PRIMARY_TORRENT_ID]: { ...files, rows: { ...files.rows, [blocked.id]: { ...blocked, selection: "normal", safety: { ...blocked.safety!, overridden: true, blocked: false } } } } } } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Undo safety override movie.mkv.exe" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Undo safety override movie.mkv.exe" }));
+    await waitFor(() => expect(application.commands.at(-1)).toMatchObject({ type: "set_file_safety_override", allowed: false }));
+  });
+
   it("materializes the global disk pipeline only on the Disk tab", async () => {
     const user = userEvent.setup();
     renderScenario("slow-disk-pressure", 20_000);
@@ -2244,7 +2343,7 @@ describe("inspection application", () => {
 
   it("renders truthful empty states without fabricating media details", async () => {
     const user = userEvent.setup();
-    renderScenario("empty-library", 0);
+    renderScenario("empty-library", 0, undefined, undefined, undefined, undefined, false);
     expect(screen.getByText(/No torrents yet/i)).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Library" }));
     expect(screen.getByText("No content sources yet")).toBeVisible();
@@ -2642,7 +2741,7 @@ describe("inspection application", () => {
 
   it("opens truthful Library details and hands their source to Torrents", async () => {
     const user = userEvent.setup();
-    renderScenario("healthy-download", 42_000);
+    renderScenario("healthy-download", 42_000, undefined, undefined, undefined, undefined, false);
     await user.click(screen.getByRole("button", { name: "Library" }));
     expect(
       screen.queryByRole("button", { name: /^Play / }),
@@ -2681,7 +2780,7 @@ describe("inspection application", () => {
 
   it("orders a TV detail numerically and restores its Library card", async () => {
     const user = userEvent.setup();
-    renderScenario("media-library", 0);
+    renderScenario("media-library", 0, undefined, undefined, undefined, undefined, false);
     await user.click(screen.getByRole("button", { name: "Library" }));
     const trigger = screen.getByRole("button", {
       name: "Open details for North Shore Stories · Seasons 1–2",
@@ -2813,7 +2912,7 @@ describe("inspection application", () => {
 
   it("bounds the mounted media rows for a 4,096-file catalog", async () => {
     const user = userEvent.setup();
-    renderScenario("file-progress", 24_000);
+    renderScenario("file-progress", 24_000, undefined, undefined, undefined, undefined, false);
     await user.click(screen.getByRole("button", { name: "Library" }));
     await user.click(
       screen.getByRole("button", {
@@ -2832,6 +2931,144 @@ describe("inspection application", () => {
     expect(mountedRows).toBeLessThanOrEqual(20);
   });
 
+  it("browses media across torrents by preset, show, search and layout", async () => {
+    const user = userEvent.setup();
+    renderScenario("media-library", 0);
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    expect(screen.getByRole("heading", { name: "All media" })).toBeVisible();
+    // The skipped double episode is not part of the library.
+    const items = () => screen.getByRole("list", { name: "Library items" });
+    expect(within(items()).getAllByRole("listitem")).toHaveLength(5);
+    expect(screen.getByText("5 items")).toBeVisible();
+    expect(within(items()).getAllByText(/^S01 · E01 · North Shore Stories$/)).toHaveLength(1);
+    expect(within(items()).getAllByText(/^Complete · /)).toHaveLength(2);
+    // Art shows the kind of media, not initials.
+    expect(within(items()).queryByText("NS")).not.toBeInTheDocument();
+
+    const filters = screen.getByRole("navigation", { name: "Library filters" });
+    expect(within(filters).getByRole("button", { name: /^TV shows/ })).toHaveTextContent("4");
+    expect(within(filters).getByRole("button", { name: /^Movies/ })).toHaveTextContent("0");
+    await user.click(within(filters).getByRole("button", { name: /^TV shows/ }));
+    const shows = screen.getByRole("list", { name: "TV shows" });
+    const show = within(shows).getByRole("button", { name: /North Shore Stories/ });
+    expect(show).toHaveTextContent("4 episodes · 2 seasons");
+    expect(show).toHaveTextContent("2 of 4 complete");
+    await user.click(show);
+    expect(screen.getByRole("heading", { name: "North Shore Stories" })).toBeVisible();
+    expect(within(items()).getAllByRole("listitem")).toHaveLength(4);
+    await user.click(screen.getByRole("button", { name: "Back to TV shows" }));
+    expect(screen.getByRole("list", { name: "TV shows" })).toBeVisible();
+
+    await user.click(within(filters).getByRole("button", { name: /^All media/ }));
+    await user.type(
+      screen.getByRole("searchbox", { name: "Search the library" }),
+      "s02",
+    );
+    await waitFor(() =>
+      expect(within(items()).getAllByRole("listitem")).toHaveLength(1),
+    );
+    await user.click(screen.getByRole("radio", { name: "List" }));
+    const table = screen.getByRole("grid", { name: "Library items" });
+    expect(within(table).getByRole("columnheader", { name: /Show or album/ })).toBeVisible();
+    expect(within(table).getAllByRole("row")).toHaveLength(2);
+
+    await user.click(
+      within(table).getByRole("button", { name: /^Show .* in its torrent$/ }),
+    );
+    expect(
+      screen.getByRole("heading", { name: "North Shore Stories · Seasons 1–2" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Back to Library" }));
+    // The search and page return with the Library, and focus with the item.
+    expect(
+      within(screen.getByRole("grid", { name: "Library items" })).getByRole("button", {
+        name: /^Show .* in its torrent$/,
+      }),
+    ).toHaveFocus();
+  });
+
+  it("pages the Library through the host query", async () => {
+    const user = userEvent.setup();
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const request = libraryMediaRequest(DEFAULT_LIBRARY_BROWSE);
+    const rows = Array.from({ length: 100 }, (_, index) => ({
+      id: `t1-000102030405060708090a0b0c0d0e0f:${index}`,
+      torrentId: "t1-000102030405060708090a0b0c0d0e0f",
+      torrentName: "Lectures",
+      fileIndex: index,
+      fileName: `${index} Lecture.mp4`,
+      title: `Lecture ${index}`,
+      kind: "video" as const,
+      role: "other" as const,
+      seriesTitle: null,
+      seriesId: null,
+      seasonNumber: null,
+      episodeNumber: null,
+      endingEpisodeNumber: null,
+      albumTitle: null,
+      albumId: null,
+      discNumber: null,
+      trackNumber: null,
+      year: null,
+      extension: "mp4",
+      lengthBytes: "1000",
+      verifiedBytes: "1000",
+      offline: true,
+      archived: false,
+      mediaAvailability: "available" as const,
+    }));
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...base,
+        demo: null,
+        libraryMedia: {
+          request,
+          page: { offset: 0, limit: 100, total: 250, nextOffset: 100 },
+          facets: {
+            items: 250,
+            video: 250,
+            audio: 0,
+            episodes: 0,
+            movies: 0,
+            other_videos: 250,
+            tracks: 0,
+            offline: 250,
+            incomplete: 0,
+            series: 0,
+            albums: 0,
+            torrents: 1,
+            metadata_pending: 2,
+          },
+          items: rows,
+          groups: [],
+        },
+        viewStatus: { ...base.viewStatus, libraryMedia: { status: "ready" } },
+      },
+    });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    const pages = screen.getByRole("navigation", { name: "Library pages" });
+    expect(pages).toHaveTextContent("1–100 of 250");
+    expect(within(pages).getByRole("button", { name: "Previous page" })).toBeDisabled();
+    await user.click(within(pages).getByRole("button", { name: "Next page" }));
+    await waitFor(() =>
+      expect(application.views.at(-1)?.libraryMedia).toEqual({
+        ...request,
+        offset: 100,
+      }),
+    );
+    // A new query returns to the first page and keeps the last page shown.
+    await user.click(screen.getByRole("radio", { name: "Complete" }));
+    await waitFor(() =>
+      expect(application.views.at(-1)?.libraryMedia).toMatchObject({
+        offset: 0,
+        query: { availability: "offline" },
+      }),
+    );
+    expect(screen.getAllByText("Lecture 0").length).toBeGreaterThan(0);
+  });
+
   it("leases detail views only while Torrents needs them", async () => {
     const user = userEvent.setup();
     const snapshot = {
@@ -2847,6 +3084,7 @@ describe("inspection application", () => {
     await waitFor(() =>
       expect(application.views.at(-1)).toEqual({
         library: true,
+        libraryMedia: DEFAULT_LIBRARY_REQUEST,
         torrentId: null,
         detail: null,
         logCapture: null,
@@ -2870,6 +3108,7 @@ describe("inspection application", () => {
     await waitFor(() =>
       expect(application.views.at(-1)).toEqual({
         library: true,
+        libraryMedia: DEFAULT_LIBRARY_REQUEST,
         torrentId: null,
         detail: null,
         logCapture: null,
@@ -3163,6 +3402,33 @@ describe("inspection application", () => {
     expect(await findToast("Added 2. Already in your list: 0.")).toBeVisible();
   });
 
+  it("adds from the header on every destination where there is room", async () => {
+    const user = userEvent.setup();
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: liveSnapshot({
+        roots: [downloadRoot("root_a", "Downloads")],
+        defaultRoot: "root_a",
+        showAddOptions: false,
+      }),
+    });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Library" }));
+    const header = screen.getByRole("banner");
+    const magnet = `magnet:?xt=urn:btih:${"c".repeat(40)}&dn=Library`;
+    await user.type(
+      within(header).getByRole("textbox", { name: "Magnet link or torrent URL" }),
+      magnet,
+    );
+    await user.click(within(header).getByRole("button", { name: "Add" }));
+    await waitFor(() =>
+      expect(application.commands).toEqual([
+        { type: "add_magnet", magnet, storageRoot: "root_a", startContent: true },
+      ]),
+    );
+    expect(screen.getAllByRole("textbox", { name: "Magnet link or torrent URL" })).toHaveLength(1);
+  });
+
   it("adds each pasted magnet link with one summary", async () => {
     const user = userEvent.setup();
     const application = new RecordingLiveApplication({
@@ -3199,6 +3465,33 @@ describe("inspection application", () => {
     await user.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() => expect(draft).toHaveValue(""));
     expect(await findToast("Added 2. Already in your list: 0.")).toBeVisible();
+  });
+
+  it("keeps the open Settings category in the store", async () => {
+    const user = userEvent.setup();
+    renderApplication(
+      new RecordingLiveApplication({
+        type: "snapshot",
+        snapshot: liveSnapshot({
+          roots: [downloadRoot("root_a", "Downloads")],
+          defaultRoot: "root_a",
+          showAddOptions: false,
+        }),
+      }),
+    );
+    const store = controllers.at(-1)!.store;
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(await screen.findByRole("tab", { name: "Downloads" }));
+    expect(store.getState().presentation.settingsCategory).toBe("downloads");
+
+    // A link may name a category this client lacks; Appearance shows instead.
+    act(() => store.getState().selectSettingsCategory("power"));
+    expect(screen.getByRole("tab", { name: "Appearance" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    act(() => store.getState().closeSettings());
+    expect(screen.queryByRole("dialog", { name: "Settings" })).not.toBeInTheDocument();
   });
 
   it("shows torrent list export and import only where the client supports them", async () => {
@@ -3240,7 +3533,7 @@ describe("inspection application", () => {
     await user.click(screen.getByRole("button", { name: "Export torrent list" }));
     expect(exportTorrentList).toHaveBeenCalledOnce();
     expect(await findToast("Torrent list saved.")).toBeVisible();
-    expect(screen.getByRole("combobox", { name: "Save to" })).toHaveValue("root_b");
+    expect(screen.getByRole("combobox", { name: "Import into" })).toHaveValue("root_b");
   });
 
   it("retains only the File while options are chosen and applies them after read", async () => {
@@ -4140,6 +4433,7 @@ describe("inspection application", () => {
   it("reports a recoverable listener bind failure without hiding settings", async () => {
     const user = userEvent.setup();
     const active = {
+      file_safety: FILE_SAFETY_DEFAULTS.file_safety,
       listener: { type: "fixed_loopback" as const, port: 51_413 },
       preferred_listen_port: 6_881,
       port_mapping: "disabled" as const,
@@ -4948,6 +5242,34 @@ describe("rich share links", () => {
     expect(writeText.mock.lastCall?.[0]).not.toContain("jst.");
   });
 
+  it("offers no address choice on a released host that cannot add one", async () => {
+    const user = userEvent.setup();
+    clipboard();
+    const { snapshot } = seedingSnapshot();
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...snapshot,
+        session: { ...snapshot.session, hostCapabilities: released031Hello.capabilities },
+      },
+    });
+    shareExports(application, snapshot.torrents);
+    rememberPeerHint("include");
+    renderApplication(application);
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "General" }));
+    await user.click(screen.getByRole("button", { name: "Share" }));
+    const panel = await screen.findByRole("dialog", { name: "Share torrent" });
+    await within(panel).findByRole("textbox", { name: "Share link" });
+    expect(
+      within(panel).queryByRole("checkbox", { name: "Include my IP address" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows the Share panel's link, QR code and address choice", async () => {
     const user = userEvent.setup();
     const writeText = clipboard();
@@ -4968,7 +5290,7 @@ describe("rich share links", () => {
       await user.click(screen.getByRole("tab", { name: "General" }));
       await user.click(screen.getByRole("button", { name: "Share" }));
       const panel = await screen.findByRole("dialog", { name: "Share torrent" });
-      const address = within(panel).getByRole("checkbox", { name: "Include my address" });
+      const address = within(panel).getByRole("checkbox", { name: "Include my IP address" });
       expect(address).toBeChecked();
       const hinted =
         `https://jstorrent.com/share/#xt=urn:btih:${current.infoHash}&dn=Name` +
@@ -5050,6 +5372,8 @@ async function findToast(text: string | RegExp): Promise<HTMLElement> {
   });
 }
 
+const DEFAULT_LIBRARY_REQUEST = libraryMediaRequest(DEFAULT_LIBRARY_BROWSE);
+
 function renderScenario(
   scenarioId: ConstructorParameters<typeof DemoApplication>[0]["scenarioId"],
   elapsedMs: number,
@@ -5057,9 +5381,10 @@ function renderScenario(
   updater?: DesktopUpdater,
   notifications?: DesktopNotifications,
   power?: DesktopPower,
+  mediaLibrary?: boolean,
 ) {
   return renderApplication(
-    new DemoApplication({ scenarioId, elapsedMs, running: false }),
+    new DemoApplication({ scenarioId, elapsedMs, running: false, mediaLibrary: mediaLibrary ?? true }),
     appearanceStorage,
     updater,
     undefined,
@@ -5079,6 +5404,7 @@ function renderApplication(
   hostedProduct?: HostedProduct,
   oneCurrentRoot?: boolean,
   remoteAccess?: DesktopRemoteAccess,
+  localPlayback?: LocalVideoPlayback,
 ) {
   const controller = new InspectionController(application, appearanceStorage);
   controllers.push(controller);
@@ -5094,6 +5420,7 @@ function renderApplication(
         hostedProduct={hostedProduct}
         oneCurrentRoot={oneCurrentRoot}
         remoteAccess={remoteAccess}
+        localPlayback={localPlayback}
       />
     </InspectionProvider>,
   );

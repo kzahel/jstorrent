@@ -18,6 +18,11 @@ import {
 export class RemoteOnlyApplicationClient implements ApplicationViewClient {
   public constructor(private readonly client: ApplicationViewClient) {}
 
+  public async productUpdate(request: import("./api").HostUpdateRequest): Promise<import("./api").HostUpdateSnapshot> {
+    if (!this.client.productUpdate) throw new ApplicationViewError("unsupported_capability", "Host updates unavailable");
+    return this.client.productUpdate(request);
+  }
+
   public async hello(signal?: AbortSignal): Promise<ApiHello> {
     return this.client.hello(signal);
   }

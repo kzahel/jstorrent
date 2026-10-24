@@ -6,7 +6,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::net::{Ipv4Addr, SocketAddr};
 #[cfg(unix)]
 use std::os::fd::FromRawFd;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread::JoinHandle;
@@ -1878,6 +1878,24 @@ impl Drop for EngineSession {
             control.cancel();
         }
     }
+}
+
+/// Tactical 369: why the torrent catalog under `profile_path` did not open,
+/// from its files and the open error. Reads only.
+#[uniffi::export]
+pub fn diagnose_catalog(
+    profile_path: String,
+    failure: String,
+) -> rstorrent_session::CatalogRecoveryStatus {
+    rstorrent_session::diagnose_catalog(Path::new(&profile_path), &failure)
+}
+
+/// Tactical 369: the torrent list bundle from a catalog that did not open,
+/// read from a private copy; the profile is never written.
+#[uniffi::export]
+pub fn export_torrent_list_read_only(profile_path: String) -> Result<Vec<u8>, AndroidClientError> {
+    rstorrent_session::export_torrent_list_read_only(Path::new(&profile_path))
+        .map_err(|error| AndroidClientError::message(error.to_string()))
 }
 
 #[uniffi::export]

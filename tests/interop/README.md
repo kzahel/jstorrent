@@ -1,5 +1,41 @@
 # Controlled engine and application scenarios
 
+Desktop unattended-update qualification uses
+[`prepare-desktop-update-fixture.py`](../../scripts/prepare-desktop-update-fixture.py)
+on the target build OS to create private, disposable signed A/B packages.
+[`verify-desktop-unattended-update.py`](../../scripts/verify-desktop-unattended-update.py),
+[`verify-desktop-update-windows.py`](../../scripts/verify-desktop-update-windows.py)
+and [`verify-desktop-update-linux.py`](../../scripts/verify-desktop-update-linux.py)
+exercise actual installation/restart through claimed Machine Control targets.
+They use isolated data, a loopback HTTPS feed with build-scoped test trust,
+native focus/window observers and independent keyboard editors. The macOS
+[`transfer runner`](../../scripts/verify-desktop-update-transfers.py) adds pinned
+libtorrent on the private VM network to check downloading, seeding and paused
+intent across replacement. Use each runner's `--help`; retain its claim until
+cleanup passes, then restore the target's initial power state and release it.
+An accelerated fixture is not evidence of the production 15-minute delay;
+leave `--quiet-seconds` at its default 900 for that acceptance run.
+
+Install the native checkout’s dependencies with `npm ci --prefix clients/web`
+to supply the OS-specific Tauri CLI; do not copy `node_modules` across OSes.
+Build web assets from the same source checkout with `npm run build --prefix
+clients/web`. Pass their copied directory as `--frontend-dist` when the guest
+cannot run the frontend toolchain. Build the fixture natively on its target OS;
+`--cargo-target` and `--source-workspace` may reuse owned caches, while each
+`--output` is fresh. Source the normal toolchain environment first.
+
+Windows requires `--input-manifest`: generate it on the controller or through
+WSL (all Windows Git operations stay in WSL), then transfer the source files,
+manifest and frontend assets through Machine Control's common CLI. Its format
+is `{ "sourceCommit": "<git rev-parse HEAD>", "files": { "relative/path":
+"<SHA-256 of file bytes>" } }`. Inventory `git ls-files --cached --others
+--exclude-standard -z`, omitting `reference/` and `.git/`; use forward slashes
+and include every source file. The builder independently verifies every input
+hash before copying. Keep manifests/output outside the source checkout and
+never transfer or retain the disposable updater private key. A failed retained
+Windows run (`--retain-failed`) requires explicit cleanup under its held claim
+before another run; the ordinary runners clean in `finally`.
+
 These harnesses use independent fixtures and pinned Python libtorrent as a
 peer. They exercise real sockets, storage and process lifetimes beyond unit
 tests. Use the map to select a failure or contract; it is not a list to run in
@@ -32,7 +68,9 @@ reports/captures are explicit local artifacts to remove after review.
 
 | Question | Scenario |
 | --- | --- |
+| Do released and current hosts and clients still work together end to end (connect, set the download folder, download, verify, remove with data)? | [compat_live_matrix.py](compat_live_matrix.py); every pair from `compat/deliveries.json` by default, or `--host` and `--client` with `current` or a commit. Old hosts are built once into `target/compat-live/`. Also the `Compatibility live matrix` workflow. |
 | Does ordinary intake, restart, seeding, corruption repair and keep-data removal work? | [application_lifecycle_smoke.py](application_lifecycle_smoke.py); `--extended` adds oversized and folder cases |
+| Do safety rules gate magnets/Download all and preserve explicit override across restart? | [file_safety_smoke.py](file_safety_smoke.py); `--web-url http://127.0.0.1:4317` also owns a Vite/Chromium settings/Files check |
 | Is the first verified piece correct under failure and bounded buffers? | [first_verified_piece.py](first_verified_piece.py); `--large-piece` and `--selective-files` exercise storage geometry |
 | Does the finite downloader handle selection, recheck, crash, locks and permissions? | [stateless_foreground_download.py](stateless_foreground_download.py); build release `rstorrent-download` first |
 | Is selective hashing bounded, including steady-state work? | [selective_hash_profile.py](selective_hash_profile.py); `--profile steady` |
@@ -76,6 +114,7 @@ prerequisites belong in script help and [platform guides](../../docs/development
 | Question | Scenario |
 | --- | --- |
 | Does Android SAF repair preserve paused/running intent and correct bytes? | [android_saf_repair_intent.py](android_saf_repair_intent.py); fresh API 35 AVD and a new output directory |
+| Does the Android Library browse, open shows and play a seeded torrent? | [android_media_library_surface.py](android_media_library_surface.py); `--avd <name> --headless`, optional `--screenshots` |
 | Does Android expose uTP MTU/reachability policy correctly? | [android_utp_path_mtu.py](android_utp_path_mtu.py), [android_utp_reachability_status.py](android_utp_reachability_status.py) |
 | Does ChromeOS sustain controlled Android/Linux transfers and recover roots? | [chromeos_android_qualification.py](chromeos_android_qualification.py), [chromeos_android_recovery.py](chromeos_android_recovery.py), [chromeos_crostini_qualification.py](chromeos_crostini_qualification.py) |
 

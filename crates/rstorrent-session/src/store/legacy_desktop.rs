@@ -147,9 +147,31 @@ struct Plan {
     android: Option<LegacyAndroidBootstrap>,
 }
 
+/// Inspect only: ordinary store open owns all forward migrations and backups.
+/// Sharing its classifier prevents a startup importer from rejecting an upgrade
+/// before the normal migration owner can see the released catalog.
+fn destination_catalog_exists(connection: &Connection) -> Result<bool, StoreError> {
+    let version: i64 = connection.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let empty: bool = connection.query_row(
+        "SELECT NOT EXISTS(SELECT 1 FROM sqlite_master)",
+        [],
+        |row| row.get(0),
+    )?;
+    if version == 0 && empty {
+        return Ok(false);
+    }
+    crate::profile_reset::classify_catalog_version(
+        version,
+        BASELINE_SCHEMA_VERSION,
+        SCHEMA_VERSION,
+    )?;
+    Ok(true)
+}
+
 impl SessionStore {
     /// Strict desktop-only entry point, invoked while both products are quiescent.
-    /// Older destination formats are refused before ordinary reset-capable open.
+    /// Supported older destinations reach the ordinary forward-migration owner;
+    /// unsupported destinations are refused without changing their catalog.
     /// The caller must fence legacy relaunch and own the destination profile.
     pub fn migrate_legacy_desktop(
         profile_root: &Path,
@@ -170,20 +192,7 @@ impl SessionStore {
         {
             regular_file(&database)?;
             let read = Connection::open_with_flags(&database, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-            let version: i64 = read.pragma_query_value(None, "user_version", |row| row.get(0))?;
-            existing = version == SCHEMA_VERSION;
-            let empty: bool = read.query_row(
-                "SELECT NOT EXISTS(SELECT 1 FROM sqlite_master)",
-                [],
-                |row| row.get(0),
-            )?;
-            // A crash before the first transaction can leave an empty SQLite file.
-            if !existing && !(version == 0 && empty) {
-                return Err(StoreError::UnsupportedSchema {
-                    actual: version,
-                    maximum: SCHEMA_VERSION,
-                });
-            }
+            existing = destination_catalog_exists(&read)?;
             if let Some(mut report) = completed_report(&read)? {
                 report.already_completed = true;
                 return Ok(Some(report));
@@ -366,6 +375,17 @@ impl SessionStore {
                 .1
             };
             let id = decode_torrent_id(&result.torrent_id).expect("intake returns typed ID");
+            if matches!(result.disposition, AddTorrentDisposition::Added) {
+                // Migration retains the legacy user's selection. It is not a
+                // new download subject to newly introduced default filters.
+                transaction.execute(
+                    "DELETE FROM torrent_file_safety WHERE torrent_id = ?1",
+                    [id.as_bytes()],
+                )?;
+                file_state::write_mask(&transaction, &id, "blocked", &[])?;
+                transaction.execute("UPDATE file_state SET blocked_count = 0, blocked_bytes = '0' WHERE torrent_id = ?1", [id.as_bytes()])?;
+            }
+
             let running = record.running
                 && !record.awaiting_selection
                 && !(plan.report.settings_need_attention && !existing);

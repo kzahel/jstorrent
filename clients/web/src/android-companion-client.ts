@@ -17,6 +17,7 @@ import type {
   ApplicationViewClient,
 } from "./api/client";
 import { ApplicationViewError } from "./api/client";
+import { clientIdentity, extensionVersion } from "./client-identity";
 import { decodeChooseDownloadRootResponse } from "./validation";
 import {
   WebSocketApplicationViewClient,
@@ -339,6 +340,7 @@ async function openApplication(
     installationId,
     {
       connectPath: `${API_ROOT}/connect`,
+      client: clientIdentity("extension", { version: extensionVersion() }),
       platformClient: platform,
       onConnectionState: (active) => {
         if (active) {

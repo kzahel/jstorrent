@@ -9,7 +9,9 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -406,6 +408,63 @@ describe("VirtualTable", () => {
       "aria-valuenow",
       "720",
     );
+  });
+
+  it("never writes a layout the user has not changed", () => {
+    render(
+      <VirtualTable
+        tableId="untouched-test"
+        label="Untouched layout"
+        rows={[{ id: "one", value: "1" }]}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="empty"
+      />,
+    );
+    expect(storedValues.has("rstorrent.table.untouched-test")).toBe(false);
+  });
+
+  it("reads another version's layout and keeps what it does not know", () => {
+    const newer = JSON.stringify({
+      version: 2,
+      hiddenColumns: ["future"],
+      widths: { value: 200, future: 90 },
+      sort: null,
+      density: "tight",
+    });
+    storedValues.set("rstorrent.table.version-test", newer);
+    render(
+      <VirtualTable
+        tableId="version-test"
+        label="Other version layout"
+        rows={[{ id: "one", value: "1" }]}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="empty"
+      />,
+    );
+    // The known width applies, and nothing is rewritten on load.
+    expect(screen.getByRole("separator", { name: "Resize Value column" })).toHaveAttribute(
+      "aria-valuenow",
+      "200",
+    );
+    expect(storedValues.get("rstorrent.table.version-test")).toBe(newer);
+
+    // A real change is saved without losing the newer version's data.
+    fireEvent.click(screen.getByRole("button", { name: "Columns" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Optional" }));
+    const saved = JSON.parse(storedValues.get("rstorrent.table.version-test")!) as {
+      version: number;
+      hiddenColumns: string[];
+      widths: Record<string, number>;
+      density: string;
+    };
+    expect(saved.version).toBe(2);
+    expect(saved.hiddenColumns).toEqual(["optional", "future"]);
+    expect(saved.widths).toEqual({ value: 200, future: 90 });
+    expect(saved.density).toBe("tight");
   });
 
   it("updates absolute row geometry with the selected interface size", () => {
@@ -863,6 +922,37 @@ const LIST_COLUMNS: readonly VirtualColumn<Item>[] = [
     render: () => "table only",
   },
 ];
+
+describe("VirtualTable external sort", () => {
+  it("reports header sorts and keeps the caller's order", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <VirtualTable
+        tableId="external"
+        label="External rows"
+        rows={[
+          { id: "b", value: "2" },
+          { id: "a", value: "10" },
+        ]}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="No rows"
+        externalSort={{ sort: { columnId: "value", direction: "asc" }, onChange }}
+      />,
+    );
+    const grid = screen.getByRole("grid", { name: "External rows" });
+    expect(
+      within(grid)
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => row.textContent),
+    ).toEqual(["2", "10"]);
+    await user.click(within(grid).getByRole("button", { name: /^Value/ }));
+    expect(onChange).toHaveBeenCalledWith({ columnId: "value", direction: "desc" });
+  });
+});
 
 describe("VirtualTable narrow list", () => {
   const originalMatchMedia = window.matchMedia;

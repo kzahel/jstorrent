@@ -2,7 +2,7 @@
 //! before migrating it, and the user's explicit Clear app data. Nothing here
 //! discards a catalog that holds data on the application's own initiative.
 
-use std::fs::{self, File};
+use std::fs;
 use std::path::Path;
 use std::time::Duration;
 
@@ -14,7 +14,7 @@ use crate::store_schema::{BASELINE_SCHEMA_VERSION, SCHEMA_VERSION};
 
 pub(crate) const DATABASE_FILENAME: &str = "session.db";
 const METRICS_DATABASE_FILENAME: &str = "metrics.db";
-const WAL_FILENAME: &str = "session.db-wal";
+pub(crate) const WAL_FILENAME: &str = "session.db-wal";
 const SHM_FILENAME: &str = "session.db-shm";
 pub(crate) const PRE_MIGRATION_FILENAME: &str = "session.db.pre-migration";
 const PRE_MIGRATION_TEMPORARY_FILENAME: &str = "session.db.pre-migration.tmp";
@@ -127,7 +127,7 @@ pub(crate) fn prepare_catalog(profile_root: &Path) -> Result<CatalogPreparation,
     )
 }
 
-fn classify_catalog_version(
+pub(crate) fn classify_catalog_version(
     version: i64,
     baseline: i64,
     current: i64,
@@ -166,7 +166,10 @@ pub(crate) fn write_pre_migration_copy(
     connection
         .backup(MAIN_DB, &temporary, None)
         .map_err(profile_sqlite_error)?;
-    File::open(&temporary)
+    // Windows FlushFileBuffers requires write access.
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&temporary)
         .and_then(|file| file.sync_all())
         .map_err(|source| io_error("sync pre-migration copy", source))?;
     validate_fixed_file(&destination, PRE_MIGRATION_FILENAME)?;
@@ -189,7 +192,7 @@ fn inspect_user_version(database_path: &Path) -> Result<i64, StoreError> {
         .map_err(profile_sqlite_error)
 }
 
-fn validate_fixed_file(path: &Path, basename: &'static str) -> Result<(), StoreError> {
+pub(crate) fn validate_fixed_file(path: &Path, basename: &'static str) -> Result<(), StoreError> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_symlink() => Err(StoreError::UnsafeProfileFile {
             basename,
@@ -219,7 +222,7 @@ fn remove_fixed_file(path: &Path, basename: &'static str) -> Result<(), StoreErr
 
 #[cfg(unix)]
 fn sync_directory(profile_root: &Path) -> Result<(), StoreError> {
-    File::open(profile_root)
+    fs::File::open(profile_root)
         .and_then(|directory| directory.sync_all())
         .map_err(|source| io_error("sync profile directory", source))
 }

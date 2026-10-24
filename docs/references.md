@@ -1,7 +1,7 @@
 # Reference Implementations And Provenance
 
 RSTorrent is independently implemented, but it uses specifications and other
-clients as sources of behavioral evidence.
+BitTorrent clients as sources of behavioral evidence.
 
 ## Reference Policy
 
@@ -74,8 +74,9 @@ This managed checkout is pinned to the exact upstream revision in
 generated from a May 2020 snapshot. The original reStructuredText retains
 document metadata, history, and each BEP's copyright section.
 
-Where deployed clients disagree with a specification, record the observed
-compatibility behavior rather than silently replacing the documented contract.
+Where deployed BitTorrent clients disagree with a specification, record the
+observed compatibility behavior rather than silently replacing the documented
+contract.
 
 ## Direct Remote Transport References
 
@@ -431,7 +432,7 @@ construction or a platform trust store.
 
 Accepted Tactical
 [`190`](tactical/190-opaque-wasm-relay-foundation.md) selects an account-free
-OPAQUE native-host/browser-Wasm proof through a controlled dumb relay. The
+OPAQUE host/browser-Wasm proof through a controlled dumb relay. The
 normative sources are [RFC 9807](https://www.rfc-editor.org/rfc/rfc9807.html)
 for OPAQUE, [RFC 9497](https://www.rfc-editor.org/rfc/rfc9497.html) for its
 VOPRF, and [RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.html) for
@@ -645,7 +646,7 @@ Sources: [qbittorrent/qBittorrent](https://github.com/qbittorrent/qBittorrent)
 and [transmission/transmission](https://github.com/transmission/transmission)
 
 Managed source checkouts: `reference/qbittorrent`, pinned to `release-5.2.4`,
-and `reference/transmission`, pinned to `4.1.3`. Both are optional entries in
+and `reference/transmission`, pinned to `4.1.3`. Both are required entries in
 `reference/pins.toml`.
 
 These mature clients are application-policy references, not protocol oracles.
@@ -776,3 +777,58 @@ owned x64 runtime build and object/archive relink prototype uses fixed1.3.2-r1,
 passes independently hashed exports/version/help and complete cleanup/off/claim
 release, but does not replace the original signed runtime or deliver a source
 or relink offer. R-05 and independent WebKit/OpenSSL/ABI holds remain open.
+
+## Unattended Desktop Updating
+
+Tactical [355](tactical/355-automatic-updates.md) inspects the locked
+`tauri-plugin-updater` 2.10.1 `src/updater.rs` download/signature, NSIS arguments
+and exit paths, `tauri-utils` 2.9.3 `src/config.rs::ToTokens for WindowsConfig`
+(which deliberately omits NSIS packaging options), and `tauri-build` 2.6.3's
+merged configuration input. These MIT/Apache-2.0 framework sources are read
+for integration semantics, not imported as an installer implementation.
+Synthetic payloads, signer vectors and native focus/input observers are
+independently authored. Disposable signing keys never enter the repository;
+only the public signature verification fixture is retained.
+
+Microsoft’s [application manifest documentation](https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests)
+and [ordinary-privilege execution guidance](https://learn.microsoft.com/en-us/windows/win32/secbp/running-with-administrator-privileges)
+explain explicit `asInvoker` execution and installer-detection heuristics. The
+qualification VM returned Win32 error 740 for the copied helper without that
+declaration; the executable now declares ordinary privileges explicitly.
+
+Windows visibility qualification also inspects locked Tao 0.35.3
+`platform_impl/windows/event_loop.rs::create_event_target_window` and
+`tauri-plugin-single-instance` 2.4.3 `platform_impl/windows.rs` message targets.
+Their non-presenting layered helper windows deliberately carry `WS_VISIBLE`;
+observer exclusions require exact classes and their complete extended styles.
+
+The [locked CLI 2.11.4 bundler](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.11.4/crates/tauri-bundler/src/bundle.rs)
+patches one `UNK` package marker to `NSS` for NSIS, then restores the unsigned
+build-cache executable. The Windows synthetic hash oracle applies exactly
+that one verified marker transformation in memory and compares every byte;
+it does not accept a version string or ignore arbitrary binary differences.
+
+Microsoft’s [ShowWindow](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow)
+and [ShowWindowAsync](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindowasync)
+contracts define minimized non-activation and asynchronous GUI delivery. The
+Windows minimized fixture verifies actual visible/iconic A/B windows and
+unchanged foreground, rather than accepting a successfully posted request.
+
+## Release security dependencies (Tactical 379)
+
+The workspace locks registry rustls 0.23.46 and ZIP 9.0.4; Cargo.lock owns
+checksums. ZIP and its typed-path 0.12.3 dependency retain permissive registry
+licenses; cargo-about generates exact-target notices. No upstream source or
+fixture is copied into first-party code. The ZIP-4 compatibility fixture is
+independently authored data with its own provenance README.
+
+Security behavior is checked against upstream rustls pull requests
+[3299](https://github.com/rustls/rustls/pull/3299),
+[3300](https://github.com/rustls/rustls/pull/3300),
+[3297](https://github.com/rustls/rustls/pull/3297) and
+[3355](https://github.com/rustls/rustls/pull/3355), and ZIP advisories
+[privileged mode bits](https://github.com/zip-rs/zip2/security/advisories/GHSA-vv5m-jxxh-4627),
+[symlink targets](https://github.com/zip-rs/zip2/security/advisories/GHSA-4v9h-p7m9-rh26)
+and [symlink permissions](https://github.com/zip-rs/zip2/security/advisories/GHSA-4684-h2q9-2vcp).
+The tauri-plugin-updater 2.10.1 source paths in Tactical 379 prove removing its
+optional ZIP feature preserves the shipped raw installers and macOS tar.gz.

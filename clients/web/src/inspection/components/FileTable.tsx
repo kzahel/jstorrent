@@ -1,6 +1,6 @@
-import { useRemotePlayback, canPlayRemoteFile } from "./RemoteVideoPlayer";
+import { usePlayback } from "./VideoPlayer";
 import { message as localizedMessage } from "../../localization/runtime";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useInspectionCommand, useInspectionStore } from "../context";
 import type { DataUnits } from "../appearance";
@@ -22,7 +22,7 @@ import styles from "./FileTable.module.css";
 
 const DIRECT_SAVE_TOAST = "direct-save";
 
-const columns = (dataUnits: DataUnits): readonly VirtualColumn<FileRow>[] => [
+const columns = (dataUnits: DataUnits, override: (row: FileRow) => void, busy: boolean): readonly VirtualColumn<FileRow>[] => [
   {
     id: "name",
     listRole: "title",
@@ -63,6 +63,14 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<FileRow>[] => [
             : localizedMessage("inspection.components.file.table.normal")}
       </span>
     ),
+  },
+  {
+    id: "safety", listRole: "detail", label: localizedMessage("safety.files.column"), width: 360, minimumWidth: 230, maximumWidth: 600,
+    sortValue: row => row.safety?.matched_extension ?? "",
+    render: row => row.safety == null ? "—" : <span className={styles.safety}>
+      <span title={safetyReason(row)}>{safetyReason(row)}</span>
+      <button type="button" disabled={busy} aria-label={`${(row.safety.overridden ? localizedMessage("safety.files.undo") : localizedMessage("safety.files.download"))} ${row.name}`} onClick={event => { event.stopPropagation(); override(row); }}>{(row.safety.overridden ? localizedMessage("safety.files.undo") : localizedMessage("safety.files.download"))}</button>
+    </span>,
   },
   {
     id: "size",
@@ -178,9 +186,8 @@ export function FileTable({
   readonly torrentId: string;
   readonly remoteAccess?: DesktopRemoteAccess | undefined;
 }) {
-  const playback = useRemotePlayback();
+  const playback = usePlayback();
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
-  const displayColumns = useMemo(() => columns(dataUnits), [dataUnits]);
   const [currentFileId, setCurrentFileId] = useState<string | null>(null);
   const [selectedFileIds, setSelectedFileIds] = useState<ReadonlySet<string>>(
     new Set(),
@@ -193,8 +200,17 @@ export function FileTable({
   const directSaveAbort = useRef<AbortController | null>(null);
   const execute = useInspectionCommand();
   const toast = useToast();
+  const overrideSafety = useCallback((row: FileRow) => {
+    if (row.safety == null) return;
+    setFileActionPending(true);
+    void execute({ type: "set_file_safety_override", torrentId: row.torrentId, fileIndices: [row.index], allowed: !row.safety.overridden }).then(result => {
+      if (!result.accepted) toast.show({ message: result.message ?? localizedMessage("safety.settings.failed") });
+    }).catch(error => toast.show({ message: String(error) })).finally(() => setFileActionPending(false));
+  }, [execute, toast]);
+
   const { shareFiles } = useTorrentActions();
   const demo = useInspectionStore((state) => state.demo);
+  const safetySummary = useInspectionStore(state => state.torrents[torrentId]?.safetySummary);
   const torrentArchived = useInspectionStore(
     (state) => state.torrents[torrentId]?.archived === true,
   );
@@ -212,6 +228,8 @@ export function FileTable({
         .filter((row): row is FileRow => row !== undefined && !row.padding),
     [fileSet],
   );
+  const safetyRelevant = (safetySummary?.blocked_file_count ?? 0) > 0 || rows.some(row => row.safety != null);
+  const displayColumns = useMemo(() => columns(dataUnits, overrideSafety, fileActionPending).filter(column => column.id !== "safety" || safetyRelevant), [dataUnits, overrideSafety, fileActionPending, safetyRelevant]);
   const paddingCount = useMemo(
     () =>
       (fileSet?.order ?? []).filter((id) => fileSet?.rows[id]?.padding === true)
@@ -321,19 +339,29 @@ export function FileTable({
     actions: ReturnType<typeof resolveFileActions>,
     targets: readonly FileRow[],
   ) {
-    if (!playback.remote) return actions;
+    actions = actions.map(action => action.id === "download_now" && targets.some(row => row.safety?.blocked === true) ? { ...action, disabled: true, disabledReason: localizedMessage("safety.files.use.override") } : action);
+    const playable = targets.length === 1 &&
+      playback.canPlay(targets[0]!.name, targets[0]!.mediaAvailability);
+    if (!playback.remote) {
+      // Local files keep Open in a new tab beside the in-app Play.
+      return actions.flatMap(action =>
+        action.id === "open" && playable
+          ? [{ ...action, id: "play" as const, label: localizedMessage("remote.video.play"), external: false as const }, action]
+          : [action]);
+    }
     const availability = resolveDirectSave(
       remoteAccess, targets, fileActionPending, directFileEnabled, unavailableReason,
     );
     return actions
-      .filter(action => action.id !== "open" ||
-        (targets.length === 1 && canPlayRemoteFile(targets[0]!.name, targets[0]!.mediaAvailability)))
+      .filter(action => action.id !== "open" || playable)
       .map(action => {
         if (action.id !== "open") return action;
         const reason = action.disabledReason ?? availability?.disabledReason;
         return {
           ...action,
+          id: "play" as const,
           label: localizedMessage("remote.video.play"),
+          external: false as const,
           disabled: action.disabled || availability?.disabled !== false || remoteAccess?.playCompletedFile === undefined,
           ...(reason === undefined ? {} : { disabledReason: reason }),
         };
@@ -376,7 +404,7 @@ export function FileTable({
       });
       return;
     }
-    if (action.id === "open" && playback.remote) {
+    if (action.id === "play") {
       const row = targetRows[0]!;
       playback.play({ torrentId, fileIndex: row.index, fileName: row.name, lengthBytes: row.lengthBytes });
       return;
@@ -491,6 +519,8 @@ export function FileTable({
     <div className={styles.filePanel}>
       <div>
         <div className={styles.summary}>
+          {(safetySummary?.blocked_file_count ?? 0) > 0 ? <span>{localizedMessage("safety.files.total", { count: safetySummary!.blocked_file_count })}</span> : null}
+          {safetySummary?.blocked_file_count === fileSet?.page.total && safetySummary?.blocked_file_count !== 0 ? <span>{localizedMessage("safety.files.none.selected")}</span> : null}
           {paddingCount > 0 ? (
             <span>{paddingCount.toLocaleString()}{" "}{localizedMessage("inspection.components.file.table.padding.hidden")}</span>
           ) : null}
@@ -518,6 +548,7 @@ export function FileTable({
           rows={rows}
           getRowId={(row) => row.id}
           columns={displayColumns}
+          additionalListLines={safetyRelevant ? 2 : 0}
           interfaceSize={interfaceSize}
           currentRowId={currentFileId}
           selection={{
@@ -645,4 +676,10 @@ function fileEmptyMessage(
         return localizedMessage("inspection.components.file.table.the.torrent.is.no.longer.present");
       return localizedMessage("inspection.components.file.table.this.torrent.has.no.files.to.show");
   }
+}
+
+function safetyReason(row: FileRow): string {
+  const safety = row.safety;
+  if (safety == null) return "";
+  return safety.overridden ? localizedMessage("safety.files.allowed", { extension: safety.matched_extension }) : localizedMessage("safety.files.blocked", { extension: safety.matched_extension, preset: localizedMessage(safety.preset === "custom" ? "safety.preset.custom" : safety.preset === "archives" ? "safety.preset.archives" : "safety.preset.recommended") });
 }

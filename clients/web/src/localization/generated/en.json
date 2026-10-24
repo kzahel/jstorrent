@@ -1972,13 +1972,13 @@
   "inspection.components.about.updates.settings.section.latest": [
     {
       "type": 0,
-      "value": "Latest"
+      "value": "Latest — Early access"
     }
   ],
   "inspection.components.about.updates.settings.section.latest.description": [
     {
       "type": 0,
-      "value": "Latest offers signed builds from verified main changes. Installation always needs your approval."
+      "value": "Signed builds with new changes sooner; may contain bugs. Automatic installation follows your setting below."
     }
   ],
   "inspection.components.about.updates.settings.section.linux.appimage": [
@@ -2092,13 +2092,13 @@
   "inspection.components.about.updates.settings.section.stable": [
     {
       "type": 0,
-      "value": "Stable"
+      "value": "Stable — Recommended"
     }
   ],
   "inspection.components.about.updates.settings.section.stable.description": [
     {
       "type": 0,
-      "value": "Stable offers deliberate desktop preview releases."
+      "value": "Releases promoted after testing."
     }
   ],
   "inspection.components.about.updates.settings.section.target": [
@@ -2128,13 +2128,13 @@
   "inspection.components.about.updates.settings.section.waiting.for.stable": [
     {
       "type": 0,
-      "value": "Waiting for Stable to catch up"
+      "value": "Stable selected · Waiting for a compatible release"
     }
   ],
   "inspection.components.about.updates.settings.section.waiting.for.stable.description": [
     {
       "type": 0,
-      "value": "This installed build is newer than Stable. JSTorrent will keep it until a newer Stable release is available."
+      "value": "Your current version stays installed until a newer compatible Stable release is available. Your data stays unchanged."
     }
   ],
   "inspection.components.about.updates.settings.section.windows.msi": [
@@ -5771,6 +5771,714 @@
       "value": "verified"
     }
   ],
+  "inspection.components.library.media.archived": [
+    {
+      "type": 0,
+      "value": "Include archived"
+    }
+  ],
+  "inspection.components.library.media.availability": [
+    {
+      "type": 0,
+      "value": "Availability"
+    }
+  ],
+  "inspection.components.library.media.availability.any": [
+    {
+      "type": 0,
+      "value": "All"
+    }
+  ],
+  "inspection.components.library.media.availability.incomplete": [
+    {
+      "type": 0,
+      "value": "Incomplete"
+    }
+  ],
+  "inspection.components.library.media.availability.offline": [
+    {
+      "type": 0,
+      "value": "Complete"
+    }
+  ],
+  "inspection.components.library.media.back": [
+    {
+      "type": 0,
+      "value": "Back to "
+    },
+    {
+      "type": 1,
+      "value": "preset"
+    }
+  ],
+  "inspection.components.library.media.column.context": [
+    {
+      "type": 0,
+      "value": "Show or album"
+    }
+  ],
+  "inspection.components.library.media.column.play": [
+    {
+      "type": 0,
+      "value": "Play"
+    }
+  ],
+  "inspection.components.library.media.column.size": [
+    {
+      "type": 0,
+      "value": "Size"
+    }
+  ],
+  "inspection.components.library.media.column.status": [
+    {
+      "type": 0,
+      "value": "Status"
+    }
+  ],
+  "inspection.components.library.media.column.title": [
+    {
+      "type": 0,
+      "value": "Title"
+    }
+  ],
+  "inspection.components.library.media.column.torrent": [
+    {
+      "type": 0,
+      "value": "Torrent"
+    }
+  ],
+  "inspection.components.library.media.count.albums": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " album"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " albums"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.library.media.count.items": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " item"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " items"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.library.media.count.shows": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " show"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " shows"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.library.media.count.torrents": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrent"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrents"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.library.media.empty.filters": [
+    {
+      "type": 0,
+      "value": "Nothing matches this search and these filters"
+    }
+  ],
+  "inspection.components.library.media.empty.library": [
+    {
+      "type": 0,
+      "value": "Your library has no video or music yet"
+    }
+  ],
+  "inspection.components.library.media.group.album": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " track"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " tracks"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 1,
+      "value": "year"
+    }
+  ],
+  "inspection.components.library.media.group.files": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " file"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " files"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.library.media.group.offline": [
+    {
+      "type": 1,
+      "value": "offline"
+    },
+    {
+      "type": 0,
+      "value": " of "
+    },
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " complete"
+    }
+  ],
+  "inspection.components.library.media.group.show": [
+    {
+      "type": 6,
+      "value": "episodes",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " episode"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " episodes"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 6,
+      "value": "seasons",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " season"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " seasons"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.library.media.group.tracks": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " track"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " tracks"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.library.media.grouping": [
+    {
+      "type": 0,
+      "value": "Show as"
+    }
+  ],
+  "inspection.components.library.media.grouping.albums": [
+    {
+      "type": 0,
+      "value": "Albums"
+    }
+  ],
+  "inspection.components.library.media.grouping.episodes": [
+    {
+      "type": 0,
+      "value": "Episodes"
+    }
+  ],
+  "inspection.components.library.media.grouping.shows": [
+    {
+      "type": 0,
+      "value": "Shows"
+    }
+  ],
+  "inspection.components.library.media.grouping.tracks": [
+    {
+      "type": 0,
+      "value": "Tracks"
+    }
+  ],
+  "inspection.components.library.media.item.offline": [
+    {
+      "type": 0,
+      "value": "Complete"
+    }
+  ],
+  "inspection.components.library.media.item.offline.archived": [
+    {
+      "type": 0,
+      "value": "Complete · Archived"
+    }
+  ],
+  "inspection.components.library.media.item.open": [
+    {
+      "type": 0,
+      "value": "Show "
+    },
+    {
+      "type": 1,
+      "value": "title"
+    },
+    {
+      "type": 0,
+      "value": " in its torrent"
+    }
+  ],
+  "inspection.components.library.media.item.partial": [
+    {
+      "type": 1,
+      "value": "percent"
+    },
+    {
+      "type": 0,
+      "value": "% downloaded"
+    }
+  ],
+  "inspection.components.library.media.item.partial.archived": [
+    {
+      "type": 1,
+      "value": "percent"
+    },
+    {
+      "type": 0,
+      "value": "% downloaded · Archived"
+    }
+  ],
+  "inspection.components.library.media.item.track": [
+    {
+      "type": 0,
+      "value": "Track "
+    },
+    {
+      "type": 1,
+      "value": "number"
+    }
+  ],
+  "inspection.components.library.media.items": [
+    {
+      "type": 0,
+      "value": "Library items"
+    }
+  ],
+  "inspection.components.library.media.layout": [
+    {
+      "type": 0,
+      "value": "Layout"
+    }
+  ],
+  "inspection.components.library.media.layout.grid": [
+    {
+      "type": 0,
+      "value": "Cards"
+    }
+  ],
+  "inspection.components.library.media.layout.list": [
+    {
+      "type": 0,
+      "value": "List"
+    }
+  ],
+  "inspection.components.library.media.loading": [
+    {
+      "type": 0,
+      "value": "Loading your library"
+    }
+  ],
+  "inspection.components.library.media.next": [
+    {
+      "type": 0,
+      "value": "Next page"
+    }
+  ],
+  "inspection.components.library.media.pages": [
+    {
+      "type": 0,
+      "value": "Library pages"
+    }
+  ],
+  "inspection.components.library.media.pending": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrent is"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrents are"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " still getting file details from peers."
+    }
+  ],
+  "inspection.components.library.media.play": [
+    {
+      "type": 0,
+      "value": "Play "
+    },
+    {
+      "type": 1,
+      "value": "title"
+    }
+  ],
+  "inspection.components.library.media.play.busy": [
+    {
+      "type": 0,
+      "value": "Another file is opening"
+    }
+  ],
+  "inspection.components.library.media.play.demo": [
+    {
+      "type": 0,
+      "value": "Playback is unavailable in demo scenarios."
+    }
+  ],
+  "inspection.components.library.media.play.opening": [
+    {
+      "type": 0,
+      "value": "Opening this file"
+    }
+  ],
+  "inspection.components.library.media.play.unavailable": [
+    {
+      "type": 0,
+      "value": "This file is not complete yet."
+    }
+  ],
+  "inspection.components.library.media.preset.all": [
+    {
+      "type": 0,
+      "value": "All media"
+    }
+  ],
+  "inspection.components.library.media.preset.movies": [
+    {
+      "type": 0,
+      "value": "Movies"
+    }
+  ],
+  "inspection.components.library.media.preset.music": [
+    {
+      "type": 0,
+      "value": "Music"
+    }
+  ],
+  "inspection.components.library.media.preset.shows": [
+    {
+      "type": 0,
+      "value": "TV shows"
+    }
+  ],
+  "inspection.components.library.media.preset.torrents": [
+    {
+      "type": 0,
+      "value": "By torrent"
+    }
+  ],
+  "inspection.components.library.media.previous": [
+    {
+      "type": 0,
+      "value": "Previous page"
+    }
+  ],
+  "inspection.components.library.media.range": [
+    {
+      "type": 1,
+      "value": "first"
+    },
+    {
+      "type": 0,
+      "value": "–"
+    },
+    {
+      "type": 1,
+      "value": "last"
+    },
+    {
+      "type": 0,
+      "value": " of "
+    },
+    {
+      "type": 1,
+      "value": "total"
+    }
+  ],
+  "inspection.components.library.media.search.label": [
+    {
+      "type": 0,
+      "value": "Search the library"
+    }
+  ],
+  "inspection.components.library.media.search.placeholder": [
+    {
+      "type": 0,
+      "value": "Search titles, shows, albums and files"
+    }
+  ],
+  "inspection.components.library.media.sort.descending": [
+    {
+      "type": 0,
+      "value": "Reverse order"
+    }
+  ],
+  "inspection.components.library.media.sort.label": [
+    {
+      "type": 0,
+      "value": "Sort by"
+    }
+  ],
+  "inspection.components.library.media.sort.size": [
+    {
+      "type": 0,
+      "value": "Size"
+    }
+  ],
+  "inspection.components.library.media.sort.source": [
+    {
+      "type": 0,
+      "value": "Source torrent"
+    }
+  ],
+  "inspection.components.library.media.sort.title": [
+    {
+      "type": 0,
+      "value": "Title"
+    }
+  ],
+  "inspection.components.library.media.unavailable": [
+    {
+      "type": 0,
+      "value": "The library is unavailable"
+    }
+  ],
   "inspection.components.library.view.all.content": [
     {
       "type": 0,
@@ -6327,6 +7035,12 @@
     {
       "type": 0,
       "value": "Download"
+    }
+  ],
+  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
+    {
+      "type": 0,
+      "value": "You can download once the file list loads. A newer JSTorrent can start without waiting."
     }
   ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
@@ -8062,7 +8776,7 @@
   "inspection.components.torrent.list.description": [
     {
       "type": 0,
-      "value": "Save every torrent to one file to keep as a backup or to open on another device."
+      "value": "Save your list of torrents to a file. Downloaded files are not included."
     }
   ],
   "inspection.components.torrent.list.export": [
@@ -8079,6 +8793,12 @@
     {
       "type": 1,
       "value": "error"
+    }
+  ],
+  "inspection.components.torrent.list.export.title": [
+    {
+      "type": 0,
+      "value": "Export"
     }
   ],
   "inspection.components.torrent.list.exported": [
@@ -8137,7 +8857,7 @@
   "inspection.components.torrent.list.import.description": [
     {
       "type": 0,
-      "value": "Add the torrents from an exported file. Torrents already in your list are skipped, and files already downloaded are checked instead of downloaded again."
+      "value": "Add torrents from an exported file."
     }
   ],
   "inspection.components.torrent.list.import.failed": [
@@ -8150,6 +8870,18 @@
       "value": "error"
     }
   ],
+  "inspection.components.torrent.list.import.into": [
+    {
+      "type": 0,
+      "value": "Import into"
+    }
+  ],
+  "inspection.components.torrent.list.import.title": [
+    {
+      "type": 0,
+      "value": "Import"
+    }
+  ],
   "inspection.components.torrent.list.importing": [
     {
       "type": 0,
@@ -8159,25 +8891,19 @@
   "inspection.components.torrent.list.keep.locations": [
     {
       "type": 0,
-      "value": "Use a download folder with the same name when there is one"
+      "value": "Match folders by name"
+    }
+  ],
+  "inspection.components.torrent.list.keep.locations.description": [
+    {
+      "type": 0,
+      "value": "A torrent whose folder on the exporting device has the same name as one of yours is saved there instead."
     }
   ],
   "inspection.components.torrent.list.no.folders": [
     {
       "type": 0,
-      "value": "Add a download folder first."
-    }
-  ],
-  "inspection.components.torrent.list.save.to": [
-    {
-      "type": 0,
-      "value": "Save to"
-    }
-  ],
-  "inspection.components.torrent.list.title": [
-    {
-      "type": 0,
-      "value": "Torrent list"
+      "value": "Add a download folder before importing."
     }
   ],
   "inspection.components.torrent.settings.dialog.cancel": [
@@ -9796,6 +10522,12 @@
       "value": "Padding files cannot be opened"
     }
   ],
+  "inspection.live.live.application.request.needs.newer.host": [
+    {
+      "type": 0,
+      "value": "The computer you are controlling runs an older JSTorrent that cannot do this. Update JSTorrent there."
+    }
+  ],
   "inspection.live.live.application.setting.needs.newer.host": [
     {
       "type": 0,
@@ -9974,6 +10706,170 @@
     {
       "type": 0,
       "value": "uTP"
+    }
+  ],
+  "inspection.recovery.body.locked": [
+    {
+      "type": 0,
+      "value": "Close the other JSTorrent window, then open JSTorrent again."
+    }
+  ],
+  "inspection.recovery.body.migration": [
+    {
+      "type": 0,
+      "value": "Your torrents, settings and downloaded files are safe and unchanged. An update will fix this."
+    }
+  ],
+  "inspection.recovery.body.newer": [
+    {
+      "type": 0,
+      "value": "Install the latest version to open it. Your torrents and downloaded files are unchanged."
+    }
+  ],
+  "inspection.recovery.body.retired": [
+    {
+      "type": 0,
+      "value": "This version can't open it. Nothing was changed or deleted, and your downloaded files are unchanged."
+    }
+  ],
+  "inspection.recovery.body.unreadable": [
+    {
+      "type": 0,
+      "value": "Nothing was changed or deleted. Check for an update, or copy the details and report the problem."
+    }
+  ],
+  "inspection.recovery.details": [
+    {
+      "type": 0,
+      "value": "Details"
+    }
+  ],
+  "inspection.recovery.details.copied": [
+    {
+      "type": 0,
+      "value": "Details copied"
+    }
+  ],
+  "inspection.recovery.details.copy": [
+    {
+      "type": 0,
+      "value": "Copy details"
+    }
+  ],
+  "inspection.recovery.export": [
+    {
+      "type": 0,
+      "value": "Export torrent list"
+    }
+  ],
+  "inspection.recovery.export.failed": [
+    {
+      "type": 0,
+      "value": "Couldn't export the torrent list: "
+    },
+    {
+      "type": 1,
+      "value": "detail"
+    }
+  ],
+  "inspection.recovery.export.saved": [
+    {
+      "type": 0,
+      "value": "Torrent list saved."
+    }
+  ],
+  "inspection.recovery.quit": [
+    {
+      "type": 0,
+      "value": "Quit"
+    }
+  ],
+  "inspection.recovery.report": [
+    {
+      "type": 0,
+      "value": "Report a problem"
+    }
+  ],
+  "inspection.recovery.title.locked": [
+    {
+      "type": 0,
+      "value": "JSTorrent is already open"
+    }
+  ],
+  "inspection.recovery.title.migration": [
+    {
+      "type": 0,
+      "value": "JSTorrent couldn't update your torrent list"
+    }
+  ],
+  "inspection.recovery.title.newer": [
+    {
+      "type": 0,
+      "value": "This torrent list is from a newer version of JSTorrent"
+    }
+  ],
+  "inspection.recovery.title.retired": [
+    {
+      "type": 0,
+      "value": "This torrent list is from an early test version"
+    }
+  ],
+  "inspection.recovery.title.unreadable": [
+    {
+      "type": 0,
+      "value": "JSTorrent couldn't read its torrent list"
+    }
+  ],
+  "inspection.recovery.update.check": [
+    {
+      "type": 0,
+      "value": "Check for updates"
+    }
+  ],
+  "inspection.recovery.update.checking": [
+    {
+      "type": 0,
+      "value": "Checking for updates…"
+    }
+  ],
+  "inspection.recovery.update.current": [
+    {
+      "type": 0,
+      "value": "No update is available yet."
+    }
+  ],
+  "inspection.recovery.update.failed": [
+    {
+      "type": 0,
+      "value": "Couldn't check for updates: "
+    },
+    {
+      "type": 1,
+      "value": "detail"
+    }
+  ],
+  "inspection.recovery.update.install": [
+    {
+      "type": 0,
+      "value": "Install version "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    }
+  ],
+  "inspection.recovery.update.installing": [
+    {
+      "type": 0,
+      "value": "Installing version "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": "…"
     }
   ],
   "inspection.seed.stop.custom": [
@@ -10785,6 +11681,216 @@
       "value": "This remote host does not support video playback."
     }
   ],
+  "safety.files.allowed": [
+    {
+      "type": 0,
+      "value": "Safety override · "
+    },
+    {
+      "type": 1,
+      "value": "extension"
+    }
+  ],
+  "safety.files.blocked": [
+    {
+      "type": 0,
+      "value": "Skipped by safety settings · "
+    },
+    {
+      "type": 1,
+      "value": "extension"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 1,
+      "value": "preset"
+    }
+  ],
+  "safety.files.column": [
+    {
+      "type": 0,
+      "value": "Safety"
+    }
+  ],
+  "safety.files.download": [
+    {
+      "type": 0,
+      "value": "Download anyway"
+    }
+  ],
+  "safety.files.none.selected": [
+    {
+      "type": 0,
+      "value": "No files selected"
+    }
+  ],
+  "safety.files.selection.note": [
+    {
+      "type": 0,
+      "value": "Download all remains subject to safety settings. Files shows why a file was skipped and lets you override it."
+    }
+  ],
+  "safety.files.total": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " file skipped by safety settings"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " files skipped by safety settings"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "safety.files.undo": [
+    {
+      "type": 0,
+      "value": "Undo safety override"
+    }
+  ],
+  "safety.files.use.override": [
+    {
+      "type": 0,
+      "value": "Use Download anyway to override the safety rule for this file."
+    }
+  ],
+  "safety.preset.archives": [
+    {
+      "type": 0,
+      "value": "Applications, installers, scripts & archives"
+    }
+  ],
+  "safety.preset.custom": [
+    {
+      "type": 0,
+      "value": "Custom…"
+    }
+  ],
+  "safety.preset.recommended": [
+    {
+      "type": 0,
+      "value": "Applications, installers & scripts (recommended)"
+    }
+  ],
+  "safety.selection.fragmented": [
+    {
+      "type": 0,
+      "value": "This selection exceeds 4,096 separate ranges. Use All or None to simplify it."
+    }
+  ],
+  "safety.selection.older.host": [
+    {
+      "type": 0,
+      "value": "This host supports up to 4,096 file changes. Use All or None, or update the host for larger selections."
+    }
+  ],
+  "safety.settings.conflict": [
+    {
+      "type": 0,
+      "value": "These settings changed in another client. Discard changes to reload the current values."
+    }
+  ],
+  "safety.settings.discard": [
+    {
+      "type": 0,
+      "value": "Discard changes"
+    }
+  ],
+  "safety.settings.enabled": [
+    {
+      "type": 0,
+      "value": "Automatically skip potentially dangerous files"
+    }
+  ],
+  "safety.settings.extension.help": [
+    {
+      "type": 0,
+      "value": "Separate extensions with spaces or commas, for example .exe, .dmg, .tar.gz. Matching is case-insensitive; .app also matches application folders."
+    }
+  ],
+  "safety.settings.extensions": [
+    {
+      "type": 0,
+      "value": "File extensions"
+    }
+  ],
+  "safety.settings.failed": [
+    {
+      "type": 0,
+      "value": "File safety settings could not be saved."
+    }
+  ],
+  "safety.settings.future": [
+    {
+      "type": 0,
+      "value": "Applies to newly added torrents. Download all respects these rules. Existing torrents and individual overrides stay unchanged. Files explains each safety skip. This does not scan for malware or inspect archives."
+    }
+  ],
+  "safety.settings.invalid": [
+    {
+      "type": 0,
+      "value": "Use at most 128 extensions, each starting with a dot and containing up to 31 letters, digits or dots."
+    }
+  ],
+  "safety.settings.origin": [
+    {
+      "type": 0,
+      "value": "Mark downloaded files as coming from the internet"
+    }
+  ],
+  "safety.settings.origin.help": [
+    {
+      "type": 0,
+      "value": "Windows and macOS only, where supported by the destination filesystem. Applies when downloaded files are opened for writing. Download anyway keeps these protections; turning this off never removes existing labels."
+    }
+  ],
+  "safety.settings.preset": [
+    {
+      "type": 0,
+      "value": "Files to skip"
+    }
+  ],
+  "safety.settings.preset.help": [
+    {
+      "type": 0,
+      "value": "The recommended preset skips applications, installers, scripts and shortcuts. ZIP and other archives, and ISO images, remain allowed unless you choose otherwise."
+    }
+  ],
+  "safety.settings.save": [
+    {
+      "type": 0,
+      "value": "Save file safety settings"
+    }
+  ],
+  "safety.settings.title": [
+    {
+      "type": 0,
+      "value": "File safety"
+    }
+  ],
   "share.panel.address.included": [
     {
       "type": 5,
@@ -10906,7 +12012,7 @@
   "share.panel.include.address": [
     {
       "type": 0,
-      "value": "Include my address"
+      "value": "Include my IP address"
     }
   ],
   "share.panel.include.address.description": [
@@ -10953,6 +12059,39 @@
     {
       "type": 1,
       "value": "error"
+    }
+  ],
+  "share.panel.short.description": [
+    {
+      "type": 0,
+      "value": "Encrypted on your device and stored on link.jstorrent.com for 30 days. The decryption key stays in the link."
+    }
+  ],
+  "share.panel.short.expires": [
+    {
+      "type": 0,
+      "value": "Expires "
+    },
+    {
+      "type": 3,
+      "value": "date",
+      "style": "medium"
+    },
+    {
+      "type": 0,
+      "value": "."
+    }
+  ],
+  "share.panel.short.failed": [
+    {
+      "type": 0,
+      "value": "Could not create a short link. You can still use the full link."
+    }
+  ],
+  "share.panel.short.label": [
+    {
+      "type": 0,
+      "value": "Short link"
     }
   ],
   "share.panel.title": [
@@ -11111,12 +12250,6 @@
       "value": "Exact report to copy or download"
     }
   ],
-  "support.diagnostics.public.report": [
-    {
-      "type": 0,
-      "value": "GitHub reports are public. Review your description and attachments before submitting. Opening the report page sends none of these diagnostics."
-    }
-  ],
   "support.diagnostics.refresh": [
     {
       "type": 0,
@@ -11129,22 +12262,28 @@
       "value": "Support diagnostics"
     }
   ],
+  "support.help": [
+    {
+      "type": 0,
+      "value": "Help"
+    }
+  ],
   "support.known.issues": [
     {
       "type": 0,
       "value": "Known issues"
     }
   ],
-  "support.privacy.recovery": [
+  "support.report.feedback": [
     {
       "type": 0,
-      "value": "Privacy and recovery guidance"
+      "value": "Send feedback"
     }
   ],
-  "support.report.problem": [
+  "support.report.github": [
     {
       "type": 0,
-      "value": "Report a problem"
+      "value": "Report on GitHub"
     }
   ],
   "toast.dismiss": [
@@ -11157,6 +12296,44 @@
     {
       "type": 0,
       "value": "Notification"
+    }
+  ],
+  "updates.automatic-awaiting-qualification": [
+    {
+      "type": 0,
+      "value": "Automatic installation isn’t enabled here yet. You can still install updates manually."
+    }
+  ],
+  "updates.automatic-install": [
+    {
+      "type": 0,
+      "value": "Automatically install updates when I'm away"
+    }
+  ],
+  "updates.automatic-install-off": [
+    {
+      "type": 0,
+      "value": "Automatic installation is off"
+    }
+  ],
+  "updates.automatic-introduction": [
+    {
+      "type": 0,
+      "value": "JSTorrent can update after 15 minutes without interaction and resume your transfers. Turn this off in Settings."
+    }
+  ],
+  "updates.automatic-introduction-updated": [
+    {
+      "type": 0,
+      "value": "Updated to "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": ". Future updates can restart JSTorrent after 15 minutes without interaction and resume your transfers. Turn this off in Settings."
     }
   ],
   "updates.command-copied": [
@@ -11175,6 +12352,52 @@
     {
       "type": 0,
       "value": "Copy update command"
+    }
+  ],
+  "updates.last-outcome": [
+    {
+      "type": 0,
+      "value": "Last update: "
+    },
+    {
+      "type": 1,
+      "value": "message"
+    }
+  ],
+  "updates.restart-countdown": [
+    {
+      "type": 0,
+      "value": "Restarting in "
+    },
+    {
+      "type": 1,
+      "value": "seconds"
+    },
+    {
+      "type": 0,
+      "value": " seconds to install the update"
+    }
+  ],
+  "updates.updated-version": [
+    {
+      "type": 0,
+      "value": "Updated to "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    }
+  ],
+  "video.loading": [
+    {
+      "type": 0,
+      "value": "Loading video…"
+    }
+  ],
+  "video.open.new.tab": [
+    {
+      "type": 0,
+      "value": "Open in new tab"
     }
   ]
 }

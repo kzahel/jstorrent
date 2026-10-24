@@ -18,7 +18,13 @@
           "url": "https://github.com/kzahel/jstorrent/issues/new"
         },
         {
-          "url": "https://github.com/kzahel/jstorrent/blob/main/docs/user-support.md"
+          "url": "https://github.com/kzahel/jstorrent/issues/new[?]*"
+        },
+        {
+          "url": "https://jstorrent.com/feedback.html[?]*"
+        },
+        {
+          "url": "https://jstorrent.com/support/"
         },
         {
           "url": "https://github.com/kzahel/jstorrent/releases/latest"

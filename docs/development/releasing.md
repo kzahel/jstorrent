@@ -63,10 +63,16 @@ Packaging requires pinned `cargo-about` and exact-target notices:
 
 ```bash
 cargo install cargo-about --locked --version 0.9.2 --features cli
+python3 scripts/prepare-release-notices.py --check
 python3 scripts/prepare-release-notices.py --target aarch64-apple-darwin
 python3 -m unittest discover -s scripts -p test_distribution_review.py
 python3 -m unittest discover -s scripts -p test_linux_native.py
 ```
+
+The early Fast CI notice lane runs `--check` when dependency or notice inputs
+change. It validates the union of all supported desktop Rust targets and web
+notices without writing a bundle or building platform packages. Final packaging
+still generates and inspects its exact-target notice bundle.
 
 Use the actual package target. The [license records](../../distribution/licenses/README.md)
 and [Linux native-build guide](../../distribution/linux-native/README.md) own
@@ -84,19 +90,74 @@ variant-specific Maven/AAR and Rust attribution.
 [`audit-cargo-dependencies.py`](../../scripts/audit-cargo-dependencies.py) and
 [`review-dependency-audit.py`](../../scripts/review-dependency-audit.py)
 provide `--help` for report inputs and options. The
-[weekly dependency workflow](../../.github/workflows/dependency-review.yml)
+[daily dependency workflow](../../.github/workflows/dependency-review.yml)
 owns audit tool versions and report collection; tagged publication requires
 `--require-release-ready`, including fresh advisory/review evidence.
 
 ## Website and remote controller
 
-[`deploy-production-website.yml`](../../.github/workflows/deploy-production-website.yml)
-owns building React/Wasm, Astro and the combined Pages artifact. The
-[assembler](../../scripts/assemble-pages-site.mjs) and
-[deployment verifier](../../scripts/verify-remote-deployment.mjs) enforce build
-identity, digests, content types and cache/security policy. Local builds can
-exercise those checks without publishing or enabling remote access.
+[`promote-production-website.yml`](../../.github/workflows/promote-production-website.yml)
+verifies the public Stable release's source, asset hashes and original updater
+signatures before committing its download inventory and release announcement.
+It dispatches the canonical
+[`deploy-website.yml`](../../.github/workflows/deploy-website.yml) workflow,
+which builds Astro, assembles the site and records public source provenance.
+The retained `deploy-production-website.yml` lane is for rollback only.
+
+The remote controller has its own tagged release lane. Its
+[deployment verifier](../../scripts/verify-remote-deployment.mjs) enforces build
+identity, digests, content types and cache/security policy. Website promotion
+does not release a new controller. Local builds can exercise these checks
+without publishing or enabling remote access.
 
 Retained [desktop preview](../desktop-release.md) and
 [Crostini](../crostini-release.md) runbooks contain historical channel evidence.
 They do not authorize re-enabling a frozen release lane.
+
+## Stable and Latest with database admission
+
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md)
+owns initial installed acceptance. `JSTorrent Latest Desktop` runs daily at
+03:17 UTC and supports manual dispatch for signed prereleases from the exact
+main head after successful full push CI. It refreshes exact release records
+for known desktop tags before allocating a version; incomplete inventories
+stop selection. It refreshes the matching main-push CI run directly and checks
+its workflow, source and result. It skips source already published to Latest;
+scheduled runs also skip a main head whose CI is not yet green. Any
+new commit qualifies, including documentation-only changes. It allocates the
+next numeric version across both JSTorrent channels
+and invokes the existing five-target signing/collection pipeline. The old
+incubation nightly remains disabled. Both channels use the original app ID,
+updater key and installers. New metadata-required releases carry authenticated
+database ranges and migration prefixes, bound to the exact payload signatures.
+
+Run `node scripts/desktop-compatibility.mjs` before a package build. On a real
+schema change, extend that script's source registry, regenerate with `--write`,
+and review its prefix against published releases; never rewrite a released
+prefix to make a check pass. `node --test scripts/desktop-release-train.test.mjs`
+checks common version ordering and preservation of released migrations.
+A later Stable promotion must retain the tested version and package bytes;
+newer Latest users wait, and equal-version users need no reinstall. Stable
+publication remains explicit and separate from qualification.
+
+Dispatch the same public Latest publisher manually with:
+
+```bash
+gh workflow run latest-desktop.yml --repo kzahel/jstorrent --ref main
+```
+
+Tactical [378](../tactical/378-public-latest-and-nightly.md) authorizes Latest
+to require extension 1.1.5 or newer for the eight specifically accepted field
+exposures in `acceptedLatestDesktopFields`. New incompatibilities still block;
+Stable and Android do not inherit the exception. Release notes disclose the
+companion requirement. The nightly does not publish Stable or move its offer.
+
+`Promote JSTorrent Latest to Stable` defaults to preparing a private, reviewable
+promotion artifact. It downloads and verifies a public Latest release, copies
+all native packages/signatures and source materials unchanged, preserves the
+candidate's database facts, and re-signs only the URL-bound updater metadata
+for Stable. It never rebuilds a native package. An explicit `publish=true`
+dispatch is required to publish; it also enforces the candidate source's own
+companion-compatibility guard. Tactical [380](../tactical/380-product-release.md) records explicit
+Stable 0.3.4 authorization with extension 1.1.5+ required. That exact release
+exception does not authorize other Stable versions.

@@ -362,13 +362,13 @@ fn path_reference(
     pool: &StorageFilePool,
     path: &Path,
     file_index: usize,
-    namespace_generation: u64,
+    storage_generation: u64,
 ) -> StorageFileReference {
     StorageFileReference::new(
         pool.clone(),
         StorageFileKey {
             storage_id: "ios-probe".to_owned(),
-            namespace_generation,
+            storage_generation,
             role: StorageFileRole::Payload(file_index),
         },
         StorageFileLocator::Path(path.to_owned()),

@@ -1,6 +1,8 @@
 import { message as localizedMessage } from "../../localization/runtime";
 import { useMemo, type ReactNode } from "react";
 
+import type { LibraryFacetsView } from "../../api";
+
 import { useInspectionStore } from "../context";
 import type {
   ApplicationDestination,
@@ -14,6 +16,8 @@ import {
   type PresentationState,
 } from "../state";
 import { DETAIL_TABS } from "../tabs";
+import { LIBRARY_PRESETS, type LibraryPreset } from "../library-browse";
+import { presetLabel } from "./LibraryMediaView";
 import { Icon, type IconName } from "./Icon";
 import styles from "./Sidebar.module.css";
 
@@ -39,6 +43,30 @@ const LIBRARY_CATEGORIES: readonly {
   { id: "downloading", label: localizedMessage("inspection.components.sidebar.downloading"), symbol: "↓" },
   { id: "archived", label: localizedMessage("inspection.components.sidebar.archived"), symbol: "▣" },
 ];
+
+const PRESET_SYMBOLS: Readonly<Record<LibraryPreset, string>> = {
+  all: "▦",
+  shows: "▤",
+  movies: "▶",
+  music: "♪",
+  torrents: "≡",
+};
+
+/** The files each preset holds within the current search; torrents for By torrent. */
+function presetCount(preset: LibraryPreset, facets: LibraryFacetsView): number {
+  switch (preset) {
+    case "all":
+      return facets.items;
+    case "shows":
+      return facets.episodes;
+    case "movies":
+      return facets.movies;
+    case "music":
+      return facets.tracks;
+    case "torrents":
+      return facets.torrents;
+  }
+}
 
 const TORRENT_CATEGORIES: readonly {
   readonly id: TorrentCategory;
@@ -78,18 +106,22 @@ export function Sidebar() {
   );
   return (
     <div className={styles.sidebar}>
-      <nav aria-label={localizedMessage("inspection.components.app.primary")}>
-        <ul>
-          {DESTINATIONS.map((item) => (
-            <NavigationButton
-              key={item.id}
-              active={destination === item.id}
-              label={destinationLabel(item.id)}
-              symbol={<Icon name={item.icon} />}
-              onSelect={() => selectDestination(item.id)}
-            />
-          ))}
-        </ul>
+      {/* A view switch drawn as segments, so it reads apart from the categories it controls. */}
+      <nav
+        className={styles.destinations}
+        aria-label={localizedMessage("inspection.components.app.primary")}
+      >
+        {DESTINATIONS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-current={destination === item.id ? "page" : undefined}
+            onClick={() => selectDestination(item.id)}
+          >
+            <Icon name={item.icon} />
+            <span>{destinationLabel(item.id)}</span>
+          </button>
+        ))}
       </nav>
       <Categories />
       {!narrow ? null : (
@@ -140,6 +172,17 @@ function Categories() {
   const countsLoading = useInspectionStore(
     (state) => state.viewStatus.library.status === "loading",
   );
+  const mediaLibrary = useInspectionStore(
+    (state) => state.viewStatus.libraryMedia.status !== "unsupported",
+  );
+  const libraryBrowse = useInspectionStore(
+    (state) => state.presentation.libraryBrowse,
+  );
+  const facets = useInspectionStore((state) => state.libraryMedia?.facets ?? null);
+  const updateLibraryBrowse = useInspectionStore(
+    (state) => state.updateLibraryBrowse,
+  );
+  const closeSidebar = useInspectionStore((state) => state.closeSidebar);
   const rows = useMemo(
     () =>
       order
@@ -158,6 +201,28 @@ function Categories() {
       ),
     [rows],
   );
+
+  if (destination === "library" && mediaLibrary) {
+    return (
+      <nav aria-label={localizedMessage("inspection.components.sidebar.library.filters")}>
+        <ul>
+          {LIBRARY_PRESETS.map((preset) => (
+            <NavigationButton
+              key={preset}
+              active={libraryBrowse.preset === preset}
+              count={facets === null ? undefined : presetCount(preset, facets)}
+              label={presetLabel(preset)}
+              symbol={PRESET_SYMBOLS[preset]}
+              onSelect={() => {
+                updateLibraryBrowse({ preset, group: null });
+                closeSidebar();
+              }}
+            />
+          ))}
+        </ul>
+      </nav>
+    );
+  }
 
   if (destination === "library") {
     return (

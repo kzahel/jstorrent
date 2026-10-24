@@ -144,6 +144,7 @@ struct TorrentDetailScreen: View {
                         )
                     )
                 },
+                onSafetyOverride: { index, allowed in command(.setFileSafetyOverride(torrentId: torrentID, fileIndices: [index], allowed: allowed)) },
                 onDownloadNow: { index in
                     command(.downloadFiles(torrentId: torrentID, fileIndices: [index]))
                 },
@@ -343,6 +344,7 @@ private struct TorrentStatusSection: View {
 private struct TorrentFilesSection: View {
     let files: [FileView]
     let onPriority: ([UInt32], FilePriority) -> Void
+    let onSafetyOverride: (UInt32, Bool) -> Void
     let onDownloadNow: (UInt32) -> Void
     let onOpen: (FileView) -> Void
 
@@ -363,6 +365,10 @@ private struct TorrentFilesSection: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
+                            if let safety = file.safety {
+                                Text(String(format: (safety.overridden ? String(localized: "safety_override_detail") : String(localized: "safety_skip_detail")), locale: .current, safety.matchedExtension, safetyPresetLabel(safety.preset)))
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
                             let done = UInt64(file.doneBytes) ?? 0
                             let length = UInt64(file.lengthBytes) ?? 0
                             ProgressView(value: length == 0 ? 0 : Double(done) / Double(length))
@@ -386,6 +392,9 @@ private struct TorrentFilesSection: View {
                             .foregroundStyle(.secondary)
                         }
                         Menu {
+                            if let safety = file.safety {
+                                Button((safety.overridden ? String(localized: "safety_undo") : String(localized: "safety_download_anyway"))) { onSafetyOverride(file.fileIndex, !safety.overridden) }
+                            }
                             Button(String(localized: "file_priority_high")) {
                                 onPriority([file.fileIndex], .high)
                             }
@@ -395,7 +404,7 @@ private struct TorrentFilesSection: View {
                             Button(String(localized: "file_priority_skip")) {
                                 onPriority([file.fileIndex], .skip)
                             }
-                            if file.selection == .skipped {
+                            if file.selection == .skipped && file.safety?.blocked != true {
                                 Button(String(localized: "ios_file_download_now")) {
                                     onDownloadNow(file.fileIndex)
                                 }

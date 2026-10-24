@@ -1,6 +1,7 @@
 import {
   HOST_CAPABILITY_REGISTRY,
   type ClientSettingsPatch,
+  type Command,
   type HostCapabilityDefinition,
   type TorrentSettingsPatch,
 } from "../api";
@@ -8,6 +9,7 @@ import type { SessionSummary } from "./model";
 
 /** Host capability names, from the Rust registry. */
 export const SEED_STOP_LIMITS = "seed_stop_limits";
+export const MAGNET_EXPORT_OPTIONS = "magnet_export_options";
 
 /**
  * Whether the connected host has a capability. A host that reports no list
@@ -48,4 +50,26 @@ export function supportedPatch<Patch extends ClientSettingsPatch | TorrentSettin
   return Object.fromEntries(
     Object.entries(patch).filter(([key]) => !unsupported.has(key)),
   ) as Patch;
+}
+
+/**
+ * Drops command fields owned by capabilities the host does not advertise.
+ * A released host's command parser ignores unknown fields, so sending one
+ * would silently lose what it asked for; the caller still gets the
+ * baseline behavior of the command.
+ */
+export function supportedCommand(
+  command: Command,
+  capabilities: ReadonlySet<string>,
+  registry: readonly HostCapabilityDefinition[] = HOST_CAPABILITY_REGISTRY,
+): Command {
+  const unsupported = registry
+    .filter((capability) => !capabilities.has(capability.name))
+    .flatMap((capability) => capability.command_fields)
+    .filter((owned) => owned.startsWith(`${command.type}.`))
+    .map((owned) => owned.slice(command.type.length + 1));
+  if (unsupported.length === 0) return command;
+  return Object.fromEntries(
+    Object.entries(command).filter(([key]) => !unsupported.includes(key)),
+  ) as Command;
 }

@@ -36,17 +36,17 @@ those URLs. `_redirects` retires obsolete waitlist prototypes. The active
 support issue links select the Rust implementation; the existing discussion
 community and feedback/analytics recipients remain unchanged.
 
-`public/_headers` owns the baseline and independently guarded `/remote/`
-policy. After Astro build, `scripts/website-security.mjs` generates exact
+`public/_headers` owns marketing policy and immutable `/remote/assets/`
+compatibility responses. The controller owns its policy in its separate build. After Astro build, `scripts/website-security.mjs` generates exact
 inline-script hashes per marketing/compatibility route. It does not permit
 inline script attributes or eval and never changes remote route authority.
 Retained static styles need inline-style support; embedded Google Forms and
 existing analytics have explicit destinations. The old uninstall page's
 nonfunctional placeholder analytics configuration is removed.
 
-The deployment workflow builds the website and guarded remote bundle as one
-artifact. Moving the production hostname and retaining the existing remote
-origin are operator tasks; canonical metadata alone does not change hosting.
+The Website workflow builds marketing independently. Its only controller
+input is the verified frozen legacy asset manifest, retained for open tabs.
+It never rebuilds or advances the hosted controller.
 
 ## Provenance
 
@@ -75,18 +75,30 @@ cannot manufacture or qualify a missing source archive.
 
 ## Canonical Cloudflare hosting
 
-`Website` builds marketing and the guarded remote React/Wasm controller as one
-immutable Cloudflare Pages artifact. Production release promotion dispatches
-that workflow after verifying and persisting inventory. The selected canonical
-controller is `https://jstorrent.com/remote/`; the relay remains
-`wss://relay.rstorrent.com/client`. Infrastructure cutover acceptance lives in
-the private runbook and Tactical 303, separately from successful source builds.
+`Website` deploys marketing from main. `Remote Controller` tests main and PR
+changes, but publishes only `remote-v*` tags to `https://remote.jstorrent.com/`.
+The controller release gates include the live compatibility matrix, production
+build, root-browser smoke and exact deployed manifest/header checks. Its
+version and source SHA identify the release independently of native hosts.
+The relay remains `wss://relay.rstorrent.com/client`.
 
-The artifact records source SHA and desktop version under
-`/.well-known/jstorrent-website.json`. Verify the remote manifest, every file,
-strict HTTP CSP, framing protections and cache policy with the deployment
-verifier after a hostname change. Changing browser origin requires fresh login;
-existing host credentials and relay authority are retained.
+Marketing records its own source SHA and desktop version under
+`/.well-known/jstorrent-website.json`. Old controller document entrypoints
+redirect to the new root. Browser origin changes require fresh password login
+and browser approval; host credentials and relay authority are retained.
+`compat/legacy-remote-assets.json` pins the last combined deployment's immutable
+assets for at least the 30-day window (reviewed retirement no earlier than
+2026-11-16). Assembly verifies lengths/digests with bounded download concurrency;
+it copies no old controller HTML and never fetches the newest controller.
+
+Run `node scripts/verify-remote-deployment.mjs CONTROLLER_URL SOURCE_SHA` for
+headers and every manifested digest. `node scripts/remote-site-smoke.mjs`
+checks the local root artifact with bundled Chromium. The explicitly invoked
+`node scripts/verify-hosted-remote.mjs` registers an isolated public canary,
+checks private/shared login and resume/revocation, and signed-releases its
+route before deleting the profile. It does not run on ordinary builds.
+Actual infrastructure activation and rollback receipts live in Tactical 360
+and the private runbook.
 
 `Production Website` is retained as a manual GitHub Pages marketing rollback
 workflow. It no longer follows production builds automatically and cannot serve

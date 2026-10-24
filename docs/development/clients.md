@@ -24,7 +24,7 @@ For macOS extension testing, use the separate lightweight bundle launcher:
 ./scripts/desktop-bundle --build-only
 ```
 
-This builds the same debug client and native helper, places them with the icon
+This builds the same debug app and native helper, places them with the icon
 and app metadata in `target/desktop-bundle/JSTorrent Preview.app`, and runs the
 bundle's executable in the foreground. Cargo target-directory overrides are
 honored. It uses the same development library as `desktop`; the installed
@@ -39,7 +39,7 @@ before rebuilding its bundle.
 
 The raw `desktop` command remains useful for direct UI development. On macOS,
 its executable is outside an `.app`, so native-host registration reports that
-it cannot be repaired; the extension keeps its previous registered backend.
+it cannot be repaired; the extension keeps its previous registered host.
 `desktop-bundle` is locally ad-hoc signed and has no installer or file/magnet
 association registration. It is development tooling rather than a release
 candidate. A JSON `TAURI_CONFIG` override can select another isolated test
@@ -67,7 +67,10 @@ shipping gates are recorded in Tactical 340.
 ```
 
 This starts the shared React UI against the real application service. `--reload`
-uses Vite hot reload; Rust changes still require restart. Without it, the
+uses Vite hot reload: component, CSS and `messages/en.json` edits update the
+open page in place, while store, controller and API edits reload it onto the
+same screen through the URL fragment. Rust changes still require restart.
+Without it, the
 launcher serves a production web build. Omit `--no-open` for manual browser
 inspection. `Ctrl+C` joins the gateway and development server.
 
@@ -123,7 +126,7 @@ listener options; secrets are supplied through files, not CLI values.
 | iOS | [Client README](../../clients/ios/README.md) | Generated Swift/Xcode project, simulator/archive and Apple storage/lifecycle behavior |
 | Extension | [Client README](../../clients/extension/README.md) | Manifest permissions, packaging, pairing and browser integration |
 | Desktop | [Package validator](../../scripts/validate-desktop-package.mjs), [native-host smoke](../../scripts/smoke-native-host.mjs) | OS activation, installed associations and host registration |
-| ChromeOS | [Qualification record](../tactical/253-chromeos-onboarding-recovery-and-physical-qualification.md), [scenario map](../../tests/interop/README.md#platform-integration) | Android or Linux backend, root repair, connection recovery and physical lifecycle |
+| ChromeOS | [Qualification record](../tactical/253-chromeos-onboarding-recovery-and-physical-qualification.md), [scenario map](../../tests/interop/README.md#platform-integration) | Android or Linux host, root repair, connection recovery and physical lifecycle |
 | Storage feasibility | [Probe](../../experiments/android-storage-probe/run_probe.py) | Provider/descriptor behavior, sparse allocation and process-death reopen; specialized investigation |
 
 For VM or physical-device work, use the sibling Machine Control common CLI and

@@ -208,6 +208,21 @@ object ProductSafDocuments {
         return current
     }
 
+    /** The folder that holds [filePath]; the tree itself for a top-level file. */
+    fun containingFolder(
+        context: Context,
+        treeUri: Uri,
+        filePath: List<String>,
+    ): Uri? {
+        require(filePath.isNotEmpty()) { "content path is empty" }
+        val parent = filePath.dropLast(1)
+        if (parent.isEmpty()) {
+            require(hasGrant(context, treeUri)) { "persisted SAF grant is unavailable" }
+            return documentUri(treeUri)
+        }
+        return contentDocument(context, treeUri, parent)
+    }
+
     fun treeLabel(
         context: Context,
         treeUri: Uri,

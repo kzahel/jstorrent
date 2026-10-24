@@ -150,7 +150,7 @@ Copyright (c) 2026 Kyle Graehl), **hls.js 1.7.3** (Apache-2.0), and the
 and dependency revisions are retained in `clients/web/package-lock.json`.
 The checksum-checked playsvideo adaptation is independently authored in
 `clients/web/scripts/patch-playsvideo.mjs`; it bounds playback, restricts this
-consumer to MP4 and disables worker/transcoding paths. No FFmpeg code or
+consumer to MP4 and Matroska and disables worker/transcoding paths. No FFmpeg code or
 WebAssembly is included in this integration's distribution.
 
 Preferred sources and licenses:
@@ -171,4 +171,4 @@ retained. Its full license is shipped alongside this source record at
 is used only by opt-in disposable browser qualification under Creative Commons
 Attribution 3.0 (https://creativecommons.org/licenses/by/3.0/). Media bytes are
 not distributed in this repository or product. Tactical 313 records the exact
-fixture provenance, checksum and validation.
+fixture provenance, checksum and validation; Tactical 362 reuses it.

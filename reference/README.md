@@ -11,11 +11,13 @@ Run:
 python3 scripts/references.py sync
 python3 scripts/references.py status
 python3 scripts/references.py sync --only bittorrent-beps --only libtorrent
+python3 scripts/references.py bump --dry-run
+python3 scripts/references.py bump
 ```
 
 The script uses Python 3.11 or newer and only the standard library.
 
-`--only NAME` limits either command to one named manifest record and may be
+`--only NAME` limits any command to one named manifest record and may be
 repeated. This permits a DHT reference survey without inspecting or updating an
 independently dirty sibling checkout.
 
@@ -29,6 +31,24 @@ the wrong revision or branch, or configured with an unexpected origin. For a
 branch-tracking sibling, status compares against the locally fetched
 `origin/main`; run `sync` when current upstream state matters.
 
+`bump` moves each checkout pin to its newest upstream version, rewrites its
+`revision` in `pins.toml` and its row in the table below, then checks out the
+new revisions. It never commits. Each checkout's `latest` field selects what
+newest means:
+
+- `tag`: the highest stable release tag matching `tag_pattern`, compared by
+  its captured numeric groups, so betas and release candidates are skipped;
+- `crate`: the commit recorded in the newest stable crates.io release of
+  `crate`, for projects whose Git tags lag their published crates; and
+- `branch`: the head of the default branch, for repositories without releases.
+
+A checkout with `hold` is skipped and its reason printed unless it is named
+with `--only`. libtorrent is held because the interop oracle pins the matching
+libtorrent wheel in [`tests/interop/pyproject.toml`](../tests/interop/pyproject.toml)
+and both must move together. `--dry-run` reports what would move without
+changing anything. After a bump, record the reason and validation below and
+re-check tactical or topic citations that depended on the old revision.
+
 ## Managed Sources
 
 | Local path | Revision policy | Role |
@@ -38,8 +58,8 @@ branch-tracking sibling, status compares against the locally fetched
 | `reference/libtorrent` | `v2.0.13` (`7d7fc38fac61177fa5e02148f791b2f65250b09d`) | Primary external interoperability oracle and broad protocol reference |
 | `reference/libutp` | `2b364cbb0650bdab64a5de2abb4518f9f228ec44` | Standalone MIT uTP source, C callback API, and build comparison; the pin has no maintained test suite |
 | `reference/librqbit-utp` | `c26f57b2debbe35ed0ace1ad419de529f7a5bf95` (crates.io `0.7.0`) | Rust/Tokio uTP source, tests, task model, and dependency comparison |
-| `reference/qbittorrent` | `release-5.2.4` (`a1e4649cb8ae581925acc161dbab5cbc6584c542`); optional | GPL client application policy: share limits, queueing, and per-torrent overrides |
-| `reference/transmission` | `4.1.3` (`838877323facc4cc2b677fe817e203779c437bb1`); optional | GPL client application policy: ratio and idle limits, queueing, and per-torrent overrides |
+| `reference/qbittorrent` | `release-5.2.4` (`a1e4649cb8ae581925acc161dbab5cbc6584c542`) | GPL client application policy: share limits, queueing, and per-torrent overrides |
+| `reference/transmission` | `4.1.3` (`838877323facc4cc2b677fe817e203779c437bb1`) | GPL client application policy: ratio and idle limits, queueing, and per-torrent overrides |
 | `../jstorrent-typescript` | first-party `main` | Product behavior, fixtures, integration scenarios, and Android/ChromeOS lessons |
 
 The bittorrent.org checkout provides the original reStructuredText BEP sources

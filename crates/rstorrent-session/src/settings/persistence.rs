@@ -251,7 +251,14 @@ pub(crate) fn read_client_settings(
             ));
         }
     };
+    let safety_json: String = connection.query_row(
+        "SELECT file_safety_json FROM client_settings WHERE singleton = 1",
+        [],
+        |row| row.get(0),
+    )?;
     let settings = ClientSettings {
+        file_safety: serde_json::from_str(&safety_json)
+            .map_err(|error| SettingsPersistenceError::Corrupt(error.to_string()))?,
         listener,
         preferred_listen_port: u16::try_from(preferred_listen_port).map_err(|_| {
             SettingsPersistenceError::Corrupt(
@@ -342,6 +349,12 @@ pub(crate) fn replace_client_settings(
     if read_client_settings(transaction)? == *settings {
         return Ok(false);
     }
+    let safety_json = serde_json::to_string(&settings.file_safety)
+        .map_err(|error| SettingsPersistenceError::Corrupt(error.to_string()))?;
+    transaction.execute(
+        "UPDATE client_settings SET file_safety_json = ?1 WHERE singleton = 1",
+        [safety_json],
+    )?;
     let (mode, port) = listener_columns(settings.listener);
     let mapping_mode = mapping_column(settings.port_mapping);
     let tracker_https_authentication =

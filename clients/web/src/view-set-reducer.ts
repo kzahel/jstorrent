@@ -193,6 +193,13 @@ function cloneSnapshot(snapshot: ViewSnapshot): ViewSnapshot {
         events: [...snapshot.events],
         retention: { ...snapshot.retention },
       };
+    case "library_media":
+      return {
+        ...snapshot,
+        facets: { ...snapshot.facets },
+        items: [...snapshot.items],
+        groups: [...snapshot.groups],
+      };
   }
 }
 
@@ -399,6 +406,25 @@ function applyPatch(snapshot: ViewSnapshot, patch: ViewPatch): ViewSnapshot {
         items: [...items.values()],
       };
     }
+    case "library_media": {
+      if (snapshot.type !== "library_media") throw new Error("unreachable");
+      // A patch only refreshes rows already on the delivered page; anything
+      // that changes membership or order arrives as a snapshot.
+      const positions = new Map(
+        snapshot.items.map((item, position) => [item.item_id, position]),
+      );
+      const items = [...snapshot.items];
+      for (const item of patch.upsert) {
+        const position = positions.get(item.item_id);
+        if (position === undefined) {
+          throw new ViewSetContinuityError(
+            "library patch refers to an item outside its page",
+          );
+        }
+        items[position] = item;
+      }
+      return { ...snapshot, items };
+    }
     case "trackers": {
       if (snapshot.type !== "trackers") throw new Error("unreachable");
       const trackers = new Map(
@@ -431,9 +457,9 @@ function requireUniqueFields(
   fields: ReadonlyArray<{ readonly field: string }>,
   row: string,
 ): void {
-  if (fields.length === 0) {
-    throw new ViewSetContinuityError(`${row} update has no fields`);
-  }
+  // Validation rejects an empty update from the host; one is empty here only
+  // when every field was of a kind this client does not know, which changes
+  // nothing it shows.
   const kinds = new Set(fields.map((field) => field.field));
   if (kinds.size !== fields.length) {
     throw new ViewSetContinuityError(`${row} update repeats a field`);
@@ -465,6 +491,7 @@ function applyTorrentUpdate(
       case "awaiting_file_selection": next.awaiting_file_selection = field.value; break;
       case "pending_file_selection_position": next.pending_file_selection_position = field.value; break;
       case "file_catalog_id": next.file_catalog_id = field.value; break;
+      case "safety_summary": next.safety_summary = field.value; break;
       case "selectable_file_count": next.selectable_file_count = field.value; break;
       case "selected_file_count": next.selected_file_count = field.value; break;
       case "selectable_file_bytes": next.selectable_file_bytes = field.value; break;
@@ -507,6 +534,7 @@ function applyFileUpdate(file: FileView, update: FileRowUpdate): FileView {
   for (const field of update.fields) {
     switch (field.field) {
       case "selection": next.selection = field.value; break;
+      case "safety": next.safety = field.value; break;
       case "done_bytes": next.done_bytes = field.value; break;
       case "verified_bytes": next.verified_bytes = field.value; break;
       case "media_availability": next.media_availability = field.value; break;

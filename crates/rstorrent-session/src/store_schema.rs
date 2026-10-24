@@ -11,7 +11,7 @@ pub(crate) const BASELINE_SCHEMA_VERSION: i64 = 26;
 
 /// The catalog version this build writes: the baseline plus one per step in
 /// `store_migration::MIGRATION_STEPS`.
-pub(crate) const SCHEMA_VERSION: i64 = 28;
+pub(crate) const SCHEMA_VERSION: i64 = 29;
 
 pub(crate) const FILE_PRIORITIES_TABLE_SQL: &str = "CREATE TABLE file_priorities (
         torrent_id BLOB NOT NULL CHECK (

@@ -35,7 +35,8 @@ describe("About and updates settings", () => {
     expect(screen.queryByRole("button", { name: "Check for updates" })).not.toBeInTheDocument();
     expect(screen.queryByText("Profile")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Prepare diagnostics" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "Report a problem" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Report on GitHub" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Send feedback" })).toBeVisible();
   });
 
   it("shows what a remote host reports about itself and its profile", () => {
@@ -148,7 +149,7 @@ describe("About and updates settings", () => {
     const user = userEvent.setup();
     const updater = fakeUpdater();
     const view = render(<AboutUpdatesSettingsSection about={{ connection: "desktop" }} updater={updater} snapshot={{ ...snapshot({ phase: "waiting-for-stable" }), channel: "stable" }} />);
-    expect(within(view.container).getByText("Waiting for Stable to catch up")).toBeVisible();
+    expect(within(view.container).getByText("Stable selected · Waiting for a compatible release")).toBeVisible();
     expect(within(view.container).getByText("Update channel")).toBeVisible();
     await user.selectOptions(within(view.container).getByRole("combobox"), "latest");
     expect(updater.selectChannel).toHaveBeenCalledWith("latest");

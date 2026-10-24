@@ -48,13 +48,13 @@ class TorrentActionsTest {
         val queued = torrent("queued", operational = TorrentOperationalState.QUEUED, queue = 1U)
         val all = listOf(archivedComplete, complete, queued)
 
-        fun ids(filter: LibraryFilter) =
-            filteredAndSortedTorrents(all, filter, LibrarySort.NAME).map(TorrentView::torrentId)
+        fun ids(filter: TorrentFilter) =
+            filteredAndSortedTorrents(all, filter, TorrentSort.NAME).map(TorrentView::torrentId)
 
-        assertEquals(listOf("complete", "queued"), ids(LibraryFilter.ALL))
-        assertEquals(listOf("complete"), ids(LibraryFilter.FINISHED))
-        assertEquals(listOf("queued"), ids(LibraryFilter.QUEUED))
-        assertEquals(listOf("archived"), ids(LibraryFilter.ARCHIVED))
+        assertEquals(listOf("complete", "queued"), ids(TorrentFilter.ALL))
+        assertEquals(listOf("complete"), ids(TorrentFilter.FINISHED))
+        assertEquals(listOf("queued"), ids(TorrentFilter.QUEUED))
+        assertEquals(listOf("archived"), ids(TorrentFilter.ARCHIVED))
     }
 
     @Test
@@ -141,6 +141,7 @@ class TorrentActionsTest {
         removal: RemovalState? = null,
     ): TorrentView =
         TorrentView(
+            safetySummary = null,
             torrentId = id,
             protocolIdentities = TorrentProtocolIdentities(v1 = null, v2 = null),
             displayName = id,

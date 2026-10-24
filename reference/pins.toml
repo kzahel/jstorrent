@@ -7,6 +7,7 @@ repository = "https://github.com/bittorrent/bittorrent.org.git"
 revision = "7b7b41f46d57ff1d1cb1e24ed6e9bacfbf958c06"
 purpose = "Authoritative offline BitTorrent Enhancement Proposal source documents"
 required = true
+latest = "branch"
 
 [[checkout]]
 name = "rqbit"
@@ -15,6 +16,8 @@ repository = "https://github.com/ikatson/rqbit.git"
 revision = "a499d2f243d124e144aef137afe7cb304a6e3f36"
 purpose = "Native Rust and Tokio engine, application API, storage, uTP, and implementation comparison"
 required = true
+latest = "tag"
+tag_pattern = '^v(\d+)\.(\d+)\.(\d+)$'
 
 [[checkout]]
 name = "libtorrent"
@@ -23,6 +26,9 @@ repository = "https://github.com/arvidn/libtorrent.git"
 revision = "7d7fc38fac61177fa5e02148f791b2f65250b09d"
 purpose = "Primary external interoperability oracle and broad protocol reference"
 required = true
+latest = "tag"
+tag_pattern = '^v(\d+)\.(\d+)\.(\d+)$'
+hold = "The interop oracle pins the matching libtorrent wheel in tests/interop/pyproject.toml; move both together with --only libtorrent"
 
 [[checkout]]
 name = "libutp"
@@ -31,6 +37,7 @@ repository = "https://github.com/bittorrent/libutp.git"
 revision = "2b364cbb0650bdab64a5de2abb4518f9f228ec44"
 purpose = "Standalone MIT uTP implementation and dependency comparison"
 required = true
+latest = "branch"
 
 [[checkout]]
 name = "librqbit-utp"
@@ -39,6 +46,8 @@ repository = "https://github.com/ikatson/librqbit-utp.git"
 revision = "c26f57b2debbe35ed0ace1ad419de529f7a5bf95"
 purpose = "Rust and Tokio uTP implementation, test, and dependency comparison"
 required = true
+latest = "crate"
+crate = "librqbit-utp"
 
 [[checkout]]
 name = "qbittorrent"
@@ -46,7 +55,9 @@ path = "reference/qbittorrent"
 repository = "https://github.com/qbittorrent/qBittorrent.git"
 revision = "a1e4649cb8ae581925acc161dbab5cbc6584c542"
 purpose = "Mature libtorrent-based client for application policy such as share limits, queueing, and per-torrent overrides"
-required = false
+required = true
+latest = "tag"
+tag_pattern = '^release-(\d+)\.(\d+)\.(\d+)$'
 
 [[checkout]]
 name = "transmission"
@@ -54,7 +65,9 @@ path = "reference/transmission"
 repository = "https://github.com/transmission/transmission.git"
 revision = "838877323facc4cc2b677fe817e203779c437bb1"
 purpose = "Independent mature client for application policy such as ratio and idle limits, queueing, and per-torrent overrides"
-required = false
+required = true
+latest = "tag"
+tag_pattern = '^(\d+)\.(\d+)\.(\d+)$'
 
 [[sibling]]
 name = "jstorrent"

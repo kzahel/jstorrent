@@ -1,0 +1,83 @@
+name: Promote JSTorrent Latest to Stable
+on:
+  workflow_dispatch:
+    inputs:
+      latest_tag:
+        description: Exact public JSTorrent Latest tag already qualified on VMs
+        type: string
+        required: true
+      publish:
+        description: Explicitly authorize Stable publication after qualification
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: desktop-release-publisher
+  cancel-in-progress: false
+jobs:
+  promote:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    env:
+      LATEST_TAG: ${{ inputs.latest_tag }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+      - run: npm ci --prefix clients/web
+      - run: |
+          bash scripts/configure-ci-apt.sh
+          sudo apt-get update
+          sudo apt-get install -y minisign
+      - name: Prepare unchanged native packages and authenticated Stable metadata
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          node scripts/prepare-desktop-promotion.mjs "$LATEST_TAG" "$RUNNER_TEMP/promotion"
+          TAG=$(jq -r .tag "$RUNNER_TEMP/promotion/promotion.json")
+          node .github/scripts/validate-desktop-release.mjs --release "$RUNNER_TEMP/promotion/release.json" --latest "$RUNNER_TEMP/promotion/assets/latest.json" --tag "$TAG" --repository "$GITHUB_REPOSITORY"
+      - name: Retain reviewable promotion candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-stable-promotion-${{ github.run_id }}
+          path: ${{ runner.temp }}/promotion/
+          compression-level: 0
+          retention-days: 7
+      - name: Check Stable publication policy before writing
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(jq -r .tag "$RUNNER_TEMP/promotion/promotion.json")
+          SOURCE_SHA=$(jq -r .sourceSha "$RUNNER_TEMP/promotion/promotion.json")
+          git show "$SOURCE_SHA:clients/web/src/api/release-compatibility.json" > "$RUNNER_TEMP/promotion/source-policy.json"
+          node scripts/check-release-compatibility.mjs --surface desktop --release "$TAG" --policy "$RUNNER_TEMP/promotion/source-policy.json" --enforce true
+          node scripts/compat-ledger.mjs --release "$TAG"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$LATEST_TAG" --jq .sha)" = "$SOURCE_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$TAG" > "$RUNNER_TEMP/promotion/tags.json"
+          jq -e 'length == 0' "$RUNNER_TEMP/promotion/tags.json"
+          node scripts/check-desktop-promotion.mjs "$RUNNER_TEMP/promotion"
+      - name: Publish the validated promotion
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DIR="$RUNNER_TEMP/promotion"
+          TAG=$(jq -r .tag "$DIR/promotion.json")
+          SOURCE_SHA=$(jq -r .sourceSha "$DIR/promotion.json")
+          gh release create "$TAG" --target "$SOURCE_SHA" --title "JSTorrent Desktop ${TAG#desktop-v}" --notes-file "$DIR/notes.md" --draft
+          gh release upload "$TAG" "$DIR"/assets/*
+          gh release view "$TAG" --json tagName,isDraft,isPrerelease,assets > "$DIR/uploaded.json"
+          node .github/scripts/desktop-release-artifacts.mjs verify-upload --local "$DIR/release.json" --remote "$DIR/uploaded.json"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$LATEST_TAG" --jq .sha)" = "$SOURCE_SHA"
+          node scripts/check-desktop-promotion.mjs "$DIR"
+          gh release edit "$TAG" --draft=false --latest

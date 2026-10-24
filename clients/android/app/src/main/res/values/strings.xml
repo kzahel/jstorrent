@@ -155,8 +155,68 @@
     <string name="library_empty">No torrents yet</string>
     <string name="library_empty_filtered">No %1$s torrents</string>
     <string name="library_empty_hint">Tap Add to paste a magnet or choose a .torrent file.</string>
-    <string name="library_empty_filtered_hint">Try another library filter.</string>
+    <string name="library_empty_filtered_hint">Try another filter.</string>
     <string name="library_view_all">View all torrents</string>
+    <!-- Tactical 376: the primary destinations and the media Library. -->
+    <string name="nav_library">Library</string>
+    <string name="nav_torrents">Torrents</string>
+    <string name="media_library_preset_all">All media</string>
+    <string name="media_library_preset_shows">TV shows</string>
+    <string name="media_library_preset_movies">Movies</string>
+    <string name="media_library_preset_music">Music</string>
+    <string name="media_library_preset_torrents">By torrent</string>
+    <string name="media_library_shows">Shows</string>
+    <string name="media_library_episodes">Episodes</string>
+    <string name="media_library_albums">Albums</string>
+    <string name="media_library_tracks">Tracks</string>
+    <string name="media_library_search">Search the library</string>
+    <string name="a11y_search_library">Search library</string>
+    <string name="a11y_close_search">Close search</string>
+    <string name="a11y_clear_search">Clear search</string>
+    <string name="a11y_library_options">Sort and filter</string>
+    <string name="a11y_torrent_details">Torrent details</string>
+    <string name="media_library_section_sort">Sort by</string>
+    <string name="media_library_sort_title">Title</string>
+    <string name="media_library_sort_size">Size</string>
+    <string name="media_library_sort_source">Source torrent</string>
+    <string name="media_library_sort_reverse">Reverse order</string>
+    <string name="media_library_section_show">Show</string>
+    <string name="media_library_availability_any">All</string>
+    <string name="media_library_availability_offline">Complete</string>
+    <string name="media_library_availability_incomplete">Incomplete</string>
+    <string name="media_library_include_archived">Include archived</string>
+    <string name="media_library_empty">Your library has no video or music yet</string>
+    <string name="media_library_empty_hint">Video and audio from your torrents appear here.</string>
+    <string name="media_library_no_matches">Nothing matches this search and these filters</string>
+    <string name="media_library_show_all">Show all media</string>
+    <string name="media_library_separator" translatable="false">" · "</string>
+    <string name="media_library_detail_pair">%1$s · %2$s</string>
+    <string name="media_library_episode_code">S%1$02dE%2$02d</string>
+    <string name="media_library_episode_range">S%1$02dE%2$02d–E%3$02d</string>
+    <string name="media_library_episode_number">Episode %1$d</string>
+    <string name="media_library_track">Track %1$d</string>
+    <string name="action_open_with">Open with…</string>
+    <string name="action_open_folder">Open containing folder</string>
+    <string name="action_show_in_torrent">Show in torrent</string>
+    <string name="error_file_unavailable">This file is no longer in its torrent.</string>
+    <string name="error_folder_unavailable">This folder has not been created yet.</string>
+    <string name="error_folder_viewer_unavailable">No app on this device can show folders.</string>
+    <plurals name="media_library_metadata_pending">
+        <item quantity="one">%1$d torrent is still getting file details from peers.</item>
+        <item quantity="other">%1$d torrents are still getting file details from peers.</item>
+    </plurals>
+    <plurals name="media_library_episode_count">
+        <item quantity="one">%1$d episode</item>
+        <item quantity="other">%1$d episodes</item>
+    </plurals>
+    <plurals name="media_library_season_count">
+        <item quantity="one">%1$d season</item>
+        <item quantity="other">%1$d seasons</item>
+    </plurals>
+    <plurals name="media_library_track_count">
+        <item quantity="one">%1$d track</item>
+        <item quantity="other">%1$d tracks</item>
+    </plurals>
     <plurals name="library_selected_count">
         <item quantity="one">%1$d selected</item>
         <item quantity="other">%1$d selected</item>
@@ -194,6 +254,8 @@
     <string name="file_restore_to_download">Restore this torrent to download files.</string>
     <string name="library_queue_position">%1$s · Queue %2$d</string>
     <string name="library_download_rate">↓ %1$s</string>
+    <string name="library_uploaded">Uploaded %1$s</string>
+    <string name="library_ratio">Ratio %1$s</string>
     <string name="library_eta">ETA %1$s</string>
     <string name="library_waiting_unmetered">Waiting for Wi-Fi</string>
     <string name="library_waiting_unmetered_degraded">Waiting for Wi-Fi. JSTorrent will retry when the network changes.</string>
@@ -209,9 +271,9 @@
 
     <!-- Torrent list export and import, and adding several torrents at once. -->
     <string name="torrent_list_export">Export torrent list</string>
-    <string name="torrent_list_export_detail">Save all your torrents to one file. You can import it here or on another device.</string>
+    <string name="torrent_list_export_detail">Save your list of torrents to a file. Downloaded files are not included.</string>
     <string name="torrent_list_import">Import torrent list</string>
-    <string name="torrent_list_import_detail">Add the torrents from an exported file to the default folder. Torrents already in your list are skipped. Files already downloaded are checked, not downloaded again.</string>
+    <string name="torrent_list_import_detail">Add torrents from an exported file to the default folder.</string>
     <string name="torrent_list_import_needs_folder">Add a download folder before importing.</string>
     <string name="action_export">Export</string>
     <string name="action_import">Import</string>
@@ -264,7 +326,7 @@
     <string name="file_selection_fetching">Loading file list…</string>
     <string name="file_selection_download_blocked">You can download all files without waiting.</string>
     <string name="file_selection_summary">%1$d of %2$d selected · %3$s</string>
-    <string name="file_selection_override_limit">Too many files to change one by one. Use All or None first.</string>
+    <string name="file_selection_override_limit">This selection exceeds 4,096 separate ranges. Use All or None to simplify it.</string>
     <string name="file_selection_disable_future">Don’t show file selection again</string>
     <string name="file_selection_repair_before_confirm">Repair the download folder before confirming.</string>
 
@@ -403,6 +465,10 @@
     <string name="notification_opening_profile">Opening profile</string>
     <string name="notification_needs_attention">JSTorrent needs attention</string>
     <string name="notification_seeding_background">Seeding in background</string>
+    <plurals name="notification_seeding_torrents">
+        <item quantity="one">Seeding %1$d torrent</item>
+        <item quantity="other">Seeding %1$d torrents</item>
+    </plurals>
     <string name="notification_chrome_connected">ChromeOS client connected</string>
     <string name="notification_chrome_reconnect">Waiting for ChromeOS to reconnect</string>
     <string name="notification_waiting_unmetered">Waiting for Wi-Fi</string>
@@ -695,4 +761,43 @@
     <string name="chrome_extension_setup_notifications">Allow Android notifications so JSTorrent can stay connected while you use Chrome. This does not enable background downloads or seeding.</string>
     <string name="chrome_extension_setup_allow_notifications">Allow notifications</string>
     <string name="chrome_extension_setup_notification_settings">Open notification settings</string>
+    <!-- Tactical 369: shown instead of the library when the torrent list cannot be opened. It never offers to discard data. -->
+    <string name="catalog_recovery_migration_failed_title">JSTorrent couldn’t update your torrent list</string>
+    <string name="catalog_recovery_migration_failed_body">Your torrents, settings and downloaded files are safe and unchanged. An update will fix this.</string>
+    <string name="catalog_recovery_newer_version_title">This torrent list is from a newer version of JSTorrent</string>
+    <string name="catalog_recovery_newer_version_body">Install the latest version to open it. Your torrents and downloaded files are unchanged.</string>
+    <string name="catalog_recovery_retired_version_title">This torrent list is from an early test version</string>
+    <string name="catalog_recovery_retired_version_body">This version can’t open it. Nothing was changed or deleted, and your downloaded files are unchanged.</string>
+    <string name="catalog_recovery_locked_title">JSTorrent is already open</string>
+    <string name="catalog_recovery_locked_body">Close the other JSTorrent window, then open JSTorrent again.</string>
+    <string name="catalog_recovery_unreadable_title">JSTorrent couldn’t read its torrent list</string>
+    <string name="catalog_recovery_unreadable_body">Nothing was changed or deleted. Check for an update, or copy the details and report the problem.</string>
+    <string name="catalog_recovery_check_updates">Check for updates</string>
+    <string name="catalog_recovery_copy_details">Copy details</string>
+    <string name="catalog_recovery_report_problem">Report a problem</string>
+    <string name="catalog_recovery_show_details">Show details</string>
+    <string name="catalog_recovery_hide_details">Hide details</string>
+    <!-- Clipboard label for the copied problem details. -->
+    <string name="catalog_recovery_details_label">JSTorrent problem details</string>
+    <string name="catalog_recovery_details_copied">Details copied.</string>
+    <string name="catalog_recovery_exported">Torrent list saved.</string>
+    <string name="catalog_recovery_export_failed">Couldn’t export the torrent list.</string>
+    <string name="catalog_recovery_store_unavailable">Couldn’t open the app store.</string>
+    <string name="safety_title">File safety</string>
+    <string name="safety_enabled">Automatically skip potentially dangerous files</string>
+    <string name="safety_recommended">Applications, installers &amp; scripts (recommended)</string>
+    <string name="safety_archives">Applications, installers, scripts &amp; archives</string>
+    <string name="safety_custom">Custom</string>
+    <string name="safety_extensions">File extensions</string>
+    <string name="safety_extensions_help">Separate extensions with spaces or commas, for example .exe, .dmg, .tar.gz. Up to 128 extensions, at most 32 characters each.</string>
+    <string name="safety_invalid">Use extensions starting with a dot and containing only letters, digits or dots.</string>
+    <string name="safety_future">Applies to newly added torrents. Existing torrents and individual overrides stay unchanged. This does not scan for malware or inspect archives.</string>
+    <string name="safety_skip_detail">Skipped by safety settings · %1$s · %2$s</string>
+    <string name="safety_override_detail">Safety override · %1$s · %2$s</string>
+    <string name="safety_download_anyway">Download anyway</string>
+    <string name="safety_undo">Undo safety override</string>
+    <string name="safety_selection_note">Download all respects safety settings. Files explains safety skips and lets you override them.</string>
+    <string name="safety_save">Save file safety settings</string>
+    <string name="safety_discard">Discard changes</string>
+    <string name="safety_conflict">These settings changed in another client. Discard changes to reload.</string>
 </resources>

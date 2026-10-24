@@ -48,7 +48,8 @@ it("is hidden where the client supports neither export nor import", () => {
   render(
     <TorrentListSettingsSection roots={ROOTS} defaultRoot="root_a" onBusyChange={vi.fn()} />,
   );
-  expect(screen.queryByRole("heading", { name: "Torrent list" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Export" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Import" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button")).not.toBeInTheDocument();
 });
 
@@ -76,7 +77,7 @@ it("imports a chosen bundle into the chosen folder and lists what was not added"
     />,
   );
   expect(screen.queryByRole("button", { name: "Export torrent list" })).not.toBeInTheDocument();
-  const saveTo = screen.getByRole("combobox", { name: "Save to" });
+  const saveTo = screen.getByRole("combobox", { name: "Import into" });
   expect(saveTo).toHaveValue("root_a");
   // Only folders that can be written appear.
   expect(within(saveTo).getAllByRole("option").map((option) => option.textContent)).toEqual([
@@ -84,7 +85,7 @@ it("imports a chosen bundle into the chosen folder and lists what was not added"
     "Movies",
   ]);
   const keep = screen.getByRole("checkbox", {
-    name: "Use a download folder with the same name when there is one",
+    name: /^Match folders by name/,
   });
   expect(keep).toBeChecked();
   fireEvent.change(saveTo, { target: { value: "root_b" } });
@@ -186,7 +187,7 @@ it("confirms a saved export and stays quiet when it is cancelled", async () => {
   fireEvent.click(exportButton);
   const toast = await screen.findByRole("region", { name: "Notification" });
   expect(toast).toHaveTextContent("Torrent list saved.");
-  expect(screen.queryByRole("combobox", { name: "Save to" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("combobox", { name: "Import into" })).not.toBeInTheDocument();
 });
 
 it("asks for a download folder before an import", () => {
@@ -198,6 +199,28 @@ it("asks for a download folder before an import", () => {
       onBusyChange={vi.fn()}
     />,
   );
-  expect(screen.getByText("Add a download folder first.")).toBeVisible();
+  expect(screen.getByText("Add a download folder before importing.")).toBeVisible();
   expect(screen.getByRole("button", { name: "Import torrent list…" })).toBeDisabled();
+  expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+});
+
+it("imports into the only download folder without asking", async () => {
+  const onImport = vi.fn<Import>(async () => ({ added: 1, already_present: 0, failed: [] }));
+  render(
+    <TorrentListSettingsSection
+      roots={ROOTS.slice(0, 2)}
+      defaultRoot="root_gone"
+      onImport={onImport}
+      onBusyChange={vi.fn()}
+    />,
+  );
+  expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Import torrent list…" }));
+  expect(await screen.findByText("Added 1. Already in your list: 0.")).toBeVisible();
+  expect(onImport.mock.calls[0]![0]).toEqual({
+    storage_root: "root_a",
+    keep_matching_locations: false,
+  });
 });

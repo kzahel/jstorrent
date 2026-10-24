@@ -1,5 +1,66 @@
 # Implementation Tactical Docs
 
+- [380 — Product releases](380-product-release.md):
+  extension 1.1.6 and remote 0.3.3 published; Stable/Android release resumed.
+
+- [379 — Release security dependency repair](379-release-security-dependencies.md):
+  complete; patched rustls/ZIP and retained updater 2.10.1 pass full CI,
+  signed native builds and public Latest 0.3.2 qualification.
+- [378 — Public Latest and nightly publication](378-public-latest-and-nightly.md):
+  complete; public Latest 0.3.2 and live five-target offers verify; daily
+  changed-main releases use full CI and a bounded companion exception.
+- [377 — Compatible touchless release channels](377-compatible-touchless-release-channels.md):
+  qualified signed installed updates, database admission and immutable promotion.
+- [376 — Android media Library](376-android-media-library.md): complete;
+  Torrents | Library primary navigation (bar, or rail from 600 dp) and a
+  Compose Library over `library_media` with presets, search, filters, shows
+  and albums in place, pages, and Files-style rows with Play, Open with…,
+  Open containing folder and Show in torrent.
+- [375 — CI reconciliation and UI regressions](375-ci-reconciliation-and-ui-regressions.md):
+  merge concurrent contracts, repair Rust test lints, and scope browser/iOS
+  assertions to displayed or scrolled settings controls.
+- [372 — CI packaging and presentation regressions](372-ci-packaging-and-presentation-regressions.md):
+  npm Git notice provenance, current support-link/Settings browser assertions
+  and Android pending-selection request order across service startup.
+- [371 — Statistics and compatibility reporting rollout](371-statistics-and-compatibility-rollout.md):
+  ready; handoff plan for the update server's opt-out logging and estimate,
+  lifting the release hold, the companion header fix, releases, and
+  compatibility reports over update checks and the relay.
+- [370 — Version handshake and compatibility reports](370-version-handshake-and-compatibility-reports.md):
+  slices 1–3 complete; value exposures checked for tolerant clients, a
+  computed support window that forces cleanup, client identity in `connect`
+  and in-memory mismatch observations. Reports (opt-out, via update checks
+  and the relay) are next.
+- [369 — Recovery screen when the torrent catalog will not open](369-catalog-recovery-screen.md):
+  desktop, Android and headless offer updates, a read-only torrent list export
+  and bug-report details instead of crashing or a generic error.
+- [368 — Local MP4 native playback](368-local-mp4-native-playback.md): complete;
+  prefer codec-checked native MP4/M4V playback so Big Buck Bunny's MP3 audio
+  plays without transcoding; parser disposal preserves the player session.
+- [367 — Encrypted short links](367-encrypted-short-links.md): proposed; an
+  opt-in `link.jstorrent.com` short link whose Cloudflare Worker stores only
+  ciphertext, keyed from the fragment, for a readable Share panel QR code.
+- [364 — Library review fixes](364-library-review-fixes.md): albums and shows
+  named by a torrent's own folder, file counts per preset, kind icons, inline
+  audio, shared segmented toggles, a sortable Library table and adding from
+  the header on every destination.
+- [363 — Library media index](363-library-media-index.md): the host indexes
+  video and audio across torrents in memory and serves `library_media` pages
+  by query; the web Library browses them with search, filters, presets for
+  shows, movies, music and torrents, cards or list, and pages.
+- [362 — Local browser inline video playback](362-local-browser-inline-playback.md):
+  complete; browser-hosted Files and Library **Play** completed MP4/M4V/MKV in
+  the shared playsvideo dialog, with Open in a new tab as the fallback.
+- [361 — Extension store publishing setup](361-extension-store-publishing-setup.md):
+  done; one-time Google and GitHub setup so `extension-v*` tags submit to the
+  Chrome Web Store, and extension 1.1.5 submitted through it.
+- [360 — Hosted remote controller on its own subdomain](360-remote-controller-subdomain.md):
+  proposed for later; serve the remote controller from `remote.jstorrent.com`,
+  deployed only from `remote-v*` tags and isolated from the marketing site.
+- [359 — Mixed-version compatibility matrix](359-mixed-version-compatibility-matrix.md):
+  proposed; proves old/new host × old/new client for every release in the
+  support window from artifacts captured from each release's own source, and
+  fails release workflows when a release is missing.
 - [358 — One durable store and a migration ledger](358-one-durable-store-and-migration-ledger.md):
   desktop shell switches and the network-defaults marker move into SQLite,
   the extension keeps statistics consent, and every migration is ledgered
@@ -1349,3 +1410,7 @@ and [`../topics/oracle-driven-engine-campaign.md`](../topics/oracle-driven-engin
 - [310 — Concise first use and background setup](310-concise-first-use-and-background-setup.md):
   short statistics choice, folder-first Android setup and notification-gated
   explicit background continuation; independent seeding and transmission policy.
+
+- [377 — Compatible touchless release channels](377-compatible-touchless-release-channels.md):
+  active; shared version ordering, database admission, deployed Latest and
+  production-signed unattended-update acceptance before Stable promotion.

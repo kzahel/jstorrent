@@ -254,6 +254,17 @@ describe("inspection store", () => {
     });
   });
 
+  it("keeps the drawer open across destinations and closes it on a category", () => {
+    const store = createInspectionStore(null);
+    store.getState().toggleSidebar();
+
+    store.getState().selectDestination("library");
+    expect(store.getState().presentation.sidebarOpen).toBe(true);
+
+    store.getState().selectLibraryCategory("recent");
+    expect(store.getState().presentation.sidebarOpen).toBe(false);
+  });
+
   it("keeps destination filters independent and persists navigation", () => {
     const values = new Map<string, string>();
     const storage = {
@@ -528,6 +539,7 @@ function snapshot(
     swarmByTorrent: {},
     filesByTorrent: {},
     mediaByTorrent: {},
+    libraryMedia: null,
     trackersByTorrent: {},
     piecesByTorrent: {},
     disk: emptyDiskSet(),
@@ -543,6 +555,7 @@ function snapshot(
     },
     viewStatus: {
       library: { status: "ready" },
+      libraryMedia: { status: "not_requested" },
       torrentSummary: { status: "not_requested" },
       peers: { status: "not_requested" },
       swarm: { status: "not_requested" },

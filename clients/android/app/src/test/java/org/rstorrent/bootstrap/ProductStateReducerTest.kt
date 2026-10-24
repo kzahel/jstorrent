@@ -15,19 +15,19 @@ import org.rstorrent.session.uniffi.AdvertisedPeerEndpointStatus
 import org.rstorrent.session.uniffi.ApplicationNetworkPrerequisiteView
 import org.rstorrent.session.uniffi.ApplicationNetworkRuntimeState
 import org.rstorrent.session.uniffi.ApplicationNetworkRuntimeView
-import org.rstorrent.session.uniffi.CatalogPageRequest
-import org.rstorrent.session.uniffi.CatalogPageView
 import org.rstorrent.session.uniffi.BandwidthDirectionRuntimeView
 import org.rstorrent.session.uniffi.BandwidthRuntimeView
+import org.rstorrent.session.uniffi.CatalogPageRequest
+import org.rstorrent.session.uniffi.CatalogPageView
 import org.rstorrent.session.uniffi.ClientSettings
 import org.rstorrent.session.uniffi.ClientSettingsApplicationState
 import org.rstorrent.session.uniffi.ClientSettingsRuntimeView
 import org.rstorrent.session.uniffi.Command
+import org.rstorrent.session.uniffi.DeliveryPolicy
 import org.rstorrent.session.uniffi.DiagnosticCategory
 import org.rstorrent.session.uniffi.DiagnosticEvent
 import org.rstorrent.session.uniffi.DiagnosticRetention
 import org.rstorrent.session.uniffi.DiagnosticSeverity
-import org.rstorrent.session.uniffi.DeliveryPolicy
 import org.rstorrent.session.uniffi.EffectiveListenerSettings
 import org.rstorrent.session.uniffi.EncryptionPolicy
 import org.rstorrent.session.uniffi.FileCatalogState
@@ -35,18 +35,27 @@ import org.rstorrent.session.uniffi.FileIndexRange
 import org.rstorrent.session.uniffi.FilePriority
 import org.rstorrent.session.uniffi.FileSelectionView
 import org.rstorrent.session.uniffi.FileView
-import org.rstorrent.session.uniffi.IndexRange
 import org.rstorrent.session.uniffi.HttpsServerAuthenticationPolicy
+import org.rstorrent.session.uniffi.IndexRange
 import org.rstorrent.session.uniffi.Ipv6PinholeStatus
+import org.rstorrent.session.uniffi.LibraryArchivedFilter
+import org.rstorrent.session.uniffi.LibraryAvailabilityFilter
+import org.rstorrent.session.uniffi.LibraryFacetsView
+import org.rstorrent.session.uniffi.LibraryGrouping
+import org.rstorrent.session.uniffi.LibraryMediaItemView
+import org.rstorrent.session.uniffi.LibraryMediaKind
+import org.rstorrent.session.uniffi.LibraryMediaQuery
+import org.rstorrent.session.uniffi.LibraryMediaRole
+import org.rstorrent.session.uniffi.LibraryMediaSort
 import org.rstorrent.session.uniffi.ListenerPolicy
 import org.rstorrent.session.uniffi.ListenerStatus
 import org.rstorrent.session.uniffi.MediaCatalogState
 import org.rstorrent.session.uniffi.MediaFileAvailability
 import org.rstorrent.session.uniffi.MediaItemView
 import org.rstorrent.session.uniffi.MediaRoleView
+import org.rstorrent.session.uniffi.PendingFileSelectionBase
 import org.rstorrent.session.uniffi.PortMappingPolicy
 import org.rstorrent.session.uniffi.PortMappingStatus
-import org.rstorrent.session.uniffi.PendingFileSelectionBase
 import org.rstorrent.session.uniffi.ProgressAssessment
 import org.rstorrent.session.uniffi.ProgressDisposition
 import org.rstorrent.session.uniffi.ProgressPhase
@@ -54,8 +63,8 @@ import org.rstorrent.session.uniffi.ProgressReason
 import org.rstorrent.session.uniffi.SeedAdmissionView
 import org.rstorrent.session.uniffi.SeedGoalStatusView
 import org.rstorrent.session.uniffi.SeedGoalView
-import org.rstorrent.session.uniffi.SessionUdpStatus
 import org.rstorrent.session.uniffi.SessionCurrentRatesView
+import org.rstorrent.session.uniffi.SessionUdpStatus
 import org.rstorrent.session.uniffi.SpeedCurrentRate
 import org.rstorrent.session.uniffi.SpeedHistoryAppend
 import org.rstorrent.session.uniffi.SpeedHistoryView
@@ -65,18 +74,18 @@ import org.rstorrent.session.uniffi.SpeedPersistenceState
 import org.rstorrent.session.uniffi.SpeedRange
 import org.rstorrent.session.uniffi.SpeedSeriesAppend
 import org.rstorrent.session.uniffi.SpeedSeriesView
-import org.rstorrent.session.uniffi.StorageState
 import org.rstorrent.session.uniffi.StorageSettingsSnapshot
+import org.rstorrent.session.uniffi.StorageState
 import org.rstorrent.session.uniffi.SubscriptionSpec
 import org.rstorrent.session.uniffi.TorrentEtaView
 import org.rstorrent.session.uniffi.TorrentFieldUpdate
-import org.rstorrent.session.uniffi.TorrentOperationalState
 import org.rstorrent.session.uniffi.TorrentLifetimeView
+import org.rstorrent.session.uniffi.TorrentOperationalState
 import org.rstorrent.session.uniffi.TorrentProtocolIdentities
 import org.rstorrent.session.uniffi.TorrentRowUpdate
+import org.rstorrent.session.uniffi.TorrentSeedingView
 import org.rstorrent.session.uniffi.TorrentState
 import org.rstorrent.session.uniffi.TorrentTransferLimits
-import org.rstorrent.session.uniffi.TorrentSeedingView
 import org.rstorrent.session.uniffi.TorrentView
 import org.rstorrent.session.uniffi.TransferRateLimit
 import org.rstorrent.session.uniffi.ViewPatch
@@ -85,8 +94,8 @@ import org.rstorrent.session.uniffi.ViewSelector
 import org.rstorrent.session.uniffi.ViewSnapshot
 import org.rstorrent.session.uniffi.ViewUpdate
 import org.rstorrent.session.uniffi.ViewUpdatePayload
-import org.rstorrent.bootstrap.ui.LibraryFilter
-import org.rstorrent.bootstrap.ui.LibrarySort
+import org.rstorrent.bootstrap.ui.TorrentFilter
+import org.rstorrent.bootstrap.ui.TorrentSort
 import org.rstorrent.bootstrap.ui.filteredAndSortedTorrents
 import org.rstorrent.bootstrap.ui.parseRateLimit
 import org.rstorrent.bootstrap.ui.RATE_LIMIT_PRESETS
@@ -258,6 +267,7 @@ class ProductStateReducerTest {
     fun clientSettingsRemainTypedAcrossTheKotlinContract() {
         val settings =
             ClientSettings(
+                            fileSafety = org.rstorrent.session.uniffi.FileSafetySettings(true, org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, emptyList(), true),
                 listener = ListenerPolicy.FixedLoopback(65_535U.toUShort()),
                 preferredListenPort = 6_881U.toUShort(),
                 portMapping = PortMappingPolicy.UPNP,
@@ -986,13 +996,26 @@ class ProductStateReducerTest {
 
     @Test
     fun pendingFileSelectionDraftRejectsAnExtraSparseOverride() {
-        val full =
-            (0 until MAX_PENDING_FILE_SELECTION_OVERRIDES).associate { index ->
-                index.toUInt() to PendingFileOverride(false, true, BigInteger.ONE)
-            }
-        val draft = PendingFileSelectionDraft(overrides = full)
+        var draft = PendingFileSelectionDraft()
+        repeat(MAX_PENDING_FILE_SELECTION_OVERRIDES) { index ->
+            draft = requireNotNull(draft.toggle(file("sparse", (index * 2).toUInt())))
+        }
+        assertNull(draft.toggle(file("overflow", (MAX_PENDING_FILE_SELECTION_OVERRIDES * 2).toUInt())))
+    }
 
-        assertNull(draft.toggle(file("overflow", MAX_PENDING_FILE_SELECTION_OVERRIDES.toUInt())))
+    @Test
+    fun pendingFileSelectionDraftSupportsThousandsOfContiguousFilesAndSafety() {
+        var draft = PendingFileSelectionDraft()
+        repeat(10_000) { index -> draft = requireNotNull(draft.toggle(file("large", index.toUInt()))) }
+        assertEquals(FileIndexRange(0U, 10_000U), draft.compactOverrides().single().range)
+        val blocked = file("installer", 10_000U).copy(safety = org.rstorrent.session.uniffi.FileSafetyView(".exe", org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, false, true))
+        assertEquals(false, draft.selectAll().selected(blocked))
+        assertEquals(draft, draft.toggle(blocked))
+        val pending = torrent("pending", TorrentState.PAUSED).apply {
+            selectableFileCount = 2U; selectableFileBytes = "100"
+            safetySummary = org.rstorrent.session.uniffi.FileSafetySummary(1U, "20")
+        }
+        assertEquals(PendingFileSelectionSummary(1, BigInteger("80")), draft.selectAll().summary(pending))
     }
 
     @Test
@@ -1037,6 +1060,64 @@ class ProductStateReducerTest {
     }
 
     @Test
+    fun libraryMediaPagesAndRowPatchesFeedTheProductState() {
+        val subscription =
+            SubscriptionSpec(
+                ViewSelector.Library(
+                    LibraryMediaQuery(
+                        text = "show",
+                        kinds = listOf(LibraryMediaKind.VIDEO),
+                        roles = listOf(LibraryMediaRole.EPISODE),
+                        availability = LibraryAvailabilityFilter.ANY,
+                        archived = LibraryArchivedFilter.EXCLUDE,
+                        torrentId = null,
+                        groupId = null,
+                        grouping = LibraryGrouping.UNGROUPED,
+                        sort = LibraryMediaSort.TITLE,
+                        descending = false,
+                    ),
+                ),
+                ViewProjection.LIBRARY_MEDIA,
+                DeliveryPolicy(0U, 256U * 1024U),
+                null,
+                CatalogPageRequest(0U, 100U),
+            )
+        val initial =
+            ProductStateReducer.reduce(
+                ProductState(),
+                update(
+                    "1",
+                    "0",
+                    "1",
+                    ViewUpdatePayload.Snapshot(
+                        ViewSnapshot.LibraryMedia(
+                            CatalogPageView(0U, 100U, 2U, null),
+                            libraryFacets(),
+                            listOf(libraryItem(0U, "0"), libraryItem(1U, "0")),
+                            emptyList(),
+                        ),
+                    ),
+                ),
+            )
+        val patched =
+            ProductStateReducer.reduce(
+                initial,
+                update(
+                    "2",
+                    "1",
+                    "2",
+                    ViewUpdatePayload.Patch(
+                        ViewPatch.LibraryMedia(listOf(libraryItem(1U, "512"))),
+                    ),
+                ),
+            )
+
+        assertEquals(100U, subscription.catalogPage?.limit)
+        assertEquals(listOf("0", "512"), patched.libraryMedia?.items?.map { it.verifiedBytes })
+        assertEquals(2U, patched.libraryMedia?.page?.total)
+    }
+
+    @Test
     fun libraryFiltersUseOperationalStateAndSortingIsStable() {
         val queued =
             torrent("queued", TorrentState.PAUSED).copy(
@@ -1066,16 +1147,16 @@ class ProductStateReducerTest {
             listOf("active"),
             filteredAndSortedTorrents(
                 listOf(queued, active, finished),
-                LibraryFilter.ACTIVE,
-                LibrarySort.STABLE,
+                TorrentFilter.ACTIVE,
+                TorrentSort.STABLE,
             ).map(TorrentView::torrentId),
         )
         assertEquals(
             listOf("active", "finished", "queued"),
             filteredAndSortedTorrents(
                 listOf(queued, active, finished),
-                LibraryFilter.ALL,
-                LibrarySort.NAME,
+                TorrentFilter.ALL,
+                TorrentSort.NAME,
             ).map(TorrentView::torrentId),
         )
     }
@@ -1092,7 +1173,7 @@ class ProductStateReducerTest {
             }
 
         val sorted =
-            filteredAndSortedTorrents(torrents, LibraryFilter.ALL, LibrarySort.STABLE)
+            filteredAndSortedTorrents(torrents, TorrentFilter.ALL, TorrentSort.STABLE)
 
         assertEquals(500, sorted.size)
         assertEquals("torrent-000", sorted.first().torrentId)
@@ -1107,6 +1188,7 @@ class ProductStateReducerTest {
         index: UInt,
     ): FileView =
         FileView(
+            safety = null,
             fileId = id,
             fileIndex = index,
             path = listOf("file-$index.bin"),
@@ -1144,9 +1226,58 @@ class ProductStateReducerTest {
             role = MediaRoleView.Episode("Show Name", 1U, 2U, null),
         )
 
+    private fun libraryItem(
+        index: UInt,
+        verifiedBytes: String,
+    ): LibraryMediaItemView =
+        LibraryMediaItemView(
+            itemId = "$TORRENT_ID:$index",
+            torrentId = TORRENT_ID,
+            torrentName = "Show Name",
+            fileIndex = index,
+            fileName = "Show.Name.S01E0${index + 1U}.mkv",
+            title = "Episode ${index + 1U}",
+            kind = LibraryMediaKind.VIDEO,
+            role = LibraryMediaRole.EPISODE,
+            seriesTitle = "Show Name",
+            seriesId = "series:show name",
+            seasonNumber = 1U.toUShort(),
+            episodeNumber = (index + 1U).toUShort(),
+            endingEpisodeNumber = null,
+            albumTitle = null,
+            albumId = null,
+            discNumber = null,
+            trackNumber = null,
+            year = null,
+            extension = "mkv",
+            lengthBytes = "1024",
+            verifiedBytes = verifiedBytes,
+            offline = verifiedBytes == "1024",
+            archived = false,
+            mediaAvailability = MediaFileAvailability.UNVERIFIED,
+        )
+
+    private fun libraryFacets(): LibraryFacetsView =
+        LibraryFacetsView(
+            items = 2U,
+            video = 2U,
+            audio = 0U,
+            episodes = 2U,
+            movies = 0U,
+            otherVideos = 0U,
+            tracks = 0U,
+            offline = 0U,
+            incomplete = 2U,
+            series = 1U,
+            albums = 0U,
+            torrents = 1U,
+            metadataPending = 0U,
+        )
+
     private fun clientSettings(
         configured: ClientSettings =
             ClientSettings(
+                            fileSafety = org.rstorrent.session.uniffi.FileSafetySettings(true, org.rstorrent.session.uniffi.FileSafetyPreset.RECOMMENDED, emptyList(), true),
                 listener = ListenerPolicy.Disabled,
                 preferredListenPort = 6_881U.toUShort(),
                 portMapping = PortMappingPolicy.DISABLED,
@@ -1288,6 +1419,7 @@ class ProductStateReducerTest {
         state: TorrentState,
     ): TorrentView =
         TorrentView(
+            safetySummary = null,
             torrentId = id,
             protocolIdentities =
                 TorrentProtocolIdentities(

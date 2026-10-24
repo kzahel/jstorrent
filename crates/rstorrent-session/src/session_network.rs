@@ -35,8 +35,8 @@ use crate::diagnostics::{
 use crate::incoming_seeding::IncomingSeeding;
 use crate::reachability::{
     Ipv6PinholeDiagnosticResult, ReachabilityBlocks, ReachabilityCoordinator,
-    ReachabilityEvidenceProbe, ReachabilityGenerationShutdown, ReachabilityStartInputs,
-    UncertainMappingLease, UncertainPinholeLease,
+    ReachabilityEvidenceProbe, ReachabilityFinalShutdown, ReachabilityGenerationShutdown,
+    ReachabilityStartInputs, UncertainMappingLease, UncertainPinholeLease,
 };
 use crate::session_utp::SessionUtpPeerService;
 use crate::settings::{
@@ -48,6 +48,7 @@ use crate::settings::{
     SettingsDomainGeneration, TransportAddressFamily, TransportFamilyRuntimeView,
     classify_listener_bind_failure,
 };
+use crate::shutdown::CleanupCutoff;
 use crate::views::{DhtInspectionView, ViewHub};
 
 const PEER_RECONFIGURATION_TIMEOUT: Duration = Duration::from_secs(5);
@@ -181,6 +182,10 @@ pub(crate) struct SessionNetworkShutdown {
     pub dht_snapshot: Option<DhtSnapshot>,
     pub dht_error: Option<DhtError>,
     pub join_error: Option<String>,
+    /// Torrents whose tracker `stopped` announces the cleanup cutoff ended.
+    pub tracker_stops_cut_short: usize,
+    /// Port mappings and pinholes whose removal the cleanup cutoff ended.
+    pub port_mappings_left: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -1119,37 +1124,45 @@ impl SessionNetworkRuntime {
         self.session_udp_handle.local_address_for(family)
     }
 
-    pub(crate) async fn shutdown(mut self, views: &ViewHub) -> SessionNetworkShutdown {
-        self.shutdown_inner(views, true).await
+    /// Final shutdown. Tracker `stopped` announces and port-mapping removal
+    /// end when `cutoff` is reached.
+    pub(crate) async fn shutdown(
+        mut self,
+        views: &ViewHub,
+        cutoff: &CleanupCutoff,
+    ) -> SessionNetworkShutdown {
+        self.shutdown_inner(views, Some(cutoff)).await
     }
 
     pub(crate) async fn shutdown_for_network_prerequisite(
         mut self,
         views: &ViewHub,
     ) -> SessionNetworkShutdown {
-        self.shutdown_inner(views, false).await
+        self.shutdown_inner(views, None).await
     }
 
     async fn shutdown_inner(
         &mut self,
         views: &ViewHub,
-        network_cleanup_permitted: bool,
+        cleanup: Option<&CleanupCutoff>,
     ) -> SessionNetworkShutdown {
         self.begin_shutdown();
         let terminal = if let Some(task) = self.reconciliation_task.take() {
             match task.await {
-                Ok(owner) => owner.shutdown(views, network_cleanup_permitted).await,
+                Ok(owner) => owner.shutdown(views, cleanup).await,
                 Err(error) => SessionNetworkShutdown {
                     dht_snapshot: None,
                     dht_error: None,
                     join_error: Some(format!("session network reconciler: {error}")),
+                    tracker_stops_cut_short: 0,
+                    port_mappings_left: Vec::new(),
                 },
             }
         } else {
             self.pending_owner
                 .take()
                 .expect("pending owner exists before reconciliation starts")
-                .shutdown(views, network_cleanup_permitted)
+                .shutdown(views, cleanup)
                 .await
         };
         if let Some(bandwidth) = self.bandwidth.take() {
@@ -2539,17 +2552,24 @@ impl SessionNetworkOwner {
     async fn shutdown(
         mut self,
         views: &ViewHub,
-        network_cleanup_permitted: bool,
+        cleanup: Option<&CleanupCutoff>,
     ) -> SessionNetworkShutdown {
+        let network_cleanup_permitted = cleanup.is_some();
         let mut join_error = None;
+        let mut tracker_stops_cut_short = 0;
+        let mut port_mappings_left = Vec::new();
         if let Some(discovery) = self.discovery_advertisement.take() {
-            let shutdown = if network_cleanup_permitted {
-                discovery.shutdown().await
-            } else {
-                discovery.shutdown_without_stopped_announces().await
+            let shutdown = match cleanup {
+                Some(cutoff) => {
+                    discovery
+                        .shutdown_within(cutoff.tracker_deadline, cutoff.hurry.clone())
+                        .await
+                }
+                None => discovery.shutdown_without_stopped_announces().await,
             };
             match shutdown {
                 Ok(terminal) => {
+                    tracker_stops_cut_short = terminal.stops_cut_short;
                     let terminal_counts = format!(
                         "tasks={},registrations={},tracker_operations={},tracker_high_water={},dht_operations={},dht_high_water={},queue_high_water={}",
                         terminal.tasks,
@@ -2575,9 +2595,23 @@ impl SessionNetworkOwner {
             }
         }
         if let Some(reachability) = self.reachability.take() {
-            if network_cleanup_permitted {
-                match reachability.shutdown().await {
-                    Ok(terminal) => {
+            if let Some(cutoff) = cleanup {
+                match reachability.shutdown(cutoff).await {
+                    Ok(ReachabilityFinalShutdown {
+                        terminal,
+                        left_behind,
+                    }) => {
+                        for detail in &left_behind {
+                            let _ = views.record_diagnostic(
+                                DiagnosticSeverity::Warning,
+                                category::DISCOVERY_REACHABILITY,
+                                "port_mapping_cleanup_cut_short",
+                                None,
+                                "Port mapping removal was cut short by application shutdown",
+                                &[("detail", detail)],
+                            );
+                        }
+                        port_mappings_left = left_behind;
                         let terminal_counts = format!(
                             "tasks={},mappings={},pinholes={}",
                             terminal.tasks, terminal.mappings, terminal.pinholes
@@ -2758,6 +2792,8 @@ impl SessionNetworkOwner {
             dht_snapshot,
             dht_error,
             join_error,
+            tracker_stops_cut_short,
+            port_mappings_left,
         }
     }
 }

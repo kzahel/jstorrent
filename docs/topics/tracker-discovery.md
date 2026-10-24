@@ -318,7 +318,10 @@ from `TorrentRuntime`, uses port `1` only for outbound-only participation, and
 uses the mapped external or actual eligible TCP listener port for a matching
 incoming seed registration. Corrective `none`, exactly-once eligible
 `completed`, imported-complete, and five-second-bounded `stopped` transitions
-are deterministic; a correction arriving during the initial started request
+are deterministic (Tactical
+[366](../tactical/366-bounded-host-shutdown.md) bounds application-shutdown
+`stopped` announces by a shared 2 s cleanup budget and a host hurry signal;
+torrent removal keeps 5 s); a correction arriving during the initial started request
 is retained.
 
 An independent libtorrent `2.0.13.0` tracker-only leecher announced to the

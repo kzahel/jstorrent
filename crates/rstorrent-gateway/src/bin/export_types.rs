@@ -11,30 +11,35 @@ use rstorrent_session::{
     ActiveDownloadsClampReason, ActivePiece, ActivePieceFieldUpdate, ActivePieceStageView,
     ActivePieceUpdate, ActiveSeedLimit, AddTorrentBytesRequest, AddTorrentDisposition,
     AddTorrentResult, AdvertisedPeerEndpointScope, AdvertisedPeerEndpointStatus,
-    AdvertisedPeerEndpointUnavailableReason, ApiBackendIdentity, ApiEncoding, ApiHello, ApiLimits,
-    ApiProductInfo, ApiVersion, ApplicationCall, ApplicationCallResult,
+    AdvertisedPeerEndpointUnavailableReason, ApiBackendIdentity, ApiClientInfo, ApiEncoding,
+    ApiHello, ApiLimits, ApiProductInfo, ApiVersion, ApplicationCall, ApplicationCallResult,
     ApplicationNetworkPrerequisiteView, ApplicationNetworkRuntimeState,
     ApplicationNetworkRuntimeView, BandwidthDirectionRuntimeView, BandwidthRuntimeView,
-    CapabilityStatus, CatalogPageRequest, CatalogPageView, CheckingPhaseView, CheckingProgressView,
-    ClientSettings, ClientSettingsApplicationState, ClientSettingsDegradedReason,
-    ClientSettingsPatch, ClientSettingsRuntimeView, Command, CommandResult, DeliveryMode,
-    DeliveryPolicy, DhtAddressFamilyView, DhtBucketView, DhtFamilyInspectionView,
+    CapabilityStatus, CatalogPageRequest, CatalogPageView, CatalogRecoveryReason,
+    CatalogRecoveryStatus, CheckingPhaseView, CheckingProgressView, ClientSettings,
+    ClientSettingsApplicationState, ClientSettingsDegradedReason, ClientSettingsPatch,
+    ClientSettingsRuntimeView, Command, CommandResult, DeliveryMode, DeliveryPolicy,
+    DesktopUpdateAttempt, DhtAddressFamilyView, DhtBucketView, DhtFamilyInspectionView,
     DhtInspectionView, DhtLifecycleView, DhtLookupView, DhtNetworkPolicyView, DiagnosticCategory,
     DiagnosticEvent, DiagnosticField, DiagnosticFilter, DiagnosticProfile, DiagnosticRetention,
     DiagnosticSeverity, DiagnosticSubject, DiagnosticValue, DiskCheckpointStageView,
     DiskPieceStageView, DiskPieceView, DiskPipelineView, DiskPressureView,
     EffectiveListenerSettings, EncryptionPolicy, ErrorCode, ErrorResponse, FileCatalogState,
-    FileFieldUpdate, FileIndexRange, FilePriority, FileRowUpdate, FileSelectionIntent,
+    FileFieldUpdate, FileIndexRange, FilePriority, FileRowUpdate, FileSafetyPreset,
+    FileSafetySettings, FileSafetySummary, FileSafetyView, FileSelectionIntent,
     FileSelectionOverride, FileSelectionView, FileView, HostCapabilityDefinition,
-    HostCapabilityLifecycle, HttpsServerAuthenticationPolicy, IndexRange,
-    IntegrityPreparationPhaseView, IntegrityPreparationView, Ipv6PinholeFailureStage,
-    Ipv6PinholeStatus, ListenerBindFailureReason, ListenerPolicy, ListenerStatus,
-    MagnetExportOptions, MagnetExportResult, MagnetExportSource, MagnetPeerHint,
-    MagnetPeerHintOmission, MagnetPeerHintScope, MediaCatalogState, MediaFileAvailability,
-    MediaItemView, MediaRoleView, MediaUrlOutcome, MediaUrlResponse, MetadataAcquisitionPhaseView,
-    MetadataAcquisitionView, OpenViewSetOptions, OpenViewSetRequest, OpenViewSetResponse,
-    PeerDirection, PeerDisconnectReason, PeerFieldCapabilities, PeerFieldUpdate, PeerFlagView,
-    PeerLifecycle, PeerMseMethodView, PeerRequestPhase, PeerRole, PeerRowUpdate, PeerSourceView,
+    HostCapabilityLifecycle, HostUpdateRequest, HostUpdateSnapshot,
+    HttpsServerAuthenticationPolicy, IndexRange, IntegrityPreparationPhaseView,
+    IntegrityPreparationView, Ipv6PinholeFailureStage, Ipv6PinholeStatus, LibraryArchivedFilter,
+    LibraryAvailabilityFilter, LibraryFacetsView, LibraryGroupView, LibraryGrouping,
+    LibraryMediaItemView, LibraryMediaKind, LibraryMediaQuery, LibraryMediaRole, LibraryMediaSort,
+    ListenerBindFailureReason, ListenerPolicy, ListenerStatus, MagnetExportOptions,
+    MagnetExportResult, MagnetExportSource, MagnetPeerHint, MagnetPeerHintOmission,
+    MagnetPeerHintScope, MediaCatalogState, MediaFileAvailability, MediaItemView, MediaRoleView,
+    MediaUrlOutcome, MediaUrlResponse, MetadataAcquisitionPhaseView, MetadataAcquisitionView,
+    OpenViewSetOptions, OpenViewSetRequest, OpenViewSetResponse, PeerDirection,
+    PeerDisconnectReason, PeerFieldCapabilities, PeerFieldUpdate, PeerFlagView, PeerLifecycle,
+    PeerMseMethodView, PeerRequestPhase, PeerRole, PeerRowUpdate, PeerSourceView,
     PeerTransportKind, PeerView, PendingFileSelectionBase, PortMappingFailureStage,
     PortMappingMechanism, PortMappingPolicy, PortMappingStatus, ProgressAction, ProgressAssessment,
     ProgressDisposition, ProgressPhase, ProgressReason, RemovalDataPolicy, RemovalState,
@@ -100,6 +105,8 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<TorrentSeedStopLimits>(&mut declarations)?;
     append::<TorrentSettingsPatch>(&mut declarations)?;
     append::<TorrentListImportTarget>(&mut declarations)?;
+    append::<CatalogRecoveryReason>(&mut declarations)?;
+    append::<CatalogRecoveryStatus>(&mut declarations)?;
     append::<TorrentListImportFailure>(&mut declarations)?;
     append::<TorrentListImportReport>(&mut declarations)?;
     append::<ActiveSeedLimit>(&mut declarations)?;
@@ -150,6 +157,18 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     )?;
     append::<HostCapabilityLifecycle>(&mut declarations)?;
     append::<HostCapabilityDefinition>(&mut declarations)?;
+    append_value(
+        &mut declarations,
+        "DEFAULT_API_HELLO",
+        "ApiHello",
+        &ApiHello::default(),
+    )?;
+    append_value(
+        &mut declarations,
+        "UNSUPPORTED_CALL_MESSAGE",
+        "string",
+        &rstorrent_gateway::UNSUPPORTED_CALL_MESSAGE,
+    )?;
     append_value(
         &mut declarations,
         "HOST_CAPABILITY_REGISTRY",
@@ -270,11 +289,25 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<FileSelectionView>(&mut declarations)?;
     append::<FileCatalogState>(&mut declarations)?;
     append::<FileView>(&mut declarations)?;
+    append::<FileSafetyPreset>(&mut declarations)?;
+    append::<FileSafetySettings>(&mut declarations)?;
+    append::<FileSafetyView>(&mut declarations)?;
+    append::<FileSafetySummary>(&mut declarations)?;
     append::<FileFieldUpdate>(&mut declarations)?;
     append::<FileRowUpdate>(&mut declarations)?;
     append::<MediaCatalogState>(&mut declarations)?;
     append::<MediaRoleView>(&mut declarations)?;
     append::<MediaItemView>(&mut declarations)?;
+    append::<LibraryMediaKind>(&mut declarations)?;
+    append::<LibraryMediaRole>(&mut declarations)?;
+    append::<LibraryAvailabilityFilter>(&mut declarations)?;
+    append::<LibraryArchivedFilter>(&mut declarations)?;
+    append::<LibraryGrouping>(&mut declarations)?;
+    append::<LibraryMediaSort>(&mut declarations)?;
+    append::<LibraryMediaQuery>(&mut declarations)?;
+    append::<LibraryMediaItemView>(&mut declarations)?;
+    append::<LibraryGroupView>(&mut declarations)?;
+    append::<LibraryFacetsView>(&mut declarations)?;
     append::<TrackerCatalogState>(&mut declarations)?;
     append::<TrackerTransportView>(&mut declarations)?;
     append::<TrackerSecurityView>(&mut declarations)?;
@@ -304,6 +337,7 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<ApiLimits>(&mut declarations)?;
     append::<ApiBackendIdentity>(&mut declarations)?;
     append::<ApiProductInfo>(&mut declarations)?;
+    append::<ApiClientInfo>(&mut declarations)?;
     append::<ApiHello>(&mut declarations)?;
     append::<ViewDeliveryPolicy>(&mut declarations)?;
     append::<ViewSpec>(&mut declarations)?;
@@ -313,6 +347,9 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<ViewSetUpdate>(&mut declarations)?;
     append::<UpdateBatch>(&mut declarations)?;
     append::<OpenViewSetResponse>(&mut declarations)?;
+    append::<DesktopUpdateAttempt>(&mut declarations)?;
+    append::<HostUpdateRequest>(&mut declarations)?;
+    append::<HostUpdateSnapshot>(&mut declarations)?;
     append::<ApplicationCall>(&mut declarations)?;
     append::<ApplicationCallResult>(&mut declarations)?;
     append::<ApplicationConnectionErrorCode>(&mut declarations)?;
@@ -571,6 +608,7 @@ fn write_view_set_fixture(output: PathBuf) -> Result<(), Box<dyn Error>> {
 
 fn fixture_torrent(torrent_id: &str, verified: u32) -> TorrentView {
     TorrentView {
+        safety_summary: None,
         torrent_id: torrent_id.to_owned(),
         protocol_identities: rstorrent_session::TorrentProtocolIdentities {
             v1: Some("000102030405060708090a0b0c0d0e0f10111213".to_owned()),

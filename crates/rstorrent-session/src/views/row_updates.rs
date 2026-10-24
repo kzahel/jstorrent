@@ -111,6 +111,7 @@ semantic_fields!(
         AwaitingFileSelection => awaiting_file_selection: bool,
         PendingFileSelectionPosition => pending_file_selection_position: Option<u32>,
         FileCatalogId => file_catalog_id: Option<String>,
+        SafetySummary => safety_summary: Option<crate::FileSafetySummary>,
         SelectableFileCount => selectable_file_count: u32,
         SelectedFileCount => selected_file_count: u32,
         SelectableFileBytes => selectable_file_bytes: String,
@@ -179,6 +180,7 @@ impl TorrentRowUpdate {
             pending_file_selection_position
         );
         changed!(FileCatalogId, file_catalog_id);
+        changed!(SafetySummary, safety_summary);
         changed!(SelectableFileCount, selectable_file_count);
         changed!(SelectedFileCount, selected_file_count);
         changed!(SelectableFileBytes, selectable_file_bytes);
@@ -252,6 +254,7 @@ semantic_fields!(
     FileView,
     {
         Selection => selection: Option<FileSelectionView>,
+        Safety => safety: Option<crate::FileSafetyView>,
         DoneBytes => done_bytes: String,
         VerifiedBytes => verified_bytes: String,
         MediaAvailability => media_availability: MediaFileAvailability
@@ -289,6 +292,7 @@ impl FileRowUpdate {
             };
         }
         changed!(Selection, selection);
+        changed!(Safety, safety);
         changed!(DoneBytes, done_bytes);
         changed!(VerifiedBytes, verified_bytes);
         changed!(MediaAvailability, media_availability);
@@ -538,6 +542,7 @@ mod tests {
 
     fn torrent() -> TorrentView {
         TorrentView {
+            safety_summary: None,
             torrent_id: TORRENT_ID.to_owned(),
             protocol_identities: TorrentProtocolIdentities {
                 v1: Some("000102030405060708090a0b0c0d0e0f10111213".to_owned()),
@@ -810,6 +815,7 @@ mod tests {
     #[test]
     fn file_and_active_piece_updates_preserve_immutable_identity() {
         let file = FileView {
+            safety: None,
             file_id: "0".to_owned(),
             file_index: 0,
             path: vec!["file".to_owned()],

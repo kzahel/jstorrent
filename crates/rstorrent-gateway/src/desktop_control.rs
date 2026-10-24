@@ -585,8 +585,17 @@ mod tests {
                 chromeos_companion::PRODUCTION_EXTENSION_ORIGIN
             };
             let (mut client, _) = connect_async(request(origin)).await.unwrap();
+            // Even clients report an identity; client 3's is malformed, which
+            // must not fail the handshake.
+            let mut connect = hello(&token, id);
+            if id % 2 == 0 {
+                connect["client"] =
+                    json!({"kind":"extension", "version":"1.1.6", "build_id":"0123abcd"});
+            } else if id == 3 {
+                connect["client"] = json!({"kind": 5, "version": "x".repeat(200)});
+            }
             client
-                .send(Message::Text(hello(&token, id).to_string().into()))
+                .send(Message::Text(connect.to_string().into()))
                 .await
                 .unwrap();
             let frame: Value =
@@ -600,12 +609,15 @@ mod tests {
                 serde_json::from_str(&client.next().await.unwrap().unwrap().into_text().unwrap())
                     .unwrap();
             assert_eq!(refusal["error"]["code"], "invalid_call");
-            assert!(
-                !frame["hello"]["capabilities"]
-                    .as_array()
-                    .unwrap()
-                    .contains(&json!("torrent_media"))
-            );
+            // A call from a newer client is refused alone and counted.
+            client.send(Message::Text(json!({"type":"call", "call_id":"future", "operation":{"type":"future_operation"}}).to_string().into())).await.unwrap();
+            let refusal: Value =
+                serde_json::from_str(&client.next().await.unwrap().unwrap().into_text().unwrap())
+                    .unwrap();
+            assert_eq!(refusal["error"]["message"], crate::UNSUPPORTED_CALL_MESSAGE);
+            let capabilities = frame["hello"]["capabilities"].as_array().unwrap();
+            assert!(!capabilities.contains(&json!("torrent_media")));
+            assert!(!capabilities.contains(&json!("library_media")));
             client.send(Message::Text(json!({"type":"call", "call_id":"library", "operation":{"type":"open_view_set", "request":{"views":[{"type":"torrent_list", "view_id":"library", "delivery":{"kind":"immediate"}}],"options":{}}}}).to_string().into())).await.unwrap();
             let frame: Value =
                 serde_json::from_str(&client.next().await.unwrap().unwrap().into_text().unwrap())
@@ -636,6 +648,12 @@ mod tests {
         assert_eq!(metrics.snapshot().active_connections, 0);
         assert_eq!(metrics.snapshot().active_connections_high_water, 4);
         assert_eq!(metrics.snapshot().rejected_authentication, 1);
+        let clients = metrics.snapshot().clients;
+        for key in ["extension 1.1.6", "unidentified"] {
+            assert_eq!(clients[key].connections, 2, "{key}");
+            assert_eq!(clients[key].unsupported_calls, 2, "{key}");
+        }
+        assert_eq!(clients.len(), 2);
         service.lock().await.shutdown().await.unwrap();
         drop(service);
         std::fs::remove_dir_all(root).unwrap();

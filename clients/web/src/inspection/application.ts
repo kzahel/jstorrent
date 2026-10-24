@@ -11,6 +11,7 @@ import type {
 } from "./model";
 
 export interface InspectionApplication {
+  readonly updater?: import("./updater/types").DesktopUpdater | undefined;
   readonly kind: "demo" | "live";
   readonly scenarios: readonly DemoScenarioSummary[];
 

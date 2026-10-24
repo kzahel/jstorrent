@@ -123,7 +123,7 @@ The capability-gated `choose_download_root` / `download_root_chosen`
 platform frames reuse this authenticated connection only for the desktop
 picker. Connection termination cancels the request; an aborted browser picker
 call closes its connection owner. Native Cancel preserves the connection.
-Other backend compositions refuse the operation; Android's existing platform
+Other host compositions refuse the operation; Android's existing platform
 route and authority remain unchanged.
 
 Status: The direct loopback application connection is implemented by Tactical
@@ -208,7 +208,7 @@ Completed Tactical
 separate first-party same-device adapter: the packaged extension React page
 attaches to the one Android-owned application service across ChromeOS's fixed
 ARC host. Exact extension Origin, Host, explicit Android-approved bearer
-pairing, backend/profile identity, optional host permission, current Local
+pairing, host/profile identity, optional host permission, current Local
 Network Access behavior, revocation, and physical non-LAN reachability surround
 the unchanged typed application WebSocket. Android serves no
 application assets, raw IO, filesystem, piece, or media endpoint in that
@@ -270,8 +270,10 @@ still requires its own bounded tactical and migration decision.
 
 ## Terminology
 
+The [glossary](../glossary.md) owns the shared terms.
+
 - An **application connection** is one client-side controller and its
-  authenticated relationship with one RSTorrent backend. It may survive more
+  authenticated relationship with one RSTorrent host. It may survive more
   than one physical connection generation through bounded reconnect.
 - A **connection generation** is one concrete WebSocket, Tauri window
   generation or comparable attachment lifetime.
@@ -283,7 +285,7 @@ still requires its own bounded tactical and migration decision.
 - A **view attachment** is the connection-local route and pump that delivers
   one view set from an applied cursor.
 - A **relay circuit** is an opaque end-to-end path for one authenticated client
-  to one backend through a relay. It may share a physical relay WebSocket with
+  to one host through a relay. It may share a physical relay WebSocket with
   other independently encrypted circuits.
 
 Do not use `session` as the general name for this boundary. It is already
@@ -371,7 +373,7 @@ Exact generated names and encoding belong to the implementing tactical. The
 protocol nevertheless has these stable frame families:
 
 ```text
-client -> backend
+client -> host
   client_hello
   call(call_id, typed operation)
   attach(stream_id, view_set_id, after_cursor)
@@ -380,7 +382,7 @@ client -> backend
   semantic lease acknowledgement
   connection ping/pong where the platform requires it
 
-backend -> client
+host -> client
   server_hello(capabilities, limits, selected codec)
   result(call_id, typed result)
   call_error(call_id, structured error)
@@ -434,13 +436,13 @@ old connection must never close or detach the replacement.
 WebSocket delivery preserves the existing view-set cursor contract:
 
 ```text
-backend next_updates(last applied cursor)
+host next_updates(last applied cursor)
   -> view_batch(base cursor, resulting cursor)
   -> runtime validation
   -> pure continuity reduction
   -> synchronous client-store commit
   -> ack(resulting cursor)
-  -> backend may request the next batch
+  -> host may request the next batch
 ```
 
 Receipt by the socket, transport decoder or JavaScript callback is not an
@@ -466,7 +468,7 @@ immediately destroy their view sets. The client reconnects, authenticates as
 the same logical owner and attempts to attach each retained set at its last
 successfully applied cursor.
 
-For each view set, the backend then:
+For each view set, the host then:
 
 - replays the retained unacknowledged batch when the supplied cursor is its
   base;
@@ -648,13 +650,13 @@ physical client <-> relay WebSocket
   |                 +-- view attachment 1
   |                 +-- view attachment 2
   |
-  +-- optional relay circuit B for another backend
+  +-- optional relay circuit B for another host
         +-- separately authenticated and encrypted records
               +-- independent RSTorrent application connection
 ```
 
-For one backend there is one circuit; every view set for that backend is
-multiplexed inside it. If a future client controls several backends through
+For one host there is one circuit; every view set for that host is
+multiplexed inside it. If a future client controls several hosts through
 one relay, an outer circuit identifier may share one client-to-relay socket
 while each circuit retains independent authentication, keys, resume state,
 queues and failure lifecycle.
@@ -864,7 +866,7 @@ update this topic before changing any of these accepted decisions:
 
 - one semantic API across HTTP, WebSocket, Tauri and future relay delivery;
 - WebSocket directly supports calls and view-set creation;
-- one WebSocket multiplexes all view sets for one frontend/backend connection;
+- one WebSocket multiplexes all view sets for one client/host connection;
 - an ordinary browser session uses that WebSocket for every semantic call and
   view update, with no automatic fallback or hybrid transport;
 - browser HTTP selection is explicit, loopback-only and diagnostic rather

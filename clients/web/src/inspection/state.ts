@@ -35,7 +35,14 @@ import {
   loadNavigationPreferences,
   saveNavigationPreferences,
   type NavigationPreferences,
+  type SettingsCategory,
 } from "./navigation";
+import {
+  DEFAULT_LIBRARY_BROWSE,
+  loadLibraryBrowse,
+  saveLibraryBrowse,
+  type LibraryBrowseState,
+} from "./library-browse";
 import {
   DEFAULT_SPEED_METRICS,
   DEFAULT_SPEED_RANGE,
@@ -54,6 +61,8 @@ import { isSessionTab } from "./tabs";
 export interface PresentationState {
   readonly destination: ApplicationDestination;
   readonly libraryCategory: LibraryCategory;
+  /** The cross-torrent Library's preset, filters and page (Tactical 363). */
+  readonly libraryBrowse: LibraryBrowseState;
   readonly transfersCategory: TorrentCategory;
   readonly workbenchCategory: TorrentCategory;
   readonly currentTorrentId: string | null;
@@ -71,6 +80,10 @@ export interface PresentationState {
     readonly torrentId: string;
   } | null;
   readonly sidebarOpen: boolean;
+  /** The open Settings category, or null when Settings is closed. */
+  readonly settingsCategory: SettingsCategory | null;
+  /** A reset or import is running, so Settings must stay open. */
+  readonly settingsBusy: boolean;
   readonly layout: LayoutMode;
   readonly interfaceSize: InterfaceSize;
   readonly colorTheme: ColorTheme;
@@ -97,6 +110,8 @@ export interface InspectionActions {
   readonly applyUpdate: (update: InspectionUpdate) => void;
   readonly selectDestination: (destination: ApplicationDestination) => void;
   readonly selectLibraryCategory: (category: LibraryCategory) => void;
+  /** Changes Library filters; any change but a page change returns to page 1. */
+  readonly updateLibraryBrowse: (change: Partial<LibraryBrowseState>) => void;
   readonly selectTorrentCategory: (category: TorrentCategory) => void;
   readonly setTorrentSelection: (
     torrentIds: readonly string[],
@@ -120,6 +135,11 @@ export interface InspectionActions {
   readonly closeDetail: () => void;
   readonly toggleSidebar: () => void;
   readonly closeSidebar: () => void;
+  readonly openSettings: (category: SettingsCategory) => void;
+  readonly selectSettingsCategory: (category: SettingsCategory) => void;
+  /** Does nothing while Settings is busy. */
+  readonly closeSettings: () => void;
+  readonly setSettingsBusy: (busy: boolean) => void;
   readonly setLayout: (layout: PresentationState["layout"]) => void;
   readonly setInterfaceSize: (interfaceSize: InterfaceSize) => void;
   readonly setColorTheme: (colorTheme: ColorTheme) => void;
@@ -167,6 +187,7 @@ const EMPTY_SNAPSHOT: InspectionSnapshot = {
   swarmByTorrent: {},
   filesByTorrent: {},
   mediaByTorrent: {},
+  libraryMedia: null,
   trackersByTorrent: {},
   piecesByTorrent: {},
   disk: emptyDiskSet(),
@@ -182,6 +203,7 @@ const EMPTY_SNAPSHOT: InspectionSnapshot = {
   },
   viewStatus: {
     library: { status: "not_requested" },
+    libraryMedia: { status: "not_requested" },
     torrentSummary: { status: "not_requested" },
     peers: { status: "not_requested" },
     swarm: { status: "not_requested" },
@@ -199,6 +221,7 @@ const EMPTY_SNAPSHOT: InspectionSnapshot = {
 const DEFAULT_PRESENTATION: PresentationState = {
   destination: "workbench",
   libraryCategory: "all",
+  libraryBrowse: DEFAULT_LIBRARY_BROWSE,
   transfersCategory: "all",
   workbenchCategory: "all",
   currentTorrentId: null,
@@ -213,6 +236,8 @@ const DEFAULT_PRESENTATION: PresentationState = {
   libraryDetailMode: "media",
   detailTarget: null,
   sidebarOpen: false,
+  settingsCategory: null,
+  settingsBusy: false,
   layout: "wide",
   interfaceSize: DEFAULT_INTERFACE_SIZE,
   colorTheme: DEFAULT_COLOR_THEME,
@@ -250,8 +275,13 @@ export function createInspectionStore(
     appearanceStorage === undefined
       ? loadDhtVisualizationMode()
       : loadDhtVisualizationMode(appearanceStorage);
+  const libraryBrowse =
+    appearanceStorage === undefined
+      ? loadLibraryBrowse()
+      : loadLibraryBrowse(appearanceStorage);
   const initialPresentation = {
     ...DEFAULT_PRESENTATION,
+    libraryBrowse,
     ...navigation,
     ...appearance,
     speedRange: speedPreferences.range,
@@ -281,7 +311,8 @@ export function createInspectionStore(
             destination === "library"
               ? state.presentation.libraryDetailOpen
               : false,
-          sidebarOpen: false,
+          // The drawer stays open: switching destination changes the
+          // categories it shows, which are usually the next choice.
           detailTarget: null,
         };
         persistNavigation(navigationPreferencesFor(presentation));
@@ -298,6 +329,24 @@ export function createInspectionStore(
         };
         persistNavigation(navigationPreferencesFor(presentation));
         return { presentation };
+      });
+    },
+    updateLibraryBrowse: (change) => {
+      set((state) => {
+        const libraryBrowse = {
+          ...state.presentation.libraryBrowse,
+          page: 0,
+          ...change,
+        };
+        if (appearanceStorage === undefined) saveLibraryBrowse(libraryBrowse);
+        else saveLibraryBrowse(libraryBrowse, appearanceStorage);
+        return {
+          presentation: {
+            ...state.presentation,
+            libraryBrowse,
+            libraryDetailOpen: false,
+          },
+        };
       });
     },
     selectTorrentCategory: (category) => {
@@ -623,6 +672,35 @@ export function createInspectionStore(
       set((state) => ({
         presentation: { ...state.presentation, sidebarOpen: false },
       }));
+    },
+    openSettings: (settingsCategory) => {
+      set((state) => ({
+        presentation: { ...state.presentation, settingsCategory },
+      }));
+    },
+    selectSettingsCategory: (settingsCategory) => {
+      set((state) =>
+        state.presentation.settingsCategory === null
+          ? state
+          : { presentation: { ...state.presentation, settingsCategory } },
+      );
+    },
+    closeSettings: () => {
+      set((state) =>
+        state.presentation.settingsBusy ||
+        state.presentation.settingsCategory === null
+          ? state
+          : {
+              presentation: { ...state.presentation, settingsCategory: null },
+            },
+      );
+    },
+    setSettingsBusy: (settingsBusy) => {
+      set((state) =>
+        state.presentation.settingsBusy === settingsBusy
+          ? state
+          : { presentation: { ...state.presentation, settingsBusy } },
+      );
     },
     setLayout: (layout) => {
       set((state) => ({
@@ -978,6 +1056,8 @@ export function reduceInspectionUpdate(
     swarmByTorrent,
     filesByTorrent,
     mediaByTorrent,
+    libraryMedia:
+      update.libraryMedia === undefined ? state.libraryMedia : update.libraryMedia,
     trackersByTorrent,
     piecesByTorrent,
     disk,

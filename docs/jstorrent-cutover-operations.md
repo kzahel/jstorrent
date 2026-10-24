@@ -14,7 +14,7 @@ Detailed acceptance: [cutover checklist](jstorrent-cutover-checklist.md).
   existingcom.jstorrent.app and managed Play signer. ARM64/x86_64, API28+.
   Older device compatibility is a separately recorded production choice.
 - Extension1.1.3: existing production item, deferred Web Store review.
-  Publish after the replacement backends are obtainable; arrivals may differ.
+  Publish after the replacement hosts are obtainable; arrivals may differ.
 - Website: curated exact public-release inventory, never unqualified Latest.
   Public privacy already matches the prepared implementation disclosures.
 
@@ -35,7 +35,7 @@ checks complete; the earliest time is October 11 at 16:51 UTC.
    current-version no-update responses and original-root signatures.
 4. Submit Android with managed publishing on; start at5% after approval and
    applicable checks. Leave the existing production release while review runs.
-5. Publish the approved extension after backend availability. Verify an actual
+5. Publish the approved extension after host availability. Verify an actual
    existing-profile store update, retained pairing and mixed-version recovery.
 6. Observe the initial24 hours before expanding Android. Record startup,
    import/repair, retained payload and shutdown outcomes. Store approval, elapsed
@@ -49,7 +49,31 @@ extension publication. Restore the exact saved production feed descriptor,
 rebuild/restart its service if code changed, and verify the old public offer;
 website activation can be reverted independently. Preserve failed receipts.
 
-Halting offers does not downgrade installed clients. Stop all engine writers
+Halting offers does not downgrade installed apps. Stop all engine writers
 before any manual rollback, retain original payload and library backups, and
-use [recovery guidance](user-support.md). Never clear the library as an update
-workaround. Reports and screenshots stay under the ignored evidence directory.
+use the [preview-build recovery](#preview-build-recovery) notes below. Never
+clear the library as an update workaround. Reports and screenshots stay under
+the ignored evidence directory. User-facing help lives in
+[user support](user-support.md) and the website support page.
+
+### Preview-build recovery
+
+Earlier `0.1.x` preview packages are unsupported incubation builds. A newer
+preview may reset their torrent catalog, settings and private state; downloaded
+files are separate. These resets do not apply to production migration. An older
+build may refuse a newer catalog, and downgrade compatibility is not promised
+for `0.1.x`; preserve a stopped private profile before trying an older build.
+A catalog reset is bounded to application-owned catalog files and never
+authorizes removing a download root or unrelated files.
+
+Preview `0.1.3` has a Windows old-catalog reset failure: an update can replace
+the executable and then fail before opening a usable window. After confirming
+the app is stopped, moving `%APPDATA%\com.jstorrent.rstorrent\profile` aside
+preserves it for inspection and allows a fresh private profile on next launch.
+This loses the old library/settings view but not the download folder. Keep the
+old profile until recovery is settled, and do not apply this to a download
+folder or to unrelated startup failures without identifying their cause.
+
+On Linux GNOME, a usable tray affordance depends on indicator support. The
+qualified x86_64 appliance had an inactive indicator extension; native Quit
+worked, but visible tray presentation was not proved.

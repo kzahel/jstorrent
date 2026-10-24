@@ -1,4 +1,4 @@
-//! Opt-in native webview/ACL/system-browser smoke. Opens five public pages.
+//! Opt-in native webview/ACL/system-browser smoke. Opens seven public pages.
 //! Run with `cargo run -p rstorrent-desktop --example external_links_smoke`.
 //! No engine, profile, migration, native-host registration, or updater is started.
 use std::borrow::Cow;
@@ -9,7 +9,9 @@ addEventListener('DOMContentLoaded', async () => {
   const allowed = [
     'https://github.com/kzahel/jstorrent/issues',
     'https://github.com/kzahel/jstorrent/issues/new',
-    'https://github.com/kzahel/jstorrent/blob/main/docs/user-support.md',
+    'https://github.com/kzahel/jstorrent/issues/new?body=%23%23%23+Diagnostics',
+    'https://jstorrent.com/feedback.html?platform=mac&v=0.3.0',
+    'https://jstorrent.com/support/',
     'https://github.com/kzahel/jstorrent/releases/latest',
     'https://github.com/kzahel/jstorrent/releases/tag/v0.3.0',
   ];
@@ -20,6 +22,8 @@ addEventListener('DOMContentLoaded', async () => {
     'https://github.com/kzahel/jstorrent/issues/123',
     'https://github.com/kzahel/jstorrent/releases/tagged/v0.3.0',
     'https://github.com/kzahel/jstorrent/issues?unexpected=1',
+    'https://github.com/kzahel/jstorrent/issues/newer',
+    'https://jstorrent.com/feedback.htmlx', 'https://jstorrent.com/privacy.html',
   ];
   const results = [];
   for (const url of denied) {
@@ -60,7 +64,7 @@ fn smoke_done(app: tauri::AppHandle, results: Vec<bool>) {
         serde_json::json!({"cases": results.len(), "passed": results.iter().filter(|passed| **passed).count()})
     );
     app.exit(i32::from(
-        results.len() != 14 || results.iter().any(|passed| !passed),
+        results.len() != 19 || results.iter().any(|passed| !passed),
     ));
 }
 

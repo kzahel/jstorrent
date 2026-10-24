@@ -15,7 +15,14 @@ export const validateApplicationServerFrame: StandaloneValidateFunction;
 export const validateResponseEnvelope: StandaloneValidateFunction;
 export const validateApiErrorEnvelope: StandaloneValidateFunction;
 export const validateChooseDownloadRootResponse: StandaloneValidateFunction;
-export const validateCommand: StandaloneValidateFunction;
 export const validateMediaUrlResponse: StandaloneValidateFunction;
 export const validateOpenViewSetResponse: StandaloneValidateFunction;
 export const validateUpdateBatch: StandaloneValidateFunction;
+
+/** The row field kinds this client knows, per row-update union. */
+export const ROW_FIELD_KINDS: {
+  readonly ActivePieceFieldUpdate: readonly string[];
+  readonly FileFieldUpdate: readonly string[];
+  readonly PeerFieldUpdate: readonly string[];
+  readonly TorrentFieldUpdate: readonly string[];
+};

@@ -107,7 +107,7 @@ work is active, ready, or later without reserving an exclusive slot.
 
 ## Current Truth
 
-- Every ordinary product client now inherits `PreferUtp` from the common
+- Every ordinary product now inherits `PreferUtp` from the common
   durable/ephemeral application constructor. The session accepts incoming
   IPv4 plaintext uTP, eligible outgoing dials prefer uTP and fall back
   sequentially to TCP after joined transport failure, and the existing peer
@@ -325,7 +325,7 @@ hardest risks are behavioral: sequence and timestamp wrap, reordered or
 duplicated packets, selective acknowledgements, timeout and fast-retransmit
 interaction, receive-window pressure, MTU discovery, clock drift, delay
 history, LEDBAT response under competing traffic, UDP queue loss, connection
-teardown, and client interoperability.
+teardown, and peer interoperability.
 
 The campaign therefore uses these rules:
 
@@ -602,7 +602,7 @@ not indicated. The next human choice is:
 
 1. **A — Stage 4 controlled outbound WAN evidence (recommended):** draft one
    bounded tactical for RSTorrent to dial a forced-uTP libtorrent seed on the
-   already identified authorized remote host over its ordinary routed path.
+   already identified authorized remote machine over its ordinary routed path.
    Retain the exact payload/hash and terminal-owner gates, add bounded path
    RTT/loss/MTU/controller observations, and defer reverse incoming traffic
    until truthful UDP reachability exists.
@@ -614,10 +614,10 @@ not indicated. The next human choice is:
    enabling them. This can clarify eventual controls, but it moves policy
    ahead of realistic path evidence and is not recommended.
 
-Choice A requires explicit authorization for the remote host and its external
-network. None of these choices authorizes reverse-direction incoming UDP,
-mapping/pinhole work, a public swarm, physical devices, MSE-over-uTP, IPv6 uTP,
-product enablement, a dependency, or a support-claim change.
+Choice A requires explicit authorization for the remote machine and its
+external network. None of these choices authorizes reverse-direction incoming
+UDP, mapping/pinhole work, a public swarm, physical devices, MSE-over-uTP, IPv6
+uTP, product enablement, a dependency, or a support-claim change.
 
 Human review selected choice A on 2026-08-10. Tactical
 [`126`](../tactical/126-controlled-outbound-utp-wan-evidence.md) fixes the
@@ -679,7 +679,7 @@ The next human choice is:
 No choice is implicit. Choice A requires explicit authority to use the local
 gateway mapping even though Tactical `127`'s capability-gated fallback was not
 triggered. None of the choices authorizes a permanent network change, another
-remote host, IPv6 uTP, a public swarm, a dependency, or a support-claim change.
+remote machine, IPv6 uTP, a public swarm, a dependency, or a support-claim change.
 
 Human review selected choice A and additionally authorized the bounded
 bidirectional cohort, real-socket impairment/lifecycle work, and evidence-led
@@ -703,7 +703,7 @@ application policy without claiming the rest of broad Stage 5:
   `prefer`/`required` stay on TCP;
 - uTP transport failure joins to zero before one sequential TCP fallback under
   the same logical dial, peer generation, and permit; and
-- shipped/default clients, mapping, advertisement, settings, presentation,
+- shipped/default products, mapping, advertisement, settings, presentation,
   and the BEP 29 claim are unchanged.
 
 The controlled application gate passes against pinned libtorrent `2.0.13.0`
@@ -805,7 +805,7 @@ layer:
 3. **Controlled interoperability:** pinned libtorrent runs in both seed and
    leecher roles with incoming and outgoing TCP disabled. Exact content hashes
    and observed transport prove the result.
-4. **Controlled WAN interoperability:** an authorized remote host supplies a
+4. **Controlled WAN interoperability:** an authorized remote machine supplies a
    real routed path, not merely LAN conditions. Exact endpoint, direction,
    version, network conditions, and artifact retention are recorded.
 5. **Representative live observation:** opt-in public-swarm runs may find

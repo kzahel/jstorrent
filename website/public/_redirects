@@ -11,3 +11,10 @@
 /comingsoon4 /#download 301
 /comingsoon5.html /#download 301
 /comingsoon5 /#download 301
+
+# Controller document entry points only; preserve legacy hashed assets.
+/remote https://remote.jstorrent.com/ 302
+/remote/ https://remote.jstorrent.com/ 302
+/remote/index.html https://remote.jstorrent.com/ 302
+/remote/remote.html https://remote.jstorrent.com/ 302
+/remote.html https://remote.jstorrent.com/ 302

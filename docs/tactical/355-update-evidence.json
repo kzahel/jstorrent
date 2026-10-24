@@ -1,0 +1,3090 @@
+{
+  "schema": "jstorrent-unattended-update-evidence/v1",
+  "date": "2026-10-16",
+  "scope": "Synthetic signed payloads on native ARM64 VMs; shipping signatures/notarization and other architectures remain unqualified. Each fixture binds its own source snapshot.",
+  "runs": [
+    {
+      "run": "linux-foreground",
+      "scenario": "foreground",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "f971b54d469960a33f5aa56b3b80ef6a9e7f884f33f223b297dba1f23f3625a4",
+        "platform": "linux",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_aarch64.AppImage",
+                "sha256": "a1d7b1add3f899e309eb16ed6b378e88495f11674aa382e8977c345d0d06d412",
+                "size": 140585480
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_aarch64.AppImage.sig",
+                "sha256": "c61d8d0c7cff56fbd7f83206d38f411d83784d73b95403187d744c92a2066540",
+                "size": 456
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_aarch64.AppImage",
+                "sha256": "87d48186fe409d384c3006319b654ad59946d5625c6ad67dacc1c70a1203afe2",
+                "size": 140577288
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_aarch64.AppImage.sig",
+                "sha256": "9258084363e893a550c573e1ea7fd9492aa95981c8c31be65d0b40d7b9fe4a67",
+                "size": 456
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "independent-editor-starts-empty",
+          "passed": true
+        },
+        {
+          "name": "native-observer-sees-visible-qualification-window",
+          "passed": true
+        },
+        {
+          "name": "installed-image-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-and-successful-startup-retained",
+          "passed": true
+        }
+      ],
+      "secondsToB": 30.576,
+      "installed": {
+        "hashMatchesB": true,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        },
+        "statisticsOptOutPreserved": true
+      }
+    },
+    {
+      "run": "linux-hidden-3",
+      "scenario": "hidden",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "f971b54d469960a33f5aa56b3b80ef6a9e7f884f33f223b297dba1f23f3625a4",
+        "platform": "linux",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_aarch64.AppImage",
+                "sha256": "a1d7b1add3f899e309eb16ed6b378e88495f11674aa382e8977c345d0d06d412",
+                "size": 140585480
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_aarch64.AppImage.sig",
+                "sha256": "c61d8d0c7cff56fbd7f83206d38f411d83784d73b95403187d744c92a2066540",
+                "size": 456
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_aarch64.AppImage",
+                "sha256": "87d48186fe409d384c3006319b654ad59946d5625c6ad67dacc1c70a1203afe2",
+                "size": 140577288
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_aarch64.AppImage.sig",
+                "sha256": "9258084363e893a550c573e1ea7fd9492aa95981c8c31be65d0b40d7b9fe4a67",
+                "size": 456
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "independent-editor-has-focus-before-offer",
+          "passed": true
+        },
+        {
+          "name": "baseline-input-reaches-independent-editor",
+          "passed": true
+        },
+        {
+          "name": "independent-editor-starts-empty",
+          "passed": true
+        },
+        {
+          "name": "qualification-app-never-activates-over-editor",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "native-window-never-shows-during-update",
+          "passed": true
+        },
+        {
+          "name": "installed-image-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-and-successful-startup-retained",
+          "passed": true
+        }
+      ],
+      "secondsToB": 74.753,
+      "keyboard": {
+        "expectedLength": 27,
+        "actualLength": 27,
+        "expectedSha256": "a38821602b221fbcceeb028ff0fc84e439d081709a74cce68e9fbc335994b48f",
+        "actualSha256": "a38821602b221fbcceeb028ff0fc84e439d081709a74cce68e9fbc335994b48f"
+      },
+      "installed": {
+        "hashMatchesB": true,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        },
+        "statisticsOptOutPreserved": true
+      },
+      "baselineEditorFocusLosses": 6
+    },
+    {
+      "run": "macos-bad-signature-v8",
+      "scenario": "hidden",
+      "fault": "bad-signature",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "7e311409274a715e71929e1abb68e8cb409268c6af53210dc7f1fbd90f8a501d",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "cf37a54f72ac232435e3b601f21f482f2ac74246ea46c1adfb9f6b5dc0443504",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "679f69775b85d5ec0de36a3d1aab5d7f3000030b683e8c89718298794465057e",
+                "size": 20850707
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "615d9f16d8e8035646802155251b07a5f06c01e523c9203b85d018d8d127fec7",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "398437c6754f9b75891c81086392ae33edc296fc66fb85e2c89e231f3c4ec502",
+                "size": 20850031
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "negative-update-is-reported",
+          "passed": true
+        },
+        {
+          "name": "negative-update-retains-original-process-and-executable",
+          "passed": true
+        },
+        {
+          "name": "only-verified-downloads-remain-cached",
+          "passed": true
+        }
+      ],
+      "retained": {
+        "originalAlive": true,
+        "hashUnchanged": true,
+        "cached": false,
+        "updated": false
+      }
+    },
+    {
+      "run": "macos-closed-v8",
+      "scenario": "closed",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "7e311409274a715e71929e1abb68e8cb409268c6af53210dc7f1fbd90f8a501d",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "cf37a54f72ac232435e3b601f21f482f2ac74246ea46c1adfb9f6b5dc0443504",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "679f69775b85d5ec0de36a3d1aab5d7f3000030b683e8c89718298794465057e",
+                "size": 20850707
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "615d9f16d8e8035646802155251b07a5f06c01e523c9203b85d018d8d127fec7",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "398437c6754f9b75891c81086392ae33edc296fc66fb85e2c89e231f3c4ec502",
+                "size": 20850031
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "closing-existing-window-retains-background-host",
+          "passed": true
+        },
+        {
+          "name": "new-host-reports-compiled-version-B",
+          "passed": true
+        },
+        {
+          "name": "background-update-never-activates-JSTorrent",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-keyboard-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "hidden-or-minimized-update-never-shows-native-window",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "one-new-host-and-old-process-gone",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-survives-update",
+          "passed": true
+        },
+        {
+          "name": "success-recorded-after-B-startup",
+          "passed": true
+        }
+      ],
+      "secondsToB": 61.18,
+      "keyboard": {
+        "expectedLength": 36,
+        "actualLength": 36,
+        "expectedSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "actualSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "firstDifference": 36
+      },
+      "installed": {
+        "installedHashMatchesB": true,
+        "statisticsOptOutPreserved": true,
+        "automaticInstall": 1,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    },
+    {
+      "run": "macos-foreground-v9-1",
+      "scenario": "foreground",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "c989a7911df4e6a0a4cbae943cb1ea01dcd64bc300bbed7ca9c8d8c28ae2b859",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "53317659c9fc5177dae23955eca3cfbf123b85fcdeeed698f4d7fd636dfd2eaf",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8a72d85fd7f231b53d4e5365d547c2a49e91ac5f913e96c9f2fd900201cd05f0",
+                "size": 20855330
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "725e800c5812b1564195e0517e5f90cdc7c999dc396e18b115b56f1c1a05fd34",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8f6f3221226fb2a6d2166e3bade5861e987736101b8c24fb6af2a034b26dbb64",
+                "size": 20855311
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "new-host-reports-compiled-version-B",
+          "passed": true
+        },
+        {
+          "name": "foreground-is-restored",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "one-new-host-and-old-process-gone",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-survives-update",
+          "passed": true
+        },
+        {
+          "name": "success-recorded-after-B-startup",
+          "passed": true
+        }
+      ],
+      "secondsToB": 26.017,
+      "installed": {
+        "installedHashMatchesB": true,
+        "statisticsOptOutPreserved": true,
+        "automaticInstall": 1,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    },
+    {
+      "run": "macos-foreground-v9-2",
+      "scenario": "foreground",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "c989a7911df4e6a0a4cbae943cb1ea01dcd64bc300bbed7ca9c8d8c28ae2b859",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "53317659c9fc5177dae23955eca3cfbf123b85fcdeeed698f4d7fd636dfd2eaf",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8a72d85fd7f231b53d4e5365d547c2a49e91ac5f913e96c9f2fd900201cd05f0",
+                "size": 20855330
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "725e800c5812b1564195e0517e5f90cdc7c999dc396e18b115b56f1c1a05fd34",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8f6f3221226fb2a6d2166e3bade5861e987736101b8c24fb6af2a034b26dbb64",
+                "size": 20855311
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "new-host-reports-compiled-version-B",
+          "passed": true
+        },
+        {
+          "name": "foreground-is-restored",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "one-new-host-and-old-process-gone",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-survives-update",
+          "passed": true
+        },
+        {
+          "name": "success-recorded-after-B-startup",
+          "passed": true
+        }
+      ],
+      "secondsToB": 24.448,
+      "installed": {
+        "installedHashMatchesB": true,
+        "statisticsOptOutPreserved": true,
+        "automaticInstall": 1,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    },
+    {
+      "run": "macos-hidden-real-timing-v6",
+      "scenario": "hidden",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "95ac9685921586a3c3300edaff18a75798413f62e5c8bdc04e3342186a907b89",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 900,
+        "noticeSeconds": 60,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "f23953265461babea52be410828e64b9198caf3b283771c5343e9824743cc107",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8f581185d9d8132eeccba3be6746165fb296a2d7b874cd63b26ecc8d1e782a55",
+                "size": 20831043
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "60251e971bace55841ec1693a20e29dbd2d02bd6c667f935f0d5bc25c9fd41e0",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "402c23a07cbf6d7e3588db15d0237cdd054fe6c91e3c92806e5d3c49fa2d4366",
+                "size": 20831771
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "new-host-reports-compiled-version-B",
+          "passed": true
+        },
+        {
+          "name": "background-update-never-activates-JSTorrent",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-keyboard-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "hidden-or-minimized-update-never-shows-native-window",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "one-new-host-and-old-process-gone",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-survives-update",
+          "passed": true
+        },
+        {
+          "name": "success-recorded-after-B-startup",
+          "passed": true
+        }
+      ],
+      "secondsToB": 979.772,
+      "keyboard": {
+        "expectedLength": 1035,
+        "actualLength": 1035,
+        "expectedSha256": "20a0e88764ee59f3500083f80c06b620f74c78ae8771d1a59ccb67c35db4e9a6",
+        "actualSha256": "20a0e88764ee59f3500083f80c06b620f74c78ae8771d1a59ccb67c35db4e9a6",
+        "firstDifference": 1035
+      },
+      "installed": {
+        "installedHashMatchesB": true,
+        "statisticsOptOutPreserved": true,
+        "automaticInstall": 1,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    },
+    {
+      "run": "macos-hidden-v9-1",
+      "scenario": "hidden",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "c989a7911df4e6a0a4cbae943cb1ea01dcd64bc300bbed7ca9c8d8c28ae2b859",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "53317659c9fc5177dae23955eca3cfbf123b85fcdeeed698f4d7fd636dfd2eaf",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8a72d85fd7f231b53d4e5365d547c2a49e91ac5f913e96c9f2fd900201cd05f0",
+                "size": 20855330
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "725e800c5812b1564195e0517e5f90cdc7c999dc396e18b115b56f1c1a05fd34",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8f6f3221226fb2a6d2166e3bade5861e987736101b8c24fb6af2a034b26dbb64",
+                "size": 20855311
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "new-host-reports-compiled-version-B",
+          "passed": true
+        },
+        {
+          "name": "background-update-never-activates-JSTorrent",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-keyboard-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "hidden-or-minimized-update-never-shows-native-window",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "one-new-host-and-old-process-gone",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-survives-update",
+          "passed": true
+        },
+        {
+          "name": "success-recorded-after-B-startup",
+          "passed": true
+        }
+      ],
+      "secondsToB": 40.302,
+      "keyboard": {
+        "expectedLength": 36,
+        "actualLength": 36,
+        "expectedSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "actualSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "firstDifference": 36
+      },
+      "installed": {
+        "installedHashMatchesB": true,
+        "statisticsOptOutPreserved": true,
+        "automaticInstall": 1,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    },
+    {
+      "run": "macos-hidden-v9-2",
+      "scenario": "hidden",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "c989a7911df4e6a0a4cbae943cb1ea01dcd64bc300bbed7ca9c8d8c28ae2b859",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "53317659c9fc5177dae23955eca3cfbf123b85fcdeeed698f4d7fd636dfd2eaf",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8a72d85fd7f231b53d4e5365d547c2a49e91ac5f913e96c9f2fd900201cd05f0",
+                "size": 20855330
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "725e800c5812b1564195e0517e5f90cdc7c999dc396e18b115b56f1c1a05fd34",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8f6f3221226fb2a6d2166e3bade5861e987736101b8c24fb6af2a034b26dbb64",
+                "size": 20855311
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "new-host-reports-compiled-version-B",
+          "passed": true
+        },
+        {
+          "name": "background-update-never-activates-JSTorrent",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-keyboard-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "hidden-or-minimized-update-never-shows-native-window",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "one-new-host-and-old-process-gone",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-survives-update",
+          "passed": true
+        },
+        {
+          "name": "success-recorded-after-B-startup",
+          "passed": true
+        }
+      ],
+      "secondsToB": 41.882,
+      "keyboard": {
+        "expectedLength": 36,
+        "actualLength": 36,
+        "expectedSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "actualSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "firstDifference": 36
+      },
+      "installed": {
+        "installedHashMatchesB": true,
+        "statisticsOptOutPreserved": true,
+        "automaticInstall": 1,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    },
+    {
+      "run": "macos-interrupted-v8",
+      "scenario": "hidden",
+      "fault": "interrupted",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "7e311409274a715e71929e1abb68e8cb409268c6af53210dc7f1fbd90f8a501d",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "cf37a54f72ac232435e3b601f21f482f2ac74246ea46c1adfb9f6b5dc0443504",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "679f69775b85d5ec0de36a3d1aab5d7f3000030b683e8c89718298794465057e",
+                "size": 20850707
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "615d9f16d8e8035646802155251b07a5f06c01e523c9203b85d018d8d127fec7",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "398437c6754f9b75891c81086392ae33edc296fc66fb85e2c89e231f3c4ec502",
+                "size": 20850031
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "negative-update-is-reported",
+          "passed": true
+        },
+        {
+          "name": "negative-update-retains-original-process-and-executable",
+          "passed": true
+        },
+        {
+          "name": "only-verified-downloads-remain-cached",
+          "passed": true
+        }
+      ],
+      "retained": {
+        "originalAlive": true,
+        "hashUnchanged": true,
+        "cached": false,
+        "updated": false
+      }
+    },
+    {
+      "run": "macos-minimized-v9-1",
+      "scenario": "minimized",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "c989a7911df4e6a0a4cbae943cb1ea01dcd64bc300bbed7ca9c8d8c28ae2b859",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "53317659c9fc5177dae23955eca3cfbf123b85fcdeeed698f4d7fd636dfd2eaf",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8a72d85fd7f231b53d4e5365d547c2a49e91ac5f913e96c9f2fd900201cd05f0",
+                "size": 20855330
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "725e800c5812b1564195e0517e5f90cdc7c999dc396e18b115b56f1c1a05fd34",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8f6f3221226fb2a6d2166e3bade5861e987736101b8c24fb6af2a034b26dbb64",
+                "size": 20855311
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "new-host-reports-compiled-version-B",
+          "passed": true
+        },
+        {
+          "name": "background-update-never-activates-JSTorrent",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-keyboard-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "hidden-or-minimized-update-never-shows-native-window",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "one-new-host-and-old-process-gone",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-survives-update",
+          "passed": true
+        },
+        {
+          "name": "success-recorded-after-B-startup",
+          "passed": true
+        }
+      ],
+      "secondsToB": 39.644,
+      "keyboard": {
+        "expectedLength": 36,
+        "actualLength": 36,
+        "expectedSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "actualSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "firstDifference": 36
+      },
+      "installed": {
+        "installedHashMatchesB": true,
+        "statisticsOptOutPreserved": true,
+        "automaticInstall": 1,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    },
+    {
+      "run": "macos-minimized-v9-2",
+      "scenario": "minimized",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "c989a7911df4e6a0a4cbae943cb1ea01dcd64bc300bbed7ca9c8d8c28ae2b859",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "53317659c9fc5177dae23955eca3cfbf123b85fcdeeed698f4d7fd636dfd2eaf",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8a72d85fd7f231b53d4e5365d547c2a49e91ac5f913e96c9f2fd900201cd05f0",
+                "size": 20855330
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "725e800c5812b1564195e0517e5f90cdc7c999dc396e18b115b56f1c1a05fd34",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8f6f3221226fb2a6d2166e3bade5861e987736101b8c24fb6af2a034b26dbb64",
+                "size": 20855311
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "new-host-reports-compiled-version-B",
+          "passed": true
+        },
+        {
+          "name": "background-update-never-activates-JSTorrent",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-keyboard-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "hidden-or-minimized-update-never-shows-native-window",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "one-new-host-and-old-process-gone",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-survives-update",
+          "passed": true
+        },
+        {
+          "name": "success-recorded-after-B-startup",
+          "passed": true
+        }
+      ],
+      "secondsToB": 42.655,
+      "keyboard": {
+        "expectedLength": 36,
+        "actualLength": 36,
+        "expectedSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "actualSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "firstDifference": 36
+      },
+      "installed": {
+        "installedHashMatchesB": true,
+        "statisticsOptOutPreserved": true,
+        "automaticInstall": 1,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    },
+    {
+      "run": "macos-offline-v8",
+      "scenario": "hidden",
+      "fault": "offline",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "7e311409274a715e71929e1abb68e8cb409268c6af53210dc7f1fbd90f8a501d",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "cf37a54f72ac232435e3b601f21f482f2ac74246ea46c1adfb9f6b5dc0443504",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "679f69775b85d5ec0de36a3d1aab5d7f3000030b683e8c89718298794465057e",
+                "size": 20850707
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "615d9f16d8e8035646802155251b07a5f06c01e523c9203b85d018d8d127fec7",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "398437c6754f9b75891c81086392ae33edc296fc66fb85e2c89e231f3c4ec502",
+                "size": 20850031
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "negative-update-is-reported",
+          "passed": true
+        },
+        {
+          "name": "negative-update-retains-original-process-and-executable",
+          "passed": true
+        },
+        {
+          "name": "only-verified-downloads-remain-cached",
+          "passed": true
+        }
+      ],
+      "retained": {
+        "originalAlive": true,
+        "hashUnchanged": true,
+        "cached": true,
+        "updated": false
+      }
+    },
+    {
+      "run": "macos-oversized-v8",
+      "scenario": "hidden",
+      "fault": "oversized",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "7e311409274a715e71929e1abb68e8cb409268c6af53210dc7f1fbd90f8a501d",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "cf37a54f72ac232435e3b601f21f482f2ac74246ea46c1adfb9f6b5dc0443504",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "679f69775b85d5ec0de36a3d1aab5d7f3000030b683e8c89718298794465057e",
+                "size": 20850707
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "615d9f16d8e8035646802155251b07a5f06c01e523c9203b85d018d8d127fec7",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "398437c6754f9b75891c81086392ae33edc296fc66fb85e2c89e231f3c4ec502",
+                "size": 20850031
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "negative-update-is-reported",
+          "passed": true
+        },
+        {
+          "name": "negative-update-retains-original-process-and-executable",
+          "passed": true
+        },
+        {
+          "name": "only-verified-downloads-remain-cached",
+          "passed": true
+        }
+      ],
+      "retained": {
+        "originalAlive": true,
+        "hashUnchanged": true,
+        "cached": false,
+        "updated": false
+      }
+    },
+    {
+      "run": "macos-switch-away-v9-1",
+      "scenario": "switch-away",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "c989a7911df4e6a0a4cbae943cb1ea01dcd64bc300bbed7ca9c8d8c28ae2b859",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "53317659c9fc5177dae23955eca3cfbf123b85fcdeeed698f4d7fd636dfd2eaf",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8a72d85fd7f231b53d4e5365d547c2a49e91ac5f913e96c9f2fd900201cd05f0",
+                "size": 20855330
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "725e800c5812b1564195e0517e5f90cdc7c999dc396e18b115b56f1c1a05fd34",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8f6f3221226fb2a6d2166e3bade5861e987736101b8c24fb6af2a034b26dbb64",
+                "size": 20855311
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "new-host-reports-compiled-version-B",
+          "passed": true
+        },
+        {
+          "name": "switch-away-during-process-gap-exercised",
+          "passed": true
+        },
+        {
+          "name": "new-host-does-not-activate-over-new-input",
+          "passed": true
+        },
+        {
+          "name": "switch-away-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "one-new-host-and-old-process-gone",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-survives-update",
+          "passed": true
+        },
+        {
+          "name": "success-recorded-after-B-startup",
+          "passed": true
+        }
+      ],
+      "secondsToB": 56.499,
+      "installed": {
+        "installedHashMatchesB": true,
+        "statisticsOptOutPreserved": true,
+        "automaticInstall": 1,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    },
+    {
+      "run": "macos-switch-away-v9-2",
+      "scenario": "switch-away",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "c989a7911df4e6a0a4cbae943cb1ea01dcd64bc300bbed7ca9c8d8c28ae2b859",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "53317659c9fc5177dae23955eca3cfbf123b85fcdeeed698f4d7fd636dfd2eaf",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8a72d85fd7f231b53d4e5365d547c2a49e91ac5f913e96c9f2fd900201cd05f0",
+                "size": 20855330
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "725e800c5812b1564195e0517e5f90cdc7c999dc396e18b115b56f1c1a05fd34",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8f6f3221226fb2a6d2166e3bade5861e987736101b8c24fb6af2a034b26dbb64",
+                "size": 20855311
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "new-host-reports-compiled-version-B",
+          "passed": true
+        },
+        {
+          "name": "switch-away-during-process-gap-exercised",
+          "passed": true
+        },
+        {
+          "name": "new-host-does-not-activate-over-new-input",
+          "passed": true
+        },
+        {
+          "name": "switch-away-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "one-new-host-and-old-process-gone",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-survives-update",
+          "passed": true
+        },
+        {
+          "name": "success-recorded-after-B-startup",
+          "passed": true
+        }
+      ],
+      "secondsToB": 58.46,
+      "installed": {
+        "installedHashMatchesB": true,
+        "statisticsOptOutPreserved": true,
+        "automaticInstall": 1,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    },
+    {
+      "run": "macos-transfers-2",
+      "scenario": "hidden",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "c989a7911df4e6a0a4cbae943cb1ea01dcd64bc300bbed7ca9c8d8c28ae2b859",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "53317659c9fc5177dae23955eca3cfbf123b85fcdeeed698f4d7fd636dfd2eaf",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8a72d85fd7f231b53d4e5365d547c2a49e91ac5f913e96c9f2fd900201cd05f0",
+                "size": 20855330
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "725e800c5812b1564195e0517e5f90cdc7c999dc396e18b115b56f1c1a05fd34",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8f6f3221226fb2a6d2166e3bade5861e987736101b8c24fb6af2a034b26dbb64",
+                "size": 20855311
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "new-host-reports-compiled-version-B",
+          "passed": true
+        },
+        {
+          "name": "background-update-never-activates-JSTorrent",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-keyboard-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "hidden-or-minimized-update-never-shows-native-window",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "one-new-host-and-old-process-gone",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-survives-update",
+          "passed": true
+        },
+        {
+          "name": "success-recorded-after-B-startup",
+          "passed": true
+        },
+        {
+          "name": "download-resumes-and-paused-content-is-unchanged",
+          "passed": true
+        },
+        {
+          "name": "restarted-B-uploads-verified-content-to-independent-peer",
+          "passed": true
+        }
+      ],
+      "secondsToB": 47.315,
+      "keyboard": {
+        "expectedLength": 117,
+        "actualLength": 117,
+        "expectedSha256": "53c979db230195307a8d7816c8aa05e32685e10d61cb610a10a245a96e8a5c4b",
+        "actualSha256": "53c979db230195307a8d7816c8aa05e32685e10d61cb610a10a245a96e8a5c4b",
+        "firstDifference": 117
+      },
+      "installed": {
+        "installedHashMatchesB": true,
+        "statisticsOptOutPreserved": true,
+        "automaticInstall": 1,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      },
+      "transfers": {
+        "before": {
+          "t1-195ae6bca324f561676b97a8c1e72bdd": {
+            "torrent_id": "t1-195ae6bca324f561676b97a8c1e72bdd",
+            "protocol_identities": {
+              "v1": "00b549a2678b6a97aaa182f1197b34c746d85489"
+            },
+            "storage_root": "downloads",
+            "state": "complete",
+            "storage_state": "available",
+            "metadata_available": true,
+            "awaiting_file_selection": false,
+            "selectable_file_count": 0,
+            "selected_file_count": 0,
+            "selectable_file_bytes": "0",
+            "selected_file_bytes": "0",
+            "piece_count": 32,
+            "verified_piece_count": 32,
+            "desired_running": true,
+            "transfer_limits": {
+              "upload": {
+                "type": "unlimited"
+              },
+              "download": {
+                "type": "unlimited"
+              }
+            },
+            "seed_stop_limits": {
+              "ratio_percent": {
+                "type": "use_global"
+              },
+              "time_seconds": {
+                "type": "use_global"
+              }
+            },
+            "seed_limit_stopped": false,
+            "skip_files": [],
+            "high_priority_files": [],
+            "selection_default": "normal",
+            "selection_exceptions": [],
+            "archived": false,
+            "delete_data_supported": true,
+            "force_recheck_available": true
+          },
+          "t1-25c1f5dd680c6c630eb06887554f2c65": {
+            "torrent_id": "t1-25c1f5dd680c6c630eb06887554f2c65",
+            "protocol_identities": {
+              "v1": "9ea6f6698f9fc80b4681f81a9cf5692cc5e0429b"
+            },
+            "storage_root": "downloads",
+            "state": "downloading",
+            "storage_state": "available",
+            "metadata_available": true,
+            "awaiting_file_selection": false,
+            "selectable_file_count": 0,
+            "selected_file_count": 0,
+            "selectable_file_bytes": "0",
+            "selected_file_bytes": "0",
+            "piece_count": 256,
+            "verified_piece_count": 4,
+            "desired_running": true,
+            "download_queue_position": 1,
+            "transfer_limits": {
+              "upload": {
+                "type": "unlimited"
+              },
+              "download": {
+                "type": "unlimited"
+              }
+            },
+            "seed_stop_limits": {
+              "ratio_percent": {
+                "type": "use_global"
+              },
+              "time_seconds": {
+                "type": "use_global"
+              }
+            },
+            "seed_limit_stopped": false,
+            "skip_files": [],
+            "high_priority_files": [],
+            "selection_default": "normal",
+            "selection_exceptions": [],
+            "archived": false,
+            "delete_data_supported": true,
+            "force_recheck_available": true
+          },
+          "t1-2c2915f1b200f89fa732fb21f32f057b": {
+            "torrent_id": "t1-2c2915f1b200f89fa732fb21f32f057b",
+            "protocol_identities": {
+              "v1": "3192f9e4c04466e1c8e7d99551dd3797f29667e4"
+            },
+            "storage_root": "downloads",
+            "state": "paused",
+            "storage_state": "available",
+            "metadata_available": true,
+            "awaiting_file_selection": false,
+            "selectable_file_count": 0,
+            "selected_file_count": 0,
+            "selectable_file_bytes": "0",
+            "selected_file_bytes": "0",
+            "piece_count": 16,
+            "verified_piece_count": 0,
+            "desired_running": false,
+            "download_queue_position": 2,
+            "transfer_limits": {
+              "upload": {
+                "type": "unlimited"
+              },
+              "download": {
+                "type": "unlimited"
+              }
+            },
+            "seed_stop_limits": {
+              "ratio_percent": {
+                "type": "use_global"
+              },
+              "time_seconds": {
+                "type": "use_global"
+              }
+            },
+            "seed_limit_stopped": false,
+            "skip_files": [],
+            "high_priority_files": [],
+            "selection_default": "normal",
+            "selection_exceptions": [],
+            "archived": false,
+            "delete_data_supported": true,
+            "force_recheck_available": true
+          }
+        },
+        "after": {
+          "intentPreserved": true,
+          "allHashesMatch": true,
+          "rows": {
+            "t1-195ae6bca324f561676b97a8c1e72bdd": {
+              "torrent_id": "t1-195ae6bca324f561676b97a8c1e72bdd",
+              "protocol_identities": {
+                "v1": "00b549a2678b6a97aaa182f1197b34c746d85489"
+              },
+              "storage_root": "downloads",
+              "state": "complete",
+              "storage_state": "available",
+              "metadata_available": true,
+              "awaiting_file_selection": false,
+              "selectable_file_count": 0,
+              "selected_file_count": 0,
+              "selectable_file_bytes": "0",
+              "selected_file_bytes": "0",
+              "piece_count": 32,
+              "verified_piece_count": 32,
+              "desired_running": true,
+              "transfer_limits": {
+                "upload": {
+                  "type": "unlimited"
+                },
+                "download": {
+                  "type": "unlimited"
+                }
+              },
+              "seed_stop_limits": {
+                "ratio_percent": {
+                  "type": "use_global"
+                },
+                "time_seconds": {
+                  "type": "use_global"
+                }
+              },
+              "seed_limit_stopped": false,
+              "skip_files": [],
+              "high_priority_files": [],
+              "selection_default": "normal",
+              "selection_exceptions": [],
+              "archived": false,
+              "delete_data_supported": true,
+              "force_recheck_available": true
+            },
+            "t1-25c1f5dd680c6c630eb06887554f2c65": {
+              "torrent_id": "t1-25c1f5dd680c6c630eb06887554f2c65",
+              "protocol_identities": {
+                "v1": "9ea6f6698f9fc80b4681f81a9cf5692cc5e0429b"
+              },
+              "storage_root": "downloads",
+              "state": "complete",
+              "storage_state": "available",
+              "metadata_available": true,
+              "awaiting_file_selection": false,
+              "selectable_file_count": 0,
+              "selected_file_count": 0,
+              "selectable_file_bytes": "0",
+              "selected_file_bytes": "0",
+              "piece_count": 256,
+              "verified_piece_count": 256,
+              "desired_running": true,
+              "transfer_limits": {
+                "upload": {
+                  "type": "unlimited"
+                },
+                "download": {
+                  "type": "unlimited"
+                }
+              },
+              "seed_stop_limits": {
+                "ratio_percent": {
+                  "type": "use_global"
+                },
+                "time_seconds": {
+                  "type": "use_global"
+                }
+              },
+              "seed_limit_stopped": false,
+              "skip_files": [],
+              "high_priority_files": [],
+              "selection_default": "normal",
+              "selection_exceptions": [],
+              "archived": false,
+              "delete_data_supported": true,
+              "force_recheck_available": true
+            },
+            "t1-2c2915f1b200f89fa732fb21f32f057b": {
+              "torrent_id": "t1-2c2915f1b200f89fa732fb21f32f057b",
+              "protocol_identities": {
+                "v1": "3192f9e4c04466e1c8e7d99551dd3797f29667e4"
+              },
+              "storage_root": "downloads",
+              "state": "paused",
+              "storage_state": "available",
+              "metadata_available": true,
+              "awaiting_file_selection": false,
+              "selectable_file_count": 0,
+              "selected_file_count": 0,
+              "selectable_file_bytes": "0",
+              "selected_file_bytes": "0",
+              "piece_count": 16,
+              "verified_piece_count": 0,
+              "desired_running": false,
+              "download_queue_position": 1,
+              "transfer_limits": {
+                "upload": {
+                  "type": "unlimited"
+                },
+                "download": {
+                  "type": "unlimited"
+                }
+              },
+              "seed_stop_limits": {
+                "ratio_percent": {
+                  "type": "use_global"
+                },
+                "time_seconds": {
+                  "type": "use_global"
+                }
+              },
+              "seed_limit_stopped": false,
+              "skip_files": [],
+              "high_priority_files": [],
+              "selection_default": "normal",
+              "selection_exceptions": [],
+              "archived": false,
+              "delete_data_supported": true,
+              "force_recheck_available": true
+            }
+          }
+        },
+        "independentLeech": {
+          "hashMatches": true,
+          "downloadedBytes": 2097152,
+          "sha256": "8bf1cd22248628e4deb4bf0a13f58dc3cada5277414b302b3c6efb647775e2d9"
+        }
+      },
+      "peerCleanupPassed": true
+    },
+    {
+      "run": "macos-unfocused-v9-1",
+      "scenario": "unfocused",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "c989a7911df4e6a0a4cbae943cb1ea01dcd64bc300bbed7ca9c8d8c28ae2b859",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "53317659c9fc5177dae23955eca3cfbf123b85fcdeeed698f4d7fd636dfd2eaf",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8a72d85fd7f231b53d4e5365d547c2a49e91ac5f913e96c9f2fd900201cd05f0",
+                "size": 20855330
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "725e800c5812b1564195e0517e5f90cdc7c999dc396e18b115b56f1c1a05fd34",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8f6f3221226fb2a6d2166e3bade5861e987736101b8c24fb6af2a034b26dbb64",
+                "size": 20855311
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "new-host-reports-compiled-version-B",
+          "passed": true
+        },
+        {
+          "name": "background-update-never-activates-JSTorrent",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-keyboard-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "one-new-host-and-old-process-gone",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-survives-update",
+          "passed": true
+        },
+        {
+          "name": "success-recorded-after-B-startup",
+          "passed": true
+        }
+      ],
+      "secondsToB": 39.093,
+      "keyboard": {
+        "expectedLength": 36,
+        "actualLength": 36,
+        "expectedSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "actualSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "firstDifference": 36
+      },
+      "installed": {
+        "installedHashMatchesB": true,
+        "statisticsOptOutPreserved": true,
+        "automaticInstall": 1,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    },
+    {
+      "run": "macos-unfocused-v9-2",
+      "scenario": "unfocused",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "c989a7911df4e6a0a4cbae943cb1ea01dcd64bc300bbed7ca9c8d8c28ae2b859",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "53317659c9fc5177dae23955eca3cfbf123b85fcdeeed698f4d7fd636dfd2eaf",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8a72d85fd7f231b53d4e5365d547c2a49e91ac5f913e96c9f2fd900201cd05f0",
+                "size": 20855330
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "725e800c5812b1564195e0517e5f90cdc7c999dc396e18b115b56f1c1a05fd34",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "8f6f3221226fb2a6d2166e3bade5861e987736101b8c24fb6af2a034b26dbb64",
+                "size": 20855311
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "new-host-reports-compiled-version-B",
+          "passed": true
+        },
+        {
+          "name": "background-update-never-activates-JSTorrent",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-keyboard-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "one-new-host-and-old-process-gone",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-survives-update",
+          "passed": true
+        },
+        {
+          "name": "success-recorded-after-B-startup",
+          "passed": true
+        }
+      ],
+      "secondsToB": 39.986,
+      "keyboard": {
+        "expectedLength": 36,
+        "actualLength": 36,
+        "expectedSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "actualSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "firstDifference": 36
+      },
+      "installed": {
+        "installedHashMatchesB": true,
+        "statisticsOptOutPreserved": true,
+        "automaticInstall": 1,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    },
+    {
+      "run": "macos-withdrawn-v8",
+      "scenario": "hidden",
+      "fault": "withdrawn",
+      "passed": true,
+      "cleanupPassed": true,
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "7e311409274a715e71929e1abb68e8cb409268c6af53210dc7f1fbd90f8a501d",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "cf37a54f72ac232435e3b601f21f482f2ac74246ea46c1adfb9f6b5dc0443504",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "679f69775b85d5ec0de36a3d1aab5d7f3000030b683e8c89718298794465057e",
+                "size": 20850707
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "615d9f16d8e8035646802155251b07a5f06c01e523c9203b85d018d8d127fec7",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "398437c6754f9b75891c81086392ae33edc296fc66fb85e2c89e231f3c4ec502",
+                "size": 20850031
+              }
+            ]
+          }
+        ]
+      },
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "negative-update-is-reported",
+          "passed": true
+        },
+        {
+          "name": "negative-update-retains-original-process-and-executable",
+          "passed": true
+        },
+        {
+          "name": "only-verified-downloads-remain-cached",
+          "passed": true
+        }
+      ],
+      "retained": {
+        "originalAlive": true,
+        "hashUnchanged": true,
+        "cached": true,
+        "updated": false
+      }
+    },
+    {
+      "scenario": "unfocused",
+      "fault": "none",
+      "passed": true,
+      "cleanupPassed": true,
+      "checks": [
+        {
+          "name": "editor-is-empty-before-critical-interval",
+          "passed": true
+        },
+        {
+          "name": "new-host-reports-compiled-version-B",
+          "passed": true
+        },
+        {
+          "name": "background-update-never-activates-JSTorrent",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-keyboard-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "one-new-host-and-old-process-gone",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-survives-update",
+          "passed": true
+        },
+        {
+          "name": "success-recorded-after-B-startup",
+          "passed": true
+        }
+      ],
+      "keyboard": {
+        "expectedLength": 1053,
+        "actualLength": 1053,
+        "expectedSha256": "b4ef8367e800aee65b77b80e3379eeba7c237dcd4eac98c076aa530d27c7cfa2",
+        "actualSha256": "b4ef8367e800aee65b77b80e3379eeba7c237dcd4eac98c076aa530d27c7cfa2",
+        "firstDifference": 1053
+      },
+      "run": "macos-unfocused-real-v10",
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "7eb58180cb8e0df201a8556abf49546060c5fe31b2d8df08dc4cd701fd92c374",
+        "platform": "darwin",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 900,
+        "noticeSeconds": 60,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "fde5c9c450e27986c8f1a431a70e7079ac3488a7acdff54efe83635c2016c868",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "641b3710906f182aa1802db23b15d806b9ebe19d5c58df7f98b5acf3b5a5080c",
+                "size": 20884581
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz.sig",
+                "sha256": "aee1d1eb2d1e8aa395129c7fac7adcc35cf86d25c8f15cbe350a9611eb563393",
+                "size": 436
+              },
+              {
+                "name": "JSTorrent Update Qualification.app.tar.gz",
+                "sha256": "f9d030c37c8faa938dddbbfd44b4b2754537900f80f23fb7439f2de1c758319b",
+                "size": 20884500
+              }
+            ]
+          }
+        ]
+      },
+      "installed": {
+        "installedHashMatchesB": true,
+        "statisticsOptOutPreserved": true,
+        "automaticInstall": 1,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      },
+      "secondsToB": 988.303
+    },
+    {
+      "scenario": "foreground",
+      "passed": true,
+      "cleanupPassed": true,
+      "checks": [
+        {
+          "name": "A-token-is-not-elevated",
+          "passed": true
+        },
+        {
+          "name": "ordinary-user-interactive-installation",
+          "passed": true
+        },
+        {
+          "name": "independent-editor-starts-empty",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-compiled-B",
+          "passed": true
+        },
+        {
+          "name": "one-B-process-and-original-gone",
+          "passed": true
+        },
+        {
+          "name": "B-token-is-not-elevated",
+          "passed": true
+        },
+        {
+          "name": "native-observer-sees-B-window",
+          "passed": true
+        },
+        {
+          "name": "foreground-restored",
+          "passed": true
+        }
+      ],
+      "run": "windows-foreground-fixture6",
+      "fault": "none",
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "66c8b67d5dc4544f1733526fd76d70cd8fa8ad2bda4fea8074ca6bc5199d1fa3",
+        "platform": "win32",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_arm64-setup.exe",
+                "sha256": "0a266f51e1bfd86fd18049e7d2cb23562423d0be15118eed67a2e30a23a5b079",
+                "size": 13466861
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_arm64-setup.exe.sig",
+                "sha256": "31b3cc49d5756417ff77e484171c99a0af1c87f93d4abe2cfaaeb9e52862ddcf",
+                "size": 452
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_arm64-setup.exe",
+                "sha256": "1a961e8f465b444dba548b9169ed3c43f3cdb641f108ce8d1d95d49a64de4dd2",
+                "size": 13465497
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_arm64-setup.exe.sig",
+                "sha256": "6d6f54e6531d44f239450501bb5ad20c8306572b1dd13c525524bab1908d4bf7",
+                "size": 452
+              }
+            ]
+          }
+        ]
+      },
+      "installed": {
+        "hashMatchesB": true,
+        "installedSha256": "973a328bd4ab7be2e97807836274e8551b1433fb211b488b6dcb61dff2827b4b",
+        "expectedPackagedSha256": "973a328bd4ab7be2e97807836274e8551b1433fb211b488b6dcb61dff2827b4b"
+      }
+    },
+    {
+      "scenario": "hidden",
+      "passed": true,
+      "cleanupPassed": true,
+      "checks": [
+        {
+          "name": "A-token-is-not-elevated",
+          "passed": true
+        },
+        {
+          "name": "ordinary-user-interactive-installation",
+          "passed": true
+        },
+        {
+          "name": "independent-editor-has-focus-before-offer",
+          "passed": true
+        },
+        {
+          "name": "independent-editor-starts-empty",
+          "passed": true
+        },
+        {
+          "name": "foreground-remains-with-independent-editor",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "background-install-and-relaunch-never-show-a-window",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-and-successful-startup-retained",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-compiled-B",
+          "passed": true
+        },
+        {
+          "name": "one-B-process-and-original-gone",
+          "passed": true
+        },
+        {
+          "name": "B-token-is-not-elevated",
+          "passed": true
+        }
+      ],
+      "keyboard": {
+        "expectedLength": 45,
+        "actualLength": 45,
+        "expectedSha256": "cdbce85d9070fc436ecd7139e293fef3c21899344b969a01cc09eb192a186138",
+        "actualSha256": "cdbce85d9070fc436ecd7139e293fef3c21899344b969a01cc09eb192a186138"
+      },
+      "run": "windows-hidden-fixture6-final",
+      "fault": "none",
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "66c8b67d5dc4544f1733526fd76d70cd8fa8ad2bda4fea8074ca6bc5199d1fa3",
+        "platform": "win32",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_arm64-setup.exe",
+                "sha256": "0a266f51e1bfd86fd18049e7d2cb23562423d0be15118eed67a2e30a23a5b079",
+                "size": 13466861
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_arm64-setup.exe.sig",
+                "sha256": "31b3cc49d5756417ff77e484171c99a0af1c87f93d4abe2cfaaeb9e52862ddcf",
+                "size": 452
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_arm64-setup.exe",
+                "sha256": "1a961e8f465b444dba548b9169ed3c43f3cdb641f108ce8d1d95d49a64de4dd2",
+                "size": 13465497
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_arm64-setup.exe.sig",
+                "sha256": "6d6f54e6531d44f239450501bb5ad20c8306572b1dd13c525524bab1908d4bf7",
+                "size": 452
+              }
+            ]
+          }
+        ]
+      },
+      "installed": {
+        "hashMatchesB": true,
+        "installedSha256": "973a328bd4ab7be2e97807836274e8551b1433fb211b488b6dcb61dff2827b4b",
+        "expectedPackagedSha256": "973a328bd4ab7be2e97807836274e8551b1433fb211b488b6dcb61dff2827b4b",
+        "statisticsOptOutPreserved": true,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    },
+    {
+      "scenario": "unfocused",
+      "passed": true,
+      "cleanupPassed": true,
+      "checks": [
+        {
+          "name": "A-token-is-not-elevated",
+          "passed": true
+        },
+        {
+          "name": "ordinary-user-interactive-installation",
+          "passed": true
+        },
+        {
+          "name": "editor-is-not-topmost-before-offer",
+          "passed": true
+        },
+        {
+          "name": "independent-editor-has-focus-before-offer",
+          "passed": true
+        },
+        {
+          "name": "independent-editor-starts-empty",
+          "passed": true
+        },
+        {
+          "name": "foreground-remains-with-independent-editor",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-and-successful-startup-retained",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-compiled-B",
+          "passed": true
+        },
+        {
+          "name": "one-B-process-and-original-gone",
+          "passed": true
+        },
+        {
+          "name": "B-token-is-not-elevated",
+          "passed": true
+        }
+      ],
+      "keyboard": {
+        "expectedLength": 45,
+        "actualLength": 45,
+        "expectedSha256": "cdbce85d9070fc436ecd7139e293fef3c21899344b969a01cc09eb192a186138",
+        "actualSha256": "cdbce85d9070fc436ecd7139e293fef3c21899344b969a01cc09eb192a186138"
+      },
+      "run": "windows-unfocused-fixture6-final3",
+      "fault": "none",
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "66c8b67d5dc4544f1733526fd76d70cd8fa8ad2bda4fea8074ca6bc5199d1fa3",
+        "platform": "win32",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_arm64-setup.exe",
+                "sha256": "0a266f51e1bfd86fd18049e7d2cb23562423d0be15118eed67a2e30a23a5b079",
+                "size": 13466861
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_arm64-setup.exe.sig",
+                "sha256": "31b3cc49d5756417ff77e484171c99a0af1c87f93d4abe2cfaaeb9e52862ddcf",
+                "size": 452
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_arm64-setup.exe",
+                "sha256": "1a961e8f465b444dba548b9169ed3c43f3cdb641f108ce8d1d95d49a64de4dd2",
+                "size": 13465497
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_arm64-setup.exe.sig",
+                "sha256": "6d6f54e6531d44f239450501bb5ad20c8306572b1dd13c525524bab1908d4bf7",
+                "size": 452
+              }
+            ]
+          }
+        ]
+      },
+      "installed": {
+        "hashMatchesB": true,
+        "installedSha256": "973a328bd4ab7be2e97807836274e8551b1433fb211b488b6dcb61dff2827b4b",
+        "expectedPackagedSha256": "973a328bd4ab7be2e97807836274e8551b1433fb211b488b6dcb61dff2827b4b",
+        "statisticsOptOutPreserved": true,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    },
+    {
+      "scenario": "unfocused",
+      "passed": true,
+      "cleanupPassed": true,
+      "checks": [
+        {
+          "name": "independent-editor-has-focus-before-offer",
+          "passed": true
+        },
+        {
+          "name": "baseline-input-reaches-independent-editor",
+          "passed": true
+        },
+        {
+          "name": "independent-editor-starts-empty",
+          "passed": true
+        },
+        {
+          "name": "qualification-app-never-activates-over-editor",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "installed-image-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-and-successful-startup-retained",
+          "passed": true
+        }
+      ],
+      "keyboard": {
+        "expectedLength": 36,
+        "actualLength": 36,
+        "expectedSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "actualSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81"
+      },
+      "installed": {
+        "hashMatchesB": true,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        },
+        "statisticsOptOutPreserved": true
+      },
+      "run": "linux-unfocused-current3",
+      "fault": "none",
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "328258dd0e9f4e62da1d681711ae073656e2ea1731defdb4683eac6e2ba30ea8",
+        "platform": "linux",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_aarch64.AppImage",
+                "sha256": "bc62846d53f59bb601387f59625726df7ff848ee3831971cae9da5705645f810",
+                "size": 139401736
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_aarch64.AppImage.sig",
+                "sha256": "19bd0b11176ad97566067f45f254f233a0065b7e10e26b4552b8f36494061010",
+                "size": 456
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_aarch64.AppImage",
+                "sha256": "61aac2822585f388c9c69bd797efa2ab6ae0c53670d6060ff2250c2a087be96c",
+                "size": 139385352
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_aarch64.AppImage.sig",
+                "sha256": "b59afb233fe9bc74c7c511f1612dd0937997377469c7053ec47c1a78dda388fa",
+                "size": 456
+              }
+            ]
+          }
+        ]
+      },
+      "baselineEditorFocusLosses": 6
+    },
+    {
+      "scenario": "hidden",
+      "passed": true,
+      "cleanupPassed": true,
+      "checks": [
+        {
+          "name": "independent-editor-has-focus-before-offer",
+          "passed": true
+        },
+        {
+          "name": "baseline-input-reaches-independent-editor",
+          "passed": true
+        },
+        {
+          "name": "independent-editor-starts-empty",
+          "passed": true
+        },
+        {
+          "name": "qualification-app-never-activates-over-editor",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "native-window-never-shows-during-update",
+          "passed": true
+        },
+        {
+          "name": "installed-image-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-and-successful-startup-retained",
+          "passed": true
+        }
+      ],
+      "keyboard": {
+        "expectedLength": 36,
+        "actualLength": 36,
+        "expectedSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "actualSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81"
+      },
+      "installed": {
+        "hashMatchesB": true,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        },
+        "statisticsOptOutPreserved": true
+      },
+      "run": "linux-hidden-current3",
+      "fault": "none",
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "328258dd0e9f4e62da1d681711ae073656e2ea1731defdb4683eac6e2ba30ea8",
+        "platform": "linux",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_aarch64.AppImage",
+                "sha256": "bc62846d53f59bb601387f59625726df7ff848ee3831971cae9da5705645f810",
+                "size": 139401736
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_aarch64.AppImage.sig",
+                "sha256": "19bd0b11176ad97566067f45f254f233a0065b7e10e26b4552b8f36494061010",
+                "size": 456
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_aarch64.AppImage",
+                "sha256": "61aac2822585f388c9c69bd797efa2ab6ae0c53670d6060ff2250c2a087be96c",
+                "size": 139385352
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_aarch64.AppImage.sig",
+                "sha256": "b59afb233fe9bc74c7c511f1612dd0937997377469c7053ec47c1a78dda388fa",
+                "size": 456
+              }
+            ]
+          }
+        ]
+      },
+      "baselineEditorFocusLosses": 6
+    },
+    {
+      "scenario": "minimized",
+      "passed": true,
+      "cleanupPassed": true,
+      "checks": [
+        {
+          "name": "independent-editor-has-focus-before-offer",
+          "passed": true
+        },
+        {
+          "name": "A-starts-minimized",
+          "passed": true
+        },
+        {
+          "name": "baseline-input-reaches-independent-editor",
+          "passed": true
+        },
+        {
+          "name": "independent-editor-starts-empty",
+          "passed": true
+        },
+        {
+          "name": "qualification-app-never-activates-over-editor",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "native-window-never-shows-during-update",
+          "passed": true
+        },
+        {
+          "name": "B-remains-minimized",
+          "passed": true
+        },
+        {
+          "name": "installed-image-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-and-successful-startup-retained",
+          "passed": true
+        }
+      ],
+      "keyboard": {
+        "expectedLength": 36,
+        "actualLength": 36,
+        "expectedSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "actualSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81"
+      },
+      "installed": {
+        "hashMatchesB": true,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        },
+        "statisticsOptOutPreserved": true
+      },
+      "run": "linux-minimized-current3",
+      "fault": "none",
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "328258dd0e9f4e62da1d681711ae073656e2ea1731defdb4683eac6e2ba30ea8",
+        "platform": "linux",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_aarch64.AppImage",
+                "sha256": "bc62846d53f59bb601387f59625726df7ff848ee3831971cae9da5705645f810",
+                "size": 139401736
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_aarch64.AppImage.sig",
+                "sha256": "19bd0b11176ad97566067f45f254f233a0065b7e10e26b4552b8f36494061010",
+                "size": 456
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_aarch64.AppImage",
+                "sha256": "61aac2822585f388c9c69bd797efa2ab6ae0c53670d6060ff2250c2a087be96c",
+                "size": 139385352
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_aarch64.AppImage.sig",
+                "sha256": "b59afb233fe9bc74c7c511f1612dd0937997377469c7053ec47c1a78dda388fa",
+                "size": 456
+              }
+            ]
+          }
+        ]
+      },
+      "baselineEditorFocusLosses": 6
+    },
+    {
+      "scenario": "foreground",
+      "passed": true,
+      "cleanupPassed": true,
+      "checks": [
+        {
+          "name": "independent-editor-starts-empty",
+          "passed": true
+        },
+        {
+          "name": "native-observer-sees-visible-qualification-window",
+          "passed": true
+        },
+        {
+          "name": "foreground-relaunch-activates-qualification-window",
+          "passed": true
+        },
+        {
+          "name": "installed-image-matches-signed-B",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-and-successful-startup-retained",
+          "passed": true
+        }
+      ],
+      "installed": {
+        "hashMatchesB": true,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        },
+        "statisticsOptOutPreserved": true
+      },
+      "run": "linux-foreground-current3-2",
+      "fault": "none",
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "328258dd0e9f4e62da1d681711ae073656e2ea1731defdb4683eac6e2ba30ea8",
+        "platform": "linux",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_aarch64.AppImage",
+                "sha256": "bc62846d53f59bb601387f59625726df7ff848ee3831971cae9da5705645f810",
+                "size": 139401736
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_aarch64.AppImage.sig",
+                "sha256": "19bd0b11176ad97566067f45f254f233a0065b7e10e26b4552b8f36494061010",
+                "size": 456
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_aarch64.AppImage",
+                "sha256": "61aac2822585f388c9c69bd797efa2ab6ae0c53670d6060ff2250c2a087be96c",
+                "size": 139385352
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_aarch64.AppImage.sig",
+                "sha256": "b59afb233fe9bc74c7c511f1612dd0937997377469c7053ec47c1a78dda388fa",
+                "size": 456
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "scenario": "minimized",
+      "passed": true,
+      "cleanupPassed": true,
+      "checks": [
+        {
+          "name": "A-token-is-not-elevated",
+          "passed": true
+        },
+        {
+          "name": "ordinary-user-interactive-installation",
+          "passed": true
+        },
+        {
+          "name": "A-starts-minimized",
+          "passed": true
+        },
+        {
+          "name": "editor-is-not-topmost-before-offer",
+          "passed": true
+        },
+        {
+          "name": "independent-editor-has-focus-before-offer",
+          "passed": true
+        },
+        {
+          "name": "independent-editor-starts-empty",
+          "passed": true
+        },
+        {
+          "name": "foreground-remains-with-independent-editor",
+          "passed": true
+        },
+        {
+          "name": "all-untargeted-input-reaches-editor",
+          "passed": true
+        },
+        {
+          "name": "background-install-and-relaunch-never-show-a-window",
+          "passed": true
+        },
+        {
+          "name": "statistics-opt-out-and-successful-startup-retained",
+          "passed": true
+        },
+        {
+          "name": "installed-executable-matches-compiled-B",
+          "passed": true
+        },
+        {
+          "name": "one-B-process-and-original-gone",
+          "passed": true
+        },
+        {
+          "name": "B-token-is-not-elevated",
+          "passed": true
+        },
+        {
+          "name": "B-remains-minimized",
+          "passed": true
+        }
+      ],
+      "keyboard": {
+        "expectedLength": 36,
+        "actualLength": 36,
+        "expectedSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81",
+        "actualSha256": "3727ec77c42890daa8bb52478932e999f05d0cd92b02ace0dffc96d5de8e2d81"
+      },
+      "run": "windows-minimized-fixture10",
+      "fault": "none",
+      "fixture": {
+        "schema": "jstorrent-update-fixture/v1",
+        "sourceCommit": "5fb558cb3022c1f29ab62e72888ebd3af69b01aa",
+        "sourceDirty": true,
+        "sourceTreeSha256": "af7c024438fab23fff071dcf808bd7e5754ee933f4e4ce14165efda5149e3b7e",
+        "platform": "win32",
+        "fixtureTrust": "build-scoped",
+        "quietSeconds": 15,
+        "noticeSeconds": 5,
+        "packages": [
+          {
+            "version": "100.0.1",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_arm64-setup.exe",
+                "sha256": "ef2085ef357e12291484ef0463d067108ecc21eb1e3c4979d8312c3f9a145391",
+                "size": 13461725
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.1_arm64-setup.exe.sig",
+                "sha256": "a246397b4a7b64338e8dca748ffff02e9cf4e200177b396b39d64bfdec642745",
+                "size": 452
+              }
+            ]
+          },
+          {
+            "version": "100.0.2",
+            "files": [
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_arm64-setup.exe",
+                "sha256": "d35b0286dda11c80b4e517247b748431a6e98bdbc44f5d648a6b75c2c5648efd",
+                "size": 13464783
+              },
+              {
+                "name": "JSTorrent Update Qualification_100.0.2_arm64-setup.exe.sig",
+                "sha256": "cc450a9ed08f5320e4a25ba503b0d8e2a76b202289b122c277fb73a82c08518a",
+                "size": 452
+              }
+            ]
+          }
+        ]
+      },
+      "installed": {
+        "hashMatchesB": true,
+        "installedSha256": "c3225f07ae77d3977d1d42439c252f0afe034c4d5378b22f8f0ce6e78f5855c7",
+        "expectedPackagedSha256": "c3225f07ae77d3977d1d42439c252f0afe034c4d5378b22f8f0ce6e78f5855c7",
+        "statisticsOptOutPreserved": true,
+        "attempt": {
+          "version": "100.0.2",
+          "succeeded": true,
+          "message": "Updated to 100.0.2"
+        }
+      }
+    }
+  ],
+  "shippingAutomaticInstallationEnabled": false,
+  "cleanup": {
+    "macos": {
+      "ownedArtifactsRemoved": true,
+      "temporaryCertificateTrustRemoved": true,
+      "initialStoppedStateRestored": true,
+      "claimReleased": true
+    },
+    "windows": {
+      "ownedArtifactsRemoved": true,
+      "qualificationTasksRemaining": 0,
+      "qualificationUninstallEntriesRemaining": 0,
+      "temporaryToolchainRemoved": true,
+      "initialStoppedStateRestored": true,
+      "claimReleased": true
+    },
+    "linux": {
+      "ownedArtifactsRemoved": true,
+      "taskSwapRemoved": true,
+      "packageAutoFlagRestored": true,
+      "qualificationExtractionCachesRemoved": 6,
+      "unownedExtractionCachePreserved": true,
+      "ownedClipboardCleared": true,
+      "initialStoppedStateRestored": true,
+      "claimReleased": true
+    }
+  }
+}

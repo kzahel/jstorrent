@@ -238,14 +238,19 @@ describe("torrent list import over the gateway", () => {
 });
 
 describe("torrent list import report", () => {
-  it("accepts the engine report and rejects other shapes", () => {
+  it("accepts the engine report, ignores added fields and rejects other shapes", () => {
     expect(
       decodeTorrentListImportReport('{"added":0,"already_present":3,"failed":[]}'),
     ).toEqual({ added: 0, already_present: 3, failed: [] });
+    // A newer host may add fields; they are ignored.
+    expect(
+      decodeTorrentListImportReport(
+        '{"added":1,"already_present":0,"failed":[],"extra":true}',
+      ),
+    ).toEqual({ added: 1, already_present: 0, failed: [] });
     for (const source of [
       '{"added":-1,"already_present":0,"failed":[]}',
       '{"added":1,"failed":[]}',
-      '{"added":1,"already_present":0,"failed":[],"extra":true}',
       '{"added":1,"already_present":0,"failed":[{"name":"x"}]}',
       '{"added":1,"already_present":0,"failed":[{"name":"x","reason":7}]}',
       "[]",

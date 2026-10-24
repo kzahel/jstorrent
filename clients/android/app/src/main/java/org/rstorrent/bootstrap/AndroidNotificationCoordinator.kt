@@ -14,8 +14,9 @@ import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.rstorrent.bootstrap.ui.formatRate
+import org.rstorrent.session.uniffi.ProgressReason
 import org.rstorrent.session.uniffi.SpeedMetric
-import org.rstorrent.session.uniffi.TorrentState
+import org.rstorrent.session.uniffi.TorrentOperationalState
 import org.rstorrent.session.uniffi.ViewPatch
 import org.rstorrent.session.uniffi.ViewSnapshot
 import org.rstorrent.session.uniffi.ViewUpdate
@@ -536,6 +537,10 @@ internal data class ProductOngoingNotificationMessage(
         CHROME_RECONNECT,
         WAITING_UNMETERED,
         DOWNLOADING,
+        GETTING_METADATA,
+        STARTING,
+        CHECKING,
+        SEEDING,
         READY_CHROME,
         READY,
     }
@@ -563,11 +568,15 @@ internal fun productOngoingNotificationContent(product: ProductState): ProductOn
         when (message.kind) {
             ProductOngoingNotificationMessage.Kind.DOWNLOADING,
             ProductOngoingNotificationMessage.Kind.SEEDING_BACKGROUND,
+            ProductOngoingNotificationMessage.Kind.SEEDING,
             -> true
             ProductOngoingNotificationMessage.Kind.READY,
             ProductOngoingNotificationMessage.Kind.READY_CHROME,
             ProductOngoingNotificationMessage.Kind.CHROME_CONNECTED,
             ProductOngoingNotificationMessage.Kind.CHROME_RECONNECT,
+            ProductOngoingNotificationMessage.Kind.GETTING_METADATA,
+            ProductOngoingNotificationMessage.Kind.STARTING,
+            ProductOngoingNotificationMessage.Kind.CHECKING,
             -> rates.downloadBytes > 0UL || rates.uploadBytes > 0UL
             else -> false
         }
@@ -657,12 +666,29 @@ internal fun productOngoingNotificationMessage(product: ProductState): ProductOn
     ) {
         return ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.WAITING_UNMETERED)
     }
-    val downloading = product.torrents.values.count { it.state == TorrentState.DOWNLOADING }
-    if (downloading > 0) {
+    val work = classifyProductLifetimeTorrentViews(product.torrents.values)
+    if (work.downloading > 0) {
         return ProductOngoingNotificationMessage(
             ProductOngoingNotificationMessage.Kind.DOWNLOADING,
-            downloading,
+            work.downloading,
         )
+    }
+    if (work.checking > 0) {
+        return ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.CHECKING)
+    }
+    if (work.starting > 0) {
+        val metadata = product.torrents.values.any {
+            it.operationalState == TorrentOperationalState.STARTING &&
+                it.progress.reason == ProgressReason.ACQUIRING_METADATA &&
+                !it.archived && it.removalState == null
+        }
+        return ProductOngoingNotificationMessage(
+            if (metadata) ProductOngoingNotificationMessage.Kind.GETTING_METADATA
+            else ProductOngoingNotificationMessage.Kind.STARTING,
+        )
+    }
+    if (work.seeding > 0) {
+        return ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.SEEDING, work.seeding)
     }
     if (product.companionPort != null) {
         return ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.READY_CHROME)
@@ -704,6 +730,14 @@ internal fun Context.productOngoingNotificationText(message: ProductOngoingNotif
                 message.count,
                 message.count,
             )
+        ProductOngoingNotificationMessage.Kind.GETTING_METADATA ->
+            getString(R.string.activity_getting_metadata)
+        ProductOngoingNotificationMessage.Kind.STARTING ->
+            getString(R.string.notification_starting_downloads)
+        ProductOngoingNotificationMessage.Kind.CHECKING ->
+            getString(R.string.notification_checking_downloads)
+        ProductOngoingNotificationMessage.Kind.SEEDING ->
+            resources.getQuantityString(R.plurals.notification_seeding_torrents, message.count, message.count)
         ProductOngoingNotificationMessage.Kind.READY_CHROME ->
             getString(R.string.notification_ready_chrome)
         ProductOngoingNotificationMessage.Kind.READY -> getString(R.string.notification_ready)

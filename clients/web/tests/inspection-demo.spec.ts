@@ -8,7 +8,7 @@ const screenshotDirectory = process.env.RSTORRENT_SCREENSHOT_DIR;
 
 test("checker progress stays truthful across every shared surface", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/?demo=checking-progress&at=18000&autoplay=0");
+  await page.goto("/?demo=checking-progress&at=18000&autoplay=0&library=cards");
   const primary = page.getByRole("navigation", { name: "Primary" });
   const checkingBar = page.getByRole("progressbar", {
       name: /Big Buck Bunny 1080p surround checking progress: Checked 40.0%/,
@@ -33,7 +33,7 @@ test("checker progress stays truthful across every shared surface", async ({ pag
   await expect(details.getByText("2", { exact: true })).toBeVisible();
   await expect(details.getByText("1", { exact: true })).toBeVisible();
 
-  await page.goto("/?demo=checking-progress&at=36000&autoplay=0");
+  await page.goto("/?demo=checking-progress&at=36000&autoplay=0&library=cards");
   const fencedBar = page.getByRole("progressbar", {
     name: /checking progress: Updating file selection/,
   });
@@ -51,7 +51,7 @@ test("checker progress stays truthful across every shared surface", async ({ pag
 
 test("primary destinations preserve shared source state", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?demo=healthy-download&at=42000&autoplay=0");
+  await page.goto("/?demo=healthy-download&at=42000&autoplay=0&library=cards");
   await expect(page.getByText("JSTorrent", { exact: true })).toBeVisible();
   await expect(page).toHaveTitle(
     /^JSTorrent - ↓[\d.]+ [kKMGT]?B\/s ↑[\d.]+ [kKMGT]?B\/s$/,
@@ -120,7 +120,7 @@ test("Library media detail sorts episodes and adapts to phone", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?demo=media-library&at=0&autoplay=0");
+  await page.goto("/?demo=media-library&at=0&autoplay=0&library=cards");
   const primary = page.getByRole("navigation", { name: "Primary" });
   await primary.getByRole("button", { name: "Library" }).click();
   const card = page.getByRole("button", {
@@ -180,7 +180,7 @@ test("Library media detail sorts episodes and adapts to phone", async ({
   await expect(card).toBeFocused();
 
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?demo=file-progress&at=24000&autoplay=0");
+  await page.goto("/?demo=file-progress&at=24000&autoplay=0&library=cards");
   await page
     .getByRole("navigation", { name: "Primary" })
     .getByRole("button", { name: "Library" })
@@ -214,6 +214,53 @@ test("Library media detail sorts episodes and adapts to phone", async ({
   console.log(
     `media_scale_metrics ${JSON.stringify({ recognizedRows, mountedRows, ...scaleMetrics })}`,
   );
+});
+
+test("media Library browses presets, groups and layouts across widths", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?demo=media-library&at=0&autoplay=0");
+  const primary = page.getByRole("navigation", { name: "Primary" });
+  await primary.getByRole("button", { name: "Library" }).click();
+  await expect(page.getByRole("heading", { name: "All media" })).toBeVisible();
+  const items = page.getByRole("list", { name: "Library items" });
+  await expect(items.getByRole("listitem")).toHaveCount(5);
+  await capture(page, "rstorrent-media-library-wide.png");
+  const filters = page.getByRole("navigation", { name: "Library filters" });
+  await filters.getByRole("button", { name: /^TV shows/ }).click();
+  const show = page
+    .getByRole("list", { name: "TV shows" })
+    .getByRole("button", { name: /North Shore Stories/ });
+  await expect(show).toContainText("4 episodes · 2 seasons");
+  await capture(page, "rstorrent-media-library-shows.png");
+  await show.click();
+  await expect(page.getByRole("heading", { name: "North Shore Stories" })).toBeVisible();
+  await page.getByRole("radio", { name: "List" }).click();
+  await expect(
+    page.getByRole("grid", { name: "Library items" }).getByRole("row"),
+  ).toHaveCount(5);
+  await capture(page, "rstorrent-media-library-list.png");
+  const violations = (
+    await new AxeBuilder({ page }).analyze()
+  ).violations.filter(
+    (violation) =>
+      violation.impact === "serious" || violation.impact === "critical",
+  );
+  expect(violations).toEqual([]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("heading", { name: "North Shore Stories" })).toBeVisible();
+  await page.getByRole("radio", { name: "Cards" }).click();
+  await expect(items.getByRole("listitem")).toHaveCount(4);
+  await capture(page, "rstorrent-media-library-phone.png");
+  const phoneViolations = (
+    await new AxeBuilder({ page }).analyze()
+  ).violations.filter(
+    (violation) =>
+      violation.impact === "serious" || violation.impact === "critical",
+  );
+  expect(phoneViolations).toEqual([]);
 });
 
 test("More copies selected torrents' source-aware magnets", async ({
@@ -400,7 +447,7 @@ test("share panel, address question and file share stay accessible", async ({
   await expect(
     panel.getByRole("img", { name: "QR code for the share link" }),
   ).toBeVisible();
-  await panel.getByRole("checkbox", { name: "Include my address" }).check();
+  await panel.getByRole("checkbox", { name: "Include my IP address" }).check();
   await expect(link).toHaveValue(/&x\.pe=192\.168\.1\.20:6881$/);
   await expect(panel.getByRole("status")).toHaveText(
     "Includes your local network address 192.168.1.20:6881. Only people on your network can use it.",
@@ -478,7 +525,7 @@ test("phone destinations and contextual filters remain reachable", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/?demo=healthy-download&at=42000&autoplay=0");
+  await page.goto("/?demo=healthy-download&at=42000&autoplay=0&library=cards");
   const transferGrid = page.getByRole("grid", { name: "Torrents" });
   await expect(transferGrid).toBeVisible();
   const heldRow = transferGrid.getByRole("row").filter({ hasText: "Sintel" });
@@ -517,13 +564,11 @@ test("phone destinations and contextual filters remain reachable", async ({
     page.getByRole("list", { name: "Torrent-backed content" }),
   ).toBeVisible();
   await expect(page.locator("header")).toContainText("Library");
-  await toggleNavigation.click();
+  // Choosing a destination keeps the drawer open on its new categories.
   await expect(
     page.getByRole("navigation", { name: "Library filters" }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Close navigation" })
-    .click({ position: { x: 370, y: 400 } });
+  await closeNavigation(page);
   await capture(page, "rstorrent-library-phone.png");
 
   await toggleNavigation.click();
@@ -979,15 +1024,17 @@ test("seeding priority settings stay truthful across responsive layouts", async 
   await expect(goalTime.locator("option:checked")).toHaveText("1 day");
   await stop.getByRole("combobox", { name: "Share ratio" }).selectOption({ label: "Custom…" });
   await stop.getByRole("combobox", { name: "Seeding time" }).selectOption({ label: "Custom…" });
-  // Every select and number field in the form shares one right edge and
+  // Mounted inactive settings panels have hidden controls with zero boxes.
+  // Every visible select and number field shares one right edge and
   // width. A custom time splits its row between a number and a unit choice.
   const boxes = await dialog
-    .locator('form select, form input[type="number"]')
+    .locator('form select:visible, form input[type="number"]:visible')
     .evaluateAll((elements) =>
       elements.map((element) => {
         const field = element.closest('[class*="unitInput"]') ?? element;
         const box = field.getBoundingClientRect();
         return {
+          id: element.id,
           right: Math.round(box.right),
           width: Math.round(box.width),
           shared: field.parentElement?.className.includes("custom") === true,
@@ -998,6 +1045,7 @@ test("seeding priority settings stay truthful across responsive layouts", async 
   expect(boxes.filter((box) => !box.shared).length).toBeGreaterThan(8);
   expect(
     new Set(boxes.filter((box) => !box.shared || box.last).map((box) => box.right)).size,
+    JSON.stringify(boxes),
   ).toBe(1);
   expect(
     new Set(boxes.filter((box) => !box.shared).map((box) => box.width)).size,
@@ -1302,7 +1350,8 @@ test("color themes follow or override system appearance and persist", async ({
       sessionStorage.getItem("rstorrent.theme-at-first-content"),
     ),
   ).toBe("dark");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  // The URL restores the open Settings dialog across a reload.
+  await expect(dialog).toBeVisible();
   await expect(
     page
       .getByRole("group", { name: "Size units" })
@@ -1314,7 +1363,7 @@ test("data units reformat mounted product surfaces without changing raw state", 
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 820 });
-  await openScenario(page, "healthy-download", 42_000);
+  await openScenario(page, "healthy-download", 42_000, false, "cards");
 
   const transfers = page.getByRole("grid", { name: "Torrents" });
   const transferOrder = await transfers
@@ -1365,6 +1414,13 @@ test("data units reformat mounted product surfaces without changing raw state", 
   await page.getByRole("tab", { name: "Speed" }).click();
   await expectVisibleUnits(page, "decimal");
   const canvas = page.getByRole("img", { name: /Speed history chart/ });
+  // ResizeObserver replaces the initial 800px drawing size after mount.
+  // Capture the responsive size before testing that unit changes preserve it.
+  await expect
+    .poll(() => canvas.evaluate((element) => Math.abs(
+      element.getBoundingClientRect().width - element.parentElement!.clientWidth,
+    )))
+    .toBeLessThan(1);
   const canvasSize = await canvas.boundingBox();
   await setDataUnits(page, "Binary");
   await expectVisibleUnits(page, "binary");
@@ -1583,7 +1639,9 @@ test("speed history stays exact, selectable, and accessible", async ({
   await openPhoneSessionView(page, "Speed");
   await expect(chart).toBeVisible();
   await capture(page, "rstorrent-speed-phone.png");
+});
 
+test("stale speed history stays frozen", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 820 });
   await openScenario(page, "speed-stale", 42_000);
   await page.getByRole("tab", { name: "Speed" }).click();
@@ -1930,7 +1988,7 @@ test("large collections retain a bounded virtual DOM", async ({ page }) => {
     }).observe({ type: "longtask", buffered: true });
   });
   const openedAt = performance.now();
-  await openScenario(page, "large-swarm", 0);
+  await openScenario(page, "large-swarm", 0, false, "cards");
   const initialRenderMs = performance.now() - openedAt;
   const torrents = page.getByRole("grid", { name: "Torrents" });
   const peers = page.getByRole("grid", { name: "Active peer connections" });
@@ -2156,19 +2214,36 @@ async function openScenario(
   scenario: string,
   at: number,
   autoplay = false,
+  library: "media" | "cards" = "media",
 ) {
-  await page.goto(`/?demo=${scenario}&at=${at}&autoplay=${autoplay ? 1 : 0}`);
+  await page.goto(
+    `/?demo=${scenario}&at=${at}&autoplay=${autoplay ? 1 : 0}${library === "cards" ? "&library=cards" : ""}`,
+  );
   await expect(
     page.getByRole("button", { name: "Settings", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Demo data", { exact: true })).toBeVisible();
-  // Narrow layouts keep the destinations in the navigation drawer.
+  // Narrow layouts keep the destinations in the navigation drawer, which
+  // stays open after a destination is chosen.
   const drawer = page.getByRole("button", { name: "Toggle navigation" });
-  if (await drawer.isVisible()) await drawer.click();
+  const narrow = await drawer.isVisible();
+  if (narrow) await drawer.click();
   await page
     .getByRole("navigation", { name: "Primary" })
     .getByRole("button", { name: "Torrents" })
     .click();
+  if (narrow) await closeNavigation(page);
+}
+
+async function closeNavigation(page: Page) {
+  // The drawer covers the scrim's leading edge; dismiss it at the far edge.
+  const scrim = page.getByRole("button", { name: "Close navigation" });
+  const bounds = await scrim.boundingBox();
+  expect(bounds).not.toBeNull();
+  await scrim.click({ position: { x: bounds!.width - 10, y: bounds!.height / 2 } });
+  await expect(
+    page.getByRole("button", { name: "Toggle navigation" }),
+  ).toHaveAttribute("aria-expanded", "false");
 }
 
 async function setDataUnits(page: Page, label: "Decimal" | "Binary") {

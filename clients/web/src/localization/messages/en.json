@@ -229,11 +229,11 @@
     "description": "Product copy in inspection/components/AboutUpdatesSettingsSection.tsx"
   },
   "inspection.components.about.updates.settings.section.latest": {
-    "defaultMessage": "Latest",
+    "defaultMessage": "Latest — Early access",
     "description": "Latest desktop update channel"
   },
   "inspection.components.about.updates.settings.section.latest.description": {
-    "defaultMessage": "Latest offers signed builds from verified main changes. Installation always needs your approval.",
+    "defaultMessage": "Signed builds with new changes sooner; may contain bugs. Automatic installation follows your setting below.",
     "description": "Latest desktop update channel guidance"
   },
   "inspection.components.about.updates.settings.section.linux.appimage": {
@@ -293,11 +293,11 @@
     "description": "Product copy in inspection/components/AboutUpdatesSettingsSection.tsx"
   },
   "inspection.components.about.updates.settings.section.stable": {
-    "defaultMessage": "Stable",
+    "defaultMessage": "Stable — Recommended",
     "description": "Stable desktop update channel"
   },
   "inspection.components.about.updates.settings.section.stable.description": {
-    "defaultMessage": "Stable offers deliberate desktop preview releases.",
+    "defaultMessage": "Releases promoted after testing.",
     "description": "Stable desktop update channel guidance"
   },
   "inspection.components.about.updates.settings.section.target": {
@@ -313,11 +313,11 @@
     "description": "Product copy in inspection/components/AboutUpdatesSettingsSection.tsx"
   },
   "inspection.components.about.updates.settings.section.waiting.for.stable": {
-    "defaultMessage": "Waiting for Stable to catch up",
+    "defaultMessage": "Stable selected · Waiting for a compatible release",
     "description": "A newer Latest build remains installed after selecting Stable"
   },
   "inspection.components.about.updates.settings.section.waiting.for.stable.description": {
-    "defaultMessage": "This installed build is newer than Stable. JSTorrent will keep it until a newer Stable release is available.",
+    "defaultMessage": "Your current version stays installed until a newer compatible Stable release is available. Your data stays unchanged.",
     "description": "No automatic downgrade after switching from Latest to Stable"
   },
   "inspection.components.about.updates.settings.section.version": {
@@ -2436,6 +2436,254 @@
     "defaultMessage": "Torrent-backed content",
     "description": "Product copy in inspection/components/LibraryView.tsx"
   },
+  "inspection.components.library.media.archived": {
+    "defaultMessage": "Include archived",
+    "description": "Cross-torrent Library: toggle that adds archived torrents' files to the results."
+  },
+  "inspection.components.library.media.availability": {
+    "defaultMessage": "Availability",
+    "description": "Cross-torrent Library: label of the group of availability filters."
+  },
+  "inspection.components.library.media.availability.any": {
+    "defaultMessage": "All",
+    "description": "Cross-torrent Library: availability filter that shows every file."
+  },
+  "inspection.components.library.media.availability.offline": {
+    "defaultMessage": "Complete",
+    "description": "Cross-torrent Library: availability filter for files whose every byte is downloaded and verified."
+  },
+  "inspection.components.library.media.availability.incomplete": {
+    "defaultMessage": "Incomplete",
+    "description": "Cross-torrent Library: availability filter for wanted files that are not complete yet."
+  },
+  "inspection.components.library.media.back": {
+    "defaultMessage": "Back to {preset}",
+    "description": "Cross-torrent Library: button that leaves an opened show, album or torrent; preset is the view name, such as TV shows."
+  },
+  "inspection.components.library.media.column.play": {
+    "defaultMessage": "Play",
+    "description": "Cross-torrent Library: hidden header of the list column holding play buttons."
+  },
+  "inspection.components.library.media.column.title": {
+    "defaultMessage": "Title",
+    "description": "Cross-torrent Library: list column header."
+  },
+  "inspection.components.library.media.column.context": {
+    "defaultMessage": "Show or album",
+    "description": "Cross-torrent Library: list column header for the episode's show or the track's album."
+  },
+  "inspection.components.library.media.column.size": {
+    "defaultMessage": "Size",
+    "description": "Cross-torrent Library: list column header."
+  },
+  "inspection.components.library.media.column.status": {
+    "defaultMessage": "Status",
+    "description": "Cross-torrent Library: list column header for download state."
+  },
+  "inspection.components.library.media.column.torrent": {
+    "defaultMessage": "Torrent",
+    "description": "Cross-torrent Library: list column header for the torrent that holds the file."
+  },
+  "inspection.components.library.media.count.items": {
+    "defaultMessage": "{count, plural, one {# item} other {# items}}",
+    "description": "Cross-torrent Library: number of files matching the current view."
+  },
+  "inspection.components.library.media.count.shows": {
+    "defaultMessage": "{count, plural, one {# show} other {# shows}}",
+    "description": "Cross-torrent Library: number of TV shows in the current view."
+  },
+  "inspection.components.library.media.count.albums": {
+    "defaultMessage": "{count, plural, one {# album} other {# albums}}",
+    "description": "Cross-torrent Library: number of albums in the current view."
+  },
+  "inspection.components.library.media.count.torrents": {
+    "defaultMessage": "{count, plural, one {# torrent} other {# torrents}}",
+    "description": "Cross-torrent Library: number of torrents with media in the current view."
+  },
+  "inspection.components.library.media.empty.library": {
+    "defaultMessage": "Your library has no video or music yet",
+    "description": "Cross-torrent Library: empty state when no torrent holds a video or audio file."
+  },
+  "inspection.components.library.media.empty.filters": {
+    "defaultMessage": "Nothing matches this search and these filters",
+    "description": "Cross-torrent Library: empty state when filters or search exclude everything."
+  },
+  "inspection.components.library.media.pending": {
+    "defaultMessage": "{count, plural, one {# torrent is} other {# torrents are}} still getting file details from peers.",
+    "description": "Cross-torrent Library: explains torrents whose file list is not known yet."
+  },
+  "inspection.components.library.media.group.show": {
+    "defaultMessage": "{episodes, plural, one {# episode} other {# episodes}} · {seasons, plural, one {# season} other {# seasons}}",
+    "description": "Cross-torrent Library: facts on a TV show card."
+  },
+  "inspection.components.library.media.group.tracks": {
+    "defaultMessage": "{count, plural, one {# track} other {# tracks}}",
+    "description": "Cross-torrent Library: facts on an album card without a year."
+  },
+  "inspection.components.library.media.group.album": {
+    "defaultMessage": "{count, plural, one {# track} other {# tracks}} · {year}",
+    "description": "Cross-torrent Library: facts on an album card; year is the release year."
+  },
+  "inspection.components.library.media.group.files": {
+    "defaultMessage": "{count, plural, one {# file} other {# files}}",
+    "description": "Cross-torrent Library: facts on a torrent card in the By torrent view."
+  },
+  "inspection.components.library.media.group.offline": {
+    "defaultMessage": "{offline} of {count} complete",
+    "description": "Cross-torrent Library: how many files of a show, album or torrent are completely downloaded."
+  },
+  "inspection.components.library.media.grouping": {
+    "defaultMessage": "Show as",
+    "description": "Cross-torrent Library: label of the choice between groups and their items."
+  },
+  "inspection.components.library.media.grouping.shows": {
+    "defaultMessage": "Shows",
+    "description": "Cross-torrent Library: show TV shows as cards."
+  },
+  "inspection.components.library.media.grouping.episodes": {
+    "defaultMessage": "Episodes",
+    "description": "Cross-torrent Library: list every episode instead of shows."
+  },
+  "inspection.components.library.media.grouping.albums": {
+    "defaultMessage": "Albums",
+    "description": "Cross-torrent Library: show music as album cards."
+  },
+  "inspection.components.library.media.grouping.tracks": {
+    "defaultMessage": "Tracks",
+    "description": "Cross-torrent Library: list every track instead of albums."
+  },
+  "inspection.components.library.media.item.offline": {
+    "defaultMessage": "Complete",
+    "description": "Cross-torrent Library: state of a completely downloaded file."
+  },
+  "inspection.components.library.media.item.offline.archived": {
+    "defaultMessage": "Complete · Archived",
+    "description": "Cross-torrent Library: state of a completely downloaded file in an archived torrent."
+  },
+  "inspection.components.library.media.item.partial": {
+    "defaultMessage": "{percent}% downloaded",
+    "description": "Cross-torrent Library: state of a file that is not completely downloaded; percent is a whole number."
+  },
+  "inspection.components.library.media.item.partial.archived": {
+    "defaultMessage": "{percent}% downloaded · Archived",
+    "description": "Cross-torrent Library: state of an incomplete file in an archived torrent."
+  },
+  "inspection.components.library.media.item.track": {
+    "defaultMessage": "Track {number}",
+    "description": "Cross-torrent Library: track number of a song."
+  },
+  "inspection.components.library.media.item.open": {
+    "defaultMessage": "Show {title} in its torrent",
+    "description": "Cross-torrent Library: accessible name of the button that opens the file's torrent."
+  },
+  "inspection.components.library.media.items": {
+    "defaultMessage": "Library items",
+    "description": "Cross-torrent Library: accessible name of the list of files."
+  },
+  "inspection.components.library.media.layout": {
+    "defaultMessage": "Layout",
+    "description": "Cross-torrent Library: label of the cards or list choice."
+  },
+  "inspection.components.library.media.layout.grid": {
+    "defaultMessage": "Cards",
+    "description": "Cross-torrent Library: layout that shows files as cards."
+  },
+  "inspection.components.library.media.layout.list": {
+    "defaultMessage": "List",
+    "description": "Cross-torrent Library: layout that shows files as a table."
+  },
+  "inspection.components.library.media.loading": {
+    "defaultMessage": "Loading your library",
+    "description": "Cross-torrent Library: shown while the first page arrives."
+  },
+  "inspection.components.library.media.unavailable": {
+    "defaultMessage": "The library is unavailable",
+    "description": "Cross-torrent Library: shown when the host cannot provide the library."
+  },
+  "inspection.components.library.media.pages": {
+    "defaultMessage": "Library pages",
+    "description": "Cross-torrent Library: accessible name of the page navigation."
+  },
+  "inspection.components.library.media.range": {
+    "defaultMessage": "{first}–{last} of {total}",
+    "description": "Cross-torrent Library: position of the current page, such as 1–100 of 250."
+  },
+  "inspection.components.library.media.previous": {
+    "defaultMessage": "Previous page",
+    "description": "Cross-torrent Library: button."
+  },
+  "inspection.components.library.media.next": {
+    "defaultMessage": "Next page",
+    "description": "Cross-torrent Library: button."
+  },
+  "inspection.components.library.media.play": {
+    "defaultMessage": "Play {title}",
+    "description": "Cross-torrent Library: accessible name of a play button."
+  },
+  "inspection.components.library.media.play.demo": {
+    "defaultMessage": "Playback is unavailable in demo scenarios.",
+    "description": "Cross-torrent Library: why a play button is disabled in the demo."
+  },
+  "inspection.components.library.media.play.opening": {
+    "defaultMessage": "Opening this file",
+    "description": "Cross-torrent Library: why a play button is busy."
+  },
+  "inspection.components.library.media.play.busy": {
+    "defaultMessage": "Another file is opening",
+    "description": "Cross-torrent Library: why play buttons wait while one file opens."
+  },
+  "inspection.components.library.media.play.unavailable": {
+    "defaultMessage": "This file is not complete yet.",
+    "description": "Cross-torrent Library: why a play button is disabled for an incomplete file."
+  },
+  "inspection.components.library.media.preset.all": {
+    "defaultMessage": "All media",
+    "description": "Cross-torrent Library: Library view of every video and audio file."
+  },
+  "inspection.components.library.media.preset.shows": {
+    "defaultMessage": "TV shows",
+    "description": "Cross-torrent Library: Library view of episodes grouped by show."
+  },
+  "inspection.components.library.media.preset.movies": {
+    "defaultMessage": "Movies",
+    "description": "Cross-torrent Library: Library view of movies."
+  },
+  "inspection.components.library.media.preset.music": {
+    "defaultMessage": "Music",
+    "description": "Cross-torrent Library: Library view of audio grouped by album."
+  },
+  "inspection.components.library.media.preset.torrents": {
+    "defaultMessage": "By torrent",
+    "description": "Cross-torrent Library: Library view of media grouped by torrent."
+  },
+  "inspection.components.library.media.search.label": {
+    "defaultMessage": "Search the library",
+    "description": "Cross-torrent Library: accessible name of the search field."
+  },
+  "inspection.components.library.media.search.placeholder": {
+    "defaultMessage": "Search titles, shows, albums and files",
+    "description": "Cross-torrent Library: placeholder of the search field."
+  },
+  "inspection.components.library.media.sort.label": {
+    "defaultMessage": "Sort by",
+    "description": "Cross-torrent Library: label of the sort menu."
+  },
+  "inspection.components.library.media.sort.title": {
+    "defaultMessage": "Title",
+    "description": "Cross-torrent Library: sort by show, album or title."
+  },
+  "inspection.components.library.media.sort.size": {
+    "defaultMessage": "Size",
+    "description": "Cross-torrent Library: sort by file size."
+  },
+  "inspection.components.library.media.sort.source": {
+    "defaultMessage": "Source torrent",
+    "description": "Cross-torrent Library: sort by torrent name and file order."
+  },
+  "inspection.components.library.media.sort.descending": {
+    "defaultMessage": "Reverse order",
+    "description": "Cross-torrent Library: toggle that reverses the sort order."
+  },
   "inspection.components.log.console.all.torrents": {
     "defaultMessage": "All torrents",
     "description": "Product copy in inspection/components/LogConsole.tsx"
@@ -2739,6 +2987,10 @@
   "inspection.components.pending.file.selection.dialog.loading.file.list": {
     "defaultMessage": "Loading file list…",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
+  },
+  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": {
+    "defaultMessage": "You can download once the file list loads. A newer JSTorrent can start without waiting.",
+    "description": "Pending add on a host too old to download all files before the file list loads"
   },
   "inspection.components.pending.file.selection.dialog.you.can.download.all.files.without.waiting": {
     "defaultMessage": "You can download all files without waiting.",
@@ -4752,6 +5004,10 @@
     "defaultMessage": "The torrent is being removed",
     "description": "Product copy in inspection/live/LiveApplication.ts"
   },
+  "inspection.live.live.application.request.needs.newer.host": {
+    "defaultMessage": "The computer you are controlling runs an older JSTorrent that cannot do this. Update JSTorrent there.",
+    "description": "Error when the connected host is too old to understand a request"
+  },
   "inspection.live.live.application.setting.needs.newer.host": {
     "defaultMessage": "This setting needs a newer JSTorrent on the computer you are controlling. Update it there to use this setting.",
     "description": "Error when saving a setting the connected host is too old to support"
@@ -5212,10 +5468,6 @@
     "defaultMessage": "Exact report to copy or download",
     "description": "Local support report and privacy guidance in About settings"
   },
-  "support.diagnostics.public.report": {
-    "defaultMessage": "GitHub reports are public. Review your description and attachments before submitting. Opening the report page sends none of these diagnostics.",
-    "description": "Local support report and privacy guidance in About settings"
-  },
   "support.diagnostics.refresh": {
     "defaultMessage": "Refresh diagnostics",
     "description": "Local support report and privacy guidance in About settings"
@@ -5228,13 +5480,17 @@
     "defaultMessage": "Known issues",
     "description": "Local support report and privacy guidance in About settings"
   },
-  "support.privacy.recovery": {
-    "defaultMessage": "Privacy and recovery guidance",
-    "description": "Local support report and privacy guidance in About settings"
+  "support.help": {
+    "defaultMessage": "Help",
+    "description": "Opens the JSTorrent website support page from About settings"
   },
-  "support.report.problem": {
-    "defaultMessage": "Report a problem",
-    "description": "Local support report and privacy guidance in About settings"
+  "support.report.feedback": {
+    "defaultMessage": "Send feedback",
+    "description": "Opens the JSTorrent website feedback form, prefilled with version details, from About settings"
+  },
+  "support.report.github": {
+    "defaultMessage": "Report on GitHub",
+    "description": "Opens a new GitHub issue prefilled with the diagnostics report from About settings"
   },
   "desktop.companion.title": {"defaultMessage": "JSTorrent Desktop", "description": "Desktop extension connection"},
   "desktop.companion.open-window": {"defaultMessage": "Open desktop window", "description": "Desktop extension connection"},
@@ -5391,6 +5647,14 @@
   "remote.video.decode.error": {
     "defaultMessage": "The browser could not play this video. Its codecs may not be supported.",
     "description": "Remote completed-file video player: decode.error."
+  },
+  "video.loading": {
+    "defaultMessage": "Loading video…",
+    "description": "In-app video player: status while the local file opens."
+  },
+  "video.open.new.tab": {
+    "defaultMessage": "Open in new tab",
+    "description": "In-app video player: button that opens the file in a new browser tab instead."
   },
   "remote.video.completed.mp4": {
     "defaultMessage": "Remote playback supports completed MP4 files.",
@@ -5595,12 +5859,12 @@
     "defaultMessage": "{count, plural, =0 {Password changed.} one {Password changed and # browser authorization was revoked.} other {Password changed and # browser authorizations were revoked.}}",
     "description": "Notification after changing the remote access password"
   },
-  "inspection.components.torrent.list.title": {
-    "defaultMessage": "Torrent list",
-    "description": "Settings > Data & reset: title of the torrent list export and import rows"
+  "inspection.components.torrent.list.export.title": {
+    "defaultMessage": "Export",
+    "description": "Settings > Data & reset: title of the row that saves the torrent list to a file"
   },
   "inspection.components.torrent.list.description": {
-    "defaultMessage": "Save every torrent to one file to keep as a backup or to open on another device.",
+    "defaultMessage": "Save your list of torrents to a file. Downloaded files are not included.",
     "description": "Settings > Data & reset: explains Export torrent list"
   },
   "inspection.components.torrent.list.export": {
@@ -5619,20 +5883,28 @@
     "defaultMessage": "Couldn't export the torrent list. {error}",
     "description": "Settings > Data & reset: export failure; error is a short technical detail"
   },
-  "inspection.components.torrent.list.save.to": {
-    "defaultMessage": "Save to",
-    "description": "Settings > Data & reset: label of the download folder imported torrents go to"
+  "inspection.components.torrent.list.import.into": {
+    "defaultMessage": "Import into",
+    "description": "Settings > Data & reset: label of the download folder imported torrents are saved in; shown only when there is more than one"
   },
   "inspection.components.torrent.list.no.folders": {
-    "defaultMessage": "Add a download folder first.",
-    "description": "Settings > Data & reset: shown under Save to when there is no download folder to import into"
+    "defaultMessage": "Add a download folder before importing.",
+    "description": "Settings > Data & reset: shown under Import when there is no download folder to import into"
   },
   "inspection.components.torrent.list.keep.locations": {
-    "defaultMessage": "Use a download folder with the same name when there is one",
-    "description": "Settings > Data & reset: switch; an imported torrent goes to the download folder named as on the exporting device, if one exists"
+    "defaultMessage": "Match folders by name",
+    "description": "Settings > Data & reset: switch under Import into; an imported torrent goes to the download folder named as on the exporting device, if one exists"
+  },
+  "inspection.components.torrent.list.keep.locations.description": {
+    "defaultMessage": "A torrent whose folder on the exporting device has the same name as one of yours is saved there instead.",
+    "description": "Settings > Data & reset: explains the Match folders by name switch"
+  },
+  "inspection.components.torrent.list.import.title": {
+    "defaultMessage": "Import",
+    "description": "Settings > Data & reset: title of the row that adds the torrents from an exported file"
   },
   "inspection.components.torrent.list.import.description": {
-    "defaultMessage": "Add the torrents from an exported file. Torrents already in your list are skipped, and files already downloaded are checked instead of downloaded again.",
+    "defaultMessage": "Add torrents from an exported file.",
     "description": "Settings > Data & reset: explains Import torrent list"
   },
   "inspection.components.torrent.list.import": {
@@ -5736,7 +6008,7 @@
     "description": "Shown instead of a QR code when the share link does not fit"
   },
   "share.panel.include.address": {
-    "defaultMessage": "Include my address",
+    "defaultMessage": "Include my IP address",
     "description": "Checkbox in the Share panel that adds this device's address to the link"
   },
   "share.panel.include.address.description": {
@@ -5818,5 +6090,237 @@
   "inspection.components.share.settings.section.omit.description": {
     "defaultMessage": "Share links never include your address.",
     "description": "Explains the Never include choice"
+  },
+  "inspection.recovery.title.migration": {
+    "defaultMessage": "JSTorrent couldn't update your torrent list",
+    "description": "Recovery screen title: the stored torrent list failed to move to this version's format"
+  },
+  "inspection.recovery.body.migration": {
+    "defaultMessage": "Your torrents, settings and downloaded files are safe and unchanged. An update will fix this.",
+    "description": "Recovery screen explanation after a failed upgrade of the torrent list"
+  },
+  "inspection.recovery.title.newer": {
+    "defaultMessage": "This torrent list is from a newer version of JSTorrent",
+    "description": "Recovery screen title: a newer app version saved the torrent list"
+  },
+  "inspection.recovery.body.newer": {
+    "defaultMessage": "Install the latest version to open it. Your torrents and downloaded files are unchanged.",
+    "description": "Recovery screen explanation when an older version was installed over a newer one"
+  },
+  "inspection.recovery.title.retired": {
+    "defaultMessage": "This torrent list is from an early test version",
+    "description": "Recovery screen title: a pre-release torrent list this version cannot read"
+  },
+  "inspection.recovery.body.retired": {
+    "defaultMessage": "This version can't open it. Nothing was changed or deleted, and your downloaded files are unchanged.",
+    "description": "Recovery screen explanation for an unsupported pre-release torrent list"
+  },
+  "inspection.recovery.title.locked": {
+    "defaultMessage": "JSTorrent is already open",
+    "description": "Recovery screen title: another running copy is using the torrent list"
+  },
+  "inspection.recovery.body.locked": {
+    "defaultMessage": "Close the other JSTorrent window, then open JSTorrent again.",
+    "description": "Recovery screen explanation when another copy holds the torrent list"
+  },
+  "inspection.recovery.title.unreadable": {
+    "defaultMessage": "JSTorrent couldn't read its torrent list",
+    "description": "Recovery screen title: the torrent list or app data could not be read"
+  },
+  "inspection.recovery.body.unreadable": {
+    "defaultMessage": "Nothing was changed or deleted. Check for an update, or copy the details and report the problem.",
+    "description": "Recovery screen explanation when the torrent list cannot be read"
+  },
+  "inspection.recovery.export": {
+    "defaultMessage": "Export torrent list",
+    "description": "Recovery screen button: save the torrent list to a file"
+  },
+  "inspection.recovery.export.saved": {
+    "defaultMessage": "Torrent list saved.",
+    "description": "Recovery screen confirmation after exporting the torrent list"
+  },
+  "inspection.recovery.export.failed": {
+    "defaultMessage": "Couldn't export the torrent list: {detail}",
+    "description": "Recovery screen error; detail is the reason"
+  },
+  "inspection.recovery.details": {
+    "defaultMessage": "Details",
+    "description": "Recovery screen disclosure showing technical details for a bug report"
+  },
+  "inspection.recovery.details.copy": {
+    "defaultMessage": "Copy details",
+    "description": "Recovery screen button: copy technical details for a bug report"
+  },
+  "inspection.recovery.details.copied": {
+    "defaultMessage": "Details copied",
+    "description": "Recovery screen button label after copying details"
+  },
+  "inspection.recovery.report": {
+    "defaultMessage": "Report a problem",
+    "description": "Recovery screen button: open the feedback page"
+  },
+  "inspection.recovery.quit": {
+    "defaultMessage": "Quit",
+    "description": "Recovery screen button: quit JSTorrent"
+  },
+  "inspection.recovery.update.check": {
+    "defaultMessage": "Check for updates",
+    "description": "Recovery screen button: look for a newer version"
+  },
+  "inspection.recovery.update.install": {
+    "defaultMessage": "Install version {version}",
+    "description": "Recovery screen button: install the available update; version is its number"
+  },
+  "inspection.recovery.update.checking": {
+    "defaultMessage": "Checking for updates…",
+    "description": "Recovery screen status while checking for an update"
+  },
+  "inspection.recovery.update.current": {
+    "defaultMessage": "No update is available yet.",
+    "description": "Recovery screen status when no newer version exists"
+  },
+  "inspection.recovery.update.installing": {
+    "defaultMessage": "Installing version {version}…",
+    "description": "Recovery screen status while an update installs"
+  },
+  "inspection.recovery.update.failed": {
+    "defaultMessage": "Couldn't check for updates: {detail}",
+    "description": "Recovery screen error; detail is the reason"
+  },
+  "share.panel.short.label": {
+    "defaultMessage": "Short link",
+    "description": "Share panel encrypted short link label"
+  },
+  "share.panel.short.description": {
+    "defaultMessage": "Encrypted on your device and stored on link.jstorrent.com for 30 days. The decryption key stays in the link.",
+    "description": "Share panel encrypted short link description"
+  },
+  "share.panel.short.expires": {
+    "defaultMessage": "Expires {date, date, medium}.",
+    "description": "Share panel encrypted short link expires"
+  },
+  "share.panel.short.failed": {
+    "defaultMessage": "Could not create a short link. You can still use the full link.",
+    "description": "Share panel encrypted short link failed"
+  },
+  "updates.automatic-install": {"defaultMessage": "Automatically install updates when I'm away", "description": "Desktop update setting allowing unattended install after inactivity"},
+  "updates.restart-countdown": {"defaultMessage": "Restarting in {seconds} seconds to install the update", "description": "Nonmodal countdown before an unattended desktop update restart"},
+  "updates.automatic-install-off": {"defaultMessage": "Automatic installation is off", "description": "Update status when the user has opted out of unattended desktop installation"},
+  "updates.automatic-awaiting-qualification": {"defaultMessage":"Automatic installation isn’t enabled here yet. You can still install updates manually.", "description":"Desktop automatic installation depends on platform qualification and channel rollout"},
+  "updates.updated-version": {"defaultMessage":"Updated to {version}","description":"In-app success notice shown only when the user next interacts with the updated application"},
+  "updates.last-outcome": {"defaultMessage":"Last update: {message}","description":"Durable result of the previous desktop update attempt, separate from current check/download status"},
+  "updates.automatic-introduction": {"defaultMessage": "JSTorrent can update after 15 minutes without interaction and resume your transfers. Turn this off in Settings.", "description": "One-time foreground introduction when desktop automatic installation first becomes available and enabled."},
+  "updates.automatic-introduction-updated": {"defaultMessage": "Updated to {version}. Future updates can restart JSTorrent after 15 minutes without interaction and resume your transfers. Turn this off in Settings.", "description": "Combined installation outcome and first introduction, using the single in-app toast slot."},
+  "safety.files.total": {
+    "defaultMessage": "{count, plural, one {# file skipped by safety settings} other {# files skipped by safety settings}}",
+    "description": "File safety selection summary"
+  },
+  "safety.files.none.selected": {
+    "defaultMessage": "No files selected",
+    "description": "File safety selection summary"
+  },
+  "safety.files.use.override": {
+    "defaultMessage": "Use Download anyway to override the safety rule for this file.",
+    "description": "File safety selection summary"
+  },
+  "safety.settings.title": {
+    "defaultMessage": "File safety",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.settings.enabled": {
+    "defaultMessage": "Automatically skip potentially dangerous files",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.settings.preset": {
+    "defaultMessage": "Files to skip",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.preset.recommended": {
+    "defaultMessage": "Applications, installers & scripts (recommended)",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.preset.archives": {
+    "defaultMessage": "Applications, installers, scripts & archives",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.preset.custom": {
+    "defaultMessage": "Custom…",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.settings.extensions": {
+    "defaultMessage": "File extensions",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.settings.extension.help": {
+    "defaultMessage": "Separate extensions with spaces or commas, for example .exe, .dmg, .tar.gz. Matching is case-insensitive; .app also matches application folders.",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.settings.preset.help": {
+    "defaultMessage": "The recommended preset skips applications, installers, scripts and shortcuts. ZIP and other archives, and ISO images, remain allowed unless you choose otherwise.",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.settings.future": {
+    "defaultMessage": "Applies to newly added torrents. Download all respects these rules. Existing torrents and individual overrides stay unchanged. Files explains each safety skip. This does not scan for malware or inspect archives.",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.settings.origin": {
+    "defaultMessage": "Mark downloaded files as coming from the internet",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.settings.origin.help": {
+    "defaultMessage": "Windows and macOS only, where supported by the destination filesystem. Applies when downloaded files are opened for writing. Download anyway keeps these protections; turning this off never removes existing labels.",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.settings.invalid": {
+    "defaultMessage": "Use at most 128 extensions, each starting with a dot and containing up to 31 letters, digits or dots.",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.settings.failed": {
+    "defaultMessage": "File safety settings could not be saved.",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.settings.save": {
+    "defaultMessage": "Save file safety settings",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.settings.discard": {
+    "defaultMessage": "Discard changes",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.settings.conflict": {
+    "defaultMessage": "These settings changed in another client. Discard changes to reload the current values.",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.files.column": {
+    "defaultMessage": "Safety",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.files.blocked": {
+    "defaultMessage": "Skipped by safety settings · {extension} · {preset}",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.files.allowed": {
+    "defaultMessage": "Safety override · {extension}",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.files.download": {
+    "defaultMessage": "Download anyway",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.files.undo": {
+    "defaultMessage": "Undo safety override",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.files.selection.note": {
+    "defaultMessage": "Download all remains subject to safety settings. Files shows why a file was skipped and lets you override it.",
+    "description": "Download safety settings and file selection"
+  },
+  "safety.selection.fragmented": {
+    "defaultMessage": "This selection exceeds 4,096 separate ranges. Use All or None to simplify it.",
+    "description": "Bounded file selection command error."
+  },
+  "safety.selection.older.host": {
+    "defaultMessage": "This host supports up to 4,096 file changes. Use All or None, or update the host for larger selections.",
+    "description": "Mixed-version file selection limit."
   }
 }

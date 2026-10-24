@@ -8,6 +8,14 @@ Topics: `client-surfaces`, `web-ui-design`, `application-view-api`,
 `download-roots`, `android-jstorrent-replacement`,
 `runtime-configurations-and-headless-deployment`.
 
+Planning update, 2026-10-16: Tactical [355](355-automatic-updates.md) owns
+unattended desktop installation, with maintainer-accepted restart after
+15 minutes without interaction, including brief transfer interruption.
+It supersedes this document's explicit-action-only non-goal for qualified
+desktop app/NSIS/AppImage installations. Slice 5 and 355 must share one native
+update owner and reconnect behavior. Android In-App Updates and headless
+automatic-apply policy remain separate decisions.
+
 ## Problem
 
 Settings shows **About & updates** only when the host injects a
@@ -522,7 +530,7 @@ when the slice lands.
 ## Non-Goals
 
 - Permission levels or per-transport command filtering.
-- Automatic install without an explicit owner action.
+- Automatic install outside Tactical 355's unattended desktop scope.
 - Remote updating of MSI, DEB or RPM packages.
 - Android in-app updates.
 - A general host filesystem browser.

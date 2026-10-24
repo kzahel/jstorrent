@@ -3,6 +3,7 @@ package org.rstorrent.bootstrap
 import java.net.URI
 import java.util.concurrent.atomic.AtomicBoolean
 import org.rstorrent.session.uniffi.FileView
+import org.rstorrent.session.uniffi.LibraryMediaItemView
 import org.rstorrent.session.uniffi.MediaFileAvailability
 
 internal object AndroidMediaPlaybackPolicy {
@@ -22,6 +23,8 @@ internal object AndroidMediaPlaybackPolicy {
             "ogv",
             "3gp",
         )
+    private val playableAvailability =
+        setOf(MediaFileAvailability.AVAILABLE, MediaFileAvailability.STREAMABLE)
     private val capabilityPath = Regex("^/media/v1/[A-Za-z0-9_-]{43}$")
 
     fun isRecognizedVideo(path: List<String>): Boolean {
@@ -35,14 +38,7 @@ internal object AndroidMediaPlaybackPolicy {
         path: List<String>,
         padding: Boolean,
         availability: MediaFileAvailability,
-    ): Boolean =
-        !padding &&
-            isRecognizedVideo(path) &&
-            availability in
-            setOf(
-                MediaFileAvailability.AVAILABLE,
-                MediaFileAvailability.STREAMABLE,
-            )
+    ): Boolean = !padding && isRecognizedVideo(path) && availability in playableAvailability
 
     fun isPlayActionEnabled(
         file: FileView,
@@ -50,6 +46,18 @@ internal object AndroidMediaPlaybackPolicy {
     ): Boolean =
         !launchPending &&
             isPlayable(file.path, file.padding, file.mediaAvailability)
+
+    /**
+     * Library rows carry the host's extension, which survives a cut file name.
+     * Audio stays unplayable until a player owns background playback.
+     */
+    fun isLibraryPlayActionEnabled(
+        item: LibraryMediaItemView,
+        launchPending: Boolean,
+    ): Boolean =
+        !launchPending &&
+            item.extension.lowercase() in videoExtensions &&
+            item.mediaAvailability in playableAvailability
 
     fun requireCapabilityUrl(source: String): String {
         val uri =

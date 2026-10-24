@@ -1,7 +1,9 @@
+import { DEFAULT_CLIENT_SETTINGS as FILE_SAFETY_DEFAULTS } from "../api";
 import type { ClientSettings, ClientSettingsRuntimeView } from "../api";
 
 export function clientSettingsFixture(): ClientSettings {
   return {
+    file_safety: FILE_SAFETY_DEFAULTS.file_safety,
     listener: { type: "disabled" },
     preferred_listen_port: 6_881,
     port_mapping: "disabled",

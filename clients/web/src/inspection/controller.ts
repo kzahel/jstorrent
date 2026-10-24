@@ -12,6 +12,7 @@ import {
   type InspectionStoreApi,
 } from "./state";
 import { desiredDetailForTab } from "./tabs";
+import { libraryMediaRequest, sameLibraryRequest } from "./library-browse";
 
 export class InspectionController {
   readonly store: InspectionStoreApi;
@@ -164,6 +165,10 @@ function desiredViewsFor(state: InspectionStore): DesiredInspectionViews {
       : null;
     return {
       library: true,
+      // Hosts without the projection report it unsupported, and the
+      // Library falls back to its torrent cards.
+      libraryMedia:
+        torrentId === null ? libraryMediaRequest(presentation.libraryBrowse) : null,
       torrentId,
       detail:
         torrentId === null ? null : presentation.libraryDetailMode,
@@ -207,6 +212,7 @@ function sameViews(
 ): boolean {
   return (
     left.library === right.library &&
+    sameLibraryRequest(left.libraryMedia, right.libraryMedia) &&
     left.torrentId === right.torrentId &&
     left.detail === right.detail &&
     (left.filePageOffset ?? 0) === (right.filePageOffset ?? 0) &&

@@ -4,6 +4,8 @@ import {
   SHARE_PREFERENCES_STORAGE_KEY,
   loadPeerHintPreference,
   savePeerHintPreference,
+  loadShortLinkPreference,
+  saveShortLinkPreference,
 } from "./share-preferences";
 
 class MemoryStorage {
@@ -53,5 +55,33 @@ describe("peer hint preference", () => {
     storage.failWrites = true;
     expect(() => savePeerHintPreference("include", storage)).not.toThrow();
     expect(loadPeerHintPreference(storage)).toBe("ask");
+  });
+});
+
+describe("short link preference", () => {
+  it("defaults off and preserves the independent address choice in both write directions", () => {
+    const storage = new MemoryStorage();
+    expect(loadShortLinkPreference(storage)).toBe(false);
+    savePeerHintPreference("include", storage);
+    saveShortLinkPreference(true, storage);
+    expect(loadPeerHintPreference(storage)).toBe("include");
+    expect(loadShortLinkPreference(storage)).toBe(true);
+    savePeerHintPreference("omit", storage);
+    expect(loadShortLinkPreference(storage)).toBe(true);
+    saveShortLinkPreference(false, storage);
+    expect(loadPeerHintPreference(storage)).toBe("omit");
+    expect(loadShortLinkPreference(storage)).toBe(false);
+  });
+  it("unreadable and future records stay off without being rewritten", () => {
+    const storage = new MemoryStorage();
+    for (const record of ['{', '{"version":1,"shortLink":"true"}', '{"version":2,"shortLink":true}']) {
+      storage.values.set(SHARE_PREFERENCES_STORAGE_KEY, record);
+      expect(loadShortLinkPreference(storage)).toBe(false);
+      expect(storage.values.get(SHARE_PREFERENCES_STORAGE_KEY)).toBe(record);
+    }
+    expect(loadShortLinkPreference(null)).toBe(false);
+    expect(() => saveShortLinkPreference(true, null)).not.toThrow();
+    storage.failWrites = true;
+    expect(() => saveShortLinkPreference(true, storage)).not.toThrow();
   });
 });

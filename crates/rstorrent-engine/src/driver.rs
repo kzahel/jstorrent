@@ -507,6 +507,11 @@ struct MagnetMetadataRuntimeConfig {
 
 pub trait DownloadCheckpointSink: Send + Sync {
     fn metadata_verified(&self, raw_info: &[u8]) -> Result<(), String>;
+    /// The durable owner may resolve pending selection/policy while accepting
+    /// metadata. Read it before constructing storage, retaining the peer.
+    fn metadata_file_selection(&self) -> Result<Option<FileSelectionUpdate>, String> {
+        Ok(None)
+    }
     fn storage_prepared(&self, storage: ResumedStorage) -> Result<(), String>;
     fn storage_discovered(
         &self,
@@ -4510,8 +4515,19 @@ async fn run_resumable_magnet_download(
             return Err(DownloadError::Checkpoint(message));
         }
         let content_fingerprint = ContentFingerprint::for_info_bytes(&raw_info);
-        let skip_files =
-            effective_magnet_skip_files(&magnet, &runtime_content.content, config.skip_files)?;
+        let resolved = checkpoints
+            .metadata_file_selection()
+            .map_err(DownloadError::Checkpoint)?;
+        let (skip_files, high_priority_files) = match resolved {
+            Some(selection) => {
+                control.update_file_selection(selection.clone());
+                (selection.skip_files, selection.high_priority_files)
+            }
+            None => (
+                effective_magnet_skip_files(&magnet, &runtime_content.content, config.skip_files)?,
+                config.high_priority_files,
+            ),
+        };
         resume.raw_info = Some(raw_info.into());
         let content_config = ContentDownloadConfig {
             artifact_identity: TorrentArtifactIdentity {
@@ -4525,7 +4541,7 @@ async fn run_resumable_magnet_download(
                 .storage_intake_high_watermark_bytes,
             swarm_config: config.resource_limits.swarm_config(),
             skip_files,
-            high_priority_files: config.high_priority_files,
+            high_priority_files,
         };
         run_content_download(
             content_config,

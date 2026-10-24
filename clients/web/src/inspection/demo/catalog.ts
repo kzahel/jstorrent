@@ -288,6 +288,7 @@ export function buildScenarioSnapshot(
     swarmByTorrent,
     filesByTorrent,
     mediaByTorrent,
+    libraryMedia: null,
     trackersByTorrent,
     piecesByTorrent,
     disk,
@@ -303,6 +304,9 @@ export function buildScenarioSnapshot(
     },
     viewStatus: {
       library: { status: "ready" },
+      // DemoApplication answers Library queries itself; a raw scenario
+      // snapshot stands for a host without the projection.
+      libraryMedia: { status: "unsupported", reason: "The media library is unavailable" },
       torrentSummary: { status: "ready" },
       peers: { status: "ready" },
       swarm: { status: "ready" },

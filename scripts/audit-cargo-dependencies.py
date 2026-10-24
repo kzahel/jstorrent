@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
 """Audit registry identities, including the original identity of local backports."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import subprocess
 
 import glib_backport
+
+
+def audit_lock(lock, root):
+    run = subprocess.run(['cargo', 'audit', '--file', '-', '--json'], input=lock,
+                         stdout=subprocess.PIPE, cwd=root, timeout=300)
+    if run.returncode not in (0, 1) or len(run.stdout) > 16 * 1024 * 1024:
+        raise ValueError('Cargo advisory collection failed or exceeded bounds')
+    return json.loads(run.stdout)
 
 
 def collect(root=glib_backport.ROOT):
@@ -15,12 +24,22 @@ def collect(root=glib_backport.ROOT):
     version = subprocess.check_output(['cargo-audit', '--version'], text=True).strip()
     if version != 'cargo-audit 0.22.2':
         raise ValueError('install pinned cargo-audit 0.22.2 with --locked')
-    run = subprocess.run(['cargo', 'audit', '--file', '-', '--json'], input=lock,
-                         stdout=subprocess.PIPE, cwd=root, timeout=300)
-    if run.returncode not in (0, 1) or len(run.stdout) > 16 * 1024 * 1024:
-        raise ValueError('Cargo advisory collection failed or exceeded bounds')
-    report = json.loads(run.stdout)
+    report = audit_lock(lock, root)
     report['rstorrent_source_review'] = provenance
+    probe_lock = (root / 'experiments/ios-storage-probe/Cargo.lock').read_bytes()
+    report['rstorrent_ios_probe'] = {
+        'lock_sha256': hashlib.sha256(probe_lock).hexdigest(),
+        'audit': audit_lock(probe_lock, root),
+    }
+    metadata = json.loads(subprocess.check_output(
+        ['cargo', 'metadata', '--locked', '--all-features', '--format-version', '1'],
+        cwd=root, timeout=120))
+    packages = {p['id']: p for p in metadata['packages']}
+    report['rstorrent_reviewed_features'] = {
+        'rand@0.7.3': sorted(node['features'])
+        for node in metadata['resolve']['nodes']
+        if (packages[node['id']]['name'], packages[node['id']]['version']) == ('rand', '0.7.3')
+    }
     return report
 
 

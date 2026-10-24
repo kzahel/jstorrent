@@ -71,6 +71,10 @@ const defaultBridge: TauriViewBridge = {
 };
 
 export class TauriApplicationViewClient implements ApplicationViewClient {
+  readonly nativeUpdateUi = true;
+  async productUpdate(request: import("./api").HostUpdateRequest): Promise<import("./api").HostUpdateSnapshot> {
+    return this.bridge.invoke("desktop_update_request", { request });
+  }
   private readonly streams = new Set<TauriUpdateStream>();
   private closed = false;
 

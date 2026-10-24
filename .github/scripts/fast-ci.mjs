@@ -10,13 +10,14 @@ const documentation = path => /^(docs\/.*|README\.md|DEVELOPMENT\.md|AGENTS\.md|
 
 export function requireFastSuccess(jobs) {
   if (jobs.plan?.result !== 'success') throw new Error('Selection did not succeed');
-  for (const flag of ['rust', 'unitTests', 'contract', 'web', 'extension', 'website']) {
+  for (const flag of ['rust', 'unitTests', 'contract', 'web', 'extension', 'website', 'notices']) {
     if (!['true', 'false'].includes(jobs.plan.outputs?.[flag])) throw new Error(`Missing selection: ${flag}`);
   }
   const required = { tools: true, rust: jobs.plan.outputs.rust === 'true',
     contract: jobs.plan.outputs.contract === 'true',
     web: jobs.plan.outputs.web === 'true' || jobs.plan.outputs.extension === 'true',
-    website: jobs.plan.outputs.website === 'true' };
+    website: jobs.plan.outputs.website === 'true',
+    notices: jobs.plan.outputs.notices === 'true' };
   for (const [name, selected] of Object.entries(required)) {
     const expected = selected ? 'success' : 'skipped';
     if (jobs[name]?.result !== expected) throw new Error(`${name}: ${jobs[name]?.result}, expected ${expected}`);
@@ -31,8 +32,12 @@ export function planChecks(paths, metadata) {
   const byDirectory = members.map(p => [relative(root, dirname(p.manifest_path)).split(sep).join('/'), p]);
   const portable = members.filter(p => !nativePackages.has(p.name));
   const selected = new Set(); let allRust = false;
-  let web = false; let extension = false; let website = false;
+  let web = false; let extension = false; let website = false; let notices = false;
   for (const path of paths) {
+    if (/(^|\/)Cargo\.(toml|lock)$/.test(path) || path.startsWith('vendor/') ||
+        path.startsWith('distribution/') || /^scripts\/(prepare-release-notices|glib_backport)\.py$/.test(path) ||
+        /^clients\/web\/package(-lock)?\.json$/.test(path) || path === 'clients/web/scripts/patch-playsvideo.mjs' ||
+        path === '.github/workflows/fast-ci.yml' || path === '.github/scripts/fast-ci.mjs') notices = true;
     if (documentation(path)) continue;
     const owner = byDirectory.find(([directory]) => path.startsWith(directory + '/'))?.[1];
     if (owner && !path.endsWith('Cargo.toml')) {
@@ -61,7 +66,7 @@ export function planChecks(paths, metadata) {
   // Only gateway dependencies can change the generated application contract.
   const contract = packages.includes('rstorrent-gateway');
   return { rust: packages.length > 0, unitTests: testPackages.length > 0, packages, testPackages,
-    web: web || contract, contract, extension, website };
+    web: web || contract, contract, extension, website, notices };
 }
 
 function command(args) {

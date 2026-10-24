@@ -36,6 +36,20 @@ jobs:
             scripts/release-android.sh --check > "$RUNNER_TEMP/release-notes.md"
           fi
 
+      - name: Keep released extension companions working
+        env:
+          RELEASE: ${{ github.ref_name }}
+          ENFORCE: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/android-v') }}
+        run: node scripts/check-release-compatibility.mjs --surface android --release "$RELEASE" --enforce "$ENFORCE"
+
+      - name: Require captures for every supported delivery
+        env:
+          RELEASE: ${{ github.ref_name }}
+          ENFORCE: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/android-v') }}
+        run: |
+          git fetch --force --tags --depth=1 origin
+          node scripts/compat-ledger.mjs --release "$RELEASE" || [ "$ENFORCE" != true ]
+
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
@@ -49,7 +63,7 @@ jobs:
         with:
           shared-key: android-release-ubuntu-24.04
 
-      - uses: gradle/actions/setup-gradle@f236b35da9d031e13b1005234ebe4392ed54c580 # v5.0.0
+      - uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5.0.0
 
       - name: Install pinned Android tooling
         run: |

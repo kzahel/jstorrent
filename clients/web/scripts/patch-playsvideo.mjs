@@ -1,5 +1,5 @@
 // Bounded, independently authored product adaptations of MIT playsvideo 0.4.7.
-// Fail closed if the pinned upstream files change. See Tactical 313 / notices.
+// Fail closed if the pinned upstream files change. See Tacticals 313 and 362 / notices.
 import { readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 const base = new URL("../node_modules/playsvideo/dist/", import.meta.url);
@@ -41,7 +41,7 @@ const replacements = {
     ],
     [
       "this._sourceDoTranscode = hlsEvaluation.pipelineAudioRequiresTranscode === true;",
-      "if (hlsEvaluation.pipelineAudioRequiresTranscode) throw new Error('This audio codec needs transcoding, which remote playback does not support yet.');\n            this._sourceDoTranscode = false;",
+      "if (hlsEvaluation.pipelineAudioRequiresTranscode) throw new Error('This audio codec needs transcoding, which video playback does not support yet.');\n            this._sourceDoTranscode = false;",
     ],
     [
       "const seg0Result = await processSegmentWithAbort(this.makeSourceProcessorConfig(), 0);",
@@ -55,10 +55,10 @@ const replacements = {
     ],
   ],
   "pipeline/demux.js": [
-    ["import { ALL_FORMATS,", "import { MP4, ALL_FORMATS,"],
+    ["import { ALL_FORMATS,", "import { MP4, MATROSKA, ALL_FORMATS,"],
     [
       "formats: ALL_FORMATS, source: new SourceAdapter(source)",
-      "formats: [MP4], source: new SourceAdapter(source)",
+      "formats: [MP4, MATROSKA], source: new SourceAdapter(source)",
     ],
     [
       "const duration = Number(await videoTrack.computeDuration());",
@@ -78,7 +78,7 @@ const hashes = {
   },
   "engine.js": {
     "original": "6bfc1b795920ecb6564ceac84f0f6d6e6c42d1b0e20f0879de8b6adc0280487c",
-    "patched": "4835fc83c9170682a330d3f939240f0e8ef7bb1e080573806607ee179839ad40"
+    "patched": "ddfc185177199cc8303e5c811ca58e58aa05b18fef1cce3f1da4adc1eb899be5"
   },
   "pipeline/segment-processor.js": {
     "original": "2a85323798bc38b1116077effab7df567ceb23df14d2ccb7282d318074f9310d",
@@ -86,21 +86,50 @@ const hashes = {
   },
   "pipeline/demux.js": {
     "original": "862f2650aa491538d49f25e8cfca68d465582cd6e99723bb5e18d7442ae5335e",
-    "patched": "728e2b1589ef31ee65f4aa373751b1a5eb55651daecbf45a59b730d627944142"
+    "patched": "2ce2622428c21f60e3d56b47edf01d29b04a2765c9866c7b8446354d65f4912f"
   }
 };
-for (const [path, edits] of Object.entries(replacements)) {
-  const url = new URL(path, base);
-  let code = await readFile(url, "utf8");
-  const hash = createHash("sha256").update(code).digest("hex");
-  if (hash === hashes[path].patched) continue;
-  if (hash !== hashes[path].original)
-    throw new Error(`Unexpected playsvideo source: ${path}`);
+// Earlier patch outputs left in existing installs, with the edits that bring
+// each to the current output without reinstalling the package.
+const upgrades = {
+  "engine.js": {
+    "patched": "4835fc83c9170682a330d3f939240f0e8ef7bb1e080573806607ee179839ad40",
+    "edits": [
+      ["which remote playback does not support yet.", "which video playback does not support yet."],
+    ],
+  },
+  "pipeline/demux.js": {
+    "patched": "728e2b1589ef31ee65f4aa373751b1a5eb55651daecbf45a59b730d627944142",
+    "edits": [
+      ["import { MP4, ALL_FORMATS,", "import { MP4, MATROSKA, ALL_FORMATS,"],
+      ["formats: [MP4], source", "formats: [MP4, MATROSKA], source"],
+    ],
+  },
+};
+function applyEdits(path, code, edits) {
   for (const [before, after] of edits) {
     if (code.split(before).length !== 2)
       throw new Error(`Ambiguous playsvideo patch: ${path}`);
     code = code.replace(before, after);
   }
+  return code;
+}
+for (const [path, edits] of Object.entries(replacements)) {
+  const url = new URL(path, base);
+  let code = await readFile(url, "utf8");
+  const hash = createHash("sha256").update(code).digest("hex");
+  if (hash === hashes[path].patched) continue;
+  const upgrade = upgrades[path];
+  if (upgrade !== undefined && hash === upgrade.patched) {
+    code = applyEdits(path, code, upgrade.edits);
+    if (createHash("sha256").update(code).digest("hex") !== hashes[path].patched)
+      throw new Error("Invalid playsvideo patch upgrade output");
+    await writeFile(url, code);
+    continue;
+  }
+  if (hash !== hashes[path].original)
+    throw new Error(`Unexpected playsvideo source: ${path}`);
+  code = applyEdits(path, code, edits);
   if (createHash("sha256").update(code).digest("hex") !== hashes[path].patched)
     throw new Error("Invalid playsvideo patch output");
   await writeFile(url, code);

@@ -12,6 +12,7 @@ pub use application_websocket::{
     ApplicationClientFrame, ApplicationConnectionError, ApplicationConnectionErrorCode,
     ApplicationConnectionLimits, ApplicationConnectionMetrics,
     ApplicationConnectionMetricsSnapshot, ApplicationFrameMetrics, ApplicationServerFrame,
+    UNSUPPORTED_CALL_MESSAGE, unsupported_call_id,
 };
 pub use chromeos_companion::{
     ANDROID_COMPANION_PORTS, ARC_COMPANION_HOST, BETA_EXTENSION_ORIGIN, CompanionPairingError,
@@ -784,14 +785,18 @@ async fn prepare_with_picker_and_assets(
         .await
         .map_err(GatewayError::Bind)?;
     let local_addr = listener.local_addr().map_err(GatewayError::Bind)?;
+    // Development pages may sit behind a proxy that forwards /media with the
+    // visible Host, so their media URLs use that origin too. In-page playback
+    // fetches ranges and needs the media route on the page's own origin.
     let media_origin = match &config.authentication {
         GatewayAuthentication::Basic(_)
         | GatewayAuthentication::PrivateLanNone
         | GatewayAuthentication::TailscaleServeNone
-        | GatewayAuthentication::Web(_) => config.allowed_origin.trim_end_matches('/').to_owned(),
-        GatewayAuthentication::Bearer { .. }
-        | GatewayAuthentication::ChromeOsCompanion(_)
+        | GatewayAuthentication::Web(_)
         | GatewayAuthentication::UnauthenticatedLoopbackDevelopment => {
+            config.allowed_origin.trim_end_matches('/').to_owned()
+        }
+        GatewayAuthentication::Bearer { .. } | GatewayAuthentication::ChromeOsCompanion(_) => {
             format!("http://{local_addr}")
         }
     };
@@ -2353,6 +2358,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".into(),
                 token: Some("correct-token".into()),
+                client: None,
             },
         )
         .await;
@@ -2857,6 +2863,71 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn development_gateway_mints_media_urls_on_the_visible_origin() {
+        let root = test_root("gateway-development-media");
+        let (service, torrent_id, payload) = verified_media_service(&root).await;
+        let origin = "http://127.0.0.1:5173";
+        let server = bind(
+            GatewayConfig::unauthenticated_loopback_development(origin.to_owned()),
+            service.clone(),
+        )
+        .await
+        .expect("bind gateway");
+        let address = server.local_addr();
+        let shutdown = CancellationToken::new();
+        let task = tokio::spawn(server.serve(shutdown.clone()));
+        let (status, _, body) = raw_http_request(
+            address,
+            "POST",
+            "/api/v1/media-urls",
+            None,
+            Some(origin),
+            Some("00000000000000000000000000000001"),
+            None,
+            Some(serde_json::json!({ "torrent_id": torrent_id, "file_index": 0 }).to_string()),
+        )
+        .await;
+        assert_eq!(status, 200);
+        let response: MediaUrlResponse = serde_json::from_slice(&body).expect("media URL response");
+        let MediaUrlOutcome::Created { url, .. } = response.outcome else {
+            panic!("gateway media unavailable")
+        };
+        let path = url
+            .strip_prefix(origin)
+            .expect("visible-origin media URL")
+            .to_owned();
+        // A proxy that preserves the visible Host reaches the capability.
+        let (status, _, body) = raw_http_request_with_host(
+            address,
+            "127.0.0.1:5173",
+            "GET",
+            &path,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(body, payload);
+        let (status, _, _) =
+            raw_http_request(address, "GET", &path, None, None, None, None, None).await;
+        assert_eq!(status, 404);
+
+        shutdown.cancel();
+        task.await.expect("gateway task").expect("gateway shutdown");
+        service
+            .lock()
+            .await
+            .shutdown()
+            .await
+            .expect("shutdown service");
+        drop(service);
+        std::fs::remove_dir_all(root).expect("remove root");
+    }
+
+    #[tokio::test]
     async fn loopback_gateway_mounts_capability_media_without_api_bearer_or_cors() {
         let root = test_root("gateway-media");
         let (service, torrent_id, payload) = verified_media_service(&root).await;
@@ -3146,6 +3217,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -3375,6 +3447,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: None,
+                client: None,
             },
         )
         .await;
@@ -3443,6 +3516,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -3684,6 +3758,7 @@ mod tests {
                     encoding: rstorrent_session::ApiEncoding::Json,
                     client_instance_id: "00000000000000000000000000000001".to_owned(),
                     token: token.map(str::to_owned),
+                    client: None,
                 },
             )
             .await;
@@ -3730,6 +3805,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -3853,6 +3929,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -4030,6 +4107,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: Some("wrong-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -4051,6 +4129,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000002".to_owned(),
                 token: Some("correct-token".to_owned()),
+                client: None,
             },
         )
         .await;
@@ -4916,6 +4995,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000009".to_owned(),
                 token: None,
+                client: None,
             },
         )
         .await;
@@ -5429,6 +5509,7 @@ mod tests {
                 encoding: rstorrent_session::ApiEncoding::Json,
                 client_instance_id: "00000000000000000000000000000001".to_owned(),
                 token: None,
+                client: None,
             },
         )
         .await;

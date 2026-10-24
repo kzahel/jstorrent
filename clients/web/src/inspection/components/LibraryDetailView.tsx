@@ -1,4 +1,5 @@
-import { useRemotePlayback, canPlayRemoteFile } from "./RemoteVideoPlayer";
+import { usePlayback } from "./VideoPlayer";
+import { isPlaybackEligible, useMediaPlayback } from "./useMediaPlayback";
 import { message as localizedMessage } from "../../localization/runtime";
 import {
   useEffect,
@@ -9,14 +10,13 @@ import {
   type UIEvent,
 } from "react";
 
-import { useInspectionCommand, useInspectionStore } from "../context";
+import { useInspectionStore } from "../context";
 import { formatDecimalProgress, formatExactBytes, torrentVisibleProgress } from "../format";
 import type { LayoutMode } from "../layout";
 import { episodeLabel, sortFileRows, sortMediaRows } from "../library-media";
 import type { FileRow, MediaRow, TorrentRow, ViewMaterialization } from "../model";
 import { seedLimitReached } from "../seed-stop";
 import { Icon } from "./Icon";
-import { useToast } from "./Toast";
 import styles from "./LibraryDetailView.module.css";
 
 const OVERSCAN = 5;
@@ -28,7 +28,7 @@ export function LibraryDetailView({
   readonly torrent: TorrentRow;
   readonly onBack: () => void;
 }) {
-  const playback = useRemotePlayback();
+  const { demo, pending, play, reset } = useMediaPlayback();
   const visibleProgress = torrentVisibleProgress(torrent);
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
   const layout = useInspectionStore((state) => state.presentation.layout);
@@ -49,27 +49,14 @@ export function LibraryDetailView({
   );
   const mediaStatus = useInspectionStore((state) => state.viewStatus.media);
   const filesStatus = useInspectionStore((state) => state.viewStatus.files);
-  const demo = useInspectionStore((state) => state.demo);
-  const execute = useInspectionCommand();
   const autoFallback = useRef(torrent.id);
-  const playbackRequest = useRef(0);
-  const [playbackPendingFile, setPlaybackPendingFile] = useState<number | null>(
-    null,
-  );
-  const toast = useToast();
+  const playbackPendingFile =
+    pending?.torrentId === torrent.id ? pending.fileIndex : null;
 
   useEffect(() => {
     autoFallback.current = torrent.id;
-    playbackRequest.current += 1;
-    setPlaybackPendingFile(null);
-  }, [torrent.id]);
-
-  useEffect(
-    () => () => {
-      playbackRequest.current += 1;
-    },
-    [],
-  );
+    reset();
+  }, [reset, torrent.id]);
 
   useEffect(() => {
     if (
@@ -88,42 +75,14 @@ export function LibraryDetailView({
     selectMode(next);
   };
   const mediaCount = media?.order.length;
-  const playMedia = async (row: MediaRow) => {
-    if (
-      demo !== null ||
-      playbackPendingFile !== null ||
-      !isPlaybackEligible(row.mediaAvailability)
-    ) {
-      return;
-    }
-    if (playback.remote) {
-      if (!canPlayRemoteFile(row.name, row.mediaAvailability)) return;
-      playback.play({ torrentId: torrent.id, fileIndex: row.fileIndex, fileName: row.name, lengthBytes: row.lengthBytes });
-      return;
-    }
-    const request = playbackRequest.current + 1;
-    playbackRequest.current = request;
-    setPlaybackPendingFile(row.fileIndex);
-    try {
-      // The player opening is the confirmation; only failures need words.
-      await execute({
-        type: "open_file",
-        torrentId: torrent.id,
-        fileIndex: row.fileIndex,
-      });
-    } catch (error) {
-      if (playbackRequest.current === request) {
-        toast.show({
-          tone: "error",
-          message: error instanceof Error ? error.message : String(error),
-        });
-      }
-    } finally {
-      if (playbackRequest.current === request) {
-        setPlaybackPendingFile(null);
-      }
-    }
-  };
+  const playMedia = (row: MediaRow) =>
+    play({
+      torrentId: torrent.id,
+      fileIndex: row.fileIndex,
+      name: row.name,
+      lengthBytes: row.lengthBytes,
+      mediaAvailability: row.mediaAvailability,
+    });
 
   return (
     <section className={styles.detail} aria-labelledby="library-detail-heading">
@@ -202,9 +161,7 @@ export function LibraryDetailView({
               dataUnits={dataUnits}
               playbackPendingFile={playbackPendingFile}
               playbackUnavailableReason={
-                demo === null
-                  ? undefined
-                  : "Playback is unavailable in demo scenarios."
+                demo ? "Playback is unavailable in demo scenarios." : undefined
               }
               onPlay={(row) => void playMedia(row)}
             />
@@ -410,13 +367,13 @@ function CatalogRowView({
       : row.doneBytes === "0"
         ? "Not downloaded"
         : "Partially downloaded";
-  const playback = useRemotePlayback();
+  const playback = usePlayback();
   const playbackReason =
     entry.kind === "media"
       ? playbackDisabledReason(
           entry.row,
           playbackPendingFile,
-          playback.remote && !canPlayRemoteFile(row.name, row.mediaAvailability)
+          playback.remote && !playback.canPlay(row.name, row.mediaAvailability)
             ? localizedMessage("remote.video.completed.mp4") : playbackUnavailableReason,
         )
       : undefined;
@@ -484,16 +441,10 @@ function playbackDisabledReason(
   return `Playback is unavailable: ${availabilityLabel(row.mediaAvailability).toLocaleLowerCase()}.`;
 }
 
-function isPlaybackEligible(
-  availability: MediaRow["mediaAvailability"],
-): boolean {
-  return availability === "available" || availability === "streamable";
-}
-
 function CatalogMessage({ message }: { readonly message: string }) {
   return (
     <div className={styles.message} role="status">
-      <span aria-hidden="true">◇</span>
+      <Icon name="library" />
       <strong>{message}</strong>
     </div>
   );

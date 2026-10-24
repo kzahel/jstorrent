@@ -2886,7 +2886,7 @@ def run_product_unmetered_network_profile(
             raise BootstrapFailure(
                 f"metered Android network did not quiesce the engine: {blocked}"
             )
-        wait_product_text(target, probe, "Waiting for an unmetered network")
+        wait_product_text(target, probe, "Waiting for Wi-Fi")
         time.sleep(0.5)
         blocked_upload = int(fixture.handle.status().total_upload)
         time.sleep(1)
@@ -7274,7 +7274,7 @@ def run_product_file_selection_profile(
         wait_and_click_product_text(target, probe, "Add torrent")
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
-            if any(node.attrib.get("text") == "Browse .torrent file"
+            if any(node.attrib.get("text") == "Browse .torrent files"
                    and node.attrib.get("enabled") == "true"
                    for node in probe.ui_nodes(target)):
                 break

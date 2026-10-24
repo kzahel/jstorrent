@@ -123,13 +123,18 @@ export async function stageDesktopReleaseLeg({ root, lane, sourceSha, runId, att
     assets.push({ name: file.name, size: checkedFile(destination), sha256: await digestFile(destination) });
   }
   const metadata = { product, lane, version, sourceSha, runId, attempt, assets };
+  const privateReceipt = join(root, "distribution/private-update-qualification.json");
+  if (existsSync(privateReceipt)) {
+    checkedFile(privateReceipt, MAX_METADATA_BYTES);
+    metadata.privateQualification = JSON.parse(readFileSync(privateReceipt, "utf8"));
+  }
   writeFileSync(join(output, "meta.json"), `${JSON.stringify(metadata, null, 2)}\n`);
   return metadata;
 }
 
 function releaseNotes({ root, channel, version, publish, product }) {
   if (!publish) return `Signed ${product === "RSTorrent" ? "JSTorrent Preview" : product} desktop release rehearsal.`;
-  if (channel === "latest") return "Signed Latest build from verified main source.";
+  if (channel === "latest") return "Signed Latest build from verified main source. Browser integration requires JSTorrent extension 1.1.5 or newer; older extensions may fail to display the library.";
   const changelog = readFileSync(join(root, "CHANGELOG.md"), "utf8");
   const marker = `## [${version}]`;
   const start = changelog.indexOf(marker);
@@ -173,8 +178,8 @@ export async function assembleDesktopRelease({ root, input, output, sourceSha, r
   requireValue(repository, /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, "repository");
   if (!["stable", "latest"].includes(channel)) fail(`invalid channel: ${channel}`);
   if (!["RSTorrent", "JSTorrent"].includes(product)) fail("unknown release product");
-  if (productionPublication && (product !== "JSTorrent" || channel !== "stable" || !tag)) {
-    fail("Production publication requires a tagged Stable JSTorrent release");
+  if (productionPublication && (product !== "JSTorrent" || !["stable", "latest"].includes(channel) || !tag)) {
+    fail("Production publication requires a tagged JSTorrent release");
   }
   if (product === "JSTorrent" && tag && productionPublication !== true) fail("JSTorrent candidate publication is not enabled");
   const publish = Boolean(tag);
@@ -188,6 +193,7 @@ export async function assembleDesktopRelease({ root, input, output, sourceSha, r
     checkedFile(join(legPath, "meta.json"), MAX_METADATA_BYTES);
     const meta = JSON.parse(readFileSync(join(legPath, "meta.json"), "utf8"));
     if (meta.product !== product) fail("mixed release products");
+    if (meta.privateQualification && publish) fail("Private schema qualification packages cannot be published");
     if (!RELEASE_LANES.includes(meta.lane) || legs.has(meta.lane)) fail(`duplicate or unknown release lane: ${meta.lane}`);
     if (meta.sourceSha !== sourceSha || meta.runId !== runId || meta.attempt !== attempt) {
       fail(`stale release leg: ${meta.lane}`);
@@ -210,6 +216,8 @@ export async function assembleDesktopRelease({ root, input, output, sourceSha, r
     }
     legs.set(meta.lane, { meta, directory: legPath });
   }
+  const qualificationReceipts = [...legs.values()].map(leg => JSON.stringify(leg.meta.privateQualification ?? null));
+  if (new Set(qualificationReceipts).size !== 1) fail("Mixed private qualification source receipts");
   const releaseVersion = version || legs.get(RELEASE_LANES[0])?.meta.version;
   requireValue(releaseVersion, /^\d+\.\d+\.\d+$/, "release version");
   if ([...legs.values()].some((leg) => leg.meta.version !== releaseVersion)) fail("release leg versions differ");
@@ -260,11 +268,11 @@ export function verifyUploadedAssets(local, remote) {
 }
 
 export async function verifyProductionFinalDraft({ local, remote, checksumPath, sourcePath }) {
-  const match = /^desktop-v(\d+\.\d+\.\d+)$/.exec(local.tagName ?? "");
-  if (!match || local.isPrerelease !== false || local.isDraft !== true) {
-    fail("final production draft requires a Stable candidate");
+  const match = /^desktop-(latest-)?v(\d+\.\d+\.\d+)$/.exec(local.tagName ?? "");
+  if (!match || local.isPrerelease !== Boolean(match[1]) || local.isDraft !== true) {
+    fail("final production draft requires a matching Stable or Latest candidate");
   }
-  const expected = RELEASE_LANES.flatMap(lane => laneFiles(lane, match[1], "JSTorrent").map(asset => asset.name));
+  const expected = RELEASE_LANES.flatMap(lane => laneFiles(lane, match[2], "JSTorrent").map(asset => asset.name));
   expected.push("latest.json");
   if (!Array.isArray(local.assets) ||
       JSON.stringify(local.assets.map(asset => asset.name).sort()) !== JSON.stringify(expected.sort())) {
@@ -274,7 +282,7 @@ export async function verifyProductionFinalDraft({ local, remote, checksumPath, 
     digest: `sha256:${await digestFile(checksumPath)}` };
   const extra = [];
   if (sourcePath !== undefined) {
-    const name = `JSTorrent_${match[1]}_AppImage-sources-final.tar.gz`;
+    const name = `JSTorrent_${match[2]}_AppImage-sources-final.tar.gz`;
     if (basename(sourcePath) !== name) fail("production source asset version/name mismatch");
     extra.push({ name, size: checkedFile(sourcePath, 2 * 1024 * 1024 * 1024),
       digest: `sha256:${await digestFile(sourcePath)}` });

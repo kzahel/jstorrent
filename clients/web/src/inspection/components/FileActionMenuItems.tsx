@@ -1,6 +1,8 @@
 import { message as localizedMessage } from "../../localization/runtime";
 import type { FileActionId, ResolvedFileAction } from "../file-actions";
+import { Icon } from "./Icon";
 import { ActionMenuItem, ActionMenuSeparator } from "./overlays/AnchoredOverlay";
+import styles from "./FileActionMenuItems.module.css";
 
 export function FileActionMenuItems({
   actions,
@@ -27,6 +29,9 @@ export function FileActionMenuItems({
           onAction={() => onAction(action.id)}
         >
           {action.label}
+          {action.external ? (
+            <Icon name="openExternal" className={styles.trailingIcon} />
+          ) : null}
         </ActionMenuItem>
       ))}
       {directSave === undefined || onDirectSave === undefined ? null : (

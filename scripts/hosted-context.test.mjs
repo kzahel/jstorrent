@@ -57,6 +57,27 @@ test('feedback accepts only the closed environment and usage fields', () => {
   )
 })
 
+test('feedback accepts the desktop build context the app reports', () => {
+  assert.deepEqual(
+    values(
+      '?platform=mac&v=0.3.0&build=abcdef123456-dirty&target=aarch64-apple-darwin&package=app&connection=desktop',
+    ),
+    {
+      platform: 'mac',
+      v: '0.3.0',
+      build: 'abcdef123456-dirty',
+      target: 'aarch64-apple-darwin',
+      package: 'app',
+      connection: 'desktop',
+    },
+  )
+  assert.deepEqual(
+    values('?build=a%20b&target=x86_64%3Cscript%3E&package=APP&connection=' + 'x'.repeat(25)),
+    {},
+  )
+  assert.deepEqual(values('?build=abc&target=x', 'uninstall'), {})
+})
+
 test('uninstall omits backend identity, diagnostics and unrelated environment', () => {
   assert.deepEqual(
     values(

@@ -832,6 +832,14 @@ test("live Library media detail follows metadata through completion", async ({
   await expect(
     settings.getByRole("region", { name: "Speed limits" }),
   ).not.toContainText(/Applying…|Couldn't apply/);
+  // This flow adds without choosing files first, so it can stay paused.
+  await settings.getByRole("tab", { name: "Downloads" }).click();
+  const fileSelection = settings.getByRole("checkbox", {
+    name: /^Show file selection when adding torrents/,
+  });
+  // The host owns this preference, so the box clears when it confirms.
+  await fileSelection.click();
+  await expect(fileSelection).not.toBeChecked();
   await settings.getByRole("button", { name: "Close settings" }).click();
   const addForm = page.getByRole("form", { name: "Add torrent" });
   const input = addForm.getByRole("textbox", {
@@ -849,22 +857,19 @@ test("live Library media detail follows metadata through completion", async ({
     .uncheck();
   await addDialog.getByRole("button", { name: "Add torrent" }).click();
   await expect(
-    page.getByRole("region", { name: "Torrent collection" }).getByRole("status"),
-  ).toHaveText("Added");
+    page.getByRole("grid", { name: "Torrents" }).getByRole("row"),
+  ).toHaveCount(2);
   await primary.getByRole("button", { name: "Library" }).click();
-  const card = page
-    .getByRole("list", { name: "Torrent-backed content" })
-    .getByRole("button")
-    .first();
-  await expect(card).toBeVisible();
+  // Before metadata the torrent has no Library items, only a pending count.
+  // A local seed can deliver metadata before the Library opens.
+  sawMetadataPending = await page
+    .getByText(/torrent is still getting file details from peers/)
+    .isVisible();
+  const items = page.getByRole("list", { name: "Library items" });
+  await expect(items.getByRole("listitem")).toHaveCount(6, { timeout: 20_000 });
+  const card = items.getByRole("button", { name: /in its torrent$/ }).first();
   await card.click();
-  const pending = page.getByText("Waiting for torrent metadata…");
-  await expect(pending).toBeVisible();
-  sawMetadataPending = true;
-
-  await expect(
-    page.getByRole("heading", { name: torrentName! }),
-  ).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("heading", { name: torrentName! })).toBeVisible();
   const media = page.getByRole("list", { name: "Recognized video files" });
   await expect(media).toBeVisible();
   expect(
@@ -880,6 +885,27 @@ test("live Library media detail follows metadata through completion", async ({
   await expect(media.getByText("poster.jpg")).toHaveCount(0);
   await expect(media.getByText("README.nfo")).toHaveCount(0);
   await expect.poll(() => detailRequests.at(-1)).toBe("media");
+
+  // The cross-torrent Library (Tactical 363) on a live host.
+  await page.getByRole("button", { name: "Back to Library" }).click();
+  await expect(card).toBeFocused();
+  const libraryFilters = page.getByRole("navigation", { name: "Library filters" });
+  await libraryFilters.getByRole("button", { name: /^TV shows/ }).click();
+  const show = page
+    .getByRole("list", { name: "TV shows" })
+    .getByRole("button", { name: /North Shore Stories/ });
+  await expect(show).toContainText("5 episodes · 2 seasons");
+  await show.click();
+  await expect(items.getByRole("listitem")).toHaveCount(5);
+  await page.getByRole("button", { name: "Back to TV shows" }).click();
+  await libraryFilters.getByRole("button", { name: /^All media/ }).click();
+  const search = page.getByRole("searchbox", { name: "Search the library" });
+  await search.fill("s02");
+  await expect(items.getByRole("listitem")).toHaveCount(1);
+  await search.fill("");
+  await expect(items.getByRole("listitem")).toHaveCount(6);
+  await card.click();
+  await expect(media).toBeVisible();
 
   await page.getByRole("button", { name: "Back to Library" }).click();
   await primary.getByRole("button", { name: "Torrents" }).click();
@@ -929,6 +955,10 @@ test("live Library media detail follows metadata through completion", async ({
     .getByRole("listitem")
     .filter({ hasText: "North.Shore.Stories.S01E10.1080p.WEB-DL.mkv" });
   const play = availableRow.getByRole("button", { name: /^Play / });
+  // The torrent is still downloading other files, so this verified file is
+  // streamable rather than available: Play opens it outside the page, and
+  // the in-page player is reserved for available files (Tactical 362).
+  await expect(availableRow.getByText("Downloaded", { exact: true })).toBeVisible();
   await expect(play).toBeEnabled();
   const popupPromise = page.context().waitForEvent("page");
   await play.click();
@@ -983,6 +1013,9 @@ test("live Library media detail follows metadata through completion", async ({
   ).toHaveCount(6);
   await page.keyboard.press("Escape");
   await expect(card).toBeFocused();
+  await libraryFilters.getByRole("button", { name: /^TV shows/ }).click();
+  await expect(show).toContainText("5 of 5 complete");
+  await libraryFilters.getByRole("button", { name: /^All media/ }).click();
 
   const payloadHash = createHash("sha1");
   for (const relative of JSON.parse(mediaPaths!) as string[]) {

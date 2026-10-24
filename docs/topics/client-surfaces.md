@@ -1,5 +1,91 @@
 # Client Surfaces
 
+Tactical [377](../tactical/377-compatible-touchless-release-channels.md) labels
+About's selector **Stable — Recommended** and **Latest — Early access**.
+Returning to Stable saves the choice and waits for a newer release that supports
+both the actual databases and their immutable migration history. Signed macOS
+ARM, Windows x64 and Linux x64 runs prove incompatible Stable waiting and
+compatible unattended catch-up. Closed-window macOS, foreground macOS,
+minimized Windows and Linux behind an independent editor retain their intended
+presentation; background typing checks pass. The user's separate automatic
+setting persists, and service permission gates each channel/native target.
+Intel macOS under Rosetta additionally passes input during the actual startup
+gap, without foreground reacquisition. Both channels are service-enabled for
+macOS ARM/x64, Windows x64 and Linux x64; Linux ARM stays manual. See 377 for
+exact evidence, remaining architecture coverage and release holds.
+
+Tactical [355](../tactical/355-automatic-updates.md) now implements unattended
+desktop updates through one native host owner, including with the window
+closed. Maintainer direction accepts restarting after 15 minutes without
+interaction, briefly interrupting and resuming downloads/seeding. Native,
+extension and remote interaction plus unfinished flows/playback gate restart.
+Relaunch preserves foreground versus non-foreground intent without restoring
+exact window stacking order; minimized and closed/hidden windows stay that
+way. Explicit Quit and newer focus choices take precedence. No notice,
+installer or startup window may interrupt another application.
+Qualification requires synthetic A-to-B signed updates in Machine Control
+VMs, with guest-native focus/visibility observation and keyboard input into
+an independent editor throughout background updates. Exact window ordering
+is outside the assertions. The native owner, shared activity/control UI and
+native synthetic runners are implemented. macOS ARM64 passes repeated window
+matrices, full idle intervals and controlled transfer resumption; Windows and
+Linux ARM64 synthetic presentation matrices also pass.
+Default-on for qualified targets, a 60-second notice and one-hour snooze are
+accepted. Tactical 377 extends this synthetic evidence with actual shipping-signed
+packages and explicit per-target rollout; unrun 355 cases remain separate
+qualification gaps rather than evidence for an untested architecture.
+
+Tactical [376](../tactical/376-android-media-library.md) adds the media
+Library to Android as a second primary destination, **Torrents | Library**:
+a navigation bar at compact widths, a rail from 600 dp, hidden while torrent
+selection owns the bottom bar, with the last destination remembered in
+`product_ui`. The torrent list is now called Torrents in code and copy. The
+Library leases one `library_media` page per query, shows only a page stamped
+with the current request, and offers the web presets, search, sort,
+availability and archived scope, in-place shows/albums/torrents with Back,
+pages and Files-tab-style rows with progress and a ⋮ sheet (Play, Open with…,
+Open containing folder, Show in torrent, which scrolls the torrent's Files tab
+to the file). Rows only; audio playback, cards and
+persisted filters are deferred. Fresh API 28 phone and API 35 tablet emulators
+and a live seeded-host scenario on phone and tablet AVDs pass.
+
+Tactical [374](../tactical/374-android-transfer-status-presentation.md) repairs
+Android transfer presentation: completed cards show uploaded totals and ratio,
+metadata acquisition is named explicitly, and only queued rows show queue
+positions. The idle-rate header and ongoing notification describe metadata,
+starting, checking and seeding work through the existing lifetime classifier.
+No engine or generated contract changes are included. Pixel Sintel diagnosis
+finds peer-metadata waiting and tracker timeouts; the debug sample's valid
+`xs` metainfo URL and `ws` webseed are not consumed by the current magnet parser.
+Validation and data-preserving development delivery are recorded in 374.
+
+
+Tactical [373](../tactical/373-file-selection-bitmaps-and-download-safety.md)
+implements download-safety settings, Files reasons and explicit overrides in
+React, Compose and SwiftUI, backed by the common Rust policy/storage. Web and
+Compose All previews respect safety. Android/iOS omit the Windows/macOS label
+switch. Native builds and remaining runtime/platform qualification are recorded
+in 373; no unsupported-platform label support or release follows.
+
+Tactical [360](../tactical/360-remote-controller-subdomain.md) deploys the
+hosted controller independently at `remote.jstorrent.com`, starting with
+remote-v0.3.2. Main/PR builds test it; tagged releases gate production on the
+live compatibility matrix and an immutable root-hosted browser artifact.
+Marketing stays on main and old controller documents redirect with query and
+fragment continuity. Frozen old assets retain already-open tabs through the
+compatibility window. Fresh browser approval is required at the new origin;
+native clients and remote host support do not expand.
+
+Tactical [372](../tactical/372-ci-packaging-and-presentation-regressions.md)
+orders Android pending-selection presentation requests before asynchronous
+service startup dispatch. A delayed initial clear cannot close a newer restored
+file-list subscription, and a dismissed selection cannot reopen. Two controlled
+dispatch-order regressions fail before and pass after the change.
+All 206 JVM cases, lint, the regenerated dual-ABI boundary and the full owned
+API 35 ARM64 SAF selection/restart/recheck/hash/removal profile pass locally.
+Handles peak at 3/40 for selective and 6/40 for Download all; AVD cleanup passes.
+Hosted x86_64 qualification of these edits remains separate.
+
 Tactical [340](../tactical/340-windows-quiet-network-startup.md) extends quiet
 fresh/first-upgrade incoming and UPnP defaults to Windows. Explicit later choices,
 ports, torrent intent/data and shell preferences survive. An isolated native
@@ -132,7 +218,7 @@ Tactical [281](../tactical/281-managed-package-update-status.md) locally
 repairs the actual MSI About-screen automatic-update contradiction. MSI/DEB/RPM
 and unknown packages start and stay in existing manual package guidance, own
 no check timers, and show no in-app check/install or automatic-check privacy
-copy. Backend policy, trust/routes and preference behavior remain unchanged.
+copy. Host policy, trust/routes and preference behavior remain unchanged.
 Full web typecheck/478 tests (two existing skips),20 focused bundled-Chromium
 render/accessibility cases and16 inspected managed/theme/width captures pass.
 The exact original-signed a7 MSI now passes actual native About & updates
@@ -302,7 +388,7 @@ Tactical 253's portable recovery checkpoint passes bounded Android discovery,
 manual recovery, detached-view cleanup, offline troubleshooting and explicit
 Linux guidance in the packaged extension. Host-built isolated candidates add
 cohort-A Android and Linux-runtime byte checks/repetitions, real Android
-pairing/manual recovery and extension file-input evidence. Both backends finish
+pairing/manual recovery and extension file-input evidence. Both hosts finish
 controlled 60-minute byte-verified observations on cohort A; native actual
 Remove/keep and detached-view completion pass bounded checks. Final approval
 expiry/cancellation and foreground unavailable-service guidance pass without
@@ -485,7 +571,7 @@ state before the client reloads. Remote clients and demo scenarios cannot clear
 the host profile.
 
 Tactical [`230`](../tactical/230-desktop-stable-latest-update-channels.md)
-adds desktop Stable/Latest source wiring. The native desktop client owns the
+adds desktop Stable/Latest source wiring. The native desktop app owns the
 saved selection and signed candidate; shared React exposes the choice only
 for app, NSIS, and AppImage installations. The signed five-target Latest
 release and production update routes pass; 238 qualifies installed channel
@@ -529,7 +615,7 @@ implements the
 first migration-critical JSTorrent Android parity slice. On ChromeOS, the
 existing Android foreground service remains the sole Rust application,
 engine, profile, and SAF owner while the beta extension packages the shared
-React UI as a detachable authenticated presentation. The same React folder
+React UI as a detachable authenticated client. The same React folder
 action used by Crostini delegates to Android's SAF picker; a new current root
 does not discard grants required by older torrents. It does not recreate
 JSTorrent's extension-owned engine/raw IO daemon. Deterministic, Android,
@@ -550,10 +636,10 @@ explicit loopback validation composition. Publication and support remain later.
 
 The first-party product is implemented across a browser-hosted web view, a
 Tauri desktop webview, Android Compose, and the maintained iOS SwiftUI client.
-The same mature browser presentation is also packaged by completed Tactical `170`
+The same mature browser client is also packaged by completed Tactical `170`
 for one configured Linux headless service. Completed Tactical `174` attaches
 that one application owner to an exact LAN gateway and an exact loopback
-gateway behind Tailscale Serve without adding a second backend process.
+gateway behind Tailscale Serve without adding a second host process.
 Completed
 Tactical
 [`143`](../tactical/143-dual-identity-and-persistence-foundation.md) makes
@@ -576,7 +662,7 @@ identities remain visible/exportable while selection, promotion, progress,
 Files, restart, recheck, seeding, and removal remain format-neutral. The
 production browser and Android API 34 SAF profiles pass; Tauri builds and the
 unsigned iOS archive require no presentation fork or hybrid control. The
-Android foreground product client now uses durable SAF storage without
+Android foreground app now uses durable SAF storage without
 placing platform capabilities in the portable UI command contract. The
 one-command desktop launcher is smoke-tested on Apple silicon macOS as well as
 the original Linux development host. Closing its macOS window detaches that
@@ -707,7 +793,7 @@ same leased view-set semantics over acknowledged in-process Channel delivery;
 the desktop opens no loopback server. Tactical `037` adds the first live
 mutation to the new surface: bounded magnet intake through the semantic
 command boundary. Tactical `038`
-adds five curated public test-torrent shortcuts without adding a debug backend
+adds five curated public test-torrent shortcuts without adding a debug host
 command or bypassing application policy. Android remains intentionally
 unchanged. Tactical `071` adds a local selection-aware canonical magnet copy
 action. Tactical `107` replaces its presentation-only hash construction with
@@ -806,7 +892,7 @@ streaming presentation.
 
 ## Scope
 
-This topic owns the product-client surfaces above the shared application
+This topic owns the client side of each surface above the shared application
 service: the reusable web application, desktop shell, Android presentation
 adapter, generated client types, and the boundary between presentation and
 application control.
@@ -824,7 +910,7 @@ RSTorrent has three initial user-interface surfaces:
 - an Android Compose application adapted from the existing JSTorrent Android
   product.
 
-The maintained iOS 16+ client is a first-party SwiftUI product using the same
+The maintained iOS 16+ app is a first-party SwiftUI product using the same
 in-process Rust engine and typed application semantics. Completed Tactical
 `147` supplies generated Swift UniFFI, durable app-owned and qualified selected
 roots, and a coordinated descriptor-release seam. Completed Tactical `148`
@@ -864,9 +950,9 @@ native view through that socket. Both adapt to the same semantic dispatcher
 and reactive-view contract.
 
 The graduation direction adds the existing JSTorrent extension as a possible
-first-class presentation for a native desktop, Android, or Crostini backend.
-Desktop extension and Tauri presentations should attach to one desktop
-profile; ChromeOS Android and Crostini remain separate backend and data
+first-class client for a native desktop, Android, or Crostini host.
+Desktop extension and Tauri clients should attach to one desktop
+profile; ChromeOS Android and Crostini remain separate host and data
 authorities. That future product topology, handoff UX, and manual migration
 posture are recorded in
 [`product-surfaces-and-migration.md`](product-surfaces-and-migration.md). It
@@ -877,8 +963,8 @@ Tactical
 [`167`](../tactical/167-chromeos-crostini-bundled-web-launcher.md) makes one
 bounded refinement for the first ChromeOS Linux product: its package serves
 this same mature React application and same-origin gateway directly, while the
-beta extension launches, focuses, and explains that backend. This does not
-foreclose an extension-hosted presentation later and does not change the
+beta extension launches, focuses, and explains that host. This does not
+foreclose an extension-hosted client later and does not change the
 separate Android or desktop profile owners. The exact local x86_64 package is
 implemented and passes warm, twice-stopped-VM, repeated-singleton,
 detachable-transfer, uninstall/reinstall, and purge evidence on the physical
@@ -898,7 +984,7 @@ handoff pass without new permissions.
 Completed Tactical
 [`169`](../tactical/169-hosted-crostini-bootstrap-and-release.md) adds the
 release-ready website bootstrap and strict two-architecture signed-manifest
-workflow around that same bundled backend/frontend package. Its physical
+workflow around that same bundled host-and-UI package. Its physical
 x86_64 local signed fixture repairs the real installation, preserves profile
 bytes, launches the same UI, and rejects tampered or incompatible inputs before
 installation mutation. No exact public package, website deployment, or ARM64
@@ -1215,7 +1301,7 @@ own correctness.
   cancellation path joins every gateway and the application owner before
   exiting; no synthetic view is retained while idle. Tactical
   [`171`](../tactical/171-signed-headless-release-and-lan-service.md) adds one
-  serialized backend signed-release checker. Browser startup/daily checks are
+  serialized host-side signed-release checker. Browser startup/daily checks are
   quiet on current or network failure, manual results are visible, and apply
   remains an explicit installed shell command; the browser never owns package
   replacement or service restart.
@@ -1251,8 +1337,8 @@ adapter. Real adapter tests remain necessary when Rust projections connect;
 demo evidence does not claim engine behavior.
 
 Tactical `170` adds installed-service evidence beyond the temporary browser
-harness. On x86_64 Ubuntu, every presentation detached during an 8-MiB
-controlled transfer, a fresh presentation recovered complete durable state,
+harness. On x86_64 Ubuntu, every client detached during an 8-MiB
+controlled transfer, a fresh client recovered complete durable state,
 RSTorrent then seeded the exact payload back to pinned libtorrent, and the
 service remained healthy while idle with zero gateway sessions. Joined
 restart, rollback-safe repair, preservation-safe uninstall, and exact cleanup
@@ -1409,8 +1495,9 @@ with exact SAF cleanup.
 - The React Library now has a rebuildable media-first torrent detail, but its
   top level remains torrent-backed. Library-wide item aggregation, durable
   media identity/organization, thumbnails or provider artwork, watched state,
-  and embedded in-application playback remain separate product capabilities.
-  Browser-native playback handoff exists for eligible Media rows, and Android
+  and embedded desktop playback remain separate product capabilities.
+  The browser-hosted UI plays completed MP4/M4V/MKV in an in-page dialog
+  (Tactical 362) and keeps the new-tab handoff for other files, and Android
   has native progressive playback from the Files surface. iOS has no
   corresponding progressive derived-media presentation.
 
@@ -1484,7 +1571,7 @@ with exact SAF cleanup.
   unreleased `org.rstorrent.bootstrap` identity and retained diagnostic service
   remain explicit release-cleanup decisions rather than evidence that the
   Compose client is still an experiment.
-- Android now has a packaged extension presentation over the one
+- Android now has a packaged extension client over the one
   `ProductEngineService` application owner, with exact ARC host permission,
   explicit pairing, extension-triggered SAF picker, and retained multi-root
   registry. Physical Compose/React convergence and detached transfer pass.

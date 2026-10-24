@@ -100,10 +100,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
+import androidx.navigation.navArgument
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
+import org.rstorrent.bootstrap.FILE_CATALOG_PAGE_ROWS
 import org.rstorrent.bootstrap.ProductEngineService
 import org.rstorrent.bootstrap.ProductDataResetPhase
 import org.rstorrent.bootstrap.ProductDataResetState
@@ -178,6 +182,8 @@ fun ProductApp(
     onRetryDataReset: (() -> Unit)? = null,
     onFinishDataResetKeepingFiles: (() -> Unit)? = null,
     onDismissCompletedDataReset: (() -> Unit)? = null,
+    startDestination: PrimaryDestination = PrimaryDestination.TORRENTS,
+    onPrimaryDestination: (PrimaryDestination) -> Unit = {},
 ) {
     RstorrentTheme(mode = themeMode, dynamicColor = dynamicColor) {
         val state =
@@ -279,9 +285,30 @@ fun ProductApp(
                 )
             }
         }
-        Box(modifier = Modifier.fillMaxSize()) {
+        val navController = rememberNavController()
+        // Torrents is always the graph's start; a remembered Library opens
+        // once at launch, not again when the activity is recreated.
+        var initialDestinationShown by rememberSaveable { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            if (initialDestinationShown) return@LaunchedEffect
+            initialDestinationShown = true
+            if (startDestination != PrimaryDestination.TORRENTS) {
+                navController.showPrimary(startDestination)
+            }
+        }
+        val entry by navController.currentBackStackEntryAsState()
+        val primary = PrimaryDestination.forRoute(entry?.destination?.route)
+        LaunchedEffect(primary) { primary?.let(onPrimaryDestination) }
+        var torrentSelectionMode by remember { mutableStateOf(false) }
+        val navigation =
+            primary?.takeUnless {
+                it == PrimaryDestination.TORRENTS && torrentSelectionMode
+            }
+        PrimaryNavigationScaffold(navigation, onSelect = { navController.showPrimary(it) }) {
             Surface(modifier = Modifier.fillMaxSize()) {
                 ProductNavHost(
+                    navController = navController,
+                    onTorrentSelectionMode = { torrentSelectionMode = it },
                     onShutdown = onShutdown,
                     state = state,
                     service = service,
@@ -800,6 +827,8 @@ private fun externalIntakeNoticeText(kind: ExternalIntakeNoticeKind): String =
 
 @Composable
 private fun ProductNavHost(
+    navController: NavHostController,
+    onTorrentSelectionMode: (Boolean) -> Unit,
     onShutdown: () -> Unit,
     state: ProductState,
     service: ProductEngineService?,
@@ -835,7 +864,6 @@ private fun ProductNavHost(
     onResetClientSettings: () -> Unit,
     onClearAllData: (Boolean) -> Unit,
 ) {
-    val navController = rememberNavController()
     val resources = LocalContext.current.resources
     val undoLabel = stringResource(R.string.action_undo)
     val privateMagnetCopied = stringResource(R.string.copied_private_magnet)
@@ -892,9 +920,7 @@ private fun ProductNavHost(
                         launchSingleTop = true
                     }
                 } else {
-                    if (!navController.popBackStack(ProductRoutes.LIBRARY, inclusive = false)) {
-                        navController.navigate(ProductRoutes.LIBRARY) { launchSingleTop = true }
-                    }
+                    navController.showPrimary(PrimaryDestination.TORRENTS, restoreState = false)
                     onNotificationNavigationFallback(torrentMissingMessage)
                 }
             }
@@ -912,14 +938,87 @@ private fun ProductNavHost(
     }
     LaunchedEffect(state.externalIntake?.intakeId) {
         if (state.externalIntake != null) {
-            if (!navController.popBackStack(ProductRoutes.LIBRARY, inclusive = false)) {
-                navController.navigate(ProductRoutes.LIBRARY) { launchSingleTop = true }
-            }
+            navController.showPrimary(PrimaryDestination.TORRENTS, restoreState = false)
         }
     }
-    NavHost(navController = navController, startDestination = ProductRoutes.LIBRARY) {
-        composable(ProductRoutes.LIBRARY) {
-            LibraryScreen(
+    val addMagnet: (String, Boolean) -> Unit = { text, chooseFiles ->
+        val magnets = splitMagnetLinks(text)
+        if (magnets.size <= 1) {
+            service?.addMagnet(
+                text,
+                startContent = true,
+                awaitFileSelection = chooseFiles,
+                downloadAll = !chooseFiles,
+            )
+        } else {
+            service?.addMagnets(
+                magnets,
+                startContent = true,
+                awaitFileSelection = chooseFiles,
+                downloadAll = !chooseFiles,
+                summarize = true,
+            )
+        }
+    }
+    val browseTorrent = { onBrowseTorrent(state.storage?.showFileSelection ?: true) }
+    val addTestTorrents: ((List<TestTorrent>) -> Unit)? =
+        if (BuildConfig.DEBUG) {
+            { torrents ->
+                // Follow the file selection setting like any other add.
+                val chooseFiles = state.storage?.showFileSelection ?: true
+                service?.addMagnets(
+                    torrents.map { it.magnet },
+                    awaitFileSelection = chooseFiles,
+                    downloadAll = !chooseFiles,
+                )
+            }
+        } else {
+            null
+        }
+    NavHost(navController = navController, startDestination = ProductRoutes.TORRENTS) {
+        composable(ProductRoutes.MEDIA_LIBRARY) {
+            val currentService by rememberUpdatedState(service)
+            DisposableEffect(Unit) { onDispose { currentService?.presentLibrary(null) } }
+            var addOpen by rememberSaveable { mutableStateOf(false) }
+            MediaLibraryScreen(
+                state = state,
+                presentationOwner = service,
+                onPresent = { service?.presentLibrary(it) },
+                onOpenTorrent = { navController.navigate(ProductRoutes.detail(it)) },
+                onShowInTorrent = {
+                    navController.navigate(ProductRoutes.detail(it.torrentId, it.fileIndex))
+                },
+                onPlay = { service?.playLibraryMedia(it) },
+                onOpenWith = { service?.openLibraryMedia(it) },
+                onOpenFolder = { service?.openLibraryFolder(it) },
+                onAdd = { addOpen = true },
+                onPause = { service?.pause(it) },
+                onResume = { service?.resume(it) },
+                onSelectStorage = onSelectStorage,
+                onAddTestTorrents = addTestTorrents,
+                onSpeed = { navController.navigate(ProductRoutes.SPEED) },
+                onDht = { navController.navigate(ProductRoutes.DHT) },
+                onLogs = { navController.navigate(ProductRoutes.LOGS) },
+                onSettings = { navController.navigate(ProductRoutes.SETTINGS) },
+                onShutdown = onShutdown,
+            )
+            if (addOpen) {
+                AddTorrentDialog(
+                    enabled = state.ready,
+                    onDismiss = { addOpen = false },
+                    onAddMagnet = { magnet, chooseFiles ->
+                        addMagnet(magnet, chooseFiles)
+                        addOpen = false
+                    },
+                    onBrowse = {
+                        addOpen = false
+                        browseTorrent()
+                    },
+                )
+            }
+        }
+        composable(ProductRoutes.TORRENTS) {
+            TorrentsScreen(
                 state = state,
                 notificationsGranted =
                     notificationsGranted &&
@@ -930,43 +1029,9 @@ private fun ProductNavHost(
                 onSelectStorage = onSelectStorage,
                 onRepairStorage = onRepairStorage,
                 onOpenTorrent = { navController.navigate(ProductRoutes.detail(it)) },
-                onAddMagnet = { text, chooseFiles ->
-                    val magnets = splitMagnetLinks(text)
-                    if (magnets.size <= 1) {
-                        service?.addMagnet(
-                            text,
-                            startContent = true,
-                            awaitFileSelection = chooseFiles,
-                            downloadAll = !chooseFiles,
-                        )
-                    } else {
-                        service?.addMagnets(
-                            magnets,
-                            startContent = true,
-                            awaitFileSelection = chooseFiles,
-                            downloadAll = !chooseFiles,
-                            summarize = true,
-                        )
-                    }
-                },
-                onBrowseTorrent = {
-                    onBrowseTorrent(state.storage?.showFileSelection ?: true)
-                },
-                onAddTestTorrents =
-                    if (BuildConfig.DEBUG) {
-                        { torrents ->
-                            // Follow the file selection setting like any other add.
-                            val chooseFiles = state.storage?.showFileSelection ?: true
-                            service?.addMagnets(
-                                torrents.map { it.magnet },
-                                awaitFileSelection = chooseFiles,
-                                downloadAll = !chooseFiles,
-                            )
-                            Unit
-                        }
-                    } else {
-                        null
-                    },
+                onAddMagnet = addMagnet,
+                onBrowseTorrent = browseTorrent,
+                onAddTestTorrents = addTestTorrents,
                 onPause = { service?.pause(it) },
                 onResume = { service?.resume(it) },
                 onMoveTop = { service?.moveDownloadsToTop(it) },
@@ -1000,10 +1065,22 @@ private fun ProductNavHost(
                 onLogs = { navController.navigate(ProductRoutes.LOGS) },
                 onSettings = { navController.navigate(ProductRoutes.SETTINGS) },
                 onShutdown = onShutdown,
+                onSelectionModeChange = onTorrentSelectionMode,
             )
         }
-        composable(ProductRoutes.DETAIL) { entry ->
+        composable(
+            ProductRoutes.DETAIL,
+            arguments =
+                listOf(
+                    navArgument("file") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
+        ) { entry ->
             val torrentId = requireNotNull(entry.arguments?.getString("torrentId"))
+            val focusFile = entry.arguments?.getString("file")?.toUIntOrNull()
             val torrent = state.presentedTorrent(state.torrents[torrentId])
             // The service is replaced when the activity returns after a
             // lifecycle stop; select on each owner and clear on the current one.
@@ -1020,6 +1097,7 @@ private fun ProductNavHost(
             }
             TorrentDetailScreen(
                 presentationOwner = service,
+                focusFile = focusFile,
                 torrent = torrent,
                 state = state,
                 onBack = navController::popBackStack,
@@ -1056,6 +1134,7 @@ private fun ProductNavHost(
                 onLogs = { navController.navigate(ProductRoutes.LOGS) },
                 onSettings = { navController.navigate(ProductRoutes.SETTINGS) },
                 onPresent = { service?.presentTorrent(torrentId, it) },
+                onFileSafetyOverride = { file, allowed -> service?.setFileSafetyOverride(torrentId, listOf(file.fileIndex), allowed) },
                 onSetFilePriority = { files, priority ->
                     service?.setFilePriority(torrentId, files.map { it.fileIndex }, priority)
                 },
@@ -1146,6 +1225,9 @@ private fun ProductNavHost(
                     checked = state.storage?.showFileSelection ?: true,
                     onChecked = { service?.setShowFileSelection(it) },
                 )
+                state.clientSettings?.configured?.fileSafety?.let { safety ->
+                    DownloadSafetySettings(safety) { changed -> service?.updateFileSafety(changed, safety) }
+                }
                 if (onExportTorrentList != null || onImportTorrentList != null) {
                     val idle = service != null && state.torrentListActivity == null
                     SettingsSection(stringResource(R.string.settings_section_torrent_list))
@@ -1873,6 +1955,7 @@ private fun ProductNavHost(
 @Composable
 private fun TorrentDetailScreen(
     presentationOwner: Any?,
+    focusFile: UInt?,
     torrent: TorrentView?,
     state: ProductState,
     onBack: () -> Unit,
@@ -1895,6 +1978,7 @@ private fun TorrentDetailScreen(
     onLogs: () -> Unit,
     onSettings: () -> Unit,
     onPresent: (TorrentPresentation) -> Unit,
+    onFileSafetyOverride: (org.rstorrent.session.uniffi.FileView, Boolean) -> Unit,
     onSetFilePriority: (List<org.rstorrent.session.uniffi.FileView>, FilePriority) -> Unit,
     onDownloadFile: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
     onPlayFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
@@ -1903,10 +1987,16 @@ private fun TorrentDetailScreen(
     onTrackerPage: (UInt) -> Unit,
 ) {
     var overflow by remember { mutableStateOf(false) }
-    val pager = rememberPagerState(pageCount = { TorrentDetailTab.entries.size })
+    val pager =
+        rememberPagerState(
+            initialPage = if (focusFile == null) 0 else TorrentDetailTab.FILES.ordinal,
+            pageCount = { TorrentDetailTab.entries.size },
+        )
+    // A file opened from the Library is presented once, on the page that holds it.
+    var focusPending by rememberSaveable { mutableStateOf(focusFile != null) }
     val scope = rememberCoroutineScope()
     // File selection lives here so its bars can replace this screen's app bar,
-    // with the same mechanics as the Library selection.
+    // with the same mechanics as the Torrents selection.
     var fileSelection by rememberSaveable { mutableStateOf(emptySet<String>()) }
     val fileCatalog = torrent?.let { state.files[it.torrentId] }
     val files = remember(fileCatalog?.files) { presentedFiles(fileCatalog) }
@@ -1936,7 +2026,12 @@ private fun TorrentDetailScreen(
                 TorrentDetailTab.PEERS -> TorrentPresentation.PEERS
                 TorrentDetailTab.PIECES -> TorrentPresentation.PIECES
             }
-        onPresent(presentation)
+        val focusPage = focusFile?.let { it / FILE_CATALOG_PAGE_ROWS * FILE_CATALOG_PAGE_ROWS }
+        if (presentation == TorrentPresentation.FILES && focusPending && focusPage != null && focusPage > 0U) {
+            onFilePage(focusPage)
+        } else {
+            onPresent(presentation)
+        }
     }
     Scaffold(
         topBar = {
@@ -2024,7 +2119,7 @@ private fun TorrentDetailScreen(
                 FileSelectionBottomBar(
                     selected = selectedFiles,
                     archived = torrent?.archived == true,
-                    onSetPriority = onSetFilePriority,
+                onSetPriority = onSetFilePriority,
                     onDownloadNow = onDownloadFile,
                     onShare = onShareFiles,
                 )
@@ -2054,8 +2149,11 @@ private fun TorrentDetailScreen(
                     TorrentDetailTab.entries[page],
                     torrent,
                     state,
+                    focusFile.takeIf { focusPending },
+                    { focusPending = false },
                     fileSelection,
                     { fileSelection = it },
+                    onFileSafetyOverride,
                     onSetFilePriority,
                     onDownloadFile,
                     onShareFiles,
@@ -2075,8 +2173,11 @@ private fun DetailTabContent(
     tab: TorrentDetailTab,
     torrent: TorrentView?,
     state: ProductState,
+    focusFile: UInt?,
+    onFocusShown: () -> Unit,
     fileSelection: Set<String>,
     onFileSelectionChange: (Set<String>) -> Unit,
+    onFileSafetyOverride: (org.rstorrent.session.uniffi.FileView, Boolean) -> Unit,
     onSetFilePriority: (List<org.rstorrent.session.uniffi.FileView>, FilePriority) -> Unit,
     onDownloadFile: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
     onShareFiles: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
@@ -2159,6 +2260,7 @@ private fun DetailTabContent(
                 archived = torrent.archived,
                 selection = fileSelection,
                 onSelectionChange = onFileSelectionChange,
+                onSafetyOverride = onFileSafetyOverride,
                 onSetPriority = onSetFilePriority,
                 onDownloadNow = onDownloadFile,
                 onShare = onShareFiles,
@@ -2166,6 +2268,8 @@ private fun DetailTabContent(
                 onOpen = onOpenFile,
                 mediaLaunchPending = state.mediaLaunchPending,
                 onPage = onFilePage,
+                focusFile = focusFile,
+                onFocusShown = onFocusShown,
             )
         TorrentDetailTab.TRACKERS ->
             TrackersScreen(state.trackers[torrent.torrentId], onTrackerPage)
@@ -2495,7 +2599,7 @@ private fun ReadOnlySetting(
 }
 
 @Composable
-private fun NotificationToggleSetting(
+internal fun NotificationToggleSetting(
     title: String,
     detail: String?,
     checked: Boolean,

@@ -95,6 +95,61 @@ dashboard's public key.
 
 This follows Chrome's official [manifest key procedure](https://developer.chrome.com/docs/extensions/reference/manifest/key).
 
+## Automated Store Releases
+
+Production releases go to the existing JSTorrent item
+`dbokmlpefliilbjldladbimlcfgbolhk` through
+[`extension-release.yml`](../../.github/workflows/extension-release.yml),
+adapted from Yep Anywhere's publisher.
+
+1. Add a `## [<version>]` section to [`CHANGELOG.md`](CHANGELOG.md) and commit.
+2. From a clean, current `main`, run `scripts/release-extension.sh <version>`.
+   It bumps `manifest.jstorrent.json` when the version is newer (or keeps an
+   already-prepared untagged version), commits, and atomically pushes `main`
+   and `extension-v<version>`.
+3. CI runs the web typecheck and tests, the extension tests and packaging
+   (refusing a dirty source), and the live compatibility matrix. Only then
+   does it authenticate with Google and upload the exact ZIP.
+   `scripts/publish-store.mjs` checks the source revision, checksum and pinned
+   store identity (item ID and manifest key), cancels an older pending
+   submission once if needed, uploads, and submits with review enabled.
+   A GitHub release keeps the ZIP, checksum, `build.json` and store receipt.
+4. Record the delivery in `compat/deliveries.json` and capture its client
+   (`node scripts/compat-capture.mjs --commit <sha> --roles client`). The
+   ledger check fails CI until this is done for a pushed `extension-v*` tag.
+
+Google still reviews and publishes; a green workflow means submitted, not
+delivered. Listing, privacy and permission justifications remain dashboard
+forms.
+
+### One-time setup
+
+Done 2026-10-15; values and evidence are in
+[Tactical 361](../../docs/tactical/361-extension-store-publishing-setup.md).
+It mirrors Yep Anywhere's setup:
+
+- A GitHub environment `chrome-web-store` limited to `main` and
+  `extension-v*`, with variables `CWS_WIF_PROVIDER`, `CWS_SERVICE_ACCOUNT` and
+  `CWS_PUBLISHER_ID`. No private key or refresh token is stored in GitHub.
+- In Google project `yep-dev-3fd5a`: the Chrome Web Store API enabled, and
+  provider `github-jstorrent` in pool `ya-chrome-store`, whose condition
+  allows this repository's IDs, the `chrome-web-store` environment subject,
+  this workflow's `workflow_ref` and `main` or `extension-v*`. This
+  repository uses GitHub's immutable OIDC subject, so the subject is
+  `repo:kzahel@158352/jstorrent@1317190900:environment:chrome-web-store`.
+  Only that subject has `roles/iam.workloadIdentityUser` on the service
+  account.
+- The JSTorrent item belongs to the same publisher as Yep Anywhere, whose
+  API access links the service account. Access is publisher-wide; the
+  script pins this item.
+
+Verify without changing the store:
+`gh workflow run extension-release.yml --ref main -f mode=check`.
+
+To see which version browsers are being served right now, with no
+credentials: `node scripts/extension-store-version.mjs` (add
+`--expect 1.1.5` to fail unless that version is live).
+
 ## Store Review Boundary
 
 The extension detects and opens the locally installed RSTorrent desktop

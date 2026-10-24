@@ -195,6 +195,7 @@ def gateway_json(
     payload: dict[str, object] | None = None,
     *,
     expected_status: int = 200,
+    origin: str = ORIGIN,
 ) -> dict[str, object]:
     encoded = None if payload is None else json.dumps(payload).encode()
     request = urllib.request.Request(
@@ -204,7 +205,7 @@ def gateway_json(
         headers={
             "Authorization": f"Bearer {TOKEN}",
             "Content-Type": "application/json",
-            "Origin": ORIGIN,
+            "Origin": origin,
             "X-RSTorrent-Owner": GATEWAY_OWNER,
         },
     )
