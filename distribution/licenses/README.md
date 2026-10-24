@@ -54,3 +54,13 @@ and available VCS revisions are recorded in `cargo-sources.json`. These entries
 use the existing explicit declaration-only policy: identify the original
 package/manifest grant and standard terms, without inventing an upstream
 copyright notice. No implementation source or new dependency is imported.
+
+Tactical 381 upgrades the WebRTC graph to 0.21.1. The fifteen supplemental
+entries verify each published archive against its lockfile checksum and bind
+the exact manifest to registry VCS revision
+`2a732df55ca4bcf26b80914fa0f570cfaf74cfcb`. Both upstream license files at that
+revision are byte-identical to the existing Apache-2.0 and MIT supplements.
+The catalog reuses those original terms and attribution with immutable source
+URLs. No implementation source is imported. The newer interceptor no longer
+depends on `rtc-interceptor-derive`; its isolated 0.20.5 proposal is superseded
+by this graph update.

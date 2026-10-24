@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "date": "2026-10-24",
+  "status": "Released P-256/WebRTC upgrade qualified locally; OPAQUE/VOPRF still retain the advisory",
+  "packages": [
+    {
+      "name": "crypto-bigint",
+      "version": "0.5.5",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "0dc92fb57ca44df6db8059111ab3af99a63d5d0f8375d9972e319a379c6bab76"
+    },
+    {
+      "name": "crypto-bigint",
+      "version": "0.7.6",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "6bb08299a6046833a879ace115697f12fd2bd6c8d3e93c909ffc9e0738e7cae0"
+    },
+    {
+      "name": "ecdsa",
+      "version": "0.17.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "c0681a4fc24c767085329728d8dfba959af91228aa4610cca4f8ce317ba46ae0"
+    },
+    {
+      "name": "elliptic-curve",
+      "version": "0.13.8",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "b5e6043086bf7973472e0c7dff2142ea0b680d30e18d9cc40f267efbf222bd47"
+    },
+    {
+      "name": "elliptic-curve",
+      "version": "0.14.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "9d65aa39b3a5c1c9c1b745c9a019234bb7a21b77abcb4f4d266d706e2d577d65"
+    },
+    {
+      "name": "p256",
+      "version": "0.14.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "d2c9239b2dbc807adbbe147e8cf72ea7450c3a0aabe62cb8e75ff4ec22e1f72a"
+    },
+    {
+      "name": "rtc",
+      "version": "0.21.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "4e2ca201de5ccc83aa3c08d49a2f08d7ed0aeeb2052fb1ccc517a8b77a6927ce"
+    },
+    {
+      "name": "rtc-crypto",
+      "version": "0.21.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "404ea28682271626739dfb1f3a04e96c596490b948d7629d9e4651dd4ba6aaf3"
+    }
+  ],
+  "lock_sha256": "5e8660fa32e45fdd19246698494c193d89248e0ed9f94f314fd1fbb4c42a9298",
+  "old_pin": {
+    "commit": "77c6cbbbacb4be5a061362d5f38ec92cafe2883e",
+    "date": "2026-08-29",
+    "reason": "Reuse the elliptic-curve 0.13 graph already required by OPAQUE instead of adding a parallel 0.14 generation"
+  },
+  "vulnerabilities": [
+    {
+      "package": "crypto-bigint",
+      "version": "0.5.5",
+      "advisory": "RUSTSEC-2026-0387"
+    }
+  ],
+  "advisory_database_revision": "21d909e4c8bd4e14c7aea58bf980c881a0053ab1",
+  "validation": {
+    "workspace_fmt": true,
+    "workspace_clippy": true,
+    "workspace_tests": 1751,
+    "workspace_ignored": 20,
+    "workspace_suites": 73,
+    "targeted_all_target_clippy": true,
+    "targeted_remote_direct_tests": 100,
+    "targeted_ignored": 1,
+    "old_p256_key_and_signature_fixture": true,
+    "entropy_stream_compatibility": true,
+    "browser_remote_product_verifier": true,
+    "verified_direct_save_bytes": 1048576,
+    "notice_rust_packages": 659,
+    "notice_npm_packages": 35,
+    "notice_desktop_targets": 5,
+    "android_graph_contains_p256_or_rtc": false
+  },
+  "mixed_core_interop": {
+    "baseline": "36fccff94a28488472ced6f0d3338252c0e01f7b",
+    "baseline_core_source_identical_to_stable_source": "ecd65fe4",
+    "passed": [
+      "OPAQUE old client/new host with imported authority/password record",
+      "OPAQUE new client/old host with imported authority/password record",
+      "P256 resume old client/new host with mutual proofs",
+      "P256 resume new client/old host with mutual proofs"
+    ],
+    "encrypted_records_both_directions": true,
+    "scope": "Source-core interoperability in a temporary harness; not an installed release-artifact matrix"
+  },
+  "upstream_blocker": {
+    "opaque_ke_latest_stable": "4.0.1",
+    "opaque_ke_latest_prerelease": "4.1.0-pre.2",
+    "voprf_latest_stable": "0.5.0",
+    "voprf_latest_prerelease": "0.6.0-pre.1",
+    "all_still_require_elliptic_curve": "0.13"
+  },
+  "advisory_exception_added": false,
+  "dependency_fork_added": false
+}

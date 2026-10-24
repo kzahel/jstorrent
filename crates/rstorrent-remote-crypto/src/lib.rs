@@ -11,6 +11,7 @@ mod error;
 mod opaque;
 mod record;
 mod resume;
+mod rng_compat;
 
 pub use binding::{Binding, HostId, HostPin, RelayId, Username};
 pub use error::{RemoteCryptoError, Result};
@@ -31,6 +32,7 @@ pub use resume::{
     authorization_metadata_digest, authorization_transcript, finish_client_resume,
     finish_server_resume, start_client_resume, start_server_resume, verify_authorization_signature,
 };
+pub use rng_compat::RngCompat;
 
 #[cfg(feature = "ksf-bench")]
 pub use opaque::exercise_argon2id_candidate;

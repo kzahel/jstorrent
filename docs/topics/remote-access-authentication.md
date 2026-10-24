@@ -2,6 +2,25 @@
 
 Topic: `remote-access-authentication`
 
+Tactical [381](../tactical/381-dependency-cleanup-and-security.md) upgrades the
+native/Wasm P-256 dependency from 0.13.2 to 0.14.0. Public keys retain the
+65-byte uncompressed SEC1 encoding, signatures retain the 64-byte `r || s`
+encoding, and private scalars, OPAQUE records, host pins and resume transcripts
+keep their existing formats. The RNG trait bridge delegates to the existing
+entropy sources without changing their byte stream. A pre-upgrade P-256
+key/signature fixture checks persisted identity and signature compatibility.
+Old/new core tests pass both directions for persisted OPAQUE credentials,
+mutual P-256 resume and encrypted application records. The source of the
+older core is byte-identical to Stable 0.3.4's core; this is a core protocol
+check, not a new installed-platform qualification.
+
+The original 0.13 choice below reused OPAQUE's elliptic-curve dependency to
+avoid a parallel generation; the October 24 security findings motivate
+revisiting that deduplication choice. OPAQUE 4.0.1 and VOPRF 0.5.0 remain
+unchanged and still retain the older bigint dependency; their published
+prereleases and current upstream manifests do not remove it. The strict
+dependency review remains blocked pending resolution of that separate graph.
+
 Tactical [360](../tactical/360-remote-controller-subdomain.md) publishes the
 independently tagged controller at `https://remote.jstorrent.com/` on
 2026-10-16. Marketing and controller artifacts/deployments are separate.

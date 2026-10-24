@@ -1,5 +1,16 @@
 # Direct Remote File Streaming
 
+Tactical [381](../tactical/381-dependency-cleanup-and-security.md) upgrades the
+optional/default-product WebRTC graph from rtc 0.20.4 to 0.21.1 with the same
+ring backend. The driver supplies explicit monotonic timestamps to the newer
+construction, signaling, STUN and DataChannel APIs. Query-only mDNS, its
+timeout, the 512-KiB SCTP receive bound, application budgets, direct-only ICE,
+verified-file reads and v1/v2 wire formats remain unchanged. The local real-
+browser product verifier passes login/resume/revocation and exact completed-
+file saving. No new WAN, throughput, installed-platform or package-size claim
+is made. The older feasibility measurements below describe their original
+0.20.4 graph.
+
 Tactical [313](../tactical/313-completed-remote-video-playback.md) adds remote
 completed MP4/M4V **Play** in Files and Library through playsvideo 0.4.7,
 authenticated v2 range reads and HLS/MSE. Local Open and remote Save retain

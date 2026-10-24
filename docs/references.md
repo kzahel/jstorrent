@@ -518,6 +518,15 @@ signature vectors. Only `ecdsa` and `ecdh` features are selected; this reuses
 the `elliptic-curve` `0.13` generation already resolved by OPAQUE instead of
 adding the parallel `p256` `0.14` dependency generation.
 
+Tactical 381 supersedes that dependency pin with released p256 0.14.0 and
+its ECDSA 0.17/elliptic-curve 0.14 generation while preserving the same
+standard constructions and encodings. The old source selection explains the
+original dependency deduplication decision, not a lack of an available newer
+P-256 release. Compatibility evidence includes a first-party synthetic
+scalar/message fixture generated with p256 0.13.2, a mixed old/new core
+protocol check in both directions, and the real-browser product verifier.
+No upstream implementation or test data is imported by those checks.
+
 The RFC Editor showed one RFC `9807` erratum on 2026-08-29: technical erratum
 `8675` is rejected, with no verified erratum changing the selected OPAQUE
 construction. The current `opaque-ke` repository still describes `4.0.1` as

@@ -1,5 +1,19 @@
 # Beta Release Readiness
 
+The maintainer selected a released crypto-stack upgrade for Tactical
+[381](../tactical/381-dependency-cleanup-and-security.md). P-256 now uses
+0.14.0 and RTC uses 0.21.1 with the ring backend. Old/new source-core login,
+persisted credential import, P-256 resume and encrypted records pass in both
+directions; the browser product verifier and all 1,751 workspace tests pass
+(20 existing ignores). All-target notices cover 659 Rust and 35 npm packages.
+The [upgrade receipt](../tactical/evidence/381-crypto-upgrade.json) records the
+exact graph and limits. The only remaining crypto-bigint 0.5.5 path is
+elliptic-curve 0.13.8 through OPAQUE/VOPRF. Neither their latest releases,
+prereleases nor current upstream manifests remove that dependency. No local
+dependency fork or advisory exception is introduced; the strict release gate
+remains blocked by RUSTSEC-2026-0387. The prior checkpoint below describes the
+graph before this upgrade.
+
 The October 24 maintenance audit finds newer advisories after the ctutils
 repair below. Tactical [381](../tactical/381-dependency-cleanup-and-security.md)
 updates crypto-bigint 0.7.5 to 0.7.6 (and its required ctutils 0.4.5), Tokio

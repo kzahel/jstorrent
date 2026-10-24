@@ -315,7 +315,7 @@ async fn production_proxy_health_operator_metrics_and_kill_switch_are_bounded() 
     );
 
     let key = signing_key(9);
-    let public_key = key.verifying_key().to_encoded_point(false);
+    let public_key = key.verifying_key().to_sec1_point(false);
     let reservation = serde_json::to_vec(&ReserveRouteRequest {
         username: "proxy-owner".to_owned(),
         public_key: base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(public_key.as_bytes()),
@@ -451,7 +451,7 @@ async fn reservation_response(
     username: &str,
     key: &SigningKey,
 ) -> reqwest::Response {
-    let public_key = key.verifying_key().to_encoded_point(false);
+    let public_key = key.verifying_key().to_sec1_point(false);
     let request = ReserveRouteRequest {
         username: username.to_owned(),
         public_key: base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(public_key.as_bytes()),

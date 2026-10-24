@@ -440,6 +440,24 @@
     "review": "Exact registry archive manifest declares these terms but the archive omits standalone license/notice files. Preserve the published declaration, package source locator and standard terms; do not fabricate an upstream copyright notice. Original source and source headers remain part of corresponding-source delivery.",
     "source_revision": "81c7cc5b48649108428671d3b8ad151f6fbdb359"
   },
+  "rtc-crypto@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "6493ff0bbf139e6782b4d1ff14d1026d95e6e6168f4b5169ade8e561ad15dc57",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+      }
+    ]
+  },
   "rtc-datachannel@0.20.4": {
     "license": "MIT/Apache-2.0",
     "manifest_sha256": "7e7bc37980aae5e4cb727a186a71e541c59b15378b7f490680ca0c7831a6709b",
@@ -455,6 +473,24 @@
         "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
         "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
         "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/bbc18664cf2dcb690e023c6a1a436eb15253ca7f/LICENSE-MIT"
+      }
+    ]
+  },
+  "rtc-datachannel@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "8b9a953cd81ec77225ba16f3a6705769aa3eacca7f7f6d1148263785378484fe",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
       }
     ]
   },
@@ -476,6 +512,24 @@
       }
     ]
   },
+  "rtc-dtls@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "01473d3cb1eaab602e7f22918eaccdd772b2f29f09136d8ec46fc0a9e06e6a9b",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+      }
+    ]
+  },
   "rtc-ice@0.20.4": {
     "license": "MIT/Apache-2.0",
     "manifest_sha256": "928a0a9d7abf33c890f73bbcfd3ea370e007fa930ea24d22e769b1d4f1195570",
@@ -491,6 +545,24 @@
         "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
         "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
         "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/bbc18664cf2dcb690e023c6a1a436eb15253ca7f/LICENSE-MIT"
+      }
+    ]
+  },
+  "rtc-ice@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "374a1daa1a73bf26c635e24dcdf6564a47122aa626c5b5029c3da6d18e1ee066",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
       }
     ]
   },
@@ -530,6 +602,24 @@
       }
     ]
   },
+  "rtc-interceptor@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "f9fe68da7ee0817891dd7c57a89c72b5ef495719579a7e80882cb9e2876e58ff",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+      }
+    ]
+  },
   "rtc-mdns@0.20.4": {
     "license": "MIT/Apache-2.0",
     "manifest_sha256": "a4c5836183a4cd40ed6a19a0bb23baba7a7f0f25713ed03683c03eac3cd16279",
@@ -545,6 +635,24 @@
         "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
         "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
         "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/bbc18664cf2dcb690e023c6a1a436eb15253ca7f/LICENSE-MIT"
+      }
+    ]
+  },
+  "rtc-mdns@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "a19aa887bf700439c0268fb0e725b2d1c2f50d46ae61be758a9512772ed58284",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
       }
     ]
   },
@@ -566,6 +674,24 @@
       }
     ]
   },
+  "rtc-media@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "d41e2ed095a40434f1023a638158ad15d596d76143989613e1f205143c20d819",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+      }
+    ]
+  },
   "rtc-rtcp@0.20.4": {
     "license": "MIT/Apache-2.0",
     "manifest_sha256": "b298ab2a78f8b89d20edc4f2cfd77e78728ce25227af233376f3199661f6ddc6",
@@ -581,6 +707,24 @@
         "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
         "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
         "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/bbc18664cf2dcb690e023c6a1a436eb15253ca7f/LICENSE-MIT"
+      }
+    ]
+  },
+  "rtc-rtcp@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "01fb0f48e0ed5b0b37f19359fbb9f244a779196601917dbf6de942c3c5f23fc3",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
       }
     ]
   },
@@ -602,6 +746,24 @@
       }
     ]
   },
+  "rtc-rtp@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "06a81958a8da1494110369be84a5db1a0a90384e2486f5c79df9224d79d59937",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+      }
+    ]
+  },
   "rtc-sctp@0.20.4": {
     "license": "MIT/Apache-2.0",
     "manifest_sha256": "7cf674377f5a75990330c51af0294d823a96422a5d56c4016e0db01a2d6267cd",
@@ -617,6 +779,24 @@
         "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
         "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
         "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/bbc18664cf2dcb690e023c6a1a436eb15253ca7f/LICENSE-MIT"
+      }
+    ]
+  },
+  "rtc-sctp@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "2a6a096f600deb9a444b974fed9af17c12c21b7d43e0ab25a1d5f0632e3ab1e4",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
       }
     ]
   },
@@ -638,6 +818,24 @@
       }
     ]
   },
+  "rtc-sdp@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "b71ad759c697b35004e44a915fe0aebf54f5ec7b254da7fc292977701efb7510",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+      }
+    ]
+  },
   "rtc-shared@0.20.4": {
     "license": "MIT/Apache-2.0",
     "manifest_sha256": "db1cf6917d21447f632ea6565938f93ea3b338a706f843544ee8bbc7af46c7aa",
@@ -653,6 +851,24 @@
         "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
         "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
         "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/bbc18664cf2dcb690e023c6a1a436eb15253ca7f/LICENSE-MIT"
+      }
+    ]
+  },
+  "rtc-shared@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "d55e1d237aee59ac31971e3761233cf20cbaf8de98f6188feeea133f8853a715",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
       }
     ]
   },
@@ -674,6 +890,24 @@
       }
     ]
   },
+  "rtc-srtp@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "d7fd2cbf2565c200b250733a4a512cbff518278597feb6630e60ee5e20165634",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+      }
+    ]
+  },
   "rtc-stun@0.20.4": {
     "license": "MIT/Apache-2.0",
     "manifest_sha256": "664f95db3b27f9cf9e0449bbf6dd91ab6c17c71ee1202890e9f17411ea3a8c09",
@@ -692,6 +926,24 @@
       }
     ]
   },
+  "rtc-stun@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "5f78ded421ddf04d9d096ef01b9bc61da8a9825bc9f9fbeeffa29ae08b377ba6",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+      }
+    ]
+  },
   "rtc-turn@0.20.4": {
     "license": "MIT/Apache-2.0",
     "manifest_sha256": "e123760e564e42a80221fd56c159b14d92aaf2da6bfcc133672fff10ab2eed9f",
@@ -707,6 +959,24 @@
         "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
         "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
         "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/bbc18664cf2dcb690e023c6a1a436eb15253ca7f/LICENSE-MIT"
+      }
+    ]
+  },
+  "rtc-turn@0.21.1": {
+    "license": "MIT OR Apache-2.0",
+    "manifest_sha256": "d705c42a0430a60c423138e4c1ba9564c127e643dd17d0039e330f62e1234dab",
+    "source_revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
       }
     ]
   },

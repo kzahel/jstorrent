@@ -536,7 +536,7 @@ mod tests {
                 p256::ecdsa::SigningKey::from_slice(&[4; 32])
                     .unwrap()
                     .verifying_key()
-                    .to_encoded_point(false)
+                    .to_sec1_point(false)
                     .as_bytes(),
             )
             .unwrap(),
@@ -545,7 +545,7 @@ mod tests {
                 p256::ecdsa::SigningKey::from_slice(&[6; 32])
                     .unwrap()
                     .verifying_key()
-                    .to_encoded_point(false)
+                    .to_sec1_point(false)
                     .as_bytes(),
             )
             .unwrap(),
