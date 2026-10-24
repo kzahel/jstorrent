@@ -181,3 +181,21 @@ default dependency tree. The exact graph, historical pin reason, compatibility
 results and unresolved upstream dependency are recorded in the
 [upgrade receipt](evidence/381-crypto-upgrade.json). Full hosted qualification
 of the committed source remains separate from these local checks.
+
+## Bounded OPAQUE reachability investigation
+
+The maintainer authorized a read-only source/feature investigation of the
+remaining advisory. The [reachability report](evidence/381-opaque-bigint-reachability.md)
+records the exact source/lockfile, inspected published crate paths, archive
+integrity and limits. Native, Wasm and all-target/all-feature workspace graphs
+select the same Ristretto suite. Both the password OPRF and TripleDh use
+Dalek arithmetic; the borrowed elliptic-curve XMD helper performs SHA-512
+byte expansion without bigint calls. No source call path to crypto-bigint
+0.5.5's affected operations was found in that selected flow.
+
+All 27 remote-crypto tests and the wasm32 remote-wasm compile check pass.
+An audit using the existing local database still reports exactly the one old
+bigint finding. This is bounded source-level evidence, not a compiled-target
+constant-time proof or advisory exemption. No dependency, authentication,
+release or audit-policy change follows from it. Stop this investigation here;
+dependency removal/patching or an explicit policy decision is separate work.

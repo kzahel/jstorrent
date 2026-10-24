@@ -21,6 +21,14 @@ unchanged and still retain the older bigint dependency; their published
 prereleases and current upstream manifests do not remove it. The strict
 dependency review remains blocked pending resolution of that separate graph.
 
+The [bounded reachability investigation](../tactical/evidence/381-opaque-bigint-reachability.md)
+finds no source call path from the selected Ristretto password/TripleDh flow
+to the old bigint's affected arithmetic: Dalek owns those operations, while
+the borrowed elliptic-curve helper only expands bytes with SHA-512. Native,
+Wasm and workspace feature graphs agree. This exact-source conclusion is not
+a compiled-code constant-time proof; the package advisory and strict gate
+remain in force, with no exception added.
+
 Tactical [360](../tactical/360-remote-controller-subdomain.md) publishes the
 independently tagged controller at `https://remote.jstorrent.com/` on
 2026-10-16. Marketing and controller artifacts/deployments are separate.
