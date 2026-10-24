@@ -5,13 +5,15 @@ use p256::ecdsa::{
     Signature, SigningKey, VerifyingKey,
     signature::{Signer, Verifier},
 };
-use p256::elliptic_curve::sec1::ToEncodedPoint;
-use rand::{RngCore, SeedableRng};
+use p256::elliptic_curve::{Generate, rand_core::Rng, sec1::ToSec1Point};
+use rand::SeedableRng;
 use rand_chacha::ChaCha20Rng;
 use sha2::{Digest, Sha256, Sha512};
 use zeroize::Zeroizing;
 
-use crate::{Binding, HostPin, OperationSeed, RemoteCryptoError, Result, Role, SecureChannel};
+use crate::{
+    Binding, HostPin, OperationSeed, RemoteCryptoError, Result, RngCompat, Role, SecureChannel,
+};
 
 const CLIENT_HELLO_MAGIC: &[u8; 4] = b"RSU1";
 const SERVER_CHALLENGE_MAGIC: &[u8; 4] = b"RSU2";
@@ -127,7 +129,7 @@ pub struct HostResumeKey {
 impl HostResumeKey {
     pub fn generate(seed: OperationSeed) -> Self {
         let mut rng = rng_from_seed(&seed);
-        let signing_key = SigningKey::random(&mut rng);
+        let signing_key = SigningKey::generate_from_rng(&mut rng);
         Self {
             secret: Zeroizing::new(signing_key.to_bytes().into()),
         }
@@ -396,7 +398,7 @@ impl ClientResumeFinish {
 
 pub fn start_client_resume(context: ResumeContext, seed: OperationSeed) -> ResumeClientStart {
     let mut rng = rng_from_seed(&seed);
-    let ephemeral_secret = EphemeralSecret::random(&mut rng);
+    let ephemeral_secret = EphemeralSecret::generate_from_rng(&mut rng);
     let client_ephemeral_public_key = public_key_from_ecdh(&ephemeral_secret);
     let mut client_nonce = [0_u8; NONCE_BYTES];
     rng.fill_bytes(&mut client_nonce);
@@ -421,7 +423,7 @@ pub fn start_server_resume(
     }
     hello.client_ephemeral_public_key.ecdh_public()?;
     let mut rng = rng_from_seed(&seed);
-    let ephemeral_secret = EphemeralSecret::random(&mut rng);
+    let ephemeral_secret = EphemeralSecret::generate_from_rng(&mut rng);
     let server_ephemeral_public_key = public_key_from_ecdh(&ephemeral_secret);
     let mut server_nonce = [0_u8; NONCE_BYTES];
     rng.fill_bytes(&mut server_nonce);
@@ -623,19 +625,19 @@ fn derive_resume_channel(
 }
 
 fn public_key_from_ecdh(secret: &EphemeralSecret) -> P256PublicKey {
-    let encoded = secret.public_key().to_encoded_point(false);
+    let encoded = secret.public_key().to_sec1_point(false);
     P256PublicKey::from_bytes(encoded.as_bytes())
         .expect("generated P-256 public keys use canonical uncompressed SEC1")
 }
 
 fn public_key_from_verifying_key(key: &VerifyingKey) -> P256PublicKey {
-    let encoded = key.to_encoded_point(false);
+    let encoded = key.to_sec1_point(false);
     P256PublicKey::from_bytes(encoded.as_bytes())
         .expect("generated P-256 public keys use canonical uncompressed SEC1")
 }
 
-fn rng_from_seed(seed: &OperationSeed) -> ChaCha20Rng {
-    ChaCha20Rng::from_seed(*seed.as_bytes())
+fn rng_from_seed(seed: &OperationSeed) -> RngCompat<ChaCha20Rng> {
+    RngCompat::new(ChaCha20Rng::from_seed(*seed.as_bytes()))
 }
 
 #[cfg(test)]
@@ -651,12 +653,42 @@ mod tests {
     }
 
     fn signing_key(byte: u8) -> SigningKey {
-        let mut rng = ChaCha20Rng::from_seed([byte; 32]);
-        SigningKey::random(&mut rng)
+        let mut rng = rng_from_seed(&seed(byte));
+        SigningKey::generate_from_rng(&mut rng)
     }
 
     fn public_key(signing_key: &SigningKey) -> P256PublicKey {
         public_key_from_verifying_key(signing_key.verifying_key())
+    }
+
+    #[test]
+    fn persisted_key_and_signature_from_p256_0_13_remain_compatible() {
+        // First-party synthetic scalar/message, generated with the previously
+        // shipped p256 0.13.2 and ECDSA 0.16.9. No upstream test data is copied.
+        let decode = |hex: &str| {
+            hex.as_bytes()
+                .chunks_exact(2)
+                .map(|pair| u8::from_str_radix(core::str::from_utf8(pair).unwrap(), 16).unwrap())
+                .collect::<Vec<_>>()
+        };
+        let public = decode(concat!(
+            "041e18532fd4754c02f3041d9c75ceb33b83ffd81ac7ce4fe882ccb1c98bc5896ea4",
+            "6c311c4e2ff40dd96a3653e6e45445d32dfe486eced75c7a90c6a18881c0a3"
+        ));
+        let signature = decode(concat!(
+            "9ec23917d13cf82238838b9ce668314fb2248e9c8f00f95bfccaf4203dbdd95dd9",
+            "d11570a19f788815176ffe9fad4873bb0b86b9de9d9b99a5a814494737cd1a"
+        ));
+        let key = HostResumeKey::from_bytes(&[7; 32]).unwrap();
+        let message = b"JSTorrent persisted P-256 compatibility v1";
+        assert_eq!(key.public_key().as_bytes().as_slice(), public);
+        assert_eq!(key.sign(message).as_bytes().as_slice(), signature);
+        verify_signature(
+            P256PublicKey::from_bytes(&public).unwrap(),
+            message,
+            P256Signature::from_bytes(&signature).unwrap(),
+        )
+        .unwrap();
     }
 
     fn test_context(

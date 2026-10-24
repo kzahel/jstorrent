@@ -257,7 +257,7 @@ impl RemoteAuthority {
 
     pub fn relay_public_key(&self) -> P256PublicKey {
         let key = relay_signing_key(&self.relay_credential);
-        P256PublicKey::from_bytes(key.verifying_key().to_encoded_point(false).as_bytes())
+        P256PublicKey::from_bytes(key.verifying_key().to_sec1_point(false).as_bytes())
             .expect("validated relay signing key has a valid public key")
     }
 
@@ -1619,12 +1619,13 @@ pub(crate) mod test_support {
     }
 
     pub fn signing_key(byte: u8) -> SigningKey {
-        let mut rng = ChaCha20Rng::from_seed([byte; 32]);
-        SigningKey::random(&mut rng)
+        use p256::elliptic_curve::Generate;
+        let mut rng = rstorrent_remote_crypto::RngCompat::new(ChaCha20Rng::from_seed([byte; 32]));
+        SigningKey::generate_from_rng(&mut rng)
     }
 
     pub fn public_key(key: &SigningKey) -> P256PublicKey {
-        P256PublicKey::from_bytes(key.verifying_key().to_encoded_point(false).as_bytes()).unwrap()
+        P256PublicKey::from_bytes(key.verifying_key().to_sec1_point(false).as_bytes()).unwrap()
     }
 
     pub fn authorize(

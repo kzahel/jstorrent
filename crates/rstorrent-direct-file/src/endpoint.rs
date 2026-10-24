@@ -16,7 +16,7 @@ use rtc::data_channel::RTCDataChannelId;
 use rtc::ice::mdns::MulticastDnsMode;
 use rtc::mdns::{MDNS_DEST_ADDR, MulticastSocket};
 use rtc::peer_connection::RTCPeerConnectionBuilder;
-use rtc::peer_connection::configuration::setting_engine::SettingEngine;
+use rtc::peer_connection::configuration::setting_engine::SettingEngineBuilder;
 use rtc::peer_connection::event::{RTCDataChannelEvent, RTCPeerConnectionEvent};
 use rtc::peer_connection::message::RTCMessage;
 use rtc::peer_connection::sdp::{RTCSdpType, RTCSessionDescription};
@@ -31,7 +31,7 @@ use rtc::statistics::StatsSelector;
 use rtc::statistics::report::RTCStatsReportEntry;
 use rtc::statistics::stats::ice_candidate_pair::RTCStatsIceCandidatePairState;
 use rtc::stun::agent::StunEvent;
-use rtc::stun::client::ClientBuilder as StunClientBuilder;
+use rtc::stun::client::{ClientBuilder as StunClientBuilder, TaggedMessage as TaggedStunMessage};
 use rtc::stun::message::{BINDING_REQUEST, Getter, Message as StunMessage, TransactionId};
 use rtc::stun::xoraddr::XorMappedAddress;
 use serde::{Deserialize, Serialize};
@@ -466,13 +466,14 @@ async fn answer_offer(
             .map_err(DirectFileEndpointError::Bind)?,
     )
     .map_err(DirectFileEndpointError::Bind)?;
-    let mut setting_engine = SettingEngine::default();
-    setting_engine.set_multicast_dns_mode(MulticastDnsMode::QueryOnly);
-    setting_engine.set_multicast_dns_timeout(Some(MDNS_RESOLUTION_TIMEOUT));
+    let setting_engine = SettingEngineBuilder::new()
+        .with_multicast_dns_mode(MulticastDnsMode::QueryOnly)
+        .with_multicast_dns_timeout(Some(MDNS_RESOLUTION_TIMEOUT))
+        .with_sctp_max_receive_buffer_size(MAX_TRANSPORT_QUEUE_BYTES as u32)
+        .build();
     let mut peer = RTCPeerConnectionBuilder::new()
         .with_setting_engine(setting_engine)
-        .with_sctp_receive_buffer_size(MAX_TRANSPORT_QUEUE_BYTES as u32)
-        .build()
+        .build(Instant::now())
         .map_err(|error| DirectFileEndpointError::WebRtc(error.to_string()))?;
     let host_candidate = RTCIceCandidate::from(&host_candidate)
         .to_json()
@@ -502,12 +503,12 @@ async fn answer_offer(
             .map_err(|error| DirectFileEndpointError::WebRtc(error.to_string()))?;
         local_candidates.push(candidate);
     }
-    peer.set_remote_description(offer.clone())
+    peer.set_remote_description(Instant::now(), offer.clone())
         .map_err(|error| DirectFileEndpointError::WebRtc(error.to_string()))?;
     let answer = peer
         .create_answer(None)
         .map_err(|error| DirectFileEndpointError::WebRtc(error.to_string()))?;
-    peer.set_local_description(answer.clone())
+    peer.set_local_description(Instant::now(), answer.clone())
         .map_err(|error| DirectFileEndpointError::WebRtc(error.to_string()))?;
     let local_fingerprint = fingerprint_from_sdp(&answer.sdp)?;
 
@@ -811,7 +812,7 @@ async fn run_driver(
         }
 
         while let Some(message) = peer.poll_read() {
-            let RTCMessage::DataChannelMessage(id, message) = message else {
+            let RTCMessage::DataChannelMessage(id, message) = message.message else {
                 continue;
             };
             if Some(id) != channel_id || message.is_string {
@@ -1090,7 +1091,7 @@ async fn run_driver(
                         DirectFileEndpointError::Driver("active DataChannel disappeared".to_owned())
                     })?;
                     channel
-                        .send(BytesMut::from(frame.bytes.as_slice()))
+                        .send(Instant::now(), BytesMut::from(frame.bytes.as_slice()))
                         .map_err(|error| DirectFileEndpointError::Driver(error.to_string()))?;
                     let buffered = buffered + frame.bytes.len();
                     metrics
@@ -1128,7 +1129,7 @@ async fn run_driver(
             if channel.outstanding_bytes().saturating_add(size) <= buffer_bytes {
                 let bytes = generated_bytes(raw_sent as u64, size);
                 channel
-                    .send(BytesMut::from(bytes.as_slice()))
+                    .send(Instant::now(), BytesMut::from(bytes.as_slice()))
                     .map_err(|error| DirectFileEndpointError::Driver(error.to_string()))?;
                 raw_sent += size;
                 let buffered = channel.outstanding_bytes();
@@ -1570,7 +1571,7 @@ fn update_transport_metrics(
                     RTCIceCandidateType::Host => Some("host"),
                     RTCIceCandidateType::Srflx => Some("server_reflexive"),
                     RTCIceCandidateType::Prflx => Some("peer_reflexive"),
-                    RTCIceCandidateType::Relay | RTCIceCandidateType::Unspecified => None,
+                    _ => None,
                 }
             }
             _ => None,
@@ -1741,13 +1742,18 @@ async fn gather_one_server_reflexive(
 ) -> Option<XorMappedAddress> {
     let mut client = StunClientBuilder::new()
         .with_rto(Duration::from_millis(500))
-        .build(local_addr, server, TransportProtocol::UDP)
+        .build(Instant::now(), local_addr, server, TransportProtocol::UDP)
         .ok()?;
     let mut request = StunMessage::new();
     request
         .build(&[Box::<TransactionId>::default(), Box::new(BINDING_REQUEST)])
         .ok()?;
-    client.handle_write(request).ok()?;
+    client
+        .handle_write(TaggedStunMessage {
+            now: Instant::now(),
+            message: request,
+        })
+        .ok()?;
     let mut buffer = [0_u8; MAX_DATAGRAM_BYTES];
     loop {
         while let Some(transmit) = client.poll_write() {

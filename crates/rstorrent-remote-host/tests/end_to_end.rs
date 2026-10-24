@@ -76,13 +76,9 @@ async fn private_browser_resumes_and_revocation_closes_its_application_circuit()
     let mut client = password_client(&harness, None).await;
     let client_key = SigningKey::from_slice(&[11; 32]).unwrap();
     let client_id = ClientId::new([12; 16]);
-    let client_public = P256PublicKey::from_bytes(
-        client_key
-            .verifying_key()
-            .to_encoded_point(false)
-            .as_bytes(),
-    )
-    .unwrap();
+    let client_public =
+        P256PublicKey::from_bytes(client_key.verifying_key().to_sec1_point(false).as_bytes())
+            .unwrap();
     let host_resume_public =
         P256PublicKey::from_bytes(&decode::<65>(&client.ready.host_resume_public_key)).unwrap();
     let challenge = AuthorizationChallenge::new(decode(&client.ready.authorization_challenge));

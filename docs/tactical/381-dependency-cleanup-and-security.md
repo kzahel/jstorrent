@@ -18,6 +18,14 @@ The refreshed audit at RustSec revision
 crypto-bigint 0.7.5 and 0.5.5, plus npm findings in fast-uri, undici and zod.
 The previous ctutils repair does not resolve these newer findings.
 
+On October 24 the maintainer selected trying the newer crypto dependency
+generation instead of starting with a maintained backport. Evaluate current
+released P-256 and WebRTC together, then trace any remaining old arithmetic
+through OPAQUE/VOPRF. Preserve persisted credentials, P-256 identities, exact
+OPAQUE/resume/record encodings and old/new native/browser interoperability.
+No advisory exception, authentication reset or silent protocol migration is
+permitted. An upstream version number alone is not evidence of compatibility.
+
 ## Source study and implementation direction
 
 - RustSec `crates/crypto-bigint/RUSTSEC-2026-0387.md` and
@@ -41,6 +49,11 @@ The previous ctutils repair does not resolve these newer findings.
   advisory lists only >=0.7.6 as patched. A maintained backport or a coordinated
   crypto-stack migration needs its own explicit direction; do not suppress
   this finding or silently replace authentication primitives to get green.
+  Direction has now been given for the upgrade experiment above. The original
+  P-256 0.13.2 pin was deliberate: Tactical 192 reused OPAQUE's already-resolved
+  elliptic-curve 0.13 graph to avoid a parallel 0.14 generation. P-256 0.14.0
+  had already been published on July 3, before the August 29 pin. The old
+  crypto-bigint 0.5.5 was indirect, not a separately selected arithmetic API.
 - npm advisory reports identify fast-uri >=3.1.9, undici >=7.30.1 or
   >=8.12.2 on their existing major lines, and zod >=4.6.6 as patched.
   Update only affected dependency resolutions and inspect the resulting diff.
@@ -114,5 +127,57 @@ Fresh strict release review now fails on exactly one workspace finding:
 crypto-bigint 0.5.5 / RUSTSEC-2026-0387. The probe and both npm reports have
 zero findings; warning inventory and expiry are unchanged. The
 [bounded receipt](evidence/381-dependency-cleanup.json) binds these results to
-the exact lockfile hashes. The backport-versus-migration decision is pending;
-PRs 15 and 16 remain unmerged until that blocker and their checks are clear.
+the exact lockfile hashes. This checkpoint preceded the maintainer's choice
+to try upgrading the crypto generation. The upgrade checkpoint below
+supersedes its dependency-path diagnosis; the strict gate remains enforced.
+
+## Released dependency upgrade
+
+The maintainer selected the upgrade attempt. P-256 0.14.0 and RTC 0.21.1 now
+replace the older direct pins. The latter's ring feature is named
+`crypto-ring`; its public APIs now take explicit monotonic instants and use
+tagged inbound/STUN messages. Preserve query-only mDNS and its timeout, the
+512-KiB SCTP receive budget, direct-only ICE, no TURN, existing transfer
+budgets and cancellation ownership. Unknown future candidate classes remain
+unreported rather than being misclassified as host/reflexive candidates.
+No first-party protocol format or serialized field changes.
+
+P-256's new rand_core API is bridged to the existing ChaCha/OS entropy
+sources. The small adapter delegates bytes/words, preserves failure behavior,
+and grants the new cryptographic marker only to sources with the old marker.
+OPAQUE retains its existing entropy API. Tests compare mixed RNG requests and
+the exact old library's public key and deterministic signature for a synthetic
+scalar/message. The fixture is first-party data generated with published
+p256 0.13.2/ECDSA 0.16.9; no upstream implementation or vector is copied.
+
+The newer RTC graph removes P-256/P-384 0.13 and the interceptor derive crate.
+Fifteen omitted archive license files have exact manifest/VCS/registry-checksum
+proof at `2a732df55ca4bcf26b80914fa0f570cfaf74cfcb`, using byte-identical
+existing MIT/Apache texts. The all-target notice check now covers 659 Rust
+and 35 npm packages.
+
+The old bigint reverse tree is now only elliptic-curve 0.13.8 through
+opaque-ke 4.0.1 and voprf 0.5.0. Checked crates.io releases and current upstream
+Cargo manifests: opaque-ke 4.1.0-pre.2 and voprf 0.6.0-pre.1 still use the
+0.13 graph. Switching to those prereleases does not remove the finding.
+No local dependency fork, alternate password protocol, credential reset or
+advisory waiver has been introduced.
+
+Targeted warning-denying Clippy and 100 remote/direct-file tests pass (one
+existing ignore); the additional old-key/signature fixture passes separately.
+The real-browser remote-product verifier passes password login, private
+resume, restart, revocation, exact 1-MiB file saving and its existing cleanup,
+authority and resource assertions. A temporary mixed-core harness built the
+pre-upgrade core at 36fccff9 (whose source is byte-identical to Stable 0.3.4 at
+ecd65fe4) alongside the candidate. Old-client/new-host and new-client/old-host
+OPAQUE logins import old authority/password records; both P-256 resume
+directions verify mutual proofs and exchange encrypted application records.
+All four cases pass. This is source-core interoperability, not an installed
+old/new release-artifact matrix.
+
+Workspace formatting, warning-denying Clippy and all 1,751 tests pass (20
+existing ignores). The upgraded P-256/RTC crates remain absent from Android's
+default dependency tree. The exact graph, historical pin reason, compatibility
+results and unresolved upstream dependency are recorded in the
+[upgrade receipt](evidence/381-crypto-upgrade.json). Full hosted qualification
+of the committed source remains separate from these local checks.

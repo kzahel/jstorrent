@@ -7,6 +7,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use base64::Engine as _;
 use futures_util::{SinkExt, StreamExt};
 use p256::ecdsa::SigningKey;
+use p256::elliptic_curve::Generate;
 use rand::rngs::OsRng;
 use rstorrent_remote_access::{
     AuthenticationMethod, AuthorityStore, EventId, ProvisioningMaterial, RemoteAuthority,
@@ -15,7 +16,7 @@ use rstorrent_remote_access::{
 #[cfg(feature = "direct-file-webrtc")]
 use rstorrent_remote_access::{DirectFileAuditView, EventKind, EventResult};
 use rstorrent_remote_crypto::{
-    ClientId, HostId, OperationSeed, RelayId, Username, random_operation_seed,
+    ClientId, HostId, OperationSeed, RelayId, RngCompat, Username, random_operation_seed,
 };
 use rstorrent_remote_relay::{ReserveRouteRequest, ReserveRouteResponse};
 use rustls_platform_verifier::BuilderVerifierExt as _;
@@ -428,9 +429,9 @@ impl RemoteAccessOwner {
                 ));
             }
         }
-        let relay_key = SigningKey::random(&mut OsRng);
+        let relay_key = SigningKey::generate_from_rng(&mut RngCompat::new(OsRng));
         let relay_secret: [u8; 32] = relay_key.to_bytes().into();
-        let relay_public = relay_key.verifying_key().to_encoded_point(false);
+        let relay_public = relay_key.verifying_key().to_sec1_point(false);
         let reservation = ReserveRouteRequest {
             username: username.as_str().to_owned(),
             public_key: base64::engine::general_purpose::URL_SAFE_NO_PAD

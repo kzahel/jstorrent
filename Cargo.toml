@@ -45,7 +45,7 @@ hkdf = "0.12.4"
 minisign-verify = "0.2.5"
 quick-xml = "0.41.0"
 opaque-ke = { version = "=4.0.1", default-features = false, features = ["ristretto255"] }
-p256 = { version = "=0.13.2", default-features = false, features = ["ecdh", "ecdsa"] }
+p256 = { version = "=0.14.0", default-features = false, features = ["ecdh", "ecdsa"] }
 rand = { version = "0.8", default-features = false }
 rand_chacha = { version = "0.3.1", default-features = false }
 reqwest = { version = "0.13.4", default-features = false, features = ["rustls", "stream"] }
