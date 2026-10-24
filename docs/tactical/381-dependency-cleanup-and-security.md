@@ -235,7 +235,7 @@ Other warning/backport, freshness, release-blocker, npm and probe gates remain
 in force. Removing the upstream dependency or a reviewed patch remains the
 remediation; do not automatically renew the approval fingerprint.
 
-All 46 distribution-review tests (including ten new exception guard tests),
+All 47 distribution-review tests (including eleven new exception guard tests),
 ten GLib backport tests, workflow actionlint and diff whitespace checks pass.
 Fresh Cargo/probe and both npm audit collection at RustSec revision
 `21d909e4c8bd4e14c7aea58bf980c881a0053ab1` passes strict
@@ -243,3 +243,9 @@ Fresh Cargo/probe and both npm audit collection at RustSec revision
 exception, zero unexcepted findings, zero probe/npm findings, and unchanged
 warning/backport reviews. The [local receipt](evidence/381-opaque-exception.json)
 records the working-tree qualification; hosted qualification is separate.
+
+Release source checks collect/review the committed inputs before the existing
+generated package-identity step. That step rewrites manifests/lockfile and
+would otherwise invalidate the source fingerprint even for a pure version
+stamp. A workflow-order regression keeps this boundary explicit; no release
+is published to validate it.

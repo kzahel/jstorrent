@@ -352,6 +352,12 @@ class VulnerabilityExceptionTests(unittest.TestCase):
         self.assertEqual(context, self.cargo['rstorrent_vulnerability_context'])
         self.assertNotIn(str(self.root), json.dumps(context))
 
+    def test_release_audits_committed_source_before_stamping_package_identity(self):
+        workflow = (audit.ROOT / '.github/workflows/desktop-release.yml').read_text()
+        source_checks = workflow.split('  source-checks:', 1)[1]
+        self.assertLess(source_checks.index('- name: Audit tagged release dependencies'),
+                        source_checks.index('- name: Apply selected package identity'))
+
     def test_exception_keeps_other_review_guards(self):
         for change in ('npm', 'warnings', 'database', 'release_blocker'):
             with self.subTest(change=change):

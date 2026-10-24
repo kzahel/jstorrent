@@ -149,6 +149,23 @@ jobs:
       - name: Install locked web dependencies
         run: npm ci --prefix clients/web
 
+      # Review committed dependency/source inputs before generated package
+      # identity changes alter their evidence-bound exception fingerprint.
+      - name: Audit tagged release dependencies
+        if: needs.release-input.outputs.publish == 'true'
+        shell: bash
+        run: |
+          cargo install cargo-audit --locked --version 0.22.2
+          python3 scripts/audit-cargo-dependencies.py --output "$RUNNER_TEMP/cargo-audit.json"
+          npm audit --prefix clients/web --json > "$RUNNER_TEMP/npm-audit.json" || test "$?" -eq 1
+          npm audit --prefix website --json > "$RUNNER_TEMP/website-npm-audit.json" || test "$?" -eq 1
+          python3 scripts/review-dependency-audit.py \
+            --cargo "$RUNNER_TEMP/cargo-audit.json" \
+            --npm "$RUNNER_TEMP/npm-audit.json" \
+            --website-npm "$RUNNER_TEMP/website-npm-audit.json" \
+            --output "$RUNNER_TEMP/dependency-review.json" \
+            --require-release-ready
+
       - name: Apply selected package identity
         if: needs.release-input.outputs.version != ''
         shell: bash
@@ -194,21 +211,6 @@ jobs:
           python3 -m unittest discover -s scripts -p test_linux_native.py
           python3 -m unittest discover -s scripts -p test_package_appimage_sources.py
           python3 -m unittest discover -s scripts -p test_current_appimage_sources.py
-
-      - name: Audit tagged release dependencies
-        if: needs.release-input.outputs.publish == 'true'
-        shell: bash
-        run: |
-          cargo install cargo-audit --locked --version 0.22.2
-          python3 scripts/audit-cargo-dependencies.py --output "$RUNNER_TEMP/cargo-audit.json"
-          npm audit --prefix clients/web --json > "$RUNNER_TEMP/npm-audit.json" || test "$?" -eq 1
-          npm audit --prefix website --json > "$RUNNER_TEMP/website-npm-audit.json" || test "$?" -eq 1
-          python3 scripts/review-dependency-audit.py \
-            --cargo "$RUNNER_TEMP/cargo-audit.json" \
-            --npm "$RUNNER_TEMP/npm-audit.json" \
-            --website-npm "$RUNNER_TEMP/website-npm-audit.json" \
-            --output "$RUNNER_TEMP/dependency-review.json" \
-            --require-release-ready
 
       - name: Validate and package the JSTorrent Beta extension seed
         run: |

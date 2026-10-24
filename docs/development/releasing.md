@@ -108,6 +108,8 @@ the vulnerability count and full reviewed exception. New findings still fail;
 when this finding disappears, remove its stale exception. npm and the iOS
 probe have no vulnerability exceptions. Removal of the unused upstream
 arithmetic dependency or a reviewed patch remains the preferred remediation.
+The release source check audits the committed inputs before stamping the
+generated package identity; stamping first would invalidate this fingerprint.
 
 ## Website and remote controller
 
