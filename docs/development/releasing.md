@@ -94,6 +94,21 @@ provide `--help` for report inputs and options. The
 owns audit tool versions and report collection; tagged publication requires
 `--require-release-ready`, including fresh advisory/review evidence.
 
+`distribution/dependency-review.json` currently permits one exact, expiring
+vulnerability exception for crypto-bigint 0.5.5 / RUSTSEC-2026-0387. It is
+bound to the source-level Ristretto reachability investigation, Rust lockfile,
+workspace manifests, remote-crypto sources and resolved backend
+features/dependents. The collector fingerprints those inputs; review verifies
+the fingerprint and current file bytes. Any Rust dependency/manifest change
+requires a new explicit assessment before updating `context_sha256`; do not
+automatically regenerate that approval value. Expiry is November 12, at most
+30 days from review and never beyond the warning-review deadline. All raw
+findings remain in the audit report, and successful review receipts retain
+the vulnerability count and full reviewed exception. New findings still fail;
+when this finding disappears, remove its stale exception. npm and the iOS
+probe have no vulnerability exceptions. Removal of the unused upstream
+arithmetic dependency or a reviewed patch remains the preferred remediation.
+
 ## Website and remote controller
 
 [`promote-production-website.yml`](../../.github/workflows/promote-production-website.yml)

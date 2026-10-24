@@ -1,7 +1,21 @@
 {
   "schema": 1,
-  "reviewed_at": "2026-10-22",
+  "reviewed_at": "2026-10-24",
   "review_expires": "2026-11-12",
+  "vulnerability_exceptions": [
+    {
+      "advisory": "RUSTSEC-2026-0387",
+      "package": "crypto-bigint",
+      "version": "0.5.5",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "0dc92fb57ca44df6db8059111ab3af99a63d5d0f8375d9972e319a379c6bab76",
+      "reviewed_at": "2026-10-24",
+      "expires": "2026-11-12",
+      "reason": "Maintainer-authorized temporary exception after the bounded source trace found no path from the selected OPAQUE Ristretto password/TripleDh flow into the affected bigint arithmetic. Dalek performs curve/scalar operations; the borrowed elliptic-curve XMD helper expands SHA-512 bytes without bigint calls. This is source-level reachability evidence, not a compiled-code constant-time proof. No published OPAQUE/VOPRF upgrade removes this dependency. Remove the exception when the dependency/finding is removed; re-review changed source, features or graph before renewing, and prefer upstream dependency removal or a reviewed patch.",
+      "evidence": "docs/tactical/evidence/381-opaque-bigint-reachability.md",
+      "context_sha256": "7c4e4095f77c06122f58a94063bfb52c0704700468d793e7a12ee9e539cd1ee6"
+    }
+  ],
   "warnings": [
     {
       "kind": "unmaintained",

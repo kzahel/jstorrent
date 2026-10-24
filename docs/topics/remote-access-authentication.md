@@ -29,6 +29,13 @@ Wasm and workspace feature graphs agree. This exact-source conclusion is not
 a compiled-code constant-time proof; the package advisory and strict gate
 remain in force, with no exception added.
 
+After that investigation, the maintainer authorized a temporary exception
+for the exact old bigint finding through November 12. The audit retains the
+finding and records its exception; the gate independently checks the reviewed
+source bytes and binds the resolved graph/features to the investigation.
+Changed inputs or expiry invalidate it. This supersedes the preceding
+no-exception checkpoint and does not change credentials or cryptography.
+
 Tactical [360](../tactical/360-remote-controller-subdomain.md) publishes the
 independently tagged controller at `https://remote.jstorrent.com/` on
 2026-10-16. Marketing and controller artifacts/deployments are separate.
