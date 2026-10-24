@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [381 — Dependency cleanup and fresh security findings](381-dependency-cleanup-and-security.md):
+  active; finish the dependency PRs and notice checks, remediate fresh
+  advisories, and verify the merged source without waiving findings.
+
 - [380 — Product releases](380-product-release.md):
   extension 1.1.6 and remote 0.3.3 published; Stable/Android release resumed.
 
