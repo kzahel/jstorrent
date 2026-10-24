@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "date": "2026-10-24",
+  "status": "Compatible security repairs validated locally; older crypto-bigint decision pending",
+  "advisory_database_revision": "1645308cb4766561b0b274d8c93f7033a766fc96",
+  "vulnerabilities": {
+    "workspace": 1,
+    "ios_probe": 0,
+    "web": 0,
+    "website": 0
+  },
+  "remaining_findings": [
+    {
+      "package": "crypto-bigint",
+      "version": "0.5.5",
+      "advisory": "RUSTSEC-2026-0387"
+    }
+  ],
+  "lockfiles": {
+    "Cargo.lock": "c95db0122ff30279857a2604dcf932fd3e0652ba7e3bc1e043867b108386e731",
+    "experiments/ios-storage-probe/Cargo.lock": "de5da16044856bae89e149f01f9a864cbe8ad53df08bf2aa7f2291d92d77658e",
+    "clients/web/package-lock.json": "17c6ef953ccd6dcda1e28e5efdda10db6dfb68781843ee26e5cf1f2c597c71c7",
+    "website/package-lock.json": "9a45aa30dc263ff6704f92599a5c039d9020312d9ee6adeb3a26d07040cb0a07"
+  },
+  "unchanged_warning_review_expiry": "2026-11-12",
+  "local_validation": {
+    "workspace_format": true,
+    "workspace_clippy": true,
+    "web_typecheck": true,
+    "web_unit_tests": 887,
+    "web_skipped": 3,
+    "web_build_and_csp": true,
+    "website_tests": 93,
+    "website_build_and_route_policies": true,
+    "notice_rust_packages": 653,
+    "notice_npm_packages": 35,
+    "notice_desktop_targets": 5,
+    "ios_probe_simulator_check": true,
+    "ios_probe_host_tests": 4,
+    "distribution_review_tests": 36,
+    "glib_backport_tests": 10,
+    "web_e2e_passed": 72,
+    "web_e2e_skipped": 19,
+    "android_release_abis": [
+      "x86_64-linux-android",
+      "aarch64-linux-android"
+    ],
+    "workspace_test_suites": 73,
+    "workspace_tests_passed": 1749,
+    "workspace_tests_ignored": 20,
+    "mse_libtorrent_matrix": {
+      "status": "passed",
+      "cases": 29
+    }
+  },
+  "strict_review": "Blocked by the single remaining crypto-bigint 0.5.5 vulnerability; no exception added"
+}
