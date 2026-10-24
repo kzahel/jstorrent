@@ -14,6 +14,13 @@ expired reviews and all existing freshness/warning/backport/probe/npm gates
 remain enforced. This supersedes the no-exception checkpoint below without
 claiming the vulnerable dependency is patched.
 
+A separate GitHub alert 23 identified Undici in the encrypted short-link
+service's development tooling. Miniflare's exact 7.29.1 pin is overridden
+only for that dependency to patched 7.30.1, retaining the qualified Wrangler
+version. Link typechecks, 11 tests, build, Wrangler deployment dry run and
+fresh npm audit pass with zero vulnerabilities. This adds no npm exception
+and changes no service protocol or stored links.
+
 The maintainer selected a released crypto-stack upgrade for Tactical
 [381](../tactical/381-dependency-cleanup-and-security.md). P-256 now uses
 0.14.0 and RTC uses 0.21.1 with the ring backend. Old/new source-core login,

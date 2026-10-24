@@ -17,5 +17,10 @@
     "esbuild": "0.28.2",
     "typescript": "7.0.2",
     "wrangler": "4.151.0"
+  },
+  "overrides": {
+    "miniflare": {
+      "undici": "7.30.1"
+    }
   }
 }

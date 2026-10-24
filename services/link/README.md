@@ -11,6 +11,11 @@ both the service and client test suites check it. No external fixtures or
 cryptographic library are used. The service's tooling dependencies are MIT or
 Apache-2.0 (Wrangler); none ships in the client or open-page runtime.
 
+The Miniflare-only Undici override selects 7.30.1 for its October 2026
+security fixes. Wrangler's current Miniflare generation still pins 7.29.1,
+including the latest published beta checked on October 24. Remove the override
+when a qualified Wrangler/Miniflare upgrade selects a patched version itself.
+
 ## Development and deployment
 
 Use Node 24 or newer:

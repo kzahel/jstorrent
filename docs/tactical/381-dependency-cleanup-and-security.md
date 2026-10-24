@@ -249,3 +249,13 @@ generated package-identity step. That step rewrites manifests/lockfile and
 would otherwise invalidate the source fingerprint even for a pure version
 stamp. A workflow-order regression keeps this boundary explicit; no release
 is published to validate it.
+
+GitHub then surfaced Undici alert 23 in the separately deployed link service's
+tooling lockfile. Its pinned Miniflare requires exactly Undici 7.29.1; even
+the latest published Miniflare 5.20261019.2-beta still has that pin. Keep the
+qualified Wrangler version and override only Miniflare's Undici to 7.30.1,
+the same patched major line already qualified for the web tooling. The lock
+diff changes only that package's version, URL and integrity. No npm exception
+or service protocol change is needed. Link typechecks, all 11 tests, build
+and fresh npm audit pass with zero vulnerabilities.
+Wrangler's actual deployment dry run also passes without uploading anything.
