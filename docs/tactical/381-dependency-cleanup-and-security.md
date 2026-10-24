@@ -26,6 +26,18 @@ OPAQUE/resume/record encodings and old/new native/browser interoperability.
 No advisory exception, authentication reset or silent protocol migration is
 permitted. An upstream version number alone is not evidence of compatibility.
 
+After the bounded reachability investigation, the maintainer authorized an
+exception on October 24. This supersedes the earlier no-exception boundary
+only for crypto-bigint 0.5.5 / RUSTSEC-2026-0387 in the reviewed Ristretto
+configuration. Implement an exact registry-identity exception expiring on
+November 12, bound to the investigation, lockfile, workspace manifests,
+remote-crypto source and resolved backend features/dependents. Fail closed
+on expiry, changed inputs, added findings or a stale exception after removal
+of the finding. Preserve raw audit findings and report the exception openly;
+do not pass an ignore flag to cargo-audit. All npm/probe, database freshness,
+warning/backport and release-blocker checks remain enforced. Validate both
+the permitted case and rejection cases, then run fresh strict audit review.
+
 ## Source study and implementation direction
 
 - RustSec `crates/crypto-bigint/RUSTSEC-2026-0387.md` and
@@ -89,7 +101,9 @@ package bundle; exact-target package generation and inspection remain required.
 
 ## Validation and evidence
 
-Require zero fresh vulnerabilities in both Cargo and both npm reports.
+Require zero unreviewed vulnerabilities in Cargo and zero vulnerabilities in
+both npm reports and the standalone iOS probe. Only the later authorized,
+exact, evidence-bound bigint exception below may pass with a finding.
 Run targeted MSE and remote crypto tests, Rust formatting/Clippy/workspace tests,
 web type/unit/build/E2E checks, website tests/build, all-target notice checking
 and the existing distribution/backport guards. Full hosted CI supplies Android
@@ -181,3 +195,51 @@ default dependency tree. The exact graph, historical pin reason, compatibility
 results and unresolved upstream dependency are recorded in the
 [upgrade receipt](evidence/381-crypto-upgrade.json). Full hosted qualification
 of the committed source remains separate from these local checks.
+
+## Bounded OPAQUE reachability investigation
+
+The maintainer authorized a read-only source/feature investigation of the
+remaining advisory. The [reachability report](evidence/381-opaque-bigint-reachability.md)
+records the exact source/lockfile, inspected published crate paths, archive
+integrity and limits. Native, Wasm and all-target/all-feature workspace graphs
+select the same Ristretto suite. Both the password OPRF and TripleDh use
+Dalek arithmetic; the borrowed elliptic-curve XMD helper performs SHA-512
+byte expansion without bigint calls. No source call path to crypto-bigint
+0.5.5's affected operations was found in that selected flow.
+
+All 27 remote-crypto tests and the wasm32 remote-wasm compile check pass.
+An audit using the existing local database still reports exactly the one old
+bigint finding. This is bounded source-level evidence, not a compiled-target
+constant-time proof or advisory exemption. No dependency, authentication,
+release or audit-policy change follows from it. Stop this investigation here;
+dependency removal/patching or an explicit policy decision is separate work.
+
+## Authorized temporary vulnerability exception
+
+The maintainer then authorized finding an exception. The policy now records
+the exact advisory, package/version, registry source and checksum, reason,
+investigation and November 12 expiry. Its SHA-256 context binds 29 files:
+the Rust lockfile, root/workspace manifests, all remote-crypto Rust source
+and the investigation. It also binds the five backend packages' resolved
+all-target/all-feature features, dependencies and dependents. Portable
+package identities exclude machine paths. Review independently checks current
+file bytes against the collected context; added crypto source also fails.
+
+Raw cargo-audit collection is unchanged: no ignored advisory, removed
+finding or altered registry identity. Successful review receipts retain
+`cargo_vulnerabilities: 1`, `unexcepted_cargo_vulnerabilities: 0` and the full
+exception. Reject missing/changed/extra findings, duplicate/stale exceptions,
+missing evidence or rationale, changed context, future/expired or over-30-day
+review windows, and exceptions beyond the existing warning-review expiry.
+Other warning/backport, freshness, release-blocker, npm and probe gates remain
+in force. Removing the upstream dependency or a reviewed patch remains the
+remediation; do not automatically renew the approval fingerprint.
+
+All 46 distribution-review tests (including ten new exception guard tests),
+ten GLib backport tests, workflow actionlint and diff whitespace checks pass.
+Fresh Cargo/probe and both npm audit collection at RustSec revision
+`21d909e4c8bd4e14c7aea58bf980c881a0053ab1` passes strict
+`--require-release-ready` review with exactly one reviewed vulnerability
+exception, zero unexcepted findings, zero probe/npm findings, and unchanged
+warning/backport reviews. The [local receipt](evidence/381-opaque-exception.json)
+records the working-tree qualification; hosted qualification is separate.

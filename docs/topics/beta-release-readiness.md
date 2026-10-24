@@ -1,5 +1,19 @@
 # Beta Release Readiness
 
+The maintainer authorized one temporary vulnerability exception on October
+24 for crypto-bigint 0.5.5 / RUSTSEC-2026-0387, expiring November 12. The
+[reachability investigation](../tactical/evidence/381-opaque-bigint-reachability.md)
+found no source call path from the selected Ristretto OPAQUE/TripleDh flow
+into the affected bigint arithmetic. This is not a compiled-code timing
+proof. The policy binds the exact registry identity, investigation, Rust
+lockfile, workspace manifests, remote-crypto source and resolved backend
+features/dependents. Changes require explicit re-review; removed findings
+require removal of their now-stale exception. Raw audit findings remain
+visible, with the exception recorded in successful receipts. Other findings,
+expired reviews and all existing freshness/warning/backport/probe/npm gates
+remain enforced. This supersedes the no-exception checkpoint below without
+claiming the vulnerable dependency is patched.
+
 The maintainer selected a released crypto-stack upgrade for Tactical
 [381](../tactical/381-dependency-cleanup-and-security.md). P-256 now uses
 0.14.0 and RTC uses 0.21.1 with the ring backend. Old/new source-core login,

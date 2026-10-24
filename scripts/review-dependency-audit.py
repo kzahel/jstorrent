@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check fresh audit reports against an explicit, expiring warning review."""
+"""Check fresh audits against expiring warning and vulnerability reviews."""
 import argparse
 from datetime import date, datetime, timezone
 import hashlib
@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 
 import glib_backport
+import dependency_exceptions
 
 ROOT = Path(__file__).resolve().parents[1]
 PROBE_LOCKFILE = 'experiments/ios-storage-probe/Cargo.lock'
@@ -25,6 +26,10 @@ SAFE_FAILURES = {
     'iOS probe vulnerability report is missing or has vulnerabilities',
     'iOS probe has unreviewed dependency warnings',
     'iOS probe advisory database must be at most 30 days old',
+    'Cargo vulnerability exception inventory changed; review additions and removals',
+    'Cargo vulnerability exception has expired or has invalid review dates',
+    'Cargo vulnerability exception requires bounded review and evidence',
+    'Cargo vulnerability exception source or feature context changed',
 }
 
 
@@ -51,9 +56,8 @@ def review_ios_probe(cargo, today, root=ROOT):
     }
 
 
-def review(cargo, npm, website_npm, policy, today, backports=()):
-    if cargo.get('vulnerabilities', {}).get('count') != 0:
-        raise ValueError('Cargo vulnerability report is missing or has vulnerabilities')
+def review(cargo, npm, website_npm, policy, today, backports=(), root=ROOT):
+    exceptions = dependency_exceptions.review(cargo, policy, today, root)
     if npm.get('metadata', {}).get('vulnerabilities', {}).get('total') != 0:
         raise ValueError('web npm vulnerability report is missing or has vulnerabilities')
     if website_npm.get('metadata', {}).get('vulnerabilities', {}).get('total') != 0:
@@ -88,7 +92,9 @@ def review(cargo, npm, website_npm, policy, today, backports=()):
         'schema': 1,
         'reviewed_at': today.isoformat(),
         'database_revision': database['last-commit'],
-        'cargo_vulnerabilities': 0,
+        'cargo_vulnerabilities': cargo['vulnerabilities']['count'],
+        'unexcepted_cargo_vulnerabilities': 0,
+        'reviewed_vulnerability_exceptions': exceptions,
         'npm_vulnerabilities': 0,
         'website_npm_vulnerabilities': 0,
         'reviewed_warnings': sorted([list(r) for r in actual]),
@@ -168,7 +174,8 @@ def main():
     args.output.write_text(json.dumps(result, indent=2) + '\n')
     if args.require_release_ready and not result['release_ready']:
         raise SystemExit('Reviewed dependency blockers remain; see distribution/dependency-review.json')
-    print(f"Reviewed dependency reports; release_ready={result['release_ready']}")
+    print(f"Reviewed dependency reports; release_ready={result['release_ready']}; "
+          f"reviewed_vulnerability_exceptions={len(result['reviewed_vulnerability_exceptions'])}")
 
 
 if __name__ == '__main__':

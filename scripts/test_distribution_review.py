@@ -151,8 +151,12 @@ class ProbeAdvisoryTests(unittest.TestCase):
                           return_value=(b'root projection', {'source': 'verified'})), \
                 patch.object(collector.subprocess, 'check_output',
                              side_effect=['cargo-audit 0.22.2', metadata]), \
+                patch.object(collector.dependency_exceptions, 'collect_context',
+                             return_value={'review': 'exact context'}) as context, \
                 patch.object(collector, 'audit_lock', return_value={}) as collect:
             result = collector.collect(self.root)
+        context.assert_called_once_with(json.loads(metadata), self.root)
+        self.assertEqual(result['rstorrent_vulnerability_context'], {'review': 'exact context'})
         self.assertEqual([c.args[0] for c in collect.call_args_list],
                          [b'root projection', b'probe lockfile'])
         self.assertEqual(result['rstorrent_ios_probe']['lock_sha256'],
@@ -202,6 +206,170 @@ class ProbeAdvisoryTests(unittest.TestCase):
         self.assertEqual(result['ios_probe_vulnerability_count'], 25)
         self.assertEqual(len(result['ios_probe_findings']), 20)
         self.assertNotIn('raw advisory', json.dumps(result))
+
+
+class VulnerabilityExceptionTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.helper = audit.dependency_exceptions
+        for name in ('Cargo.toml', 'Cargo.lock', self.helper.EVIDENCE,
+                     self.helper.CRYPTO_SOURCE + '/opaque.rs'):
+            p = self.root / name
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text('reviewed bytes\n')
+        packages = [{'id': f'{name}-{version}', 'name': name, 'version': version,
+                     'source': self.helper.REGISTRY}
+                    for name, version in sorted(self.helper.BACKENDS)]
+        packages.append({'id': 'workspace', 'name': 'host', 'version': '0.1.0',
+                         'source': None, 'manifest_path': str(self.root / 'Cargo.toml')})
+        self.metadata = {'packages': packages, 'workspace_members': ['workspace'],
+                         'resolve': {'nodes': [
+                             {'id': p['id'], 'features': ['ristretto255'], 'dependencies': []}
+                             for p in packages]}}
+        context = self.helper.collect_context(self.metadata, self.root)
+        self.exception = dict(zip(('advisory', 'package', 'version', 'source', 'checksum'),
+                                  self.helper.IDENTITY))
+        self.exception.update(reviewed_at='2026-10-24', expires='2026-11-12',
+                              evidence=self.helper.EVIDENCE, reason='Reviewed unreachable arithmetic',
+                              context_sha256=self.helper.fingerprint(context))
+        self.policy = {'review_expires': '2026-11-12', 'warnings': [], 'release_blockers': [],
+                       'vulnerability_exceptions': [self.exception]}
+        self.cargo = {'vulnerabilities': {'count': 1, 'list': [{
+            'advisory': {'id': self.exception['advisory']},
+            'package': {k: self.exception[v] for k, v in (
+                ('name', 'package'), ('version', 'version'), ('source', 'source'), ('checksum', 'checksum'))}}]},
+            'rstorrent_vulnerability_context': context, 'warnings': {},
+            'database': {'last-commit': 'abc', 'last-updated': '2026-10-24T00:00:00+00:00'}}
+        self.npm = {'metadata': {'vulnerabilities': {'total': 0}}}
+        self.today = date(2026, 10, 24)
+
+    def review(self):
+        return audit.review(self.cargo, self.npm, self.npm, self.policy, self.today, root=self.root)
+
+    def test_exact_exception_passes_without_hiding_the_finding(self):
+        before = copy.deepcopy(self.cargo)
+        result = self.review()
+        self.assertEqual(result['cargo_vulnerabilities'], 1)
+        self.assertEqual(result['unexcepted_cargo_vulnerabilities'], 0)
+        self.assertEqual(result['reviewed_vulnerability_exceptions'], [self.exception])
+        self.assertTrue(result['release_ready'])
+        self.assertEqual(self.cargo, before)
+
+    def test_exception_is_required_and_stale_or_duplicate_exceptions_fail(self):
+        for exceptions in ([], [self.exception, self.exception]):
+            with self.subTest(exceptions=len(exceptions)):
+                self.policy['vulnerability_exceptions'] = exceptions
+                with self.assertRaises(ValueError):
+                    self.review()
+        self.policy['vulnerability_exceptions'] = [self.exception]
+        self.cargo['vulnerabilities'] = {'count': 0, 'list': []}
+        with self.assertRaisesRegex(ValueError, 'inventory changed'):
+            self.review()
+
+    def test_changed_advisory_version_registry_or_checksum_is_not_excepted(self):
+        finding = self.cargo['vulnerabilities']['list'][0]
+        for target, field, changed in ((finding['advisory'], 'id', 'RUSTSEC-new'),
+                                       (finding['package'], 'name', 'other'),
+                                       (finding['package'], 'version', '0.5.6'),
+                                       (finding['package'], 'source', 'another registry'),
+                                       (finding['package'], 'checksum', 'changed')):
+            with self.subTest(field=field):
+                original = target[field]
+                target[field] = changed
+                with self.assertRaisesRegex(ValueError, 'inventory changed'):
+                    self.review()
+                target[field] = original
+        self.exception['version'] = '0.5.*'
+        with self.assertRaisesRegex(ValueError, 'inventory changed'):
+            self.review()
+
+    def test_new_findings_and_inconsistent_reports_fail(self):
+        original = copy.deepcopy(self.cargo['vulnerabilities'])
+        for report in ({}, {'count': 1}, {'count': True, 'list': []},
+                       {'count': 0, 'list': original['list']},
+                       {'count': 2, 'list': original['list'] * 2}):
+            with self.subTest(report=report):
+                self.cargo['vulnerabilities'] = report
+                with self.assertRaises(ValueError):
+                    self.review()
+
+    def test_expiry_future_review_and_overlong_reviews_fail(self):
+        for reviewed, expires in (('2026-10-24', '2026-10-23'),
+                                  ('2026-10-25', '2026-11-12'),
+                                  ('2026-09-01', '2026-11-12'),
+                                  ('2026-10-24', '2026-11-13')):
+            with self.subTest(reviewed=reviewed, expires=expires):
+                self.exception.update(reviewed_at=reviewed, expires=expires)
+                with self.assertRaises(ValueError):
+                    self.review()
+        self.exception.update(reviewed_at='2026-10-24', expires='2026-11-12')
+        self.today = date(2026, 11, 13)
+        with self.assertRaisesRegex(ValueError, 'exception has expired'):
+            self.review()
+
+    def test_reason_and_evidence_are_required(self):
+        for field, value in (('reason', ''), ('reason', None), ('evidence', 'unreviewed.md')):
+            with self.subTest(field=field, value=value):
+                original = self.exception[field]
+                self.exception[field] = value
+                with self.assertRaisesRegex(ValueError, 'bounded review and evidence'):
+                    self.review()
+                self.exception[field] = original
+
+    def test_changed_source_manifest_lock_or_evidence_invalidates_old_report(self):
+        for path in self.cargo['rstorrent_vulnerability_context']['files']:
+            with self.subTest(path=path):
+                file = self.root / path
+                original = file.read_bytes()
+                file.write_bytes(original + b'changed')
+                with self.assertRaisesRegex(ValueError, 'context changed'):
+                    self.review()
+                file.write_bytes(original)
+        extra = self.root / self.helper.CRYPTO_SOURCE / 'new_suite.rs'
+        extra.write_text('new suite')
+        with self.assertRaisesRegex(ValueError, 'context changed'):
+            self.review()
+
+    def test_backend_features_or_new_dependents_invalidate_context(self):
+        for change in ('features', 'dependents'):
+            metadata = copy.deepcopy(self.metadata)
+            if change == 'features':
+                metadata['resolve']['nodes'][0]['features'].append('new-backend')
+            else:
+                metadata['resolve']['nodes'][-1]['dependencies'].append(
+                    metadata['resolve']['nodes'][0]['id'])
+            self.cargo['rstorrent_vulnerability_context'] = self.helper.collect_context(metadata, self.root)
+            with self.subTest(change=change), self.assertRaisesRegex(ValueError, 'context changed'):
+                self.review()
+
+    def test_context_is_portable_and_order_independent(self):
+        metadata = copy.deepcopy(self.metadata)
+        metadata['packages'].reverse()
+        metadata['resolve']['nodes'].reverse()
+        context = self.helper.collect_context(metadata, self.root)
+        self.assertEqual(context, self.cargo['rstorrent_vulnerability_context'])
+        self.assertNotIn(str(self.root), json.dumps(context))
+
+    def test_exception_keeps_other_review_guards(self):
+        for change in ('npm', 'warnings', 'database', 'release_blocker'):
+            with self.subTest(change=change):
+                cargo, npm, policy = copy.deepcopy((self.cargo, self.npm, self.policy))
+                if change == 'npm':
+                    npm['metadata']['vulnerabilities']['total'] = 1
+                elif change == 'warnings':
+                    cargo['warnings'] = {'yanked': [{'package': {'name': 'new', 'version': '1'}}]}
+                elif change == 'database':
+                    cargo['database']['last-updated'] = '2026-09-01T00:00:00+00:00'
+                else:
+                    policy['release_blockers'] = ['unresolved blocker']
+                if change == 'release_blocker':
+                    result = audit.review(cargo, npm, npm, policy, self.today, root=self.root)
+                    self.assertFalse(result['release_ready'])
+                else:
+                    with self.assertRaises(ValueError):
+                        audit.review(cargo, npm, npm, policy, self.today, root=self.root)
 
 
 class DistributionTests(unittest.TestCase):

@@ -1,0 +1,148 @@
+{
+  "schema": 1,
+  "reviewed_at": "2026-10-24",
+  "database_revision": "21d909e4c8bd4e14c7aea58bf980c881a0053ab1",
+  "cargo_vulnerabilities": 1,
+  "unexcepted_cargo_vulnerabilities": 0,
+  "reviewed_vulnerability_exceptions": [
+    {
+      "advisory": "RUSTSEC-2026-0387",
+      "package": "crypto-bigint",
+      "version": "0.5.5",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "0dc92fb57ca44df6db8059111ab3af99a63d5d0f8375d9972e319a379c6bab76",
+      "reviewed_at": "2026-10-24",
+      "expires": "2026-11-12",
+      "reason": "Maintainer-authorized temporary exception after the bounded source trace found no path from the selected OPAQUE Ristretto password/TripleDh flow into the affected bigint arithmetic. Dalek performs curve/scalar operations; the borrowed elliptic-curve XMD helper expands SHA-512 bytes without bigint calls. This is source-level reachability evidence, not a compiled-code constant-time proof. No published OPAQUE/VOPRF upgrade removes this dependency. Remove the exception when the dependency/finding is removed; re-review changed source, features or graph before renewing, and prefer upstream dependency removal or a reviewed patch.",
+      "evidence": "docs/tactical/evidence/381-opaque-bigint-reachability.md",
+      "context_sha256": "7c4e4095f77c06122f58a94063bfb52c0704700468d793e7a12ee9e539cd1ee6"
+    }
+  ],
+  "npm_vulnerabilities": 0,
+  "website_npm_vulnerabilities": 0,
+  "reviewed_warnings": [
+    [
+      "unmaintained",
+      "RUSTSEC-2024-0370",
+      "proc-macro-error",
+      "1.0.4"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0057",
+      "fxhash",
+      "0.2.1"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0075",
+      "unic-char-range",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0080",
+      "unic-common",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0081",
+      "unic-char-property",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0098",
+      "unic-ucd-version",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0100",
+      "unic-ucd-ident",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2026-0370",
+      "zvariant",
+      "5.15.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2026-0371",
+      "zbus_names",
+      "4.3.4"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2026-0372",
+      "zvariant_derive",
+      "5.15.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2026-0374",
+      "basic-toml",
+      "0.1.10"
+    ],
+    [
+      "unsound",
+      "RUSTSEC-2024-0429",
+      "glib",
+      "0.18.5"
+    ],
+    [
+      "unsound",
+      "RUSTSEC-2026-0097",
+      "rand",
+      "0.7.3"
+    ]
+  ],
+  "reviewed_features": {
+    "rand@0.7.3": [
+      "alloc",
+      "default",
+      "getrandom",
+      "getrandom_package",
+      "libc",
+      "rand_pcg",
+      "small_rng",
+      "std"
+    ]
+  },
+  "source_verified_backports": [
+    {
+      "package": "glib",
+      "version": "0.18.5",
+      "advisory": "RUSTSEC-2024-0429",
+      "license": "MIT",
+      "upstream_archive": "https://static.crates.io/crates/glib/glib-0.18.5.crate",
+      "upstream_archive_sha256": "233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5",
+      "upstream_revision": "42b9caf98e03ded086362d9653ca58fe94dc8658",
+      "patch": "distribution/patches/glib-0.18.5-variant-iterator.patch",
+      "patch_sha256": "8eb6674027f126bdfac118d8644308d390c511e1cf88cf2857794c93a72a2e6f",
+      "patched_file_sha256": "a0f5ee8acb8faa089bcdfbc9a57372609fce7654026ccef7d9a224d05a654ccc",
+      "source_manifest_sha256": "b4c7d59e738c7999884177232c056720ddeb15b1e83568594cc60ba4b7e7fa0b",
+      "status": "source-verified-backport"
+    }
+  ],
+  "release_blockers": [],
+  "release_ready": true,
+  "ios_probe": {
+    "lockfile": "experiments/ios-storage-probe/Cargo.lock",
+    "lock_sha256": "de5da16044856bae89e149f01f9a864cbe8ad53df08bf2aa7f2291d92d77658e",
+    "database_revision": "21d909e4c8bd4e14c7aea58bf980c881a0053ab1",
+    "cargo_vulnerabilities": 0,
+    "warnings": []
+  },
+  "lockfiles": {
+    "Cargo.lock": "5e8660fa32e45fdd19246698494c193d89248e0ed9f94f314fd1fbb4c42a9298",
+    "clients/web/package-lock.json": "17c6ef953ccd6dcda1e28e5efdda10db6dfb68781843ee26e5cf1f2c597c71c7",
+    "website/package-lock.json": "9a45aa30dc263ff6704f92599a5c039d9020312d9ee6adeb3a26d07040cb0a07",
+    "experiments/ios-storage-probe/Cargo.lock": "de5da16044856bae89e149f01f9a864cbe8ad53df08bf2aa7f2291d92d77658e"
+  },
+  "qualification": "Fresh strict local review of the exception working tree; hosted qualification is separate",
+  "source_base": "b879b6c215e03749c68a50a457b7781aaa571944"
+}

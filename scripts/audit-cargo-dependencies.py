@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 
 import glib_backport
+import dependency_exceptions
 
 
 def audit_lock(lock, root):
@@ -40,6 +41,7 @@ def collect(root=glib_backport.ROOT):
         for node in metadata['resolve']['nodes']
         if (packages[node['id']]['name'], packages[node['id']]['version']) == ('rand', '0.7.3')
     }
+    report['rstorrent_vulnerability_context'] = dependency_exceptions.collect_context(metadata, root)
     return report
 
 
