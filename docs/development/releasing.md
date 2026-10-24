@@ -94,6 +94,12 @@ provide `--help` for report inputs and options. The
 owns audit tool versions and report collection; tagged publication requires
 `--require-release-ready`, including fresh advisory/review evidence.
 
+Dependabot opens security remediation PRs only. Routine dependency upgrades
+are maintainer-run batches when useful, rather than recurring patch/minor
+version-only PRs. Keep `open-pull-requests-limit: 0` on every configured entry;
+its required schedule does not enable version PRs with that limit. GitHub
+alerts, automatic security updates and the daily advisory workflow remain on.
+
 `distribution/dependency-review.json` currently permits one exact, expiring
 vulnerability exception for crypto-bigint 0.5.5 / RUSTSEC-2026-0387. It is
 bound to the source-level Ristretto reachability investigation, Rust lockfile,

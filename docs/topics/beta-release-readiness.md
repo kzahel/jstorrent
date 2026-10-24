@@ -1,5 +1,15 @@
 # Beta Release Readiness
 
+Dependency maintenance is security-only automation as of October 24, at the
+maintainer's direction. Routine dependency upgrades are handled manually in
+larger batches when useful; stop the recurring patch/minor version-only PRs.
+All configured Dependabot entries set `open-pull-requests-limit: 0`, with no
+SemVer allow/ignore restrictions on security fixes. GitHub alerts and automatic
+security updates remain enabled, and the daily advisory workflow is unchanged.
+The required schedule fields do not enable version PRs while their limit is
+zero. This supersedes the historical weekly-update policy below; see
+[GitHub's security-only configuration](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configure-security-updates#overriding-the-default-behavior-with-a-configuration-file).
+
 The maintainer authorized one temporary vulnerability exception on October
 24 for crypto-bigint 0.5.5 / RUSTSEC-2026-0387, expiring November 12. The
 [reachability investigation](../tactical/evidence/381-opaque-bigint-reachability.md)

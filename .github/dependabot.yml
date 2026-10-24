@@ -1,61 +1,31 @@
 version: 2
 
-# Security updates remain independent of these version-update PR limits and
-# SemVer allow rules. Keep routine proposals per dependency so each has a
-# reviewable scope. Major version migrations need their own tactical review.
+# Automatic PRs are security-only. Routine upgrades are maintainer-run batches.
+# Schedules are required by Dependabot, but limit 0 disables version-update PRs
+# without disabling security updates.
 updates:
   - package-ecosystem: cargo
     directory: /
     schedule:
       interval: weekly
-      day: monday
-      time: "06:00"
-      timezone: Europe/Berlin
-    open-pull-requests-limit: 1
-    allow:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+    open-pull-requests-limit: 0
   - package-ecosystem: npm
     directory: /clients/web
     schedule:
       interval: weekly
-      day: monday
-      time: "06:30"
-      timezone: Europe/Berlin
-    open-pull-requests-limit: 1
-    allow:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+    open-pull-requests-limit: 0
   - package-ecosystem: npm
     directory: /website
     schedule:
       interval: weekly
-      day: monday
-      time: "07:00"
-      timezone: Europe/Berlin
-    open-pull-requests-limit: 1
-    allow:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+    open-pull-requests-limit: 0
   - package-ecosystem: gradle
     directory: /clients/android
     schedule:
       interval: weekly
-      day: monday
-      time: "07:30"
-      timezone: Europe/Berlin
-    open-pull-requests-limit: 1
-    allow:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+    open-pull-requests-limit: 0
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-      day: monday
-      time: "08:00"
-      timezone: Europe/Berlin
-    open-pull-requests-limit: 1
-    allow:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+    open-pull-requests-limit: 0
