@@ -1,5 +1,21 @@
 # Beta Release Readiness
 
+The October 24 maintenance audit finds newer advisories after the ctutils
+repair below. Tactical [381](../tactical/381-dependency-cleanup-and-security.md)
+updates crypto-bigint 0.7.5 to 0.7.6 (and its required ctutils 0.4.5), Tokio
+1.53.1 to 1.53.3 in both Rust lockfiles, fast-uri to 3.1.9 in both npm
+graphs, web undici to 7.30.1, and website undici/zod to 8.12.3/4.6.7.
+Fresh review at RustSec `1645308cb4766561b0b274d8c93f7033a766fc96` has
+zero probe/web/website vulnerabilities and preserves the existing warning
+inventory and November 12 expiry. The workspace still reports
+RUSTSEC-2026-0387 for crypto-bigint 0.5.5 through elliptic-curve 0.13.8,
+P-256/P-384, OPAQUE and the pinned WebRTC graph. No compatible patched release
+exists; a reviewed backport or coordinated crypto-stack migration needs
+explicit direction. The strict release gate remains blocked. The bounded
+[receipt](../tactical/evidence/381-dependency-cleanup.json) distinguishes
+completed validation from this unresolved finding; this is not release
+clearance.
+
 Latest desktop run [39926104142](https://github.com/kzahel/jstorrent/actions/runs/39926104142)
 stopped before packaging on October 23 when the fresh advisory database added
 RUSTSEC-2026-0385 for ctutils 0.4.2 in both Cargo lockfiles. The workspace and
