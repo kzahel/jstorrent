@@ -566,7 +566,7 @@ jobs:
           shared-key: ci-android-ubuntu-24.04
 
       - name: Configure Gradle caches
-        uses: gradle/actions/setup-gradle@f236b35da9d031e13b1005234ebe4392ed54c580 # v5.0.0
+        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5.0.0
 
       - name: Install pinned Android SDK and NDK packages
         run: >-
