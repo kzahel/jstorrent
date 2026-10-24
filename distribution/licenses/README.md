@@ -54,3 +54,14 @@ and available VCS revisions are recorded in `cargo-sources.json`. These entries
 use the existing explicit declaration-only policy: identify the original
 package/manifest grant and standard terms, without inventing an upstream
 copyright notice. No implementation source or new dependency is imported.
+
+The `rtc-interceptor-derive` 0.20.5 review verifies published archive SHA-256
+`57385751766059daa81c7badbef27b894c358057be0413bf329875c6950ae125`
+and its manifest against the exact registry VCS revision recorded in the
+catalog. Compared with the verified 0.20.4 archive, `src/lib.rs` and
+`Cargo.toml.orig` are byte-identical; only the published version and VCS
+metadata change. The Apache-2.0 and MIT texts at that revision match the
+existing supplemental files byte-for-byte. Reuse preserves those original
+terms and attribution without importing implementation source. The upstream
+0.20.5 TURN change is outside this macro crate and is not adopted by this
+isolated lockfile update.

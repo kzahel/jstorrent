@@ -512,6 +512,24 @@
       }
     ]
   },
+  "rtc-interceptor-derive@0.20.5": {
+    "license": "MIT/Apache-2.0",
+    "manifest_sha256": "684f59aed0e15d7a7506876a4ca489ef0c1686fbac5987d99262e7023a46afe6",
+    "source_revision": "69ebe02fb1ba8d4fd51cce76c579c68fafb6b04b",
+    "source_repository": "https://github.com/webrtc-rs/rtc",
+    "files": [
+      {
+        "file": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/69ebe02fb1ba8d4fd51cce76c579c68fafb6b04b/LICENSE-APACHE"
+      },
+      {
+        "file": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d.txt",
+        "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+        "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/69ebe02fb1ba8d4fd51cce76c579c68fafb6b04b/LICENSE-MIT"
+      }
+    ]
+  },
   "rtc-interceptor@0.20.4": {
     "license": "MIT/Apache-2.0",
     "manifest_sha256": "f118e8a3316fa3ad764d572969533e06610a4afdb6f8cbed8995f0e9c7fe3409",
