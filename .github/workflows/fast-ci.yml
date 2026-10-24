@@ -32,6 +32,7 @@ jobs:
       contract: ${{ steps.plan.outputs.contract }}
       extension: ${{ steps.plan.outputs.extension }}
       website: ${{ steps.plan.outputs.website }}
+      notices: ${{ steps.plan.outputs.notices }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -169,6 +170,33 @@ jobs:
       - run: npm test --prefix website
       - run: npm run build --prefix website
 
+  notices:
+    name: Early dependency notice checks
+    needs: plan
+    if: needs.plan.outputs.notices == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: clients/web/package-lock.json
+      - uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613 # 1.97.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: fast-notices-ubuntu-24.04
+          save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      - name: Install pinned notice generator
+        run: cargo install cargo-about --locked --version 0.9.2 --features cli
+      - run: npm ci --prefix clients/web
+      - name: Validate notices before platform packaging
+        run: python3 scripts/prepare-release-notices.py --check
+
   tools:
     name: Fast workflow and review safety checks
     runs-on: ubuntu-24.04
@@ -186,7 +214,7 @@ jobs:
 
   gate:
     name: Fast PR feedback
-    needs: [plan, rust, contract, web, website, tools]
+    needs: [plan, rust, contract, web, website, notices, tools]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 2
