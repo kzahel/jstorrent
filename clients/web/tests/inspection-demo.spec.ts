@@ -1414,6 +1414,13 @@ test("data units reformat mounted product surfaces without changing raw state", 
   await page.getByRole("tab", { name: "Speed" }).click();
   await expectVisibleUnits(page, "decimal");
   const canvas = page.getByRole("img", { name: /Speed history chart/ });
+  // ResizeObserver replaces the initial 800px drawing size after mount.
+  // Capture the responsive size before testing that unit changes preserve it.
+  await expect
+    .poll(() => canvas.evaluate((element) => Math.abs(
+      element.getBoundingClientRect().width - element.parentElement!.clientWidth,
+    )))
+    .toBeLessThan(1);
   const canvasSize = await canvas.boundingBox();
   await setDataUnits(page, "Binary");
   await expectVisibleUnits(page, "binary");

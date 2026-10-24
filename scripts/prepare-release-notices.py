@@ -207,9 +207,19 @@ def generate_rust_notices(targets, manifest_path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--check', action='store_true',
+                        help='validate Rust and web notices for every desktop target without writing a bundle')
     parser.add_argument('--target', default=os.environ.get('TAURI_ENV_TARGET_TRIPLE'))
     parser.add_argument('--output', type=Path, default=ROOT / 'clients/desktop/src-tauri/binaries/notices')
     args = parser.parse_args()
+    if args.check:
+        _, rust_inventory, version = generate_rust_notices(
+            sorted(TARGETS), ROOT / 'clients/desktop/src-tauri/Cargo.toml')
+        _, npm_inventory = npm_notices()
+        branding_notice()
+        print(f'Checked {len(rust_inventory)} Rust and {len(npm_inventory)} npm dependency notices '
+              f'across {len(TARGETS)} desktop targets with {version}')
+        return
     target = args.target
     if not target:
         target = next(line[6:] for line in subprocess.check_output(['rustc', '-vV'], text=True).splitlines()

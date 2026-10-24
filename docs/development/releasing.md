@@ -63,10 +63,16 @@ Packaging requires pinned `cargo-about` and exact-target notices:
 
 ```bash
 cargo install cargo-about --locked --version 0.9.2 --features cli
+python3 scripts/prepare-release-notices.py --check
 python3 scripts/prepare-release-notices.py --target aarch64-apple-darwin
 python3 -m unittest discover -s scripts -p test_distribution_review.py
 python3 -m unittest discover -s scripts -p test_linux_native.py
 ```
+
+The early Fast CI notice lane runs `--check` when dependency or notice inputs
+change. It validates the union of all supported desktop Rust targets and web
+notices without writing a bundle or building platform packages. Final packaging
+still generates and inspects its exact-target notice bundle.
 
 Use the actual package target. The [license records](../../distribution/licenses/README.md)
 and [Linux native-build guide](../../distribution/linux-native/README.md) own

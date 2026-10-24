@@ -30,7 +30,7 @@ test('shared inputs, native changes and unknown paths conservatively check porta
 });
 test('documentation-only changes skip product builds; web, extension and website remain distinct', () => {
   assert.deepEqual(planChecks(['docs/tactical/example.md', 'README.md'], metadata),
-    { rust: false, unitTests: false, packages: [], testPackages: [], web: false, contract: false, extension: false, website: false });
+    { rust: false, unitTests: false, packages: [], testPackages: [], web: false, contract: false, extension: false, website: false, notices: false });
   const p = planChecks(['clients/web/src/app.tsx'], metadata);
   assert.equal(p.web, true); assert.equal(p.rust, false); assert.equal(p.contract, false);
   assert.equal(planChecks(['clients/extension/manifest.json'], metadata).extension, true);
@@ -42,20 +42,33 @@ test('deletions and moved old paths retain their former dependency impact', () =
   assert.deepEqual(p.packages, ['rstorrent-engine', 'rstorrent-gateway', 'rstorrent-protocol', 'rstorrent-session']);
 });
 test('the aggregate requires selected jobs and tools, with explicit unselected skips', () => {
-  const jobs = { plan: { result: 'success', outputs: { rust: 'true', unitTests: 'true', contract: 'true', web: 'true', extension: 'false', website: 'false' } },
-    rust: { result: 'success' }, contract: { result: 'success' }, web: { result: 'success' }, website: { result: 'skipped' }, tools: { result: 'success' } };
+  const jobs = { plan: { result: 'success', outputs: { rust: 'true', unitTests: 'true', contract: 'true', web: 'true', extension: 'false', website: 'false', notices: 'true' } },
+    rust: { result: 'success' }, contract: { result: 'success' }, web: { result: 'success' }, website: { result: 'skipped' }, notices: { result: 'success' }, tools: { result: 'success' } };
   assert.doesNotThrow(() => requireFastSuccess(jobs));
-  for (const name of ['plan', 'rust', 'contract', 'web', 'tools']) {
+  for (const name of ['plan', 'rust', 'contract', 'web', 'notices', 'tools']) {
     for (const result of ['failure', 'cancelled', 'skipped']) {
       assert.throws(() => requireFastSuccess({ ...jobs, [name]: { ...jobs[name], result } }));
     }
   }
   assert.throws(() => requireFastSuccess({ ...jobs, website: { result: 'failure' } }));
   assert.throws(() => requireFastSuccess({ ...jobs, plan: { result: 'success', outputs: {} } }));
-  const docs = { ...jobs, plan: { result: 'success', outputs: { rust: 'false', unitTests: 'false', contract: 'false', web: 'false', extension: 'false', website: 'false' } },
-    rust: { result: 'skipped' }, contract: { result: 'skipped' }, web: { result: 'skipped' } };
+  const docs = { ...jobs, plan: { result: 'success', outputs: { rust: 'false', unitTests: 'false', contract: 'false', web: 'false', extension: 'false', website: 'false', notices: 'false' } },
+    rust: { result: 'skipped' }, contract: { result: 'skipped' }, web: { result: 'skipped' }, notices: { result: 'skipped' } };
   assert.doesNotThrow(() => requireFastSuccess(docs));
   assert.throws(() => requireFastSuccess({ ...docs, tools: { result: 'failure' } }));
+});
+test('dependency and provenance changes select notice checks before packaging', () => {
+  for (const path of ['Cargo.lock', 'Cargo.toml', 'crates/rstorrent-engine/Cargo.toml',
+    'clients/desktop/src-tauri/Cargo.toml', 'clients/web/package.json', 'clients/web/package-lock.json',
+    'distribution/licenses/cargo-sources.json', 'distribution/licenses/example.txt', 'distribution/about.toml',
+    'vendor/glib-0.18.5/src/lib.rs', 'scripts/prepare-release-notices.py', 'scripts/glib_backport.py',
+    'clients/web/scripts/patch-playsvideo.mjs', '.github/workflows/fast-ci.yml', '.github/scripts/fast-ci.mjs']) {
+    assert.equal(planChecks([path], metadata).notices, true, path);
+  }
+  for (const path of ['README.md', 'clients/web/src/app.tsx', 'crates/rstorrent-engine/src/lib.rs',
+    'website/package-lock.json']) {
+    assert.equal(planChecks([path], metadata).notices, false, path);
+  }
 });
 test('binary-only packages are linted without inventing a library test target', () => {
   const binary = { id: 'tool', name: 'rstorrent-tool', manifest_path: '/repo/crates/rstorrent-tool/Cargo.toml',

@@ -1,5 +1,21 @@
 # Beta Release Readiness
 
+Latest desktop run [39926104142](https://github.com/kzahel/jstorrent/actions/runs/39926104142)
+stopped before packaging on October 23 when the fresh advisory database added
+RUSTSEC-2026-0385 for ctutils 0.4.2 in both Cargo lockfiles. The workspace and
+standalone iOS probe now select ctutils 0.4.4; its
+[upstream security release](https://github.com/RustCrypto/utils/pull/1569)
+fixes constant-time mask generation and 32-bit `u128` comparisons. No advisory
+is waived. Fresh strict release review at advisory revision
+`f7b2f6bc663452200bbe639ebb75e0c762b3422b` passes with zero vulnerabilities
+in both Cargo and both npm reports, the existing reviewed warnings and
+unchanged November 12 expiry. The 36 distribution-review and ten GLib
+backport tests, workspace formatting, workspace Clippy and all 1,749 workspace
+tests pass (20 existing ignores). Android release libraries build for x86_64
+and ARM64; the standalone iOS probe passes formatting, its locked simulator
+compile check and all four host tests. This repair does not itself publish a
+release.
+
 The October 23 Dependabot cleanup retains the verified GLib 0.18.5 backport
 and the feature-guarded rand 0.7.3 review; alerts #1 and #18 are dismissed with
 that evidence. The November 12 warning-review expiry is unchanged. The
