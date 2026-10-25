@@ -56,6 +56,13 @@ Legacy checkout: `jstorrent-typescript` at
 - local LibreTorrent `LICENSE.md`, Transmission `COPYING` and qBittorrent
   `COPYING`, as origin-audit leads rather than permission to import strings.
 
+The pinned qBittorrent `src/gui/optionsdialog.cpp` locale setup/save and
+language-list code uses native language names and an English catalog fallback;
+Transmission `qt/Application.cc` loads the active locale with an explicit
+English fallback. These support the picker naming/fallback choices. Android
+uses its own configuration and persistence owner, with System language as an
+explicit choice per maintainer direction. No reference source was copied.
+
 The legacy English catalog has 457 strings and no plural resources. There are
 18 translated locale files, each containing 345 strings. Its README's older
 353-string baseline is not the current catalog. Locale qualifiers are `cs`,
@@ -239,7 +246,9 @@ belongs in this repository.
 
 ## Implementation Record
 
-The initial plan and review policy landed in `37e79883`.
+The initial plan and review policy landed in `37e79883`, offline tooling in
+`f70f7149`, and the German catalog, picker and qualification fixes in
+`3f86ee3f`.
 
 Offline Python tooling now exports bounded locale jobs, validates responses,
 imports independently reviewed corrections, checks source/translation hashes
@@ -302,6 +311,11 @@ before native toolchain commands:
   service continuity, notification strings/channel relabeling, system reset,
   native system-setting ownership, OS-upgrade handoff and unapplied draft
   restoration.
+- A final `python3 clients/android/scripts/run-localization-matrix.py --api
+  35 --class org.rstorrent.bootstrap.ProductNavigationTest` passes all 45
+  existing navigation cases on another fresh tablet AVD, which is deleted
+  afterward. This checks the settings, dialogs and filter changes against
+  their established English behavior as well as the focused locale evidence.
 
 Initial failures were corrected rather than waived: API-28 JUnit reflection
 needed API-33 test helpers isolated from the common class, and the existing
@@ -328,3 +342,10 @@ data. German is selected for review; **Einstellungen → Sprache** offers
 **Systemsprache**, **English** and **Deutsch**. Switching System clears only
 this app's override. Optional usage statistics were left disabled in this
 fresh development profile. No test torrents or download files were added.
+
+Physical visual inspection confirms readable German Library, Settings and
+Language screens without clipped text. A cold force-stop/relaunch retains
+the platform's `de` override and German resources. The phone is left on German
+Settings for human review. The instrumentation-only package was removed;
+task-owned device XML, local captures/exports and all seven YA worker
+processes are cleaned up while preserving the review app and session history.
