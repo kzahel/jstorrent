@@ -71,7 +71,9 @@ signed artifacts, then creates a GitHub **prerelease** with:
 
 - `jstorrent-android-X.Y.Z.aab` for Play Console;
 - `jstorrent-android-X.Y.Z.apk` for direct installation;
-- `jstorrent-android-X.Y.Z-mapping.txt`, the R8 mapping for that build; and
+- `jstorrent-android-X.Y.Z-mapping.txt`, the R8 mapping for that build;
+- `build.json`, the receipt (source commit, run, version, bundle SHA-256)
+  that Play publication verifies; and
 - `SHA256SUMS` for exact artifact hashes.
 
 Android releases do not take over the repository's desktop latest release.
@@ -106,7 +108,7 @@ included in them.
 Manual builds use the same signing inputs and original-certificate gate as
 tagged builds. A mismatch is a failure; retained diagnostic APK/AAB outputs
 are explicitly unqualified and cannot establish installed or Play continuity.
-No Play upload is automatic.
+Play publication rejects untagged builds.
 
 ## Signing And Backup
 
@@ -155,21 +157,60 @@ fallback. Google Play App Signing manages the distribution signing key;
 the upload key authenticates uploaded bundles. A directly installed APK may
 therefore have a different signing identity from the Play-installed app.
 
-## Upload To Play
+## Publish To Play
 
-For the authorized 1.0.31 release, use the existing production track at 100% and
-turn managed publishing off so approval publishes automatically. Inspect
-pending changes first; this authorizes the 31 release, not unrelated drafts.
-Earlier internal-first qualification below describes the initial replacement,
-not a mandatory track sequence for this approved hotfix.
+Tactical [382](tactical/382-android-play-publication-and-rollout.md) owns the
+design. Play publication is a separate, manual step after the tag build; a tag
+push never changes Play. All workflows run from `main`, share one concurrency
+group, and change Play through a single validated edit.
 
-Select the **existing JSTorrent (`com.jstorrent.app`)** app. After signing,
-version and cutover gates pass and upload is explicitly authorized, upload the
-AAB to an appropriate internal/testing track. Install Play-generated artifacts
-over selected existing Play builds without uninstall/data clear. Check migrated
-torrents/settings, real SAF access, background behavior and staggered extension
-updates before promotion. Store form completion or a disposable-signature
-emulator rehearsal cannot satisfy signed installed delivery qualification.
+1. **Internal.** Run **Android Play Publish** with the tag, track `internal`
+   and status `check` to confirm access, then `completed`:
+
+   ```sh
+   gh workflow run android-play-publish.yml -f tag=android-vX.Y.Z -f track=internal -f status=completed
+   ```
+
+   Before any Google authentication, the verify job resolves the tag to a
+   `main` commit, requires the successful tag-push Android Release run and
+   full CI for that exact commit, and takes release notes from the tag's
+   changelog section (500 characters at most, or `release_notes`). The publish
+   job downloads the prerelease AAB, `build.json` and `SHA256SUMS` and checks
+   them against each other and the build run. Re-run a cancelled CI run for the
+   tagged commit if CI is missing.
+2. **Check.** Install from Play as an update over the production build on
+   a physical device and check migrated torrents, SAF access, background
+   behavior and companion compatibility.
+3. **Production.** Publish the same tag to `production`, normally as
+   `inProgress` with a starting `fraction` (such as `0.01`) and a `plan` from
+   `clients/android/play-rollout.json`. Production only accepts a version code
+   Play already holds with the same SHA-256, so it always promotes the bundle
+   that internal testers received. `completed` releases to everyone at once.
+   The `android-play-production` environment requires maintainer approval.
+4. **Rollout.** **Android Play Rollout** sets a higher fraction, halts,
+   resumes or completes. Halt runs in `android-play-halt` without approval.
+   **Android Play Advance** runs daily: after the current step's dwell time it
+   moves to the next step of the plan pinned at promotion, or completes. It
+   holds when vitals are too sparse and halts when the crash or ANR rate
+   regresses. It acts only when the `android-play-rollout` environment sets
+   `ANDROID_PLAY_ADVANCE_MODE=act`; otherwise it reports what it would do.
+
+Every served change is a GitHub deployment (task `play-release`) in the
+`play-internal` or `play-production` environment, with the tag, version code,
+bundle SHA-256, fraction and plan. Each run also uploads a JSON receipt.
+Submission means Play accepted the edit; check Play Console for review and
+availability. Production changes go through Google review. If Play differs
+from the last recorded step (for example after a Console change), the advancer
+does nothing and fails, so the run notifies. To acknowledge the current state,
+run Android Play Rollout with `set` at the current fraction.
+
+Credentials are short-lived: GitHub OIDC tokens exchanged through Workload
+Identity Federation, with no service-account key. The testing service account
+can only release to testing tracks and is bound to `android-play-internal`.
+The production account is bound to `android-play-production`,
+`android-play-halt` and `android-play-rollout`. The provider accepts only this
+repository's `main`, these workflows and these environments. Concrete Google
+identities live in the maintainer's private operational inventory.
 
 ## Toolchain And Verification
 

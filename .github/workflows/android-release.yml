@@ -99,6 +99,8 @@ jobs:
           clients/android/build.sh release
 
       - name: Verify and stage release artifacts
+        env:
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
           python3 scripts/validate-android-release.py --bundletool "$RUNNER_TEMP/bundletool.jar"
           VERSION=$(python3 -c 'import re; from pathlib import Path; print(re.search(r"versionName = \"([^\"]+)\"", Path("clients/android/app/build.gradle.kts").read_text())[1])')
@@ -107,8 +109,13 @@ jobs:
           cp clients/android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/android-release/jstorrent-android-$VERSION.aab"
           cp clients/android/app/build/outputs/mapping/release/mapping.txt "$RUNNER_TEMP/android-release/jstorrent-android-$VERSION-mapping.txt"
           cp "$RUNNER_TEMP/release-notes.md" "$RUNNER_TEMP/android-release/RELEASE-NOTES.md"
+          # The Play publisher accepts only a bundle matching this receipt.
+          python3 scripts/android-play.py receipt \
+            --bundle "$RUNNER_TEMP/android-release/jstorrent-android-$VERSION.aab" \
+            --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --tag "$RELEASE_TAG" \
+            --out "$RUNNER_TEMP/android-release/build.json"
           cd "$RUNNER_TEMP/android-release"
-          sha256sum ./*.apk ./*.aab ./*-mapping.txt > SHA256SUMS
+          sha256sum ./*.apk ./*.aab ./*-mapping.txt ./build.json > SHA256SUMS
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -159,4 +166,4 @@ jobs:
           sha256sum --check SHA256SUMS
           gh release create "$RELEASE_TAG" --verify-tag --prerelease --latest=false \
             --title "JSTorrent Android ${RELEASE_TAG#android-v}" \
-            --notes-file RELEASE-NOTES.md ./*.apk ./*.aab ./*-mapping.txt SHA256SUMS
+            --notes-file RELEASE-NOTES.md ./*.apk ./*.aab ./*-mapping.txt build.json SHA256SUMS

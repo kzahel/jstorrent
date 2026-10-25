@@ -1,7 +1,7 @@
 # Tactical 382: Android Play Publication And Staged Rollout
 
-Status: Proposed, 2026-10-25. Phase 1 needs no Google access; phase 2 waits
-on maintainer-owned Google Cloud and Play Console setup.
+Status: In progress, 2026-10-25. Phase 1 implemented; the maintainer
+authorized agent-performed Google setup and an internal 1.0.33 release.
 
 Topic: `beta-release-readiness`.
 
@@ -203,6 +203,24 @@ in babytrack.
    and halt/resume by hand.
 4. Scheduled advancement and vitals gate, first in report-only mode for one
    rollout, then enabled.
+
+## Progress
+
+- 2026-10-25, phase 1: `scripts/android-play.py` (receipt, verify,
+  verify-candidate, publish, rollout, advance), the three workflows,
+  `clients/android/play-rollout.json` and 36 fake-API regressions in
+  `scripts/test_android_play.py`. Implementation decisions:
+  - Production refuses a version code Play does not already hold, so the
+    promotion invariant is enforced, not just documented.
+  - The ledger task is `play-release`, in environments `play-internal` and
+    `play-production`. These are unprotected ledger environments, separate
+    from the credential environments, so API-created deployments never wait
+    on reviewers.
+  - The vitals rate unit (fraction or percent) is unconfirmed. Relative
+    checks hold either way; the absolute limits assume fractions. Confirm
+    from the first report-only run.
+  - `rollout set` at the current fraction re-records an unchanged Play state,
+    which is how a Console change is acknowledged.
 
 ## Stopping condition
 

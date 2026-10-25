@@ -1,7 +1,7 @@
 # Implementation Tactical Docs
 
 - [382 — Android Play publication and staged rollout](382-android-play-publication-and-rollout.md):
-  proposed; publish the tagged bundle internal → production from CI, with
+  in progress; publish the tagged bundle internal → production from CI, with
   staged rollout, scheduled advancement and a vitals gate.
 
 - [381 — Dependency cleanup and fresh security findings](381-dependency-cleanup-and-security.md):
