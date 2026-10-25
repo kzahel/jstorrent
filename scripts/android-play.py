@@ -561,7 +561,7 @@ def advance(google, ledger, reporting, policy, now, act):
     previous = payload.get('previousVersionCode')
     if now < due:
         # A recent snapshot shows what the gate will see; it decides nothing.
-        snapshot = vitals(reporting, policy['gate'], version_code, previous, now - timedelta(days=7))
+        snapshot = vitals(reporting, policy['gate'], version_code, previous, now - timedelta(days=21))
         return {'outcome': 'waiting', **base, 'vitals': snapshot}
     gate = vitals(reporting, policy['gate'], version_code, previous, since)
     base['vitals'] = gate
