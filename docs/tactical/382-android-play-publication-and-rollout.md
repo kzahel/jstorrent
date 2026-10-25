@@ -241,8 +241,20 @@ in babytrack.
   access. Run 40191672262 uploaded the bundle (SHA-256
   `d7916d95…c903e`) and released it to internal (28 → 33), recorded as
   deployment 7312851887 in `play-internal`. A second `check` read back
-  internal = 33 and the bundle as held. Next: install from Play on a physical
-  device, then promote the same version code to production.
+  internal = 33 and the bundle as held.
+- 2026-10-25, physical internal check: on a Pixel 7a (Android 17) with
+  Play-installed 1.0.32 and an internal-tester account, Play offered the
+  update (9.7 MB download) and installed 1.0.33 with installer
+  `com.android.vending`. The installed APK carries the Play app-signing
+  certificate `b2b42178…d5acd5` and the single 4.9 MB minified DEX. The
+  device had no prior JSTorrent state, so this is not migration evidence. The
+  five WebTorrent samples (debug-menu set) were added through implicit
+  magnet VIEW intents into a new SAF folder. All completed, verified and
+  seeded (about 1.2 GB, 48 files), and a repeated add reported
+  `already_present`. Library listed the videos and WIRED CD tracks, Sintel
+  played in PlayerActivity, and a force-stop restart restored all five.
+  Logcat showed no crash or reflection errors. Next: promote the same
+  version code to production.
 
 ## Stopping condition
 
