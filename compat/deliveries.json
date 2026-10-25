@@ -192,10 +192,11 @@
       "tag": "android-v1.0.33",
       "commit": "f2c93a45715e3f7801f3e62fd1ebf938748a497b",
       "channel": "play-production",
-      "channelBasis": "Released to internal testing on 2026-10-25, then the same bundle (SHA-256 d7916d95…c903e) was submitted to production as a 50% staged rollout through android-play-publish.yml run 40194717239; in Google review.",
-      "status": "submitted",
+      "channelBasis": "Released to internal testing on 2026-10-25, then the same bundle (SHA-256 d7916d95…c903e) was submitted to production as a 50% staged rollout through android-play-publish.yml run 40194717239.",
+      "status": "rolling-out",
       "submitted": "2026-10-25",
-      "firstPublic": null,
+      "firstPublic": "2026-10-25",
+      "firstPublicBasis": "Play Console shows production 1.0.33 Available on Google Play, staged rollout at 50%, updated October 25 at 14:02 Europe/Berlin; 1.0.32 remains the full-rollout release for other users.",
       "roles": ["host"]
     },
     {
