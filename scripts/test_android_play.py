@@ -264,6 +264,7 @@ class AdvanceTest(unittest.TestCase):
     def test_waits_for_dwell_time(self):
         result, google, _ = self.run_advance(NOW - timedelta(hours=23))
         self.assertEqual((result['outcome'], result['next']), ('waiting', 0.05))
+        self.assertEqual(result['vitals']['stats']['crash']['32']['rate'], 0.002)
         self.assertFalse(google.puts())
 
     def test_advances_to_next_step_and_records_it(self):
