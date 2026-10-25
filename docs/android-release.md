@@ -60,6 +60,14 @@ must increase; the version code is never derived from CI run numbers. If a
 push fails, the local commit/tag remain available for inspection and retry;
 do not run the bump helper again blindly.
 
+After the tag is pushed, capture its source for the compatibility ledger
+(`scripts/compat-capture.mjs --commit <tag commit> --roles host` and a
+`compat/deliveries.json` entry, per the
+[mixed-version runbook](topics/mixed-version-compatibility.md#release-runbook))
+in a commit that changes only `compat/`, and push it alone. CI on `main` fails
+until the pushed tag is recorded, and Play publication accepts CI from that
+capture commit. Avoid other pushes until its CI finishes.
+
 The next local 1.0.27/code 27 candidate uses the manual build route below.
 Code26 is available on the existing internal Play track; production remains23.
 The bump helper requires a strictly newer version; it cannot tag that same
@@ -173,11 +181,12 @@ group, and change Play through a single validated edit.
 
    Before any Google authentication, the verify job resolves the tag to a
    `main` commit, requires the successful tag-push Android Release run and
-   full CI for that exact commit, and takes release notes from the tag's
+   full CI on `main` for that commit or a later one that changes only
+   `compat/` (the release capture), and takes release notes from the tag's
    changelog section (500 characters at most, or `release_notes`). The publish
    job downloads the prerelease AAB, `build.json` and `SHA256SUMS` and checks
-   them against each other and the build run. Re-run a cancelled CI run for the
-   tagged commit if CI is missing.
+   them against each other and the build run. Re-run a cancelled CI run if
+   CI is missing.
 2. **Check.** Install from Play as an update over the production build on
    a physical device and check migrated torrents, SAF access, background
    behavior and companion compatibility.

@@ -168,13 +168,35 @@ def select_build_run(runs, repository, tag, source):
     return max(matches, key=lambda run: run['id'])
 
 
-def has_source_ci(runs, repository, source):
-    return any(run.get('head_repository', {}).get('full_name') == repository
-               and run.get('head_sha') == source and run.get('head_branch') == 'main'
-               and run.get('event') in ('push', 'workflow_dispatch')
-               and run.get('path') == CI_WORKFLOW
-               and run.get('status') == 'completed' and run.get('conclusion') == 'success'
-               for run in runs)
+def source_ci(runs, repository, changed_paths):
+    """Return a successful main CI run covering the tagged source, or None.
+
+    The release ledger names the tagged commit, so it lands in a later commit
+    pushed with the tag, and CI may only run there. A run qualifies when its
+    commit is the source or descends from it with changes only under
+    compat/. changed_paths(sha) returns the paths changed since the source,
+    or None when sha does not descend from it.
+    """
+    for run in sorted(runs, key=lambda run: run['id'], reverse=True):
+        if (run.get('head_repository', {}).get('full_name') == repository
+                and run.get('head_branch') == 'main'
+                and run.get('event') in ('push', 'workflow_dispatch')
+                and run.get('path') == CI_WORKFLOW
+                and run.get('status') == 'completed' and run.get('conclusion') == 'success'):
+            paths = changed_paths(run['head_sha'])
+            if paths is not None and all(path.startswith('compat/') for path in paths):
+                return run
+    return None
+
+
+def changed_since(source, sha):
+    if sha == source:
+        return []
+    try:
+        git('merge-base', '--is-ancestor', source, sha)
+    except subprocess.CalledProcessError:
+        return None
+    return git('diff', '--name-only', source, sha).splitlines()
 
 
 def git(*args):
@@ -589,14 +611,15 @@ def command_verify(args):
 
     runs = api(f'actions/workflows/android-release.yml/runs?event=push&branch={args.tag}&per_page=100')
     run = select_build_run(runs['workflow_runs'], repository, args.tag, source)
-    checks = api(f'actions/workflows/ci.yml/runs?head_sha={source}&per_page=100')
-    if not has_source_ci(checks['workflow_runs'], repository, source):
-        raise ValueError('Full CI must pass on main for the exact tagged commit; '
-                         're-run a cancelled CI run for it if needed')
+    checks = api('actions/workflows/ci.yml/runs?branch=main&status=success&per_page=100')
+    ci = source_ci(checks['workflow_runs'], repository, lambda sha: changed_since(source, sha))
+    if ci is None:
+        raise ValueError('Full CI must pass on main for the tagged commit, or for a later commit '
+                         'that changes only compat/; re-run a cancelled CI run if needed')
     notes = check_notes(args.notes) if args.notes.strip() else play_notes(
         git('show', f'{source}:{release_android.CHANGELOG}'), name)
-    values = {'source': source, 'run_id': run['id'], 'version_code': code, 'version_name': name,
-              'notes': notes}
+    values = {'source': source, 'run_id': run['id'], 'ci_sha': ci['head_sha'], 'ci_run_id': ci['id'],
+              'version_code': code, 'version_name': name, 'notes': notes}
     write_output(values)
     print(json.dumps(values, indent=2))
 

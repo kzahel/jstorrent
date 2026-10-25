@@ -418,11 +418,22 @@ class ProvenanceTest(unittest.TestCase):
             with self.subTest(change=change), self.assertRaises(ValueError):
                 play.select_build_run([{**self.build, **change}], 'kzahel/jstorrent', 'android-v1.0.33', 'a' * 40)
 
-    def test_requires_successful_main_ci_for_exact_commit(self):
+    def test_requires_successful_main_ci_for_source_or_ledger_only_descendant(self):
         ci = {**self.build, 'head_branch': 'main', 'path': play.CI_WORKFLOW}
-        self.assertTrue(play.has_source_ci([ci], 'kzahel/jstorrent', 'a' * 40))
-        for change in ({'conclusion': 'cancelled'}, {'head_branch': 'feature'}, {'event': 'pull_request'}):
-            self.assertFalse(play.has_source_ci([{**ci, **change}], 'kzahel/jstorrent', 'a' * 40))
+        history = {'a' * 40: [], 'b' * 40: ['compat/deliveries.json', 'compat/captures/x/hello.json'],
+                   'c' * 40: ['compat/deliveries.json', 'scripts/android-play.py']}
+
+        def found(*runs):
+            run = play.source_ci(list(runs), 'kzahel/jstorrent', history.get)
+            return run and run['head_sha']
+
+        self.assertEqual(found(ci), 'a' * 40)
+        self.assertEqual(found(ci, {**ci, 'id': 12, 'head_sha': 'b' * 40}), 'b' * 40)
+        for change in ({'conclusion': 'cancelled'}, {'head_branch': 'feature'}, {'event': 'pull_request'},
+                       {'head_sha': 'c' * 40}, {'head_sha': 'd' * 40},
+                       {'head_repository': {'full_name': 'fork/jstorrent'}}):
+            with self.subTest(change=change):
+                self.assertIsNone(found({**ci, **change}))
 
     def test_tag_format(self):
         self.assertEqual(play.tag_version('android-v1.0.33'), '1.0.33')
