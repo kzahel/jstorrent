@@ -253,8 +253,19 @@ in babytrack.
   seeded (about 1.2 GB, 48 files), and a repeated add reported
   `already_present`. Library listed the videos and WIRED CD tracks, Sintel
   played in PlayerActivity, and a force-stop restart restored all five.
-  Logcat showed no crash or reflection errors. Next: promote the same
-  version code to production.
+  Logcat showed no crash or reflection errors.
+- 2026-10-25, phase 3 (production): on the maintainer's direction, run
+  40194717239 promoted the same version code to production as `inProgress`
+  0.5 with plan `standard-7d`. The maintainer-directed approval went through
+  the `android-play-production` gate. The publisher reused Play's bundle
+  (`uploaded: false`, same SHA-256); the previous version was 32; ledger
+  deployment 7313309465 is in `play-production`. Play Console shows 1.0.33
+  "In review, staged rollout at 50%" while 32 stays "Available on Google
+  Play, full rollout". This confirms the edge case: a staged-rollout update
+  naming only the new release keeps the earlier completed release serving
+  everyone else. A report-mode advance run read the track through the
+  production account: `waiting`, next 1.0 due 2026-10-27T12:48Z. The
+  advancer remains report-only.
 
 ## Stopping condition
 
