@@ -104,6 +104,8 @@ def load_policy(path=POLICY):
         raise ValueError('Gate needs a positive user minimum and a regression factor above 1')
     if set(gate['maxRate']) != {'crash', 'anr'}:
         raise ValueError('Gate needs crash and ANR rate limits')
+    if gate['reports']['floor'] < 0 or gate['reports']['maxRegressionFactor'] <= 1:
+        raise ValueError('Report-count gate needs a non-negative floor and a factor above 1')
     return policy
 
 
@@ -462,36 +464,62 @@ def daily_end(reporting, metric_set):
     return None
 
 
-def query_rows(reporting, metric_set, rate, start, end):
+def query_rows(reporting, metric_set, metrics, dimensions, start, end):
     zone = {'id': REPORTING_ZONE}
     body = {'timelineSpec': {'aggregationPeriod': 'DAILY', 'startTime': {**start, 'timeZone': zone},
                              'endTime': {**end, 'timeZone': zone}},
-            'dimensions': ['versionCode'], 'metrics': [rate, 'distinctUsers'], 'pageSize': 1000}
+            'dimensions': dimensions, 'metrics': metrics, 'pageSize': 1000}
     rows = []
     while True:
         page = reporting.call('POST', f'{REPORTING}/{metric_set}:query', body)
         rows.extend(page.get('rows', []))
         if not page.get('nextPageToken'):
-            sample = json.dumps(rows[0])[:600] if rows else json.dumps(page)[:300]
-            print(f'{metric_set}: {len(rows)} rows; first: {sample}', file=sys.stderr)
+            print(f'{metric_set}: {len(rows)} rows', file=sys.stderr)
             return rows
         body['pageToken'] = page['nextPageToken']
+
+
+def row_dimensions(row):
+    return {d.get('dimension'): d.get('int64Value') or d.get('stringValue')
+            for d in row.get('dimensions', [])}
+
+
+def row_metrics(row):
+    return {m['metric']: float(m['decimalValue']['value'])
+            for m in row.get('metrics', []) if 'decimalValue' in m}
 
 
 def version_stats(rows, rate):
     """User-weighted daily rate and summed daily users (user-days) per version code."""
     totals = {}
     for row in rows:
-        dimension = next((d for d in row.get('dimensions', []) if d.get('dimension') == 'versionCode'), {})
-        code = dimension.get('int64Value') or dimension.get('stringValue')
-        values = {m['metric']: float(m['decimalValue']['value'])
-                  for m in row.get('metrics', []) if 'decimalValue' in m}
+        code, values = row_dimensions(row).get('versionCode'), row_metrics(row)
         if code is None or rate not in values or 'distinctUsers' not in values:
             continue
         users, weighted = totals.get(int(code), (0.0, 0.0))
         totals[int(code)] = (users + values['distinctUsers'], weighted + values[rate] * values['distinctUsers'])
     return {code: {'userDays': users, 'rate': weighted / users if users else 0.0}
             for code, (users, weighted) in totals.items()}
+
+
+REPORT_TYPES = {'CRASH': 'crash', 'APPLICATION_NOT_RESPONDING': 'anr'}
+
+
+def report_stats(rows):
+    """Summed daily affected users per error type and version code."""
+    stats = {'crash': {}, 'anr': {}}
+    for row in rows:
+        dimensions, values = row_dimensions(row), row_metrics(row)
+        name = REPORT_TYPES.get(dimensions.get('reportType'))
+        if name and dimensions.get('versionCode') is not None and 'distinctUsers' in values:
+            code = int(dimensions['versionCode'])
+            stats[name][code] = stats[name].get(code, 0.0) + values['distinctUsers']
+    return stats
+
+
+def keep_versions(stats, *codes):
+    return {name: {str(code): value for code, value in by_code.items() if code in codes}
+            for name, by_code in stats.items()}
 
 
 def evaluate_vitals(gate, stats, version_code, previous_code):
@@ -512,25 +540,68 @@ def evaluate_vitals(gate, stats, version_code, previous_code):
             halts.append(f'{name}: rate {current["rate"]:.4%} exceeds '
                          f'{gate["maxRegressionFactor"]}x previous {baseline["rate"]:.4%}')
     decision = 'halt' if halts else 'hold' if holds else 'pass'
-    return {'decision': decision, 'reasons': halts or holds, 'stats': {
-        name: {str(code): value for code, value in by_code.items()
-               if code in (version_code, previous_code)} for name, by_code in stats.items()}}
+    return {'decision': decision, 'source': 'rates', 'reasons': halts or holds,
+            'stats': keep_versions(stats, version_code, previous_code)}
 
 
-def vitals(reporting, gate, version_code, previous_code, since):
-    stats = {}
+def evaluate_reports(gate, stats, version_code, previous_code, fraction):
+    """Gate on affected-user counts when Play publishes no rates for this app.
+
+    The previous version's count, scaled by the rollout's share of users, is
+    the expectation; halt only above both the floor and the factor.
+    """
+    share = fraction / (1 - fraction) if fraction < 1 else 1.0
+    halts = []
+    for name in ('crash', 'anr'):
+        current = stats[name].get(version_code, 0.0)
+        expected = stats[name].get(previous_code, 0.0) * share
+        limit = max(gate['floor'], expected * gate['maxRegressionFactor'])
+        if current > limit:
+            halts.append(f'{name}: {current:g} affected user-days exceed {limit:g} '
+                         f'(previous version scaled to {fraction:.0%}: {expected:g})')
+    return {'decision': 'halt' if halts else 'pass', 'source': 'reports', 'reasons': halts,
+            'stats': keep_versions(stats, version_code, previous_code)}
+
+
+def report_window(reporting, metric_set, start):
+    end = daily_end(reporting, metric_set)
+    if end is None:
+        return None, f'{metric_set}: Play reports no daily freshness'
+    if as_date(end) <= as_date(start):
+        return None, f'{metric_set}: daily data ends {as_date(end)}, not after {as_date(start)}'
+    return end, None
+
+
+def vitals(reporting, gate, version_code, previous_code, since, fraction):
     start = reporting_date(since)
+    stats = {}
     for name, metric_set, rate in (('crash', 'crashRateMetricSet', 'userPerceivedCrashRate'),
                                    ('anr', 'anrRateMetricSet', 'userPerceivedAnrRate')):
-        end = daily_end(reporting, metric_set)
+        end, reason = report_window(reporting, metric_set, start)
         if end is None:
-            return {'decision': 'hold', 'reasons': [f'{name}: Play reports no daily freshness'],
-                    'stats': {}}
-        if as_date(end) <= as_date(start):
-            return {'decision': 'hold', 'stats': {}, 'reasons': [
-                f'{name}: daily vitals end {as_date(end)}, not after {as_date(start)}']}
-        stats[name] = version_stats(query_rows(reporting, metric_set, rate, start, end), rate)
-    return evaluate_vitals(gate, stats, version_code, previous_code)
+            stats = None
+            break
+        stats[name] = version_stats(query_rows(reporting, metric_set, [rate, 'distinctUsers'],
+                                               ['versionCode'], start, end), rate)
+    if stats is not None:
+        verdict = evaluate_vitals(gate, stats, version_code, previous_code)
+        if verdict['decision'] != 'hold' or any(
+                previous_code in by_code for by_code in stats.values()):
+            return verdict
+        rate_reasons = verdict['reasons']
+    else:
+        rate_reasons = [reason]
+    # Play publishes no rates for this app (not even the previous version):
+    # fall back to raw crash and ANR report counts.
+    end, reason = report_window(reporting, 'errorCountMetricSet', start)
+    if end is None:
+        return {'decision': 'hold', 'source': 'reports', 'reasons': [reason], 'stats': {},
+                'rateReasons': rate_reasons}
+    rows = query_rows(reporting, 'errorCountMetricSet', ['errorReportCount', 'distinctUsers'],
+                      ['versionCode', 'reportType'], start, end)
+    verdict = evaluate_reports(gate['reports'], report_stats(rows), version_code, previous_code, fraction)
+    verdict['rateReasons'] = rate_reasons
+    return verdict
 
 
 def advance(google, ledger, reporting, policy, now, act):
@@ -563,9 +634,10 @@ def advance(google, ledger, reporting, policy, now, act):
     previous = payload.get('previousVersionCode')
     if now < due:
         # A recent snapshot shows what the gate will see; it decides nothing.
-        snapshot = vitals(reporting, policy['gate'], version_code, previous, now - timedelta(days=21))
+        snapshot = vitals(reporting, policy['gate'], version_code, previous, now - timedelta(days=21),
+                          fraction)
         return {'outcome': 'waiting', **base, 'vitals': snapshot}
-    gate = vitals(reporting, policy['gate'], version_code, previous, since)
+    gate = vitals(reporting, policy['gate'], version_code, previous, since, fraction)
     base['vitals'] = gate
     if gate['decision'] == 'hold':
         return {'outcome': 'hold', **base}

@@ -97,8 +97,22 @@ class FakeReporting:
                 {'aggregationPeriod': 'HOURLY', 'latestEndTime': {'year': 2026, 'month': 1, 'day': 1}},
                 {'aggregationPeriod': 'DAILY', 'latestEndTime': {'year': year, 'month': month, 'day': day}}]}}
         self.queries.append(body)
-        name = 'crash' if 'crashRate' in url else 'anr'
-        return {'rows': self.rows[name]}
+        name = 'crash' if 'crashRate' in url else 'anr' if 'anrRate' in url else 'errors'
+        return {'rows': self.rows.get(name, [])}
+
+
+def error_row(code, report_type, users):
+    return {'dimensions': [{'dimension': 'versionCode', 'int64Value': str(code)},
+                           {'dimension': 'reportType', 'stringValue': report_type}],
+            'metrics': [{'metric': 'errorReportCount', 'decimalValue': {'value': str(users * 2)}},
+                        {'metric': 'distinctUsers', 'decimalValue': {'value': str(users)}}]}
+
+
+def report_rows(new_crash=1, old_crash=2, new_anr=0, old_anr=1):
+    return {'errors': [error_row(33, 'CRASH', new_crash), error_row(32, 'CRASH', old_crash),
+                       error_row(33, 'APPLICATION_NOT_RESPONDING', new_anr),
+                       error_row(32, 'APPLICATION_NOT_RESPONDING', old_anr),
+                       error_row(33, 'NON_FATAL', 99)]}
 
 
 def vitals_rows(new_crash=0.002, new_anr=0.001, users=500, old_crash=0.002, old_anr=0.001):
@@ -325,9 +339,42 @@ class AdvanceTest(unittest.TestCase):
         self.assertEqual(result['outcome'], 'manual')
         self.assertFalse(google.puts())
 
+    def test_without_any_published_rates_report_counts_decide(self):
+        gate = self.policy['gate']
+        since = NOW - timedelta(days=2)
+        verdict = play.vitals(FakeReporting(report_rows()), gate, 33, 32, since, 0.5)
+        self.assertEqual((verdict['decision'], verdict['source']), ('pass', 'reports'))
+        self.assertEqual(verdict['stats']['crash'], {'33': 1.0, '32': 2.0})
+        # At 50% the previous version's count is the expectation; halt above 2x and the floor.
+        verdict = play.vitals(FakeReporting(report_rows(new_crash=9, old_crash=4)), gate, 33, 32, since, 0.5)
+        self.assertEqual(verdict['decision'], 'halt')
+        verdict = play.vitals(FakeReporting(report_rows(new_crash=7, old_crash=4)), gate, 33, 32, since, 0.5)
+        self.assertEqual(verdict['decision'], 'pass')
+        # A small rollout scales the expectation down, leaving the floor.
+        verdict = play.vitals(FakeReporting(report_rows(new_anr=4, old_anr=40)), gate, 33, 32, since, 0.05)
+        self.assertEqual(verdict['decision'], 'pass')
+        verdict = play.vitals(FakeReporting(report_rows(new_anr=6, old_anr=40)), gate, 33, 32, since, 0.05)
+        self.assertEqual(verdict['decision'], 'halt')
+
+    def test_rates_for_previous_version_hold_without_report_fallback(self):
+        rows = vitals_rows(users=50)
+        rows.update(report_rows())
+        verdict = play.vitals(FakeReporting(rows), self.policy['gate'], 33, 32, NOW - timedelta(days=2), 0.5)
+        self.assertEqual((verdict['decision'], verdict['source']), ('hold', 'rates'))
+
+    def test_stale_report_counts_hold(self):
+        verdict = play.vitals(FakeReporting(report_rows(), end=(2026, 10, 30)), self.policy['gate'],
+                              33, 32, NOW - timedelta(days=2), 0.5)
+        self.assertEqual((verdict['decision'], verdict['source']), ('hold', 'reports'))
+
+    def test_scheduled_step_advances_on_report_counts(self):
+        result, google, _ = self.run_advance(NOW - timedelta(hours=25), rows=report_rows())
+        self.assertEqual((result['outcome'], result['vitals']['source']), ('set', 'reports'))
+        self.assertEqual(google.puts()[0]['releases'][0]['userFraction'], 0.05)
+
     def test_vitals_window_uses_reporting_timezone_dates(self):
         reporting = FakeReporting(vitals_rows())
-        play.vitals(reporting, self.policy['gate'], 33, 32, datetime(2026, 11, 1, 2, tzinfo=timezone.utc))
+        play.vitals(reporting, self.policy['gate'], 33, 32, datetime(2026, 11, 1, 2, tzinfo=timezone.utc), 0.5)
         timeline = reporting.queries[0]['timelineSpec']
         self.assertEqual((timeline['startTime']['day'], timeline['endTime']['day'],
                           timeline['startTime']['timeZone']['id']), (31, 2, 'America/Los_Angeles'))
