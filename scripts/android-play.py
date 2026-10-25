@@ -458,6 +458,7 @@ def daily_end(reporting, metric_set):
     for freshness in info.get('freshnessInfo', {}).get('freshnesses', []):
         if freshness.get('aggregationPeriod') == 'DAILY':
             return {key: freshness['latestEndTime'][key] for key in ('year', 'month', 'day')}
+    print(f'{metric_set} freshness: {json.dumps(info.get("freshnessInfo"))[:500]}', file=sys.stderr)
     return None
 
 
@@ -520,9 +521,12 @@ def vitals(reporting, gate, version_code, previous_code, since):
     for name, metric_set, rate in (('crash', 'crashRateMetricSet', 'userPerceivedCrashRate'),
                                    ('anr', 'anrRateMetricSet', 'userPerceivedAnrRate')):
         end = daily_end(reporting, metric_set)
-        if end is None or as_date(end) <= as_date(start):
-            return {'decision': 'hold', 'reasons': [f'{name}: no complete day of vitals since this step'],
+        if end is None:
+            return {'decision': 'hold', 'reasons': [f'{name}: Play reports no daily freshness'],
                     'stats': {}}
+        if as_date(end) <= as_date(start):
+            return {'decision': 'hold', 'stats': {}, 'reasons': [
+                f'{name}: daily vitals end {as_date(end)}, not after {as_date(start)}']}
         stats[name] = version_stats(query_rows(reporting, metric_set, rate, start, end), rate)
     return evaluate_vitals(gate, stats, version_code, previous_code)
 
