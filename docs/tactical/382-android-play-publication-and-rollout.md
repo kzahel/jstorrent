@@ -264,8 +264,24 @@ in babytrack.
   Play, full rollout". This confirms the edge case: a staged-rollout update
   naming only the new release keeps the earlier completed release serving
   everyone else. A report-mode advance run read the track through the
-  production account: `waiting`, next 1.0 due 2026-10-27T12:48Z. The
-  advancer remains report-only.
+  production account: `waiting`, next 1.0 due 2026-10-27T12:48Z. Play
+  approved the release about 14 minutes after submission; Console shows it
+  "Available on Google Play, staged rollout at 50%".
+- 2026-10-25, phase 4: the maintainer enabled `ANDROID_PLAY_ADVANCE_MODE=act`.
+  Snapshot runs found the vitals gate unusable as designed. The Reporting API
+  returned no crash or ANR rate rows for any JSTorrent version over 21 days,
+  because the app is below Play's publication threshold (Console shows 0-1
+  crash events a day). Daily rate freshness also lagged eight days (ending
+  2026-10-17). The rate gate would therefore hold forever. Offered time-only
+  advancement, report counts or manual completion, the maintainer chose
+  report counts. When Play has no rates even for the previous version, the
+  gate now reads `errorCountMetricSet` (DAILY, `versionCode` x `reportType`)
+  and compares summed affected users for CRASH and APPLICATION_NOT_RESPONDING
+  against the previous version scaled to the rollout share. It halts above
+  max(3, 2x). Rates stay authoritative when published. The first real
+  snapshot passed: 147 rows, with 1.0.32 at 3 crash user-days and 1.0.33 at
+  none. The fraction-or-percent rate unit question is moot while JSTorrent
+  has no published rates; confirm it if rates ever appear.
 
 ## Stopping condition
 

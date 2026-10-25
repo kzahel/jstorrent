@@ -201,8 +201,13 @@ group, and change Play through a single validated edit.
    **Android Play Advance** runs daily: after the current step's dwell time it
    moves to the next step of the plan pinned at promotion, or completes. It
    holds when vitals are too sparse and halts when the crash or ANR rate
-   regresses. It acts only when the `android-play-rollout` environment sets
-   `ANDROID_PLAY_ADVANCE_MODE=act`; otherwise it reports what it would do.
+   regresses. JSTorrent is below Play's threshold for published rates, so the
+   gate falls back to Play's crash and ANR report counts: the new version's
+   affected users against the previous version's, scaled to the rollout
+   share (halt above both 3 and 2x). It acts only when the
+   `android-play-rollout` environment sets `ANDROID_PLAY_ADVANCE_MODE=act`
+   (enabled 2026-10-25); otherwise it reports what it would do. A waiting run
+   also reports a 21-day vitals snapshot.
 
 Every served change is a GitHub deployment (task `play-release`) in the
 `play-internal` or `play-production` environment, with the tag, version code,
