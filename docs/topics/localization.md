@@ -1,5 +1,19 @@
 # Localization
 
+Investigation [383](../tactical/383-android-translation-cohorts.md) audits the
+legacy Android translation pipeline and proposes source-aware incremental
+translation cohorts, starting with a complete German pilot and reusable
+export/import/check tooling. Current Android has 667 English resources, of which 659
+are translatable (including 28 quantities); 116 have same-English candidates
+in each of the legacy app's 18 translated catalogs, before semantic and origin
+review. No translations were imported or enabled; shipping locales remain
+English. The maintainer's October 25 direction replaces mandatory
+native-speaker review with agent translation and independent agent review.
+Human review is welcome where available, with German and French review
+planned, but is not a prerequisite for shipping other locales. English copy
+refinement need not block translation tooling or drafts because changed
+source can invalidate individual translations.
+
 The October 17 hosted follow-up to 375 synchronizes Add-to-Settings UI tests
 on sheet disappearance and the next button's hittability. A captured failed
 run remained on the library after its immediate tap. Localization, navigation
@@ -183,8 +197,13 @@ Machine-readable policy lives under `localization/`:
   maintained as normal product copy, not imported translation.
 - `en-XA` and `ar-XB` are generated test-only pseudo-locales. They must never
   appear in a release locale manifest or product language picker.
-- Locale follows browser/operating-system preferences. The application has no
-  stored or synchronized language setting.
+- Locale defaults to browser/operating-system preferences. The planned Android
+  in-app language picker offers **System language** by default and a remembered
+  explicit override for this installation. Returning to System language clears
+  the override and follows subsequent system-language changes. Android 13+
+  in-app and system per-app language controls share the platform locale owner;
+  older supported Android versions need local override persistence. Language
+  selection is not synchronized or added to the engine/application contract.
 - Stable keys describe semantic intent rather than copying English or encoding
   screen position. User values are interpolation data, never keys or format
   templates.
@@ -196,6 +215,11 @@ Machine-readable policy lives under `localization/`:
   supplied safe elements; platform catalogs do not embed arbitrary markup.
 - Product UI may show a bounded verbatim technical detail beside a localized
   summary. Logs and diagnostic records remain stable technical evidence.
+- Agents translate and independently review every translated message with
+  its UI context, terminology and argument meanings. Native-speaker review is
+  optional additional feedback, not a shipping or ongoing support requirement.
+  Record agent review and human review separately; never label agent review
+  as native-speaker approval.
 
 ## Catalog Workflow
 
@@ -258,25 +282,30 @@ service code.
 
 A future translation cohort follows this sequence:
 
-1. Select a BCP 47 locale from audience evidence, maintenance capacity,
-   supported fonts/input/layout, and an identified native reviewer.
+1. Select a BCP 47 locale from audience evidence, maintenance capacity and
+   supported fonts/input/layout. Assign translation and independent review
+   agents; an available native reviewer is not required.
 2. Add a provenance row naming the exact author/source, license, locale, and
    review state. Do not copy JSTorrent or third-party translations solely from
    their repository-level license.
 3. Export the native platform catalogs with translator comments and screenshot
    context. Translation tools receive no runtime access and no private product
    data.
-4. Import into a branch, run placeholder/plural/catalog validation, and review
-   every message in context with a native speaker.
+4. Have an independent agent review every translated message in context for
+   meaning, terminology, placeholders and plural behavior, with focused review
+   of destructive actions, permissions and privacy disclosures. Import the
+   reviewed output and run placeholder/plural/catalog validation. Incorporate
+   human feedback where available; German and French human review is planned.
 5. Run long-text, RTL where applicable, accessibility, platform lifecycle,
    build, and installed/simulator evidence before adding the locale to
    `supportedLocales` or platform release metadata.
 6. Update support/store/release disclosure only after the same locale is
    actually packaged in the relevant product.
 
-If a locale later loses complete coverage or native review, remove it from the
-release manifest before removing its catalog. Never leave a selectable locale
-that falls through to raw keys or materially incomplete English.
+Resolve material coverage or translation defects before publishing the
+affected update; withdraw a locale if those defects cannot be resolved. Lack
+of a native reviewer does not disqualify a locale. Never leave a selectable
+locale that falls through to raw keys or materially incomplete English.
 
 ## Evidence And Open Work
 
@@ -320,8 +349,8 @@ confirmation prompts, is not yet extracted.
 
 A separate tactical is required to choose and ship the first real
 non-English cohort. Android replacement localization remains open until that
-cohort passes provenance, native review, lifecycle, layout, accessibility,
-and release disclosure. Website, store, marketing, and support-copy
+cohort passes provenance, independent agent review, lifecycle, layout,
+accessibility, and release disclosure. Website, store, marketing, and support-copy
 localization remain outside this owner until explicitly planned.
 
 The 375 navigation synchronization passes all five UI tests in a fresh owned

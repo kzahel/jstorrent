@@ -7,6 +7,16 @@ long-LTR/RTL pseudo evidence. English remains the only supported production
 locale. No translation, publication, store metadata, production identity, or
 release operation occurred.
 
+Policy follow-up, 2026-10-25: the maintainer replaces this tactical's historical
+native-speaker review requirement with agent translation and independent agent
+review. Human review is optional additional feedback. The current policy lives
+in the [localization topic](../topics/localization.md), with the Android
+translation workflow in [383](383-android-translation-cohorts.md). The same
+follow-up includes an Android in-app language picker with a remembered local
+override and System language as the default. References below to mandatory
+native review or exclusion of an in-app picker/local language preference
+describe the foundation's original scope and policy.
+
 Topics: `localization`, `client-surfaces`, `web-ui-design`,
 `android-jstorrent-replacement`, `capability-readiness`
 

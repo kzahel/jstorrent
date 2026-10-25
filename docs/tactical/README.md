@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [383 — Android translation cohorts](383-android-translation-cohorts.md):
+  investigation complete; proposed source-aware translation workflow, legacy
+  reuse audit, agent review and in-app language switching with a system default.
+
 - [382 — Android Play publication and staged rollout](382-android-play-publication-and-rollout.md):
   in progress; publish the tagged bundle internal → production from CI, with
   staged rollout, scheduled advancement and a vitals gate.
