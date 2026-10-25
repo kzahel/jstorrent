@@ -1,5 +1,5 @@
 import jstorrentIcon from "../../assets/jstorrent.png";
-import { message as localizedMessage } from "../../localization/runtime";
+import { message as localizedMessage, useProductLocale } from "../../localization/runtime";
 import { useEffect, useState, type FormEvent } from "react";
 
 import type {
@@ -19,6 +19,7 @@ export function WebAuthGate({
   initialStatus,
   onAuthorized,
 }: WebAuthGateProps) {
+  useProductLocale();
   const [status, setStatus] = useState(initialStatus);
   const [remaining, setRemaining] = useState(
     initialStatus.remaining_seconds ?? 0,

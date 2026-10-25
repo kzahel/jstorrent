@@ -142,6 +142,9 @@ jobs:
         if: needs.plan.outputs.web == 'true'
         run: |
           npm run typecheck --prefix clients/web
+          node scripts/check-localization.mjs
+          python3 -m unittest discover -s scripts -p 'test_*localization*.py'
+          python3 -m unittest discover -s clients/android/scripts -p test_localization.py
           npm run test --prefix clients/web
           npm run build --prefix clients/web
       - name: Test and package the companion extension

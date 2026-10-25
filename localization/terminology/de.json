@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "locale": "de",
+  "register": "Use informal du consistently. Prefer concise natural German UI copy. Inflect terms for grammatical context; preferred forms are terminology guidance, not literal substring requirements. Keep JSTorrent and user-provided names unchanged.",
+  "terms": {
+    "torrent": {"sourceTerms": ["torrent", "torrents"], "preferred": "Torrent / Torrents", "meaning": "A transfer may download, seed, be paused or fetch metadata; do not replace every occurrence with Download."},
+    "peer": {"sourceTerms": ["peer", "peers"], "preferred": "Peer / Peers", "meaning": "Another BitTorrent participant."},
+    "tracker": {"sourceTerms": ["tracker", "trackers"], "preferred": "Tracker", "meaning": "A service introducing peers, not a data server."},
+    "remove": {"sourceTerms": ["remove", "removes", "removed", "removing"], "preferred": "Entfernen", "meaning": "Removing a torrent preserves downloaded data unless deletion is explicitly selected. Never conflate this with Löschen."},
+    "delete_data": {"sourceTerms": ["delete data", "delete downloaded", "delete files", "deleting files"], "preferred": "Daten löschen", "meaning": "Deletes the torrent's downloaded files after explicit confirmation; preserve the consequence."},
+    "download_folder": {"sourceTerms": ["download folder", "download folders", "download root", "download directory"], "preferred": "Downloadordner", "meaning": "User-selected storage folder. Avoid alternating Download-Ordner, Stammverzeichnis and Speicherort without a semantic reason."},
+    "share_link": {"sourceTerms": ["share link", "share links"], "preferred": "Freigabelink", "meaning": "JSTorrent's share link, distinct from a magnet link."},
+    "magnet_link": {"sourceTerms": ["magnet link", "magnet links"], "preferred": "Magnet-Link", "meaning": "A BitTorrent magnet URI."},
+    "checking": {"sourceTerms": ["checking", "recheck", "rechecking", "force recheck"], "preferred": "Prüfen / Wird geprüft / Erneut prüfen", "meaning": "Hash verification in progress, not completion. Checking for updates is a different context and may use Nach Updates suchen."},
+    "verified": {"sourceTerms": ["verified", "unverified", "verifying"], "preferred": "Verifiziert / Nicht verifiziert / Wird verifiziert", "meaning": "Distinguish verified data from the checking-in-progress state; inflect naturally."},
+    "completed": {"sourceTerms": ["complete", "completed"], "preferred": "Abgeschlossen", "meaning": "All selected data is verified. A torrent may still seed. A download-complete notification can naturally say Download abgeschlossen."},
+    "done_button": {"sourceTerms": ["Done"], "preferred": "Fertig", "meaning": "A button dismissing/completing a dialog. A completed torrent status is Abgeschlossen, a different meaning."},
+    "archive": {"sourceTerms": ["archive", "archived", "archiving"], "preferred": "Archivieren / Archiviert / Archiv", "meaning": "Retains a paused torrent in Archived; not deletion."},
+    "restore": {"sourceTerms": ["restore", "restored", "restoring"], "preferred": "Wiederherstellen", "meaning": "For archived torrents, return them from Archived. Distinguish file repair, settings reset and backup restoration when context differs."},
+    "paused": {"sourceTerms": ["paused", "pause"], "preferred": "Pausiert / Pausieren", "meaning": "Torrent is retained and ordinary transfer work is stopped."},
+    "resume": {"sourceTerms": ["resume", "resuming"], "preferred": "Fortsetzen", "meaning": "Resume a retained paused transfer; use Starten only when the action actually starts a new operation."},
+    "seeding": {"sourceTerms": ["seeding", "seed"], "preferred": "Seeding / Seeden", "meaning": "Uploading verified completed data. Match the existing Android wording and retain technical distinction from downloading."},
+    "share_ratio": {"sourceTerms": ["share ratio"], "preferred": "Verhältnis", "meaning": "Uploaded divided by downloaded bytes, not a percentage."},
+    "wifi_only": {"sourceTerms": ["Wi-Fi only", "metered", "unmetered"], "preferred": "Nur WLAN / kostenpflichtiges Netzwerk", "meaning": "Preserve network-cost policy semantics. Do not promise all Wi-Fi is unmetered or free."}
+  }
+}

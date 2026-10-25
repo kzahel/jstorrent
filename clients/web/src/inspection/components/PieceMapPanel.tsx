@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage  } from "../../localization/runtime";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useInspectionStore } from "../context";
@@ -39,9 +39,9 @@ export function PieceMapPanel({ torrentId }: { readonly torrentId: string }) {
           <p>{torrentName}</p>
         </div>
         <div className={styles.counts} aria-label={localizedMessage("inspection.components.piece.map.panel.piece.map.summary")}>
-          <span>{countVerified(pieces).toLocaleString()}{" "}{localizedMessage("inspection.components.piece.map.panel.verified")}</span>
-          <span>{pieces.active.length.toLocaleString()}{" "}{localizedMessage("inspection.components.piece.map.panel.active")}</span>
-          <span>{pieces.pieceCount.toLocaleString()}{" "}{localizedMessage("inspection.components.piece.map.panel.pieces")}</span>
+          <span>{formatNumber(countVerified(pieces))}{" "}{localizedMessage("inspection.components.piece.map.panel.verified")}</span>
+          <span>{formatNumber(pieces.active.length)}{" "}{localizedMessage("inspection.components.piece.map.panel.active")}</span>
+          <span>{formatNumber(pieces.pieceCount)}{" "}{localizedMessage("inspection.components.piece.map.panel.pieces")}</span>
         </div>
       </header>
       <PieceCanvas pieces={pieces} />
@@ -84,7 +84,7 @@ function PieceCanvas({ pieces }: { readonly pieces: PieceMapSet }) {
     return () => cancelAnimationFrame(frame);
   }, [geometry, pieces.revision, summary.states]);
 
-  const label = `${pieces.pieceCount.toLocaleString()} pieces: ${summary.verifiedCount.toLocaleString()} verified, ${summary.activeCount.toLocaleString()} active`;
+  const label = `${formatNumber(pieces.pieceCount)} pieces: ${formatNumber(summary.verifiedCount)} verified, ${formatNumber(summary.activeCount)} active`;
   return (
     <section className={styles.mapSection} aria-label={localizedMessage("inspection.components.piece.map.panel.piece.map.visualization")}>
       <div ref={wrapRef} className={styles.canvasWrap}>

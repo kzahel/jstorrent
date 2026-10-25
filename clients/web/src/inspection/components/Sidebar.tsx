@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage  } from "../../localization/runtime";
 import { useMemo, type ReactNode } from "react";
 
 import type { LibraryFacetsView } from "../../api";
@@ -37,11 +37,11 @@ const LIBRARY_CATEGORIES: readonly {
   readonly label: string;
   readonly symbol: string;
 }[] = [
-  { id: "all", label: localizedMessage("inspection.components.sidebar.all.content"), symbol: "▦" },
-  { id: "recent", label: localizedMessage("inspection.components.sidebar.recently.added"), symbol: "◷" },
-  { id: "available", label: localizedMessage("inspection.components.sidebar.available.offline"), symbol: "✓" },
-  { id: "downloading", label: localizedMessage("inspection.components.sidebar.downloading"), symbol: "↓" },
-  { id: "archived", label: localizedMessage("inspection.components.sidebar.archived"), symbol: "▣" },
+  { id: "all", get label() { return localizedMessage("inspection.components.sidebar.all.content"); }, symbol: "▦" },
+  { id: "recent", get label() { return localizedMessage("inspection.components.sidebar.recently.added"); }, symbol: "◷" },
+  { id: "available", get label() { return localizedMessage("inspection.components.sidebar.available.offline"); }, symbol: "✓" },
+  { id: "downloading", get label() { return localizedMessage("inspection.components.sidebar.downloading"); }, symbol: "↓" },
+  { id: "archived", get label() { return localizedMessage("inspection.components.sidebar.archived"); }, symbol: "▣" },
 ];
 
 const PRESET_SYMBOLS: Readonly<Record<LibraryPreset, string>> = {
@@ -73,13 +73,13 @@ const TORRENT_CATEGORIES: readonly {
   readonly label: string;
   readonly symbol: string;
 }[] = [
-  { id: "all", label: localizedMessage("inspection.components.sidebar.all.torrents"), symbol: "≡" },
-  { id: "active", label: localizedMessage("inspection.components.sidebar.active"), symbol: "↯" },
-  { id: "downloading", label: localizedMessage("inspection.components.sidebar.downloading"), symbol: "↓" },
-  { id: "completed", label: localizedMessage("inspection.components.sidebar.completed"), symbol: "✓" },
-  { id: "paused", label: localizedMessage("inspection.components.sidebar.paused"), symbol: "Ⅱ" },
-  { id: "errors", label: localizedMessage("inspection.components.sidebar.needs.attention"), symbol: "!" },
-  { id: "archived", label: localizedMessage("inspection.components.sidebar.archived"), symbol: "□" },
+  { id: "all", get label() { return localizedMessage("inspection.components.sidebar.all.torrents"); }, symbol: "≡" },
+  { id: "active", get label() { return localizedMessage("inspection.components.sidebar.active"); }, symbol: "↯" },
+  { id: "downloading", get label() { return localizedMessage("inspection.components.sidebar.downloading"); }, symbol: "↓" },
+  { id: "completed", get label() { return localizedMessage("inspection.components.sidebar.completed"); }, symbol: "✓" },
+  { id: "paused", get label() { return localizedMessage("inspection.components.sidebar.paused"); }, symbol: "Ⅱ" },
+  { id: "errors", get label() { return localizedMessage("inspection.components.sidebar.needs.attention"); }, symbol: "!" },
+  { id: "archived", get label() { return localizedMessage("inspection.components.sidebar.archived"); }, symbol: "□" },
 ];
 
 /**
@@ -309,7 +309,7 @@ function NavigationButton({
         </span>
         <span>{label}</span>
         {count === undefined ? null : (
-          <span className={styles.count}>{count.toLocaleString()}</span>
+          <span className={styles.count}>{formatNumber(count)}</span>
         )}
       </button>
     </li>

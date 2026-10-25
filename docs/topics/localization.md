@@ -1,5 +1,37 @@
 # Localization
 
+Tactical [384](../tactical/384-shared-translation-workflow-and-desktop-german.md)
+extends the German preview to 1,773 shared React and 20 native desktop
+messages, alongside Android's 662 translated resources. One offline
+CLI exports platform-native catalogs with shared terminology, validates exact
+ICU/native placeholders and imports independently reviewed translations.
+Per-message source, translation and relevant terminology hashes detect stale
+work without invalidating unrelated messages. Existing Android translations
+retain their original review evidence; adopting shared terms requires a
+separate content-bound terminology review.
+
+The maintained YA runner resolves model aliases and private work-pool IDs at
+runtime, bounds concurrent sessions, separates translation from review, and
+resumes validated outputs before one importer writes catalogs. Task state and
+account routing stay in ignored local files. Full and fast web CI validate
+catalogs and all offline workflow tests; translation-only edits do not trigger
+engine builds. See
+[`scripts/LOCALIZATION.md`](../../scripts/LOCALIZATION.md).
+
+Browser language selection is local presentation state. Desktop native code
+owns the choice before creating menus and synchronizes React through events;
+changing language does not restart the engine. German React assets require
+`VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1`; native desktop German requires the
+same flag at compile time plus debug assertions. Both ordinary desktop debug
+launchers pass it to the frontend and native builds together; direct Cargo
+builds without it remain English-only, matching ordinary production assets.
+System language is the default, with English fallback. Production support
+remains English; promotion and additional locales are separate work.
+Updater version/download status, multi-selection removal templates and
+engine-authored peer diagnostic states remain
+an explicit extraction follow-up; preview catalog coverage is not a claim
+that every possible desktop sentence is translated.
+
 Tactical [383](../tactical/383-android-translation-cohorts.md) implements
 source-aware Android translation tooling and a complete German debug preview:
 634 strings and 28 quantities, independently translated and reviewed by

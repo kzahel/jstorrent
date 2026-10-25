@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage  } from "../../localization/runtime";
 import {
   useEffect,
   useRef,
@@ -104,7 +104,7 @@ export function RemoveTorrentDialog({
         <h2 id="remove-torrent-title">
           {targets.length === 1
             ? localizedMessage("inspection.components.remove.torrent.dialog.remove.torrent")
-            : `Remove ${targets.length.toLocaleString()} torrents?`}
+            : `Remove ${formatNumber(targets.length)} torrents?`}
         </h2>
         <p id="remove-torrent-description">
           {targets.length === 1 ? (
@@ -118,7 +118,7 @@ export function RemoveTorrentDialog({
               <li key={target.id}>{target.name}</li>
             ))}
             {targets.length <= 5 ? null : (
-              <li>{localizedMessage("inspection.components.remove.torrent.dialog.and")}{" "}{(targets.length - 5).toLocaleString()}{" "}{localizedMessage("inspection.components.remove.torrent.dialog.more")}</li>
+              <li>{localizedMessage("inspection.components.remove.torrent.dialog.and")}{" "}{formatNumber(targets.length - 5)}{" "}{localizedMessage("inspection.components.remove.torrent.dialog.more")}</li>
             )}
           </ul>
         )}
@@ -132,7 +132,7 @@ export function RemoveTorrentDialog({
           />{localizedMessage("inspection.components.remove.torrent.dialog.also.delete.downloaded.data")}</label>
         {!deleteDataSupported ? (
           <p className={styles.note}>
-            {unsupportedDeleteCount.toLocaleString()}{" "}{localizedMessage("inspection.components.remove.torrent.dialog.selected")}{" "}
+            {formatNumber(unsupportedDeleteCount)}{" "}{localizedMessage("inspection.components.remove.torrent.dialog.selected")}{" "}
             {unsupportedDeleteCount === 1 ? localizedMessage("inspection.components.remove.torrent.dialog.torrent.does") : localizedMessage("inspection.components.remove.torrent.dialog.torrents.do")}
             {" "}{localizedMessage("inspection.components.remove.torrent.dialog.not.support.downloaded.data.deletion.keep.downloaded")}</p>
         ) : null}
@@ -160,7 +160,7 @@ export function RemoveTorrentDialog({
             </span>
             <span className={styles.removeLabel}>
               {pending
-                ? `Removing ${targets.length.toLocaleString()}…`
+                ? `Removing ${formatNumber(targets.length)}…`
                 : error === ""
                   ? deleteData
                     ? localizedMessage("inspection.components.remove.torrent.dialog.remove.and.delete.data")

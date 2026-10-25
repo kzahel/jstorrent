@@ -4,6 +4,9 @@ set -euo pipefail
 repository_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 web_root="$repository_root/clients/web"
 installed_lock="$web_root/node_modules/.package-lock.json"
+source "$repository_root/scripts/dev-env.sh"
+# The native shell and embedded React assets must advertise the same locales.
+export VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1
 
 unset npm_config_recursive NPM_CONFIG_RECURSIVE
 

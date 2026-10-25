@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../localization/runtime";
+import { message as localizedMessage, formatNumber, formatDate } from "../localization/runtime";
 import type { DataUnits } from "./appearance";
 import type {
   TorrentCheckingProgress,
@@ -26,7 +26,8 @@ export function formatBytes(
     suffixes.length - 1,
   );
   const scaled = value / base ** exponent;
-  return `${scaled >= 100 || exponent === 0 ? scaled.toFixed(0) : scaled.toFixed(1)} ${suffixes[exponent]}`;
+  const digits = scaled >= 100 || exponent === 0 ? 0 : 1;
+  return `${fixedDecimal(scaled, digits)} ${suffixes[exponent]}`;
 }
 
 export function formatExactBytes(
@@ -51,10 +52,10 @@ export function formatExactBytes(
   }
   const whole = bytes / divisor;
   if (exponent === 0 || whole >= 100n) {
-    return `${whole.toString()} ${suffixes[exponent]}`;
+    return `${formatNumber(whole, { useGrouping: false })} ${suffixes[exponent]}`;
   }
   const tenth = ((bytes * 10n) / divisor) % 10n;
-  return `${whole.toString()}.${tenth.toString()} ${suffixes[exponent]}`;
+  return `${exactDecimal(whole, tenth, 1)} ${suffixes[exponent]}`;
 }
 
 export function formatShareRatio(hundredths: string | null): string {
@@ -62,7 +63,7 @@ export function formatShareRatio(hundredths: string | null): string {
   try {
     const value = BigInt(hundredths);
     if (value < 0n) return "—";
-    return `${(value / 100n).toString()}.${(value % 100n).toString().padStart(2, "0")}`;
+    return exactDecimal(value / 100n, value % 100n, 2);
   } catch {
     return "—";
   }
@@ -108,7 +109,7 @@ export function formatRate(value: number | null, dataUnits: DataUnits): string {
 
 export function formatProgress(value: number | null): string {
   if (value === null) return localizedMessage("inspection.format.getting.info");
-  return `${(value * 100).toFixed(value >= 0.9995 ? 0 : 1)}%`;
+  return `${fixedDecimal(value * 100, value >= 0.9995 ? 0 : 1)}%`;
 }
 
 export function checkingProgressRatio(
@@ -168,7 +169,7 @@ export function formatDuration(milliseconds: number): string {
   if (!Number.isFinite(milliseconds) || milliseconds <= 0) return "0 ms";
   if (milliseconds < 1_000) return `${Math.round(milliseconds)} ms`;
   if (milliseconds < 60_000) {
-    return `${(milliseconds / 1_000).toFixed(milliseconds < 10_000 ? 1 : 0)} s`;
+    return `${fixedDecimal(milliseconds / 1_000, milliseconds < 10_000 ? 1 : 0)} s`;
   }
   return `${Math.floor(milliseconds / 60_000)}m ${Math.floor((milliseconds % 60_000) / 1_000)}s`;
 }
@@ -226,11 +227,21 @@ export function formatClock(milliseconds: number): string {
 }
 
 export function formatTime(milliseconds: number): string {
-  return new Intl.DateTimeFormat("en", {
+  return formatDate(milliseconds, {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
     timeZone: "UTC",
-  }).format(new Date(milliseconds));
+  });
+}
+
+function fixedDecimal(value: number, digits: number): string {
+  return formatNumber(value, { useGrouping: false, minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+/** Preserve exact byte/ratio arithmetic above Number.MAX_SAFE_INTEGER. */
+function exactDecimal(whole: bigint, fraction: bigint, digits: number): string {
+  const separator = formatNumber(1.1, { useGrouping: false }).replace(/[0-9]/g, "");
+  return `${formatNumber(whole, { useGrouping: false })}${separator}${fraction.toString().padStart(digits, "0")}`;
 }

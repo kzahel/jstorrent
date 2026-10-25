@@ -165,6 +165,9 @@ async function openLiveInspection(
 // Renders before any desktop adapter exists; each adapter tolerates absence
 // and arrives in one later render. Nothing here rejects after that render.
 export async function startTauriInspection(): Promise<void> {
+  await import("../tauri-localization")
+    .then(({ initializeTauriLocalization }) => initializeTauriLocalization())
+    .catch((error: unknown) => { console.error("Desktop language settings unavailable", error); });
   // A torrent catalog that did not open shows recovery instead (Tactical 369).
   const recovery = await import("../tauri-recovery")
     .then(({ loadTauriRecovery }) => loadTauriRecovery())

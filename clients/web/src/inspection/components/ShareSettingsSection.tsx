@@ -12,18 +12,18 @@ import styles from "./SettingsDialog.module.css";
 const PEER_HINT_OPTIONS: readonly SegmentedOption<PeerHintPreference>[] = [
   {
     value: "ask",
-    label: localizedMessage("inspection.components.share.settings.section.ask"),
-    description: localizedMessage("inspection.components.share.settings.section.ask.description"),
+    get label() { return localizedMessage("inspection.components.share.settings.section.ask"); },
+    get description() { return localizedMessage("inspection.components.share.settings.section.ask.description"); },
   },
   {
     value: "include",
-    label: localizedMessage("inspection.components.share.settings.section.include"),
-    description: localizedMessage("inspection.components.share.settings.section.include.description"),
+    get label() { return localizedMessage("inspection.components.share.settings.section.include"); },
+    get description() { return localizedMessage("inspection.components.share.settings.section.include.description"); },
   },
   {
     value: "omit",
-    label: localizedMessage("inspection.components.share.settings.section.omit"),
-    description: localizedMessage("inspection.components.share.settings.section.omit.description"),
+    get label() { return localizedMessage("inspection.components.share.settings.section.omit"); },
+    get description() { return localizedMessage("inspection.components.share.settings.section.omit.description"); },
   },
 ];
 

@@ -83,7 +83,7 @@ function checkPolicy() {
   const provenance = readJson("localization/provenance.json");
   const sourceRows = provenance.catalogs.filter(({ locale }) => locale === "en");
   requireUnique(sourceRows.map(({ platform }) => platform), "English provenance platforms");
-  for (const platform of ["web", "android", "ios"]) {
+  for (const platform of ["web", "desktop", "android", "ios"]) {
     const row = sourceRows.find((candidate) => candidate.platform === platform);
     if (!row || !row.source || !row.license || row.reviewState !== "source") {
       fail(`English ${platform} catalog has incomplete provenance`);
@@ -207,16 +207,42 @@ async function checkWebCatalog() {
   const compiledOrphans = Object.keys(compiled).filter((id) => !(id in catalog));
   if (compiledOrphans.length > 0) fail(`compiled web catalog has orphaned IDs: ${compiledOrphans.join(", ")}`);
 
+  const locales = readJson("localization/locales.json");
+  for (const tag of [...locales.supportedLocales.web, ...(locales.previewLocales?.web ?? [])]) {
+    if (tag === "en") continue;
+    checkReviewedCatalog("web", tag);
+    const translated = readJson(`clients/web/src/localization/messages/${tag}.json`);
+    const generated = readJson(`clients/web/src/localization/generated/${tag}.json`);
+    if (JSON.stringify(Object.keys(generated).sort()) !== JSON.stringify(ids.slice().sort())) {
+      fail(`compiled web ${tag} catalog has different keys`);
+    }
+    for (const [id, entry] of Object.entries(translated)) {
+      if (JSON.stringify(generated[id]) !== JSON.stringify(parseIcu(entry.defaultMessage))) {
+        fail(`compiled web ${tag} message ${id} is stale; run npm run generate:localization --prefix clients/web`);
+      }
+    }
+  }
+
   const referenced = new Set();
   const sourceFiles = walkFiles("clients/web/src").filter(
     (file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file),
   );
   for (const file of sourceFiles) {
     const source = fs.readFileSync(file, "utf8");
-    for (const match of source.matchAll(/(?:localizedMessage|message)\("([^"]+)"/g)) {
+    for (const match of source.matchAll(/(?:localizedMessage|message)\(\s*"([^"]+)"/g)) {
       referenced.add(match[1]);
     }
     const relative = path.relative(repositoryRoot, file);
+    if (relative === "clients/web/src/inspection/torrent-actions.ts" &&
+        /(?:\b(?:label|pendingLabel)\s*:\s*(?:\([^)]*\)\s*=>\s*)?|\breturn\s+)["'`]([A-Za-z][^"'`]*[A-Za-z])["'`]/.test(source)) {
+      fail(`uncataloged torrent action copy in ${relative}`);
+    }
+    if (relative === "clients/web/src/inspection/components/SpeedPanel.tsx") {
+      const metricLabels = source.match(/const METRIC_LABELS\b[\s\S]*?\n\};/)?.[0];
+      if (!metricLabels || /:\s*["'`][A-Za-z]/.test(metricLabels)) {
+        fail(`speed metric labels must use the message catalog in ${relative}`);
+      }
+    }
     if (file.endsWith(".tsx")) {
       const inline = findInlineWebCopy(source, parseTypescript);
       if (inline !== undefined) fail(`unclassified JSX product copy in ${relative}: ${inline}`);
@@ -279,7 +305,7 @@ function checkDesktopCatalog() {
   const referenced = new Map();
   for (const file of walkFiles("clients/desktop/src-tauri/src").filter((file) => file.endsWith(".rs"))) {
     const source = fs.readFileSync(file, "utf8");
-    for (const match of source.matchAll(/desktop_localization::(text|format)\(\s*"([^"]+)"/g)) {
+    for (const match of source.matchAll(/desktop_localization::(text|format)(?:_for_locale)?\(\s*"([^"]+)"/g)) {
       const [, kind, id] = match;
       referenced.set(id, kind);
     }
@@ -304,7 +330,18 @@ function checkDesktopCatalog() {
   for (const id of referenced.keys()) {
     if (!(id in catalog)) fail(`desktop source references missing message ${id}`);
   }
+  const locales = readJson("localization/locales.json");
+  for (const tag of [...locales.supportedLocales.desktop, ...(locales.previewLocales?.desktop ?? [])]) {
+    if (tag !== "en") checkReviewedCatalog("desktop", tag);
+  }
   console.log(`Desktop native localization catalog is valid (${ids.length} English messages)`);
+}
+
+function checkReviewedCatalog(platform, tag) {
+  execFileSync("python3", ["scripts/localization.py", "check", platform, tag], {
+    cwd: repositoryRoot,
+    stdio: "inherit",
+  });
 }
 
 function checkAndroidCatalog() {

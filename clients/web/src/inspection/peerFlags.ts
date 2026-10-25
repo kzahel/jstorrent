@@ -38,82 +38,82 @@ export const PEER_FLAG_DEFINITIONS: Readonly<
 > = {
   incoming: {
     glyph: "I",
-    label: localizedMessage("inspection.peer.flags.incoming"),
+    get label() { return localizedMessage("inspection.peer.flags.incoming"); },
     group: "Connection",
   },
   encrypted: {
     glyph: "E",
-    label: localizedMessage("inspection.peer.flags.encrypted.or.obfuscated"),
+    get label() { return localizedMessage("inspection.peer.flags.encrypted.or.obfuscated"); },
     group: "Connection",
   },
   download_allowed: {
     glyph: "D",
-    label: localizedMessage("inspection.peer.flags.download.allowed"),
+    get label() { return localizedMessage("inspection.peer.flags.download.allowed"); },
     group: "Transfer",
   },
   download_choked: {
     glyph: "d",
-    label: localizedMessage("inspection.peer.flags.download.choked"),
+    get label() { return localizedMessage("inspection.peer.flags.download.choked"); },
     group: "Transfer",
   },
   upload_allowed: {
     glyph: "U",
-    label: localizedMessage("inspection.peer.flags.upload.allowed"),
+    get label() { return localizedMessage("inspection.peer.flags.upload.allowed"); },
     group: "Transfer",
   },
   upload_choked: {
     glyph: "u",
-    label: localizedMessage("inspection.peer.flags.upload.choked"),
+    get label() { return localizedMessage("inspection.peer.flags.upload.choked"); },
     group: "Transfer",
   },
   extension_protocol: {
     glyph: "x",
-    label: localizedMessage("inspection.peer.flags.extension.protocol"),
+    get label() { return localizedMessage("inspection.peer.flags.extension.protocol"); },
     group: "Protocol",
   },
   metadata_extension: {
     glyph: "m",
-    label: localizedMessage("inspection.peer.flags.can.send.torrent.info"),
+    get label() { return localizedMessage("inspection.peer.flags.can.send.torrent.info"); },
     group: "Protocol",
   },
   utp: {
     glyph: "T",
-    label: localizedMessage("inspection.peer.flags.utp"),
+    get label() { return localizedMessage("inspection.peer.flags.utp"); },
     group: "Connection",
   },
   hole_punched: {
     glyph: "h",
-    label: localizedMessage("inspection.peer.flags.hole.punched"),
+    get label() { return localizedMessage("inspection.peer.flags.hole.punched"); },
     group: "Connection",
   },
   on_parole: {
     glyph: "p",
-    label: localizedMessage("inspection.peer.flags.on.parole"),
+    get label() { return localizedMessage("inspection.peer.flags.on.parole"); },
     group: "Scheduler / integrity",
   },
   optimistic_unchoke: {
     glyph: "O",
-    label: localizedMessage("inspection.peer.flags.optimistic.unchoke"),
+    get label() { return localizedMessage("inspection.peer.flags.optimistic.unchoke"); },
     group: "Scheduler / integrity",
   },
   snubbed: {
     glyph: "S",
-    label: localizedMessage("inspection.peer.flags.snubbed"),
+    get label() { return localizedMessage("inspection.peer.flags.snubbed"); },
     group: "Scheduler / integrity",
   },
   upload_only: {
     glyph: "L",
-    label: localizedMessage("inspection.peer.flags.upload.only"),
+    get label() { return localizedMessage("inspection.peer.flags.upload.only"); },
     group: "Transfer",
   },
   endgame: {
     glyph: "e",
-    label: localizedMessage("inspection.peer.flags.endgame"),
+    get label() { return localizedMessage("inspection.peer.flags.endgame"); },
     group: "Scheduler / integrity",
   },
   seed: {
     glyph: "s",
-    label: localizedMessage("inspection.peer.flags.seed"),
+    get label() { return localizedMessage("inspection.peer.flags.seed"); },
     group: "Transfer",
   },
 };

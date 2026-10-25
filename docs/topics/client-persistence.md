@@ -1,5 +1,17 @@
 # Client Persistence And Session Boundary
 
+Tactical [384](../tactical/384-shared-translation-workflow-and-desktop-german.md)
+adds UI-only language overrides to browser local storage and desktop's
+`presentation-preferences.json` in its configuration directory. Native
+code owns desktop preference resolution before tray startup and notifies
+React; there is no competing webview preference. The bounded JSON store
+contains only presentation state, preserves unknown fields, never rewrites
+on read, and rejects corrupt/nonregular files or unsupported future values
+on explicit writes.
+System clears only the language override. No operational state, consent,
+SQLite migration or automatic user-data replacement is introduced.
+
+
 Tactical [383](../tactical/383-android-translation-cohorts.md) adds Android's
 local language override. System language is the default and clears the
 override. Android 13+ owns persistence through LocaleManager; API 28–32 stores

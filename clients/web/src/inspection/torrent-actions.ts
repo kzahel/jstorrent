@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../localization/runtime";
+import { message as localizedMessage, formatNumber } from "../localization/runtime";
 import type { IconName } from "./components/Icon";
 import { torrentRemovalActive } from "./format";
 import type { TorrentRow } from "./model";
@@ -40,8 +40,6 @@ export interface TorrentActionAvailability {
   readonly reason?: string;
 }
 
-const label = (value: string) => () => value;
-
 export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
   {
     id: "start",
@@ -49,8 +47,8 @@ export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
     label: (targets) =>
       targets.length === 1 && seedLimitReached(targets[0]!)
         ? localizedMessage("inspection.torrent.actions.keep.seeding")
-        : "Start",
-    pendingLabel: "Starting",
+        : localizedMessage("inspection.torrent.actions.start"),
+    get pendingLabel() { return localizedMessage("inspection.torrent.actions.pending.start"); },
     icon: "play",
     group: "transfer",
     placement: "direct",
@@ -58,8 +56,8 @@ export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
   },
   {
     id: "pause",
-    label: label("Pause"),
-    pendingLabel: "Pausing",
+    label: () => localizedMessage("inspection.torrent.actions.pause"),
+    get pendingLabel() { return localizedMessage("inspection.torrent.actions.pending.pause"); },
     icon: "pause",
     group: "transfer",
     placement: "direct",
@@ -67,8 +65,8 @@ export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
   },
   {
     id: "force_recheck",
-    label: label("Force recheck"),
-    pendingLabel: "Starting recheck",
+    label: () => localizedMessage("inspection.torrent.actions.force.recheck"),
+    get pendingLabel() { return localizedMessage("inspection.torrent.actions.pending.force.recheck"); },
     icon: "recheck",
     group: "transfer",
     placement: "overflow",
@@ -76,8 +74,8 @@ export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
   },
   {
     id: "move_to_top",
-    label: label("Move to top"),
-    pendingLabel: "Moving to top",
+    label: () => localizedMessage("inspection.torrent.actions.move.to.top"),
+    get pendingLabel() { return localizedMessage("inspection.torrent.actions.pending.move.to.top"); },
     icon: "transfers",
     group: "transfer",
     placement: "overflow",
@@ -85,8 +83,8 @@ export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
   },
   {
     id: "move_to_bottom",
-    label: label("Move to bottom"),
-    pendingLabel: "Moving to bottom",
+    label: () => localizedMessage("inspection.torrent.actions.move.to.bottom"),
+    get pendingLabel() { return localizedMessage("inspection.torrent.actions.pending.move.to.bottom"); },
     icon: "transfers",
     group: "transfer",
     placement: "overflow",
@@ -95,8 +93,8 @@ export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
   {
     id: "copy_magnet",
     label: (targets) =>
-      targets.length === 1 ? "Copy magnet link" : "Copy magnet links",
-    pendingLabel: "Copying magnet links",
+      targets.length === 1 ? localizedMessage("inspection.torrent.actions.copy.magnet.one") : localizedMessage("inspection.torrent.actions.copy.magnet.many"),
+    get pendingLabel() { return localizedMessage("inspection.torrent.actions.pending.copy.magnet"); },
     icon: "magnet",
     group: "sharing",
     placement: "overflow",
@@ -108,7 +106,7 @@ export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
       targets.length === 1
         ? localizedMessage("inspection.torrent.actions.copy.share.link")
         : localizedMessage("inspection.torrent.actions.copy.share.links"),
-    pendingLabel: localizedMessage("inspection.torrent.actions.copying.share.links"),
+    get pendingLabel() { return localizedMessage("inspection.torrent.actions.copying.share.links"); },
     icon: "link",
     group: "sharing",
     placement: "overflow",
@@ -116,8 +114,8 @@ export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
   },
   {
     id: "settings",
-    label: label(localizedMessage("inspection.components.torrent.settings.dialog.title")),
-    pendingLabel: "Opening torrent settings",
+    label: () => localizedMessage("inspection.components.torrent.settings.dialog.title"),
+    get pendingLabel() { return localizedMessage("inspection.torrent.actions.pending.settings"); },
     icon: "settings",
     group: "organization",
     placement: "overflow",
@@ -125,8 +123,8 @@ export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
   },
   {
     id: "archive",
-    label: label("Archive"),
-    pendingLabel: "Archiving",
+    label: () => localizedMessage("inspection.torrent.actions.archive"),
+    get pendingLabel() { return localizedMessage("inspection.torrent.actions.pending.archive"); },
     icon: "archive",
     group: "organization",
     placement: "overflow",
@@ -134,8 +132,8 @@ export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
   },
   {
     id: "restore",
-    label: label("Restore"),
-    pendingLabel: "Restoring",
+    label: () => localizedMessage("inspection.torrent.actions.restore"),
+    get pendingLabel() { return localizedMessage("inspection.torrent.actions.pending.restore"); },
     icon: "restore",
     group: "organization",
     placement: "overflow",
@@ -143,8 +141,8 @@ export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
   },
   {
     id: "remove",
-    label: label("Remove"),
-    pendingLabel: "Removing",
+    label: () => localizedMessage("inspection.torrent.actions.remove"),
+    get pendingLabel() { return localizedMessage("inspection.torrent.actions.pending.remove"); },
     icon: "remove",
     group: "destructive",
     placement: "direct",
@@ -196,11 +194,7 @@ export function torrentActionAvailability(
   if (activeRemovalCount > 0) {
     return {
       disabled: true,
-      reason: `${activeRemovalCount.toLocaleString()} selected ${plural(
-        activeRemovalCount,
-        "torrent is",
-        "torrents are",
-      )} already being removed.`,
+      reason: localizedMessage("inspection.torrent.actions.removal.active", { count: activeRemovalCount }),
     };
   }
 
@@ -222,7 +216,7 @@ export function torrentActionAvailability(
           archived === 1
             ? localizedMessage("inspection.torrent.actions.restore.archived.torrent.first")
             : localizedMessage("inspection.torrent.actions.restore.archived.torrents.first", {
-                count: archived.toLocaleString(),
+                count: formatNumber(archived),
               }),
       };
     }
@@ -240,11 +234,7 @@ export function torrentActionAvailability(
         ? { disabled: false }
         : {
             disabled: true,
-            reason: `${unavailable.toLocaleString()} selected ${plural(
-              unavailable,
-              "torrent does",
-              "torrents do",
-            )} not have managed content available to recheck.`,
+            reason: localizedMessage("inspection.torrent.actions.recheck.unavailable", { count: unavailable }),
           };
     }
     case "move_to_top":
@@ -254,11 +244,7 @@ export function torrentActionAvailability(
         ? { disabled: false }
         : {
             disabled: true,
-            reason: `${unavailable.toLocaleString()} selected ${plural(
-              unavailable,
-              "torrent is",
-              "torrents are",
-            )} not in the download queue.`,
+            reason: localizedMessage("inspection.torrent.actions.queue.unavailable", { count: unavailable }),
           };
     }
     case "archive":
@@ -283,14 +269,10 @@ export function torrentActionAvailability(
             disabled: true,
             reason:
               actionId === "archive"
-                ? "All selected torrents are already archived."
-                : "All selected torrents are already restored.",
+                ? localizedMessage("inspection.torrent.actions.archive.already")
+                : localizedMessage("inspection.torrent.actions.restore.already"),
           }
         : { disabled: false };
     }
   }
-}
-
-function plural(count: number, singular: string, pluralValue: string): string {
-  return count === 1 ? singular : pluralValue;
 }

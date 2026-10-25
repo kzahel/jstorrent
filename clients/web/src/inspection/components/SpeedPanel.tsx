@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { message as localizedMessage, useProductLocale, formatDate } from "../../localization/runtime";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { SpeedMetric, SpeedRange } from "../../api";
@@ -18,35 +18,35 @@ import {
 import styles from "./SpeedPanel.module.css";
 
 const RANGES: readonly { value: SpeedRange; label: string }[] = [
-  { value: "seconds30", label: localizedMessage("inspection.components.speed.panel.30.sec") },
-  { value: "minutes2", label: localizedMessage("inspection.components.speed.panel.2.min") },
-  { value: "minutes10", label: localizedMessage("inspection.components.speed.panel.10.min") },
-  { value: "hour1", label: localizedMessage("inspection.components.speed.panel.1.hour") },
-  { value: "hours24", label: localizedMessage("inspection.components.speed.panel.24.hours") },
-  { value: "days30", label: localizedMessage("inspection.components.speed.panel.30.days") },
-  { value: "years2", label: localizedMessage("inspection.components.speed.panel.2.years") },
+  { value: "seconds30", get label() { return localizedMessage("inspection.components.speed.panel.30.sec"); } },
+  { value: "minutes2", get label() { return localizedMessage("inspection.components.speed.panel.2.min"); } },
+  { value: "minutes10", get label() { return localizedMessage("inspection.components.speed.panel.10.min"); } },
+  { value: "hour1", get label() { return localizedMessage("inspection.components.speed.panel.1.hour"); } },
+  { value: "hours24", get label() { return localizedMessage("inspection.components.speed.panel.24.hours"); } },
+  { value: "days30", get label() { return localizedMessage("inspection.components.speed.panel.30.days"); } },
+  { value: "years2", get label() { return localizedMessage("inspection.components.speed.panel.2.years"); } },
 ];
 
 const METRIC_LABELS: Readonly<Record<SpeedMetric, string>> = {
-  payload_received: "Download",
-  staged_write: "Staged write",
-  payload_verified: "Verified",
-  peer_wire_received: "Peer wire in",
-  peer_wire_sent: "Peer wire out",
-  peer_protocol_received: "Peer protocol in",
-  peer_protocol_sent: "Peer protocol out",
-  metadata_payload_received: "Metadata in",
-  metadata_payload_sent: "Metadata out",
-  peer_unclassified_received: "Peer unclassified in",
-  peer_unclassified_sent: "Peer unclassified out",
-  dht_received: "DHT in",
-  dht_sent: "DHT out",
-  tracker_received: "Tracker in",
-  tracker_sent: "Tracker out",
-  logical_hash_read: "Hash read",
-  payload_redundant: "Redundant payload",
-  payload_hash_failed: "Hash-failed payload",
-  payload_uploaded: "Upload",
+  get payload_received() { return localizedMessage("inspection.components.speed.panel.metric.payload.received"); },
+  get staged_write() { return localizedMessage("inspection.components.speed.panel.metric.staged.write"); },
+  get payload_verified() { return localizedMessage("inspection.components.speed.panel.metric.payload.verified"); },
+  get peer_wire_received() { return localizedMessage("inspection.components.speed.panel.metric.peer.wire.received"); },
+  get peer_wire_sent() { return localizedMessage("inspection.components.speed.panel.metric.peer.wire.sent"); },
+  get peer_protocol_received() { return localizedMessage("inspection.components.speed.panel.metric.peer.protocol.received"); },
+  get peer_protocol_sent() { return localizedMessage("inspection.components.speed.panel.metric.peer.protocol.sent"); },
+  get metadata_payload_received() { return localizedMessage("inspection.components.speed.panel.metric.metadata.payload.received"); },
+  get metadata_payload_sent() { return localizedMessage("inspection.components.speed.panel.metric.metadata.payload.sent"); },
+  get peer_unclassified_received() { return localizedMessage("inspection.components.speed.panel.metric.peer.unclassified.received"); },
+  get peer_unclassified_sent() { return localizedMessage("inspection.components.speed.panel.metric.peer.unclassified.sent"); },
+  get dht_received() { return localizedMessage("inspection.components.speed.panel.metric.dht.received"); },
+  get dht_sent() { return localizedMessage("inspection.components.speed.panel.metric.dht.sent"); },
+  get tracker_received() { return localizedMessage("inspection.components.speed.panel.metric.tracker.received"); },
+  get tracker_sent() { return localizedMessage("inspection.components.speed.panel.metric.tracker.sent"); },
+  get logical_hash_read() { return localizedMessage("inspection.components.speed.panel.metric.logical.hash.read"); },
+  get payload_redundant() { return localizedMessage("inspection.components.speed.panel.metric.payload.redundant"); },
+  get payload_hash_failed() { return localizedMessage("inspection.components.speed.panel.metric.payload.hash.failed"); },
+  get payload_uploaded() { return localizedMessage("inspection.components.speed.panel.metric.payload.uploaded"); },
 };
 
 // Series colors are `--speed-<metric>` tokens in SpeedPanel.module.css.
@@ -171,6 +171,7 @@ function SpeedCanvas({
   stale: boolean;
   dataUnits: DataUnits;
 }) {
+  const locale = useProductLocale();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const phaseRef = useRef({ complete: "", started: performance.now() });
@@ -244,7 +245,7 @@ function SpeedCanvas({
       document.removeEventListener("visibilitychange", visibilityChanged);
       cancelAnimationFrame(frame);
     };
-  }, [bucketMillis, cursor, dataUnits, frozen, history, size]);
+  }, [bucketMillis, cursor, dataUnits, frozen, history, locale, size]);
 
   const selectAt = (clientX: number) => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -464,7 +465,7 @@ function ExactSample({
   return (
     <div className={styles.tooltip} role="status" aria-live="polite">
       <strong>
-        {new Date(timestamp).toLocaleTimeString([], {
+        {formatDate(timestamp, {
           hour: "2-digit",
           minute: "2-digit",
           second: "2-digit",
@@ -554,11 +555,11 @@ function TrafficBreakdown({
   dataUnits: DataUnits;
 }) {
   const rows: readonly [string, SpeedMetric, SpeedMetric][] = [
-    ["Peer wire", "peer_wire_received", "peer_wire_sent"],
-    ["Peer protocol", "peer_protocol_received", "peer_protocol_sent"],
-    ["Metadata payload", "metadata_payload_received", "metadata_payload_sent"],
-    ["DHT", "dht_received", "dht_sent"],
-    ["Tracker", "tracker_received", "tracker_sent"],
+    [localizedMessage("inspection.components.speed.panel.breakdown.peer.wire"), "peer_wire_received", "peer_wire_sent"],
+    [localizedMessage("inspection.components.speed.panel.breakdown.peer.protocol"), "peer_protocol_received", "peer_protocol_sent"],
+    [localizedMessage("inspection.components.speed.panel.breakdown.metadata"), "metadata_payload_received", "metadata_payload_sent"],
+    [localizedMessage("inspection.components.speed.panel.breakdown.dht"), "dht_received", "dht_sent"],
+    [localizedMessage("inspection.components.speed.panel.breakdown.tracker"), "tracker_received", "tracker_sent"],
   ];
   return (
     <details className={styles.breakdown}>
@@ -613,7 +614,7 @@ function timeLabel(history: SpeedInspectionView, index: number): string {
   const timestamp =
     number(history.start_millis) + index * number(history.bucket_millis);
   if (!history.live) {
-    return new Date(timestamp).toLocaleDateString([], {
+    return formatDate(timestamp, {
       month: "short",
       day: "numeric",
     });
@@ -622,7 +623,7 @@ function timeLabel(history: SpeedInspectionView, index: number): string {
     0,
     Math.round((number(history.complete_through_millis) - timestamp) / 1000),
   );
-  return seconds === 0 ? "now" : `−${seconds}s`;
+  return seconds === 0 ? localizedMessage("inspection.components.speed.panel.now") : localizedMessage("inspection.components.speed.panel.seconds.ago", { seconds });
 }
 
 function sampleLabel(

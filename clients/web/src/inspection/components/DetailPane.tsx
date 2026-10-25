@@ -1,7 +1,7 @@
-import {
+import { formatNumber,
   formatList,
   message as localizedMessage,
-} from "../../localization/runtime";
+ } from "../../localization/runtime";
 import {
   forwardRef,
   lazy,
@@ -420,13 +420,13 @@ function GeneralDetail({
         <dl className={styles.metrics}>
           <Metric
             label={localizedMessage("inspection.components.detail.pane.pieces.checked")}
-            value={`${checking.piecesProcessed.toLocaleString()} / ${checking.piecesTotal.toLocaleString()}`}
+            value={`${formatNumber(checking.piecesProcessed)} / ${formatNumber(checking.piecesTotal)}`}
           />
-          <Metric label={localizedMessage("inspection.components.detail.pane.matched")} value={checking.piecesMatched.toLocaleString()} />
-          <Metric label={localizedMessage("inspection.components.detail.pane.absent")} value={checking.piecesAbsent.toLocaleString()} />
+          <Metric label={localizedMessage("inspection.components.detail.pane.matched")} value={formatNumber(checking.piecesMatched)} />
+          <Metric label={localizedMessage("inspection.components.detail.pane.absent")} value={formatNumber(checking.piecesAbsent)} />
           <Metric
             label={localizedMessage("inspection.components.detail.pane.mismatched")}
-            value={checking.piecesMismatched.toLocaleString()}
+            value={formatNumber(checking.piecesMismatched)}
           />
           <Metric label={localizedMessage("inspection.components.detail.pane.checker.activity")} value={checkerActivity(checking)} />
         </dl>
@@ -470,10 +470,10 @@ function GeneralDetail({
           label={localizedMessage("inspection.components.detail.pane.peers")}
           value={
             torrent.peersKnown === null
-              ? torrent.peersConnected.toLocaleString()
+              ? formatNumber(torrent.peersConnected)
               : localizedMessage("inspection.components.detail.pane.peers.value", {
-                  connected: torrent.peersConnected.toLocaleString(),
-                  known: torrent.peersKnown.toLocaleString(),
+                  connected: formatNumber(torrent.peersConnected),
+                  known: formatNumber(torrent.peersKnown),
                 })
           }
         />
@@ -695,10 +695,10 @@ function checkerActivity(
 ): string {
   if (checking === null) return localizedMessage("inspection.components.detail.pane.waiting");
   if (checking.oldestActiveJobAgeMs !== null) {
-    return `${checking.activeHashJobs.toLocaleString()} active · oldest ${formatDuration(checking.oldestActiveJobAgeMs)}`;
+    return `${formatNumber(checking.activeHashJobs)} active · oldest ${formatDuration(checking.oldestActiveJobAgeMs)}`;
   }
   if (checking.queuedHashJobs > 0) {
-    return `${checking.queuedHashJobs.toLocaleString()} queued · last advance ${formatDuration(checking.lastAdvanceAgeMs)} ago`;
+    return `${formatNumber(checking.queuedHashJobs)} queued · last advance ${formatDuration(checking.lastAdvanceAgeMs)} ago`;
   }
   return `Last advance ${formatDuration(checking.lastAdvanceAgeMs)} ago`;
 }

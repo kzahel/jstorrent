@@ -14,6 +14,7 @@ import { withHostProduct } from "../support/about";
 import { AboutUpdatesSettingsSection } from "./AboutUpdatesSettingsSection";
 import { DesktopUpdaterController } from "../updater/controller";
 import { ToastProvider } from "./Toast";
+import { setProductLocaleForTest } from "../../localization/runtime";
 
 const render = (ui: Parameters<typeof renderUnwrapped>[0]) =>
   renderUnwrapped(ui, { wrapper: ToastProvider });
@@ -105,6 +106,25 @@ describe("About and updates settings", () => {
     await user.click(screen.getByRole("button", { name: "Install and restart" }));
     expect(updater.check).toHaveBeenCalledWith("manual");
     expect(updater.install).toHaveBeenCalledOnce();
+  });
+
+  it("formats fractional update download sizes in the selected presentation language", () => {
+    const restore = setProductLocaleForTest("de");
+    try {
+      const updater = fakeUpdater();
+      const downloading = (downloadedBytes: number) => (
+        <AboutUpdatesSettingsSection
+          about={{ connection: "desktop" }}
+          updater={updater}
+          snapshot={snapshot({ phase: "downloading", version: "0.1.1", downloadedBytes })}
+        />
+      );
+      const view = render(downloading(1536));
+      expect(view.container.textContent).toContain("1,5 KiB");
+      view.rerender(downloading(1572864));
+      expect(view.container.textContent).toContain("1,5 MiB");
+      expect(view.container.textContent).not.toContain("1.5");
+    } finally { restore(); }
   });
 
   it("shows a manual release path for a package-manager install", () => {

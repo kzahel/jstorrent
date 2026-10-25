@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { message as localizedMessage, useProductLocale } from "../../localization/runtime";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import type { LibraryAvailabilityFilter, LibraryMediaSort } from "../../api";
@@ -382,6 +382,7 @@ function ItemList({
   const update = useInspectionStore((state) => state.updateLibraryBrowse);
   const interfaceSize = useInspectionStore((state) => state.presentation.interfaceSize);
   const [currentId, setCurrentId] = useState<string | null>(returnFocusItemId);
+  const locale = useProductLocale();
   const columns = useMemo(
     (): readonly VirtualColumn<LibraryItemRow>[] => [
       {
@@ -448,7 +449,7 @@ function ItemList({
         ),
       },
     ],
-    [dataUnits, focusReturn, onOpenTorrent, playback, returnFocusItemId],
+    [locale, dataUnits, focusReturn, onOpenTorrent, playback, returnFocusItemId],
   );
   const columnId =
     Object.entries(SORT_COLUMNS).find(([, sort]) => sort === browse.sort)?.[0] ?? "title";

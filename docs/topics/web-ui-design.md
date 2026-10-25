@@ -1,5 +1,13 @@
 # Web UI Design
 
+Tactical [384](../tactical/384-shared-translation-workflow-and-desktop-german.md)
+adds Appearance → Language (System language, English, Deutsch) in German
+previews. The live ICU provider updates controls, module-level options,
+tables and canvas labels while retaining navigation and unfinished input.
+Browser preferences remain local; desktop uses its native locale owner for
+matching shell and renderer language. Release builds remain English-only.
+
+
 Tactical [375](../tactical/375-ci-reconciliation-and-ui-regressions.md)
 repairs the seeding-settings browser alignment check: inactive Settings panels
 remain mounted, so geometry assertions now measure visible controls only.

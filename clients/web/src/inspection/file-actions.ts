@@ -58,12 +58,12 @@ export type ResolvedFileAction = FileActionDefinition & {
 };
 
 export const FILE_ACTIONS: readonly FileActionDefinition[] = [
-  { id: "open", label: localizedMessage("inspection.file.actions.open"), group: "open", external: true },
-  { id: "download_now", label: localizedMessage("inspection.file.actions.download.now"), group: "download" },
-  { id: "high", label: localizedMessage("inspection.file.actions.high"), group: "priority", priority: "high" },
-  { id: "normal", label: localizedMessage("inspection.file.actions.normal"), group: "priority", priority: "normal" },
-  { id: "skip", label: localizedMessage("inspection.file.actions.skip"), group: "priority", priority: "skip" },
-  { id: "share", label: localizedMessage("inspection.file.actions.share.files"), group: "share" },
+  { id: "open", get label() { return localizedMessage("inspection.file.actions.open"); }, group: "open", external: true },
+  { id: "download_now", get label() { return localizedMessage("inspection.file.actions.download.now"); }, group: "download" },
+  { id: "high", get label() { return localizedMessage("inspection.file.actions.high"); }, group: "priority", priority: "high" },
+  { id: "normal", get label() { return localizedMessage("inspection.file.actions.normal"); }, group: "priority", priority: "normal" },
+  { id: "skip", get label() { return localizedMessage("inspection.file.actions.skip"); }, group: "priority", priority: "skip" },
+  { id: "share", get label() { return localizedMessage("inspection.file.actions.share.files"); }, group: "share" },
 ];
 
 export function resolveFileActions(

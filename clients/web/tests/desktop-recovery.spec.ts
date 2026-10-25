@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-// Tactical 369: the desktop web UI asks for recovery status before anything
-// else and shows the recovery screen. The Tauri bridge is stubbed with the
+// Tactical 369: locale selection is established before recovery, and recovery
+// is checked before the engine is opened. The Tauri bridge is stubbed with the
 // status the real desktop reports for a forced migration failure.
 test("desktop shows recovery instead of the app when the catalog did not open", async ({ page }) => {
   await page.addInitScript(() => {
@@ -15,6 +15,8 @@ test("desktop shows recovery instead of the app when the catalog did not open", 
       invoke: async (command: string) => {
         calls.push(command);
         switch (command) {
+          case "load_desktop_locale":
+            return { preference: "system", locale: "en", availableLocales: ["en"] };
           case "desktop_recovery_status":
             return {
               reason: "migration_failed",
@@ -59,7 +61,8 @@ test("desktop shows recovery instead of the app when the catalog did not open", 
   await expect(page.getByText("Torrent list saved.")).toBeVisible();
   await page.screenshot({ path: process.env.RECOVERY_SCREENSHOT ?? "test-results/desktop-recovery.png" });
   const calls = await page.evaluate(() => (window as unknown as { recoveryCalls: string[] }).recoveryCalls);
-  expect(calls[0]).toBe("desktop_recovery_status");
+  expect(calls).toContain("load_desktop_locale");
+  expect(calls.indexOf("desktop_recovery_status")).toBeGreaterThan(calls.indexOf("load_desktop_locale"));
   expect(calls).not.toContain("application_dispatch");
   expect(calls).toContain("desktop_recovery_export");
   expect(consoleErrors).toEqual([]);

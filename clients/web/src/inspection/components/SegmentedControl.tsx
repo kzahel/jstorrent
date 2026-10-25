@@ -14,6 +14,7 @@ export function SegmentedControl<Value extends string>({
   value,
   disabled = false,
   onChange,
+  onReselect,
 }: {
   readonly name: string;
   /** Accessible name when no visible heading labels the group. */
@@ -22,6 +23,8 @@ export function SegmentedControl<Value extends string>({
   readonly value: Value;
   readonly disabled?: boolean;
   readonly onChange: (value: Value) => void;
+  /** Explicitly selecting an already active effective value can replace an unavailable saved override. */
+  readonly onReselect?: ((value: Value) => void) | undefined;
 }) {
   return (
     <div className={styles.segmented} role={label === undefined ? undefined : "radiogroup"} aria-label={label}>
@@ -34,6 +37,7 @@ export function SegmentedControl<Value extends string>({
             checked={value === option.value}
             disabled={disabled}
             onChange={() => onChange(option.value)}
+            onClick={() => { if (option.value === value) onReselect?.(option.value); }}
           />
           <span>{option.label}</span>
         </label>

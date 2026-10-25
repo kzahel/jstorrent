@@ -2,6 +2,7 @@ import { DEFAULT_CLIENT_SETTINGS as FILE_SAFETY_DEFAULTS } from "../../api";
 import {
   formatNumber,
   message as localizedMessage,
+  useProductLocale,
 } from "../../localization/runtime";
 import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 
@@ -115,6 +116,7 @@ export function ConnectionSeedingSettingsSection({
   loading = false,
   onSave,
 }: ConnectionSeedingSettingsSectionProps) {
+  const locale = useProductLocale();
   const manageable = manageableWhenLoaded && !loading;
   const configured = settings.configured;
   const durableRevision = useInspectionStore((state) => state.durableRevision);
@@ -168,7 +170,7 @@ export function ConnectionSeedingSettingsSection({
         configured.tracker_https_server_authentication,
       );
     },
-    [configured.tracker_https_server_authentication, draft],
+    [locale, configured.tracker_https_server_authentication, draft],
   );
   const dirtyFields = settingsDraftFields(draftState);
   const patch = clientSettingsPatch(dirtyFields, validation.settings);
@@ -1445,36 +1447,36 @@ function parseBoundedInteger(
 const LISTENER_OPTIONS: readonly SegmentedOption<"automatic" | "fixed">[] = [
   {
     value: "automatic",
-    label: localizedMessage("inspection.components.connection.seeding.settings.section.automatic"),
-    description: localizedMessage("inspection.components.connection.seeding.settings.section.automatic.port.description"),
+    get label() { return localizedMessage("inspection.components.connection.seeding.settings.section.automatic"); },
+    get description() { return localizedMessage("inspection.components.connection.seeding.settings.section.automatic.port.description"); },
   },
   {
     value: "fixed",
-    label: localizedMessage("inspection.components.connection.seeding.settings.section.fixed"),
-    description: localizedMessage("inspection.components.connection.seeding.settings.section.fixed.port.description"),
+    get label() { return localizedMessage("inspection.components.connection.seeding.settings.section.fixed"); },
+    get description() { return localizedMessage("inspection.components.connection.seeding.settings.section.fixed.port.description"); },
   },
 ];
 
 const ENCRYPTION_OPTIONS: readonly SegmentedOption<EncryptionPolicy>[] = [
   {
     value: "disabled",
-    label: localizedMessage("inspection.components.connection.seeding.settings.section.disabled.75081b5"),
-    description: localizedMessage("inspection.components.connection.seeding.settings.section.encryption.disabled.description"),
+    get label() { return localizedMessage("inspection.components.connection.seeding.settings.section.disabled.75081b5"); },
+    get description() { return localizedMessage("inspection.components.connection.seeding.settings.section.encryption.disabled.description"); },
   },
   {
     value: "allow",
-    label: localizedMessage("inspection.components.connection.seeding.settings.section.allow"),
-    description: localizedMessage("inspection.components.connection.seeding.settings.section.encryption.allow.description"),
+    get label() { return localizedMessage("inspection.components.connection.seeding.settings.section.allow"); },
+    get description() { return localizedMessage("inspection.components.connection.seeding.settings.section.encryption.allow.description"); },
   },
   {
     value: "prefer",
-    label: localizedMessage("inspection.components.connection.seeding.settings.section.prefer"),
-    description: localizedMessage("inspection.components.connection.seeding.settings.section.encryption.prefer.description"),
+    get label() { return localizedMessage("inspection.components.connection.seeding.settings.section.prefer"); },
+    get description() { return localizedMessage("inspection.components.connection.seeding.settings.section.encryption.prefer.description"); },
   },
   {
     value: "required",
-    label: localizedMessage("inspection.components.connection.seeding.settings.section.required"),
-    description: localizedMessage("inspection.components.connection.seeding.settings.section.encryption.required.description"),
+    get label() { return localizedMessage("inspection.components.connection.seeding.settings.section.required"); },
+    get description() { return localizedMessage("inspection.components.connection.seeding.settings.section.encryption.required.description"); },
   },
 ];
 

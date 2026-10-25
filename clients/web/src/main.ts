@@ -1,6 +1,6 @@
 import { applyStoredAppearance } from "./inspection/appearance";
 import { resolveInspectionBootstrapTarget } from "./inspection/bootstrap-target";
-import { localizeDocumentShell, message } from "./localization/runtime";
+import { initializeLocalization, localizeDocumentShell, message } from "./localization/runtime";
 import { markStartup, startupTimings } from "./startup-timing";
 
 markStartup("entry");
@@ -20,6 +20,7 @@ document
 void startInspection().catch(renderBootstrapError);
 
 async function startInspection(): Promise<void> {
+  await initializeLocalization();
   const { startDemoInspection, startLiveInspection, startTauriInspection } =
     await import("./inspection/bootstrap");
   markStartup("app_loaded");

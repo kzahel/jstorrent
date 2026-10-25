@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [384 — Shared translation workflow and desktop German](384-shared-translation-workflow-and-desktop-german.md):
+  in progress; shared terminology, resumable translation/review jobs and German
+  previews across Android, the React UI and the native desktop shell.
+
 - [383 — Android translation cohorts](383-android-translation-cohorts.md):
   German debug pilot implemented; source-aware translation tooling and in-app
   switching pass API 28/35 and Pixel 7a qualification; ready for spot checks.

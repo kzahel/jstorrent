@@ -41,6 +41,21 @@ test('deletions and moved old paths retain their former dependency impact', () =
   const p = planChecks(['crates/rstorrent-protocol/src/old.rs', 'docs/new.md'], metadata);
   assert.deepEqual(p.packages, ['rstorrent-engine', 'rstorrent-gateway', 'rstorrent-protocol', 'rstorrent-session']);
 });
+test('translation-only changes run catalog and offline checks without engine builds', () => {
+  for (const path of ['localization/terminology/de.json', 'localization/android/de.json',
+    'clients/desktop/src-tauri/locales/de.json', 'clients/desktop/src-tauri/locales/en.comments.json',
+    'clients/android/app/src/debug/res/values-de/strings.xml',
+    'clients/android/app/src/main/res/values/strings.xml', 'clients/android/scripts/localization.py',
+    'scripts/localization.py', 'scripts/localization-ya.py', 'scripts/localization-icu.mjs',
+    'scripts/translation_terms.py', 'scripts/check-localization.mjs',
+    'scripts/test_shared_localization.py', 'scripts/test_localization_ya.py']) {
+    const plan = planChecks([path], metadata);
+    assert.equal(plan.web, true, path);
+    assert.deepEqual(plan.packages, [], path);
+    assert.equal(plan.extension, false, path);
+    assert.equal(plan.website, false, path);
+  }
+});
 test('the aggregate requires selected jobs and tools, with explicit unselected skips', () => {
   const jobs = { plan: { result: 'success', outputs: { rust: 'true', unitTests: 'true', contract: 'true', web: 'true', extension: 'false', website: 'false', notices: 'true' } },
     rust: { result: 'success' }, contract: { result: 'success' }, web: { result: 'success' }, website: { result: 'skipped' }, notices: { result: 'success' }, tools: { result: 'success' } };

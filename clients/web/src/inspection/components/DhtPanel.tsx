@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage  } from "../../localization/runtime";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
@@ -114,7 +114,7 @@ function StatusFacts({
       />
       <Fact
         label={localizedMessage("inspection.components.dht.panel.routing.nodes")}
-        value={family.routing_nodes.toLocaleString()}
+        value={formatNumber(family.routing_nodes)}
         detail={`${family.occupied_buckets} occupied bands · ${familyLabel(family.family)}`}
       />
       <Fact

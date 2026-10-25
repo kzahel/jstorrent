@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage, useProductLocale } from "../../localization/runtime";
 import { useMemo } from "react";
 
 import { useInspectionStore } from "../context";
@@ -143,7 +143,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
       row.oldestRequestMs === null
         ? "—"
         : row.oldestRequestMs >= 1000
-          ? `${(row.oldestRequestMs / 1000).toFixed(1)}s`
+          ? `${formatNumber(row.oldestRequestMs / 1000, { useGrouping: false, minimumFractionDigits: 1, maximumFractionDigits: 1 })}s`
           : `${row.oldestRequestMs}ms`,
   },
   {
@@ -194,14 +194,14 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
 function formatDuration(milliseconds: number | null): string {
   if (milliseconds === null) return "—";
   if (milliseconds < 1_000) return `${milliseconds}ms`;
-  if (milliseconds < 60_000) return `${(milliseconds / 1_000).toFixed(1)}s`;
+  if (milliseconds < 60_000) return `${formatNumber(milliseconds / 1_000, { useGrouping: false, minimumFractionDigits: 1, maximumFractionDigits: 1 })}s`;
   if (milliseconds < 3_600_000)
     return `${Math.round(milliseconds / 60_000)}m`;
-  return `${(milliseconds / 3_600_000).toFixed(1)}h`;
+  return `${formatNumber(milliseconds / 3_600_000, { useGrouping: false, minimumFractionDigits: 1, maximumFractionDigits: 1 })}h`;
 }
 
 function formatAge(milliseconds: number | null): string {
-  return milliseconds === null ? "—" : `${formatDuration(milliseconds)} ago`;
+  return milliseconds === null ? "—" : localizedMessage("inspection.components.peer.table.age", { duration: formatDuration(milliseconds) });
 }
 
 const PEER_FLAG_GROUPS: readonly PeerFlagGroup[] = [
@@ -216,7 +216,7 @@ function PeerFlagLegend() {
     <div className={styles.legend}>
       {PEER_FLAG_GROUPS.map((group) => (
         <section key={group}>
-          <h3>{group}</h3>
+          <h3>{peerFlagGroupLabel(group)}</h3>
           <dl>
             {PEER_FLAG_ORDER.filter(
               (flag) => PEER_FLAG_DEFINITIONS[flag].group === group,
@@ -240,7 +240,8 @@ function PeerFlagLegend() {
 
 export function PeerTable({ torrentId }: { readonly torrentId: string }) {
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
-  const displayColumns = useMemo(() => columns(dataUnits), [dataUnits]);
+  const locale = useProductLocale();
+  const displayColumns = useMemo(() => columns(dataUnits), [locale, dataUnits]);
   const peerSet = useInspectionStore(
     (state) => state.peersByTorrent[torrentId],
   );
@@ -290,5 +291,14 @@ function peerEmptyMessage(materialization: ViewMaterialization): string {
     case "stale":
     case "ready":
       return localizedMessage("inspection.components.peer.table.no.peers.connected");
+  }
+}
+
+function peerFlagGroupLabel(group: PeerFlagGroup): string {
+  switch (group) {
+    case "Connection": return localizedMessage("inspection.components.peer.table.flag.group.connection");
+    case "Transfer": return localizedMessage("inspection.components.peer.table.flag.group.transfer");
+    case "Protocol": return localizedMessage("inspection.components.peer.table.flag.group.protocol");
+    case "Scheduler / integrity": return localizedMessage("inspection.components.peer.table.flag.group.integrity");
   }
 }

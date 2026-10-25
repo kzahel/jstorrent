@@ -30,6 +30,8 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "web": { "$ref": "#/$defs/localeList" },
+        "desktop": { "$ref": "#/$defs/localeList" },
         "android": { "$ref": "#/$defs/localeList" }
       }
     },
@@ -50,9 +52,10 @@
     "catalogs": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["web", "android", "ios"],
+      "required": ["web", "desktop", "android", "ios"],
       "properties": {
         "web": { "type": "string", "minLength": 1 },
+        "desktop": { "type": "string", "minLength": 1 },
         "android": { "type": "string", "minLength": 1 },
         "ios": { "type": "string", "minLength": 1 }
       }

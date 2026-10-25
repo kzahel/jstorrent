@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatDate, formatNumber, message as localizedMessage  } from "../../localization/runtime";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { DiagnosticSubject, DiagnosticValue } from "../../api";
@@ -17,7 +17,7 @@ const SEVERITY_ORDER: Readonly<Record<LogRow["severity"], number>> = {
   warning: 3,
   error: 4,
 };
-const TIME_FORMAT = new Intl.DateTimeFormat(undefined, {
+const formatLogClock = (value: number) => formatDate(value, {
   hour: "2-digit",
   minute: "2-digit",
   second: "2-digit",
@@ -177,7 +177,7 @@ export function LogConsole() {
           <span className={styles.traceNotice}>{localizedMessage("inspection.components.log.console.high.volume.producer.capture")}</span>
         ) : null}
         <span className={styles.captureCount}>
-          {logs.length.toLocaleString()}{" "}{localizedMessage("inspection.components.log.console.kept")}</span>
+          {formatNumber(logs.length)}{" "}{localizedMessage("inspection.components.log.console.kept")}</span>
       </div>
       <div className={styles.filterBar}>
         <span className={styles.toolbarLabel}>{localizedMessage("inspection.components.log.console.display")}</span>
@@ -230,7 +230,7 @@ export function LogConsole() {
           </select>
         </label>
         <button type="button" onClick={clearVisible} disabled={logs.length === 0}>{localizedMessage("inspection.components.log.console.clear")}</button>
-        <span className={styles.shownCount}>{filtered.length.toLocaleString()}{" "}{localizedMessage("inspection.components.log.console.shown")}</span>
+        <span className={styles.shownCount}>{formatNumber(filtered.length)}{" "}{localizedMessage("inspection.components.log.console.shown")}</span>
       </div>
       <div
         ref={viewportRef}
@@ -276,7 +276,7 @@ export function LogConsole() {
             scrollToBottom(viewportRef.current);
           }}
         >
-          {newCount.toLocaleString()}{" "}{localizedMessage("inspection.components.log.console.new")}{" "}{newCount === 1 ? localizedMessage("inspection.components.log.console.event") : localizedMessage("inspection.components.log.console.events")} ↓
+          {formatNumber(newCount)}{" "}{localizedMessage("inspection.components.log.console.new")}{" "}{newCount === 1 ? localizedMessage("inspection.components.log.console.event") : localizedMessage("inspection.components.log.console.events")} ↓
         </button>
       ) : null}
     </section>
@@ -365,13 +365,13 @@ function LogLossMarker() {
   const loss = useInspectionStore((state) => state.logLoss);
   const parts = [
     loss.sourceEvictedCount > 0
-      ? `${loss.sourceEvictedCount.toLocaleString()} evicted at source`
+      ? `${formatNumber(loss.sourceEvictedCount)} evicted at source`
       : null,
     loss.deliveryResetCount > 0
-      ? `${loss.deliveryResetCount.toLocaleString()} delivery resync${loss.lastDeliveryResetReason === null ? "" : ` · ${loss.lastDeliveryResetReason.replaceAll("_", " ")}`}`
+      ? `${formatNumber(loss.deliveryResetCount)} delivery resync${loss.lastDeliveryResetReason === null ? "" : ` · ${loss.lastDeliveryResetReason.replaceAll("_", " ")}`}`
       : null,
     loss.localEvictedCount > 0
-      ? `${loss.localEvictedCount.toLocaleString()} evicted locally`
+      ? `${formatNumber(loss.localEvictedCount)} evicted locally`
       : null,
   ].filter((part): part is string => part !== null);
   return (
@@ -505,7 +505,7 @@ function formatSubject(subject: DiagnosticSubject): string {
 }
 
 function formatLogTime(timestampMs: number): string {
-  return `${TIME_FORMAT.format(new Date(timestampMs))}.${String(timestampMs % 1_000).padStart(3, "0")}`;
+  return `${formatLogClock(timestampMs)}.${String(timestampMs % 1_000).padStart(3, "0")}`;
 }
 
 function severitySymbol(severity: LogRow["severity"]): string {

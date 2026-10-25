@@ -27,16 +27,20 @@ const proxy: Record<string, string | ProxyOptions> | undefined =
  * copy edit reaches the page through the runtime's hot update.
  */
 function compileLocalizationOnChange(): Plugin {
-  const source = resolve(process.cwd(), "src/localization/messages/en.json");
-  const output = resolve(process.cwd(), "src/localization/generated/en.json");
+  const sources = new Map(["en", "de"].map((locale) => [
+    resolve(process.cwd(), `src/localization/messages/${locale}.json`),
+    resolve(process.cwd(), `src/localization/generated/${locale}.json`),
+  ]));
   const formatjs = resolve(process.cwd(), "node_modules/.bin/formatjs");
   return {
     name: "rstorrent-compile-localization",
     apply: "serve",
     configureServer(server) {
-      server.watcher.add(source);
+      server.watcher.add([...sources.keys()]);
       server.watcher.on("change", (file) => {
-        if (resolve(file) !== source) return;
+        const source = resolve(file);
+        const output = sources.get(source);
+        if (output === undefined) return;
         execFile(
           formatjs,
           ["compile", source, "--ast", "--out-file", output],

@@ -16,6 +16,8 @@ from xml.sax.saxutils import escape
 
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.append(str(ROOT / "scripts"))
+from translation_terms import terminology, terminology_hash
 SOURCE = Path("clients/android/app/src/main/res/values/strings.xml")
 CONFIG = Path("localization/android/locales.json")
 MAX_JSON_BYTES = 16 * 1024 * 1024
@@ -89,7 +91,7 @@ def android_encode(text: str):
 
 
 def signature(text: str):
-    if not isinstance(text, str) or not text or len(text) > 65536:
+    if not isinstance(text, str) or not text.strip() or len(text) > 65536:
         raise Invalid("translation must be a nonempty string of at most 65536 characters")
     if any((ord(character) < 0x20 and character not in "\t\n\r") or 0xD800 <= ord(character) <= 0xDFFF or ord(character) in {0xFFFE, 0xFFFF} for character in text):
         raise Invalid("translation contains a character forbidden in XML")
@@ -214,6 +216,10 @@ class Workspace:
         row = self.translated.get(name)
         return digest({"kind": row["kind"], "value": row["value"]}) if row else None
 
+    def terminology_hash(self, name):
+        source = self.source[name]
+        return terminology_hash(self.root, self.locale, source["value"], source["context"])
+
     def validate_translation(self, name, value, kind):
         source = self.source[name]
         if kind != source["kind"]:
@@ -236,7 +242,7 @@ class Workspace:
             raise Invalid(f"{name}: resource omits positional arguments")
 
     def report(self):
-        reports = {key: [] for key in ("missing", "stale", "obsolete", "conflicting", "invalid", "unreviewed")}
+        reports = {key: [] for key in ("missing", "stale", "obsolete", "conflicting", "invalid", "unreviewed", "terminologyChanged", "terminologyUntracked")}
         for name, source in self.source.items():
             translated = self.translated.get(name)
             metadata = self.ledger["resources"].get(name)
@@ -255,6 +261,12 @@ class Workspace:
                 reports["conflicting"].append(name)
             if not metadata or metadata.get("reviewState") != "agent-reviewed" or not metadata.get("reviewer") or metadata.get("reviewer") == metadata.get("translator"):
                 reports["unreviewed"].append(name)
+            expected_terminology = self.terminology_hash(name)
+            if expected_terminology is not None:
+                if not metadata or "terminologyHash" not in metadata:
+                    reports["terminologyUntracked"].append(name)
+                elif metadata["terminologyHash"] != expected_terminology:
+                    reports["terminologyChanged"].append(name)
         reports["obsolete"] = sorted((set(self.translated) | set(self.ledger["resources"])) - set(self.source))
         return reports
 
@@ -266,21 +278,28 @@ class Workspace:
             if not all_resources and name not in pending:
                 continue
             resources[name] = {"sourceHash": record["sourceHash"], "kind": record["kind"], "source": record["value"], "context": record["context"], "arguments": record["arguments"], "formats": record["formats"], "requiredArguments": record["requiredArguments"], "quantityArgument": record["quantityArgument"], "existingTranslationHash": self.translation_hash(name)}
+            if self.terminology_hash(name) is not None:
+                resources[name]["terminologyHash"] = self.terminology_hash(name)
             if name in self.translated:
                 resources[name]["existingTranslation"] = self.translated[name]["value"]
-        return {"schemaVersion": 1, "locale": self.locale, "localeGuidance": self.config.get("guidance", {}), "quantities": sorted(self.quantities), "glossary": read_json(self.root / "localization/glossary.json"), "resources": resources}
+        return {"schemaVersion": 1, "locale": self.locale, "localeGuidance": self.config.get("guidance", {}), "terminology": terminology(self.root, self.locale), "quantities": sorted(self.quantities), "glossary": read_json(self.root / "localization/glossary.json"), "resources": resources}
 
     def validate_response(self, job, response):
         for value in (job, response):
             if not isinstance(value, dict) or value.get("schemaVersion") != 1 or value.get("locale") != self.locale or not isinstance(value.get("resources"), dict):
                 raise Invalid("invalid job/response header")
+        if "platform" in job and response.get("platform") != "android":
+            raise Invalid("invalid Android response platform")
         requested = job["resources"]
         received = response["resources"]
         if not requested or set(requested) != set(received):
             raise Invalid(f"response keys differ: missing={sorted(set(requested) - set(received))}, unknown={sorted(set(received) - set(requested))}")
         # Validate the whole response before changing either catalog or metadata.
         for name, item in received.items():
-            if name not in self.source or not isinstance(item, dict) or set(item) != {"sourceHash", "kind", "translation"}:
+            required_fields = {"sourceHash", "kind", "translation"}
+            if name in self.source and self.terminology_hash(name) is not None:
+                required_fields.add("terminologyHash")
+            if name not in self.source or not isinstance(item, dict) or set(item) != required_fields:
                 raise Invalid(f"unknown resource or invalid response record: {name}")
             source = self.source[name]
             exported = requested[name]
@@ -288,6 +307,11 @@ class Workspace:
                 raise Invalid(f"invalid job record: {name}")
             if item["sourceHash"] != source["sourceHash"] or exported.get("sourceHash") != source["sourceHash"]:
                 raise Invalid(f"stale source: {name}; export a new job")
+            if exported.get("source") != source["value"] or exported.get("context") != source["context"] or exported.get("arguments") != source["arguments"]:
+                raise Invalid(f"source snapshot content differs: {name}")
+            expected_terminology = self.terminology_hash(name)
+            if expected_terminology is not None and (item.get("terminologyHash") != expected_terminology or exported.get("terminologyHash") != expected_terminology):
+                raise Invalid(f"stale terminology: {name}; export a new job")
             if exported.get("existingTranslationHash") != self.translation_hash(name):
                 raise Invalid(f"translation changed since export: {name}; export a correction job")
             self.validate_translation(name, item["translation"], item["kind"])
@@ -300,6 +324,8 @@ class Workspace:
         for name, item in received.items():
             self.translated[name] = {"kind": item["kind"], "value": item["translation"]}
             self.ledger["resources"][name] = {"sourceHash": item["sourceHash"], "translationHash": self.translation_hash(name), "origin": "independently authored translation", "translator": translator, "reviewer": reviewer, "reviewState": "agent-reviewed"}
+            if "terminologyHash" in item:
+                self.ledger["resources"][name].update({"terminologyHash": item["terminologyHash"], "terminologyReviewer": reviewer})
         self.write()
 
     def write(self):

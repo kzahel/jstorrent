@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage  } from "../../localization/runtime";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { DataUnits } from "../appearance";
@@ -153,7 +153,7 @@ function MetadataBlockMap({
     return () => cancelAnimationFrame(frame);
   }, [geometry, metadata]);
 
-  const label = `Torrent info: ${counts.received.toLocaleString()} received, ${counts.requested.toLocaleString()} requested, ${counts.missing.toLocaleString()} missing`;
+  const label = `Torrent info: ${formatNumber(counts.received)} received, ${formatNumber(counts.requested)} requested, ${formatNumber(counts.missing)} missing`;
   return (
     <div className={styles.mapSection}>
       <div ref={wrapRef} className={styles.canvasWrap}>

@@ -205,6 +205,29 @@ class LocalizationTest(unittest.TestCase):
                 workspace.import_response(job, response, "translator", "reviewer")
         self.assertFalse(workspace.xml.exists())
 
+    def test_shared_terminology_is_separate_from_existing_source_review(self):
+        workspace, old_job = self.import_all()
+        previous_source = workspace.ledger["resources"]["folder"]["sourceHash"]
+        terms_path = self.root / "localization/terminology/de.json"
+        terms_path.parent.mkdir(parents=True)
+        terms = {"schemaVersion": 1, "locale": "de", "register": "du", "terms": {
+            "folder": {"sourceTerms": ["folder"], "preferred": "Ordner", "meaning": "User-selected folder"},
+        }}
+        terms_path.write_text(json.dumps(terms))
+        fresh = self.workspace()
+        self.assertEqual(set(fresh.source), set(fresh.report()["terminologyUntracked"]))
+        self.assertEqual(previous_source, fresh.source["folder"]["sourceHash"])
+        job = fresh.export()
+        response = self.response(job)
+        for name, row in response["resources"].items(): row["terminologyHash"] = job["resources"][name]["terminologyHash"]
+        fresh.import_response(job, response, "translation/terms", "review/terms")
+        terms["terms"]["folder"]["preferred"] = "Downloadordner"
+        terms_path.write_text(json.dumps(terms))
+        changed = self.workspace()
+        self.assertEqual(["folder", "named"], changed.report()["terminologyChanged"])
+        with self.assertRaisesRegex(tool.Invalid, "stale terminology"):
+            changed.validate_response(job, response)
+
 
 if __name__ == "__main__":
     unittest.main()

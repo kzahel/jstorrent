@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "Downloadordner auswählen",
+  "dialog.settings-save.body": "JSTorrent konnte die Einstellung „Im Hintergrund ausführen“ nicht speichern. Die vorherige Einstellung ist weiterhin aktiv.",
+  "dialog.settings-save.title": "JSTorrent-Einstellung wurde nicht gespeichert",
+  "dialog.shutdown.body": "JSTorrent konnte nicht vollständig beendet werden. Deine Daten wurden nicht zwangsweise geschlossen. Prüfe das Diagnoseprotokoll, bevor du es erneut versuchst.",
+  "dialog.shutdown.title": "JSTorrent konnte nicht beendet werden",
+  "dialog.torrent-list-export.title": "Torrent-Liste exportieren",
+  "dialog.torrent-list-import.title": "Torrent-Liste importieren",
+  "dialog.torrent-list.filter": "Torrent-Liste",
+  "notification.download-complete.body": "{name} wurde vollständig heruntergeladen.",
+  "notification.download-complete.title": "Download abgeschlossen",
+  "notification.needs-attention.body": "{name} braucht deine Aufmerksamkeit. Öffne JSTorrent, um Details zu sehen.",
+  "notification.needs-attention.title": "Download braucht deine Aufmerksamkeit",
+  "notification.open": "JSTorrent öffnen",
+  "notification.unnamed-torrent": "Torrent",
+  "power.active-transfer-reason": "JSTorrent lädt Inhalte herunter oder prüft sie",
+  "tray.check-updates": "Nach Updates suchen",
+  "tray.quit": "JSTorrent beenden",
+  "tray.run-in-background": "Im Hintergrund ausführen",
+  "tray.show": "JSTorrent anzeigen",
+  "tray.tooltip": "JSTorrent"
+}

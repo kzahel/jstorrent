@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage  } from "../../localization/runtime";
 import { useMemo, useState } from "react";
 
 import { useInspectionStore } from "../context";
@@ -43,8 +43,8 @@ export function TransfersView() {
           <h1 id="transfers-heading">{localizedMessage("inspection.components.transfers.view.transfers")}</h1>
         </div>
         <span>
-          {visibleCount.toLocaleString()}{" "}{localizedMessage("inspection.components.transfers.view.shown")}<span aria-hidden="true"> · </span>
-          {activeCount.toLocaleString()}{" "}{localizedMessage("inspection.components.transfers.view.active")}</span>
+          {formatNumber(visibleCount)}{" "}{localizedMessage("inspection.components.transfers.view.shown")}<span aria-hidden="true"> · </span>
+          {formatNumber(activeCount)}{" "}{localizedMessage("inspection.components.transfers.view.active")}</span>
       </div>
       <TorrentActions
         showAddForm={layout === "phone"}

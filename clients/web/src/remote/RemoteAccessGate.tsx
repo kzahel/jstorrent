@@ -1,5 +1,5 @@
 import jstorrentIcon from "../assets/jstorrent.png";
-import { message as localizedMessage } from "../localization/runtime";
+import { message as localizedMessage, useProductLocale } from "../localization/runtime";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { ApplicationViewClient } from "../api/client";
@@ -46,6 +46,7 @@ export function RemoteAccessGate({
   store,
   onConnected,
 }: RemoteAccessGateProps) {
+  useProductLocale();
   const [phase, setPhase] = useState<Phase>("loading");
   const [username, setUsername] = useState("");
   const [passphrase, setPassphrase] = useState("");

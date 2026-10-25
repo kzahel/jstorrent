@@ -5045,6 +5045,257 @@
       "value": "Piece"
     }
   ],
+  "inspection.components.disk.panel.presentation.checkpoint.active": [
+    {
+      "type": 1,
+      "value": "duration"
+    },
+    {
+      "type": 0,
+      "value": " active"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.checkpoint.backlog.detail": [
+    {
+      "type": 0,
+      "value": "oldest "
+    },
+    {
+      "type": 1,
+      "value": "duration"
+    },
+    {
+      "type": 0,
+      "value": " · high "
+    },
+    {
+      "type": 2,
+      "value": "pieces",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " pieces / "
+    },
+    {
+      "type": 1,
+      "value": "bytes"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.checkpoint.backlog.value": [
+    {
+      "type": 2,
+      "value": "pieces",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " pieces · "
+    },
+    {
+      "type": 1,
+      "value": "bytes"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.checkpoint.batches": [
+    {
+      "type": 2,
+      "value": "completed",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " / "
+    },
+    {
+      "type": 2,
+      "value": "started",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " batches"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.commit.cumulative": [
+    {
+      "type": 1,
+      "value": "duration"
+    },
+    {
+      "type": 0,
+      "value": " cumulative · "
+    },
+    {
+      "type": 2,
+      "value": "count",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " pieces"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.hash.operations": [
+    {
+      "type": 2,
+      "value": "completed",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " / "
+    },
+    {
+      "type": 2,
+      "value": "started",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " operations"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.intake.open": [
+    {
+      "type": 0,
+      "value": "intake is open"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.intake.paused": [
+    {
+      "type": 0,
+      "value": "intake paused now"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.pending.counts": [
+    {
+      "type": 2,
+      "value": "jobs",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " jobs · "
+    },
+    {
+      "type": 2,
+      "value": "pieces",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " pieces"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.pressure.description": [
+    {
+      "type": 0,
+      "value": "Disk pressure "
+    },
+    {
+      "type": 1,
+      "value": "pressure"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.pressure.transitions": [
+    {
+      "type": 2,
+      "value": "count",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " pressure transitions"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.queue.cumulative": [
+    {
+      "type": 1,
+      "value": "duration"
+    },
+    {
+      "type": 0,
+      "value": " cumulative"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.sample.duration": [
+    {
+      "type": 1,
+      "value": "duration"
+    },
+    {
+      "type": 0,
+      "value": " sample"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.sync.cumulative": [
+    {
+      "type": 1,
+      "value": "duration"
+    },
+    {
+      "type": 0,
+      "value": " cumulative · "
+    },
+    {
+      "type": 2,
+      "value": "count",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " targets"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.verify.rate": [
+    {
+      "type": 1,
+      "value": "rate"
+    },
+    {
+      "type": 0,
+      "value": " verify rate"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.watermarks": [
+    {
+      "type": 0,
+      "value": "high "
+    },
+    {
+      "type": 1,
+      "value": "high"
+    },
+    {
+      "type": 0,
+      "value": " · low "
+    },
+    {
+      "type": 1,
+      "value": "low"
+    }
+  ],
+  "inspection.components.disk.panel.presentation.write.operations": [
+    {
+      "type": 2,
+      "value": "completed",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " / "
+    },
+    {
+      "type": 2,
+      "value": "started",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " operations"
+    }
+  ],
   "inspection.components.disk.panel.receive.write": [
     {
       "type": 0,
@@ -5081,6 +5332,42 @@
       "value": "Session storage"
     }
   ],
+  "inspection.components.disk.panel.stage.label.checkpoint.dirty": [
+    {
+      "type": 0,
+      "value": "Checkpoint dirty"
+    }
+  ],
+  "inspection.components.disk.panel.stage.label.hashing": [
+    {
+      "type": 0,
+      "value": "Hashing"
+    }
+  ],
+  "inspection.components.disk.panel.stage.label.queued.write": [
+    {
+      "type": 0,
+      "value": "Queued write"
+    }
+  ],
+  "inspection.components.disk.panel.stage.label.requested": [
+    {
+      "type": 0,
+      "value": "Requested"
+    }
+  ],
+  "inspection.components.disk.panel.stage.label.resident": [
+    {
+      "type": 0,
+      "value": "Resident"
+    }
+  ],
+  "inspection.components.disk.panel.stage.label.writing": [
+    {
+      "type": 0,
+      "value": "Writing"
+    }
+  ],
   "inspection.components.disk.panel.state": [
     {
       "type": 0,
@@ -5115,6 +5402,102 @@
     {
       "type": 0,
       "value": "Torrent"
+    }
+  ],
+  "inspection.components.disk.panel.value.backpressured": [
+    {
+      "type": 0,
+      "value": "Backpressured"
+    }
+  ],
+  "inspection.components.disk.panel.value.checkpoint.committing": [
+    {
+      "type": 0,
+      "value": "Checkpoint committing"
+    }
+  ],
+  "inspection.components.disk.panel.value.checkpoint.dirty": [
+    {
+      "type": 0,
+      "value": "Checkpoint dirty"
+    }
+  ],
+  "inspection.components.disk.panel.value.checkpoint.syncing": [
+    {
+      "type": 0,
+      "value": "Checkpoint syncing"
+    }
+  ],
+  "inspection.components.disk.panel.value.committing": [
+    {
+      "type": 0,
+      "value": "Committing"
+    }
+  ],
+  "inspection.components.disk.panel.value.draining": [
+    {
+      "type": 0,
+      "value": "Draining"
+    }
+  ],
+  "inspection.components.disk.panel.value.error": [
+    {
+      "type": 0,
+      "value": "Error"
+    }
+  ],
+  "inspection.components.disk.panel.value.failed": [
+    {
+      "type": 0,
+      "value": "Failed"
+    }
+  ],
+  "inspection.components.disk.panel.value.hashing": [
+    {
+      "type": 0,
+      "value": "Hashing"
+    }
+  ],
+  "inspection.components.disk.panel.value.idle": [
+    {
+      "type": 0,
+      "value": "Idle"
+    }
+  ],
+  "inspection.components.disk.panel.value.normal": [
+    {
+      "type": 0,
+      "value": "Normal"
+    }
+  ],
+  "inspection.components.disk.panel.value.queued": [
+    {
+      "type": 0,
+      "value": "Queued"
+    }
+  ],
+  "inspection.components.disk.panel.value.receiving": [
+    {
+      "type": 0,
+      "value": "Receiving"
+    }
+  ],
+  "inspection.components.disk.panel.value.stored": [
+    {
+      "type": 0,
+      "value": "Stored"
+    }
+  ],
+  "inspection.components.disk.panel.value.syncing": [
+    {
+      "type": 0,
+      "value": "Syncing"
+    }
+  ],
+  "inspection.components.disk.panel.value.writing": [
+    {
+      "type": 0,
+      "value": "Writing"
     }
   ],
   "inspection.components.disk.panel.write.queue.wait": [
@@ -6923,6 +7306,16 @@
       "value": "Address"
     }
   ],
+  "inspection.components.peer.table.age": [
+    {
+      "type": 1,
+      "value": "duration"
+    },
+    {
+      "type": 0,
+      "value": " ago"
+    }
+  ],
   "inspection.components.peer.table.client": [
     {
       "type": 0,
@@ -6945,6 +7338,30 @@
     {
       "type": 0,
       "value": "Downloaded"
+    }
+  ],
+  "inspection.components.peer.table.flag.group.connection": [
+    {
+      "type": 0,
+      "value": "Connection"
+    }
+  ],
+  "inspection.components.peer.table.flag.group.integrity": [
+    {
+      "type": 0,
+      "value": "Scheduler / integrity"
+    }
+  ],
+  "inspection.components.peer.table.flag.group.protocol": [
+    {
+      "type": 0,
+      "value": "Protocol"
+    }
+  ],
+  "inspection.components.peer.table.flag.group.transfer": [
+    {
+      "type": 0,
+      "value": "Transfer"
     }
   ],
   "inspection.components.peer.table.flags": [
@@ -8301,6 +8718,36 @@
       "value": "Average"
     }
   ],
+  "inspection.components.speed.panel.breakdown.dht": [
+    {
+      "type": 0,
+      "value": "DHT"
+    }
+  ],
+  "inspection.components.speed.panel.breakdown.metadata": [
+    {
+      "type": 0,
+      "value": "Metadata payload"
+    }
+  ],
+  "inspection.components.speed.panel.breakdown.peer.protocol": [
+    {
+      "type": 0,
+      "value": "Peer protocol"
+    }
+  ],
+  "inspection.components.speed.panel.breakdown.peer.wire": [
+    {
+      "type": 0,
+      "value": "Peer wire"
+    }
+  ],
+  "inspection.components.speed.panel.breakdown.tracker": [
+    {
+      "type": 0,
+      "value": "Tracker"
+    }
+  ],
   "inspection.components.speed.panel.chart.series": [
     {
       "type": 0,
@@ -8361,6 +8808,126 @@
       "value": "In"
     }
   ],
+  "inspection.components.speed.panel.metric.dht.received": [
+    {
+      "type": 0,
+      "value": "DHT in"
+    }
+  ],
+  "inspection.components.speed.panel.metric.dht.sent": [
+    {
+      "type": 0,
+      "value": "DHT out"
+    }
+  ],
+  "inspection.components.speed.panel.metric.logical.hash.read": [
+    {
+      "type": 0,
+      "value": "Hash read"
+    }
+  ],
+  "inspection.components.speed.panel.metric.metadata.payload.received": [
+    {
+      "type": 0,
+      "value": "Metadata in"
+    }
+  ],
+  "inspection.components.speed.panel.metric.metadata.payload.sent": [
+    {
+      "type": 0,
+      "value": "Metadata out"
+    }
+  ],
+  "inspection.components.speed.panel.metric.payload.hash.failed": [
+    {
+      "type": 0,
+      "value": "Hash-failed payload"
+    }
+  ],
+  "inspection.components.speed.panel.metric.payload.received": [
+    {
+      "type": 0,
+      "value": "Download"
+    }
+  ],
+  "inspection.components.speed.panel.metric.payload.redundant": [
+    {
+      "type": 0,
+      "value": "Redundant payload"
+    }
+  ],
+  "inspection.components.speed.panel.metric.payload.uploaded": [
+    {
+      "type": 0,
+      "value": "Upload"
+    }
+  ],
+  "inspection.components.speed.panel.metric.payload.verified": [
+    {
+      "type": 0,
+      "value": "Verified"
+    }
+  ],
+  "inspection.components.speed.panel.metric.peer.protocol.received": [
+    {
+      "type": 0,
+      "value": "Peer protocol in"
+    }
+  ],
+  "inspection.components.speed.panel.metric.peer.protocol.sent": [
+    {
+      "type": 0,
+      "value": "Peer protocol out"
+    }
+  ],
+  "inspection.components.speed.panel.metric.peer.unclassified.received": [
+    {
+      "type": 0,
+      "value": "Peer unclassified in"
+    }
+  ],
+  "inspection.components.speed.panel.metric.peer.unclassified.sent": [
+    {
+      "type": 0,
+      "value": "Peer unclassified out"
+    }
+  ],
+  "inspection.components.speed.panel.metric.peer.wire.received": [
+    {
+      "type": 0,
+      "value": "Peer wire in"
+    }
+  ],
+  "inspection.components.speed.panel.metric.peer.wire.sent": [
+    {
+      "type": 0,
+      "value": "Peer wire out"
+    }
+  ],
+  "inspection.components.speed.panel.metric.staged.write": [
+    {
+      "type": 0,
+      "value": "Staged write"
+    }
+  ],
+  "inspection.components.speed.panel.metric.tracker.received": [
+    {
+      "type": 0,
+      "value": "Tracker in"
+    }
+  ],
+  "inspection.components.speed.panel.metric.tracker.sent": [
+    {
+      "type": 0,
+      "value": "Tracker out"
+    }
+  ],
+  "inspection.components.speed.panel.now": [
+    {
+      "type": 0,
+      "value": "now"
+    }
+  ],
   "inspection.components.speed.panel.of.8": [
     {
       "type": 0,
@@ -8395,6 +8962,20 @@
     {
       "type": 0,
       "value": "Reset to default"
+    }
+  ],
+  "inspection.components.speed.panel.seconds.ago": [
+    {
+      "type": 0,
+      "value": "−"
+    },
+    {
+      "type": 1,
+      "value": "seconds"
+    },
+    {
+      "type": 0,
+      "value": "s"
     }
   ],
   "inspection.components.speed.panel.selected.speed.window.summaries": [
@@ -8523,6 +9104,32 @@
       "value": "Integrity"
     }
   ],
+  "inspection.components.swarm.table.integrity.bad": [
+    {
+      "type": 0,
+      "value": "Parole · "
+    },
+    {
+      "type": 2,
+      "value": "count",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " bad"
+    }
+  ],
+  "inspection.components.swarm.table.integrity.valid": [
+    {
+      "type": 2,
+      "value": "count",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " valid"
+    }
+  ],
   "inspection.components.swarm.table.known": [
     {
       "type": 0,
@@ -8595,6 +9202,36 @@
       "value": "PEX"
     }
   ],
+  "inspection.components.swarm.table.presentation.empty": [
+    {
+      "type": 0,
+      "value": "No peers are known yet."
+    }
+  ],
+  "inspection.components.swarm.table.presentation.inactive": [
+    {
+      "type": 0,
+      "value": "The peer registry is inactive."
+    }
+  ],
+  "inspection.components.swarm.table.presentation.missing": [
+    {
+      "type": 0,
+      "value": "This torrent is no longer present."
+    }
+  ],
+  "inspection.components.swarm.table.presentation.no": [
+    {
+      "type": 0,
+      "value": "No"
+    }
+  ],
+  "inspection.components.swarm.table.presentation.yes": [
+    {
+      "type": 0,
+      "value": "Yes"
+    }
+  ],
   "inspection.components.swarm.table.retry": [
     {
       "type": 0,
@@ -8629,6 +9266,132 @@
     {
       "type": 0,
       "value": "Uploaded"
+    }
+  ],
+  "inspection.components.swarm.table.value.backed.off": [
+    {
+      "type": 0,
+      "value": "backed off"
+    }
+  ],
+  "inspection.components.swarm.table.value.banned": [
+    {
+      "type": 0,
+      "value": "banned"
+    }
+  ],
+  "inspection.components.swarm.table.value.cache": [
+    {
+      "type": 0,
+      "value": "cache"
+    }
+  ],
+  "inspection.components.swarm.table.value.connect": [
+    {
+      "type": 0,
+      "value": "connect"
+    }
+  ],
+  "inspection.components.swarm.table.value.connected": [
+    {
+      "type": 0,
+      "value": "connected"
+    }
+  ],
+  "inspection.components.swarm.table.value.dht": [
+    {
+      "type": 0,
+      "value": "dht"
+    }
+  ],
+  "inspection.components.swarm.table.value.dialing": [
+    {
+      "type": 0,
+      "value": "dialing"
+    }
+  ],
+  "inspection.components.swarm.table.value.duplicate.peer.id": [
+    {
+      "type": 0,
+      "value": "duplicate peer id"
+    }
+  ],
+  "inspection.components.swarm.table.value.eligible": [
+    {
+      "type": 0,
+      "value": "eligible"
+    }
+  ],
+  "inspection.components.swarm.table.value.failure.limited": [
+    {
+      "type": 0,
+      "value": "failure limited"
+    }
+  ],
+  "inspection.components.swarm.table.value.handshake": [
+    {
+      "type": 0,
+      "value": "handshake"
+    }
+  ],
+  "inspection.components.swarm.table.value.incoming": [
+    {
+      "type": 0,
+      "value": "incoming"
+    }
+  ],
+  "inspection.components.swarm.table.value.local.discovery": [
+    {
+      "type": 0,
+      "value": "local discovery"
+    }
+  ],
+  "inspection.components.swarm.table.value.magnet.hint": [
+    {
+      "type": 0,
+      "value": "magnet hint"
+    }
+  ],
+  "inspection.components.swarm.table.value.manual": [
+    {
+      "type": 0,
+      "value": "manual"
+    }
+  ],
+  "inspection.components.swarm.table.value.not.connectable": [
+    {
+      "type": 0,
+      "value": "not connectable"
+    }
+  ],
+  "inspection.components.swarm.table.value.peer.exchange": [
+    {
+      "type": 0,
+      "value": "peer exchange"
+    }
+  ],
+  "inspection.components.swarm.table.value.protocol": [
+    {
+      "type": 0,
+      "value": "protocol"
+    }
+  ],
+  "inspection.components.swarm.table.value.remote.closed": [
+    {
+      "type": 0,
+      "value": "remote closed"
+    }
+  ],
+  "inspection.components.swarm.table.value.self.connection": [
+    {
+      "type": 0,
+      "value": "self connection"
+    }
+  ],
+  "inspection.components.swarm.table.value.tracker": [
+    {
+      "type": 0,
+      "value": "tracker"
     }
   ],
   "inspection.components.torrent.action.context.a.selected.torrent.is.no.longer.available": [
@@ -9170,6 +9933,26 @@
       "value": "Up"
     }
   ],
+  "inspection.components.tracker.table.age": [
+    {
+      "type": 1,
+      "value": "duration"
+    },
+    {
+      "type": 0,
+      "value": " ago"
+    }
+  ],
+  "inspection.components.tracker.table.announce.in": [
+    {
+      "type": 0,
+      "value": "Announce in "
+    },
+    {
+      "type": 1,
+      "value": "duration"
+    }
+  ],
   "inspection.components.tracker.table.attempts": [
     {
       "type": 0,
@@ -9286,6 +10069,28 @@
     {
       "type": 0,
       "value": "Peers"
+    }
+  ],
+  "inspection.components.tracker.table.presentation.empty": [
+    {
+      "type": 0,
+      "value": "This torrent has no configured trackers."
+    }
+  ],
+  "inspection.components.tracker.table.presentation.missing": [
+    {
+      "type": 0,
+      "value": "The torrent is no longer present."
+    }
+  ],
+  "inspection.components.tracker.table.retry.in": [
+    {
+      "type": 0,
+      "value": "Retry in "
+    },
+    {
+      "type": 1,
+      "value": "duration"
     }
   ],
   "inspection.components.tracker.table.seeds": [
@@ -9476,6 +10281,60 @@
     {
       "type": 0,
       "value": "URL"
+    }
+  ],
+  "inspection.components.tracker.table.value.announcing": [
+    {
+      "type": 0,
+      "value": "announcing"
+    }
+  ],
+  "inspection.components.tracker.table.value.disabled": [
+    {
+      "type": 0,
+      "value": "disabled"
+    }
+  ],
+  "inspection.components.tracker.table.value.idle": [
+    {
+      "type": 0,
+      "value": "idle"
+    }
+  ],
+  "inspection.components.tracker.table.value.inactive": [
+    {
+      "type": 0,
+      "value": "inactive"
+    }
+  ],
+  "inspection.components.tracker.table.value.magnet": [
+    {
+      "type": 0,
+      "value": "magnet"
+    }
+  ],
+  "inspection.components.tracker.table.value.metainfo": [
+    {
+      "type": 0,
+      "value": "metainfo"
+    }
+  ],
+  "inspection.components.tracker.table.value.reannounce.wait": [
+    {
+      "type": 0,
+      "value": "reannounce wait"
+    }
+  ],
+  "inspection.components.tracker.table.value.retry.wait": [
+    {
+      "type": 0,
+      "value": "retry wait"
+    }
+  ],
+  "inspection.components.tracker.table.value.unsupported": [
+    {
+      "type": 0,
+      "value": "unsupported"
     }
   ],
   "inspection.components.transfer.table.eta": [
@@ -11192,6 +12051,18 @@
       "value": "A selected torrent has a failed removal that must be retried or completed."
     }
   ],
+  "inspection.torrent.actions.archive": [
+    {
+      "type": 0,
+      "value": "Archive"
+    }
+  ],
+  "inspection.torrent.actions.archive.already": [
+    {
+      "type": 0,
+      "value": "All selected torrents are already archived."
+    }
+  ],
   "inspection.torrent.actions.archive.state.is.unavailable.for.a.selected": [
     {
       "type": 0,
@@ -11202,6 +12073,18 @@
     {
       "type": 0,
       "value": "Confirm or cancel the pending file selection before archiving."
+    }
+  ],
+  "inspection.torrent.actions.copy.magnet.many": [
+    {
+      "type": 0,
+      "value": "Copy magnet links"
+    }
+  ],
+  "inspection.torrent.actions.copy.magnet.one": [
+    {
+      "type": 0,
+      "value": "Copy magnet link"
     }
   ],
   "inspection.torrent.actions.copy.share.link": [
@@ -11222,10 +12105,208 @@
       "value": "Copying share links"
     }
   ],
+  "inspection.torrent.actions.force.recheck": [
+    {
+      "type": 0,
+      "value": "Force recheck"
+    }
+  ],
   "inspection.torrent.actions.keep.seeding": [
     {
       "type": 0,
       "value": "Keep seeding"
+    }
+  ],
+  "inspection.torrent.actions.move.to.bottom": [
+    {
+      "type": 0,
+      "value": "Move to bottom"
+    }
+  ],
+  "inspection.torrent.actions.move.to.top": [
+    {
+      "type": 0,
+      "value": "Move to top"
+    }
+  ],
+  "inspection.torrent.actions.pause": [
+    {
+      "type": 0,
+      "value": "Pause"
+    }
+  ],
+  "inspection.torrent.actions.pending.archive": [
+    {
+      "type": 0,
+      "value": "Archiving"
+    }
+  ],
+  "inspection.torrent.actions.pending.copy.magnet": [
+    {
+      "type": 0,
+      "value": "Copying magnet links"
+    }
+  ],
+  "inspection.torrent.actions.pending.force.recheck": [
+    {
+      "type": 0,
+      "value": "Starting recheck"
+    }
+  ],
+  "inspection.torrent.actions.pending.move.to.bottom": [
+    {
+      "type": 0,
+      "value": "Moving to bottom"
+    }
+  ],
+  "inspection.torrent.actions.pending.move.to.top": [
+    {
+      "type": 0,
+      "value": "Moving to top"
+    }
+  ],
+  "inspection.torrent.actions.pending.pause": [
+    {
+      "type": 0,
+      "value": "Pausing"
+    }
+  ],
+  "inspection.torrent.actions.pending.remove": [
+    {
+      "type": 0,
+      "value": "Removing"
+    }
+  ],
+  "inspection.torrent.actions.pending.restore": [
+    {
+      "type": 0,
+      "value": "Restoring"
+    }
+  ],
+  "inspection.torrent.actions.pending.settings": [
+    {
+      "type": 0,
+      "value": "Opening torrent settings"
+    }
+  ],
+  "inspection.torrent.actions.pending.start": [
+    {
+      "type": 0,
+      "value": "Starting"
+    }
+  ],
+  "inspection.torrent.actions.queue.unavailable": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " selected torrent is not in the download queue."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " selected torrents are not in the download queue."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.torrent.actions.recheck.unavailable": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " selected torrent does not have managed content available to recheck."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " selected torrents do not have managed content available to recheck."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.torrent.actions.removal.active": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " selected torrent is already being removed."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " selected torrents are already being removed."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.torrent.actions.remove": [
+    {
+      "type": 0,
+      "value": "Remove"
+    }
+  ],
+  "inspection.torrent.actions.restore": [
+    {
+      "type": 0,
+      "value": "Restore"
+    }
+  ],
+  "inspection.torrent.actions.restore.already": [
+    {
+      "type": 0,
+      "value": "All selected torrents are already restored."
     }
   ],
   "inspection.torrent.actions.restore.archived.torrent.first": [
@@ -11254,6 +12335,12 @@
     {
       "type": 0,
       "value": "Select one torrent to edit its settings."
+    }
+  ],
+  "inspection.torrent.actions.start": [
+    {
+      "type": 0,
+      "value": "Start"
     }
   ],
   "inspection.torrent.file.torrent.files.are.limited.to.64.mib": [
@@ -11333,6 +12420,30 @@
     {
       "type": 0,
       "value": " KB/s."
+    }
+  ],
+  "localization.language.description": [
+    {
+      "type": 0,
+      "value": "Choose the language used in this app."
+    }
+  ],
+  "localization.language.save-failed": [
+    {
+      "type": 0,
+      "value": "The language could not be changed. Try again."
+    }
+  ],
+  "localization.language.system": [
+    {
+      "type": 0,
+      "value": "System language"
+    }
+  ],
+  "localization.language.title": [
+    {
+      "type": 0,
+      "value": "Language"
     }
   ],
   "product.feedback.description": [

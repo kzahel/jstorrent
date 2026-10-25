@@ -1,5 +1,5 @@
 import { usePlayback } from "./VideoPlayer";
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage, useProductLocale  } from "../../localization/runtime";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useInspectionCommand, useInspectionStore } from "../context";
@@ -138,7 +138,7 @@ const columns = (dataUnits: DataUnits, override: (row: FileRow) => void, busy: b
     defaultVisible: false,
     sortValue: (row) => row.index,
     sortKind: "number",
-    render: (row) => row.index.toLocaleString(),
+    render: (row) => formatNumber(row.index),
   },
   {
     id: "offset",
@@ -162,8 +162,8 @@ const columns = (dataUnits: DataUnits, override: (row: FileRow) => void, busy: b
       row.firstPiece === null
         ? "—"
         : row.firstPiece === row.lastPiece
-          ? row.firstPiece.toLocaleString()
-          : `${row.firstPiece.toLocaleString()}–${row.lastPiece?.toLocaleString()}`,
+          ? formatNumber(row.firstPiece)
+          : `${formatNumber(row.firstPiece)}–${row.lastPiece == null ? undefined : formatNumber(row.lastPiece)}`,
   },
   {
     id: "storagePath",
@@ -229,7 +229,8 @@ export function FileTable({
     [fileSet],
   );
   const safetyRelevant = (safetySummary?.blocked_file_count ?? 0) > 0 || rows.some(row => row.safety != null);
-  const displayColumns = useMemo(() => columns(dataUnits, overrideSafety, fileActionPending).filter(column => column.id !== "safety" || safetyRelevant), [dataUnits, overrideSafety, fileActionPending, safetyRelevant]);
+  const locale = useProductLocale();
+  const displayColumns = useMemo(() => columns(dataUnits, overrideSafety, fileActionPending).filter(column => column.id !== "safety" || safetyRelevant), [locale, dataUnits, overrideSafety, fileActionPending, safetyRelevant]);
   const paddingCount = useMemo(
     () =>
       (fileSet?.order ?? []).filter((id) => fileSet?.rows[id]?.padding === true)
@@ -522,7 +523,7 @@ export function FileTable({
           {(safetySummary?.blocked_file_count ?? 0) > 0 ? <span>{localizedMessage("safety.files.total", { count: safetySummary!.blocked_file_count })}</span> : null}
           {safetySummary?.blocked_file_count === fileSet?.page.total && safetySummary?.blocked_file_count !== 0 ? <span>{localizedMessage("safety.files.none.selected")}</span> : null}
           {paddingCount > 0 ? (
-            <span>{paddingCount.toLocaleString()}{" "}{localizedMessage("inspection.components.file.table.padding.hidden")}</span>
+            <span>{formatNumber(paddingCount)}{" "}{localizedMessage("inspection.components.file.table.padding.hidden")}</span>
           ) : null}
           <span
             className={styles.storagePath}

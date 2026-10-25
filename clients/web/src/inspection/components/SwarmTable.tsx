@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage, useProductLocale  } from "../../localization/runtime";
 import { useMemo } from "react";
 
 import { useInspectionStore } from "../context";
@@ -117,7 +117,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
     sortable: true,
     sortKind: "number",
     sortValue: (row) => row.dialAttempts,
-    render: (row) => row.dialAttempts.toLocaleString(),
+    render: (row) => formatNumber(row.dialAttempts),
   },
   {
     id: "failures",
@@ -127,7 +127,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
     sortable: true,
     sortKind: "number",
     sortValue: (row) => row.consecutiveFailures,
-    render: (row) => row.consecutiveFailures.toLocaleString(),
+    render: (row) => formatNumber(row.consecutiveFailures),
   },
   {
     id: "failure",
@@ -168,7 +168,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
     sortable: true,
     sortKind: "number",
     sortValue: (row) => row.trustPoints,
-    render: (row) => row.trustPoints.toLocaleString(),
+    render: (row) => formatNumber(row.trustPoints),
   },
   {
     id: "parole",
@@ -177,7 +177,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
     sortable: true,
     sortValue: (row) => (row.onParole ? 1 : 0),
     sortKind: "number",
-    render: (row) => (row.onParole ? "Yes" : "No"),
+    render: (row) => (row.onParole ? localizedMessage("inspection.components.swarm.table.presentation.yes") : localizedMessage("inspection.components.swarm.table.presentation.no")),
   },
   {
     id: "integrity",
@@ -188,14 +188,15 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
     sortValue: (row) => `${row.onParole}-${row.hashFailures}-${row.validPieces}`,
     render: (row) =>
       row.onParole
-        ? `Parole · ${row.hashFailures} bad`
-        : `${row.validPieces.toLocaleString()} valid`,
+        ? localizedMessage("inspection.components.swarm.table.integrity.bad", { count: row.hashFailures })
+        : localizedMessage("inspection.components.swarm.table.integrity.valid", { count: row.validPieces }),
   },
 ];
 
 export function SwarmTable({ torrentId }: { readonly torrentId: string }) {
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
-  const displayColumns = useMemo(() => columns(dataUnits), [dataUnits]);
+  const locale = useProductLocale();
+  const displayColumns = useMemo(() => columns(dataUnits), [locale, dataUnits]);
   const swarm = useInspectionStore((state) => state.swarmByTorrent[torrentId]);
   const materialization = useInspectionStore((state) => state.viewStatus.swarm);
   const interfaceSize = useInspectionStore(
@@ -237,7 +238,7 @@ function SwarmSummary({ swarm }: { readonly swarm: SwarmSet | undefined }) {
       aria-label={localizedMessage("inspection.components.swarm.table.swarm.registry.summary")}
       tabIndex={0}
     >
-      <strong>{total.toLocaleString()}</strong>
+      <strong>{formatNumber(total)}</strong>
       <span>{localizedMessage("inspection.components.swarm.table.known")}</span>
       <span className={styles.separator} aria-hidden="true" />
       <SummaryCount label={localizedMessage("inspection.components.swarm.table.eligible")} value={counts?.eligible ?? 0} tone="ready" />
@@ -255,7 +256,7 @@ function SwarmSummary({ swarm }: { readonly swarm: SwarmSet | undefined }) {
         tone="limited"
       />
       <SummaryCount label={localizedMessage("inspection.components.swarm.table.banned")} value={counts?.banned ?? 0} tone="limited" />
-      <span className={styles.capacity}>{total.toLocaleString()} / {capacity.toLocaleString()}</span>
+      <span className={styles.capacity}>{formatNumber(total)} / {formatNumber(capacity)}</span>
     </div>
   );
 }
@@ -272,7 +273,7 @@ function SummaryCount({
   return (
     <span className={styles.summaryCount} data-tone={tone}>
       <span aria-hidden="true" />
-      {value.toLocaleString()} {label}
+      {formatNumber(value)} {label}
     </span>
   );
 }
@@ -293,23 +294,46 @@ function swarmEmptyMessage(
     case "stale":
     case "ready":
       return state === "inactive"
-        ? "The peer registry is inactive."
+        ? localizedMessage("inspection.components.swarm.table.presentation.inactive")
         : state === "torrent_missing"
-          ? "This torrent is no longer present."
-          : "No peers are known yet.";
+          ? localizedMessage("inspection.components.swarm.table.presentation.missing")
+          : localizedMessage("inspection.components.swarm.table.presentation.empty");
   }
 }
 
 function formatDuration(milliseconds: number | null): string {
   if (milliseconds === null) return "—";
   if (milliseconds < 1_000) return `${milliseconds}ms`;
-  if (milliseconds < 60_000) return `${(milliseconds / 1_000).toFixed(1)}s`;
+  if (milliseconds < 60_000) return `${formatNumber(milliseconds / 1_000, { useGrouping: false, minimumFractionDigits: 1, maximumFractionDigits: 1 })}s`;
   if (milliseconds < 3_600_000) return `${Math.round(milliseconds / 60_000)}m`;
-  return `${(milliseconds / 3_600_000).toFixed(1)}h`;
+  return `${formatNumber(milliseconds / 3_600_000, { useGrouping: false, minimumFractionDigits: 1, maximumFractionDigits: 1 })}h`;
 }
 
 function formatLabel(value: string): string {
-  return value.replaceAll("_", " ");
+  switch (value) {
+    case "eligible": return localizedMessage("inspection.components.swarm.table.value.eligible");
+    case "not_connectable": return localizedMessage("inspection.components.swarm.table.value.not.connectable");
+    case "dialing": return localizedMessage("inspection.components.swarm.table.value.dialing");
+    case "connected": return localizedMessage("inspection.components.swarm.table.value.connected");
+    case "backed_off": return localizedMessage("inspection.components.swarm.table.value.backed.off");
+    case "failure_limited": return localizedMessage("inspection.components.swarm.table.value.failure.limited");
+    case "banned": return localizedMessage("inspection.components.swarm.table.value.banned");
+    case "connect": return localizedMessage("inspection.components.swarm.table.value.connect");
+    case "handshake": return localizedMessage("inspection.components.swarm.table.value.handshake");
+    case "self_connection": return localizedMessage("inspection.components.swarm.table.value.self.connection");
+    case "duplicate_peer_id": return localizedMessage("inspection.components.swarm.table.value.duplicate.peer.id");
+    case "protocol": return localizedMessage("inspection.components.swarm.table.value.protocol");
+    case "remote_closed": return localizedMessage("inspection.components.swarm.table.value.remote.closed");
+    case "tracker": return localizedMessage("inspection.components.swarm.table.value.tracker");
+    case "peer_exchange": return localizedMessage("inspection.components.swarm.table.value.peer.exchange");
+    case "dht": return localizedMessage("inspection.components.swarm.table.value.dht");
+    case "local_discovery": return localizedMessage("inspection.components.swarm.table.value.local.discovery");
+    case "incoming": return localizedMessage("inspection.components.swarm.table.value.incoming");
+    case "manual": return localizedMessage("inspection.components.swarm.table.value.manual");
+    case "magnet_hint": return localizedMessage("inspection.components.swarm.table.value.magnet.hint");
+    case "cache": return localizedMessage("inspection.components.swarm.table.value.cache");
+    default: return value.replaceAll("_", " ");
+  }
 }
 
 function shortSource(source: SwarmRow["sources"][number]): string {

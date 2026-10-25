@@ -18,6 +18,8 @@ pub(crate) struct DesktopNotification {
     pub(crate) kind: DesktopNotificationKind,
     pub(crate) title: &'static str,
     pub(crate) body: String,
+    #[cfg(target_os = "linux")]
+    pub(crate) open_label: &'static str,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -248,28 +250,39 @@ fn needs_attention(observation: &TorrentObservation) -> bool {
 }
 
 fn completion_notification(observation: &TorrentObservation) -> DesktopNotification {
+    let locale = desktop_localization::current_locale();
     DesktopNotification {
         kind: DesktopNotificationKind::DownloadComplete,
-        title: desktop_localization::text("notification.download-complete.title"),
-        body: desktop_localization::format(
-            "notification.download-complete.body",
-            &[("name", &notification_name(observation))],
+        title: desktop_localization::text_for_locale(
+            "notification.download-complete.title",
+            locale,
         ),
+        body: desktop_localization::format_for_locale(
+            "notification.download-complete.body",
+            locale,
+            &[("name", &notification_name(observation, locale))],
+        ),
+        #[cfg(target_os = "linux")]
+        open_label: desktop_localization::text_for_locale("notification.open", locale),
     }
 }
 
 fn attention_notification(observation: &TorrentObservation) -> DesktopNotification {
+    let locale = desktop_localization::current_locale();
     DesktopNotification {
         kind: DesktopNotificationKind::NeedsAttention,
-        title: desktop_localization::text("notification.needs-attention.title"),
-        body: desktop_localization::format(
+        title: desktop_localization::text_for_locale("notification.needs-attention.title", locale),
+        body: desktop_localization::format_for_locale(
             "notification.needs-attention.body",
-            &[("name", &notification_name(observation))],
+            locale,
+            &[("name", &notification_name(observation, locale))],
         ),
+        #[cfg(target_os = "linux")]
+        open_label: desktop_localization::text_for_locale("notification.open", locale),
     }
 }
 
-fn notification_name(observation: &TorrentObservation) -> String {
+fn notification_name(observation: &TorrentObservation, locale: &str) -> String {
     let normalized = observation
         .display_name
         .as_deref()
@@ -278,7 +291,8 @@ fn notification_name(observation: &TorrentObservation) -> String {
         .collect::<Vec<_>>()
         .join(" ");
     if normalized.is_empty() {
-        return desktop_localization::text("notification.unnamed-torrent").to_owned();
+        return desktop_localization::text_for_locale("notification.unnamed-torrent", locale)
+            .to_owned();
     }
     if normalized.chars().count() <= MAX_NOTIFICATION_NAME_CHARS {
         return normalized;

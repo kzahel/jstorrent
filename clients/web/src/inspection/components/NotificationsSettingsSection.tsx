@@ -20,19 +20,18 @@ const OPTIONS: readonly {
 }[] = [
   {
     setting: "notify_download_complete",
-    label: localizedMessage("inspection.components.notifications.settings.section.download.complete"),
-    description: localizedMessage("inspection.components.notifications.settings.section.when.a.download.finishes"),
+    get label() { return localizedMessage("inspection.components.notifications.settings.section.download.complete"); },
+    get description() { return localizedMessage("inspection.components.notifications.settings.section.when.a.download.finishes"); },
   },
   {
     setting: "notify_needs_attention",
-    label: localizedMessage("inspection.components.notifications.settings.section.download.needs.attention"),
-    description: localizedMessage("inspection.components.notifications.settings.section.when.a.torrent.needs.action"),
+    get label() { return localizedMessage("inspection.components.notifications.settings.section.download.needs.attention"); },
+    get description() { return localizedMessage("inspection.components.notifications.settings.section.when.a.torrent.needs.action"); },
   },
   {
     setting: "notify_while_focused",
-    label: localizedMessage("inspection.components.notifications.settings.section.notify.while.rstorrent.is.focused"),
-    description:
-      localizedMessage("inspection.components.notifications.settings.section.also.notify.while.using"),
+    get label() { return localizedMessage("inspection.components.notifications.settings.section.notify.while.rstorrent.is.focused"); },
+    get description() { return localizedMessage("inspection.components.notifications.settings.section.also.notify.while.using"); },
   },
 ];
 

@@ -3,16 +3,7 @@
   "locales": {
     "de": {
       "catalog": "clients/android/app/src/debug/res/values-de/strings.xml",
-      "quantities": ["one", "other"],
-      "guidance": {
-        "register": "Use informal du consistently, with natural concise German UI copy.",
-        "terminology": {
-          "remove": "Entfernen; preserves downloaded data",
-          "delete data": "Daten löschen; deletes downloaded data",
-          "Done button": "Fertig",
-          "completed status": "Abgeschlossen"
-        }
-      }
+      "quantities": ["one", "other"]
     }
   }
 }

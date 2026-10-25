@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage, useProductLocale  } from "../../localization/runtime";
 import { useMemo } from "react";
 
 import { useInspectionStore } from "../context";
@@ -123,7 +123,7 @@ const columns = (
     sortValue: (row) => row.peersConnected,
     render: (row) =>
       row.peersKnown === null
-        ? row.peersConnected.toLocaleString()
+        ? formatNumber(row.peersConnected)
         : `${row.peersConnected}/${row.peersKnown}`,
   },
   {
@@ -172,7 +172,8 @@ export function TorrentTable() {
     (state) => state.presentation.interfaceSize,
   );
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
-  const displayColumns = useMemo(() => columns(dataUnits), [dataUnits]);
+  const locale = useProductLocale();
+  const displayColumns = useMemo(() => columns(dataUnits), [locale, dataUnits]);
   const rows = useMemo(
     () =>
       order

@@ -89,6 +89,8 @@ const TRAY_SHOW_ID: &str = "rstorrent-tray-show";
 const TRAY_UPDATE_ID: &str = "rstorrent-tray-update";
 const TRAY_BACKGROUND_ID: &str = "rstorrent-tray-background";
 const TRAY_QUIT_ID: &str = "rstorrent-tray-quit";
+#[cfg(target_os = "macos")]
+const APPLICATION_QUIT_ID: &str = "rstorrent-application-quit";
 const UPDATE_CHECK_EVENT: &str = "rstorrent://check-for-updates";
 const EXTERNAL_INTAKE_EVENT: &str = "rstorrent://external-torrent-intake";
 const PEER_CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
@@ -127,6 +129,7 @@ struct DesktopState {
     power_owner: Mutex<Option<DesktopPowerOwner>>,
     power_preference: watch::Sender<bool>,
     background_menu_item: CheckMenuItem<tauri::Wry>,
+    tray_menu: Menu<tauri::Wry>,
     shutdown: ShutdownGate,
     shutdown_status: watch::Sender<ShutdownPhase>,
     shutdown_error: StdMutex<Option<String>>,
@@ -144,6 +147,84 @@ struct DesktopState {
 struct DesktopRemoteAccessState {
     configured: bool,
     security: Option<RemoteSecurityView>,
+}
+
+#[tauri::command]
+async fn load_desktop_locale(
+    app: AppHandle,
+    owner: State<'_, StdMutex<desktop_localization::DesktopLocaleOwner>>,
+) -> Result<desktop_localization::DesktopLocaleSnapshot, String> {
+    let mut owner = owner
+        .lock()
+        .map_err(|_| "desktop locale owner is unavailable")?;
+    let snapshot = owner.refresh_system();
+    apply_desktop_locale(&app, &snapshot);
+    Ok(snapshot)
+}
+
+#[tauri::command]
+async fn set_desktop_locale(
+    app: AppHandle,
+    owner: State<'_, StdMutex<desktop_localization::DesktopLocaleOwner>>,
+    preference: desktop_localization::LocalePreference,
+) -> Result<desktop_localization::DesktopLocaleSnapshot, String> {
+    let mut owner = owner
+        .lock()
+        .map_err(|_| "desktop locale owner is unavailable")?;
+    let snapshot = owner.select(preference)?;
+    apply_desktop_locale(&app, &snapshot);
+    Ok(snapshot)
+}
+
+fn apply_desktop_locale(app: &AppHandle, snapshot: &desktop_localization::DesktopLocaleSnapshot) {
+    desktop_localization::activate(snapshot.locale);
+    if let Err(error) = relabel_desktop_menus(app) {
+        eprintln!("desktop locale menu refresh failed: {error}");
+    }
+    if let Err(error) = app.emit(desktop_localization::LOCALE_CHANGED_EVENT, snapshot) {
+        eprintln!("desktop locale event delivery failed: {error}");
+    }
+}
+
+fn relabel_desktop_menus(app: &AppHandle) -> Result<(), String> {
+    if let Some(state) = app.try_state::<DesktopState>() {
+        for (id, key) in [
+            (TRAY_SHOW_ID, "tray.show"),
+            (TRAY_UPDATE_ID, "tray.check-updates"),
+            (TRAY_QUIT_ID, "tray.quit"),
+        ] {
+            if let Some(item) = state
+                .tray_menu
+                .get(id)
+                .and_then(|item| item.as_menuitem().cloned())
+            {
+                item.set_text(desktop_localization::text(key))
+                    .map_err(|error| error.to_string())?;
+            }
+        }
+        state
+            .background_menu_item
+            .set_text(desktop_localization::text("tray.run-in-background"))
+            .map_err(|error| error.to_string())?;
+    }
+    if let Some(tray) = app.tray_by_id(TRAY_ID) {
+        tray.set_tooltip(Some(desktop_localization::text("tray.tooltip")))
+            .map_err(|error| error.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    if let Some(menu) = app.menu() {
+        for item in menu.items().map_err(|error| error.to_string())? {
+            if let Some(submenu) = item.as_submenu()
+                && let Some(quit) = submenu
+                    .get(APPLICATION_QUIT_ID)
+                    .and_then(|item| item.as_menuitem().cloned())
+            {
+                quit.set_text(desktop_localization::text("tray.quit"))
+                    .map_err(|error| error.to_string())?;
+            }
+        }
+    }
+    Ok(())
 }
 
 struct DesktopNotificationOwner {
@@ -1595,7 +1676,7 @@ async fn deliver_desktop_notification(
         .body(&notification.body)
         .icon("jstorrent-client")
         .timeout(notify_rust::Timeout::Never)
-        .action("default", desktop_localization::text("notification.open"));
+        .action("default", notification.open_label);
     let handle = match native.show_async().await {
         Ok(handle) => {
             eprintln!("desktop notification displayed for {category}");
@@ -1947,10 +2028,17 @@ fn show_shutdown_failure(app: &AppHandle) {
     if let Err(error) = restore_main_window(app) {
         eprintln!("failed to restore desktop window after shutdown failure: {error}");
     }
+    let locale = desktop_localization::current_locale();
     let dialog = app
         .dialog()
-        .message(desktop_localization::text("dialog.shutdown.body"))
-        .title(desktop_localization::text("dialog.shutdown.title"))
+        .message(desktop_localization::text_for_locale(
+            "dialog.shutdown.body",
+            locale,
+        ))
+        .title(desktop_localization::text_for_locale(
+            "dialog.shutdown.title",
+            locale,
+        ))
         .kind(MessageDialogKind::Error);
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         dialog.parent(&window).show(|_| {});
@@ -2223,10 +2311,15 @@ fn install_macos_application_menu(app: &tauri::App) -> tauri::Result<()> {
     // Muda's predefined macOS Quit sends terminate: directly to AppKit,
     // bypassing Tauri's preventable ExitRequested and our joined shutdown.
     // Keep the standard menu, replacing only that native termination action.
-    const QUIT_ID: &str = "rstorrent-application-quit";
     let menu = Menu::default(app.handle())?;
     let quit_text = PredefinedMenuItem::quit(app, None)?.text()?;
-    let quit = MenuItem::with_id(app, QUIT_ID, &quit_text, true, Some("Cmd+Q"))?;
+    let quit = MenuItem::with_id(
+        app,
+        APPLICATION_QUIT_ID,
+        desktop_localization::text("tray.quit"),
+        true,
+        Some("Cmd+Q"),
+    )?;
     let mut replaced = 0;
     for item in menu.items()? {
         if let Some(submenu) = item.as_submenu() {
@@ -2246,7 +2339,7 @@ fn install_macos_application_menu(app: &tauri::App) -> tauri::Result<()> {
     }
     app.set_menu(menu)?;
     app.on_menu_event(|app, event| {
-        if event.id().as_ref() == QUIT_ID {
+        if event.id().as_ref() == APPLICATION_QUIT_ID {
             request_application_shutdown(app, false);
         }
     });
@@ -2331,10 +2424,17 @@ fn show_settings_failure(app: &AppHandle) {
     if let Err(error) = restore_main_window(app) {
         eprintln!("failed to restore desktop window after settings failure: {error}");
     }
+    let locale = desktop_localization::current_locale();
     let dialog = app
         .dialog()
-        .message(desktop_localization::text("dialog.settings-save.body"))
-        .title(desktop_localization::text("dialog.settings-save.title"))
+        .message(desktop_localization::text_for_locale(
+            "dialog.settings-save.body",
+            locale,
+        ))
+        .title(desktop_localization::text_for_locale(
+            "dialog.settings-save.title",
+            locale,
+        ))
         .kind(MessageDialogKind::Error);
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         dialog.parent(&window).show(|_| {});
@@ -2596,6 +2696,11 @@ pub fn run() {
                 app.handle().exit(0);
                 return Ok(());
             }
+            // Pure presentation preferences resolve before native tray/dialogs;
+            // the webview receives this same owner rather than a shadow choice.
+            let locale_owner = desktop_localization::DesktopLocaleOwner::open(&config_dir);
+            desktop_localization::activate(locale_owner.snapshot().locale);
+            app.manage(StdMutex::new(locale_owner));
             #[cfg(target_os = "linux")]
             let appimage = app.env().appimage.map(PathBuf::from);
             #[cfg(not(target_os = "linux"))]
@@ -2770,6 +2875,7 @@ pub fn run() {
                 power_owner: Mutex::new(None),
                 power_preference,
                 background_menu_item,
+                tray_menu: tray_menu.clone(),
                 shutdown: ShutdownGate::new(),
                 shutdown_status: watch::channel(ShutdownPhase::Running).0,
                 shutdown_error: StdMutex::new(None),
@@ -2833,6 +2939,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            load_desktop_locale,
+            set_desktop_locale,
             desktop_remote_access_state,
             desktop_remote_access_enable,
             desktop_remote_access_rename,

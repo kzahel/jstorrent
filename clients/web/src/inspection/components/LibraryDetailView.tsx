@@ -1,6 +1,6 @@
 import { usePlayback } from "./VideoPlayer";
 import { isPlaybackEligible, useMediaPlayback } from "./useMediaPlayback";
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage  } from "../../localization/runtime";
 import {
   useEffect,
   useMemo,
@@ -130,7 +130,7 @@ export function LibraryDetailView({
             </span>
             {mediaCount === undefined ? null : (
               <span>
-                {mediaCount.toLocaleString()}{" "}{localizedMessage("inspection.components.library.detail.view.recognized.video")}{mediaCount === 1 ? "" : "s"}
+                {formatNumber(mediaCount)}{" "}{localizedMessage("inspection.components.library.detail.view.recognized.video")}{mediaCount === 1 ? "" : "s"}
               </span>
             )}
           </div>
@@ -257,7 +257,7 @@ function FileCatalog({
   return (
     <>
       {total > sorted.length ? (
-        <p className={styles.pageNotice}>{localizedMessage("inspection.components.library.detail.view.showing.the.first")}{" "}{sorted.length.toLocaleString()}{" "}{localizedMessage("inspection.components.library.detail.view.of")}{" "}{total.toLocaleString()}{" "}{localizedMessage("inspection.components.library.detail.view.files")}</p>
+        <p className={styles.pageNotice}>{localizedMessage("inspection.components.library.detail.view.showing.the.first")}{" "}{formatNumber(sorted.length)}{" "}{localizedMessage("inspection.components.library.detail.view.of")}{" "}{formatNumber(total)}{" "}{localizedMessage("inspection.components.library.detail.view.files")}</p>
       ) : null}
       <VirtualCatalog
         rows={sorted.map((row) => ({ kind: "file" as const, row }))}

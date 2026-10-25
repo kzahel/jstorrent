@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage  } from "../../localization/runtime";
 import {
   useEffect,
   useMemo,
@@ -158,7 +158,7 @@ export function LibraryView() {
               materializationMessage(materialization)
             ) : (
               <>
-                {rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.library.view.torrent.backed.content")}{" "}
+                {formatNumber(rows.length)}{" "}{localizedMessage("inspection.components.library.view.torrent.backed.content")}{" "}
                 {rows.length === 1 ? localizedMessage("inspection.components.library.view.source") : localizedMessage("inspection.components.library.view.sources")}
               </>
             )}

@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage } from "../../localization/runtime";
 import { productFlavor, type AboutConnection, type AboutFacts, type ProductFlavor } from "../support/about";
 import { progressPercent } from "../updater/controller";
 import { installPolicy } from "../updater/policy";
@@ -332,6 +332,6 @@ function packageLabel(bundleType: DesktopUpdaterSnapshot["info"]["bundleType"]):
 
 function formatBytes(bytes: number): string {
   if (bytes < 1_024) return `${bytes} B`;
-  if (bytes < 1_048_576) return `${(bytes / 1_024).toFixed(1)} KiB`;
-  return `${(bytes / 1_048_576).toFixed(1)} MiB`;
+  if (bytes < 1_048_576) return `${formatNumber(bytes / 1_024, { useGrouping: false, minimumFractionDigits: 1, maximumFractionDigits: 1 })} KiB`;
+  return `${formatNumber(bytes / 1_048_576, { useGrouping: false, minimumFractionDigits: 1, maximumFractionDigits: 1 })} MiB`;
 }

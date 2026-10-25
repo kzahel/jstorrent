@@ -1,5 +1,14 @@
 # Client Surfaces
 
+Tactical [384](../tactical/384-shared-translation-workflow-and-desktop-german.md)
+adds a German development preview to shared React and the native desktop
+shell. Desktop native code owns system/override resolution, preference
+persistence, menus and future notification language; the renderer subscribes
+to locale changes without rebuilding the application service. Browser-only
+surfaces keep their language preference locally. Release locale support is
+still English; Android retains its platform-native ownership from 383.
+
+
 Tactical [383](../tactical/383-android-translation-cohorts.md) adds Android
 Settings → Language with a system default and remembered local override.
 Android 13+ uses its native app-locale owner; earlier supported versions use
@@ -1497,8 +1506,8 @@ with exact SAF cleanup.
   shared React/Tauri, Android, and iOS complete checked English catalogs,
   system locale negotiation, locale-aware formatting, strict
   provenance/placeholder checks, and LTR/RTL pseudo evidence. The remaining
-  localization gap is a separately selected and native-reviewed first real
-  language cohort; no non-English production locale is currently advertised.
+  localization gap is promotion of the independently reviewed German preview
+  to a production language cohort; no non-English production locale is currently advertised.
 
 - The React Library now has a rebuildable media-first torrent detail, but its
   top level remains torrent-backed. Library-wide item aggregation, durable

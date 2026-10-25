@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { message as localizedMessage, formatDate as localizedDate } from "../../localization/runtime";
 import { useEffect, useState } from "react";
 
 import type {
@@ -215,10 +215,10 @@ function formatRemaining(seconds: number): string {
 }
 
 function formatDate(unixSeconds: number): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return localizedDate(unixSeconds * 1_000, {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(new Date(unixSeconds * 1_000));
+  });
 }
 
 function asMessage(cause: unknown): string {

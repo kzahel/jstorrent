@@ -2,7 +2,7 @@ import { useState, useSyncExternalStore } from "react";
 
 import jstorrentIcon from "../../assets/jstorrent.png";
 import type { CatalogRecoveryReason } from "../../api";
-import { message as localizedMessage } from "../../localization/runtime";
+import { message as localizedMessage, useProductLocale } from "../../localization/runtime";
 import type { DesktopRecovery } from "../../tauri-recovery";
 import { FEEDBACK_PAGE_URL } from "../support/report-links";
 import type { DesktopUpdater, DesktopUpdaterSnapshot } from "../updater/types";
@@ -22,6 +22,7 @@ type ExportState = "idle" | "working" | "saved" | { readonly error: string };
  * may fix it, and the torrent list can be exported meanwhile.
  */
 export function RecoveryScreen({ recovery, updater, openExternalUrl }: RecoveryScreenProps) {
+  useProductLocale();
   const { status } = recovery;
   const [exportState, setExportState] = useState<ExportState>("idle");
   const [copied, setCopied] = useState(false);

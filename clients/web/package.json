@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "check:localization": "node ../../scripts/check-localization.mjs",
-    "generate:localization": "formatjs compile src/localization/messages/en.json --ast --out-file src/localization/generated/en.json",
+    "generate:localization": "node scripts/generate-localization.mjs",
     "extract:localization": "node scripts/migrate-inline-messages.mjs && npm run generate:localization && npm run check:localization",
     "prebuild": "node scripts/patch-playsvideo.mjs && npm run generate:validators && npm run generate:localization",
     "build": "vite build && npm run check:csp",
@@ -22,7 +22,7 @@
     "generate:validators": "node scripts/generate-validators.mjs",
     "pretest": "npm run generate:validators && npm run generate:localization",
     "test": "vitest run",
-    "test:e2e": "VITE_RSTORRENT_ENABLE_PSEUDO_LOCALES=1 playwright test",
+    "test:e2e": "VITE_RSTORRENT_ENABLE_PSEUDO_LOCALES=1 VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1 playwright test",
     "pretypecheck": "node scripts/patch-playsvideo.mjs && npm run generate:validators && npm run generate:localization",
     "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/patch-playsvideo.mjs"

@@ -37,6 +37,8 @@ fi
 
 repository_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$repository_root/scripts/dev-env.sh"
+# Both the React build and native compile consume this development-only gate.
+export VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1
 unset npm_config_recursive NPM_CONFIG_RECURSIVE
 
 bundle_executable="$(node "$repository_root/scripts/build-desktop-bundle.mjs")"

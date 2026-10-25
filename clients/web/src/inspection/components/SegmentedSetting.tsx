@@ -18,6 +18,7 @@ export function SegmentedSetting<Value extends string>({
   disabled = false,
   children,
   onChange,
+  onReselect,
 }: {
   readonly name: string;
   readonly title: string;
@@ -27,6 +28,8 @@ export function SegmentedSetting<Value extends string>({
   /** Extra heading lines under the chosen option's description. */
   readonly children?: ReactNode;
   readonly onChange: (value: Value) => void;
+  /** Explicitly selecting an already active effective value can replace an unavailable saved override. */
+  readonly onReselect?: ((value: Value) => void) | undefined;
 }) {
   const headingId = `${name}-heading`;
   const descriptionId = `${name}-description`;
@@ -49,6 +52,7 @@ export function SegmentedSetting<Value extends string>({
         value={value}
         disabled={disabled}
         onChange={onChange}
+        onReselect={onReselect}
       />
     </div>
   );

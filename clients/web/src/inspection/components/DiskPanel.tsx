@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage, useProductLocale  } from "../../localization/runtime";
 import { useMemo, type CSSProperties } from "react";
 
 import { useInspectionStore } from "../context";
@@ -29,7 +29,7 @@ const diskColumns = (
     align: "right",
     sortKind: "number",
     sortValue: (row) => row.pieceIndex,
-    render: (row) => row.pieceIndex.toLocaleString(),
+    render: (row) => formatNumber(row.pieceIndex),
   },
   {
     id: "stage",
@@ -112,7 +112,7 @@ const diskColumns = (
     defaultVisible: false,
     sortKind: "number",
     sortValue: (row) => row.attempt,
-    render: (row) => row.attempt.toLocaleString(),
+    render: (row) => formatNumber(row.attempt),
   },
   {
     id: "error",
@@ -134,7 +134,8 @@ export function DiskPanel() {
     (state) => state.presentation.interfaceSize,
   );
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
-  const displayColumns = useMemo(() => diskColumns(dataUnits), [dataUnits]);
+  const locale = useProductLocale();
+  const displayColumns = useMemo(() => diskColumns(dataUnits), [locale, dataUnits]);
   const rows = useMemo(
     () =>
       disk.order
@@ -157,7 +158,7 @@ export function DiskPanel() {
           <div>
             <h2 id="active-disk-pieces">{localizedMessage("inspection.components.disk.panel.active.storage.pieces")}</h2>
           </div>
-          <span>{rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.disk.panel.active")}</span>
+          <span>{formatNumber(rows.length)}{" "}{localizedMessage("inspection.components.disk.panel.active")}</span>
         </div>
         <VirtualTable
           tableId="session-disk-pieces"
@@ -190,12 +191,12 @@ function DiskSummary({
     pipeline.residentBytes,
   );
   const stages = [
-    ["Requested", pipeline.requestedBytes],
-    ["Resident", pipeline.residentBytes],
-    ["Queued write", pipeline.queuedWriteBytes],
-    ["Writing", pipeline.writingBytes],
-    ["Hashing", pipeline.hashingBytes],
-    ["Checkpoint dirty", pipeline.checkpointDirtyBytes],
+    [localizedMessage("inspection.components.disk.panel.stage.label.requested"), pipeline.requestedBytes],
+    [localizedMessage("inspection.components.disk.panel.stage.label.resident"), pipeline.residentBytes],
+    [localizedMessage("inspection.components.disk.panel.stage.label.queued.write"), pipeline.queuedWriteBytes],
+    [localizedMessage("inspection.components.disk.panel.stage.label.writing"), pipeline.writingBytes],
+    [localizedMessage("inspection.components.disk.panel.stage.label.hashing"), pipeline.hashingBytes],
+    [localizedMessage("inspection.components.disk.panel.stage.label.checkpoint.dirty"), pipeline.checkpointDirtyBytes],
   ] as const;
   const pressureLabel = titleCase(pipeline.pressure);
   return (
@@ -212,7 +213,7 @@ function DiskSummary({
       </div>
       <div
         className={styles.pipeline}
-        aria-label={`Disk pressure ${pressureLabel}`}
+        aria-label={localizedMessage("inspection.components.disk.panel.presentation.pressure.description", { pressure: pressureLabel })}
       >
         {stages.map(([label, value]) => (
           <div key={label}>
@@ -234,69 +235,69 @@ function DiskSummary({
         <Metric
           label={localizedMessage("inspection.components.disk.panel.resident.limit")}
           value={`${formatBytes(pipeline.residentBytes, dataUnits)} / ${formatBytes(pipeline.residentLimitBytes, dataUnits)}`}
-          detail={`high ${formatBytes(pipeline.residentHighWatermarkBytes, dataUnits)} · low ${formatBytes(pipeline.residentLowWatermarkBytes, dataUnits)}`}
+          detail={localizedMessage("inspection.components.disk.panel.presentation.watermarks", { high: formatBytes(pipeline.residentHighWatermarkBytes, dataUnits), low: formatBytes(pipeline.residentLowWatermarkBytes, dataUnits) })}
         />
         <Metric
           label={localizedMessage("inspection.components.disk.panel.receive.write")}
           value={`${formatRate(pipeline.receiveRateBytes, dataUnits)} / ${formatRate(pipeline.writeRateBytes, dataUnits)}`}
-          detail={`${formatDuration(pipeline.sampleMillis)} sample`}
+          detail={localizedMessage("inspection.components.disk.panel.presentation.sample.duration", { duration: formatDuration(pipeline.sampleMillis) })}
         />
         <Metric
           label={localizedMessage("inspection.components.disk.panel.stored.verified")}
           value={`${formatBytes(pipeline.storedBytesTotal, dataUnits)} / ${formatBytes(pipeline.verifiedBytesTotal, dataUnits)}`}
-          detail={`${formatRate(pipeline.hashRateBytes, dataUnits)} verify rate`}
+          detail={localizedMessage("inspection.components.disk.panel.presentation.verify.rate", { rate: formatRate(pipeline.hashRateBytes, dataUnits) })}
         />
         <Metric
           label={localizedMessage("inspection.components.disk.panel.pending.work")}
-          value={`${pipeline.storageJobsPending.toLocaleString()} jobs · ${activePieces.toLocaleString()} pieces`}
-          detail={`${pipeline.pressureTransitionCount.toLocaleString()} pressure transitions`}
+          value={localizedMessage("inspection.components.disk.panel.presentation.pending.counts", { jobs: pipeline.storageJobsPending, pieces: activePieces })}
+          detail={localizedMessage("inspection.components.disk.panel.presentation.pressure.transitions", { count: pipeline.pressureTransitionCount })}
         />
         <Metric
           label={localizedMessage("inspection.components.disk.panel.write.queue.wait")}
           value={formatMicros(pipeline.writeQueueWaitMaxMicros)}
-          detail={`${formatMicros(pipeline.writeQueueWaitMicros)} cumulative`}
+          detail={localizedMessage("inspection.components.disk.panel.presentation.queue.cumulative", { duration: formatMicros(pipeline.writeQueueWaitMicros) })}
         />
         <Metric
           label={localizedMessage("inspection.components.disk.panel.write.service")}
           value={formatMicros(pipeline.writeServiceMaxMicros)}
-          detail={`${pipeline.writeOperationsCompleted.toLocaleString()} / ${pipeline.writeOperationsStarted.toLocaleString()} operations`}
+          detail={localizedMessage("inspection.components.disk.panel.presentation.write.operations", { completed: pipeline.writeOperationsCompleted, started: pipeline.writeOperationsStarted })}
         />
         <Metric
           label={localizedMessage("inspection.components.disk.panel.hash.service")}
           value={formatMicros(pipeline.hashServiceMaxMicros)}
-          detail={`${pipeline.hashOperationsCompleted.toLocaleString()} / ${pipeline.hashOperationsStarted.toLocaleString()} operations`}
+          detail={localizedMessage("inspection.components.disk.panel.presentation.hash.operations", { completed: pipeline.hashOperationsCompleted, started: pipeline.hashOperationsStarted })}
         />
         <Metric
           label={localizedMessage("inspection.components.disk.panel.checkpoint.backlog")}
-          value={`${pipeline.checkpointDirtyPieces.toLocaleString()} pieces · ${formatBytes(pipeline.checkpointDirtyBytes, dataUnits)}`}
-          detail={`oldest ${formatDuration(pipeline.checkpointOldestDirtyMillis)} · high ${pipeline.checkpointDirtyPieceHighWater.toLocaleString()} pieces / ${formatBytes(pipeline.checkpointDirtyByteHighWater, dataUnits)}`}
+          value={localizedMessage("inspection.components.disk.panel.presentation.checkpoint.backlog.value", { pieces: pipeline.checkpointDirtyPieces, bytes: formatBytes(pipeline.checkpointDirtyBytes, dataUnits) })}
+          detail={localizedMessage("inspection.components.disk.panel.presentation.checkpoint.backlog.detail", { duration: formatDuration(pipeline.checkpointOldestDirtyMillis), pieces: pipeline.checkpointDirtyPieceHighWater, bytes: formatBytes(pipeline.checkpointDirtyByteHighWater, dataUnits) })}
         />
         <Metric
           label={localizedMessage("inspection.components.disk.panel.checkpoint.stage")}
           value={titleCase(pipeline.checkpointStage)}
           detail={
             pipeline.checkpointActiveMicros === null
-              ? `${pipeline.checkpointBatchesCompleted.toLocaleString()} / ${pipeline.checkpointBatchesStarted.toLocaleString()} batches`
-              : `${formatMicros(pipeline.checkpointActiveMicros)} active`
+              ? localizedMessage("inspection.components.disk.panel.presentation.checkpoint.batches", { completed: pipeline.checkpointBatchesCompleted, started: pipeline.checkpointBatchesStarted })
+              : localizedMessage("inspection.components.disk.panel.presentation.checkpoint.active", { duration: formatMicros(pipeline.checkpointActiveMicros) })
           }
         />
         <Metric
           label={localizedMessage("inspection.components.disk.panel.disk.sync")}
           value={formatMicros(pipeline.checkpointSyncServiceMaxMicros)}
-          detail={`${formatMicros(pipeline.checkpointSyncServiceMicros)} cumulative · ${pipeline.checkpointSyncOperationsCompleted.toLocaleString()} targets`}
+          detail={localizedMessage("inspection.components.disk.panel.presentation.sync.cumulative", { duration: formatMicros(pipeline.checkpointSyncServiceMicros), count: pipeline.checkpointSyncOperationsCompleted })}
         />
         <Metric
           label={localizedMessage("inspection.components.disk.panel.checkpoint.commit")}
           value={formatMicros(pipeline.checkpointCommitServiceMaxMicros)}
-          detail={`${formatMicros(pipeline.checkpointCommitServiceMicros)} cumulative · ${pipeline.checkpointPiecesCompleted.toLocaleString()} pieces`}
+          detail={localizedMessage("inspection.components.disk.panel.presentation.commit.cumulative", { duration: formatMicros(pipeline.checkpointCommitServiceMicros), count: pipeline.checkpointPiecesCompleted })}
         />
         <Metric
           label={localizedMessage("inspection.components.disk.panel.backpressured")}
           value={formatDuration(pipeline.backpressuredMillisTotal)}
           detail={
             pipeline.intakeBackpressured
-              ? "intake paused now"
-              : "intake is open"
+              ? localizedMessage("inspection.components.disk.panel.presentation.intake.paused")
+              : localizedMessage("inspection.components.disk.panel.presentation.intake.open")
           }
         />
       </dl>
@@ -353,11 +354,31 @@ function formatMicros(micros: number): string {
 function formatDuration(milliseconds: number): string {
   if (!Number.isFinite(milliseconds) || milliseconds <= 0) return localizedMessage("inspection.components.disk.panel.0.ms");
   if (milliseconds < 1_000) return `${Math.round(milliseconds)} ms`;
-  if (milliseconds < 60_000)
-    return `${(milliseconds / 1_000).toFixed(milliseconds < 10_000 ? 1 : 0)} s`;
+  if (milliseconds < 60_000) {
+    const digits = milliseconds < 10_000 ? 1 : 0;
+    return `${formatNumber(milliseconds / 1_000, { useGrouping: false, minimumFractionDigits: digits, maximumFractionDigits: digits })} s`;
+  }
   return `${Math.floor(milliseconds / 60_000)}m ${Math.floor((milliseconds % 60_000) / 1_000)}s`;
 }
 
 function titleCase(value: string): string {
-  return value.slice(0, 1).toUpperCase() + value.slice(1).replaceAll("_", " ");
+  switch (value) {
+    case "receiving": return localizedMessage("inspection.components.disk.panel.value.receiving");
+    case "queued": return localizedMessage("inspection.components.disk.panel.value.queued");
+    case "writing": return localizedMessage("inspection.components.disk.panel.value.writing");
+    case "stored": return localizedMessage("inspection.components.disk.panel.value.stored");
+    case "hashing": return localizedMessage("inspection.components.disk.panel.value.hashing");
+    case "checkpoint_dirty": return localizedMessage("inspection.components.disk.panel.value.checkpoint.dirty");
+    case "checkpoint_syncing": return localizedMessage("inspection.components.disk.panel.value.checkpoint.syncing");
+    case "checkpoint_committing": return localizedMessage("inspection.components.disk.panel.value.checkpoint.committing");
+    case "failed": return localizedMessage("inspection.components.disk.panel.value.failed");
+    case "idle": return localizedMessage("inspection.components.disk.panel.value.idle");
+    case "normal": return localizedMessage("inspection.components.disk.panel.value.normal");
+    case "backpressured": return localizedMessage("inspection.components.disk.panel.value.backpressured");
+    case "draining": return localizedMessage("inspection.components.disk.panel.value.draining");
+    case "error": return localizedMessage("inspection.components.disk.panel.value.error");
+    case "syncing": return localizedMessage("inspection.components.disk.panel.value.syncing");
+    case "committing": return localizedMessage("inspection.components.disk.panel.value.committing");
+    default: return value.slice(0, 1).toUpperCase() + value.slice(1).replaceAll("_", " ");
+  }
 }

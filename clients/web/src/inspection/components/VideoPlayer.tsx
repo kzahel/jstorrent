@@ -146,6 +146,21 @@ function OpenExternallyButton({
 }
 
 /** The browser decodes audio itself from the media URL's ranges. */
+type PlaybackStatusCode = "loading" | "connecting" | "ready" | "playing" | "buffering" | "unsupported" | "decode-error";
+type PlaybackStatus = PlaybackStatusCode | { readonly error: string };
+function statusText(status: PlaybackStatus): string {
+  if (typeof status !== "string") return status.error;
+  switch (status) {
+    case "loading": return localizedMessage("video.loading");
+    case "connecting": return localizedMessage("remote.video.connecting");
+    case "ready": return localizedMessage("remote.video.ready");
+    case "playing": return localizedMessage("remote.video.playing");
+    case "buffering": return localizedMessage("remote.video.buffering");
+    case "unsupported": return localizedMessage("remote.video.unsupported");
+    case "decode-error": return localizedMessage("remote.video.decode.error");
+  }
+}
+
 function Audio({
   file,
   playback,
@@ -154,7 +169,7 @@ function Audio({
   readonly playback: LocalVideoPlayback;
 }) {
   const [url, setUrl] = useState<string | null>(null);
-  const [status, setStatus] = useState(localizedMessage("video.loading"));
+  const [status, setStatus] = useState<PlaybackStatus>("loading");
   useEffect(() => {
     const lifetime = new AbortController();
     playback.mediaUrl(file, lifetime.signal).then(
@@ -163,7 +178,7 @@ function Audio({
       },
       (reason: unknown) => {
         if (!lifetime.signal.aborted) {
-          setStatus(reason instanceof Error ? reason.message : String(reason));
+          setStatus({ error: reason instanceof Error ? reason.message : String(reason) });
         }
       },
     );
@@ -178,12 +193,12 @@ function Audio({
           autoPlay
           preload="metadata"
           aria-label={file.fileName}
-          onPlaying={() => setStatus(localizedMessage("remote.video.playing"))}
-          onWaiting={() => setStatus(localizedMessage("remote.video.buffering"))}
-          onError={() => setStatus(localizedMessage("remote.video.decode.error"))}
+          onPlaying={() => setStatus("playing")}
+          onWaiting={() => setStatus("buffering")}
+          onError={() => setStatus("decode-error")}
         />
       )}
-      <p role="status">{status}</p>
+      <p role="status">{statusText(status)}</p>
     </>
   );
 }
@@ -196,25 +211,23 @@ function Video({
   readonly source: PlaybackSource;
 }) {
   const video = useRef<HTMLVideoElement>(null);
-  const [status, setStatus] = useState(
-    source.type === "remote"
-      ? localizedMessage("remote.video.connecting")
-      : localizedMessage("video.loading"),
+  const [status, setStatus] = useState<PlaybackStatus>(
+    source.type === "remote" ? "connecting" : "loading",
   );
   useEffect(() => {
     const lifetime = new AbortController();
     let playback: { close(): Promise<void> } | undefined;
     const error = (message: string) => {
-      if (!lifetime.signal.aborted) setStatus(message);
+      if (!lifetime.signal.aborted) setStatus({ error: message });
     };
     const play = playFunction(source);
     if (play === undefined) {
-      setStatus(localizedMessage("remote.video.unsupported"));
+      setStatus("unsupported");
       return;
     }
     const element = video.current!;
     const decodeFailed = () => {
-      error(localizedMessage("remote.video.decode.error"));
+      setStatus("decode-error");
       lifetime.abort();
       void playback?.close();
     };
@@ -225,7 +238,7 @@ function Video({
       signal: lifetime.signal,
       onReady: () => {
         if (!lifetime.signal.aborted)
-          setStatus(localizedMessage("remote.video.ready"));
+          setStatus("ready");
       },
       onError: error,
     }).then(
@@ -250,10 +263,10 @@ function Video({
         playsInline
         preload="metadata"
         aria-label={file.fileName}
-        onPlaying={() => setStatus(localizedMessage("remote.video.playing"))}
-        onWaiting={() => setStatus(localizedMessage("remote.video.buffering"))}
+        onPlaying={() => setStatus("playing")}
+        onWaiting={() => setStatus("buffering")}
       />
-      <p role="status">{status}</p>
+      <p role="status">{statusText(status)}</p>
     </>
   );
 }

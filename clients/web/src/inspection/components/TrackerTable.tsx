@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage, useProductLocale  } from "../../localization/runtime";
 import { useEffect, useMemo, useState } from "react";
 
 import { useInspectionStore } from "../context";
@@ -40,9 +40,10 @@ export function TrackerTable({ torrentId }: { readonly torrentId: string }) {
         .filter((row): row is TrackerRow => row !== undefined),
     [trackerSet],
   );
+  const locale = useProductLocale();
   const columns = useMemo(
     () => trackerColumns(Math.max(nowMs, performance.now())),
-    [nowMs, trackerSet],
+    [locale, nowMs, trackerSet],
   );
 
   return (
@@ -192,7 +193,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
       align: "right",
       sortKind: "number",
       sortValue: (row) => row.tier,
-      render: (row) => row.tier.toLocaleString(),
+      render: (row) => formatNumber(row.tier),
     },
     {
       id: "peers",
@@ -301,7 +302,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
       defaultVisible: false,
       sortKind: "number",
       sortValue: (row) => row.totalAttempts,
-      render: (row) => row.totalAttempts.toLocaleString(),
+      render: (row) => formatNumber(row.totalAttempts),
     },
     {
       id: "failures",
@@ -311,7 +312,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
       defaultVisible: false,
       sortKind: "number",
       sortValue: (row) => row.consecutiveFailures,
-      render: (row) => row.consecutiveFailures.toLocaleString(),
+      render: (row) => formatNumber(row.consecutiveFailures),
     },
     {
       id: "interval",
@@ -350,8 +351,10 @@ function formatNextAction(row: TrackerRow, nowMs: number): string {
   if (row.status === "announcing") return localizedMessage("inspection.components.tracker.table.now");
   const deadline = row.nextActionAtMs;
   if (deadline === null || row.nextAction === null) return "—";
-  const action = row.nextAction === "retry" ? "Retry" : "Announce";
-  return `${action} in ${formatDuration(Math.max(0, deadline - nowMs))}`;
+  const duration = formatDuration(Math.max(0, deadline - nowMs));
+  return row.nextAction === "retry"
+    ? localizedMessage("inspection.components.tracker.table.retry.in", { duration })
+    : localizedMessage("inspection.components.tracker.table.announce.in", { duration });
 }
 
 function ageLabel(
@@ -360,7 +363,7 @@ function ageLabel(
 ): string {
   return atMs === null
     ? "—"
-    : `${formatDuration(Math.max(0, nowMs - atMs))} ago`;
+    : localizedMessage("inspection.components.tracker.table.age", { duration: formatDuration(Math.max(0, nowMs - atMs)) });
 }
 
 function formatDuration(milliseconds: number | null): string {
@@ -375,11 +378,22 @@ function formatDuration(milliseconds: number | null): string {
 }
 
 function formatStatus(value: string): string {
-  return value.replaceAll("_", " ");
+  switch (value) {
+    case "unsupported": return localizedMessage("inspection.components.tracker.table.value.unsupported");
+    case "inactive": return localizedMessage("inspection.components.tracker.table.value.inactive");
+    case "disabled": return localizedMessage("inspection.components.tracker.table.value.disabled");
+    case "idle": return localizedMessage("inspection.components.tracker.table.value.idle");
+    case "announcing": return localizedMessage("inspection.components.tracker.table.value.announcing");
+    case "retry_wait": return localizedMessage("inspection.components.tracker.table.value.retry.wait");
+    case "reannounce_wait": return localizedMessage("inspection.components.tracker.table.value.reannounce.wait");
+    case "magnet": return localizedMessage("inspection.components.tracker.table.value.magnet");
+    case "metainfo": return localizedMessage("inspection.components.tracker.table.value.metainfo");
+    default: return value.replaceAll("_", " ");
+  }
 }
 
 function formatCount(value: number | null): string {
-  return value === null ? "—" : value.toLocaleString();
+  return value === null ? "—" : formatNumber(value);
 }
 
 function trackerEmptyMessage(
@@ -398,7 +412,7 @@ function trackerEmptyMessage(
     case "stale":
     case "ready":
       return catalogState === "torrent_missing"
-        ? "The torrent is no longer present."
-        : "This torrent has no configured trackers.";
+        ? localizedMessage("inspection.components.tracker.table.presentation.missing")
+        : localizedMessage("inspection.components.tracker.table.presentation.empty");
   }
 }

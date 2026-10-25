@@ -6322,5 +6322,557 @@
   "safety.selection.older.host": {
     "defaultMessage": "This host supports up to 4,096 file changes. Use All or None, or update the host for larger selections.",
     "description": "Mixed-version file selection limit."
+  },
+  "localization.language.title": {"defaultMessage": "Language", "description": "Local presentation language setting; never changes the host or engine."},
+  "localization.language.system": {"defaultMessage": "System language", "description": "Clear the local override and follow OS/browser preferences."},
+  "localization.language.description": {"defaultMessage": "Choose the language used in this app.", "description": "Explanation of the local presentation language picker."},
+  "localization.language.save-failed": {"defaultMessage": "The language could not be changed. Try again.", "description": "Local language preference or native synchronization failed; previous selection remains active."},
+  "inspection.torrent.actions.start": {
+    "defaultMessage": "Start",
+    "description": "Torrent action label. Translate as a concise action button or menu item."
+  },
+  "inspection.torrent.actions.pause": {
+    "defaultMessage": "Pause",
+    "description": "Torrent action label. Translate as a concise action button or menu item."
+  },
+  "inspection.torrent.actions.force.recheck": {
+    "defaultMessage": "Force recheck",
+    "description": "Torrent action label. Translate as a concise action button or menu item."
+  },
+  "inspection.torrent.actions.move.to.top": {
+    "defaultMessage": "Move to top",
+    "description": "Torrent action label. Translate as a concise action button or menu item."
+  },
+  "inspection.torrent.actions.move.to.bottom": {
+    "defaultMessage": "Move to bottom",
+    "description": "Torrent action label. Translate as a concise action button or menu item."
+  },
+  "inspection.torrent.actions.archive": {
+    "defaultMessage": "Archive",
+    "description": "Torrent action label. Translate as a concise action button or menu item."
+  },
+  "inspection.torrent.actions.restore": {
+    "defaultMessage": "Restore",
+    "description": "Torrent action label. Translate as a concise action button or menu item."
+  },
+  "inspection.torrent.actions.remove": {
+    "defaultMessage": "Remove",
+    "description": "Torrent action label. Translate as a concise action button or menu item."
+  },
+  "inspection.torrent.actions.pending.start": {
+    "defaultMessage": "Starting",
+    "description": "Torrent action progress label, shown while the action is being submitted."
+  },
+  "inspection.torrent.actions.pending.pause": {
+    "defaultMessage": "Pausing",
+    "description": "Torrent action progress label, shown while the action is being submitted."
+  },
+  "inspection.torrent.actions.pending.force.recheck": {
+    "defaultMessage": "Starting recheck",
+    "description": "Torrent action progress label, shown while the action is being submitted."
+  },
+  "inspection.torrent.actions.pending.move.to.top": {
+    "defaultMessage": "Moving to top",
+    "description": "Torrent action progress label, shown while the action is being submitted."
+  },
+  "inspection.torrent.actions.pending.move.to.bottom": {
+    "defaultMessage": "Moving to bottom",
+    "description": "Torrent action progress label, shown while the action is being submitted."
+  },
+  "inspection.torrent.actions.pending.copy.magnet": {
+    "defaultMessage": "Copying magnet links",
+    "description": "Torrent action progress label, shown while the action is being submitted."
+  },
+  "inspection.torrent.actions.pending.settings": {
+    "defaultMessage": "Opening torrent settings",
+    "description": "Torrent action progress label, shown while the action is being submitted."
+  },
+  "inspection.torrent.actions.pending.archive": {
+    "defaultMessage": "Archiving",
+    "description": "Torrent action progress label, shown while the action is being submitted."
+  },
+  "inspection.torrent.actions.pending.restore": {
+    "defaultMessage": "Restoring",
+    "description": "Torrent action progress label, shown while the action is being submitted."
+  },
+  "inspection.torrent.actions.pending.remove": {
+    "defaultMessage": "Removing",
+    "description": "Torrent action progress label, shown while the action is being submitted."
+  },
+  "inspection.torrent.actions.copy.magnet.one": {
+    "defaultMessage": "Copy magnet link",
+    "description": "Torrent menu action: copy a magnet link for one torrent, or links for multiple torrents."
+  },
+  "inspection.torrent.actions.copy.magnet.many": {
+    "defaultMessage": "Copy magnet links",
+    "description": "Torrent menu action: copy a magnet link for one torrent, or links for multiple torrents."
+  },
+  "inspection.torrent.actions.removal.active": {
+    "defaultMessage": "{count, plural, one {# selected torrent is already being removed.} other {# selected torrents are already being removed.}}",
+    "description": "Disabled torrent action explanation. The count is the number of selected torrents that prevent this action."
+  },
+  "inspection.torrent.actions.recheck.unavailable": {
+    "defaultMessage": "{count, plural, one {# selected torrent does not have managed content available to recheck.} other {# selected torrents do not have managed content available to recheck.}}",
+    "description": "Disabled torrent action explanation. The count is the number of selected torrents that prevent this action."
+  },
+  "inspection.torrent.actions.queue.unavailable": {
+    "defaultMessage": "{count, plural, one {# selected torrent is not in the download queue.} other {# selected torrents are not in the download queue.}}",
+    "description": "Disabled torrent action explanation. The count is the number of selected torrents that prevent this action."
+  },
+  "inspection.torrent.actions.archive.already": {
+    "defaultMessage": "All selected torrents are already archived.",
+    "description": "Disabled torrent action explanation: the selected torrents are all already in the requested state."
+  },
+  "inspection.torrent.actions.restore.already": {
+    "defaultMessage": "All selected torrents are already restored.",
+    "description": "Disabled torrent action explanation: the selected torrents are all already in the requested state."
+  },
+  "inspection.components.speed.panel.metric.payload.received": {
+    "defaultMessage": "Download",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.staged.write": {
+    "defaultMessage": "Staged write",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.payload.verified": {
+    "defaultMessage": "Verified",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.peer.wire.received": {
+    "defaultMessage": "Peer wire in",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.peer.wire.sent": {
+    "defaultMessage": "Peer wire out",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.peer.protocol.received": {
+    "defaultMessage": "Peer protocol in",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.peer.protocol.sent": {
+    "defaultMessage": "Peer protocol out",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.metadata.payload.received": {
+    "defaultMessage": "Metadata in",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.metadata.payload.sent": {
+    "defaultMessage": "Metadata out",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.peer.unclassified.received": {
+    "defaultMessage": "Peer unclassified in",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.peer.unclassified.sent": {
+    "defaultMessage": "Peer unclassified out",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.dht.received": {
+    "defaultMessage": "DHT in",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.dht.sent": {
+    "defaultMessage": "DHT out",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.tracker.received": {
+    "defaultMessage": "Tracker in",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.tracker.sent": {
+    "defaultMessage": "Tracker out",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.logical.hash.read": {
+    "defaultMessage": "Hash read",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.payload.redundant": {
+    "defaultMessage": "Redundant payload",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.payload.hash.failed": {
+    "defaultMessage": "Hash-failed payload",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.metric.payload.uploaded": {
+    "defaultMessage": "Upload",
+    "description": "Speed chart metric name. Keep the incoming/outgoing direction and BitTorrent/network distinction; use shared terminology."
+  },
+  "inspection.components.speed.panel.now": {
+    "defaultMessage": "now",
+    "description": "Chart time-axis label for the current sample."
+  },
+  "inspection.components.speed.panel.seconds.ago": {
+    "defaultMessage": "−{seconds}s",
+    "description": "Chart time-axis label for a past sample, relative to the current sample. The minus sign indicates time in the past."
+  },
+  "inspection.components.peer.table.age": {
+    "defaultMessage": "{duration} ago",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.peer.table.flag.group.connection": {
+    "defaultMessage": "Connection",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.peer.table.flag.group.transfer": {
+    "defaultMessage": "Transfer",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.peer.table.flag.group.protocol": {
+    "defaultMessage": "Protocol",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.peer.table.flag.group.integrity": {
+    "defaultMessage": "Scheduler / integrity",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.presentation.inactive": {
+    "defaultMessage": "The peer registry is inactive.",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.presentation.missing": {
+    "defaultMessage": "This torrent is no longer present.",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.presentation.empty": {
+    "defaultMessage": "No peers are known yet.",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.presentation.yes": {
+    "defaultMessage": "Yes",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.presentation.no": {
+    "defaultMessage": "No",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.integrity.bad": {
+    "defaultMessage": "Parole · {count, number} bad",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.integrity.valid": {
+    "defaultMessage": "{count, number} valid",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.eligible": {
+    "defaultMessage": "eligible",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.not.connectable": {
+    "defaultMessage": "not connectable",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.dialing": {
+    "defaultMessage": "dialing",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.connected": {
+    "defaultMessage": "connected",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.backed.off": {
+    "defaultMessage": "backed off",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.failure.limited": {
+    "defaultMessage": "failure limited",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.banned": {
+    "defaultMessage": "banned",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.connect": {
+    "defaultMessage": "connect",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.handshake": {
+    "defaultMessage": "handshake",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.self.connection": {
+    "defaultMessage": "self connection",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.duplicate.peer.id": {
+    "defaultMessage": "duplicate peer id",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.protocol": {
+    "defaultMessage": "protocol",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.remote.closed": {
+    "defaultMessage": "remote closed",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.tracker": {
+    "defaultMessage": "tracker",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.peer.exchange": {
+    "defaultMessage": "peer exchange",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.dht": {
+    "defaultMessage": "dht",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.local.discovery": {
+    "defaultMessage": "local discovery",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.incoming": {
+    "defaultMessage": "incoming",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.manual": {
+    "defaultMessage": "manual",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.magnet.hint": {
+    "defaultMessage": "magnet hint",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.swarm.table.value.cache": {
+    "defaultMessage": "cache",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.tracker.table.retry.in": {
+    "defaultMessage": "Retry in {duration}",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.tracker.table.announce.in": {
+    "defaultMessage": "Announce in {duration}",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.tracker.table.age": {
+    "defaultMessage": "{duration} ago",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.tracker.table.presentation.missing": {
+    "defaultMessage": "The torrent is no longer present.",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.tracker.table.presentation.empty": {
+    "defaultMessage": "This torrent has no configured trackers.",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.tracker.table.value.unsupported": {
+    "defaultMessage": "unsupported",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.tracker.table.value.inactive": {
+    "defaultMessage": "inactive",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.tracker.table.value.disabled": {
+    "defaultMessage": "disabled",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.tracker.table.value.idle": {
+    "defaultMessage": "idle",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.tracker.table.value.announcing": {
+    "defaultMessage": "announcing",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.tracker.table.value.retry.wait": {
+    "defaultMessage": "retry wait",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.tracker.table.value.reannounce.wait": {
+    "defaultMessage": "reannounce wait",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.tracker.table.value.magnet": {
+    "defaultMessage": "magnet",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.tracker.table.value.metainfo": {
+    "defaultMessage": "metainfo",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.speed.panel.breakdown.peer.wire": {
+    "defaultMessage": "Peer wire",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.speed.panel.breakdown.peer.protocol": {
+    "defaultMessage": "Peer protocol",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.speed.panel.breakdown.metadata": {
+    "defaultMessage": "Metadata payload",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.speed.panel.breakdown.dht": {
+    "defaultMessage": "DHT",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.speed.panel.breakdown.tracker": {
+    "defaultMessage": "Tracker",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.stage.label.requested": {
+    "defaultMessage": "Requested",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.stage.label.resident": {
+    "defaultMessage": "Resident",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.stage.label.queued.write": {
+    "defaultMessage": "Queued write",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.stage.label.writing": {
+    "defaultMessage": "Writing",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.stage.label.hashing": {
+    "defaultMessage": "Hashing",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.stage.label.checkpoint.dirty": {
+    "defaultMessage": "Checkpoint dirty",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.pressure.description": {
+    "defaultMessage": "Disk pressure {pressure}",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.watermarks": {
+    "defaultMessage": "high {high} · low {low}",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.sample.duration": {
+    "defaultMessage": "{duration} sample",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.verify.rate": {
+    "defaultMessage": "{rate} verify rate",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.pending.counts": {
+    "defaultMessage": "{jobs, number} jobs · {pieces, number} pieces",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.pressure.transitions": {
+    "defaultMessage": "{count, number} pressure transitions",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.queue.cumulative": {
+    "defaultMessage": "{duration} cumulative",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.write.operations": {
+    "defaultMessage": "{completed, number} / {started, number} operations",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.hash.operations": {
+    "defaultMessage": "{completed, number} / {started, number} operations",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.checkpoint.backlog.value": {
+    "defaultMessage": "{pieces, number} pieces · {bytes}",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.checkpoint.backlog.detail": {
+    "defaultMessage": "oldest {duration} · high {pieces, number} pieces / {bytes}",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.checkpoint.batches": {
+    "defaultMessage": "{completed, number} / {started, number} batches",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.checkpoint.active": {
+    "defaultMessage": "{duration} active",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.sync.cumulative": {
+    "defaultMessage": "{duration} cumulative · {count, number} targets",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.commit.cumulative": {
+    "defaultMessage": "{duration} cumulative · {count, number} pieces",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.intake.paused": {
+    "defaultMessage": "intake paused now",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.presentation.intake.open": {
+    "defaultMessage": "intake is open",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.receiving": {
+    "defaultMessage": "Receiving",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.queued": {
+    "defaultMessage": "Queued",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.writing": {
+    "defaultMessage": "Writing",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.stored": {
+    "defaultMessage": "Stored",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.hashing": {
+    "defaultMessage": "Hashing",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.checkpoint.dirty": {
+    "defaultMessage": "Checkpoint dirty",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.checkpoint.syncing": {
+    "defaultMessage": "Checkpoint syncing",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.checkpoint.committing": {
+    "defaultMessage": "Checkpoint committing",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.failed": {
+    "defaultMessage": "Failed",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.idle": {
+    "defaultMessage": "Idle",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.normal": {
+    "defaultMessage": "Normal",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.backpressured": {
+    "defaultMessage": "Backpressured",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.draining": {
+    "defaultMessage": "Draining",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.error": {
+    "defaultMessage": "Error",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.syncing": {
+    "defaultMessage": "Syncing",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "inspection.components.disk.panel.value.committing": {
+    "defaultMessage": "Committing",
+    "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
   }
 }

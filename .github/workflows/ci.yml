@@ -279,6 +279,12 @@ jobs:
       - name: Typecheck the shared web application
         run: npm run typecheck --prefix clients/web
 
+      - name: Check catalogs and translation workflow
+        run: |
+          node scripts/check-localization.mjs
+          python3 -m unittest discover -s scripts -p 'test_*localization*.py'
+          python3 -m unittest discover -s clients/android/scripts -p test_localization.py
+
       - name: Run web unit tests
         run: npm run test --prefix clients/web
 

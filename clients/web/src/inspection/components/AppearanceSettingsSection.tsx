@@ -1,4 +1,12 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { useLayoutEffect, useRef, useState } from "react";
+import {
+  message as localizedMessage,
+  availableProductLanguages,
+  languagePreferenceSnapshot,
+  setLanguagePreference,
+  useProductLocale,
+  type LanguagePreference,
+} from "../../localization/runtime";
 import type { ColorTheme, DataUnits, InterfaceSize } from "../appearance";
 import { SegmentedSetting, type SegmentedOption } from "./SegmentedSetting";
 import styles from "./SettingsDialog.module.css";
@@ -6,49 +14,49 @@ import styles from "./SettingsDialog.module.css";
 const COLOR_THEME_OPTIONS: readonly SegmentedOption<ColorTheme>[] = [
   {
     value: "auto",
-    label: localizedMessage("inspection.components.appearance.settings.section.auto"),
-    description: localizedMessage("inspection.components.appearance.settings.section.follow.your.system.appearance"),
+    get label() { return localizedMessage("inspection.components.appearance.settings.section.auto"); },
+    get description() { return localizedMessage("inspection.components.appearance.settings.section.follow.your.system.appearance"); },
   },
   {
     value: "light",
-    label: localizedMessage("inspection.components.appearance.settings.section.light"),
-    description: localizedMessage("inspection.components.appearance.settings.section.always.use.the.light.appearance"),
+    get label() { return localizedMessage("inspection.components.appearance.settings.section.light"); },
+    get description() { return localizedMessage("inspection.components.appearance.settings.section.always.use.the.light.appearance"); },
   },
   {
     value: "dark",
-    label: localizedMessage("inspection.components.appearance.settings.section.dark"),
-    description: localizedMessage("inspection.components.appearance.settings.section.always.use.the.dark.appearance"),
+    get label() { return localizedMessage("inspection.components.appearance.settings.section.dark"); },
+    get description() { return localizedMessage("inspection.components.appearance.settings.section.always.use.the.dark.appearance"); },
   },
 ];
 
 const INTERFACE_SIZE_OPTIONS: readonly SegmentedOption<InterfaceSize>[] = [
   {
     value: "compact",
-    label: localizedMessage("inspection.components.appearance.settings.section.compact"),
-    description: localizedMessage("inspection.components.appearance.settings.section.fit.more.information.on.screen"),
+    get label() { return localizedMessage("inspection.components.appearance.settings.section.compact"); },
+    get description() { return localizedMessage("inspection.components.appearance.settings.section.fit.more.information.on.screen"); },
   },
   {
     value: "standard",
-    label: localizedMessage("inspection.components.appearance.settings.section.standard"),
-    description: localizedMessage("inspection.components.appearance.settings.section.balanced.text.controls.and.table.spacing"),
+    get label() { return localizedMessage("inspection.components.appearance.settings.section.standard"); },
+    get description() { return localizedMessage("inspection.components.appearance.settings.section.balanced.text.controls.and.table.spacing"); },
   },
   {
     value: "spacious",
-    label: localizedMessage("inspection.components.appearance.settings.section.spacious"),
-    description: localizedMessage("inspection.components.appearance.settings.section.use.larger.text.and.more.generous.targets"),
+    get label() { return localizedMessage("inspection.components.appearance.settings.section.spacious"); },
+    get description() { return localizedMessage("inspection.components.appearance.settings.section.use.larger.text.and.more.generous.targets"); },
   },
 ];
 
 const DATA_UNITS_OPTIONS: readonly SegmentedOption<DataUnits>[] = [
   {
     value: "binary",
-    label: localizedMessage("inspection.components.appearance.settings.section.units.binary"),
-    description: localizedMessage("inspection.components.appearance.settings.section.units.binary.description"),
+    get label() { return localizedMessage("inspection.components.appearance.settings.section.units.binary"); },
+    get description() { return localizedMessage("inspection.components.appearance.settings.section.units.binary.description"); },
   },
   {
     value: "decimal",
-    label: localizedMessage("inspection.components.appearance.settings.section.units.decimal"),
-    description: localizedMessage("inspection.components.appearance.settings.section.units.decimal.description"),
+    get label() { return localizedMessage("inspection.components.appearance.settings.section.units.decimal"); },
+    get description() { return localizedMessage("inspection.components.appearance.settings.section.units.decimal.description"); },
   },
 ];
 
@@ -69,10 +77,51 @@ export function AppearanceSettingsSection({
   onInterfaceSizeChange,
   onDataUnitsChange,
 }: AppearanceSettingsSectionProps) {
+  const currentLocale = useProductLocale();
+  const [languagePending, setLanguagePending] = useState(false);
+  const [languageFailed, setLanguageFailed] = useState(false);
+  const languageFocus = useRef<HTMLInputElement | null>(null);
+  useLayoutEffect(() => {
+    if (languagePending) return;
+    const control = languageFocus.current;
+    languageFocus.current = null;
+    if (control?.isConnected && document.activeElement === document.body) control.focus();
+  }, [languagePending]);
+  const languageOptions = [
+    { value: "system" as const, label: localizedMessage("localization.language.system"), description: localizedMessage("localization.language.description") },
+    ...availableProductLanguages().map((locale) => ({
+      value: locale,
+      label: new Intl.DisplayNames([locale], { type: "language" }).of(locale) ?? locale,
+      description: localizedMessage("localization.language.description"),
+    })),
+  ];
+  const preference = languagePreferenceSnapshot();
+  const selectedLanguage = languageOptions.some((option) => option.value === preference)
+    ? preference : currentLocale === "de" ? "de" : "en";
+  const changeLanguage = async (preference: LanguagePreference) => {
+    const focused = document.activeElement;
+    languageFocus.current = focused instanceof HTMLInputElement && focused.name === "language" ? focused : null;
+    setLanguagePending(true);
+    setLanguageFailed(false);
+    try { await setLanguagePreference(preference); }
+    catch { setLanguageFailed(true); }
+    finally { setLanguagePending(false); }
+  };
   return (
     <fieldset className={styles.section}>
       <legend>{localizedMessage("inspection.components.appearance.settings.section.appearance")}</legend>
       <div className={styles.rows}>
+        <SegmentedSetting<LanguagePreference>
+          name="language"
+          title={localizedMessage("localization.language.title")}
+          options={languageOptions}
+          value={selectedLanguage}
+          disabled={languagePending}
+          onChange={(preference) => { void changeLanguage(preference); }}
+          onReselect={(choice) => { if (preference !== selectedLanguage) void changeLanguage(choice); }}
+        >
+          {languageFailed ? <span role="alert">{localizedMessage("localization.language.save-failed")}</span> : null}
+        </SegmentedSetting>
         <SegmentedSetting
           name="color-theme"
           title={localizedMessage("inspection.components.appearance.settings.section.color.theme")}

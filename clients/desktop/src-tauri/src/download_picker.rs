@@ -86,6 +86,10 @@ impl DownloadDirectoryPicker for DesktopDownloadPicker {
                 let mut command =
                     Command::new(std::env::current_exe().map_err(PickerError::Launch)?);
                 command.arg(HELPER_ARGUMENT);
+                command.env(
+                    crate::desktop_localization::DIALOG_LOCALE_ENV,
+                    crate::desktop_localization::current_locale(),
+                );
                 #[cfg(windows)]
                 command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW (native dialog still visible).
                 let (sender, receiver) = oneshot::channel();
@@ -184,6 +188,12 @@ pub fn run_helper_if_requested() -> bool {
     {
         use std::io::{Read, Write};
         let result = (|| -> Result<(), ()> {
+            // This short-lived process never opens product state. Its sole
+            // presentation input is the parent's already-resolved locale.
+            crate::desktop_localization::activate(
+                &std::env::var(crate::desktop_localization::DIALOG_LOCALE_ENV)
+                    .unwrap_or_else(|_| "en".to_owned()),
+            );
             #[cfg(target_os = "linux")]
             if std::env::var_os("DISPLAY").is_none()
                 && std::env::var_os("WAYLAND_DISPLAY").is_none()

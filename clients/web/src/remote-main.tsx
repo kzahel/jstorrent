@@ -7,6 +7,7 @@ import { IndexedDbRemoteClientStore } from "./remote-client-store";
 import { RemoteAccessGate } from "./remote/RemoteAccessGate";
 import {
   LocalizationProvider,
+  initializeLocalization,
   localizeDocumentShell,
   message,
 } from "./localization/runtime";
@@ -30,7 +31,7 @@ if (
 }
 
 const root = createRoot(rootElement);
-void loadCrypto()
+void initializeLocalization().then(loadCrypto)
   .then((crypto) => {
     root.render(
       <LocalizationProvider>

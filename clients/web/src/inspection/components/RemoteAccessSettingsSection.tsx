@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatDate as localizedDate, formatNumber, message as localizedMessage  } from "../../localization/runtime";
 import { useEffect, useState, type FormEvent } from "react";
 
 import type {
@@ -187,9 +187,9 @@ export function RemoteAccessSettingsSection({
             <p className={styles.note}>{localizedMessage("inspection.components.remote.access.settings.section.the.relay.carries.encrypted.connection.setup.only")}</p>
             <dl className={styles.identity}>
               <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.active.circuit")}</dt><dd><code>{security.direct_file.active_circuit_id ?? localizedMessage("inspection.components.remote.access.settings.section.none")}</code></dd></div>
-              <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.data.sent")}</dt><dd>{security.direct_file.bytes_sent.toLocaleString()}{" "}{localizedMessage("inspection.components.remote.access.settings.section.bytes")}</dd></div>
+              <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.data.sent")}</dt><dd>{formatNumber(security.direct_file.bytes_sent)}{" "}{localizedMessage("inspection.components.remote.access.settings.section.bytes")}</dd></div>
               <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.candidate.class")}</dt><dd>{security.direct_file.candidate_class === null ? localizedMessage("inspection.components.remote.access.settings.section.none") : humanize(security.direct_file.candidate_class)}</dd></div>
-              <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.resources")}</dt><dd>{security.direct_file.active_tasks}{" "}{localizedMessage("inspection.components.remote.access.settings.section.tasks")}{" "}{security.direct_file.open_sockets}{" "}{localizedMessage("inspection.components.remote.access.settings.section.sockets")}{" "}{security.direct_file.active_requests}{" "}{localizedMessage("inspection.components.remote.access.settings.section.range.requests")}{" "}{security.direct_file.queued_bytes.toLocaleString()}{" "}{localizedMessage("inspection.components.remote.access.settings.section.queued.bytes")}</dd></div>
+              <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.resources")}</dt><dd>{security.direct_file.active_tasks}{" "}{localizedMessage("inspection.components.remote.access.settings.section.tasks")}{" "}{security.direct_file.open_sockets}{" "}{localizedMessage("inspection.components.remote.access.settings.section.sockets")}{" "}{security.direct_file.active_requests}{" "}{localizedMessage("inspection.components.remote.access.settings.section.range.requests")}{" "}{formatNumber(security.direct_file.queued_bytes)}{" "}{localizedMessage("inspection.components.remote.access.settings.section.queued.bytes")}</dd></div>
             </dl>
             <div className={styles.actions}>
               <button
@@ -363,7 +363,7 @@ function AuditHistory({ title, snapshot, busy, clear }: { readonly title: string
             <small>{formatDate(event.timestamp)} · {event.result} · {event.authentication_method ?? localizedMessage("inspection.components.remote.access.settings.section.owner.action")}{" "}{localizedMessage("inspection.components.remote.access.settings.section.route.f7f55fb")}{" "}{event.route ?? localizedMessage("inspection.components.remote.access.settings.section.none")}</small>
             <small>{localizedMessage("inspection.components.remote.access.settings.section.client")}{" "}{event.client_id ?? localizedMessage("inspection.components.remote.access.settings.section.none")}{" "}{localizedMessage("inspection.components.remote.access.settings.section.circuit")}{" "}{event.circuit_id ?? localizedMessage("inspection.components.remote.access.settings.section.none")}{" "}{localizedMessage("inspection.components.remote.access.settings.section.build")}{" "}{event.client_build ?? localizedMessage("inspection.components.remote.access.settings.section.none")}{" "}{localizedMessage("inspection.components.remote.access.settings.section.reason")}{" "}{event.reason_class ?? localizedMessage("inspection.components.remote.access.settings.section.none")}</small>
             {event.direct_file === null ? null : (
-              <small>{localizedMessage("inspection.components.remote.access.settings.section.torrent")}{" "}{event.direct_file.torrent_id}{" "}{localizedMessage("inspection.components.remote.access.settings.section.file.index")}{" "}{event.direct_file.file_index} · {event.direct_file.byte_count.toLocaleString()}{" "}{localizedMessage("inspection.components.remote.access.settings.section.bytes.candidate")}{" "}{event.direct_file.candidate_class === null ? localizedMessage("inspection.components.remote.access.settings.section.none") : humanize(event.direct_file.candidate_class)}
+              <small>{localizedMessage("inspection.components.remote.access.settings.section.torrent")}{" "}{event.direct_file.torrent_id}{" "}{localizedMessage("inspection.components.remote.access.settings.section.file.index")}{" "}{event.direct_file.file_index} · {formatNumber(event.direct_file.byte_count)}{" "}{localizedMessage("inspection.components.remote.access.settings.section.bytes.candidate")}{" "}{event.direct_file.candidate_class === null ? localizedMessage("inspection.components.remote.access.settings.section.none") : humanize(event.direct_file.candidate_class)}
               </small>
             )}
           </li>
@@ -380,7 +380,10 @@ function labelForClient(snapshot: RemoteSecuritySnapshot | null, clientId: strin
 }
 
 function formatDate(value: number): string {
-  return new Date(value).toLocaleString();
+  return localizedDate(value, {
+    year: "numeric", month: "numeric", day: "numeric",
+    hour: "numeric", minute: "numeric", second: "numeric",
+  });
 }
 
 function formatOptionalDate(value: number | null): string {

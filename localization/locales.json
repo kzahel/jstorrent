@@ -9,6 +9,8 @@
     "ios": ["en"]
   },
   "previewLocales": {
+    "web": ["de"],
+    "desktop": ["de"],
     "android": ["de"]
   },
   "testLocales": [
@@ -25,6 +27,7 @@
   ],
   "catalogs": {
     "web": "clients/web/src/localization/messages/en.json",
+    "desktop": "clients/desktop/src-tauri/locales/en.json",
     "android": "clients/android/app/src/main/res/values/strings.xml",
     "ios": "clients/ios/App/Localization/Localizable.xcstrings"
   }

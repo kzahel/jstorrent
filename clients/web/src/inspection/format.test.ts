@@ -8,11 +8,15 @@ import {
   formatEta,
   formatExactBytes,
   formatRate,
+  formatShareRatio,
+  formatProgress,
+  formatDuration,
   torrentRemovalActive,
   torrentRemovalLabel,
   torrentVisibleProgress,
 } from "./format";
 import type { TorrentCheckingPhase, TorrentRow } from "./model";
+import { setProductLocaleForTest } from "../localization/runtime";
 
 describe("byte formatting", () => {
   it.each([
@@ -146,4 +150,16 @@ describe("removal formatting", () => {
     expect(torrentRemovalActive(row(state))).toBe(active);
     expect(torrentRemovalLabel(row(state))).toBe(label);
   });
+});
+
+it("uses the selected presentation locale for decimals while retaining exact integer precision", () => {
+  const restore = setProductLocaleForTest("de");
+  try {
+    expect(formatBytes(1536, "binary")).toBe("1,5 KB");
+    expect(formatExactBytes("1536", "binary")).toBe("1,5 KB");
+    expect(formatExactBytes("9007199254740993001", "decimal")).toBe("9007 PB");
+    expect(formatShareRatio("900719925474099301")).toBe("9007199254740993,01");
+    expect(formatProgress(0.425)).toBe("42,5%");
+    expect(formatDuration(1500)).toBe("1,5 s");
+  } finally { restore(); }
 });

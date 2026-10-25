@@ -7,6 +7,16 @@ const nativePackages = new Set(['rstorrent-desktop', 'rstorrent-android', 'rstor
 const shaPattern = /^[a-f0-9]{40}$/;
 const documentation = path => /^(docs\/.*|README\.md|DEVELOPMENT\.md|AGENTS\.md|CLAUDE\.md)$/.test(path) &&
   /\.(md|png|jpg|svg)$/.test(path);
+const localizationTools = new Set([
+  'scripts/check-localization.mjs', 'scripts/localization.py', 'scripts/localization-icu.mjs',
+  'scripts/localization-ya.py', 'scripts/translation_terms.py',
+  'scripts/test_shared_localization.py', 'scripts/test_localization_ya.py',
+  'clients/android/scripts/localization.py', 'clients/android/scripts/test_localization.py',
+  'clients/android/scripts/check-locale-config.mjs',
+]);
+const localizationInput = path => localizationTools.has(path) || path.startsWith('localization/') ||
+  /^clients\/desktop\/src-tauri\/locales\/[^/]+\.json$/.test(path) ||
+  /^clients\/android\/app\/src\/(main|debug)\/res\/values(?:-[^/]+)?\/strings\.xml$/.test(path);
 
 export function requireFastSuccess(jobs) {
   if (jobs.plan?.result !== 'success') throw new Error('Selection did not succeed');
@@ -39,6 +49,9 @@ export function planChecks(paths, metadata) {
         /^clients\/web\/package(-lock)?\.json$/.test(path) || path === 'clients/web/scripts/patch-playsvideo.mjs' ||
         path === '.github/workflows/fast-ci.yml' || path === '.github/scripts/fast-ci.mjs') notices = true;
     if (documentation(path)) continue;
+    // Offline translation and catalog checks run in the web lane. Copy-only
+    // edits do not require rebuilding the Rust engine or unrelated products.
+    if (localizationInput(path)) { web = true; continue; }
     const owner = byDirectory.find(([directory]) => path.startsWith(directory + '/'))?.[1];
     if (owner && !path.endsWith('Cargo.toml')) {
       if (nativePackages.has(owner.name)) allRust = true;

@@ -10,6 +10,13 @@ categories are configured in `localization/android/locales.json`. Adding a
 language here does not qualify it for release or advertise it in the picker.
 Keep that configuration aligned with the repository locale manifest.
 
+The shared [translation workflow](../../../scripts/LOCALIZATION.md) is the
+preferred front door for Android, React and native desktop. German terminology
+now lives in `localization/terminology/de.json`, including shared register and
+meaning distinctions. Applicable glossary/terminology changes invalidate review
+independently of source text. Existing translation reviews remain intact;
+terminology-only adoption requires explicit independent review.
+
 ## Export and translate
 
 From the repository root:
@@ -36,11 +43,13 @@ receive the current source and UI context. Each response has this exact shape:
   "resources": {
     "action_remove": {
       "sourceHash": "copy the job's exact sourceHash",
+      "terminologyHash": "copy the job's exact terminologyHash",
       "kind": "string",
       "translation": "Entfernen"
     },
     "file_count": {
       "sourceHash": "copy the job's exact sourceHash",
+      "terminologyHash": "copy the job's exact terminologyHash",
       "kind": "plurals",
       "translation": {"one": "%1$d Datei", "other": "%1$d Dateien"}
     }
