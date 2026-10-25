@@ -60,6 +60,7 @@ below to **Retired** with the commit.
 
 | Item | Format | Added | Kind | Retire when |
 | --- | --- | --- | --- | --- |
+| Android `product_appearance.language_tag` → platform app locale | Android UI prefs → LocaleManager | Tactical 383 | One-time OS-upgrade handoff; existing platform override wins, only the old field is removed after success | API 28–32 writers and supported OS-upgrade paths that can leave this field are explicitly retired, with evidence that supported stores no longer contain it |
 | Step 26 → 27: seeding stop limits | `session.db` | Tactical 344 (`1c4391e7`) | migration step | Floor reaches 27 |
 | Step 27 → 28: network defaults marker | `session.db` | Tactical 358 | migration step | Floor reaches 28 |
 | Step 28 → 29: file-selection bitmaps and download safety | `session.db` | Tactical 373 | migration step | Floor reaches 29 |

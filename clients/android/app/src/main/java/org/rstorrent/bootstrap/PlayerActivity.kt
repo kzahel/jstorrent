@@ -13,6 +13,8 @@ import android.os.Bundle
 import android.util.Log
 import android.util.Rational
 import androidx.activity.ComponentActivity
+import androidx.activity.viewModels
+import androidx.lifecycle.ViewModel
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -50,7 +52,12 @@ import org.rstorrent.bootstrap.ui.ProductThemeMode
 import org.rstorrent.bootstrap.ui.RstorrentTheme
 
 class PlayerActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(ProductAppLanguage.wrap(newBase))
+    }
+
     private var player: ExoPlayer? = null
+    private val playbackSession: PlaybackSessionModel by viewModels()
     private var playerView: PlayerView? = null
     private var playbackTitle by mutableStateOf("")
     private var preparing by mutableStateOf(true)
@@ -116,14 +123,21 @@ class PlayerActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val request = consumeRequest(intent)
+        // Capability URLs stay only in a retained in-process owner, never in
+        // saved state. Process death intentionally requires opening media again.
+        val request = consumeRequest(intent)?.also { playbackSession.request = it }
+            ?: playbackSession.request
         if (request == null) {
             finish()
             return
         }
         acquireInteractionLease()
         Log.i(TAG, "media_playback_created instance=$instanceId")
-        initializePlayer(request)
+        initializePlayer(
+            request,
+            savedInstanceState?.getLong(STATE_POSITION_MILLIS) ?: playbackSession.positionMillis,
+            savedInstanceState?.getBoolean(STATE_PLAY_WHEN_READY) ?: playbackSession.playWhenReady,
+        )
         setContent {
             RstorrentTheme(ProductThemeMode.SYSTEM, dynamicColor = true) {
                 if (inPictureInPicture) {
@@ -223,6 +237,9 @@ class PlayerActivity : ComponentActivity() {
             return
         }
         playbackTitle = request.title
+        playbackSession.request = request
+        playbackSession.positionMillis = 0L
+        playbackSession.playWhenReady = true
         playbackError = null
         preparing = true
         player?.apply {
@@ -252,17 +269,33 @@ class PlayerActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        player?.let {
+            playbackSession.positionMillis = it.currentPosition
+            playbackSession.playWhenReady = it.playWhenReady
+        }
         playerView?.player = null
         playerView = null
         player?.removeListener(playerListener)
         player?.release()
         player = null
-        releaseInteractionLease()
+        // The retained playback request hands the lease to its replacement;
+        // releasing it here could stop the engine during locale recreation.
+        if (!isChangingConfigurations) releaseInteractionLease()
         Log.i(TAG, "media_playback_released instance=$instanceId")
         super.onDestroy()
     }
 
-    private fun initializePlayer(request: PlaybackRequest) {
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putLong(STATE_POSITION_MILLIS, player?.currentPosition ?: playbackSession.positionMillis)
+        outState.putBoolean(STATE_PLAY_WHEN_READY, player?.playWhenReady ?: playbackSession.playWhenReady)
+        super.onSaveInstanceState(outState)
+    }
+
+    private fun initializePlayer(
+        request: PlaybackRequest,
+        positionMillis: Long,
+        playWhenReady: Boolean,
+    ) {
         playbackTitle = request.title
         val audioAttributes =
             AudioAttributes.Builder()
@@ -283,9 +316,9 @@ class PlayerActivity : ComponentActivity() {
                 .build()
                 .also { mediaPlayer ->
                     mediaPlayer.addListener(playerListener)
-                    mediaPlayer.setMediaItem(MediaItem.fromUri(request.source))
+                    mediaPlayer.setMediaItem(MediaItem.fromUri(request.source), positionMillis.coerceAtLeast(0L))
                     mediaPlayer.prepare()
-                    mediaPlayer.playWhenReady = true
+                    mediaPlayer.playWhenReady = playWhenReady
                 }
         updatePictureInPictureParameters()
     }
@@ -343,13 +376,21 @@ class PlayerActivity : ComponentActivity() {
         INVALID_REQUEST,
     }
 
-    private data class PlaybackRequest(
+    internal class PlaybackSessionModel : ViewModel() {
+        var request: PlaybackRequest? = null
+        var positionMillis = 0L
+        var playWhenReady = true
+    }
+
+    internal data class PlaybackRequest(
         val source: String,
         val title: String,
     )
 
     companion object {
         private const val TAG = "RSTorrentProduct"
+        private const val STATE_POSITION_MILLIS = "playback_position_millis"
+        private const val STATE_PLAY_WHEN_READY = "playback_play_when_ready"
         private const val EXTRA_SOURCE = "org.rstorrent.bootstrap.extra.MEDIA_SOURCE"
         private const val EXTRA_TITLE = "org.rstorrent.bootstrap.extra.MEDIA_TITLE"
         private const val EXTRA_CONTROL = "org.rstorrent.bootstrap.extra.MEDIA_CONTROL"

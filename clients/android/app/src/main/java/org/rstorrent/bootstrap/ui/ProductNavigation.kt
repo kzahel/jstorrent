@@ -20,6 +20,7 @@ internal object ProductRoutes {
     const val SETTINGS_NOTIFICATIONS = "settings/notifications"
     const val SETTINGS_NETWORK = "settings/network"
     const val SETTINGS_POWER = "settings/power"
+    const val SETTINGS_LANGUAGE = "settings/language"
     const val SETTINGS_ADVANCED = "settings/advanced"
 
     /** With [fileIndex], the detail opens on Files with that file shown. */

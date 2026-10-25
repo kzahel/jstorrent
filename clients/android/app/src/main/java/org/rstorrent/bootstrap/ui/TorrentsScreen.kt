@@ -572,7 +572,7 @@ private fun EmptyTorrents(
             } else {
                 stringResource(
                     R.string.library_empty_filtered,
-                    stringResource(filter.labelRes).lowercase(),
+                    stringResource(filter.labelRes),
                 )
             },
             style = MaterialTheme.typography.titleMedium,

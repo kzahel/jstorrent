@@ -1,8 +1,9 @@
 # 383 — Android translation cohorts
 
-Status: **Implementation in progress.** The maintainer authorized the German
-pilot, in-app switching and Pixel 7a review on 2026-10-25, with incremental
-commits. Release locale support remains English during the debug pilot.
+Status: **Implemented; debug qualification passed.** The maintainer authorized
+the German pilot, in-app switching and Pixel 7a review on 2026-10-25, with
+incremental commits. Release locale support remains English during the debug
+pilot; human spot checks can now proceed on the review build.
 
 ## Motivation And Recommendation
 
@@ -197,9 +198,10 @@ legacy `SettingsViewModel.setAppLocale` uses `AppCompatDelegate` with
 owner and any required activity/theme/dependency changes as part of the picker
 implementation, using the platform language guidance below.
 
-Release pickers expose only release-qualified packaged locales. Debug builds
-may additionally offer clearly identified draft/test locales and generated
-pseudo-locales for testing; release resources and language lists exclude them.
+Release pickers expose only release-qualified packaged locales. The explicitly
+branded JSTorrent Dev build exposes Deutsch as its preview locale; generated
+pseudo-locales remain available to instrumentation. Release resources and
+language lists exclude these test catalogs.
 Test explicit override, restart, return to System language, subsequent OS
 language changes, and Android 13+ changes from system app-language settings.
 
@@ -252,3 +254,77 @@ contracts, changed English/context, stale/colliding replies, strict
 placeholders, manual corrections, pruning, Android escape round-trips and
 invalid XML characters. `python3 -m py_compile
 clients/android/scripts/localization.py` and `git diff --check` pass.
+
+The pilot now includes 634 German strings and 28 quantities. Three Opus 5.5
+high-effort jobs authored the catalog; three separate jobs reviewed every
+message. Reviewer corrections were imported only after full format/key/hash
+validation. A further independent review accepted seven integration fixes:
+consistent Downloadordner/Verifiziert terminology and a label-neutral filter
+empty state. Updating that English source under its existing ID exercised
+stale-source detection and correction import on the real catalog. Per-message
+model/session provenance is in `localization/android/de.json`.
+
+The picker derives its languages from native main/debug LocaleConfig files,
+with System language as the default. Android 13+ uses LocaleManager; API 28–32
+uses one UI preference and configuration-scoped application/activity/service
+resources. The OS-upgrade handoff is listed in the durable-data migration
+ledger. A bounded interaction lease bridges locale-driven recreation without
+ending the engine session; existing notification/channel text refreshes
+without replaying completion edges. Playback retains its request only in
+memory and restores position/play state. Simple settings drafts survive
+recreation; decimal-comma input preserves exact rate values.
+
+## Qualification And Review Delivery
+
+Commands run from the repository root, with `source scripts/dev-env.sh`
+before native toolchain commands:
+
+- `clients/android/build.sh`: passes both locked Rust ABIs, host binding
+  generation, debug APK assembly, JVM tests and notice integrity (84 Maven,
+  207 Rust packages; no new runtime dependency).
+- `clients/android/gradlew -p clients/android assembleDebug
+  testDebugUnitTest lintDebug assembleDebugAndroidTest`: passes. Final
+  `testDebugUnitTest lintDebug` also passes after the upgrade-handoff change;
+  the JVM reports contain 220 passing cases.
+- `python3 -m unittest discover -s clients/android/scripts -p
+  test_localization.py -v`: all 12 tests pass.
+- `node scripts/check-localization.mjs`, the native locale-config checker,
+  Python compilation and `git diff --check`: pass. All 662 German resources
+  have current source/translation hashes, independent review and valid formats.
+- `python3 clients/android/scripts/run-localization-matrix.py --api 28
+  --api 35 --class
+  org.rstorrent.bootstrap.LocalizationInstrumentationTest,org.rstorrent.bootstrap.LocalizationComposeTest,org.rstorrent.bootstrap.LanguageSelectionInstrumentationTest,org.rstorrent.bootstrap.LanguageActivityRecreationTest,org.rstorrent.bootstrap.SettingsDraftRestorationTest`:
+  passes seven phone/API-28 and nine tablet/API-35 cases on fresh owned AVDs;
+  both AVDs are stopped and deleted by the runner.
+- On the explicitly identified Pixel 7a, API 37, the same five instrumentation
+  classes pass all nine cases through Machine Control's Android adapter.
+  Checks include long/RTL pseudo rendering, actual picker/recreation and
+  service continuity, notification strings/channel relabeling, system reset,
+  native system-setting ownership, OS-upgrade handoff and unapplied draft
+  restoration.
+
+Initial failures were corrected rather than waived: API-28 JUnit reflection
+needed API-33 test helpers isolated from the common class, and the existing
+Espresso 3.6.1 used a removed InputManager method on API 37. Test-only Espresso
+3.7.0 uses the public service on supported versions, as documented in the
+[AndroidX Test release notes](https://developer.android.com/jetpack/androidx/releases/test).
+It adds no product runtime dependency. The initial attempt to execute the
+matrix file directly failed because it is not executable; use `python3`.
+
+An attempted combined `lintDebug assembleDebugAndroidTest assembleRelease`
+stopped at the repository's release-signing guard because local signing
+variables were not configured. Subsequent debug checks pass; no unsigned
+release, signing bypass or store operation was performed. Release locale
+separation is checked from its resource inputs and locale configuration.
+
+The final universal debug APK is approximately 130.9 MB (the intermediate
+pretranslation picker build was 127.6 MB). This comparison includes subsequent
+picker/state-preservation code and is not an isolated translation-size
+measurement or a release-size claim.
+
+The Pixel review install uses the separate `org.rstorrent.bootstrap` identity,
+branded **JSTorrent Dev**, preserving the installed Play/QA packages and their
+data. German is selected for review; **Einstellungen → Sprache** offers
+**Systemsprache**, **English** and **Deutsch**. Switching System clears only
+this app's override. Optional usage statistics were left disabled in this
+fresh development profile. No test torrents or download files were added.

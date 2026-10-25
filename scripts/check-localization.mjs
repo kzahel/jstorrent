@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -24,14 +25,30 @@ function checkPolicy() {
   if (locales.sourceLocale !== "en" || locales.fallbackLocale !== "en") {
     fail("English must remain the source and ultimate fallback locale");
   }
-  if (JSON.stringify(locales.supportedLocales) !== JSON.stringify(["en"])) {
-    fail("the localization-ready slice may advertise only English");
+  for (const platform of ["web", "desktop", "android", "ios"]) {
+    const supported = locales.supportedLocales?.[platform];
+    if (!Array.isArray(supported) || !supported.includes("en")) {
+      fail(`${platform} supported locales must include English`);
+    }
+    requireUnique(supported, `${platform} supported locales`);
+    if (platform !== "android" && JSON.stringify(supported) !== JSON.stringify(["en"])) {
+      fail(`${platform} translations require their own catalog qualification`);
+    }
+    for (const tag of [...supported, ...(locales.previewLocales?.[platform] ?? [])]) {
+      if (Intl.getCanonicalLocales(tag)[0] !== tag) fail(`noncanonical locale ${tag}`);
+    }
+    const preview = locales.previewLocales?.[platform] ?? [];
+    requireUnique(preview, `${platform} preview locales`);
+    if (preview.some((tag) => supported.includes(tag))) {
+      fail(`${platform} preview locales must be separate from shipping locales`);
+    }
   }
   const testTags = locales.testLocales.map(({ tag }) => tag);
   requireUnique(testTags, "test locale tags");
   for (const required of ["en-XA", "ar-XB"]) {
     if (!testTags.includes(required)) fail(`missing test pseudo-locale ${required}`);
-    if (locales.supportedLocales.includes(required)) {
+    if (Object.values(locales.supportedLocales).some((tags) => tags.includes(required)) ||
+        Object.values(locales.previewLocales ?? {}).some((tags) => tags.includes(required))) {
       fail(`test pseudo-locale ${required} must not be a supported locale`);
     }
   }
@@ -70,6 +87,15 @@ function checkPolicy() {
     const row = sourceRows.find((candidate) => candidate.platform === platform);
     if (!row || !row.source || !row.license || row.reviewState !== "source") {
       fail(`English ${platform} catalog has incomplete provenance`);
+    }
+  }
+  for (const [platform, supported] of Object.entries(locales.supportedLocales)) {
+    for (const tag of [...supported, ...(locales.previewLocales?.[platform] ?? [])]) {
+      if (tag === "en") continue;
+      const row = provenance.catalogs.find((entry) => entry.locale === tag && entry.platform === platform);
+      if (!row?.source || !row.license || !row.reviewer || row.reviewState !== "agent-reviewed") {
+        fail(`${platform} ${tag} catalog has incomplete translation provenance`);
+      }
     }
   }
 
@@ -366,6 +392,18 @@ function checkAndroidCatalog() {
   if (!/debug\s*\{[\s\S]*?isPseudoLocalesEnabled\s*=\s*true/.test(gradle)) {
     fail("Android debug builds must enable generated pseudo-locales");
   }
+  execFileSync(process.execPath, ["clients/android/scripts/check-locale-config.mjs"], {
+    cwd: repositoryRoot,
+    stdio: "inherit",
+  });
+  const locales = readJson("localization/locales.json");
+  for (const tag of [...locales.supportedLocales.android, ...(locales.previewLocales.android ?? [])]) {
+    if (tag === "en") continue;
+    execFileSync("python3", ["clients/android/scripts/localization.py", "check", tag], {
+      cwd: repositoryRoot,
+      stdio: "inherit",
+    });
+  }
   console.log(`Android localization catalog is valid (${resources.size} English resources)`);
 }
 
@@ -554,7 +592,9 @@ export async function main() {
   checkDesktopCatalog();
   checkAndroidCatalog();
   checkIOSCatalog();
-  console.log("Localization policy is valid (shipping locales: en; test: en-XA, ar-XB)");
+  const locales = readJson("localization/locales.json");
+  console.log(`Localization policy is valid (shipping: ${Object.entries(locales.supportedLocales)
+    .map(([platform, tags]) => `${platform}=${tags.join(",")}`).join("; ")}; test: en-XA, ar-XB)`);
 }
 
 if (fileURLToPath(import.meta.url) === process.argv[1]) {

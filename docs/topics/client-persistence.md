@@ -1,5 +1,13 @@
 # Client Persistence And Session Boundary
 
+Tactical [383](../tactical/383-android-translation-cohorts.md) adds Android's
+local language override. System language is the default and clears the
+override. Android 13+ owns persistence through LocaleManager; API 28–32 stores
+only `language_tag` in `product_appearance`. On an OS upgrade, a one-time
+handoff adopts a supported old value only if no native override exists, then
+removes that field. It never clears unrelated preferences or writes engine
+settings. The compatibility reader is listed in the migration ledger.
+
 Tactical [355](../tactical/355-automatic-updates.md) appends product schema 4
 for the desktop's automatic-install preference, last attempt and bounded
 handoff intake. These are host-owned durable state, independent of an open

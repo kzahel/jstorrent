@@ -1,18 +1,20 @@
 # Localization
 
-Investigation [383](../tactical/383-android-translation-cohorts.md) audits the
-legacy Android translation pipeline and proposes source-aware incremental
-translation cohorts, starting with a complete German pilot and reusable
-export/import/check tooling. Current Android has 667 English resources, of which 659
-are translatable (including 28 quantities); 116 have same-English candidates
-in each of the legacy app's 18 translated catalogs, before semantic and origin
-review. No translations were imported or enabled; shipping locales remain
-English. The maintainer's October 25 direction replaces mandatory
-native-speaker review with agent translation and independent agent review.
-Human review is welcome where available, with German and French review
-planned, but is not a prerequisite for shipping other locales. English copy
-refinement need not block translation tooling or drafts because changed
-source can invalidate individual translations.
+Tactical [383](../tactical/383-android-translation-cohorts.md) implements
+source-aware Android translation tooling and a complete German debug preview:
+634 strings and 28 quantities, independently translated and reviewed by
+separate sessions. No third-party translations are imported. Settings →
+Language offers System language, English and Deutsch in debug; release
+resources remain English. Native locale ownership, localized notifications,
+saved settings drafts, playback position and exact decimal-comma rate input
+support switching without changing engine settings. Platform qualification
+and the requested Pixel 7a review build are recorded in 383.
+
+The maintainer's October 25 direction replaces mandatory native-speaker
+review with agent translation and independent agent review. Human review is
+welcome where available, with German and French review planned, but is not a
+prerequisite for other locales. English copy refinement produces individual
+stale translations to update through the same checked workflow.
 
 The October 17 hosted follow-up to 375 synchronizes Add-to-Settings UI tests
 on sheet disappearance and the next button's hittability. A captured failed
@@ -184,8 +186,8 @@ sentence, or platform message key.
 
 Machine-readable policy lives under `localization/`:
 
-- `locales.json` is the authoritative shipping/test locale manifest and
-  catalog path map;
+- `locales.json` is the authoritative per-platform shipping locale manifest,
+  debug-preview locale list, pseudo-locale list and catalog path map;
 - `glossary.json` owns shared product terminology and disambiguation;
 - `provenance.json` records catalog source, license, and review state; and
 - `source-classification.json` distinguishes presentation copy from user,
@@ -197,12 +199,15 @@ Machine-readable policy lives under `localization/`:
   maintained as normal product copy, not imported translation.
 - `en-XA` and `ar-XB` are generated test-only pseudo-locales. They must never
   appear in a release locale manifest or product language picker.
-- Locale defaults to browser/operating-system preferences. The planned Android
+- Locale defaults to browser/operating-system preferences. The Android
   in-app language picker offers **System language** by default and a remembered
   explicit override for this installation. Returning to System language clears
   the override and follows subsequent system-language changes. Android 13+
   in-app and system per-app language controls share the platform locale owner;
-  older supported Android versions need local override persistence. Language
+  older supported Android versions persist one local UI preference. Its
+  one-time handoff on an OS upgrade to Android 13 preserves an existing native
+  selection and never reapplies the old value after returning to System.
+  Language
   selection is not synchronized or added to the engine/application contract.
 - Stable keys describe semantic intent rather than copying English or encoding
   screen position. User values are interpolation data, never keys or format
@@ -246,7 +251,12 @@ and `ar-XB` only for tests; production builds cannot select them.
 For Android, edit
 `clients/android/app/src/main/res/values/strings.xml` and use quantities for
 count-dependent copy. Android's debug build generates platform pseudo-locales;
-release resources advertise only English. Run from the repository root:
+release resources advertise only English. German is packaged only in the
+debug source set. Use the offline [translation workflow](../../clients/android/scripts/LOCALIZATION.md)
+to export missing/stale messages, validate independently reviewed responses,
+import corrections, check metadata and prune obsolete resources. The global
+checker also checks Android locale configuration and all declared catalogs.
+Run from the repository root:
 
 ```bash
 clients/android/build.sh
@@ -309,9 +319,11 @@ locale that falls through to raw keys or materially incomplete English.
 
 ## Evidence And Open Work
 
-The currently checked catalogs contain 1,261 React messages, 17 Tauri-native
-messages, 442 Android strings plus 7 quantities, 172 iOS product messages,
-and 6 iOS Info.plist messages. Tactical 204 records the foundation's exact
+The currently checked catalogs contain 1,632 React messages, 20 Tauri-native
+messages, 642 Android strings plus 28 quantities (eight strings are
+nontranslatable), 189 iOS product messages and six iOS Info.plist messages.
+The German debug catalog covers all 662 translatable Android resources.
+Tactical 204 records the foundation's exact
 FormatJS pins and licenses, artifact deltas, API 28/35 and iPhone/iPad pseudo
 matrices, archive evidence, and repository gates. Completed Tactical
 [`206`](../tactical/206-android-jstorrent-feedback-handoff.md) adds three

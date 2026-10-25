@@ -1,5 +1,13 @@
 # Client Surfaces
 
+Tactical [383](../tactical/383-android-translation-cohorts.md) adds Android
+Settings → Language with a system default and remembered local override.
+Android 13+ uses its native app-locale owner; earlier supported versions use
+localized application/activity/service contexts. German is a debug preview;
+release resources remain English. Locale recreation retains navigation,
+settings drafts, playback position and the engine lifetime, while notification
+text and channel labels refresh without replaying completion events.
+
 Tactical [377](../tactical/377-compatible-touchless-release-channels.md) labels
 About's selector **Stable — Recommended** and **Latest — Early access**.
 Returning to Stable saves the choice and waits for a newer release that supports

@@ -2,6 +2,7 @@ package org.rstorrent.bootstrap
 
 import android.app.Application
 import android.content.Context
+import android.content.res.Configuration
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -38,8 +39,14 @@ object PlatformTrustBootstrap {
 }
 
 class RstorrentApplication : Application() {
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(ProductAppLanguage.wrap(base))
+    }
+
     override fun onCreate() {
         super.onCreate()
+        ProductAppLanguage.handoffLegacyPreference(this)
+        ProductAppLanguage.refreshFormattingLocale(this)
         PlatformTrustBootstrap.ensureInitialized(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             object : DefaultLifecycleObserver {
@@ -52,6 +59,11 @@ class RstorrentApplication : Application() {
                 }
             },
         )
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        ProductAppLanguage.onConfigurationChanged(this)
     }
 }
 

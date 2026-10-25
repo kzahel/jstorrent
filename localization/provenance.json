@@ -24,6 +24,16 @@
       "license": "MIT",
       "reviewState": "source",
       "reviewer": "maintainers"
+    },
+    {
+      "locale": "de",
+      "platform": "android",
+      "source": "Independently authored translations of the first-party English Android catalog",
+      "license": "MIT",
+      "reviewState": "agent-reviewed",
+      "reviewer": "Independent translation review sessions; see localization/android/de.json",
+      "model": "claude-opus-5-5",
+      "distribution": "debug-preview"
     }
   ]
 }

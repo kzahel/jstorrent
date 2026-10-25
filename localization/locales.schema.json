@@ -8,6 +8,7 @@
     "fallbackLocale",
     "supportedLocales",
     "testLocales",
+    "previewLocales",
     "catalogs"
   ],
   "properties": {
@@ -15,8 +16,22 @@
     "sourceLocale": { "type": "string", "const": "en" },
     "fallbackLocale": { "type": "string", "const": "en" },
     "supportedLocales": {
-      "type": "array",
-      "const": ["en"]
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["web", "desktop", "android", "ios"],
+      "properties": {
+        "web": { "$ref": "#/$defs/localeList" },
+        "desktop": { "$ref": "#/$defs/localeList" },
+        "android": { "$ref": "#/$defs/localeList" },
+        "ios": { "$ref": "#/$defs/localeList" }
+      }
+    },
+    "previewLocales": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "android": { "$ref": "#/$defs/localeList" }
+      }
     },
     "testLocales": {
       "type": "array",
@@ -41,6 +56,13 @@
         "android": { "type": "string", "minLength": 1 },
         "ios": { "type": "string", "minLength": 1 }
       }
+    }
+  },
+  "$defs": {
+    "localeList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$" }
     }
   }
 }

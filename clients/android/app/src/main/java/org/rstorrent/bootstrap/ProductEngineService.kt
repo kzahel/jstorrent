@@ -127,6 +127,10 @@ private class ProductDataResetInProgressException :
     IllegalStateException("clear data is already in progress")
 
 class ProductEngineService : Service() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(ProductAppLanguage.wrap(newBase))
+    }
+
     inner class LocalBinder : Binder() {
         val service: ProductEngineService
             get() = this@ProductEngineService
@@ -5552,6 +5556,14 @@ class ProductEngineService : Service() {
     private fun observePowerAndNotification() {
         powerNotificationJob = scope.launch {
             launch {
+                ProductAppLanguage.revisions.collect {
+                    notificationCoordinator.onLocaleChanged()
+                    if (foreground.get()) {
+                        notificationCoordinator.updateOngoingNotification(productOngoingNotificationContent(state.value))
+                    }
+                }
+            }
+            launch {
                 state.collect { product ->
                     val active =
                         product.preventSleepDuringActiveDownloads &&
@@ -5559,8 +5571,9 @@ class ProductEngineService : Service() {
                     updatePowerLock(active)
                 }
             }
-            // The only steady-state writer of the ongoing notification; a newer
-            // emission cancels a pending rate post and the throttle recomputes it.
+            // The steady-state data writer; locale revisions above explicitly
+            // refresh the same semantic content in the new configuration.
+            // A newer emission cancels a pending rate post and recomputes it.
             val throttle = ProductOngoingNotificationThrottle()
             state.collectLatest { product ->
                 if (!foreground.get()) {

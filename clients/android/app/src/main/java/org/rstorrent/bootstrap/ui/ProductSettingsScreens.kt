@@ -23,7 +23,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +36,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
+import java.text.DecimalFormatSymbols
+import java.math.BigDecimal
+import java.util.Locale
 import org.rstorrent.bootstrap.ProductNetworkState
 import org.rstorrent.bootstrap.R
 import org.rstorrent.bootstrap.SharePeerHintChoice
@@ -163,14 +167,14 @@ private fun ActiveSeedSetting(
     configured: ActiveSeedLimit,
     onValue: (ActiveSeedLimit) -> Unit,
 ) {
-    var dialog by remember { mutableStateOf(false) }
+    var dialog by rememberSaveable { mutableStateOf(false) }
     val title = stringResource(R.string.setting_active_seeds)
     ValueRow(title, activeSeedLimitLabel(configured), null) { dialog = true }
     if (dialog) {
-        var unlimited by remember(configured) {
+        var unlimited by rememberSaveable(configured) {
             mutableStateOf(configured is ActiveSeedLimit.Unlimited)
         }
-        var text by remember(configured) {
+        var text by rememberSaveable(configured) {
             mutableStateOf((configured as? ActiveSeedLimit.Limited)?.torrents?.toString() ?: "5")
         }
         val parsed = if (unlimited) null else text.toIntOrNull()?.takeIf { it in 0..500 }
@@ -235,7 +239,7 @@ internal fun RateLimitSetting(
     application: ClientSettingsApplicationState? = null,
     onValue: (TransferRateLimit) -> Unit,
 ) {
-    var dialog by remember { mutableStateOf(false) }
+    var dialog by rememberSaveable { mutableStateOf(false) }
     val usingNote =
         effective?.takeIf { it != configured }?.let {
             stringResource(R.string.setting_using_value, rateLimitLabel(it))
@@ -259,6 +263,34 @@ private sealed interface RateChoice {
     data object Custom : RateChoice
 }
 
+private val rateChoiceSaver = Saver<RateChoice, Long>(
+    save = { when (it) {
+        RateChoice.Unlimited -> -1L
+        RateChoice.Custom -> -2L
+        is RateChoice.Preset -> it.bytesPerSecond.toLong()
+    } },
+    restore = { when (it) {
+        -1L -> RateChoice.Unlimited
+        -2L -> RateChoice.Custom
+        else -> RateChoice.Preset(it.toUInt())
+    } },
+)
+
+private val seedStopChoiceSaver = Saver<SeedStopChoice, Long>(
+    save = { when (it) {
+        SeedStopChoice.UseGlobal -> -1L
+        SeedStopChoice.Off -> -2L
+        SeedStopChoice.Custom -> -3L
+        is SeedStopChoice.Preset -> it.value.toLong()
+    } },
+    restore = { when (it) {
+        -1L -> SeedStopChoice.UseGlobal
+        -2L -> SeedStopChoice.Off
+        -3L -> SeedStopChoice.Custom
+        else -> SeedStopChoice.Preset(it.toUInt())
+    } },
+)
+
 @Composable
 private fun RateLimitDialog(
     title: String,
@@ -266,7 +298,7 @@ private fun RateLimitDialog(
     onDismiss: () -> Unit,
     onApply: (TransferRateLimit) -> Unit,
 ) {
-    var choice by remember(configured) {
+    var choice by rememberSaveable(configured, stateSaver = rateChoiceSaver) {
         mutableStateOf(
             when (configured) {
                 TransferRateLimit.Unlimited -> RateChoice.Unlimited
@@ -279,7 +311,7 @@ private fun RateLimitDialog(
             },
         )
     }
-    var text by remember(configured) { mutableStateOf(customRateText(configured)) }
+    var text by rememberSaveable(configured) { mutableStateOf(customRateText(configured)) }
     val parsed: TransferRateLimit? =
         when (val selected = choice) {
             RateChoice.Unlimited -> TransferRateLimit.Unlimited
@@ -306,7 +338,7 @@ private fun RateLimitDialog(
                 if (choice == RateChoice.Custom) {
                     OutlinedTextField(
                         value = text,
-                        onValueChange = { text = it.filter { character -> character.isDigit() || character == '.' } },
+                        onValueChange = { text = it },
                         singleLine = true,
                         label = { Text(stringResource(R.string.setting_rate_unit)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -337,15 +369,15 @@ internal fun SeedStopRatioSetting(
     perTorrent: Boolean,
     onValue: (TorrentSeedStopLimit) -> Unit,
 ) {
-    var dialog by remember { mutableStateOf(false) }
+    var dialog by rememberSaveable { mutableStateOf(false) }
     val title = stringResource(R.string.setting_seed_stop_ratio)
     val valueLabel: @Composable (UInt) -> String = { seedStopRatioValueLabel(it) }
     ValueRow(title, seedStopRowLabel(configured, global, perTorrent, valueLabel), null) { dialog = true }
     if (!dialog) return
-    var choice by remember(configured) {
+    var choice by rememberSaveable(configured, stateSaver = seedStopChoiceSaver) {
         mutableStateOf(seedStopChoice(configured, SEED_STOP_RATIO_PRESETS))
     }
-    var text by remember(configured) {
+    var text by rememberSaveable(configured) {
         mutableStateOf(seedStopRatioText((configured as? TorrentSeedStopLimit.Limited)?.value))
     }
     val parsed = choice.toLimit(parseSeedStopRatio(text))
@@ -386,17 +418,17 @@ internal fun SeedStopTimeSetting(
     perTorrent: Boolean,
     onValue: (TorrentSeedStopLimit) -> Unit,
 ) {
-    var dialog by remember { mutableStateOf(false) }
+    var dialog by rememberSaveable { mutableStateOf(false) }
     val title = stringResource(R.string.setting_seed_stop_time)
     val valueLabel: @Composable (UInt) -> String = { seedStopTimeValueLabel(it) }
     ValueRow(title, seedStopRowLabel(configured, global, perTorrent, valueLabel), null) { dialog = true }
     if (!dialog) return
     val initial = seedStopTimeText((configured as? TorrentSeedStopLimit.Limited)?.value)
-    var choice by remember(configured) {
+    var choice by rememberSaveable(configured, stateSaver = seedStopChoiceSaver) {
         mutableStateOf(seedStopChoice(configured, SEED_STOP_TIME_PRESETS))
     }
-    var text by remember(configured) { mutableStateOf(initial.first) }
-    var unit by remember(configured) { mutableStateOf(initial.second) }
+    var text by rememberSaveable(configured) { mutableStateOf(initial.first) }
+    var unit by rememberSaveable(configured) { mutableStateOf(initial.second) }
     val parsed = choice.toLimit(parseSeedStopTime(text, unit))
     SeedStopDialog(
         title = title,
@@ -524,22 +556,26 @@ private fun ChoiceRow(
     }
 }
 
-internal fun parseRateLimit(valueKiB: String): TransferRateLimit.Limited? {
-    if (!Regex("^\\d+(?:\\.\\d+)?$").matches(valueKiB)) return null
-    val bytes = (valueKiB.toDoubleOrNull() ?: return null) * 1024.0
-    if (!bytes.isFinite() || bytes % 1.0 != 0.0 || bytes < 1_024.0 || bytes > UInt.MAX_VALUE.toDouble()) {
-        return null
-    }
-    return TransferRateLimit.Limited(bytes.toLong().toUInt())
+internal fun parseRateLimit(valueKiB: String, locale: Locale = Locale.getDefault()): TransferRateLimit.Limited? {
+    // A single comma or period is a decimal separator. Grouping, mixed
+    // separators and pasted suffixes stay invalid rather than changing scale.
+    if (valueKiB.length > 40) return null
+    val normalized = valueKiB.replace(DecimalFormatSymbols.getInstance(locale).decimalSeparator, '.').replace(',', '.')
+    if (!Regex("^[0-9]+(?:\\.[0-9]+)?$").matches(normalized)) return null
+    val bytes = (normalized.toBigDecimalOrNull() ?: return null) * BigDecimal(1024)
+    val exactBytes = runCatching { bytes.longValueExact() }.getOrNull() ?: return null
+    if (exactBytes !in 1_024L..UInt.MAX_VALUE.toLong()) return null
+    return TransferRateLimit.Limited(exactBytes.toUInt())
 }
 
 /** The custom field's starting text: the exact limit in KB/s, or a 1 MB/s suggestion. */
-internal fun customRateText(limit: TransferRateLimit): String =
+internal fun customRateText(limit: TransferRateLimit, locale: Locale = Locale.getDefault()): String =
     when (limit) {
         TransferRateLimit.Unlimited -> "1024"
         is TransferRateLimit.Limited -> {
-            val kib = limit.bytesPerSecond.toDouble() / 1024.0
-            if (kib % 1.0 == 0.0) kib.toLong().toString() else kib.toString()
+            BigDecimal(limit.bytesPerSecond.toLong()).divide(BigDecimal(1024))
+                .stripTrailingZeros().toPlainString()
+                .replace('.', DecimalFormatSymbols.getInstance(locale).decimalSeparator)
         }
     }
 
@@ -716,10 +752,10 @@ private fun NumericSetting(
     supporting: String? = null,
     onValue: (Int) -> Unit,
 ) {
-    var dialog by remember { mutableStateOf(false) }
+    var dialog by rememberSaveable { mutableStateOf(false) }
     ValueRow(title, value.toString(), supporting) { dialog = true }
     if (dialog) {
-        var text by remember(value) { mutableStateOf(value.toString()) }
+        var text by rememberSaveable(value) { mutableStateOf(value.toString()) }
         val parsed = text.toIntOrNull()
         AlertDialog(
             onDismissRequest = { dialog = false },
@@ -776,7 +812,7 @@ internal fun <T> ChoiceSetting(
     detail: String? = null,
     onSelected: (T) -> Unit,
 ) {
-    var dialog by remember { mutableStateOf(false) }
+    var dialog by rememberSaveable { mutableStateOf(false) }
     ValueRow(title, label(selected), detail) { dialog = true }
     if (dialog) {
         AlertDialog(

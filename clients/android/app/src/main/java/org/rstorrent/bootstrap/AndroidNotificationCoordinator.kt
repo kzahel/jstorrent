@@ -117,6 +117,37 @@ internal class AndroidNotificationCoordinator(
         refreshPlatformState(interactionLeaseCount)
     }
 
+    /** Relabel existing notifications without replaying torrent completion edges. */
+    fun onLocaleChanged() {
+        createChannels()
+        runCatching {
+            manager.activeNotifications.forEach { active ->
+                val text =
+                    if (active.id == AndroidNotificationContract.COMPANION_ROOT_NOTIFICATION_ID) {
+                        context.getString(R.string.notification_choose_folder_title) to
+                            context.getString(R.string.notification_choose_folder_body)
+                    } else {
+                        val category = ProductNotificationCategory.entries.firstOrNull {
+                            active.id == eventNotificationId(it) &&
+                                active.tag?.startsWith(productNotificationTagPrefix(it)) == true
+                        } ?: return@forEach
+                        val torrent = state.value.torrents.values.firstOrNull {
+                            productNotificationTag(category, it.torrentId) == active.tag
+                        } ?: return@forEach
+                        notificationText(category, notificationDisplayName(torrent))
+                    }
+                val notification = Notification.Builder.recoverBuilder(context, active.notification)
+                    .setContentTitle(text.first)
+                    .setContentText(text.second)
+                    .setOnlyAlertOnce(true)
+                    .build()
+                manager.notify(active.tag, active.id, notification)
+            }
+        }.onFailure { error ->
+            Log.w(TAG, "notification_locale_refresh result=rejected", error)
+        }
+    }
+
     fun onTorrentListUpdate(
         update: ViewUpdate,
         product: ProductState,
@@ -392,16 +423,7 @@ internal class AndroidNotificationCoordinator(
                 ProductNotificationCategory.NEEDS_ATTENTION ->
                     AndroidNotificationContract.ATTENTION_CHANNEL_ID
             }
-        val displayName = edge.displayName ?: context.getString(R.string.torrent_fallback_name)
-        val (title, body) =
-            when (edge.category) {
-                ProductNotificationCategory.DOWNLOAD_COMPLETE ->
-                    context.getString(R.string.notification_download_complete_title) to
-                        context.getString(R.string.notification_download_complete_body, displayName)
-                ProductNotificationCategory.NEEDS_ATTENTION ->
-                    context.getString(R.string.notification_attention_title) to
-                        context.getString(R.string.notification_attention_body, displayName)
-            }
+        val (title, body) = notificationText(edge.category, edge.displayName)
         val notification =
             NotificationCompat
                 .Builder(context, channel)
@@ -429,6 +451,21 @@ internal class AndroidNotificationCoordinator(
                 )
                 refreshPlatformState(platform.interactionLeaseCount)
             }
+    }
+
+    private fun notificationText(
+        category: ProductNotificationCategory,
+        name: String?,
+    ): Pair<String, String> {
+        val displayName = name ?: context.getString(R.string.torrent_fallback_name)
+        return when (category) {
+            ProductNotificationCategory.DOWNLOAD_COMPLETE ->
+                context.getString(R.string.notification_download_complete_title) to
+                    context.getString(R.string.notification_download_complete_body, displayName)
+            ProductNotificationCategory.NEEDS_ATTENTION ->
+                context.getString(R.string.notification_attention_title) to
+                    context.getString(R.string.notification_attention_body, displayName)
+        }
     }
 
     private fun makeRoom(category: ProductNotificationCategory): Boolean {

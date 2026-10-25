@@ -144,7 +144,8 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:core-ktx:1.6.1")
     androidTestImplementation("androidx.test:rules:1.6.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    // Use the public input-manager service on recent Android versions.
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }
 
 // AGP otherwise permits an unsigned release when no storeFile is configured.

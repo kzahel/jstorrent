@@ -318,7 +318,7 @@ class ProductStateReducerTest {
         assertEquals(TransferRateLimit.Limited(1_024U), parseRateLimit("1"))
         assertEquals(TransferRateLimit.Limited(UInt.MAX_VALUE), parseRateLimit("4194303.9990234375"))
         assertEquals("1024", customRateText(TransferRateLimit.Unlimited))
-        assertEquals("1.5", customRateText(TransferRateLimit.Limited(1_536U)))
+        assertEquals("1.5", customRateText(TransferRateLimit.Limited(1_536U), java.util.Locale.US))
         assertEquals(
             listOf(100U * 1_024U, 500U * 1_024U, 1_048_576U, 5U * 1_048_576U, 10U * 1_048_576U),
             RATE_LIMIT_PRESETS,

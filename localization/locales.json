@@ -2,9 +2,15 @@
   "$schema": "./locales.schema.json",
   "sourceLocale": "en",
   "fallbackLocale": "en",
-  "supportedLocales": [
-    "en"
-  ],
+  "supportedLocales": {
+    "web": ["en"],
+    "desktop": ["en"],
+    "android": ["en"],
+    "ios": ["en"]
+  },
+  "previewLocales": {
+    "android": ["de"]
+  },
   "testLocales": [
     {
       "tag": "en-XA",

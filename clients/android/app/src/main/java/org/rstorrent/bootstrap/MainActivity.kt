@@ -41,6 +41,10 @@ import org.rstorrent.session.uniffi.FileIndexRange
 import org.rstorrent.session.uniffi.FileSelectionIntent
 
 class MainActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(ProductAppLanguage.wrap(newBase))
+    }
+
     private var pendingCommand: Intent? = null
     private val productService = mutableStateOf<ProductEngineService?>(null)
     private val notificationsGranted = mutableStateOf(false)
@@ -537,6 +541,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         ProductInteractionRegistry.setActivityVisible(this, true)
+        ProductAppLanguage.onActivityStarted()
         if (productMode) {
             if (!productStartRequested) startProductService()
             bindProductService()

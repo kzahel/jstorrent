@@ -38,6 +38,7 @@ import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.NetworkCheck
 import androidx.compose.material.icons.outlined.Notifications
@@ -143,6 +144,8 @@ import org.rstorrent.session.uniffi.StorageRootAvailability
 import org.rstorrent.session.uniffi.TorrentOperationalState
 import org.rstorrent.session.uniffi.TorrentSettingsPatch
 import org.rstorrent.session.uniffi.TorrentView
+import org.rstorrent.bootstrap.ProductAppLanguage
+import java.util.Locale
 
 @Composable
 fun ProductApp(
@@ -1543,6 +1546,28 @@ private fun ProductNavHost(
                 )
             }
         }
+        composable(ProductRoutes.SETTINGS_LANGUAGE) {
+            val context = LocalContext.current
+            val systemLanguage = stringResource(R.string.settings_language_system)
+            var language by remember { mutableStateOf(ProductAppLanguage.selected(context)) }
+            SettingsPage(stringResource(R.string.settings_language), navController::popBackStack) {
+                ChoiceSetting(
+                    title = stringResource(R.string.settings_language),
+                    selected = language,
+                    values = ProductAppLanguage.available(context),
+                    label = { tag ->
+                        if (tag.isEmpty()) systemLanguage else {
+                            val locale = Locale.forLanguageTag(tag)
+                            locale.getDisplayName(locale)
+                        }
+                    },
+                    onSelected = { tag ->
+                        if (ProductAppLanguage.set(context, tag)) language = tag
+                        else android.widget.Toast.makeText(context, R.string.setting_not_saved, android.widget.Toast.LENGTH_LONG).show()
+                    },
+                )
+            }
+        }
         composable(ProductRoutes.SETTINGS_ADVANCED) {
             SettingsPage(stringResource(R.string.settings_advanced), navController::popBackStack) {
                 SettingsSection(stringResource(R.string.settings_section_appearance))
@@ -2491,6 +2516,9 @@ private fun SettingsHub(navController: NavHostController) {
         }
         SettingsDestination(stringResource(R.string.settings_power_management), stringResource(R.string.settings_power_management_detail), Icons.Outlined.BatterySaver) {
             navController.navigate(ProductRoutes.SETTINGS_POWER)
+        }
+        SettingsDestination(stringResource(R.string.settings_language), stringResource(R.string.settings_language_detail), Icons.Outlined.Language) {
+            navController.navigate(ProductRoutes.SETTINGS_LANGUAGE)
         }
         SettingsDestination(stringResource(R.string.settings_advanced), stringResource(R.string.settings_advanced_detail), Icons.Outlined.Settings) {
             navController.navigate(ProductRoutes.SETTINGS_ADVANCED)

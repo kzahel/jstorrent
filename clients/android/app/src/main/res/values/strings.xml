@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Language picker title and the option that clears an app-specific override. -->
+    <string name="settings_language">Language</string>
+    <string name="settings_language_detail">Choose the language used in this app.</string>
+    <string name="settings_language_system">System language</string>
     <string name="legacy_chromeos_migration_guidance">Your JSTorrent library is available in this Android app. Update the JSTorrent extension to control it from Chrome, then connect and approve a new pairing. You can use this app directly while updates arrive.</string>
     <!-- Product identity. Do not translate JSTorrent. -->
     <string name="app_name" translatable="false">JSTorrent</string>
@@ -153,7 +157,7 @@
     <string name="status_rates">↓ %1$s · ↑ %2$s</string>
     <string name="a11y_status_rates">Downloading at %1$s, uploading at %2$s</string>
     <string name="library_empty">No torrents yet</string>
-    <string name="library_empty_filtered">No %1$s torrents</string>
+    <string name="library_empty_filtered">No torrents match “%1$s”.</string>
     <string name="library_empty_hint">Tap Add to paste a magnet or choose a .torrent file.</string>
     <string name="library_empty_filtered_hint">Try another filter.</string>
     <string name="library_view_all">View all torrents</string>

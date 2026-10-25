@@ -59,13 +59,22 @@ never substitute the first device returned by ADB.
 Product English copy lives in `app/src/main/res/values/strings.xml`. Counted
 copy uses Android quantities, and durable state stores semantic values rather
 than localized sentences. Debug builds generate long-LTR `en-XA` and RTL
-`ar-XB` pseudo resources; release builds package only English. From the
-repository root, check the catalog and run the owned API 28/35 localization
-matrix with:
+`ar-XB` pseudo resources; release builds package only English. Debug builds
+also package the independently reviewed German preview. **Settings → Language**
+offers System language (default), English and Deutsch. Explicit selection
+survives restart; System clears the override. Android 13+ shares this setting
+with the OS per-app language controls. Earlier supported versions use a local
+UI preference, with a one-time handoff after an OS upgrade.
+
+The offline [translation tooling](scripts/LOCALIZATION.md) exports source-aware
+jobs and imports reviewed responses into native XML with checked metadata.
+The per-platform shipping and preview manifests prevent draft translations
+from entering release resources. From the repository root, check the catalog
+and run the owned API 28/35 localization matrix with:
 
 ```bash
 node scripts/check-localization.mjs
-clients/android/scripts/run-localization-matrix.py
+python3 clients/android/scripts/run-localization-matrix.py
 ```
 
 The matrix creates and removes its own AVDs and must not target an arbitrary
