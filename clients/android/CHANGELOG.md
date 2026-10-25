@@ -1,5 +1,10 @@
 # Android Changelog
 
+## [1.0.33]
+
+- Smaller, faster app: release builds are now optimized and shrunk.
+- Security updates to cryptography and networking components.
+
 ## [1.0.32]
 
 - Chromebook browser control requires JSTorrent extension 1.1.5 or newer.
