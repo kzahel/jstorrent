@@ -472,6 +472,8 @@ def query_rows(reporting, metric_set, rate, start, end):
         page = reporting.call('POST', f'{REPORTING}/{metric_set}:query', body)
         rows.extend(page.get('rows', []))
         if not page.get('nextPageToken'):
+            sample = json.dumps(rows[0])[:600] if rows else json.dumps(page)[:300]
+            print(f'{metric_set}: {len(rows)} rows; first: {sample}', file=sys.stderr)
             return rows
         body['pageToken'] = page['nextPageToken']
 
