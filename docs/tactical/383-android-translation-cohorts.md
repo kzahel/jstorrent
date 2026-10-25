@@ -234,3 +234,21 @@ the samples were not independently reviewed or imported. Its process was
 stopped after completion, retaining the session transcript. No account or pool
 configuration change was needed. No credentials or private router inventory
 belongs in this repository.
+
+## Implementation Record
+
+The initial plan and review policy landed in `37e79883`.
+
+Offline Python tooling now exports bounded locale jobs, validates responses,
+imports independently reviewed corrections, checks source/translation hashes
+and prunes obsolete resources while retaining origin history. Android XML is
+the text authority; locale metadata records review and source fingerprints.
+German uses informal `du` and a debug-only resource path. No third-party
+translations or legacy script source are imported.
+
+Validation: `python3 -m unittest discover -s clients/android/scripts -p
+test_localization.py -v` passes 12 cases, including Polish/Russian quantity
+contracts, changed English/context, stale/colliding replies, strict
+placeholders, manual corrections, pruning, Android escape round-trips and
+invalid XML characters. `python3 -m py_compile
+clients/android/scripts/localization.py` and `git diff --check` pass.
