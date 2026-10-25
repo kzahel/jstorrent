@@ -12,35 +12,39 @@ import {
 } from "react-intl";
 import { useSyncExternalStore, type ReactNode } from "react";
 
-import compiledEnglish from "./generated/en.json";
+import {
+  catalogs as compiledCatalogs,
+  localeRegistry as compiledRegistry,
+  sourceCatalog,
+} from "./generated/catalogs";
 
-export type MessageId = keyof typeof compiledEnglish;
-export type ProductLocale = "en" | "de" | "en-XA" | "ar-XB";
-export type LanguagePreference = "system" | "en" | "de";
+export type MessageId = keyof typeof sourceCatalog;
+export type RegisteredLocale = (typeof compiledRegistry.supportedLocales)[number] | (typeof compiledRegistry.previewLocales)[number];
+export type ProductLocale = RegisteredLocale | (typeof compiledRegistry.testLocales)[number]["tag"];
+export type LanguagePreference = "system" | RegisteredLocale;
 export interface DesktopLocaleSnapshot {
   readonly preference: LanguagePreference;
-  readonly locale: "en" | "de";
-  readonly availableLocales: readonly ("en" | "de")[];
+  readonly locale: RegisteredLocale;
+  readonly availableLocales: readonly RegisteredLocale[];
 }
 export interface DesktopLanguageAuthority {
   save(preference: LanguagePreference): Promise<DesktopLocaleSnapshot>;
 }
 const LANGUAGE_KEY = "rstorrent.presentation.language";
 const previewEnabled = import.meta.env.VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES === "1";
-// Preview assets are compiled into the bundle, never fetched by language choice.
-// A false build-time gate lets the release bundler remove the German data.
-const previewCatalogs = import.meta.env.VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES === "1"
-  ? import.meta.glob("./generated/de.json", { eager: true, import: "default" })
-  : {};
-let germanMessages: Record<MessageId, MessageFormatElement[]> | undefined;
+// Generated static imports are the packaging boundary: only registered
+// catalogs enter the graph, and release builds prune preview data entirely.
+let registry = compiledRegistry;
+type Catalog = Record<MessageId, MessageFormatElement[]>;
+let catalogs = compiledCatalogs as unknown as Readonly<Partial<Record<RegisteredLocale, Catalog>>>;
 let languagePreference: LanguagePreference = "system";
 let desktopAuthority: DesktopLanguageAuthority | undefined;
-let desktopLocales: readonly ("en" | "de")[] | undefined;
+let desktopLocales: readonly RegisteredLocale[] | undefined;
 let initialized = false;
 let localeRequest = 0;
 export type MessageValues = Readonly<Record<string, PrimitiveType>>;
 
-let englishMessages = compiledEnglish as Record<MessageId, MessageFormatElement[]>;
+let englishMessages = sourceCatalog as Catalog;
 const cache = createIntlCache();
 const diagnostics = new Set<string>();
 const catalogListeners = new Set<() => void>();
@@ -60,7 +64,7 @@ export function LocalizationProvider({ children }: { readonly children: ReactNod
   return (
     <IntlProvider
       locale={state.locale}
-      defaultLocale="en"
+      defaultLocale={registry.sourceLocale}
       messages={state.messages}
       onError={reportIntlError}
     >
@@ -87,6 +91,13 @@ export function formatNumber(
   return current.intl.formatNumber(value, options);
 }
 
+export function formatNumberToParts(
+  value: number | bigint,
+  options?: FormatNumberOptions,
+): Intl.NumberFormatPart[] {
+  return current.intl.formatNumberToParts(value, options);
+}
+
 export function formatDate(
   value: string | number | Date,
   options?: FormatDateOptions,
@@ -105,20 +116,46 @@ export function resolveProductLocale(
   requested: readonly string[],
   allowTestLocales = false,
 ): ProductLocale {
+  return negotiateLocale(requested, previewEnabled || allowTestLocales, allowTestLocales);
+}
+
+function registeredLocales(includePreview: boolean): readonly RegisteredLocale[] {
+  return includePreview ? [...registry.supportedLocales, ...registry.previewLocales] : registry.supportedLocales;
+}
+
+function isRegisteredLocale(value: unknown): value is RegisteredLocale {
+  return typeof value === "string" && registeredLocales(true).includes(value as RegisteredLocale);
+}
+
+function negotiateLocale(requested: readonly string[], includePreview: boolean, includeTests: boolean): ProductLocale {
+  const available: readonly ProductLocale[] = [
+    ...registeredLocales(includePreview),
+    ...(includeTests ? registry.testLocales.map((locale) => locale.tag) : []),
+  ];
   for (const candidate of requested) {
     let canonical: string;
-    try {
-      canonical = Intl.getCanonicalLocales(candidate)[0] ?? "";
-    } catch {
-      continue;
+    try { canonical = Intl.getCanonicalLocales(candidate)[0] ?? ""; }
+    catch { continue; }
+    // BCP47 lookup: prefer a registered region/script before its parents.
+    while (canonical !== "") {
+      const match = available.find((locale) => locale === canonical);
+      if (match !== undefined) return match;
+      const separator = canonical.lastIndexOf("-");
+      if (separator < 0) break;
+      canonical = canonical.slice(0, separator);
+      if (canonical.split("-").at(-1)?.length === 1) canonical = canonical.slice(0, canonical.lastIndexOf("-"));
     }
-    if (allowTestLocales && (canonical === "en-XA" || canonical === "ar-XB")) {
-      return canonical;
-    }
-    if ((previewEnabled || allowTestLocales) && (canonical === "de" || canonical.startsWith("de-"))) return "de";
-    if (canonical === "en" || canonical.startsWith("en-")) return "en";
   }
-  return "en";
+  return registry.fallbackLocale;
+}
+
+function testLocale(locale: ProductLocale) {
+  return registry.testLocales.find((entry) => entry.tag === locale);
+}
+
+function localeDirection(locale: ProductLocale): "ltr" | "rtl" {
+  const definitions = registry.localeDefinitions as Readonly<Record<string, { readonly direction: "ltr" | "rtl" }>>;
+  return testLocale(locale)?.direction ?? definitions[locale]?.direction ?? definitions[registry.fallbackLocale]!.direction;
 }
 
 export function setProductLocaleForTest(locale: ProductLocale): () => void {
@@ -156,8 +193,8 @@ export function localizeDocumentShell(): void {
 
 export function languagePreferenceSnapshot(): LanguagePreference { return languagePreference; }
 
-export function availableProductLanguages(): readonly ("en" | "de")[] {
-  const packaged: readonly ("en" | "de")[] = previewEnabled ? ["en", "de"] : ["en"];
+export function availableProductLanguages(): readonly RegisteredLocale[] {
+  const packaged = registeredLocales(previewEnabled);
   const nativeLocales = desktopLocales;
   return nativeLocales === undefined ? packaged : packaged.filter((tag) => nativeLocales.includes(tag));
 }
@@ -173,15 +210,13 @@ function isDesktop(): boolean {
 function storedPreference(): LanguagePreference {
   try {
     const stored = globalThis.localStorage?.getItem(LANGUAGE_KEY);
-    return stored === "en" || (stored === "de" && previewEnabled) ? stored : "system";
+    return isRegisteredLocale(stored) && registeredLocales(previewEnabled).includes(stored) ? stored : "system";
   } catch { return "system"; }
 }
 
-async function loadGerman(): Promise<void> {
-  if (germanMessages !== undefined) return;
-  const catalog = previewCatalogs["./generated/de.json"];
-  if (catalog === undefined) throw new Error("German preview catalog is not packaged");
-  germanMessages = catalog as Record<MessageId, MessageFormatElement[]>;
+async function ensureCatalogAvailable(locale: ProductLocale): Promise<void> {
+  if (testLocale(locale) !== undefined) return;
+  if (catalogs[locale as RegisteredLocale] === undefined) throw new Error(`Presentation catalog is not packaged: ${locale}`);
 }
 
 function notifyLocale(): void {
@@ -195,11 +230,11 @@ async function applyPreference(preference: LanguagePreference, nativeLocale?: Pr
   const requested = nativeLocale === undefined
     ? preference === "system" ? preferredLocales() : [preference]
     : [nativeLocale];
-  const locale = resolveProductLocale(requested);
-  if (locale === "de") await loadGerman();
+  const locale = negotiateLocale(requested, previewEnabled, import.meta.env.VITE_RSTORRENT_ENABLE_PSEUDO_LOCALES === "1");
+  await ensureCatalogAvailable(locale);
   if (request !== localeRequest) return;
   languagePreference = preference;
-  current = createLocaleState(requested);
+  current = createLocaleState([locale]);
   notifyLocale();
 }
 
@@ -210,7 +245,7 @@ export async function initializeLocalization(): Promise<void> {
   languagePreference = desktop ? "system" : storedPreference();
   // Native owns System negotiation. Its snapshot arrives before any app or
   // recovery screen; the browser shell stays English while that owner loads.
-  await applyPreference(languagePreference, desktop ? "en" : undefined);
+  await applyPreference(languagePreference, desktop ? registry.fallbackLocale : undefined);
   initialized = true;
   if (typeof window !== "undefined") {
     window.addEventListener("languagechange", () => {
@@ -229,7 +264,7 @@ export async function setLanguagePreference(preference: LanguagePreference): Pro
   const desktop = isDesktop();
   const requested = preference === "system"
     ? desktop ? undefined : resolveProductLocale(preferredLocales()) : preference;
-  if (requested === "de") await loadGerman();
+  if (requested !== undefined) await ensureCatalogAvailable(requested);
   if (desktop) {
     if (desktopAuthority === undefined) throw new Error("Desktop language owner is unavailable");
     await applyDesktopLocaleSnapshot(await desktopAuthority.save(preference));
@@ -251,21 +286,21 @@ export async function bindDesktopLanguageAuthority(
 }
 
 export async function applyDesktopLocaleSnapshot(snapshot: DesktopLocaleSnapshot): Promise<void> {
-  if (!["system", "en", "de"].includes(snapshot.preference) || !["en", "de"].includes(snapshot.locale)
-    || !Array.isArray(snapshot.availableLocales) || !snapshot.availableLocales.includes("en")) {
+  if ((snapshot.preference !== "system" && !isRegisteredLocale(snapshot.preference)) || !isRegisteredLocale(snapshot.locale)
+    || !Array.isArray(snapshot.availableLocales) || !snapshot.availableLocales.includes(registry.fallbackLocale)) {
     throw new Error("Invalid desktop locale snapshot");
   }
-  desktopLocales = snapshot.availableLocales.filter((tag) => tag === "en" || tag === "de");
+  desktopLocales = snapshot.availableLocales.filter(isRegisteredLocale);
   await applyPreference(snapshot.preference, snapshot.locale);
 }
 
 export async function loadProductLocaleForTest(locale: ProductLocale): Promise<() => void> {
-  if (locale === "de") await loadGerman();
+  await ensureCatalogAvailable(locale);
   return setProductLocaleForTest(locale);
 }
 
 function preferredLocales(): readonly string[] {
-  if (typeof navigator === "undefined") return ["en"];
+  if (typeof navigator === "undefined") return [registry.fallbackLocale];
   const parameters =
     typeof window === "undefined" ? undefined : new URLSearchParams(window.location.search);
   const requestedTestLocale = parameters?.get("locale");
@@ -277,24 +312,26 @@ function preferredLocales(): readonly string[] {
 
 function createLocaleState(
   requested: readonly string[],
-  allowTestLocales = import.meta.env.VITE_RSTORRENT_ENABLE_PSEUDO_LOCALES === "1",
+  allowTestLocales = false,
 ): LocaleState {
-  const locale = resolveProductLocale(requested, allowTestLocales);
+  const locale = negotiateLocale(requested, previewEnabled || allowTestLocales,
+    allowTestLocales || import.meta.env.VITE_RSTORRENT_ENABLE_PSEUDO_LOCALES === "1");
+  const pseudo = testLocale(locale);
+  const translated = catalogs[locale as RegisteredLocale];
   const messages = Object.fromEntries(
     Object.entries(englishMessages).map(([id, elements]) => [
       id,
-      locale === "de" ? germanMessages?.[id as MessageId] ?? elements
-        : locale === "en" ? elements : transformElements(elements, locale),
+      pseudo === undefined ? translated?.[id as MessageId] ?? elements : transformElements(elements, pseudo.direction),
     ]),
   ) as Record<MessageId, MessageFormatElement[]>;
   return {
     locale,
-    direction: locale === "ar-XB" ? "rtl" : "ltr",
+    direction: localeDirection(locale),
     messages,
     intl: createIntl(
       {
         locale,
-        defaultLocale: "en",
+        defaultLocale: registry.sourceLocale,
         messages,
         onError: reportIntlError,
       },
@@ -305,11 +342,11 @@ function createLocaleState(
 
 function transformElements(
   elements: MessageFormatElement[],
-  locale: "en-XA" | "ar-XB",
+  direction: "ltr" | "rtl",
 ): MessageFormatElement[] {
   return elements.map((element) => {
     if (element.type === 0) {
-      return { ...element, value: pseudoLiteral(element.value, locale) };
+      return { ...element, value: pseudoLiteral(element.value, direction) };
     }
     if (element.type === 5 || element.type === 6) {
       return {
@@ -317,21 +354,21 @@ function transformElements(
         options: Object.fromEntries(
           Object.entries(element.options).map(([key, option]) => [
             key,
-            { ...option, value: transformElements(option.value, locale) },
+            { ...option, value: transformElements(option.value, direction) },
           ]),
         ),
       };
     }
     if (element.type === 8) {
-      return { ...element, children: transformElements(element.children, locale) };
+      return { ...element, children: transformElements(element.children, direction) };
     }
     return element;
   });
 }
 
-function pseudoLiteral(value: string, locale: "en-XA" | "ar-XB"): string {
+function pseudoLiteral(value: string, direction: "ltr" | "rtl"): string {
   if (value.trim() === "") return value;
-  if (locale === "ar-XB") return `\u200f⟦${value}\u200f⟧`;
+  if (direction === "rtl") return `\u200f⟦${value}\u200f⟧`;
   const expanded = value.replace(/[A-Za-z]/g, (letter) => ACCENTS[letter] ?? letter);
   return `⟦${expanded} ···⟧`;
 }
@@ -346,7 +383,7 @@ const ACCENTS: Readonly<Record<string, string>> = {
   w: "ŵ", x: "ẋ", y: "ÿ", z: "ž",
 };
 
-current = createLocaleState(isDesktop() ? ["en"] : preferredLocales());
+current = createLocaleState(isDesktop() ? [registry.fallbackLocale] : preferredLocales());
 
 /**
  * Calls `listener` after the locale or development catalog changes. The root
@@ -360,18 +397,20 @@ export function onMessageCatalogReplaced(listener: () => void): () => void {
 // Tactical 365: a copy edit swaps the catalog and re-renders instead of
 // reloading the page. Module-scope presentation labels use lazy getters.
 if (import.meta.hot) {
-  import.meta.hot.accept("./generated/en.json", (module) => {
+  import.meta.hot.accept("./generated/catalogs", (module) => {
     if (module === undefined) return;
-    englishMessages = (module as unknown as { default: typeof compiledEnglish })
-      .default as Record<MessageId, MessageFormatElement[]>;
-    current = createLocaleState([current.locale], true);
-    notifyLocale();
-  });
-  if (previewEnabled) import.meta.hot.accept("./generated/de.json", (module) => {
-    if (module === undefined) return;
-    germanMessages = (module as unknown as { default: Record<MessageId, MessageFormatElement[]> }).default;
-    current = createLocaleState([current.locale], true);
-    notifyLocale();
+    registry = module.localeRegistry;
+    englishMessages = module.sourceCatalog as Catalog;
+    catalogs = module.catalogs as unknown as typeof catalogs;
+    if (isDesktop()) {
+      // Native remains authoritative even if a stored override is unavailable.
+      current = createLocaleState([current.locale]);
+      notifyLocale();
+    } else {
+      // Registry edits may make a previously unavailable System language or
+      // preserved explicit preference available during development.
+      void applyPreference(storedPreference()).catch(reportIntlError);
+    }
   });
 }
 

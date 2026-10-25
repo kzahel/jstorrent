@@ -87,9 +87,10 @@ export function AppearanceSettingsSection({
     languageFocus.current = null;
     if (control?.isConnected && document.activeElement === document.body) control.focus();
   }, [languagePending]);
+  const availableLanguages = availableProductLanguages();
   const languageOptions = [
     { value: "system" as const, label: localizedMessage("localization.language.system"), description: localizedMessage("localization.language.description") },
-    ...availableProductLanguages().map((locale) => ({
+    ...availableLanguages.map((locale) => ({
       value: locale,
       label: new Intl.DisplayNames([locale], { type: "language" }).of(locale) ?? locale,
       description: localizedMessage("localization.language.description"),
@@ -97,7 +98,7 @@ export function AppearanceSettingsSection({
   ];
   const preference = languagePreferenceSnapshot();
   const selectedLanguage = languageOptions.some((option) => option.value === preference)
-    ? preference : currentLocale === "de" ? "de" : "en";
+    ? preference : availableLanguages.find((locale) => locale === currentLocale) ?? availableLanguages[0] ?? "system";
   const changeLanguage = async (preference: LanguagePreference) => {
     const focused = document.activeElement;
     languageFocus.current = focused instanceof HTMLInputElement && focused.name === "language" ? focused : null;

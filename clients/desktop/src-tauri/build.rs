@@ -1,4 +1,34 @@
+mod locale_registry_build;
+
 fn main() {
+    println!("cargo:rerun-if-changed=../../../localization/locales.json");
+    println!("cargo:rerun-if-changed=../../../scripts/localization-registry.mjs");
+    println!("cargo:rerun-if-changed=locale_registry_build.rs");
+    println!("cargo:rerun-if-env-changed=VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES");
+    let status = std::process::Command::new("node")
+        .arg("../../../scripts/localization-registry.mjs")
+        .status()
+        .expect("Node is required to validate the shared locale registry");
+    assert!(status.success(), "shared locale registry is invalid");
+    let locale_manifest = serde_json::from_slice(
+        &std::fs::read("../../../localization/locales.json").expect("read locale manifest"),
+    )
+    .expect("parse locale manifest");
+    let (registry, catalogs) = locale_registry_build::generate(
+        &locale_manifest,
+        std::path::Path::new("../../.."),
+        std::env::var("VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES").is_ok_and(|value| value == "1"),
+    )
+    .expect("generate desktop locale registry");
+    for path in catalogs {
+        println!("cargo:rerun-if-changed={}", path.display());
+    }
+    std::fs::write(
+        std::path::PathBuf::from(std::env::var_os("OUT_DIR").expect("build output directory"))
+            .join("desktop_locale_registry.rs"),
+        registry,
+    )
+    .expect("write desktop locale registry");
     println!("cargo:rerun-if-changed=../../../distribution/desktop-compatibility.json");
     println!("cargo:rerun-if-changed=../../../crates/rstorrent-session/src");
     println!("cargo:rerun-if-changed=../../../scripts/desktop-compatibility.mjs");

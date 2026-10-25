@@ -1,4 +1,4 @@
-import { message as localizedMessage, formatNumber, formatDate } from "../localization/runtime";
+import { message as localizedMessage, formatNumber, formatNumberToParts, formatDate } from "../localization/runtime";
 import type { DataUnits } from "./appearance";
 import type {
   TorrentCheckingProgress,
@@ -242,6 +242,7 @@ function fixedDecimal(value: number, digits: number): string {
 
 /** Preserve exact byte/ratio arithmetic above Number.MAX_SAFE_INTEGER. */
 function exactDecimal(whole: bigint, fraction: bigint, digits: number): string {
-  const separator = formatNumber(1.1, { useGrouping: false }).replace(/[0-9]/g, "");
-  return `${formatNumber(whole, { useGrouping: false })}${separator}${fraction.toString().padStart(digits, "0")}`;
+  const separator = formatNumberToParts(1.1, { useGrouping: false }).find((part) => part.type === "decimal")!.value;
+  const tail = formatNumber(fraction, { useGrouping: false, minimumIntegerDigits: digits });
+  return `${formatNumber(whole, { useGrouping: false })}${separator}${tail}`;
 }

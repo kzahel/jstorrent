@@ -142,7 +142,9 @@ jobs:
         if: needs.plan.outputs.web == 'true'
         run: |
           npm run typecheck --prefix clients/web
+          git diff --exit-code -- clients/web/src/localization/generated
           node scripts/check-localization.mjs
+          node --test scripts/test-localization-registry.mjs
           python3 -m unittest discover -s scripts -p 'test_*localization*.py'
           python3 -m unittest discover -s clients/android/scripts -p test_localization.py
           npm run test --prefix clients/web

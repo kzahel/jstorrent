@@ -190,6 +190,15 @@ def workspace(root, platform, locale):
 def validate_job(w, job, platform):
     if not isinstance(job, dict) or job.get("schemaVersion") != 1 or job.get("platform") != platform or job.get("locale") != w.locale or not isinstance(job.get("resources"), dict) or not 1 <= len(job["resources"]) <= 100:
         raise Invalid("invalid job header or resource bound")
+    current_terms = terminology(w.root, w.locale)
+    exported_terms = job.get("terminology")
+    if current_terms is None and exported_terms is not None:
+        raise Invalid("stale terminology job: register guidance has no configured locale terminology")
+    if current_terms is not None and (not isinstance(exported_terms, dict) or
+            exported_terms.get("schemaVersion") != current_terms["schemaVersion"] or
+            exported_terms.get("locale") != w.locale or
+            exported_terms.get("register") != current_terms.get("register")):
+        raise Invalid("stale terminology job: register guidance differs from the configured locale; re-export")
     for name, row in job["resources"].items():
         source = w.source.get(name)
         if source is None or not isinstance(row, dict) or row.get("sourceHash") != source["sourceHash"] or row.get("source") != source["value"] or row.get("context") != source["context"] or row.get("kind") != source["kind"] or row.get("arguments") != source["arguments"]:

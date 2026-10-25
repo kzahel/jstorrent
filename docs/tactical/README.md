@@ -1,7 +1,11 @@
 # Implementation Tactical Docs
 
+- [385 — Configured locale registration](385-configured-locale-registration.md):
+  complete; data-driven catalog registration and locale-specific translation
+  guidance for the next language, preserving existing preview/release policy.
+
 - [384 — Shared translation workflow and desktop German](384-shared-translation-workflow-and-desktop-german.md):
-  in progress; shared terminology, resumable translation/review jobs and German
+  complete; shared terminology, resumable translation/review jobs and German
   previews across Android, the React UI and the native desktop shell.
 
 - [383 — Android translation cohorts](383-android-translation-cohorts.md):

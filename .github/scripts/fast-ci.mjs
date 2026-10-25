@@ -10,6 +10,8 @@ const documentation = path => /^(docs\/.*|README\.md|DEVELOPMENT\.md|AGENTS\.md|
 const localizationTools = new Set([
   'scripts/check-localization.mjs', 'scripts/localization.py', 'scripts/localization-icu.mjs',
   'scripts/localization-ya.py', 'scripts/translation_terms.py',
+  'scripts/localization-registry.mjs', 'scripts/test-localization-registry.mjs',
+  'scripts/desktop-locale-smoke.py', 'scripts/test_desktop_localization_smoke.py',
   'scripts/test_shared_localization.py', 'scripts/test_localization_ya.py',
   'clients/android/scripts/localization.py', 'clients/android/scripts/test_localization.py',
   'clients/android/scripts/check-locale-config.mjs',

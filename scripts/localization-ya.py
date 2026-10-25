@@ -93,6 +93,7 @@ def snapshot_jobs(directory, platform, locale):
         data = read_json(path)
         if data.get("platform") != platform or data.get("locale") != locale or data.get("schemaVersion") != 1:
             raise ValueError(f"job does not match requested platform/locale: {path}")
+        snapshot_guidance(data, locale)
         resources = data.get("resources")
         if not isinstance(resources, dict) or not 1 <= len(resources) <= 100:
             raise ValueError(f"job must contain 1–100 messages: {path}")
@@ -103,6 +104,17 @@ def snapshot_jobs(directory, platform, locale):
     if not jobs or len(jobs) > 1000:
         raise ValueError("expected 1–1000 exported job files")
     return jobs
+
+
+def snapshot_guidance(data, locale):
+    """Use the register bound to the exported job, never a language default."""
+    terms = data.get("terminology")
+    if not isinstance(terms, dict) or terms.get("schemaVersion") != 1 or terms.get("locale") != locale:
+        raise ValueError("job needs terminology for its target locale; configure guidance and re-export")
+    register = terms.get("register")
+    if not isinstance(register, str) or not register.strip() or len(register) > 8192:
+        raise ValueError("job needs nonempty locale-specific register guidance (maximum 8192 characters)")
+    return register
 
 
 def check_snapshot(jobs):
@@ -129,6 +141,10 @@ def validate_jobs(platform, locale, jobs):
 
 
 def worker_prompt(phase, platform, locale, jobs, outputs, candidates):
+    guidance = {snapshot_guidance(read_json(Path(job["path"])), locale) for job in jobs}
+    if len(guidance) != 1:
+        raise ValueError("translation batches have inconsistent locale register guidance; re-export together")
+    register = next(iter(guidance))
     paths = [{"job": j["path"], "output": str(o)} for j, o in zip(jobs, outputs)]
     if phase == "review":
         for entry, candidate in zip(paths, candidates):
@@ -141,7 +157,9 @@ send messages or run import. Work autonomously to completed files, then give a
 brief final summary; do not ask for permission or leave a proposed plan.
 
 Read every exported resource, context, terminology and suggestions. Suggestions
-are reference only; confirm actual meaning and grammar. German uses informal du.
+are reference only; confirm actual meaning and grammar. Target locale: {locale}.
+Follow this locale's register and wording guidance from the exported snapshot:
+{register}
 Preserve destructive/privacy consequences and the difference between removing a
 torrent and deleting its data. Use shared terminology naturally with grammatical
 inflection. Never copy strings from another project.
@@ -270,6 +288,7 @@ def review_terminology(args, api, work, state_path):
     data = read_json(snapshot)
     if data.get("platform") != args.platform or data.get("locale") != args.locale:
         raise ValueError("terminology snapshot platform/locale differs")
+    register = snapshot_guidance(data, args.locale)
     count = len(data.get("resources", {}))
     if not 1 <= count <= 1000:
         raise ValueError("terminology review snapshot must contain 1–1000 resources")
@@ -289,7 +308,9 @@ terminology harmonization of an already independently reviewed catalog, not a
 request to rewrite all messages. Inspect every entry for applicability and
 consistency. Allow grammatical inflection and deliberate semantic differences
 (e.g. Complete availability versus completed torrent status). Keep privacy,
-destructive-action and network-cost consequences exact. German is informal du.
+destructive-action and network-cost consequences exact. Target locale: {args.locale}.
+Follow the snapshot's locale-specific register and wording guidance:
+{register}
 
 Write ONLY {output}, creating its parent directories. Do not edit source,
 catalogs, metadata or scripts, do not import/adopt, commit, run builds, inspect
@@ -301,7 +322,7 @@ Corrections may be empty when the existing catalog is consistent. approved
 means terminology is acceptable after exactly those proposed corrections;
 set false for unresolved material issues and explain them. Do not claim native
 speaker approval or block on a human reviewer. Preserve placeholder formats,
-meaning and German plural branches in any corrections. Finish with the file
+meaning and the target locale's plural branches in any corrections. Finish with the file
 and a short final summary, not a permission question.
 """
     worker = next((w for w in reversed(state["workers"]) if w["status"] in ("running", "complete")), None)
@@ -473,7 +494,7 @@ def main(argv=None):
     parser.add_argument("--work-dir", type=Path, required=True)
     parser.add_argument("--endpoint", default="http://localhost:3400")
     parser.add_argument("--platform", choices=["android", "web", "desktop"])
-    parser.add_argument("--locale", default="de")
+    parser.add_argument("--locale")
     parser.add_argument("--jobs", type=Path)
     parser.add_argument("--snapshot", type=Path)
     parser.add_argument("--pool")
@@ -488,10 +509,10 @@ def main(argv=None):
     parser.add_argument("--import-reviewed", action="store_true")
     parser.add_argument("--adopt-terminology", action="store_true")
     args = parser.parse_args(argv)
-    if args.command == "run" and (not args.jobs or not args.platform or not args.pool):
-        parser.error("run requires --jobs, --platform and --pool")
-    if args.command == "terms-review" and (not args.snapshot or not args.platform or not args.pool):
-        parser.error("terms-review requires --snapshot, --platform and --pool")
+    if args.command == "run" and (not args.jobs or not args.platform or not args.locale or not args.pool):
+        parser.error("run requires --jobs, --platform, --locale and --pool")
+    if args.command == "terms-review" and (not args.snapshot or not args.platform or not args.locale or not args.pool):
+        parser.error("terms-review requires --snapshot, --platform, --locale and --pool")
     if not 0.1 <= args.poll_seconds <= 30 or not 30 <= args.timeout_seconds <= 7200:
         parser.error("poll interval/duration is outside bounded limits")
     def interrupted(_signum, _frame):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Opt-in real desktop IPC/React locale smoke with disposable assets and data.
 
-Build the German preview frontend first, then run this script from any folder.
+Build the chosen locale’s preview frontend first, then run this script from any folder.
 The ordinary product binary runs twice; only its copied frontend gets the test
 script. No test commands or diagnostics are added to the product API. The native
 catalog/menu smoke example complements this without showing OS notifications.
@@ -14,6 +14,7 @@ import http.server
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import shutil
 import signal
@@ -45,13 +46,14 @@ SCRIPT = r"""
   const views = [{type:'torrent_list', view_id:'locale-smoke'}];
   const heading = () => document.getElementById('language-heading')?.textContent;
   const selected = () => document.querySelector('input[name="language"]:checked')?.value;
+  const radio = value => [...document.querySelectorAll('input[name="language"]')].find(control => control.value === value);
   try {
     await wait(() => document.querySelector('header button[aria-haspopup="dialog"]'), 'React shell');
     const storageBefore = localStorage.getItem(config.languageKey);
     const initial = await invoke('load_desktop_locale');
     initialLocale = initial.locale;
-    assert('native preview locales available', initial.availableLocales.join(',') === 'en,de');
-    assert('initial preference', initial.preference === (config.phase === 'exercise' ? 'system' : 'de'));
+    assert('native preview locales available', JSON.stringify(initial.availableLocales) === JSON.stringify(config.availableLocales));
+    assert('initial preference', initial.preference === (config.phase === 'exercise' ? 'system' : config.locale));
     await wait(() => document.documentElement.lang === initial.locale, 'initial native locale in document');
     assert('document follows initial native locale', document.documentElement.lang === initial.locale);
     const hello = await invoke('application_view_hello');
@@ -62,38 +64,38 @@ SCRIPT = r"""
     const handler = window.__TAURI_INTERNALS__.transformCallback(event => events.push(event.payload));
     eventId = await invoke('plugin:event|listen', {event:'desktop://locale-changed', target:{kind:'Any'}, handler});
     if (config.phase === 'exercise') {
-      const en = await invoke('set_desktop_locale', {preference:'en'});
-      await wait(() => document.documentElement.lang === 'en', 'English document');
-      assert('production setter selects English', en.preference === 'en' && en.locale === 'en');
-      assert('React shell English text', document.querySelector('header button[aria-haspopup="dialog"]').getAttribute('aria-label') === config.text.en.settings);
+      const fallback = await invoke('set_desktop_locale', {preference:config.fallback});
+      await wait(() => document.documentElement.lang === config.fallback, 'fallback document');
+      assert('production setter selects fallback locale', fallback.preference === config.fallback && fallback.locale === config.fallback);
+      assert('React shell fallback text', document.querySelector('header button[aria-haspopup="dialog"]').getAttribute('aria-label') === config.text.fallback.settings);
       document.querySelector('header button[aria-haspopup="dialog"]').click();
-      await wait(() => heading() === config.text.en.language, 'English appearance settings');
-      assert('English radio selected', selected() === 'en');
-      const de = await invoke('set_desktop_locale', {preference:'de'});
-      await wait(() => heading() === config.text.de.language && document.documentElement.lang === 'de' && selected() === 'de', 'native event updates React to German');
-      assert('production setter selects German', de.preference === 'de' && de.locale === 'de');
-      assert('React shell German text', document.querySelector('header button[aria-haspopup="dialog"]').getAttribute('aria-label') === config.text.de.settings);
-      const englishRadio = document.querySelector('input[name="language"][value="en"]');
-      englishRadio.focus();
-      englishRadio.click();
-      await wait(async () => heading() === config.text.en.language && (await invoke('load_desktop_locale')).preference === 'en', 'React picker saves through native owner');
-      assert('React picker returns to English', selected() === 'en' && document.documentElement.lang === 'en');
-      await wait(() => document.activeElement === englishRadio && !englishRadio.disabled, 'picker focus restored after save');
-      assert('English picker retains keyboard focus', document.activeElement === englishRadio);
-      await invoke('set_desktop_locale', {preference:'de'});
-      await wait(() => heading() === config.text.de.language && selected() === 'de', 'German before restart');
-      assert('native event includes both locales', events.some(event => event.locale === 'en') && events.some(event => event.locale === 'de'));
+      await wait(() => heading() === config.text.fallback.language, 'fallback appearance settings');
+      assert('fallback radio selected', selected() === config.fallback);
+      const target = await invoke('set_desktop_locale', {preference:config.locale});
+      await wait(() => heading() === config.text.target.language && document.documentElement.lang === config.locale && selected() === config.locale, 'native event updates React to target locale');
+      assert('production setter selects target locale', target.preference === config.locale && target.locale === config.locale);
+      assert('React shell target text', document.querySelector('header button[aria-haspopup="dialog"]').getAttribute('aria-label') === config.text.target.settings);
+      const fallbackRadio = radio(config.fallback);
+      fallbackRadio.focus();
+      fallbackRadio.click();
+      await wait(async () => heading() === config.text.fallback.language && (await invoke('load_desktop_locale')).preference === config.fallback, 'React picker saves through native owner');
+      assert('React picker returns to fallback locale', selected() === config.fallback && document.documentElement.lang === config.fallback);
+      await wait(() => document.activeElement === fallbackRadio && !fallbackRadio.disabled, 'picker focus restored after save');
+      assert('fallback picker retains keyboard focus', document.activeElement === fallbackRadio);
+      await invoke('set_desktop_locale', {preference:config.locale});
+      await wait(() => heading() === config.text.target.language && selected() === config.locale, 'target locale before restart');
+      assert('native event includes both locales', events.some(event => event.locale === config.fallback) && events.some(event => event.locale === config.locale));
     } else {
-      assert('German restored before interaction', document.documentElement.lang === 'de');
+      assert('target locale restored before interaction', document.documentElement.lang === config.locale);
       document.querySelector('header button[aria-haspopup="dialog"]').click();
-      await wait(() => heading() === config.text.de.language && selected() === 'de', 'persisted German settings');
-      assert('German preference restored in React', selected() === 'de');
+      await wait(() => heading() === config.text.target.language && selected() === config.locale, 'persisted target settings');
+      assert('target preference restored in React', selected() === config.locale);
       const systemRadio = document.querySelector('input[name="language"][value="system"]');
       systemRadio.focus();
       systemRadio.click();
       let system;
       await wait(async () => { system = await invoke('load_desktop_locale'); return system.preference === 'system' && selected() === 'system' && document.documentElement.lang === system.locale; }, 'System picker follows native resolution');
-      assert('System clears override and matches native locale', system.preference === 'system' && ['en','de'].includes(system.locale));
+      assert('System clears override and matches native locale', system.preference === 'system' && config.availableLocales.includes(system.locale));
       systemLocale = system.locale;
       await wait(() => document.activeElement === systemRadio && !systemRadio.disabled, 'System picker focus restored after save');
       assert('System picker retains keyboard focus', document.activeElement === systemRadio);
@@ -151,32 +153,64 @@ def stop(process):
         process.wait(timeout=10)
 
 
-def messages():
-    result = {}
-    source_keys = None
-    for locale in ("en", "de"):
-        path = ROOT / f"clients/web/src/localization/messages/{locale}.json"
-        if not path.exists():
-            raise Failure("German React source catalog is not ready; build its preview before this smoke")
-        catalog = json.loads(path.read_text())
-        if locale == "en":
-            source_keys = set(catalog)
-        elif set(catalog) != source_keys:
-            raise Failure("German React catalog is incomplete; finish translation/import before this smoke")
-        result[locale] = {
+def catalog_configuration(root, locale):
+    """Resolve QA inputs before building; fixtures can add a locale in isolation."""
+    if not isinstance(locale, str) or len(locale) > 64 or not re.fullmatch(r"[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*", locale):
+        raise Failure("Invalid target locale tag")
+    def read(path):
+        if not path.is_file() or path.stat().st_size > 8 * 1024 * 1024:
+            raise Failure(f"Missing or oversized locale input: {path}")
+        value = json.loads(path.read_text())
+        if not isinstance(value, dict):
+            raise Failure(f"Locale input must be an object: {path}")
+        return value
+
+    manifest = read(root / "localization/locales.json")
+    fallback = manifest["fallbackLocale"]
+    def available(platform):
+        shipping = manifest["supportedLocales"][platform]
+        preview = manifest.get("previewLocales", {}).get(platform, [])
+        if not isinstance(shipping, list) or not isinstance(preview, list):
+            raise Failure(f"Invalid {platform} locale registration")
+        tags = shipping + preview
+        if not 0 < len(tags) <= 100 or any(not isinstance(tag, str) or len(tag) > 64 or tag.lower() == "system" or not re.fullmatch(r"[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*", tag) for tag in tags) or len(set(tag.lower() for tag in tags)) != len(tags):
+            raise Failure(f"Invalid {platform} locale registration")
+        if locale not in tags:
+            raise Failure(f"Locale {locale!r} is not registered for {platform}")
+        if fallback not in shipping:
+            raise Failure(f"Fallback locale is not shipping on {platform}")
+        return tags
+
+    desktop = available("desktop")
+    available("web")
+    if locale == fallback:
+        raise Failure("Choose a registered target locale different from the fallback locale")
+    for tag in (fallback, locale):
+        path = root / manifest["catalogs"]["desktop"]
+        native = read(path.with_name(f"{tag}.json"))
+        if not native or any(not isinstance(value, str) or not value for value in native.values()):
+            raise Failure(f"Native catalog for {tag!r} is not ready")
+    source = read(root / manifest["catalogs"]["web"])
+    text = {}
+    for kind, tag in (("fallback", fallback), ("target", locale)):
+        path = (root / manifest["catalogs"]["web"]).with_name(f"{tag}.json")
+        catalog = read(path)
+        if set(catalog) != set(source):
+            raise Failure(f"React catalog for {tag!r} is incomplete; finish translation/import before this smoke")
+        text[kind] = {
             "settings": catalog["inspection.components.app.settings"]["defaultMessage"],
             "language": catalog["localization.language.title"]["defaultMessage"],
         }
-    if result["en"] == result["de"]:
-        raise Failure("German locale checks must use translated React labels")
-    return result
+    if text["fallback"] == text["target"]:
+        raise Failure("Locale checks must use translated React labels")
+    return {"locale": locale, "fallback": fallback, "availableLocales": desktop, "text": text}
 
 
 def run(args):
-    text = messages()
+    catalog = catalog_configuration(ROOT, args.locale)
     source = args.frontend_dir.resolve()
     if not (source / "index.html").is_file():
-        raise Failure("Build the German preview frontend first (VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1)")
+        raise Failure("Build the chosen locale’s preview frontend first (VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1)")
     environment = os.environ.copy()
     metadata = json.loads(cargo(["metadata", "--no-deps", "--format-version=1"], environment, 60, capture=True))
     binary_dir = Path(metadata["target_directory"])
@@ -270,7 +304,7 @@ def run(args):
             script = assets / "desktop-locale-smoke.js"
 
             def phase_script(phase):
-                config = {"phase": phase, "text": text, "report": endpoint + "/" + token, "identifier": IDENTIFIER,
+                config = {**catalog, "phase": phase, "report": endpoint + "/" + token, "identifier": IDENTIFIER,
                           "profile": str(data / "data/profile"), "languageKey": LANGUAGE_KEY}
                 script.write_text(SCRIPT.replace("__CONFIG__", json.dumps(config)))
 
@@ -309,9 +343,9 @@ def run(args):
                     if process.returncode:
                         raise Failure(f"{phase}: product exited {process.returncode}")
                     saved = json.loads(preferences.read_text())
-                    if saved.get("future") != {"keep": True} or (saved.get("language") != "de" if phase == "exercise" else "language" in saved):
+                    if saved.get("future") != {"keep": True} or (saved.get("language") != args.locale if phase == "exercise" else "language" in saved):
                         raise Failure(f"{phase}: native preference persistence did not preserve expected fields")
-                    print(json.dumps({"phase": phase, "cases": len(report["checks"]), "passed": len(report["checks"]), "initialLocale": report.get("initialLocale"), "systemLocale": report.get("systemLocale"), "persistence": "ok", "shutdown": "joined"}), flush=True)
+                    print(json.dumps({"locale": args.locale, "phase": phase, "cases": len(report["checks"]), "passed": len(report["checks"]), "initialLocale": report.get("initialLocale"), "systemLocale": report.get("systemLocale"), "persistence": "ok", "shutdown": "joined"}), flush=True)
                 finally:
                     stop(process)
                     reader.join(timeout=2)
@@ -338,6 +372,7 @@ def run(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--locale", default="de", help="declared target locale to exercise (default: de)")
     parser.add_argument("--frontend-dir", type=Path, default=ROOT / "clients/web/dist")
     parser.add_argument("--restore-frontend-dir", type=Path, help="ordinary frontend snapshot restored after testing (default: web/dist copied at start)")
     parser.add_argument("--timeout", type=int, default=60, help="seconds per native run (20–180)")
@@ -347,7 +382,7 @@ def main():
         parser.error("timeouts exceed supported bounds")
     try:
         run(args)
-    except (Failure, OSError, ValueError, subprocess.SubprocessError) as error:
+    except (Failure, OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
         print(error, file=sys.stderr)
         return 1
     return 0

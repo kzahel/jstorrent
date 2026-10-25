@@ -191,8 +191,7 @@ pub fn run_helper_if_requested() -> bool {
             // This short-lived process never opens product state. Its sole
             // presentation input is the parent's already-resolved locale.
             crate::desktop_localization::activate(
-                &std::env::var(crate::desktop_localization::DIALOG_LOCALE_ENV)
-                    .unwrap_or_else(|_| "en".to_owned()),
+                &std::env::var(crate::desktop_localization::DIALOG_LOCALE_ENV).unwrap_or_default(),
             );
             #[cfg(target_os = "linux")]
             if std::env::var_os("DISPLAY").is_none()

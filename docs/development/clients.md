@@ -17,12 +17,12 @@ attached to the terminal; `Ctrl+C` stops it. Ordinary debug identities are
 isolated from the shipping JSTorrent identity. For unsigned/signed production
 packages, use [releasing](releasing.md).
 
-Both desktop launchers enable the German development preview for the React
-build and native compile together. Native German requires both debug assertions
-and `VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1` at compile time; direct Cargo builds
-without that flag offer English only. Release builds retain English even with
-the flag. System language remains the default; Settings → Appearance offers a
-local override when preview languages are enabled.
+Both desktop launchers enable the registered development previews for the React
+build and native compile together. Native preview catalogs require debug
+assertions and `VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1` at compile time. Without
+that flag, direct Cargo builds offer configured shipping locales (currently
+English). Release builds exclude previews even with the flag. System language
+remains the default; Settings → Appearance offers a local override.
 
 For macOS extension testing, use the separate lightweight bundle launcher:
 
@@ -57,7 +57,7 @@ preview assets and run the maintained native smoke:
 
 ```bash
 VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1 npm run build --prefix clients/web
-python3 scripts/desktop-locale-smoke.py
+python3 scripts/desktop-locale-smoke.py --locale de
 ```
 
 It builds the ordinary debug product with copied instrumented assets, a
@@ -67,7 +67,9 @@ application views, restart persistence and System reset. It skips native-host
 registration, avoids OS dialog/notification prompts and restores the ordinary
 debug executable afterward. `--frontend-dir` selects a frozen preview and
 `--restore-frontend-dir` selects ordinary frontend assets when other builds run
-concurrently; both inputs are copied before the native runs. Native menu/catalog
+concurrently; both inputs are copied before the native runs. Pass another
+registered tag with `--locale` to review its actual catalogs; undeclared or
+incomplete locales fail before building. Native menu/catalog
 content is covered separately:
 
 ```bash

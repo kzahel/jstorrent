@@ -1,5 +1,15 @@
 # Localization
 
+Tactical [385](../tactical/385-configured-locale-registration.md) makes future
+language registration data-driven. Platform shipping/preview lists and locale
+direction come from one registry; React and native catalog tables are generated,
+and Android already reads generated native LocaleConfig. Regional/script parent
+fallback, preview exclusion and preference preservation are tested with synthetic
+French and RTL locales. Worker prompts now use each exported locale's register
+and require an explicit target. Existing German catalogs/review evidence and
+English-only releases are unchanged. The maintained runbook lists configuration,
+translation, generation, qualification and later promotion steps.
+
 Tactical [384](../tactical/384-shared-translation-workflow-and-desktop-german.md)
 extends the German preview to 1,773 shared React and 20 native desktop
 messages, alongside Android's 662 translated resources. One offline

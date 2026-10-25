@@ -1,4 +1,6 @@
 import argparse
+import contextlib
+import io
 import importlib.util
 import json
 from pathlib import Path
@@ -55,7 +57,7 @@ class TranslationRunnerTest(unittest.TestCase):
         self.jobs = self.root / "jobs"
         self.jobs.mkdir()
         for number in (1, 2):
-            runner.save(self.jobs / f"web-de-{number}.json", {"schemaVersion": 1, "platform": "web", "locale": "de", "resources": {
+            runner.save(self.jobs / f"web-de-{number}.json", {"schemaVersion": 1, "platform": "web", "locale": "de", "terminology": {"schemaVersion": 1, "locale": "de", "register": "Use informal du.", "terms": {}}, "resources": {
                 f"message-{number}": {"sourceHash": f"source-{number}", "terminologyHash": "terms", "kind": "icu", "source": "Original"}}})
         self.work = self.root / ".local/run"
         self.api = FakeApi()
@@ -116,6 +118,44 @@ class TranslationRunnerTest(unittest.TestCase):
         self.assertEqual(before, target.read_bytes(), "resume must preserve the manually corrected catalog")
         self.assertEqual(4, len(self.api.payloads), "catalog conflicts must not launch replacement workers")
         self.assertEqual(2, len(runner.read_json(self.work / "state.json")["imported"]))
+
+    def test_prompts_use_each_locale_snapshot_register_without_a_german_default(self):
+        job = sorted(self.jobs.glob("*.json"))[0]
+        data = runner.read_json(job)
+        data["locale"] = "fr"
+        data["terminology"].update(locale="fr", register="Use formal vous consistently; concise French UI copy.")
+        runner.save(job, data)
+        for phase in ("translate", "review"):
+            prompt = runner.worker_prompt(phase, "web", "fr", [{"path": str(job)}], [self.work / "output.json"], [job])
+            self.assertIn("Use formal vous consistently", prompt)
+            self.assertIn("Target locale: fr", prompt)
+            self.assertNotIn("informal du", prompt)
+            self.assertNotIn("German", prompt)
+        data["terminology"]["locale"] = "de"
+        runner.save(job, data)
+        with self.assertRaisesRegex(ValueError, "target locale"):
+            runner.snapshot_jobs(self.jobs, "web", "fr")
+
+    def test_missing_and_mixed_register_guidance_fail_before_session_creation(self):
+        paths = sorted(self.jobs.glob("*.json"))
+        data = runner.read_json(paths[0]); data["terminology"]["register"] = ""
+        runner.save(paths[0], data)
+        with self.assertRaisesRegex(ValueError, "register guidance"):
+            self.execute()
+        self.assertEqual([], self.api.payloads)
+        data["terminology"]["register"] = "A different style snapshot"
+        runner.save(paths[0], data)
+        with self.assertRaisesRegex(ValueError, "inconsistent"):
+            runner.worker_prompt("translate", "web", "de", [{"path": str(p)} for p in paths], paths, [])
+        self.assertEqual([], self.api.payloads)
+
+    def test_launch_commands_require_an_explicit_locale(self):
+        for command, input_flag in (("run", "--jobs"), ("terms-review", "--snapshot")):
+            with self.subTest(command=command), contextlib.redirect_stderr(io.StringIO()), patch.object(runner, "Api") as api:
+                with self.assertRaises(SystemExit) as error:
+                    runner.main([command, "--work-dir", str(self.work), "--platform", "web", "--pool", "Test pool", input_flag, str(self.jobs)])
+                self.assertEqual(2, error.exception.code)
+                api.assert_not_called()
 
     def test_changed_export_or_partition_rejects_resume(self):
         self.execute()
@@ -294,7 +334,7 @@ class TerminologyApi(FakeApi):
         identifier = str(len(self.payloads))
         output = Path(re.search(r"Write ONLY (.+), creating its parent", body["message"]).group(1))
         data = runner.read_json(self.snapshot)
-        runner.save(output, {"schemaVersion": 1, "platform": "android", "locale": "de",
+        runner.save(output, {"schemaVersion": 1, "platform": data["platform"], "locale": data["locale"],
                             "snapshotHash": runner.fingerprint(self.snapshot),
                             "reviewedCount": len(data["resources"]) + int(self.bad_count),
                             "approved": self.approved, "corrections": self.corrections, "notes": []})
@@ -308,7 +348,7 @@ class TerminologyLifecycleTest(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         self.root = Path(directory.name)
         self.snapshot = self.root / "snapshot.json"
-        runner.save(self.snapshot, {"schemaVersion": 1, "platform": "android", "locale": "de", "resources": {
+        runner.save(self.snapshot, {"schemaVersion": 1, "platform": "android", "locale": "de", "terminology": {"schemaVersion": 1, "locale": "de", "register": "Use informal du.", "terms": {}}, "resources": {
             "remove": {"source": "Remove", "existingTranslation": "Entfernen", "sourceHash": "source", "terminologyHash": "terms"},
             "archive": {"source": "Archive", "existingTranslation": "Archivieren", "sourceHash": "source2", "terminologyHash": "terms"}}})
         self.api = TerminologyApi(self.snapshot)
@@ -324,6 +364,20 @@ class TerminologyLifecycleTest(unittest.TestCase):
             self.adoption = adopt
             runner.run(self.args)
         return adopt
+
+    def test_french_terminology_review_uses_french_register_and_plural_instructions(self):
+        data = runner.read_json(self.snapshot)
+        data["locale"] = "fr"
+        data["terminology"].update(locale="fr", register="Use formal vous consistently.")
+        runner.save(self.snapshot, data)
+        self.args.locale = "fr"
+        self.execute()
+        prompt = self.api.payloads[0]["message"]
+        self.assertIn("Use formal vous consistently", prompt)
+        self.assertIn("Target locale: fr", prompt)
+        self.assertNotIn("German", prompt)
+        self.assertNotIn("informal du", prompt)
+        self.assertIn("target locale's plural branches", prompt)
 
     def test_approval_only_adopts_complete_snapshot_and_resume_does_not_relaunch(self):
         adopt = self.execute()

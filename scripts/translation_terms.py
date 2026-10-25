@@ -15,7 +15,7 @@ def terminology(root: Path, locale: str):
     if not path.exists():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))
-    if data.get("schemaVersion") != 1 or data.get("locale") != locale or not isinstance(data.get("terms"), dict):
+    if data.get("schemaVersion") != 1 or data.get("locale") != locale or not isinstance(data.get("terms"), dict) or not isinstance(data.get("register"), str) or not data["register"].strip() or len(data["register"]) > 8192:
         raise ValueError(f"invalid shared terminology: {path}")
     return data
 

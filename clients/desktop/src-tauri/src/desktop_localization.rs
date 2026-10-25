@@ -2,32 +2,154 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::{OnceLock, RwLock};
 
 use serde::{Deserialize, Serialize};
 
-const ENGLISH_CATALOG: &str = include_str!("../locales/en.json");
-#[cfg(debug_assertions)]
-const GERMAN_CATALOG: &str = include_str!("../locales/de.json");
 const MISSING_MESSAGE: &str = "Localized message unavailable";
 const PREFERENCE_FILENAME: &str = "presentation-preferences.json";
 const LANGUAGE_KEY: &str = "language";
 const MAX_PREFERENCE_BYTES: u64 = 64 * 1024;
 pub(crate) const DIALOG_LOCALE_ENV: &str = "JSTORRENT_DIALOG_LOCALE";
 pub(crate) const LOCALE_CHANGED_EVENT: &str = "desktop://locale-changed";
-static ENGLISH: OnceLock<HashMap<String, String>> = OnceLock::new();
-#[cfg(debug_assertions)]
-static GERMAN: OnceLock<HashMap<String, String>> = OnceLock::new();
-static CURRENT_LOCALE: AtomicU8 = AtomicU8::new(0);
+static CURRENT_LOCALE: RwLock<&'static str> = RwLock::new(FALLBACK_LOCALE);
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "lowercase")]
+struct LocaleCatalogSource {
+    locale: &'static str,
+    json: &'static str,
+}
+
+struct LocaleRegistry {
+    declared: &'static [&'static str],
+    fallback: &'static str,
+    sources: &'static [LocaleCatalogSource],
+    catalogs: OnceLock<HashMap<&'static str, HashMap<String, String>>>,
+}
+
+include!(concat!(env!("OUT_DIR"), "/desktop_locale_registry.rs"));
+
+impl LocaleRegistry {
+    fn available(&self) -> Vec<&'static str> {
+        self.sources.iter().map(|source| source.locale).collect()
+    }
+
+    fn preference(&self, value: serde_json::Value) -> Option<LocalePreference> {
+        let preference: LocalePreference = serde_json::from_value(value).ok()?;
+        match &preference {
+            LocalePreference::System => Some(preference),
+            LocalePreference::Language(tag) if self.declared.contains(&tag.as_str()) => {
+                Some(preference)
+            }
+            _ => None,
+        }
+    }
+
+    fn lookup(&self, requested: &str) -> Option<&'static str> {
+        if requested.len() > 128 {
+            return None;
+        }
+        if let Some(source) = self
+            .sources
+            .iter()
+            .find(|source| source.locale.eq_ignore_ascii_case(requested))
+        {
+            return Some(source.locale);
+        }
+        let mut candidate = requested.split(['.', '@']).next()?.replace('_', "-");
+        if matches!(candidate.as_str(), "C" | "POSIX") {
+            return Some(self.fallback);
+        }
+        loop {
+            if let Some(source) = self
+                .sources
+                .iter()
+                .find(|source| source.locale.eq_ignore_ascii_case(&candidate))
+            {
+                return Some(source.locale);
+            }
+            let (parent, _) = candidate.rsplit_once('-')?;
+            candidate.truncate(parent.len());
+            // RFC 4647 lookup also removes a trailing extension singleton.
+            if candidate
+                .rsplit('-')
+                .next()
+                .is_some_and(|part| part.len() == 1)
+            {
+                let (parent, _) = candidate.rsplit_once('-')?;
+                candidate.truncate(parent.len());
+            }
+        }
+    }
+
+    fn resolve(&self, preference: &LocalePreference, requested: &[String]) -> &'static str {
+        match preference {
+            LocalePreference::Language(tag) => self.lookup(tag).unwrap_or(self.fallback),
+            LocalePreference::System => requested
+                .iter()
+                .find_map(|tag| self.lookup(tag))
+                .unwrap_or(self.fallback),
+        }
+    }
+
+    fn text(&'static self, key: &str, locale: &str) -> Option<&'static str> {
+        let locale = self.lookup(locale).unwrap_or(self.fallback);
+        let catalogs = self.catalogs.get_or_init(|| {
+            self.sources
+                .iter()
+                .map(|source| {
+                    (
+                        source.locale,
+                        serde_json::from_str(source.json)
+                            .expect("packaged desktop catalog must be valid"),
+                    )
+                })
+                .collect()
+        });
+        catalogs
+            .get(locale)
+            .and_then(|catalog| catalog.get(key))
+            .or_else(|| {
+                catalogs
+                    .get(self.fallback)
+                    .and_then(|catalog| catalog.get(key))
+            })
+            .map(String::as_str)
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
 pub(crate) enum LocalePreference {
     #[default]
     System,
-    En,
-    De,
+    Language(String),
+}
+
+impl TryFrom<String> for LocalePreference {
+    type Error = &'static str;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if value == "system" {
+            return Ok(Self::System);
+        }
+        if value.is_empty()
+            || value.len() > 64
+            || !value
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+        {
+            return Err("invalid desktop locale preference");
+        }
+        Ok(Self::Language(value))
+    }
+}
+
+impl From<LocalePreference> for String {
+    fn from(value: LocalePreference) -> Self {
+        match value {
+            LocalePreference::System => "system".to_owned(),
+            LocalePreference::Language(tag) => tag,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -43,18 +165,18 @@ pub(crate) struct DesktopLocaleOwner {
     path: PathBuf,
     preference: LocalePreference,
     system_locales: Vec<String>,
-    allow_preview: bool,
+    registry: &'static LocaleRegistry,
 }
 
 impl DesktopLocaleOwner {
     pub(crate) fn open(config_dir: &Path) -> Self {
-        Self::open_with_locales(config_dir, system_locales(), preview_enabled())
+        Self::open_with_registry(config_dir, system_locales(), &DESKTOP_LOCALE_REGISTRY)
     }
 
-    fn open_with_locales(
+    fn open_with_registry(
         config_dir: &Path,
         system_locales: Vec<String>,
-        allow_preview: bool,
+        registry: &'static LocaleRegistry,
     ) -> Self {
         let path = config_dir.join(PREFERENCE_FILENAME);
         // A malformed/missing field is a per-field default, never a request to
@@ -62,25 +184,23 @@ impl DesktopLocaleOwner {
         let preference = read_preferences(&path)
             .ok()
             .and_then(|fields| fields.get(LANGUAGE_KEY).cloned())
-            .and_then(|value| serde_json::from_value(value).ok())
+            .and_then(|value| registry.preference(value))
             .unwrap_or_default();
         Self {
             path,
             preference,
             system_locales,
-            allow_preview,
+            registry,
         }
     }
 
     pub(crate) fn snapshot(&self) -> DesktopLocaleSnapshot {
         DesktopLocaleSnapshot {
-            preference: self.preference,
-            locale: resolve_locale(self.preference, &self.system_locales, self.allow_preview),
-            available_locales: if self.allow_preview {
-                vec!["en", "de"]
-            } else {
-                vec!["en"]
-            },
+            preference: self.preference.clone(),
+            locale: self
+                .registry
+                .resolve(&self.preference, &self.system_locales),
+            available_locales: self.registry.available(),
         }
     }
 
@@ -93,7 +213,13 @@ impl DesktopLocaleOwner {
         &mut self,
         preference: LocalePreference,
     ) -> Result<DesktopLocaleSnapshot, String> {
-        if preference == LocalePreference::De && !self.allow_preview {
+        if let LocalePreference::Language(tag) = &preference
+            && !self
+                .registry
+                .sources
+                .iter()
+                .any(|source| source.locale == tag)
+        {
             return Err("desktop locale is not available in this build".to_owned());
         }
         // Always reread to preserve fields written by a newer client or another
@@ -101,7 +227,7 @@ impl DesktopLocaleOwner {
         let mut fields = read_preferences(&self.path)?;
         if fields
             .get(LANGUAGE_KEY)
-            .is_some_and(|value| serde_json::from_value::<LocalePreference>(value.clone()).is_err())
+            .is_some_and(|value| self.registry.preference(value.clone()).is_none())
         {
             return Err("desktop language preference is not supported by this build".to_owned());
         }
@@ -110,7 +236,7 @@ impl DesktopLocaleOwner {
         } else {
             fields.insert(
                 LANGUAGE_KEY.to_owned(),
-                serde_json::to_value(preference).expect("locale preference serializes"),
+                serde_json::to_value(&preference).expect("locale preference serializes"),
             );
         }
         persist_preferences(&self.path, &fields)?;
@@ -184,50 +310,19 @@ fn persist_preferences(
     Ok(())
 }
 
-fn resolve_locale(
-    preference: LocalePreference,
-    requested: &[String],
-    allow_preview: bool,
-) -> &'static str {
-    match preference {
-        LocalePreference::En => "en",
-        LocalePreference::De if allow_preview => "de",
-        LocalePreference::De => "en",
-        LocalePreference::System => requested
-            .iter()
-            .find_map(|tag| {
-                let language = tag.split(['-', '_', '.', '@']).next()?.to_ascii_lowercase();
-                match language.as_str() {
-                    "de" if allow_preview => Some("de"),
-                    "en" | "c" | "posix" => Some("en"),
-                    _ => None,
-                }
-            })
-            .unwrap_or("en"),
-    }
-}
-
-pub(crate) fn preview_enabled() -> bool {
-    cfg!(debug_assertions)
-        && matches!(
-            option_env!("VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES"),
-            Some("1")
-        )
-}
-
 pub(crate) fn activate(locale: &str) {
-    CURRENT_LOCALE.store(
-        u8::from(preview_enabled() && locale == "de"),
-        Ordering::Relaxed,
-    );
+    let locale = DESKTOP_LOCALE_REGISTRY
+        .lookup(locale)
+        .unwrap_or(FALLBACK_LOCALE);
+    *CURRENT_LOCALE
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = locale;
 }
 
 pub(crate) fn current_locale() -> &'static str {
-    if CURRENT_LOCALE.load(Ordering::Relaxed) == 1 {
-        "de"
-    } else {
-        "en"
-    }
+    *CURRENT_LOCALE
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 pub(crate) fn text(key: &str) -> &'static str {
@@ -235,23 +330,7 @@ pub(crate) fn text(key: &str) -> &'static str {
 }
 
 pub(crate) fn text_for_locale(key: &str, locale: &str) -> &'static str {
-    #[cfg(debug_assertions)]
-    if preview_enabled() && locale == "de" {
-        let german = GERMAN.get_or_init(|| {
-            serde_json::from_str(GERMAN_CATALOG)
-                .expect("packaged desktop German catalog must be valid")
-        });
-        if let Some(value) = german.get(key) {
-            return value;
-        }
-    }
-    #[cfg(not(debug_assertions))]
-    let _ = locale;
-    let english = ENGLISH.get_or_init(|| {
-        serde_json::from_str(ENGLISH_CATALOG)
-            .expect("packaged desktop English catalog must be valid")
-    });
-    match english.get(key) {
+    match DESKTOP_LOCALE_REGISTRY.text(key, locale) {
         Some(value) => value,
         None => {
             eprintln!("missing desktop localized message: {key}");
@@ -290,7 +369,7 @@ fn format_template(template: &str, values: &[(&str, &str)]) -> String {
 fn environment_locales() -> Vec<String> {
     let mut result = Vec::new();
     if std::env::var("LC_ALL").is_ok_and(|value| matches!(value.as_str(), "C" | "POSIX")) {
-        return vec!["en".to_owned()];
+        return vec![FALLBACK_LOCALE.to_owned()];
     }
     for key in ["LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"] {
         if let Ok(value) = std::env::var(key) {
@@ -384,32 +463,90 @@ fn locale_command(command: &mut std::process::Command) -> Option<String> {
 }
 
 #[cfg(test)]
+#[path = "../locale_registry_build.rs"]
+mod registry_build_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
+    static SYNTHETIC_PREVIEW: LocaleRegistry = LocaleRegistry {
+        declared: &["en", "fr", "zh-Hant"],
+        fallback: "en",
+        sources: &[
+            LocaleCatalogSource {
+                locale: "en",
+                json: r#"{"show":"Show", "fallback":"English fallback", "body":"{name} finished."}"#,
+            },
+            LocaleCatalogSource {
+                locale: "fr",
+                json: r#"{"show":"Afficher", "body":"{name} a terminé."}"#,
+            },
+            LocaleCatalogSource {
+                locale: "zh-Hant",
+                json: r#"{"show":"顯示"}"#,
+            },
+        ],
+        catalogs: OnceLock::new(),
+    };
+    static SYNTHETIC_SHIPPING: LocaleRegistry = LocaleRegistry {
+        declared: &["en", "fr", "zh-Hant"],
+        fallback: "en",
+        sources: &[LocaleCatalogSource {
+            locale: "en",
+            json: r#"{"show":"Show"}"#,
+        }],
+        catalogs: OnceLock::new(),
+    };
+
+    fn language(tag: &str) -> LocalePreference {
+        LocalePreference::Language(tag.to_owned())
+    }
+    fn owner(directory: &Path, preview: bool, system: &[&str]) -> DesktopLocaleOwner {
+        DesktopLocaleOwner::open_with_registry(
+            directory,
+            system.iter().map(|tag| (*tag).to_owned()).collect(),
+            if preview {
+                &SYNTHETIC_PREVIEW
+            } else {
+                &SYNTHETIC_SHIPPING
+            },
+        )
+    }
+
     #[test]
-    fn resolves_system_languages_regions_fallback_and_release_gate() {
-        let languages = vec!["fr-FR".to_owned(), "de-DE".to_owned(), "en-US".to_owned()];
+    fn synthetic_french_negotiates_regions_script_parents_and_fallback() {
+        let resolve = |tags: &[&str]| {
+            SYNTHETIC_PREVIEW.resolve(
+                &LocalePreference::System,
+                &tags.iter().map(|tag| (*tag).to_owned()).collect::<Vec<_>>(),
+            )
+        };
+        assert_eq!(resolve(&["es-ES", "fr-CA", "en-US"]), "fr");
+        assert_eq!(resolve(&["FR_ca.UTF-8"]), "fr");
+        assert_eq!(resolve(&["zh-Hant-TW"]), "zh-Hant");
+        assert_eq!(resolve(&["zh-Hant-TW-u-nu-hanidec"]), "zh-Hant");
+        assert_eq!(resolve(&["en-US", "fr-CA"]), "en");
+        assert_eq!(resolve(&["C.UTF-8", "fr"]), "en");
+        assert_eq!(resolve(&["not-a-locale"]), "en");
+        assert_eq!(SYNTHETIC_SHIPPING.resolve(&language("fr"), &[]), "en");
+    }
+
+    #[test]
+    fn synthetic_french_catalog_falls_back_per_message_and_formats_safely() {
+        assert_eq!(SYNTHETIC_PREVIEW.text("show", "fr"), Some("Afficher"));
+        assert_eq!(SYNTHETIC_PREVIEW.text("show", "fr-CA"), Some("Afficher"));
         assert_eq!(
-            resolve_locale(LocalePreference::System, &languages, true),
-            "de"
+            SYNTHETIC_PREVIEW.text("fallback", "fr"),
+            Some("English fallback")
         );
+        assert_eq!(SYNTHETIC_PREVIEW.text("show", "unknown"), Some("Show"));
         assert_eq!(
-            resolve_locale(LocalePreference::System, &languages, false),
-            "en"
-        );
-        assert_eq!(
-            resolve_locale(LocalePreference::De, &languages, false),
-            "en"
-        );
-        assert_eq!(resolve_locale(LocalePreference::En, &languages, true), "en");
-        assert_eq!(
-            resolve_locale(LocalePreference::System, &["de_DE.UTF-8".to_owned()], true),
-            "de"
-        );
-        assert_eq!(
-            resolve_locale(LocalePreference::System, &["not-a-locale".to_owned()], true),
-            "en"
+            format_template(
+                SYNTHETIC_PREVIEW.text("body", "fr").unwrap(),
+                &[("name", "{other}")]
+            ),
+            "{other} a terminé."
         );
     }
 
@@ -417,53 +554,66 @@ mod tests {
     fn reads_are_tolerant_and_never_rewrite_unknown_or_malformed_data() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join(PREFERENCE_FILENAME);
-        let original = br#"{"language":"future-locale","future":{"kept":true}}"#;
-        std::fs::write(&path, original).unwrap();
-        let mut owner =
-            DesktopLocaleOwner::open_with_locales(directory.path(), vec!["en".to_owned()], true);
-        assert_eq!(owner.snapshot().preference, LocalePreference::System);
-        assert!(owner.select(LocalePreference::En).is_err());
-        assert_eq!(std::fs::read(&path).unwrap(), original);
-        for damaged in [b"not json".as_slice(), b"[1,2,3]".as_slice()] {
-            std::fs::write(&path, damaged).unwrap();
-            let mut owner = DesktopLocaleOwner::open_with_locales(directory.path(), vec![], true);
-            assert_eq!(owner.snapshot().locale, "en");
-            assert!(owner.select(LocalePreference::De).is_err());
-            assert_eq!(std::fs::read(&path).unwrap(), damaged);
+        for original in [
+            br#"{"language":"future-locale","future":{"kept":true}}"#.as_slice(),
+            b"not json",
+            b"[1,2,3]",
+            br#"{"language":false}"#,
+        ] {
+            std::fs::write(&path, original).unwrap();
+            let mut owner = owner(directory.path(), true, &["en"]);
             assert_eq!(owner.snapshot().preference, LocalePreference::System);
+            assert!(owner.select(language("fr")).is_err());
+            assert_eq!(std::fs::read(&path).unwrap(), original);
         }
     }
 
     #[test]
-    fn explicit_selection_survives_restart_preserves_fields_and_system_clears_override() {
+    fn synthetic_french_selection_survives_restart_and_preserves_fields() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join(PREFERENCE_FILENAME);
         std::fs::write(&path, br#"{"future":{"keep":7}}"#).unwrap();
-        let mut owner =
-            DesktopLocaleOwner::open_with_locales(directory.path(), vec!["en".to_owned()], true);
-        assert_eq!(owner.select(LocalePreference::De).unwrap().locale, "de");
-        let mut reopened =
-            DesktopLocaleOwner::open_with_locales(directory.path(), vec!["en".to_owned()], true);
-        assert_eq!(reopened.snapshot().preference, LocalePreference::De);
-        assert_eq!(reopened.snapshot().locale, "de");
+        let mut selected = owner(directory.path(), true, &["en"]);
+        assert_eq!(selected.select(language("fr")).unwrap().locale, "fr");
+        let mut reopened = owner(directory.path(), true, &["en"]);
+        assert_eq!(reopened.snapshot().preference, language("fr"));
+        assert_eq!(reopened.snapshot().locale, "fr");
         reopened.select(LocalePreference::System).unwrap();
         let fields = read_preferences(&path).unwrap();
         assert!(!fields.contains_key(LANGUAGE_KEY));
         assert_eq!(fields["future"]["keep"], 7);
-        let system =
-            DesktopLocaleOwner::open_with_locales(directory.path(), vec!["de-AT".to_owned()], true);
-        assert_eq!(system.snapshot().locale, "de");
+        assert_eq!(
+            owner(directory.path(), true, &["fr-CA"]).snapshot().locale,
+            "fr"
+        );
+    }
+
+    #[test]
+    fn declared_but_unavailable_preference_survives_shipping_read_unchanged() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join(PREFERENCE_FILENAME);
+        let original = br#"{"language":"fr","future":7}"#;
+        std::fs::write(&path, original).unwrap();
+        let mut shipping = owner(directory.path(), false, &["fr-CA"]);
+        assert_eq!(shipping.snapshot().preference, language("fr"));
+        assert_eq!(shipping.snapshot().locale, "en");
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+        assert!(shipping.select(language("fr")).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+        shipping.select(language("en")).unwrap();
+        assert_eq!(read_preferences(&path).unwrap()["future"], 7);
     }
 
     #[test]
     fn unavailable_selection_and_oversized_store_do_not_write() {
         let directory = tempfile::tempdir().unwrap();
-        let mut owner = DesktopLocaleOwner::open_with_locales(directory.path(), vec![], false);
-        assert!(owner.select(LocalePreference::De).is_err());
+        let mut owner = owner(directory.path(), false, &[]);
+        assert!(owner.select(language("fr")).is_err());
+        assert!(owner.select(language("future")).is_err());
         assert!(!owner.path.exists());
         let data = vec![b' '; MAX_PREFERENCE_BYTES as usize + 1];
         std::fs::write(&owner.path, &data).unwrap();
-        assert!(owner.select(LocalePreference::En).is_err());
+        assert!(owner.select(language("en")).is_err());
         assert_eq!(std::fs::read(&owner.path).unwrap(), data);
     }
 
@@ -472,20 +622,20 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join(PREFERENCE_FILENAME);
         std::fs::create_dir(&path).unwrap();
-        let mut owner = DesktopLocaleOwner::open_with_locales(directory.path(), vec![], true);
-        assert_eq!(owner.snapshot().preference, LocalePreference::System);
-        assert!(owner.select(LocalePreference::En).is_err());
+        let mut selected = owner(directory.path(), true, &[]);
+        assert_eq!(selected.snapshot().preference, LocalePreference::System);
+        assert!(selected.select(language("en")).is_err());
         assert!(path.is_dir());
         #[cfg(unix)]
         {
             std::fs::remove_dir(&path).unwrap();
             let target = directory.path().join("untouched.json");
-            let original = br#"{"language":"de","future":7}"#;
+            let original = br#"{"language":"fr","future":7}"#;
             std::fs::write(&target, original).unwrap();
             std::os::unix::fs::symlink(&target, &path).unwrap();
-            let mut owner = DesktopLocaleOwner::open_with_locales(directory.path(), vec![], true);
-            assert_eq!(owner.snapshot().preference, LocalePreference::System);
-            assert!(owner.select(LocalePreference::En).is_err());
+            let mut selected = owner(directory.path(), true, &[]);
+            assert_eq!(selected.snapshot().preference, LocalePreference::System);
+            assert!(selected.select(language("en")).is_err());
             assert!(
                 std::fs::symlink_metadata(&path)
                     .unwrap()
@@ -497,7 +647,31 @@ mod tests {
     }
 
     #[test]
-    fn resolves_packaged_english_and_named_placeholders_without_reinterpreting_user_data() {
+    fn persisted_english_german_and_system_wire_values_are_unchanged() {
+        for value in ["en", "de", "system"] {
+            let preference: LocalePreference =
+                serde_json::from_value(serde_json::json!(value)).unwrap();
+            assert_eq!(serde_json::to_value(preference).unwrap(), value);
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join(PREFERENCE_FILENAME);
+        let original = br#"{"language":"de","future":true}"#;
+        std::fs::write(&path, original).unwrap();
+        let actual = DesktopLocaleOwner::open(directory.path());
+        assert_eq!(actual.snapshot().preference, language("de"));
+        assert_eq!(
+            actual.snapshot().locale,
+            if actual.snapshot().available_locales.contains(&"de") {
+                "de"
+            } else {
+                FALLBACK_LOCALE
+            }
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+    }
+
+    #[test]
+    fn resolves_packaged_fallback_and_named_placeholders_without_reinterpreting_user_data() {
         assert_eq!(text_for_locale("tray.show", "en"), "Show JSTorrent");
         assert_eq!(
             format_template("{name} finished downloading.", &[("name", "Sintel")]),
@@ -514,45 +688,42 @@ mod tests {
     }
 
     #[test]
-    #[cfg(debug_assertions)]
-    fn german_native_catalog_has_exact_english_keys_and_localizes_product_text() {
-        let english: HashMap<String, String> = serde_json::from_str(ENGLISH_CATALOG).unwrap();
-        let german: HashMap<String, String> = serde_json::from_str(GERMAN_CATALOG).unwrap();
-        assert_eq!(
-            english.keys().collect::<std::collections::BTreeSet<_>>(),
-            german.keys().collect()
-        );
-        assert_ne!(german["tray.quit"], english["tray.quit"]);
-        assert_ne!(
-            german["dialog.download-folder.title"],
-            english["dialog.download-folder.title"]
-        );
-        assert_eq!(
-            text_for_locale("tray.quit", "de"),
-            if preview_enabled() {
-                &german["tray.quit"]
-            } else {
-                &english["tray.quit"]
-            }
-        );
-    }
-
-    #[test]
-    fn native_availability_matches_the_renderer_build_gate() {
-        let directory = tempfile::tempdir().unwrap();
-        let owner = DesktopLocaleOwner::open(directory.path());
-        assert_eq!(
-            preview_enabled(),
-            cfg!(debug_assertions)
-                && option_env!("VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES") == Some("1")
-        );
-        assert_eq!(
-            owner.snapshot().available_locales,
-            if preview_enabled() {
-                vec!["en", "de"]
-            } else {
-                vec!["en"]
-            }
-        );
+    fn generated_native_availability_matches_manifest_and_build_gates() {
+        let manifest: serde_json::Value =
+            serde_json::from_str(include_str!("../../../../localization/locales.json")).unwrap();
+        let mut expected: Vec<&str> = manifest["supportedLocales"]["desktop"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|value| value.as_str().unwrap())
+            .collect();
+        assert_eq!(expected, SHIPPING_LOCALES);
+        if cfg!(debug_assertions)
+            && option_env!("VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES") == Some("1")
+        {
+            expected.extend(
+                manifest["previewLocales"]["desktop"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|value| value.as_str().unwrap()),
+            );
+        }
+        assert_eq!(DESKTOP_LOCALE_REGISTRY.available(), expected);
+        let fallback = DESKTOP_LOCALE_REGISTRY
+            .sources
+            .iter()
+            .find(|source| source.locale == FALLBACK_LOCALE)
+            .unwrap();
+        let keys: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(fallback.json).unwrap();
+        for source in DESKTOP_LOCALE_REGISTRY.sources {
+            let catalog: serde_json::Map<String, serde_json::Value> =
+                serde_json::from_str(source.json).unwrap();
+            assert_eq!(
+                catalog.keys().collect::<Vec<_>>(),
+                keys.keys().collect::<Vec<_>>()
+            );
+        }
     }
 }

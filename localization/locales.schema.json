@@ -6,6 +6,7 @@
   "required": [
     "sourceLocale",
     "fallbackLocale",
+    "localeDefinitions",
     "supportedLocales",
     "testLocales",
     "previewLocales",
@@ -15,6 +16,16 @@
     "$schema": { "type": "string" },
     "sourceLocale": { "type": "string", "const": "en" },
     "fallbackLocale": { "type": "string", "const": "en" },
+    "localeDefinitions": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["direction"],
+        "properties": { "direction": { "enum": ["ltr", "rtl"] } }
+      }
+    },
     "supportedLocales": {
       "type": "object",
       "additionalProperties": false,

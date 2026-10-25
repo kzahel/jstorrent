@@ -10,6 +10,70 @@ The tool uses the Python standard library and the repository's already pinned
 FormatJS parser through `localization-icu.mjs`. Install locked web dependencies
 before using the React adapter. Nothing fetches catalogs at application runtime.
 
+## Register the next language
+
+`localization/locales.json` is the shared product registry. `localeDefinitions`
+provides direction for canonical locale tags; each platform's `supportedLocales`
+and `previewLocales` lists decide what is available. Defining a locale does not
+by itself enable it. Native desktop shipping locales must also ship in React;
+native previews require matching React registration. Current product support
+remains English, with German previews only.
+
+For French (or another language), land one complete locale cohort:
+
+1. Add its canonical tag and `direction` (`ltr` or `rtl`) to
+   `localeDefinitions`. Regional/script tags such as `fr-CA` are supported;
+   negotiation tries the exact tag and then its registered parents.
+2. Create `localization/terminology/<tag>.json` with `schemaVersion: 1`, the
+   matching `locale`, a nonempty `register` string, and a `terms` object.
+   Choose pronouns, formality and wording explicitly for that language; do not
+   copy German's du instruction. Populate shared concepts from the English
+   glossary with that language's preferred wording and semantic exceptions.
+   This existing format is the only locale-specific translation guidance.
+3. For Android, add an entry in `localization/android/locales.json` containing
+   its debug resource `catalog` path and required `quantities`. Choose plural
+   categories for the target language/platform, rather than copying German's
+   categories. Android's picker already reads generated native LocaleConfig.
+4. Export, translate, independently review and import all desired platforms
+   using the commands below with the new tag. Offline authoring works before
+   making the locale selectable. Complete reviewed native catalogs and the
+   per-message ledgers before the registration/qualification commit.
+5. Add the tag to the desired `previewLocales` platform lists and record an
+   `agent-reviewed`, MIT first-party translation row per platform in
+   `localization/provenance.json`, with `distribution: "debug-preview"` and a
+   pointer to its actual model/session review ledger. No native-speaker gate.
+6. Generate and check:
+
+   ```bash
+   npm run generate:localization --prefix clients/web
+   node clients/android/scripts/check-locale-config.mjs --generate
+   node scripts/check-localization.mjs
+   ```
+
+   React's generated `catalogs.ts` owns typed registration and explicit catalog
+   imports. Native Cargo builds validate the same registry and generate their
+   catalog table into `OUT_DIR`. Vite watches the registry and registered
+   sources. No per-language runtime switch or catalog-loader edits are needed.
+   Stale/unregistered generated JSON is excluded from imports. CI checks both
+   generated output freshness and catalog/review completeness.
+7. Build previews and check real typography, number/date formatting, plural
+   cases, System/default behavior, explicit switching, persistence, keyboard
+   focus and RTL where relevant. The desktop product smoke accepts
+   `--locale <tag>` with the preview and ordinary restore asset snapshots; see
+   [client validation](../docs/development/clients.md). Test Android on an
+   explicitly owned target. The fixture tests prove registration mechanics;
+   they do not qualify a real language's wording or layout.
+
+Existing QA examples default to German; pass the new tag for its actual review.
+Unregistered languages fail before the native smoke starts Cargo. Missing
+registered catalogs fail generation rather than silently advertising them.
+
+Release promotion is a separate explicit change: update the platform shipping
+lists, remove the corresponding preview entries, mark provenance as `release`,
+and move Android resources/configuration to release inputs. Validate those
+release packages and fallback behavior. Preview provenance cannot silently
+qualify a shipping locale; changing the preview build flag does not ship one.
+
 ## Source snapshots and shared terminology
 
 Shared locale terminology lives in `localization/terminology/<locale>.json`.
@@ -70,6 +134,12 @@ Use target-language plural categories; German cardinal has one/other and
 German ordinal has only other. Native desktop named placeholders keep the
 exact source names. Android positional formats and target quantity categories
 retain their existing checks.
+
+The YA runner requires an explicit `--locale` and nonempty locale register
+guidance in each exported snapshot. Translation and terminology-review prompts
+use that snapshot, including pronouns/formality and target plural rules; no
+German default is applied to other languages. Changed/mismatched guidance is
+rejected before starting workers.
 
 Assign a separate reviewer who checks every translated message against source,
 context, arguments, suggestions and shared terminology. Record actual model and

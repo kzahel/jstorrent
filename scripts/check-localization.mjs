@@ -5,6 +5,8 @@ import path from "node:path";
 import process from "node:process";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { readLocaleRegistry } from "./localization-registry.mjs";
+import { renderCatalogModule } from "../clients/web/scripts/generate-localization.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -21,7 +23,7 @@ function requireUnique(values, label) {
 }
 
 function checkPolicy() {
-  const locales = readJson("localization/locales.json");
+  const locales = readLocaleRegistry(repositoryRoot);
   if (locales.sourceLocale !== "en" || locales.fallbackLocale !== "en") {
     fail("English must remain the source and ultimate fallback locale");
   }
@@ -31,8 +33,8 @@ function checkPolicy() {
       fail(`${platform} supported locales must include English`);
     }
     requireUnique(supported, `${platform} supported locales`);
-    if (platform !== "android" && JSON.stringify(supported) !== JSON.stringify(["en"])) {
-      fail(`${platform} translations require their own catalog qualification`);
+    if (platform === "ios" && JSON.stringify(supported) !== JSON.stringify(["en"])) {
+      fail("iOS translations require their own native catalog qualification");
     }
     for (const tag of [...supported, ...(locales.previewLocales?.[platform] ?? [])]) {
       if (Intl.getCanonicalLocales(tag)[0] !== tag) fail(`noncanonical locale ${tag}`);
@@ -44,6 +46,16 @@ function checkPolicy() {
     }
   }
   const testTags = locales.testLocales.map(({ tag }) => tag);
+  const translationTags = new Set(Object.values(locales.supportedLocales).flat()
+    .concat(Object.values(locales.previewLocales).flat()).filter((tag) => tag !== "en"));
+  for (const tag of translationTags) {
+    const guidance = readJson(`localization/terminology/${tag}.json`);
+    if (guidance.schemaVersion !== 1 || guidance.locale !== tag ||
+        typeof guidance.register !== "string" || !guidance.register.trim() || guidance.register.length > 8192 ||
+        !guidance.terms || typeof guidance.terms !== "object" || Array.isArray(guidance.terms)) {
+      fail(`${tag} needs shared locale-specific register and terminology guidance`);
+    }
+  }
   requireUnique(testTags, "test locale tags");
   for (const required of ["en-XA", "ar-XB"]) {
     if (!testTags.includes(required)) fail(`missing test pseudo-locale ${required}`);
@@ -96,6 +108,10 @@ function checkPolicy() {
       if (!row?.source || !row.license || !row.reviewer || row.reviewState !== "agent-reviewed") {
         fail(`${platform} ${tag} catalog has incomplete translation provenance`);
       }
+      const distribution = supported.includes(tag) ? "release" : "debug-preview";
+      if (row.distribution !== distribution) {
+        fail(`${platform} ${tag} requires explicit ${distribution} qualification`);
+      }
     }
   }
 
@@ -126,6 +142,10 @@ async function checkWebCatalog() {
   const catalogPath = "clients/web/src/localization/messages/en.json";
   if (!fs.existsSync(path.join(repositoryRoot, catalogPath))) return;
   const catalog = readJson(catalogPath);
+  const registryModule = path.join(repositoryRoot, "clients/web/src/localization/generated/catalogs.ts");
+  if (!fs.existsSync(registryModule) || fs.readFileSync(registryModule, "utf8") !== renderCatalogModule(readLocaleRegistry(repositoryRoot))) {
+    fail("generated web locale registry is stale; run npm run generate:localization --prefix clients/web");
+  }
   const compiled = readJson("clients/web/src/localization/generated/en.json");
   const ids = Object.keys(catalog);
   requireUnique(ids, "web message identifiers");

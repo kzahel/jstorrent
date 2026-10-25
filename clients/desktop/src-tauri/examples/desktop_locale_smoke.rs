@@ -117,12 +117,18 @@ fn smoke_done(app: tauri::AppHandle, results: Vec<bool>) {
 }
 
 fn main() {
-    if !desktop_localization::preview_enabled() {
+    let probe = tempfile::tempdir().expect("create isolated locale probe");
+    if !DesktopLocaleOwner::open(probe.path())
+        .snapshot()
+        .available_locales
+        .contains(&"de")
+    {
         eprintln!(
             "German smoke requires a debug build with VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1"
         );
         std::process::exit(2);
     }
+    drop(probe);
     let mut context = tauri::generate_context!();
     context.config_mut().identifier = "org.rstorrent.desktop-locale-smoke".into();
     context.config_mut().app.windows.clear();

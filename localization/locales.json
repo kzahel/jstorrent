@@ -2,6 +2,10 @@
   "$schema": "./locales.schema.json",
   "sourceLocale": "en",
   "fallbackLocale": "en",
+  "localeDefinitions": {
+    "en": { "direction": "ltr" },
+    "de": { "direction": "ltr" }
+  },
   "supportedLocales": {
     "web": ["en"],
     "desktop": ["en"],

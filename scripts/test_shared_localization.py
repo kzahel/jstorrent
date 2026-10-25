@@ -210,6 +210,10 @@ class SharedLocalizationTest(unittest.TestCase):
         workspace.import_response(job, self.response(job), "translation/session", "review/session")
         current = self.workspace()
         tool.validate_job(current, job, "web")
+        forged = copy.deepcopy(job)
+        forged["terminology"]["register"] = "Guidance not bound to these resource hashes"
+        with self.assertRaisesRegex(tool.Invalid, "register guidance"):
+            tool.validate_job(current, forged, "web")
         changed = copy.deepcopy(job)
         changed["resources"]["link"]["source"] = "Different English with a forged old hash"
         with self.assertRaisesRegex(tool.Invalid, "stale source job"): tool.validate_job(current, changed, "web")

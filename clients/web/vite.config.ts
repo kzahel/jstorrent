@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, type Plugin, type ProxyOptions } from "vite";
+import { platformLocales, readLocaleRegistry } from "../../scripts/localization-registry.mjs";
 
 const proxyTarget = process.env.RSTORRENT_WEBUI_PROXY_TARGET;
 const liveReload = process.env.RSTORRENT_WEBUI_RELOAD === "1";
@@ -26,32 +27,52 @@ const proxy: Record<string, string | ProxyOptions> | undefined =
  * Tactical 365: recompiles the message catalog when its source changes, so a
  * copy edit reaches the page through the runtime's hot update.
  */
-function compileLocalizationOnChange(): Plugin {
-  const sources = new Map(["en", "de"].map((locale) => [
-    resolve(process.cwd(), `src/localization/messages/${locale}.json`),
-    resolve(process.cwd(), `src/localization/generated/${locale}.json`),
-  ]));
-  const formatjs = resolve(process.cwd(), "node_modules/.bin/formatjs");
+export function compileLocalizationOnChange(webRoot = process.cwd()): Plugin {
+  const repositoryRoot = resolve(webRoot, "../..");
+  const manifest = resolve(repositoryRoot, "localization/locales.json");
+  const generator = resolve(webRoot, "scripts/generate-localization.mjs");
   return {
     name: "rstorrent-compile-localization",
     apply: "serve",
     configureServer(server) {
-      server.watcher.add([...sources.keys()]);
-      server.watcher.on("change", (file) => {
-        const source = resolve(file);
-        const output = sources.get(source);
-        if (output === undefined) return;
-        execFile(
-          formatjs,
-          ["compile", source, "--ast", "--out-file", output],
-          (error, _stdout, stderr) => {
-            if (error !== null) {
-              server.config.logger.error(
-                `message catalog did not compile: ${stderr || error.message}`,
-              );
-            }
-          },
-        );
+      let sources = new Set<string>();
+      let compiling = false;
+      let queued = false;
+      let closed = false;
+      let child: ReturnType<typeof execFile> | undefined;
+      const refreshSources = () => {
+        try {
+          const registry = readLocaleRegistry(repositoryRoot);
+          const directory = resolve(repositoryRoot, registry.catalogs.web, "..");
+          sources = new Set(platformLocales(registry, "web", true).map((locale: string) => resolve(directory, `${locale}.json`)));
+          server.watcher.add([...sources, manifest]);
+        } catch (error) {
+          server.config.logger.error(`locale registry is invalid: ${String(error)}`);
+        }
+      };
+      const compile = () => {
+        if (closed) return;
+        queued = true;
+        if (compiling) return;
+        compiling = true;
+        queued = false;
+        child = execFile(process.execPath, [generator], (error, _stdout, stderr) => {
+          compiling = false;
+          child = undefined;
+          if (closed) return;
+          if (error !== null) server.config.logger.error(`message catalogs did not compile: ${stderr || error.message}`);
+          refreshSources();
+          if (queued) compile();
+        });
+      };
+      server.httpServer?.once("close", () => { closed = true; queued = false; child?.kill(); });
+      refreshSources();
+      server.watcher.on("all", (event, file) => {
+        if (!["add", "change", "unlink"].includes(event)) return;
+        const changed = resolve(file);
+        if (changed !== manifest && !sources.has(changed)) return;
+        if (changed === manifest) refreshSources();
+        compile();
       });
     },
   };
