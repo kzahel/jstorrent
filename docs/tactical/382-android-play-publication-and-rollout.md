@@ -222,6 +222,28 @@ in babytrack.
   - `rollout set` at the current fraction re-records an unchanged Play state,
     which is how a Console change is acknowledged.
 
+- 2026-10-25, phase 2: Google Cloud (`gcloud`): pool `jstorrent-play`,
+  provider `github` conditioned on this repository's IDs, `main` and the exact
+  workflow/environment pairs; keyless testing and production service accounts
+  bound only to their environment subjects; Reporting API enabled. GitHub
+  environments `android-play-internal`, `-production` (required reviewer),
+  `-halt` and `-rollout` (`ANDROID_PLAY_ADVANCE_MODE=report`). Play Console
+  (Machine Control browser): both accounts invited for JSTorrent only; testing
+  may release to testing tracks, production to production (Google adds policy
+  declaration and deep-link permissions). Identities are in the private
+  inventory.
+- 2026-10-25, phase 3 (internal): 1.0.33 (`f2c93a45`, R8 plus security
+  updates) built by Android Release run 40185214797 with its receipt. CI on
+  the bare tag commit failed the ledger check until capture commit `d940d8d5`
+  recorded the tag. Because the ledger must follow the tag, exact-commit CI can
+  never pass, so the verifier now also accepts main CI on a descendant changing
+  only `compat/` (`b51aa0f2`). Run 40191596615 (`check`) verified keyless
+  access. Run 40191672262 uploaded the bundle (SHA-256
+  `d7916d95…c903e`) and released it to internal (28 → 33), recorded as
+  deployment 7312851887 in `play-internal`. A second `check` read back
+  internal = 33 and the bundle as held. Next: install from Play on a physical
+  device, then promote the same version code to production.
+
 ## Stopping condition
 
 1.0.33 reaches 100% production through the workflows, from the same bundle
