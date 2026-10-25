@@ -105,9 +105,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/android-release"
           cp clients/android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/android-release/jstorrent-android-$VERSION.apk"
           cp clients/android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/android-release/jstorrent-android-$VERSION.aab"
+          cp clients/android/app/build/outputs/mapping/release/mapping.txt "$RUNNER_TEMP/android-release/jstorrent-android-$VERSION-mapping.txt"
           cp "$RUNNER_TEMP/release-notes.md" "$RUNNER_TEMP/android-release/RELEASE-NOTES.md"
           cd "$RUNNER_TEMP/android-release"
-          sha256sum ./*.apk ./*.aab > SHA256SUMS
+          sha256sum ./*.apk ./*.aab ./*-mapping.txt > SHA256SUMS
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -158,4 +159,4 @@ jobs:
           sha256sum --check SHA256SUMS
           gh release create "$RELEASE_TAG" --verify-tag --prerelease --latest=false \
             --title "JSTorrent Android ${RELEASE_TAG#android-v}" \
-            --notes-file RELEASE-NOTES.md ./*.apk ./*.aab SHA256SUMS
+            --notes-file RELEASE-NOTES.md ./*.apk ./*.aab ./*-mapping.txt SHA256SUMS

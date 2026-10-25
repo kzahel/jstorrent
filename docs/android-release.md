@@ -70,13 +70,24 @@ The tag workflow checks that the tag matches the checked-in version, builds
 signed artifacts, then creates a GitHub **prerelease** with:
 
 - `jstorrent-android-X.Y.Z.aab` for Play Console;
-- `jstorrent-android-X.Y.Z.apk` for direct installation; and
+- `jstorrent-android-X.Y.Z.apk` for direct installation;
+- `jstorrent-android-X.Y.Z-mapping.txt`, the R8 mapping for that build; and
 - `SHA256SUMS` for exact artifact hashes.
 
 Android releases do not take over the repository's desktop latest release.
 Publication refuses to overwrite an existing release. Failed builds never
-reach the publication job. Minification remains disabled for these candidates;
-no mapping file is implied or fabricated.
+reach the publication job.
+
+Release builds run R8 shrinking, optimization, obfuscation and resource
+shrinking. Play scores bundle DEX optimization and flags categories below
+25%. The AAB embeds its mapping, so Play deobfuscates Android vitals traces
+without a separate upload. Traces from logcat or user diagnostics need that
+version's mapping file: `retrace jstorrent-android-X.Y.Z-mapping.txt
+trace.txt` (cmdline-tools). JNA and UniFFI reach Kotlin classes by name, so
+`app/proguard-rules.pro` keeps JNA, its Structure and Callback subclasses and
+the platform verifier. A missing rule fails only at runtime in release, so
+exercise a minified release build when bindings or reflective dependencies
+change.
 
 ## Build Without A Tag
 
