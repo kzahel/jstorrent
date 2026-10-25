@@ -187,6 +187,18 @@
       ]
     },
     {
+      "surface": "android",
+      "version": "1.0.33",
+      "tag": "android-v1.0.33",
+      "commit": "f2c93a45715e3f7801f3e62fd1ebf938748a497b",
+      "channel": "play-internal",
+      "channelBasis": "First release through android-play-publish.yml; internal testing only until the same bundle is promoted to play-production.",
+      "status": "submitted",
+      "submitted": "2026-10-25",
+      "firstPublic": null,
+      "roles": ["host"]
+    },
+    {
       "surface": "desktop",
       "version": "0.3.4",
       "tag": "desktop-v0.3.4",
