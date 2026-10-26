@@ -207,6 +207,26 @@ class ProbeAdvisoryTests(unittest.TestCase):
         self.assertEqual(len(result['ios_probe_findings']), 20)
         self.assertNotIn('raw advisory', json.dumps(result))
 
+    def test_failure_summary_retains_bounded_sanitized_warnings(self):
+        warning = {'advisory': None, 'package': {
+            'name': 'crypto-bigint', 'version': '0.7.6',
+            'source': 'raw registry source'}, 'description': 'raw warning'}
+        report = self.cargo['rstorrent_ios_probe']['audit']
+        report['warnings'] = {'yanked': [warning] * 25}
+        self.cargo['warnings'] = {'untrusted\nkind': [{
+            'advisory': {'id': 'RUSTSEC-test\n' + 'x' * 200},
+            'package': {'name': 'unsafe\nname', 'version': '1\n2'}}]}
+        result = audit.failure_summary(self.cargo, {}, {}, 'warning failure')
+        self.assertEqual(len(result['ios_probe_warnings']), 20)
+        self.assertEqual(result['ios_probe_warnings'][0], {
+            'kind': 'yanked', 'advisory': 'unknown',
+            'package': 'crypto-bigint', 'version': '0.7.6'})
+        self.assertEqual(result['cargo_warnings'][0], {
+            'kind': 'untrusted_kind', 'advisory': ('RUSTSEC-test_' + 'x' * 200)[:100],
+            'package': 'unsafe_name', 'version': '1_2'})
+        self.assertNotIn('raw warning', json.dumps(result))
+        self.assertNotIn('raw registry source', json.dumps(result))
+
 
 class VulnerabilityExceptionTests(unittest.TestCase):
     def setUp(self):

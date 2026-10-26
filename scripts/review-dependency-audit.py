@@ -117,6 +117,20 @@ def failure_summary(cargo, npm, website_npm, reason):
             'version': bounded(item.get('package', {}).get('version', 'unknown')),
         } for item in report.get('vulnerabilities', {}).get('list', [])[:20]]
 
+    def warnings(report):
+        entries = []
+        for kind, items in sorted(report.get('warnings', {}).items()):
+            for item in items:
+                entries.append({
+                    'kind': bounded(kind),
+                    'advisory': bounded((item.get('advisory') or {}).get('id', 'unknown')),
+                    'package': bounded(item.get('package', {}).get('name', 'unknown')),
+                    'version': bounded(item.get('package', {}).get('version', 'unknown')),
+                })
+                if len(entries) == 20:
+                    return entries
+        return entries
+
     probe = cargo.get('rstorrent_ios_probe', {}).get('audit', {})
     npm_findings = {}
     for label, report in (('web', npm), ('website', website_npm)):
@@ -130,8 +144,10 @@ def failure_summary(cargo, npm, website_npm, reason):
         'reason': reason,
         'cargo_vulnerability_count': cargo.get('vulnerabilities', {}).get('count'),
         'cargo_findings': findings(cargo),
+        'cargo_warnings': warnings(cargo),
         'ios_probe_vulnerability_count': probe.get('vulnerabilities', {}).get('count'),
         'ios_probe_findings': findings(probe),
+        'ios_probe_warnings': warnings(probe),
         'npm_vulnerability_counts': {
             label: report.get('metadata', {}).get('vulnerabilities', {}).get('total')
             for label, report in (('web', npm), ('website', website_npm))

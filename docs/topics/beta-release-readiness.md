@@ -1,5 +1,19 @@
 # Beta Release Readiness
 
+The October 26 Desktop Latest and daily advisory failures share a yanked
+crypto-bigint 0.7.6 warning. Both Rust lockfiles now select 0.7.10 and its
+required ctutils 0.4.6, retaining the existing strict warning policy. The
+OPAQUE exception's unchanged old-backend graph and source were re-reviewed
+before rebinding its input fingerprint; its scope and November 12 expiry
+remain unchanged. Failed audit receipts now include bounded, sanitized
+warning identities for both Cargo graphs. Tactical
+[381](../tactical/381-dependency-cleanup-and-security.md#october-26-yanked-bigint-repair)
+records the upstream cause and validation; this repair does not publish a
+release. Local strict review, formatting, Clippy, all 1,764 workspace tests
+(20 existing ignores), 29 controlled libtorrent encryption cases, both Android
+release library ABIs, iOS probe and Wasm compile checks, and five-target notice
+validation pass. Hosted CI has not yet been rerun for this repair.
+
 Dependency maintenance is security-only automation as of October 24, at the
 maintainer's direction. Routine dependency upgrades are handled manually in
 larger batches when useful; stop the recurring patch/minor version-only PRs.

@@ -259,3 +259,80 @@ diff changes only that package's version, URL and integrity. No npm exception
 or service protocol change is needed. Link typechecks, all 11 tests, build
 and fresh npm audit pass with zero vulnerabilities.
 Wrangler's actual deployment dry run also passes without uploading anything.
+
+## October 26 yanked bigint repair
+
+Desktop Latest run 40296807949 and daily advisory run 40314673688 both stop
+on the standalone iOS probe's yanked crypto-bigint 0.7.6 warning. The main
+workspace contains the same yanked version. Upstream's
+[changelog](https://github.com/RustCrypto/crypto-bigint/blob/v0.7.10/CHANGELOG.md)
+and [PR 1373](https://github.com/RustCrypto/crypto-bigint/pull/1373) explain
+the yank: the blanket NonZero multiplication implementation incorrectly
+accepted modular values, whose nonzero product can be zero. Version 0.7.9
+restricts that implementation; 0.7.10 additionally repairs Montgomery carry
+propagation and uses internal constant-time primitives. Pin 0.7.10 in the
+workspace and update both lockfiles, including its required ctutils 0.4.6.
+No first-party protocol, authentication format, task owner or resource bound
+changes. The probe resolver also moves existing Windows-only dependency edges
+from already-locked windows-sys 0.52 to 0.61; it adds no package versions.
+
+Reference paths rechecked: `reference/bittorrent.org/beps/bep_0008.html`,
+libtorrent `src/pe_crypto.cpp` (`compute_secret`) and
+`test/test_pe_crypto.cpp` (`diffie_hellman`,
+`diffie_hellman_degenerate_key`). Preserve equal shared secrets, rejection of
+0/1/p-1/p, acceptance of 2/p-2 and exact 96-byte exports. Existing JSTorrent
+MSE vectors and controlled libtorrent tests exercise these cases; no source
+or fixtures are imported and no deliberate behavior difference is introduced.
+
+The existing OPAQUE exception is re-reviewed against unchanged old-backend
+metadata and source, then rebound to the changed manifest, lockfile and
+investigation. Its identity, reason and November 12 expiry remain unchanged.
+The audit gate is not relaxed. Failed receipts now retain at most 20 sanitized
+warning identities for each Cargo graph, including yanked warnings whose
+advisory is null. A regression verifies truncation, sanitization and exclusion
+of raw report text, so future warnings identify their package in CI artifacts.
+
+Validation commands for this repair (toolchain commands source
+`scripts/dev-env.sh` first; `audit_dir` names the temporary report directory):
+
+```bash
+python3 -m unittest discover -s scripts -p test_distribution_review.py
+python3 -m unittest discover -s scripts -p test_glib_backport.py
+cargo fmt --all -- --check
+cargo fmt --manifest-path experiments/ios-storage-probe/Cargo.toml -- --check
+cargo clippy --workspace -- -D warnings
+cargo test --workspace
+cargo check --locked --manifest-path experiments/ios-storage-probe/Cargo.toml \
+  --target aarch64-apple-ios-sim
+cargo test --locked --manifest-path experiments/ios-storage-probe/Cargo.toml
+cargo ndk -t x86_64 -t arm64-v8a -P 28 build --locked --release \
+  -p rstorrent-android --lib
+cargo check --locked -p rstorrent-remote-wasm --target wasm32-unknown-unknown
+npm ci --prefix clients/web
+python3 scripts/prepare-release-notices.py --check
+cargo build --locked -p rstorrent-engine --bin rstorrent-download-piece \
+  -p rstorrent-session --bin rstorrent-incoming-seed
+uv run --project tests/interop --locked python tests/interop/mse_peer_encryption.py
+python3 scripts/audit-cargo-dependencies.py --output "$audit_dir/cargo-audit.json"
+npm audit --prefix clients/web --json > "$audit_dir/npm-audit.json"
+npm audit --prefix website --json > "$audit_dir/website-npm-audit.json"
+python3 scripts/review-dependency-audit.py --cargo "$audit_dir/cargo-audit.json" \
+  --npm "$audit_dir/npm-audit.json" --website-npm "$audit_dir/website-npm-audit.json" \
+  --output "$audit_dir/review.json" --require-release-ready
+```
+
+The distribution review suite passes 48 tests and the backport suite passes
+ten. Both formatting checks, workspace Clippy, the locked iOS simulator
+compile and all four probe host tests pass. Android release libraries compile
+for both ABIs. Notice validation passes for 659 Rust and 35 npm dependencies
+across five desktop targets after refreshing the stale local npm installation.
+Fresh strict dependency review passes at RustSec
+`115e418ee9a2ff542fee41db641128fa84483383`: zero probe vulnerabilities or
+warnings, zero npm vulnerabilities, and exactly the existing reviewed workspace
+exception with no unexcepted vulnerabilities. Its expiry is unchanged.
+All 1,764 workspace tests in 73 suites pass, with 20 existing ignores. The
+Wasm authentication compile check and all 29 controlled libtorrent MSE cases
+pass. An early matrix invocation was cancelled while waiting for the Cargo
+build lock, before scenarios ran; the completed run followed the explicit
+binary prebuild. Full hosted CI has not been rerun. No release is published
+by this repair.

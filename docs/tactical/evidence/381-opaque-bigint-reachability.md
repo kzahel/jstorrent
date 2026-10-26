@@ -126,3 +126,21 @@ dependency upstream, or a separately scoped and reviewed dependency patch.
 A whole password-protocol migration is not justified by this reachability
 finding. Until actual remediation or an explicitly approved exception, strict
 dependency review remains blocked.
+
+## October 26 patch re-review
+
+The workspace's separate crypto-bigint 0.7 line moves from yanked 0.7.6
+to 0.7.10, with ctutils 0.4.5 to its required 0.4.6. The manifest pin and
+lockfile are the only implementation inputs changed by this repair.
+Comparing all-target/all-feature Cargo metadata before and after the update
+shows identical package identities, enabled features, dependencies and
+dependents for all five reviewed backends: crypto-bigint 0.5.5,
+elliptic-curve 0.13.8, opaque-ke 4.0.1, voprf 0.5.0 and
+curve25519-dalek 4.1.3. The remote-crypto source and selected Suite remain
+unchanged. The prior source trace therefore still applies to the old bigint
+finding; P-256 and MSE use the independent updated 0.7 line.
+
+Rebind the existing exception to these reviewed inputs without changing its
+advisory, package identity, scope or November 12 expiry. This is continued
+source-level reachability evidence, not a new timing proof or an additional
+exception. The tactical records functional and platform validation separately.
