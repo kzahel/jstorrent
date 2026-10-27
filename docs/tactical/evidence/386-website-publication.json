@@ -1,0 +1,28 @@
+{
+  "schema": "jstorrent-website-publication/v1",
+  "observedDate": "2026-10-27",
+  "sourceRepository": "kzahel/jstorrent",
+  "sourceSha": "0f1285502e9c4aba8a07e23e37278d82bc02c463",
+  "desktopVersion": "0.3.4",
+  "workflow": "https://github.com/kzahel/jstorrent/actions/runs/40489172535",
+  "verification": {
+    "public_source_receipt": "pass",
+    "exact_changed_script_bytes": "pass",
+    "deployed_redirect_extension_handoff": "pass",
+    "legacy_input_recovery": "pass",
+    "report_context_and_opt_out": "pass"
+  },
+  "scriptSha256": {
+    "chrome-extension.js": "2d6c98de84d22990fec10fc2044b4785af7d600376d5b342c0c230fe6e89697c",
+    "product-context.js": "e0548cb853a28da0ca1b349227aedc5e1e975abe3d770186554d76d8c145cad5",
+    "add/index.js": "d1976648039f9006ada3eb32eb032bd5e3f798473e7c6a4d8ffea052070dfd6e"
+  },
+  "testedExtension": {
+    "version": "1.1.7",
+    "filename": "jstorrent-1.1.7.zip",
+    "sha256": "beb4dc0ec3ca2e918239cba04f55d76d9d86b9777e1e85f8843bfaf897f372cc",
+    "extensionId": "dbokmlpefliilbjldladbimlcfgbolhk",
+    "revision": "0f1285502e9c4aba8a07e23e37278d82bc02c463",
+    "sourceDirty": false
+  }
+}

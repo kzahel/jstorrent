@@ -210,6 +210,19 @@
       "firstPublic": "2026-10-22",
       "firstPublicBasis": "Public Stable desktop-v0.3.4 published at 2026-10-22T17:32:04Z. All 17 unauthenticated public downloads, original updater signatures, signed database facts and all five Stable updater selectors independently verified on 2026-10-22.",
       "roles": ["host"]
+    },
+    {
+      "surface": "extension",
+      "version": "1.1.7",
+      "tag": "extension-v1.1.7",
+      "commit": "0f1285502e9c4aba8a07e23e37278d82bc02c463",
+      "channel": "chrome-web-store",
+      "status": "submitted",
+      "submitted": "2026-10-27",
+      "firstPublic": null,
+      "roles": [
+        "client"
+      ]
     }
   ]
 }

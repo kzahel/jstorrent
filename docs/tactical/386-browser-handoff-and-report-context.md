@@ -1,6 +1,6 @@
 # Browser handoff and report context
 
-Status: complete in source and controlled qualification; unpublished.
+Status: website published; extension 1.1.7 submitted, pending Google review.
 Topics: `client-surfaces`, `product-state-and-feedback`.
 
 ## Scope and stopping condition
@@ -102,8 +102,9 @@ Evidence on 2026-10-27:
 
 Private source details, source freshness, current Play report-count gating and
 reproduction decisions are recorded in dotfiles' JSTorrent monitoring runbook.
-No website deployment, extension release, feedback reply or public issue was
-published. Candidate smoke does not imply the public failure is repaired yet.
+At the implementation checkpoint no website deployment, extension release,
+feedback reply or public issue was published. Subsequent authorized
+publication is recorded below; a candidate smoke alone is not public evidence.
 
 Portable validation commands run (physical selectors stay private):
 
@@ -143,3 +144,41 @@ Record the exact tagged client capture and delivery, verify the hosted
 compatibility/package/submission results, and independently verify deployed
 website provenance and changed routes. Store submission with automatic
 publication after Google review is distinct from public availability.
+
+Extension 1.1.7 is tagged at
+`0f1285502e9c4aba8a07e23e37278d82bc02c463`. The existing helper atomically
+pushed main/tag and started
+[extension release 40489172474](https://github.com/kzahel/jstorrent/actions/runs/40489172474).
+Its exact-source package job passes. Independently downloaded CI ZIP and
+build record match local clean-tag packaging, SHA-256
+`beb4dc0ec3ca2e918239cba04f55d76d9d86b9777e1e85f8843bfaf897f372cc`.
+The exact tagged client capture is retained. The local live matrix with the
+current host and tagged client passes connection, folder selection, add,
+download, independent payload verification, remove and data removal (53 s).
+
+[Website run 40489172535](https://github.com/kzahel/jstorrent/actions/runs/40489172535)
+publishes that same source. The public provenance receipt retains desktop
+0.3.4 and confirms the new source SHA. All three changed public JavaScript
+files match source bytes. The actual deployed-page smoke, using the exact
+CI-built production-ID extension ZIP in disposable bundled Chromium, passes
+redirected handoff, legacy input recovery, real-worker report context and
+statistics opt-out. Third-party requests are blocked and no form is
+submitted. The [public receipt](evidence/386-website-publication.json) retains
+source/run/artifact identities. `--deployed` makes this verification reusable.
+
+The complete extension workflow passes, including all 16 supported live
+host/client pairs and the store submission. Google returns `submitted`,
+`PENDING_REVIEW` for 1.1.7; both the independent authenticated store read and
+public update check still identify 1.1.6 as published. Automatic publication
+after review is enabled. The public
+[GitHub release](https://github.com/kzahel/jstorrent/releases/tag/extension-v1.1.7)
+retains the exact tested ZIP, checksum, build record and
+[submission receipt](evidence/386-extension-submission.json).
+
+The ledger appends 1.1.7 as submitted with no first-public date. Its captured
+decoder accepts current frames with zero raw failures; existing delivery
+records and the support window are unchanged. The first main CI source run
+flags the tag's missing ledger entry before submission, as designed; the
+following metadata commit records the now-acknowledged delivery and capture.
+Its local validation passes web typecheck, 916 web tests (three existing
+skips), the 17-delivery capture ledger and 15 handoff/ledger/window cases.

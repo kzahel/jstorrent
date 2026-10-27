@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Candidate bytes and a real HTTP redirect in bundled Chromium. No app or swarm.
+// Candidate or deployed website in bundled Chromium. No app or swarm.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -10,7 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from '../clients/web/node_modules/playwright-core/index.mjs';
 
 const archive = process.argv[2];
-assert(archive, 'Usage: node scripts/verify-browser-report-handoff.mjs EXTENSION.zip [--live]');
+assert(archive, 'Usage: node scripts/verify-browser-report-handoff.mjs EXTENSION.zip [--live] [--deployed]');
+const deployed = process.argv.includes('--deployed');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const temporary = mkdtempSync(path.join(tmpdir(), 'jstorrent-handoff-'));
 let browser;
@@ -21,6 +22,7 @@ try {
   const id = createHash('sha256').update(Buffer.from(manifest.key, 'base64')).digest('hex').slice(0, 32)
     .replace(/[0-9a-f]/gu, nibble => String.fromCharCode(97 + parseInt(nibble, 16)));
   const handoffPaths = new Set(['/chrome-extension', '/chrome-extension.html']);
+  if (deployed) assert.equal(id, 'dbokmlpefliilbjldladbimlcfgbolhk', 'Deployed verification requires the production extension identity');
   for (const pathname of handoffPaths) assert(manifest.externally_connectable.matches.includes('https://jstorrent.com' + pathname));
   if (process.argv.includes('--live')) {
     const response = await fetch('https://jstorrent.com/chrome-extension.html', { signal: AbortSignal.timeout(15_000) });
@@ -32,7 +34,12 @@ try {
     channel: 'chromium', headless: true,
     args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
   });
-  await browser.route('https://jstorrent.com/**', async route => {
+  if (deployed) await browser.route('**/*', route => {
+    const url = new URL(route.request().url());
+    return url.origin === 'https://jstorrent.com' || url.protocol === 'chrome-extension:'
+      ? route.continue() : route.abort();
+  });
+  else await browser.route('https://jstorrent.com/**', async route => {
     const pathname = new URL(route.request().url()).pathname;
     if (pathname === '/chrome-extension.html') return route.fulfill({ status: 302, headers: { location: '/chrome-extension' } });
     const file = ({ '/chrome-extension': 'chrome-extension.html', '/launch': 'launch.html', '/add/': 'add/index.html' })[pathname] ?? pathname.slice(1);
@@ -49,7 +56,7 @@ try {
   await page.getByText('The extension is open. Continue there; Android approval may still be needed.', { exact: true }).waitFor();
   assert.equal(new URL(page.url()).pathname, '/chrome-extension');
   assert(browser.pages().some(p => p.url().includes('/companion/companion.html')));
-  console.log('PASS redirected website opens installed candidate extension');
+  console.log(`PASS ${deployed ? 'deployed' : 'candidate'} redirected website opens installed candidate extension`);
   const magnet = 'magnet:?xt=urn:btih:' + 'a'.repeat(40);
   await page.goto('https://jstorrent.com/launch#magnet=' + encodeURIComponent(magnet));
   const confirm = page.getByRole('button', { name: 'Add Torrent', exact: true });

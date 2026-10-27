@@ -1,0 +1,23 @@
+{
+  "status": "submitted",
+  "extensionId": "dbokmlpefliilbjldladbimlcfgbolhk",
+  "published": {
+    "state": "PUBLISHED",
+    "versions": [
+      "1.1.6"
+    ]
+  },
+  "version": "1.1.7",
+  "revision": "0f1285502e9c4aba8a07e23e37278d82bc02c463",
+  "sha256": "beb4dc0ec3ca2e918239cba04f55d76d9d86b9777e1e85f8843bfaf897f372cc",
+  "state": "PENDING_REVIEW",
+  "observedDate": "2026-10-27",
+  "workflow": "https://github.com/kzahel/jstorrent/actions/runs/40489172474",
+  "verification": {
+    "hosted_package": "pass",
+    "hosted_live_compatibility_matrix": "pass",
+    "independent_ci_archive_identity_checksum": "pass",
+    "deployed_website_with_exact_ci_archive": "pass",
+    "local_current_host_tagged_client": "pass"
+  }
+}

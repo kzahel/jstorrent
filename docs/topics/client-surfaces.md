@@ -18,6 +18,10 @@ uses a fresh debug identity and the extension an isolated unpacked beta
 identity; gateway preference setup is a fixture, pairing approval is real,
 and production installation/setup is not established by that run. Owners,
 tabs, package, extension and payload artifacts are cleaned up.
+The website is publicly verified from `0f128550`; extension 1.1.7 passes
+hosted packaging/live compatibility and is pending Google review, with 1.1.6
+still public at the submission checkpoint. The submitted client decoder and
+exact tested ZIP/store receipt are retained without a first-public claim.
 
 Tactical [384](../tactical/384-shared-translation-workflow-and-desktop-german.md)
 adds a German development preview to shared React and the native desktop

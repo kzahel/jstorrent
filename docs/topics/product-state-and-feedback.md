@@ -16,8 +16,10 @@ clears it and emits only the extension version. Existing identifier/counter
 transmission gates remain off. Feedback links refresh when the preference
 changes, and older workers retain the existing report fallback. Hosted pages
 accept these new optional fields without requiring them from old clients.
-Candidate packaging, browser redirect/recovery/report checks and physical
-ChromeOS interruption/removal/restart evidence pass; publication is separate.
+Packaging, browser redirect/recovery/report checks and physical ChromeOS
+interruption/removal/restart evidence pass. The website is published from
+`0f128550`; extension 1.1.7 is submitted for automatic publication after Google
+review. The public store still serves 1.1.6 at the submission checkpoint.
 
 ## Maintainer policy, 2026-10-15
 

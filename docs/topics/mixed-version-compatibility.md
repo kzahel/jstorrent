@@ -1,5 +1,13 @@
 # Mixed-Version Compatibility
 
+Tactical [386](../tactical/386-browser-handoff-and-report-context.md) submits
+extension 1.1.7 at `0f128550` after the hosted 16-pair live matrix passes. Its
+exact client capture accepts current host frames with zero raw failures. The
+ledger records submitted status, not first-public delivery; 1.1.6 is still
+public at the submission checkpoint. No host contract, capability or support
+window changes. The independently deployed website accepts both exact
+handoff URL spellings, with manual recovery for older installed extensions.
+
 Tactical [377](../tactical/377-compatible-touchless-release-channels.md) adds
 release/database compatibility metadata to the updater service, without new
 application fields, commands or capability IDs. The existing desktop updater

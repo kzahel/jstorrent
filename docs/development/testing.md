@@ -80,6 +80,10 @@ node scripts/verify-browser-report-handoff.mjs target/extension/jstorrent-beta-0
 `--live` additionally verifies the public handoff's final redirect destination;
 candidate content still runs locally. The smoke covers a real redirected
 navigation, legacy input recovery, the actual worker and statistics opt-out.
+After deployment, supply a production-ID archive and add `--deployed` to run
+those checks against the actual public pages. Third-party requests are blocked;
+the disposable browser loads only the owned test extension and first-party
+pages, and no feedback form is submitted.
 
 ```bash
 cd clients/web

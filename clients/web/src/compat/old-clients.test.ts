@@ -129,6 +129,7 @@ const RAW_FAILURES: Readonly<Record<string, readonly string[]>> = {
   ],
   "extension 1.1.5": [],
   "extension 1.1.6": [],
+  "extension 1.1.7": [],
   "remote 0.3.1": [],
   "remote 0.3.2": [],
   "remote 0.3.3": [],
