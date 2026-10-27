@@ -5,6 +5,15 @@ Production releases of the existing JSTorrent Chrome Web Store item
 `scripts/release-extension.sh <version>`; see
 [`docs/topics/mixed-version-compatibility.md`](../../docs/topics/mixed-version-compatibility.md).
 
+## [1.1.7]
+
+- Fix opening the Chrome library from the website after its address redirects.
+- Include OS, browser and extension versions and a bounded connection result
+  in feedback and uninstall reports when usage statistics are enabled.
+- Keep the connected app version separate from the extension version, and
+  refresh feedback links when the statistics preference changes.
+- Improve setup failure reporting without including raw errors or torrent data.
+
 ## [1.1.6]
 
 - Browse videos and music across torrents in the Library, with search,

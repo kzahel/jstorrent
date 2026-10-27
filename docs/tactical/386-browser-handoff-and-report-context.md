@@ -132,3 +132,14 @@ with Machine Control's common CLI after a passing doctor. Its minimized
 [receipt](evidence/386-chromeos-feedback-regression.json) records case outcomes,
 the tested artifact hashes and actual extension worker reload. It does not
 retain private transport selectors or screenshots.
+
+## Authorized publication, 2026-10-27
+
+The maintainer requests publication of the qualified website and extension.
+Release extension 1.1.7 through the existing tag-driven Web Store workflow;
+its main push also deploys the website through the canonical Cloudflare lane.
+Preserve the desktop download inventory and independent remote controller.
+Record the exact tagged client capture and delivery, verify the hosted
+compatibility/package/submission results, and independently verify deployed
+website provenance and changed routes. Store submission with automatic
+publication after Google review is distinct from public availability.
