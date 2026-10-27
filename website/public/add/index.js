@@ -92,10 +92,16 @@ function addViaExtension() {
       console.log('launch-ping response', response)
       if (chrome.runtime.lastError) {
         console.error('launch-ping error', chrome.runtime.lastError)
-        notify('Error sending to extension')
+        notify('This older download link could not send the torrent. Open JSTorrent directly and add the magnet link below.')
+        showInstallSection()
         return
       }
-      notify('Torrent Added')
+      if (!response || (response.ok !== true && response.handled !== true)) {
+        notify('JSTorrent did not confirm this torrent. Open your library and add the magnet link below.')
+        showInstallSection()
+        return
+      }
+      notify('Sent to JSTorrent. Check your library for progress.')
       navigateBackMaybe()
     },
   )
@@ -113,18 +119,22 @@ function addViaLegacy(result) {
     notify('Sending torrent to JSTorrent (legacy)')
     chrome.runtime.sendMessage(jstorrent_id, msg, function (response) {
       console.log('legacy add response', response)
-      notify('Torrent Added')
       if (response && response.handled) {
+        notify('Sent to JSTorrent. Check your library for progress.')
         navigateBackMaybe()
+      } else {
+        showInstallSection()
       }
     })
   } else if (result.lite) {
     notify('Sending torrent to JSTorrent Lite (legacy)')
     chrome.runtime.sendMessage(jstorrent_lite_id, msg, function (response) {
       console.log('legacy lite add response', response)
-      notify('Torrent Added')
       if (response && response.handled) {
+        notify('Sent to JSTorrent. Check your library for progress.')
         navigateBackMaybe()
+      } else {
+        showInstallSection()
       }
     })
   }
@@ -166,7 +176,8 @@ function showInstallSection() {
 function showmag() {
   var mag = document.getElementById('magnet-link')
   var magdiv = document.getElementById('magnet-div')
-  mag.href = parsed.magnet_uri
+  mag.href = getMagnetUri()
+  document.getElementById('magnet-copy').value = getMagnetUri()
   magdiv.style.display = ''
 }
 
@@ -189,7 +200,7 @@ function tryLegacyApps() {
           showMigrationBanner({ lite: true })
         } else {
           // Nothing found at all
-          notify('JSTorrent is not installed')
+          notify('This older download page could not connect to JSTorrent. Installation status is unknown.')
           showInstallSection()
         }
       },
@@ -208,12 +219,12 @@ function tryadd() {
     showmag()
     return
   }
+  showmag()
   if (!(chrome.runtime && chrome.runtime.sendMessage)) {
     showInstallSection()
     return
   }
 
-  showmag()
   notify('Looking for JSTorrent')
 
   // Try new extension first

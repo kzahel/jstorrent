@@ -1,3 +1,5 @@
+import { SUPPORT_CONTEXT_KEY, appendSupportContext, supportEnvironment, supportObservation } from "./support-context.js";
+
 export const PRODUCT_METRICS_KEY = "productMetricsV1";
 export const PRODUCT_METRICS_DISCLOSURE_VERSION = 1;
 export const UNINSTALL_BASE_URL = "https://jstorrent.com/uninstall.html";
@@ -40,6 +42,35 @@ export class ProductMetricsOwner {
 
   snapshot() {
     return this.#serialize(async () => (await this.#load()).state);
+  }
+
+  observeSupport(senderUrl, failure) {
+    return this.#serialize(async () => {
+      const { state, malformed } = await this.#load();
+      const observation = supportObservation(senderUrl, failure, this.chrome.runtime.getURL(""));
+      if (!malformed && state.statisticsEnabled) await this.chrome.storage.session.set({ [SUPPORT_CONTEXT_KEY]: observation });
+      else await this.chrome.storage.session.remove(SUPPORT_CONTEXT_KEY);
+      await this.#register(malformed ? UNINSTALL_BASE_URL : await this.#reportUrl(state, "uninstall"));
+      return state;
+    });
+  }
+
+  feedbackUrl() {
+    return this.#serialize(async () => {
+      const { state, malformed } = await this.#load();
+      return { url: malformed ? "https://jstorrent.com/feedback.html" : await this.#reportUrl(state, "feedback") };
+    });
+  }
+
+  async #reportUrl(state, kind) {
+    const url = new URL(kind === "uninstall" ? buildUninstallUrl(state, this.now()) : "https://jstorrent.com/feedback.html");
+    url.searchParams.set("v", state.currentVersion);
+    if (state.statisticsEnabled) {
+      const stored = await this.chrome.storage.session.get(SUPPORT_CONTEXT_KEY);
+      appendSupportContext(url, await supportEnvironment(this.chrome), stored[SUPPORT_CONTEXT_KEY], state.currentVersion);
+    } else await this.chrome.storage.session.remove(SUPPORT_CONTEXT_KEY);
+    if (url.href.length > MAX_UNINSTALL_URL_LENGTH) throw new Error("support URL exceeds fixed bound");
+    return url.href;
   }
 
   acknowledge(statisticsEnabled) {
@@ -96,7 +127,7 @@ export class ProductMetricsOwner {
   refresh() {
     return this.#serialize(async () => {
       const loaded = await this.#load();
-      await this.#register(loaded.malformed ? UNINSTALL_BASE_URL : buildUninstallUrl(loaded.state, this.now()));
+      await this.#register(loaded.malformed ? UNINSTALL_BASE_URL : await this.#reportUrl(loaded.state, "uninstall"));
       return loaded.state;
     });
   }
@@ -109,7 +140,7 @@ export class ProductMetricsOwner {
       }
       const state = normalizeState(change(loaded.state), this.extensionVersion);
       await this.chrome.storage.local.set({ [PRODUCT_METRICS_KEY]: state });
-      await this.#register(buildUninstallUrl(state, this.now()));
+      await this.#register(await this.#reportUrl(state, "uninstall"));
       return state;
     });
   }

@@ -1,5 +1,6 @@
 import { ApplicationViewError } from "./api/client";
 import { message } from "./localization/runtime";
+import { extensionSupport } from "./extension-support";
 import { connectDesktopCompanion, desktopBootstrapFailure, desktopRuntime, DesktopCompanionUnavailable } from "./desktop-companion-client";
 import { startCompanionInspection } from "./inspection/companion-bootstrap";
 
@@ -45,6 +46,8 @@ export async function startDesktopCompanion(): Promise<void> {
   identity.hidden = false;
   start.textContent = message("desktop.companion.start");
   function showFailure(error: unknown): void {
+    void extensionSupport("support", error instanceof ApplicationViewError ? error.code :
+      error instanceof DesktopCompanionUnavailable ? "native_host_unavailable" : "connection_failed");
     const mismatch = error instanceof ApplicationViewError && error.code === "invalid_version";
     recovery.hidden = !mismatch && !(error instanceof DesktopCompanionUnavailable);
     extensionUpdateRow.hidden = !mismatch;
@@ -104,10 +107,12 @@ export async function startDesktopCompanion(): Promise<void> {
       bootstrap.hidden = true;
       app.hidden = false;
       attempt = 0;
+      void extensionSupport("support", "none");
       // A frozen document may not receive the socket's close event before it
       // is restored. Departure itself must release the page's ownership loop.
       await Promise.race([connection.disconnected, departure]);
       status.textContent = message("desktop.companion.disconnected");
+      if (!abort.signal.aborted) void extensionSupport("support", "disconnected");
     } catch (error) {
       if (abort.signal.aborted) return;
       showFailure(error);

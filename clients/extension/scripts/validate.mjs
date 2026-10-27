@@ -31,6 +31,7 @@ export const packagedFiles = Object.freeze([
   "crostini/connect.js",
   "src/service-worker.js",
   "src/product-metrics.js",
+  "src/support-context.js",
   ...companionPackagedFiles,
 ]);
 
@@ -104,7 +105,7 @@ export function validateSource(production = false) {
   }
   if (
     JSON.stringify(manifest.externally_connectable) !==
-    JSON.stringify({ matches: ["http://jstorrent.localhost/*", "https://jstorrent.com/chrome-extension.html"] })
+    JSON.stringify({ matches: ["http://jstorrent.localhost/*", "https://jstorrent.com/chrome-extension", "https://jstorrent.com/chrome-extension.html"] })
   ) {
     fail("externally_connectable must contain only Crostini and the exact JSTorrent Android handoff");
   }
@@ -149,7 +150,9 @@ export function validateSource(production = false) {
           url !== "http://100.115.92.2/*" &&
           url !== "http://jstorrent.localhost/*" &&
           url !== "https://jstorrent.com/privacy.html" &&
+          url !== "https://jstorrent.com/chrome-extension" &&
           url !== "https://jstorrent.com/chrome-extension.html" &&
+          url !== "https://jstorrent.com/feedback.html" &&
           url !== "https://jstorrent.com/uninstall.html",
       )
     ) {

@@ -30,6 +30,25 @@ function setStatus(kind, title, detail) {
   statusDetail.textContent = detail;
 }
 
+function recordSupport(failure) {
+  void metricsRequest("support", { failure }).catch(() => {});
+}
+
+document.querySelector("#feedback-preview").addEventListener("click", async () => {
+  try {
+    const response = await metricsRequest("feedback");
+    if (!response?.ok || !response.state?.url) throw new Error();
+    const context = document.querySelector("#feedback-context");
+    context.textContent = response.state.url;
+    context.hidden = false;
+    const link = document.querySelector("#feedback-open");
+    link.href = response.state.url;
+    link.hidden = false;
+  } catch {
+    metricsStatus.textContent = "Feedback link unavailable. Try again.";
+  }
+});
+
 function request(op) {
   return chrome.runtime.sendMessage({ type: "nativeBootstrap", op });
 }
@@ -48,8 +67,10 @@ async function checkDesktop() {
       "Open your library here. Downloads run in the desktop app.",
     );
     void updateMetrics("connected");
+    recordSupport("none");
     launchButton.disabled = false;
   } catch (error) {
+    recordSupport("connection_failed");
     setStatus(
       "error",
       "Desktop setup needed",
@@ -115,6 +136,7 @@ androidButton.addEventListener("click", async () => {
       origins: [ANDROID_HOST_PERMISSION],
     });
     if (!granted) {
+      recordSupport("permission_denied");
       androidStatus.textContent =
         "Android connection access was not granted. No local service was contacted.";
       return;
@@ -184,6 +206,8 @@ async function updateMetrics(op, extra = {}) {
   const response = await metricsRequest(op, extra);
   if (!response?.ok) throw new Error(response?.error || "Privacy settings could not be saved.");
   renderMetrics(response.state);
+  document.querySelector("#feedback-context").hidden = true;
+  document.querySelector("#feedback-open").hidden = true;
 }
 
 metricsContinue.addEventListener("click", async () => {

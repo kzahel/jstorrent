@@ -523,9 +523,11 @@ class QualificationSafety(unittest.TestCase):
         self.assertEqual(taps, [])
 
     def test_enabled_download_finishes_selection(self):
-        result, taps = self.confirm('<hierarchy><node text="Download" clickable="true" enabled="true" bounds="[1,1][2,2]"/></hierarchy>')
-        self.assertTrue(result)
-        self.assertEqual(len(taps), 1)
+        for label in ["Download", "Download all"]:
+            with self.subTest(label=label):
+                result, taps = self.confirm(f'<hierarchy><node text="{label}" clickable="true" enabled="true" bounds="[1,1][2,2]"/></hierarchy>')
+                self.assertTrue(result)
+                self.assertEqual(len(taps), 1)
 
     def test_first_use_refreshes_geometry_and_observes_dismissal(self):
         snapshots = iter([

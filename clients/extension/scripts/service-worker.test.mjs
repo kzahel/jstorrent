@@ -278,7 +278,7 @@ test("repeated Android action focuses the one visible application tab", async ()
 
 test("exact Android website return coalesces into one attach page without launching", async () => {
   const message = { type: "openAndroidUi", protocolVersion: 1 };
-  const sender = { url: "https://jstorrent.com/chrome-extension.html", frameId: 0, tab: { id: 42 } };
+  const sender = { url: "https://jstorrent.com/chrome-extension", frameId: 0, tab: { id: 42 } };
   const results = await Promise.all([sendExternal(message, sender), sendExternal(message, sender)]);
   assert.equal(results.every(response => response.ok && response.result.kind === "android_ui"), true);
   assert.equal(tabs.size, 1);
@@ -348,7 +348,7 @@ test("product metric messages serialize disclosure session and reset state", asy
   assert.equal(first.ok, true);
   assert.equal(first.state.sessions, "1");
   assert.equal(first.state.disclosureVersion, 0);
-  assert.equal(uninstallUrl, "https://jstorrent.com/uninstall.html?v=0.4.0");
+  assert.equal(new URL(uninstallUrl).searchParams.get("surface"), "jst-extension");
 
   const acknowledged = await sendInternal({
     type: "productMetrics",

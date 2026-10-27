@@ -140,9 +140,24 @@
         statusDiv.innerHTML = ''
 
         const msg = document.createElement('div')
-        msg.textContent = 'Could not connect to JSTorrent extension.'
+        msg.textContent = 'This older launch page could not connect to JSTorrent. If the extension is already installed, open it from Chrome’s Extensions menu.'
         msg.style.marginBottom = '0.75rem'
         statusDiv.appendChild(msg)
+
+        const params = normalizeLaunchParams(parseHashParams())
+        const input = params.magnet || params.torrent
+        if (input) {
+          const instructions = document.createElement('p')
+          instructions.textContent = params.magnet
+            ? 'Copy this magnet link into your JSTorrent library:'
+            : 'Open this torrent file directly in JSTorrent:'
+          const retained = document.createElement('textarea')
+          retained.readOnly = true
+          retained.setAttribute('aria-label', params.magnet ? 'Magnet link' : 'Torrent file')
+          retained.value = input
+          retained.style.width = '100%'
+          statusDiv.append(instructions, retained)
+        }
 
         const desktopBtn = document.createElement('button')
         desktopBtn.textContent = 'Open in Desktop App'
@@ -155,7 +170,9 @@
         installLink.style.marginTop = '0.75rem'
         installLink.style.fontSize = '0.9em'
         installLink.innerHTML =
-          'Or <a href="' + WEBSTORE_URL + '" target="_blank">install the extension</a>'
+          '<a href="/chrome-extension">Open Chrome library setup</a> · ' +
+          '<a href="/support/">Troubleshooting</a> · ' +
+          '<a href="' + WEBSTORE_URL + '" target="_blank">Install or update the extension</a>'
         statusDiv.appendChild(installLink)
       }
 
@@ -182,9 +199,11 @@
             showExtensionUnavailable()
           } else if (response && response.error) {
             updateStatus('Extension rejected the request: ' + response.error, 'error')
-          } else {
+          } else if (response && (response.ok === true || response.handled === true)) {
             console.log('Extension response:', response)
             updateStatus('Connected! Opening JSTorrent...', 'success')
+          } else {
+            showExtensionUnavailable()
           }
         })
       }

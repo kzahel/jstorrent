@@ -1,5 +1,24 @@
 # Client Surfaces
 
+Tactical [386](../tactical/386-browser-handoff-and-report-context.md) repairs
+the website/extension handoff after Cloudflare's `.html` to extensionless
+redirect. Both exact URL spellings are accepted by the page, external-message
+allowlist and worker; query/fragment/foreign-frame rejection is retained.
+Legacy launch/add pages preserve torrent input and offer direct-library
+recovery without treating failed messaging as proof of missing installation.
+Old `{ok: true}` and `{handled: true}` acknowledgements remain supported,
+without claiming durable addition or completion from a handoff receipt.
+
+The packaged browser smoke follows a real redirect into the candidate
+extension. Physical ChromeOS evidence also passes a controlled 4 MiB Android
+transfer interrupted by source pause/process restart, independent byte
+verification, normal delete-data removal, native restart absence and live
+extension absence after another app restart/reloaded extension worker and view. The app
+uses a fresh debug identity and the extension an isolated unpacked beta
+identity; gateway preference setup is a fixture, pairing approval is real,
+and production installation/setup is not established by that run. Owners,
+tabs, package, extension and payload artifacts are cleaned up.
+
 Tactical [384](../tactical/384-shared-translation-workflow-and-desktop-german.md)
 adds a German development preview to shared React and the native desktop
 shell. Desktop native code owns system/override resolution, preference

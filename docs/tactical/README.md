@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [386 — Browser handoff and report context](386-browser-handoff-and-report-context.md):
+  complete in source; redirected handoff/legacy recovery, bounded reports and
+  isolated physical Android/extension interruption/removal regression pass.
+
 - [385 — Configured locale registration](385-configured-locale-registration.md):
   complete; data-driven catalog registration and locale-specific translation
   guidance for the next language, preserving existing preview/release policy.

@@ -1,5 +1,5 @@
 const EXTENSION_ID = "dbokmlpefliilbjldladbimlcfgbolhk";
-const HANDOFF_URL = "https://jstorrent.com/chrome-extension.html";
+const HANDOFF_URLS = new Set(["https://jstorrent.com/chrome-extension", "https://jstorrent.com/chrome-extension.html"]);
 const DEADLINE_MILLIS = 5_000;
 
 export function startChromeExtensionHandoff(document, window, chromeApi) {
@@ -20,7 +20,7 @@ export function startChromeExtensionHandoff(document, window, chromeApi) {
   function open() {
     if (!active || pending) return;
     // This route accepts no URL-supplied authority or target extension ID.
-    if (window.location.href !== HANDOFF_URL || window.top !== window) {
+    if (!HANDOFF_URLS.has(window.location.href) || window.top !== window) {
       status.textContent = "Open the JSTorrent extension directly to continue setup.";
       return;
     }

@@ -69,6 +69,18 @@ selection, concurrency and streaming checks.
 
 ## Browser interaction and layout
 
+For website/extension handoff and report-context changes, package the extension
+and run the bounded bundled-Chromium smoke (temporary profile is removed):
+
+```bash
+npm run package --prefix clients/extension
+node scripts/verify-browser-report-handoff.mjs target/extension/jstorrent-beta-0.4.0.zip
+```
+
+`--live` additionally verifies the public handoff's final redirect destination;
+candidate content still runs locally. The smoke covers a real redirected
+navigation, legacy input recovery, the actual worker and statistics opt-out.
+
 ```bash
 cd clients/web
 npx playwright install chromium

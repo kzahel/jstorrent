@@ -30,6 +30,7 @@
   "externally_connectable": {
     "matches": [
       "http://jstorrent.localhost/*",
+      "https://jstorrent.com/chrome-extension",
       "https://jstorrent.com/chrome-extension.html"
     ]
   },

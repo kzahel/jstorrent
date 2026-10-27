@@ -64,7 +64,14 @@ def main():
     parser.add_argument('--seed-port', type=int, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--screenshots', type=Path, required=True)
+    parser.add_argument('--feedback-regression', action='store_true',
+                        help='fresh feedback386 identity: interruption, byte verification and removal/restart')
     args = parser.parse_args()
+    if args.feedback_regression:
+        qualification.PACKAGE = 'org.jstorrent.feedback386'
+        qualification.ACTIVITY = qualification.PACKAGE + '/org.rstorrent.bootstrap.MainActivity'
+        qualification.FOLDER = 'JSTorrentFeedback386'
+        qualification.ROOT = '/sdcard/Download/' + qualification.FOLDER
     if not 1 <= args.seed_port <= 65535:
         parser.error('explicit permitted seed port required')
     command = [str(args.machine_control)]
@@ -116,7 +123,7 @@ def main():
         adb.shell('mkdir', root)
         adb.shell('pm', 'grant', qualification.PACKAGE, 'android.permission.POST_NOTIFICATIONS')
         adb.shell('am', 'start', '-W', '-n', qualification.ACTIVITY)
-        qualification.finish_first_use(adb)
+        qualification.finish_first_use(adb, disable_statistics=not args.feedback_regression)
         qualification.select_owned_tree(adb)
         original = roots()[0]
         with tempfile.TemporaryDirectory(prefix='rstorrent-253-recovery-') as directory:
@@ -178,6 +185,32 @@ def main():
             wait_labels({'Seeding', 'Complete', 'Finished'})
             capture('03-recovered-complete')
             record('source_restored_download_complete', sha1=verify())
+            if args.feedback_regression:
+                completed_sha1 = verify()
+                pid = adb.shell('pidof', qualification.PACKAGE).stdout.strip()
+                log = adb.run('logcat', '-d', '--pid', pid, '-s', 'RSTorrentProduct:I').stdout
+                torrent_id = qualification.owned_torrent_id(log, str(info.info_hashes().v1))
+                # The debug receiver dispatches the normal remove command. It
+                # owns no alternate catalog mutation or deletion implementation.
+                adb.shell('am', 'broadcast', '-a', 'org.rstorrent.bootstrap.PRODUCT_TEST',
+                          '-n', qualification.PACKAGE + '/org.rstorrent.bootstrap.ProductTestReceiver',
+                          '--es', 'torrent_id', torrent_id,
+                          '--es', 'torrent_action', 'remove')
+                wait_labels({'No torrents yet'})
+                cold_start(adb)
+                wait_labels({'No torrents yet'})
+                if any(name in text for text in labels()):
+                    raise RuntimeError('removed torrent returned after restart')
+                if adb.shell('test', '-e', destination, check=False).returncode != 1:
+                    raise RuntimeError('delete-data removal retained its owned payload')
+                record('removed_torrent_stays_removed_after_restart', verified_before_removal=completed_sha1,
+                       owned_payload_removed=True, removal_entry='debug_receiver_normal_application_command')
+                from chromeos_feedback_browser import run_browser_regression
+                run_browser_regression(command)
+                record('extension_and_app_restart_keep_empty_library',
+                       extension_delivery='isolated_unpacked_candidate', gateway_setup='owned_debug_preference')
+                report['result'] = 'pass_feedback_regression'
+                return
             adb.shell('am', 'start', '-W', '-n', qualification.ACTIVITY, '--ez', 'product_release_saf_grant', 'true')
             cold_start(adb)
             wait_labels({'Repair'})

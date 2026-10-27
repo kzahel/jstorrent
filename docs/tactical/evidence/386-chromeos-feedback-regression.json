@@ -1,0 +1,45 @@
+{
+  "schema": "chromeos-android-recovery/v1",
+  "delivery": "isolated_debug_sideload",
+  "network_failure": "controlled_seed_pause_only",
+  "device_wifi": "unchanged",
+  "cases": [
+    {
+      "case": "partial_process_restart_with_source_unavailable",
+      "result": "pass",
+      "seed_bytes": 229376,
+      "stable_seed_bytes": 229376
+    },
+    {
+      "case": "source_restored_download_complete",
+      "result": "pass",
+      "sha1": "6788172e1ce40d42ebb058a29376a0cd9ba22006"
+    },
+    {
+      "case": "removed_torrent_stays_removed_after_restart",
+      "result": "pass",
+      "verified_before_removal": "6788172e1ce40d42ebb058a29376a0cd9ba22006",
+      "owned_payload_removed": true,
+      "removal_entry": "debug_receiver_normal_application_command"
+    },
+    {
+      "case": "extension_and_app_restart_keep_empty_library",
+      "result": "pass",
+      "extension_delivery": "isolated_unpacked_candidate",
+      "gateway_setup": "owned_debug_preference"
+    }
+  ],
+  "result": "pass_feedback_regression",
+  "cleanup": "ok",
+  "environment": {
+    "platform": "chromeos",
+    "chromeos_version": "16700.66.0",
+    "browser_version": "150.0.7871.256",
+    "android_api": 33
+  },
+  "extension_restart": "extension_reload_with_saved_local_pairing",
+  "artifact_sha256": {
+    "android_apk": "11b70ee859c37a742214318796e5455aacce2d57021716b2755e4811895e5af9",
+    "beta_extension_zip": "d508af027f2604cfca3892bccf06d3881dc7e0366f5a66f017cb03b1c02e21f5"
+  }
+}

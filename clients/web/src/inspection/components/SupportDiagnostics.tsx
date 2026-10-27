@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { extensionSupport, onExtensionStatisticsChanged } from "../../extension-support";
 
 import { message } from "../../localization/runtime";
 import { startupTimings } from "../../startup-timing";
@@ -18,6 +19,34 @@ import styles from "./SettingsDialog.module.css";
 export function SupportDiagnostics({ facts }: { readonly facts: SupportFacts }) {
   const [preview, setPreview] = useState<string>();
   const [manualCopy, setManualCopy] = useState(false);
+  const [extensionFeedback, setExtensionFeedback] = useState<string>();
+  const baseFeedback = feedbackPageUrl(facts);
+  useEffect(() => {
+    let active = true;
+    let generation = 0;
+    const refresh = () => {
+      const current = ++generation;
+      void extensionSupport("feedback").then(url => {
+        if (!active || current !== generation || !url) return;
+        const report = new URL(url);
+        if (report.searchParams.has("surface")) {
+          const host = new URL(baseFeedback);
+          for (const key of ["v", "build", "target", "package", "connection"]) {
+            const value = host.searchParams.get(key);
+            if (value) report.searchParams.set(key === "v" ? "hostv" : key, value);
+          }
+        }
+        setExtensionFeedback(report.href);
+      });
+    };
+    let unsubscribe = () => {};
+    setExtensionFeedback(undefined);
+    if (facts.about.connection === "android-companion" || facts.about.connection === "desktop-companion") {
+      refresh();
+      unsubscribe = onExtensionStatisticsChanged(refresh);
+    }
+    return () => { active = false; unsubscribe(); };
+  }, [facts.about.connection, baseFeedback]);
   const toast = useToast();
   const previewRef = useRef<HTMLTextAreaElement>(null);
   const previewGeneration = useRef(0);
@@ -81,7 +110,7 @@ export function SupportDiagnostics({ facts }: { readonly facts: SupportFacts }) 
       )}
       <div className={styles.updateActions}>
         <ExternalLink href={githubIssueUrl(reportFacts)}><Icon name="github" />{message("support.report.github")}</ExternalLink>
-        <ExternalLink href={feedbackPageUrl(reportFacts)}>{message("support.report.feedback")}</ExternalLink>
+        <ExternalLink href={extensionFeedback ?? feedbackPageUrl(reportFacts)}>{message("support.report.feedback")}</ExternalLink>
         <ExternalLink href={GITHUB_ISSUES_URL}>{message("support.known.issues")}</ExternalLink>
         <ExternalLink href={SUPPORT_PAGE_URL}>{message("support.help")}</ExternalLink>
       </div>

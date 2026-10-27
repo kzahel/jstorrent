@@ -131,6 +131,15 @@
       identifier and never adopts the native application's identity.
     </p>
     <p>
+      With extension usage statistics enabled, feedback and uninstall links also include
+      the operating-system family, browser version reported by its user agent (which may be
+      reduced), extension version, the last JSTorrent extension page and an allowlisted
+      connection result code. The page is selected from fixed extension routes; arbitrary
+      browsing URLs, queries, fragments and raw errors are excluded. Connection context is
+      kept only for the browser session. Turning statistics off omits this context and clears
+      it; the extension version remains. Review the feedback link before opening it.
+    </p>
+    <p>
       Older clients may construct different feedback context. Receiving pages accept only bounded
       known fields and render values as text. Filtering a page's display or form does not erase a
       URL already received by browser history or a website server.

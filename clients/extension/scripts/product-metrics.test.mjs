@@ -11,13 +11,21 @@ import {
 function fixture() {
   const local = {};
   const urls = [];
+  const session = {};
   const chrome = {
     runtime: {
       onInstalled: { addListener() {} },
       onStartup: { addListener() {} },
       async setUninstallURL(url) { urls.push(url); },
+      getURL: path => `chrome-extension://extension/${path}`,
+      getPlatformInfo: async () => ({ os: "cros" }),
     },
     storage: {
+      session: {
+        async get(key) { return { [key]: session[key] }; },
+        async set(values) { Object.assign(session, values); },
+        async remove(key) { delete session[key]; },
+      },
       local: {
         async get(key) { return { [key]: local[key] }; },
         async set(values) { Object.assign(local, values); },
@@ -25,20 +33,36 @@ function fixture() {
       onChanged: { addListener() {} },
     },
   };
-  return { owner: new ProductMetricsOwner(chrome, "0.4.0", () => 1_800_000_000_000), local, urls };
+  return { owner: new ProductMetricsOwner(chrome, "0.4.0", () => 1_800_000_000_000), local, urls, session };
 }
 
-test("fresh disclosure is default-on locally but registers no optional context", async () => {
+test("default-on reports environment but keeps identifiers and counters disabled", async () => {
   const { owner, urls } = fixture();
   const state = await owner.refresh();
   assert.equal(state.statisticsEnabled, true);
   assert.equal(state.disclosureVersion, 0);
-  assert.equal(urls.at(-1), `${UNINSTALL_BASE_URL}?v=0.4.0`);
+  assert.equal(new URL(urls.at(-1)).searchParams.get("platform"), "chromeos");
   assert.equal(HOSTED_PRODUCT_CONTEXT_READY, false);
 
   await owner.acknowledge(true);
-  assert.equal(urls.at(-1), `${UNINSTALL_BASE_URL}?v=0.4.0`);
+  assert.equal(new URL(urls.at(-1)).searchParams.get("platform"), "chromeos");
   assert.doesNotMatch(urls.at(-1), /id=|sessions=|connected=/u);
+});
+
+test("support context strips URL authority and opt-out clears session context and URLs", async () => {
+  const { owner, urls, session } = fixture();
+  await owner.observeSupport("chrome-extension://extension/companion/companion.html?token=secret#torrent", "permission_denied");
+  const before = new URL(urls.at(-1));
+  assert.equal(before.searchParams.get("entry"), "companion/companion.html");
+  assert.equal(before.searchParams.get("failure"), "permission_denied");
+  assert.doesNotMatch(before.search, /secret|torrent|token|id=/u);
+  assert.equal(new URL((await owner.feedbackUrl()).url).searchParams.get("platform"), "chromeos");
+  await owner.acknowledge(false);
+  assert.deepEqual(session, {});
+  assert.equal(urls.at(-1), `${UNINSTALL_BASE_URL}?v=0.4.0`);
+  assert.equal((await owner.feedbackUrl()).url, "https://jstorrent.com/feedback.html?v=0.4.0");
+  await assert.rejects(owner.observeSupport("https://evil.example/companion/companion.html", "none"), /entry/u);
+  await assert.rejects(owner.observeSupport("chrome-extension://extension/popup/popup.html", "private raw error"), /failure/u);
 });
 
 test("serialized events saturate state and reset rotates only extension metrics", async () => {

@@ -139,7 +139,7 @@ class RemoteAdb:
         return self.run("shell", *arguments, **options)
 
 
-def finish_first_use(adb):
+def finish_first_use(adb, *, disable_statistics=True):
     # A cold ARC launch plus several fresh UIAutomator snapshots can exceed
     # twenty seconds even when each observed transition succeeds.
     deadline = time.monotonic()+45
@@ -150,7 +150,7 @@ def finish_first_use(adb):
         if save is not None:
             ready_snapshots = 0
             enabled = next((node for node in nodes if node.get("checkable") == "true" and node.get("checked") == "true"), None)
-            if enabled is not None:
+            if enabled is not None and disable_statistics:
                 product.tap_bounds(adb, enabled.get("bounds"))
                 # Compose may reflow the dialog after changing consent. A tap
                 # must use the next snapshot's button, not the old geometry.
@@ -631,11 +631,12 @@ def select_owned_tree(adb):
 
 def confirm_intake(adb):
     nodes = list(product.dump_ui(adb).iter())
-    labels = {"Add"} if any(n.get("text") == "Magnet link from another app" for n in nodes) else {"Download"}
+    intake = any(n.get("text") == "Magnet link from another app" for n in nodes)
+    labels = {"Add"} if intake else {"Download", "Download all"}
     confirm = product.click_labeled([n for n in nodes if n.get("enabled") == "true"], labels)
     if confirm is not None:
         product.tap_bounds(adb, confirm.get("bounds"))
-    return confirm is not None and labels == {"Download"}
+    return confirm is not None and not intake
 
 
 def main():

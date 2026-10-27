@@ -41,7 +41,7 @@ test('feedback accepts only the closed environment and usage fields', () => {
     values(
       '?platform=android&v=1.0.26&android=13&device=Google%20Pixel&id=' +
         id +
-        '&days=5&added=9&completed=8&sessions=2&chrome=147&ua=private&error=private&token=private',
+        '&days=5&added=9&completed=8&sessions=2&ua=private&error=private&token=private',
     ),
     {
       platform: 'android',
@@ -78,7 +78,7 @@ test('feedback accepts the desktop build context the app reports', () => {
   assert.deepEqual(values('?build=abc&target=x', 'uninstall'), {})
 })
 
-test('uninstall omits backend identity, diagnostics and unrelated environment', () => {
+test('uninstall accepts platform while omitting backend identity and raw diagnostics', () => {
   assert.deepEqual(
     values(
       '?v=1.1.2&id=' +
@@ -88,6 +88,7 @@ test('uninstall omits backend identity, diagnostics and unrelated environment', 
     ),
     {
       v: '1.1.2',
+      platform: 'android',
       id,
       days: '4',
       connected: '1',
@@ -96,6 +97,15 @@ test('uninstall omits backend identity, diagnostics and unrelated environment', 
       sessions: '2',
     },
   )
+})
+
+test('extension support fields survive both forms without accepting arbitrary URLs or errors', () => {
+  const fields = { platform: 'chromeos', surface: 'jst-extension', extv: '1.1.6', chrome: '150.0.0.0',
+    entry: 'companion/companion.html', failure: 'permission_denied' }
+  for (const kind of ['feedback', 'uninstall']) {
+    assert.deepEqual(values('?' + new URLSearchParams(fields), kind), fields)
+    assert.deepEqual(values('?entry=https://private.example/path&failure=private-error&surface=unknown&chrome=150/secret', kind), {})
+  }
 })
 
 test('duplicates fail closed per field, including percent-encoded names', () => {

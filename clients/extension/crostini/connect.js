@@ -51,6 +51,7 @@ const messages = {
 };
 
 export function startLinuxConnection({ chrome, status, button, navigate, page }) {
+  const report = failure => { void chrome.runtime?.sendMessage?.({ type: "productMetrics", op: "support", failure })?.catch(() => {}); };
   let active = true;
   let generation = 0;
   let controller;
@@ -67,12 +68,13 @@ export function startLinuxConnection({ chrome, status, button, navigate, page })
       const permission = { origins: [PERMISSION] };
       // request() must run in the explicit button gesture, before any await.
       const grant = requestPermission ? chrome.permissions.request(permission) : chrome.permissions.contains(permission);
-      if (!await grant) { status.textContent = messages.permission_denied; return; }
+      if (!await grant) { report("permission_denied"); status.textContent = messages.permission_denied; return; }
       if (owned.signal.aborted || !active) return;
       button.disabled = false;
       status.textContent = "Checking the Linux service…";
       timeout = setTimeout(() => { timedOut = true; owned.abort(); }, TIMEOUT_MILLIS);
       const result = await checkLinuxHealth(owned.signal);
+      report(result === "ready" ? "none" : result);
       if (owned.signal.aborted || !active) return;
       if (result === "ready") {
         status.textContent = "Linux service is ready. Opening your Linux library…";
@@ -81,6 +83,7 @@ export function startLinuxConnection({ chrome, status, button, navigate, page })
         navigate(`${ORIGIN}/?connect=${crypto.randomUUID()}`);
       } else status.textContent = messages[result];
     } catch {
+      report(owned.signal.aborted ? timedOut ? "timeout" : "canceled" : "unreachable");
       if (active) status.textContent = messages[owned.signal.aborted ? timedOut ? "timeout" : "canceled" : "unreachable"];
     } finally {
       clearTimeout(timeout);

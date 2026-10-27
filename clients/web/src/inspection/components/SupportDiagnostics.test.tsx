@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { act, cleanup, render as renderUnwrapped, screen } from "@testing-library/react";
+import { act, cleanup, render as renderUnwrapped, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DesktopUpdaterSnapshot } from "../updater/types";
@@ -19,6 +19,25 @@ const source: DesktopUpdaterSnapshot = {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("support report preview", () => {
+  it("extension reports retain host version and refresh when statistics are disabled", async () => {
+    let change!: (values: Record<string, unknown>, area: string) => void;
+    let enabled = true;
+    vi.stubGlobal("chrome", {
+      runtime: { id: "extension", sendMessage: async () => ({ ok: true, state: { url: enabled
+        ? "https://jstorrent.com/feedback.html?v=1.1.6&extv=1.1.6&surface=jst-extension&platform=chromeos"
+        : "https://jstorrent.com/feedback.html?v=1.1.6" } }) },
+      storage: { onChanged: { addListener: (listener: typeof change) => { change = listener; }, removeListener: vi.fn() } },
+    });
+    try {
+      render(<SupportDiagnostics facts={{ about: { connection: "android-companion", hostVersion: "1.0.33" } }} />);
+      const link = () => new URL(screen.getByRole("link", { name: "Send feedback" }).getAttribute("href")!);
+      await waitFor(() => expect(link().searchParams.get("hostv")).toBe("1.0.33"));
+      enabled = false;
+      act(() => change({ productMetricsV1: {} }, "local"));
+      await waitFor(() => expect([...link().searchParams.keys()]).toEqual(["v"]));
+    } finally { vi.unstubAllGlobals(); }
+  });
+
   it("copies the frozen preview and refreshes only on request", async () => {
     const user = userEvent.setup();
     const write = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();

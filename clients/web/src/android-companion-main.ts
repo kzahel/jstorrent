@@ -2,6 +2,7 @@ import type { ApplicationViewClient } from "./api/client";
 import { AndroidCompanionPairingFailed, AndroidCompanionUnavailable, AndroidCompanionUpdateRequired, connectAndroidCompanion, type AndroidConnectionStage } from "./android-companion-client";
 import { startCompanionInspection } from "./inspection/companion-bootstrap";
 import { message } from "./localization/runtime";
+import { extensionSupport, onExtensionStatisticsChanged } from "./extension-support";
 
 interface ChromeConnectionContext {
   runtime: {
@@ -23,6 +24,17 @@ export async function startAndroidCompanion(): Promise<void> {
   const retry = element("companion-cancel") as HTMLButtonElement;
   const grantAccess = element("companion-permission") as HTMLButtonElement;
   const preview = element("companion-preview") as HTMLButtonElement;
+  const feedback = document.createElement("a");
+  feedback.textContent = message("support.report.feedback");
+  feedback.href = "https://jstorrent.com/feedback.html";
+  feedback.target = "_blank";
+  feedback.rel = "noopener noreferrer";
+  preview.after(feedback);
+  const recordSupport = async () => {
+    await extensionSupport("support", category);
+    const url = await extensionSupport("feedback");
+    if (active && url) feedback.href = url;
+  };
   const context = element("companion-context") as HTMLTextAreaElement;
   const bootstrap = element("companion-bootstrap");
   const identity = element("companion-identity");
@@ -40,6 +52,7 @@ export async function startAndroidCompanion(): Promise<void> {
   let client: ApplicationViewClient | undefined;
   let unmount: (() => Promise<void>) | undefined;
   let connecting = false;
+  const unsubscribeStatistics = onExtensionStatisticsChanged(() => { void recordSupport(); });
   const currentTab = await chrome?.tabs?.getCurrent();
   identity.replaceChildren();
   const help = document.createElement("a");
@@ -168,6 +181,7 @@ export async function startAndroidCompanion(): Promise<void> {
       if (reportedVersion !== undefined) appVersion = reportedVersion;
       versionStatus = "compatible";
       stage = "connected";
+      void recordSupport();
       connecting = false;
       bootstrap.hidden = true;
       identity.hidden = false;
@@ -208,6 +222,7 @@ export async function startAndroidCompanion(): Promise<void> {
       identity.hidden = true;
       bootstrap.hidden = false;
       finish();
+      void recordSupport();
     }
   }
   const pagehide = (event: PageTransitionEvent) => {
@@ -215,6 +230,7 @@ export async function startAndroidCompanion(): Promise<void> {
     controller?.abort();
     app.hidden = true;
     if (!event.persisted) {
+      unsubscribeStatistics();
       chrome?.runtime.onMessage?.removeListener(attach);
       window.removeEventListener("pagehide", pagehide);
       window.removeEventListener("pageshow", pageshow);

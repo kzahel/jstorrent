@@ -7,7 +7,7 @@ const CROSTINI_ROOT = `${CROSTINI_ORIGIN}/`;
 const CROSTINI_LAUNCH_URL = `${CROSTINI_ORIGIN}/launch-chromeos`;
 const CROSTINI_CONNECTION_PAGE = "crostini/connect.html";
 const CROSTINI_TAB_KEY = "crostiniUiTabId";
-const ANDROID_HANDOFF_URL = "https://jstorrent.com/chrome-extension.html";
+const ANDROID_HANDOFF_URLS = new Set(["https://jstorrent.com/chrome-extension", "https://jstorrent.com/chrome-extension.html"]);
 const ANDROID_PAGE = "companion/companion.html";
 const DESKTOP_TAB_KEY = "desktopUiTabId";
 let desktopOpen;
@@ -58,7 +58,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender?.id !== chrome.runtime.id ||
       (sender.url && !sender.url.startsWith(chrome.runtime.getURL("")))) return false;
   if (message?.type === "productMetrics") {
-    const operation = productMetricsOperation(message);
+    const operation = productMetricsOperation(message, sender);
     if (operation === null) return false;
     operation.then(
       (state) => sendResponse({ ok: true, state }),
@@ -92,7 +92,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-function productMetricsOperation(message) {
+function productMetricsOperation(message, sender) {
   switch (message.op) {
     case "get": return productMetrics.snapshot();
     case "session": return productMetrics.recordSession();
@@ -100,6 +100,8 @@ function productMetricsOperation(message) {
     case "acknowledge": return productMetrics.acknowledge(message.enabled === true);
     case "setEnabled": return productMetrics.setStatisticsEnabled(message.enabled === true);
     case "reset": return productMetrics.reset();
+    case "support": return productMetrics.observeSupport(sender.url, message.failure);
+    case "feedback": return productMetrics.feedbackUrl();
     default: return null;
   }
 }
@@ -182,7 +184,7 @@ function validAndroidHandoffMessage(message, sender) {
   return message?.type === "openAndroidUi" && message.protocolVersion === 1 &&
     Object.keys(message).sort().join(",") === "protocolVersion,type" &&
     Number.isInteger(sender?.tab?.id) && sender.tab.id >= 0 &&
-    sender.frameId === 0 && sender.url === ANDROID_HANDOFF_URL;
+    sender.frameId === 0 && ANDROID_HANDOFF_URLS.has(sender.url);
 }
 
 function validCrostiniLaunchMessage(message, sender) {

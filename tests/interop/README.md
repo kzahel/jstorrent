@@ -116,7 +116,7 @@ prerequisites belong in script help and [platform guides](../../docs/development
 | Does Android SAF repair preserve paused/running intent and correct bytes? | [android_saf_repair_intent.py](android_saf_repair_intent.py); fresh API 35 AVD and a new output directory |
 | Does the Android Library browse, open shows and play a seeded torrent? | [android_media_library_surface.py](android_media_library_surface.py); `--avd <name> --headless`, optional `--screenshots` |
 | Does Android expose uTP MTU/reachability policy correctly? | [android_utp_path_mtu.py](android_utp_path_mtu.py), [android_utp_reachability_status.py](android_utp_reachability_status.py) |
-| Does ChromeOS sustain controlled Android/Linux transfers and recover roots? | [chromeos_android_qualification.py](chromeos_android_qualification.py), [chromeos_android_recovery.py](chromeos_android_recovery.py), [chromeos_crostini_qualification.py](chromeos_crostini_qualification.py) |
+| Does ChromeOS sustain controlled Android/Linux transfers and recover roots? | [chromeos_android_qualification.py](chromeos_android_qualification.py), [chromeos_android_recovery.py](chromeos_android_recovery.py), [chromeos_crostini_qualification.py](chromeos_crostini_qualification.py). Recovery's `--feedback-regression` requires a fresh `org.jstorrent.feedback386` debug APK and isolated beta extension; it checks interruption, verified bytes, removal and native/extension restart absence. The caller owns installation/uninstallation. |
 
 ChromeOS qualification requires Machine Control and isolated staged packages;
 the Android identity is `org.rstorrent.qualification253`. These are controlled

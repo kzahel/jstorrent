@@ -19,6 +19,12 @@
     target: 'Target',
     package: 'Package',
     connection: 'Connection',
+    surface: 'Product surface',
+    extv: 'Extension version',
+    hostv: 'Host app version',
+    chrome: 'Browser version (user agent)',
+    entry: 'Extension entry page',
+    failure: 'Connection result',
   }
   const feedback = [
     'platform',
@@ -34,13 +40,26 @@
     'target',
     'package',
     'connection',
+    'surface', 'extv', 'hostv', 'chrome', 'entry', 'failure',
   ]
-  const uninstall = ['v', 'id', 'days', 'connected', 'downloads', 'added', 'sessions']
+  const uninstall = ['v', 'id', 'days', 'connected', 'downloads', 'added', 'sessions',
+    'platform', 'surface', 'extv', 'chrome', 'entry', 'failure']
+  const failures = new Set(['none', 'permission_denied', 'service_unreachable', 'connection_failed',
+    'disconnected', 'timeout', 'canceled', 'app_update_required', 'extension_update_required',
+    'pairing_rejected', 'pairing_expired', 'native_host_unavailable', 'bootstrap_timeout',
+    'authentication_failed', 'invalid_version', 'unreachable', 'service_error', 'wrong_service',
+    'incompatible', 'invalid_response'])
   const byteLength = (value) => new TextEncoder().encode(value).length
   function valid(key, value) {
     if (!value || /[\u0000-\u001f\u007f-\u009f]/u.test(value)) return false
     if (key === 'platform') return platforms.has(value)
     if (key === 'v') return byteLength(value) <= 96 && versions.test(value)
+    if (key === 'hostv') return byteLength(value) <= 96 && versions.test(value)
+    if (key === 'extv') return /^\d{1,6}(?:\.\d{1,6}){1,3}$/u.test(value)
+    if (key === 'chrome') return /^\d{1,6}(?:\.\d{1,6}){0,3}$/u.test(value)
+    if (key === 'surface') return value === 'jst-extension'
+    if (key === 'entry') return ['popup/popup.html', 'companion/companion.html', 'crostini/connect.html'].includes(value)
+    if (key === 'failure') return failures.has(value)
     if (key === 'id')
       return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(value)
     if (key === 'connected') return value === '0' || value === '1'

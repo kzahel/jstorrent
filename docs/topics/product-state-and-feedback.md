@@ -1,5 +1,24 @@
 # Installation Product State And Feedback
 
+## Extension report context, 2026-10-27
+
+Tactical [386](../tactical/386-browser-handoff-and-report-context.md) adds
+statistics-controlled OS family, UA-reported browser version, extension
+version, fixed extension entry page and closed connection result codes to
+feedback and uninstall links. Connected feedback also retains the host
+version separately as `hostv`. Reduced UA versions are labeled accordingly;
+they are not exact browser/OS build evidence. Arbitrary URLs, queries,
+fragments, raw errors and torrent data are excluded.
+
+The strict durable metrics record is unchanged. Only one disposable browser-
+session observation is retained in `chrome.storage.session`; opting out
+clears it and emits only the extension version. Existing identifier/counter
+transmission gates remain off. Feedback links refresh when the preference
+changes, and older workers retain the existing report fallback. Hosted pages
+accept these new optional fields without requiring them from old clients.
+Candidate packaging, browser redirect/recovery/report checks and physical
+ChromeOS interruption/removal/restart evidence pass; publication is separate.
+
 ## Maintainer policy, 2026-10-15
 
 Maintainer direction supersedes the narrower transmission rules below where

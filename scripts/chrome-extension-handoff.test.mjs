@@ -39,6 +39,12 @@ test("Android return requests only the production UI and does not claim pairing"
   assert.equal(f.button.disabled, false);
 });
 
+test("the deployed extensionless redirect destination retains the same handoff", t => {
+  const f = fixture({ url: "https://jstorrent.com/chrome-extension" }); t.after(f.cleanup);
+  assert.equal(f.requests.length, 1);
+  assert.deepEqual(f.requests[0][1], { type: "openAndroidUi", protocolVersion: 1 });
+});
+
 test("missing extension, refusal and wrong response retain manual recovery", t => {
   for (const outcome of ["missing", "runtime-error", "wrong-response"]) {
     const f = fixture({ missing: outcome === "missing" }); t.after(f.cleanup);
@@ -83,6 +89,9 @@ test("query, fragment, lookalike origins and subframes cannot initiate a handoff
     { url: "https://jstorrent.com/chrome-extension.html#untrusted" },
     { url: "https://jstorrent.com.attacker.example/chrome-extension.html" },
     { url: "http://jstorrent.com/chrome-extension.html" },
+    { url: "https://jstorrent.com/chrome-extension?token=untrusted" },
+    { url: "https://jstorrent.com/chrome-extension#untrusted" },
+    { url: "https://jstorrent.com/chrome-extension/" },
     { subframe: true },
   ]) {
     const f = fixture(options); t.after(f.cleanup);
@@ -96,4 +105,27 @@ test("handoff document contains only local assets and no analytics", async () =>
   assert.match(html, /name="referrer" content="no-referrer"/);
   assert.match(html, /type="module" src="\/chrome-extension.js"/);
   assert.doesNotMatch(html, /cloudflare|analytics|googletag|<iframe|\son\w+=/i);
+});
+
+test("legacy extension acknowledgements remain supported without inventing torrent completion", async () => {
+  const { runInNewContext } = await import("node:vm");
+  const source = await readFile(new URL("../website/public/add/index.js", import.meta.url), "utf8");
+  for (const response of [{ ok: true }, { handled: true }, undefined, { error: "refused" }]) {
+    const notices = [];
+    const elements = new Map();
+    const element = id => {
+      if (!elements.has(id)) elements.set(id, { style: {}, addEventListener() {}, insertBefore(node) { notices.push(node.innerText); } });
+      return elements.get(id);
+    };
+    const context = {
+      chrome: { runtime: { sendMessage: (_id, _message, callback) => callback(response) } },
+      document: { addEventListener() {}, getElementById: element, createElement: () => ({}) },
+      window: {}, console: { log() {}, error() {} }, history: { length: 0 },
+      parsed: { magnet_uri: "magnet:?xt=urn:btih:" + "a".repeat(40) },
+    };
+    runInNewContext(source + "\naddViaExtension();", context);
+    if (response?.ok === true || response?.handled === true) assert(notices.some(x => x.startsWith("Sent to JSTorrent")));
+    else assert.equal(element("install-div").style.display, "block");
+    assert(!notices.includes("Torrent Added"));
+  }
 });

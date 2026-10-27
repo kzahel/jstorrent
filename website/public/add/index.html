@@ -141,13 +141,16 @@
             class="install-link"
             href="https://chromewebstore.google.com/detail/jstorrent/dbokmlpefliilbjldladbimlcfgbolhk"
             target="_blank"
-            >Install JSTorrent Extension</a
+            >Install or update JSTorrent Extension</a
           >
 
           <div>
-            <span>To download </span>
-            <span id="file-name">the file</span>,
-            <span> you need to install the JSTorrent Chrome Extension.</span>
+            <p>This older download page cannot determine whether JSTorrent is installed.
+              If you already installed it, open <strong>JSTorrent</strong> from Chrome's
+              Extensions menu and add the magnet link below to your library.</p>
+            <span id="file-name"></span>
+            <p><a href="/chrome-extension">Open Chrome library setup</a> ·
+              <a href="/support/">Setup and troubleshooting</a></p>
           </div>
 
           <div style="margin-top: 1em">
@@ -182,6 +185,8 @@
 
         <div style="display: none" id="magnet-div">
           <hr />
+          <p>Copy this magnet link into JSTorrent:</p>
+          <textarea id="magnet-copy" readonly aria-label="Magnet link" style="width: 100%; box-sizing: border-box" rows="3"></textarea>
           <a href="#" id="magnet-link"
             ><img src="/images/torrent_magnet_link.png" width="12" height="12" />Magnet Link</a
           >
@@ -190,8 +195,7 @@
 
       <div id="footer" style="width: 50%">
         <span style="font-size: 80%">
-          JSTorrent is a Torrent client for Chrome that works on any computer that can run Google
-          Chrome. It is fast and secure.
+          JSTorrent runs on supported desktop, Android and Chromebook environments.
           <a href="https://jstorrent.com">Learn more about JSTorrent</a>
         </span>
       </div>
