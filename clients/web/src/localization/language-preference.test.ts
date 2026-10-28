@@ -28,11 +28,11 @@ describe("local presentation language preferences", () => {
     const runtime = await import("./runtime");
     await runtime.initializeLocalization();
     expect(runtime.languagePreferenceSnapshot()).toBe("system");
-    expect(runtime.availableProductLanguages()).toEqual(["en", "fr"]);
+    expect(runtime.availableProductLanguages()).toEqual(["en", "de", "fr"]);
     expect(runtime.currentLocale()).toBe("en");
     expect(localStorage.getItem(KEY)).toBe("unknown-future-language");
     expect(localStorage.getItem("unrelated-preference")).toBe("keep-me");
-    await expect(runtime.setLanguagePreference("de")).rejects.toThrow("Unsupported");
+    await expect(runtime.setLanguagePreference("zz")).rejects.toThrow("Unsupported");
   });
 
   it("saves explicit choice and removes only its field when returning to System", async () => {
@@ -80,14 +80,13 @@ describe("local presentation language preferences", () => {
   });
 });
 
-it("negotiates German System language, refreshes formatters and shell, and keeps English available", async () => {
-  vi.stubEnv("VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES", "1");
+it("ships German System language, formatters and shell without the preview gate", async () => {
   vi.spyOn(navigator, "languages", "get").mockReturnValue(["de-DE", "en"]);
   document.head.innerHTML = '<title data-l10n-id="shell.app.title"></title>';
   const runtime = await import("./runtime");
   await runtime.initializeLocalization();
   expect(runtime.currentLocale()).toBe("de");
-  expect(runtime.availableProductLanguages()).toEqual(["en", "fr", "de"]);
+  expect(runtime.availableProductLanguages()).toEqual(["en", "de", "fr"]);
   expect(runtime.message("localization.language.title")).toBe("Sprache");
   expect(runtime.formatNumber(1234.5)).toBe("1.234,5");
   expect(runtime.formatList(["TCP", "uTP"])).toContain("und");

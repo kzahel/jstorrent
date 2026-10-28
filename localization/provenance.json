@@ -40,7 +40,7 @@
       "license": "MIT",
       "reviewState": "agent-reviewed",
       "reviewer": "Independent translation review sessions; see localization/android/de.json",
-      "distribution": "debug-preview"
+      "distribution": "release"
     },
     {
       "locale": "de",
@@ -49,7 +49,7 @@
       "license": "MIT",
       "reviewState": "agent-reviewed",
       "reviewer": "Independent translation review sessions; see localization/web/de.json",
-      "distribution": "debug-preview"
+      "distribution": "release"
     },
     {
       "locale": "de",
@@ -59,7 +59,7 @@
       "reviewState": "agent-reviewed",
       "reviewer": "Independent translation review sessions; see localization/desktop/de.json",
       "model": "claude-opus-5-5",
-      "distribution": "debug-preview"
+      "distribution": "release"
     },
     {
       "locale": "fr",

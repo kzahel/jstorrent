@@ -17,7 +17,7 @@ provides direction for canonical locale tags; each platform's `supportedLocales`
 and `previewLocales` lists decide what is available. Defining a locale does not
 by itself enable it. Native desktop shipping locales must also ship in React;
 native previews require matching React registration. React, native desktop and
-Android release inputs support English and French; German remains a preview.
+Android release inputs support English, German and French.
 iOS remains English-only.
 
 For another language, land one complete locale cohort (French is the completed
@@ -199,7 +199,7 @@ their origin in metadata's retired history. Never rewrite old response hashes
 to hide changed English or terminology. Export a fresh job instead.
 
 Run the global localization checker, native catalog compilation and relevant
-platform tests after imports. The English-only release manifests and separate
+platform tests after imports. The per-platform release manifests and separate
 preview gates still determine what is packaged or selectable in each product.
 
 ## Run reviewed jobs through YA

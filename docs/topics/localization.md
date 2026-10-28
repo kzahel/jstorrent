@@ -1,9 +1,53 @@
 # Localization
 
+The October 28 German release qualification moves all 2,479 independently
+reviewed German resources into shipping inputs for React, native desktop and
+Android. Shipping locale lists are now `en`, `de`, `fr`; none requires a
+preview flag. Android's German XML moves byte-for-byte into the main source
+set. No translation, terminology or per-message review identity changes.
+English remains the fallback and iOS remains English-only. No release/store
+publication or installed production profile change is part of this promotion.
+
+German release evidence:
+
+- `node scripts/check-localization.mjs`, web typecheck and the full web unit
+  suite pass (925 tests, three existing skips). The existing German System/
+  formatting/persistence test now runs with previews explicitly disabled.
+- Ordinary, companion and remote Vite builds with previews disabled include
+  German and French. The existing CSP guard passes 51 + one + 28 bundles.
+  Remote reuses the existing Wasm artifact and a nonconnecting example relay;
+  this does not claim a deployed remote-engine or relay qualification.
+- All 14 German/French browser cases pass against the actual ordinary
+  production assets, served by an owned ephemeral server. System matching,
+  overrides, reload, focus, retained selection, plurals, destructive copy,
+  390px/1440px layout and Axe checks pass; browser and server are stopped.
+- `VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=0 cargo test -p rstorrent-desktop
+  --lib` passes 91 cases; the native menu/IPC example with the same setting
+  and `-- de` passes 17/17. The real desktop product smoke with `--locale de`
+  and ordinary release assets passes 29/29 across live switching and restart,
+  retaining host/profile/views and joining shutdown. The normal debug binary
+  is restored. Release library compilation and workspace formatting pass.
+- `clients/android/build.sh release`, debug assembly/instrumentation
+  compilation/lint, and both debug/release unit suites pass (220 cases each).
+  Signed APK/AAB validation confirms the existing identity/certificate,
+  matching native ABIs, 16 KiB alignment and disabled language splits.
+- The owned Android matrix with `--api 28 --api 35 --locale de` and the
+  LanguageSelection, LanguageActivityRecreation, LocalizationCompose and
+  LocalizationInstrumentation classes passes seven and nine cases. Both
+  temporary AVDs are deleted. No attached production device is used.
+- Shared workflow tests (55), Android adapter tests (13), registry/fast-CI
+  routing tests (13), release-validator tests (five) and branding checks pass.
+
+Exact reusable commands are in the [shared runbook](../../scripts/LOCALIZATION.md)
+and [client guide](../development/clients.md). Runtime evidence here is macOS
+and owned Android emulators; Windows/Linux runtime and actual Play delivery
+are not claimed by this local promotion.
+
 Tactical [387](../tactical/387-french-localization-with-local-codex.md) adds
 complete reviewed French to release inputs for React (1,797 messages), native
 desktop (20) and Android (662 resources). English remains the source/fallback,
-German remains a preview and iOS remains English-only. The local
+German is also enabled for release inputs by the qualification follow-up above;
+iOS remains English-only. The local
 `scripts/localization-codex.py` runner uses the existing ChatGPT CLI login,
 explicit model/effort, normal speed and independently verified permission
 settings. Separate sessions translate and review frozen batches; deterministic
@@ -101,14 +145,14 @@ engine builds. See
 
 Browser language selection is local presentation state. Desktop native code
 owns the choice before creating menus and synchronizes React through events;
-changing language does not restart the engine. German React assets require
-`VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1`; native desktop German requires the
-same flag at compile time plus debug assertions. Both ordinary desktop debug
-launchers pass it to the frontend and native builds together; direct Cargo
-builds without it offer English and French, matching ordinary production assets.
+changing language does not restart the engine. Configured preview React assets
+require `VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1`; native previews require that
+flag at compile time plus debug assertions. Both ordinary desktop debug launchers
+pass it to the frontend and native builds together. English, German and French
+are shipping locales and are available without the flag.
 System language is the default, with English fallback. React, desktop and
-Android release inputs support English and French; additional locales require
-their own completed review and qualification.
+Android release inputs support English, German and French; additional locales
+require their own completed review and qualification.
 The October 28 follow-up above completes the previously recorded updater,
 removal and peer-state extraction cohort. Catalog coverage does not claim that
 every possible host diagnostic or desktop sentence is translated.
@@ -118,7 +162,7 @@ source-aware Android translation tooling and a complete German debug preview:
 634 strings and 28 quantities, independently translated and reviewed by
 separate sessions. No third-party translations are imported. Settings →
 Language initially offered System language, English and Deutsch in debug with
-English-only release resources; French is now available in both builds. Native
+English-only release resources; French and German are now shipping locales. Native
 locale ownership, localized notifications,
 saved settings drafts, playback position and exact decimal-comma rate input
 support switching without changing engine settings. Platform qualification
@@ -365,8 +409,8 @@ and `ar-XB` only for tests; production builds cannot select them.
 For Android, edit
 `clients/android/app/src/main/res/values/strings.xml` and use quantities for
 count-dependent copy. Android's debug build generates platform pseudo-locales;
-release resources advertise English and French. German is packaged only in the
-debug source set. Use the offline [translation workflow](../../clients/android/scripts/LOCALIZATION.md)
+release resources advertise English, German and French from the main source
+set. Use the offline [translation workflow](../../clients/android/scripts/LOCALIZATION.md)
 to export missing/stale messages, validate independently reviewed responses,
 import corrections, check metadata and prune obsolete resources. The global
 checker also checks Android locale configuration and all declared catalogs.

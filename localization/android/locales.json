@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "locales": {
     "de": {
-      "catalog": "clients/android/app/src/debug/res/values-de/strings.xml",
+      "catalog": "clients/android/app/src/main/res/values-de/strings.xml",
       "quantities": [
         "one",
         "other"

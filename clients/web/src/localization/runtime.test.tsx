@@ -18,8 +18,9 @@ afterEach(() => {
 });
 
 describe("product locale selection", () => {
-  it("uses canonical English matches and falls back to English", () => {
-    expect(resolveProductLocale(["de-DE", "en-GB"])).toBe("en");
+  it("matches shipping languages and falls back to English", () => {
+    expect(resolveProductLocale(["de-DE", "en-GB"])).toBe("de");
+    expect(resolveProductLocale(["en-GB"])).toBe("en");
     expect(resolveProductLocale(["not a locale", "zz"])).toBe("en");
     expect(resolveProductLocale(["fr-CA", "en"])).toBe("fr");
   });

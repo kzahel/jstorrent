@@ -16,14 +16,17 @@
   "supportedLocales": {
     "web": [
       "en",
+      "de",
       "fr"
     ],
     "desktop": [
       "en",
+      "de",
       "fr"
     ],
     "android": [
       "en",
+      "de",
       "fr"
     ],
     "ios": [
@@ -31,15 +34,9 @@
     ]
   },
   "previewLocales": {
-    "web": [
-      "de"
-    ],
-    "desktop": [
-      "de"
-    ],
-    "android": [
-      "de"
-    ]
+    "web": [],
+    "desktop": [],
+    "android": []
   },
   "testLocales": [
     {
