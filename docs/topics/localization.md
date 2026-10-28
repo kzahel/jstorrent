@@ -1,5 +1,10 @@
 # Localization
 
+The web catalog generator launches FormatJS's resolved JavaScript entry point
+with the current Node executable, avoiding platform-specific npm shims. Desktop
+CI runs generation, the compiler and catalog regression tests, and a generated
+catalog drift check before native compilation on Windows, macOS and Linux.
+
 Tactical [385](../tactical/385-configured-locale-registration.md) makes future
 language registration data-driven. Platform shipping/preview lists and locale
 direction come from one registry; React and native catalog tables are generated,

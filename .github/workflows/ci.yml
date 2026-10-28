@@ -375,6 +375,15 @@ jobs:
       - name: Install locked web dependencies
         run: npm ci --prefix clients/web
 
+      - name: Verify localization generation before native compilation
+        run: npm run generate:localization --prefix clients/web
+
+      - name: Test localization compiler launch and generated catalogs
+        run: npm run test --prefix clients/web -- scripts/generate-localization.test.mjs
+
+      - name: Check generated localization catalogs are current
+        run: git diff --exit-code -- clients/web/src/localization/generated
+
       - name: Provide the Tauri compile-time asset directory
         shell: bash
         run: mkdir -p clients/web/dist

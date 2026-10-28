@@ -11,7 +11,7 @@ const fixtures = [];
 afterEach(() => { for (const fixture of fixtures.splice(0)) fs.rmSync(fixture, { recursive: true, force: true }); });
 
 function fixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "jst-web-locales-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "jst web locales "));
   fixtures.push(root);
   const registry = JSON.parse(fs.readFileSync(path.join(repositoryRoot, "localization/locales.json"), "utf8"));
   registry.previewLocales.web = ["fr", "fr-CA", "ar-EG"];
@@ -73,6 +73,22 @@ it("requires a source catalog for every registered web locale", () => {
   const { root } = fixture();
   fs.unlinkSync(path.join(root, "clients/web/src/localization/messages/fr.json"));
   expect(() => generateLocalization(root)).toThrow("Registered web catalog is missing");
+});
+
+it("launches a JavaScript compiler without an executable shim and preserves spaced paths", () => {
+  const { root, generated } = fixture();
+  const compiler = path.join(root, "compiler entry.mjs");
+  fs.writeFileSync(compiler, `
+import fs from "node:fs";
+const [command, source, ast, outFile, output] = process.argv.slice(2);
+if (command !== "compile" || ast !== "--ast" || outFile !== "--out-file") process.exit(1);
+fs.writeFileSync(output, fs.readFileSync(source));
+`);
+  generateLocalization(root, compiler);
+  for (const locale of ["en", "fr", "fr-CA", "ar-EG"]) {
+    expect(fs.readFileSync(path.join(generated, `${locale}.json`), "utf8"))
+      .toBe(fs.readFileSync(path.join(root, `clients/web/src/localization/messages/${locale}.json`), "utf8"));
+  }
 });
 
 it("recompiles registered synthetic French edits and registry changes through the dev watcher", async () => {
