@@ -175,6 +175,24 @@ sessions correct the resource; prior approved outputs remain intact. Full
 qualification must repeat against the reviewed correction before promotion is
 committed. Android lint is retained as a required gate.
 
+Swedish's first API 35 matrix exposed a test-oracle race during return to System.
+API 28 and the other API 35 cases passed. A ten-cycle diagnostic reproduced the
+failure on cycle seven: `Resources.getSystem()` briefly reported Swedish, so
+the test captured `Redo` as its expected value, while the actual app resources
+and formatter had correctly returned to English (`Ready`). Five seconds later
+the global resource configuration was English too, but the captured expectation
+remained Swedish. This was a false failure rather than a locale-save failure.
+
+The test now captures the underlying System locale before switching, using
+[`LocaleManager.getSystemLocales()`](https://developer.android.com/reference/android/app/LocaleManager#getSystemLocales())
+on API 33+, whose contract explicitly ignores app overrides. API 28 retains its
+existing resource-based System lookup. Ten override/reset cycles retain every
+resource, notification, channel, formatter and preference assertion and the
+five-second convergence deadline. Failure messages include the actual resource
+and locale state. The full owned matrix passes nine API 28 and eleven API 35
+cases with this regression in place, and both AVDs are removed. Swedish's full
+release qualification repeats after the test correction is committed.
+
 | Locale | Terminology | React / desktop / Android | Qualification / release |
 | --- | --- | --- | --- |
 | es | Reviewed | 1,797 / 20 / 662 reviewed | Release qualified |

@@ -30,36 +30,41 @@ class LanguageSelectionInstrumentationTest {
     fun overrideAndSystemResetReachApplicationAndNotificationResources() {
         val original = ProductAppLanguage.selected(context)
         val coordinator = AndroidNotificationCoordinator(context, MutableStateFlow(ProductState()))
+        val systemLocale = systemLocale()
         try {
-            select("en")
-            await { context.getString(R.string.action_cancel) == "Cancel" }
-            coordinator.initialize(0)
-            val english = context.getString(R.string.notification_ready)
+            // Exercise pending platform callbacks between repeated overrides.
+            repeat(10) {
+                select("en")
+                await { context.getString(R.string.action_cancel) == "Cancel" }
+                coordinator.initialize(0)
+                val english = context.getString(R.string.notification_ready)
 
-            select(targetLocale)
-            val translated = resourcesFor(targetLocale)
-            await { context.getString(R.string.notification_ready) == translated.getString(R.string.notification_ready) }
-            assertEquals(targetLocale, ProductAppLanguage.selected(context))
-            val requested = Locale.forLanguageTag(targetLocale)
-            assertEquals(requested.language, Locale.getDefault().language)
-            if (requested.country.isNotEmpty()) assertEquals(requested.country, Locale.getDefault().country)
-            if (requested.script.isNotEmpty()) assertEquals(requested.script, Locale.getDefault().script)
-            assertFalse(english == context.getString(R.string.notification_ready))
-            // The existing coordinator must see the new locale, not a cached
-            // application/service context selected when it was constructed.
-            val notification = coordinator.ongoingNotification(context.getString(R.string.notification_ready))
-            assertEquals(translated.getString(R.string.notification_ready), notification.extras.getString(Notification.EXTRA_TEXT))
-            assertEquals(translated.getString(R.string.action_stop), notification.actions.single().title)
-            coordinator.onLocaleChanged()
-            val channel = context.getSystemService(NotificationManager::class.java)
-                .getNotificationChannel(AndroidNotificationContract.BACKGROUND_CHANNEL_ID)
-            assertEquals(translated.getString(R.string.notification_channel_background), channel.name)
+                select(targetLocale)
+                val translated = resourcesFor(targetLocale)
+                await { context.getString(R.string.notification_ready) == translated.getString(R.string.notification_ready) }
+                assertEquals(targetLocale, ProductAppLanguage.selected(context))
+                val requested = Locale.forLanguageTag(targetLocale)
+                assertEquals(requested.language, Locale.getDefault().language)
+                if (requested.country.isNotEmpty()) assertEquals(requested.country, Locale.getDefault().country)
+                if (requested.script.isNotEmpty()) assertEquals(requested.script, Locale.getDefault().script)
+                assertFalse(english == context.getString(R.string.notification_ready))
+                // The existing coordinator must see the new locale, not a cached
+                // application/service context selected when it was constructed.
+                val notification = coordinator.ongoingNotification(context.getString(R.string.notification_ready))
+                assertEquals(translated.getString(R.string.notification_ready), notification.extras.getString(Notification.EXTRA_TEXT))
+                assertEquals(translated.getString(R.string.action_stop), notification.actions.single().title)
+                coordinator.onLocaleChanged()
+                val channel = context.getSystemService(NotificationManager::class.java)
+                    .getNotificationChannel(AndroidNotificationContract.BACKGROUND_CHANNEL_ID)
+                assertEquals(translated.getString(R.string.notification_channel_background), channel.name)
 
-            select("")
-            assertEquals("", ProductAppLanguage.selected(context))
-            val system = resourcesFor(Resources.getSystem().configuration.locales[0].toLanguageTag())
-            await { context.getString(R.string.notification_ready) == system.getString(R.string.notification_ready) }
-            assertEquals(Resources.getSystem().configuration.locales[0].language, Locale.getDefault().language)
+                select("")
+                assertEquals("", ProductAppLanguage.selected(context))
+                val system = resourcesFor(systemLocale.toLanguageTag())
+                val expectedReady = system.getString(R.string.notification_ready)
+                await { context.getString(R.string.notification_ready) == expectedReady }
+                assertEquals(systemLocale.language, Locale.getDefault().language)
+            }
         } finally {
             select(original)
             coordinator.onLocaleChanged()
@@ -87,6 +92,13 @@ class LanguageSelectionInstrumentationTest {
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
     }
 
+    private fun systemLocale(): Locale =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            PlatformLanguageChecks(context, ::select, ::await).systemLocale()
+        } else {
+            Resources.getSystem().configuration.locales[0]
+        }
+
     private fun resourcesFor(tag: String): Resources {
         val configuration = Configuration(context.resources.configuration)
         configuration.setLocales(LocaleList.forLanguageTags(tag))
@@ -96,7 +108,13 @@ class LanguageSelectionInstrumentationTest {
     private fun await(condition: () -> Boolean) {
         val deadline = SystemClock.elapsedRealtime() + 5_000
         while (!condition() && SystemClock.elapsedRealtime() < deadline) SystemClock.sleep(25)
-        assertTrue("locale configuration did not converge", condition())
+        assertTrue(
+            "locale configuration did not converge: selected=${ProductAppLanguage.selected(context)} " +
+                "actual=${context.getString(R.string.notification_ready)} " +
+                "system=${systemLocale()} default=${Locale.getDefault()} " +
+                "resources=${context.resources.configuration.locales}",
+            condition(),
+        )
     }
 }
 
@@ -107,6 +125,10 @@ private class PlatformLanguageChecks(
     private val select: (String) -> Unit,
     private val await: (() -> Boolean) -> Unit,
 ) {
+    // Process-global Resources can still carry an app override while callbacks
+    // converge; LocaleManager explicitly returns the underlying System choice.
+    fun systemLocale(): Locale = context.getSystemService(LocaleManager::class.java).systemLocales[0]
+
     fun androidSystemAppLanguageAndPickerUseTheSameOwner(targetLocale: String) {
         val manager = context.getSystemService(LocaleManager::class.java)
         val original = manager.applicationLocales
