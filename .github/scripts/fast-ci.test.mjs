@@ -50,7 +50,8 @@ test('translation-only changes run catalog and offline checks without engine bui
     'scripts/translation_terms.py', 'scripts/check-localization.mjs',
     'scripts/localization-registry.mjs', 'scripts/test-localization-registry.mjs',
     'scripts/desktop-locale-smoke.py', 'scripts/test_desktop_localization_smoke.py',
-    'scripts/test_shared_localization.py', 'scripts/test_localization_ya.py']) {
+    'scripts/test_shared_localization.py', 'scripts/test_localization_ya.py',
+    'scripts/localization-codex.py', 'scripts/test_localization_codex.py']) {
     const plan = planChecks([path], metadata);
     assert.equal(plan.web, true, path);
     assert.deepEqual(plan.packages, [], path);

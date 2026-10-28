@@ -199,6 +199,39 @@ preview gates still determine what is packaged or selectable in each product.
 
 ## Run reviewed jobs through YA
 
+For the maintainer's local ChatGPT Codex allowance, use the direct local runner
+instead. It starts separate translation and review CLI sessions, with an explicit
+model, high reasoning by default and normal speed only:
+
+```bash
+python3 scripts/localization-codex.py run --platform web --locale fr \
+  --jobs .local/translations/fr/web --work-dir .local/translations/fr/web-run \
+  --model gpt-6.1-sol --effort high --service-tier normal \
+  --concurrency 2 --jobs-per-worker 3 --import-reviewed
+python3 scripts/localization-codex.py status \
+  --work-dir .local/translations/fr/web-run
+```
+
+It requires an existing local ChatGPT CLI login and never selects a YA pool or
+API-key provider. Personal configuration is ignored for these workers; the
+model, reasoning, standard service tier and permission settings are explicit.
+Actual rollout metadata must match before accepting any response. Configuration
+keys follow the [official Codex reference](https://learn.chatgpt.com/docs/config-file/config-reference).
+Add `--permission-mode bypassPermissions` only when explicitly authorized;
+otherwise workers use a workspace-write sandbox with no approval prompts.
+No persistent user configuration is changed.
+
+`Ctrl+C`/SIGTERM stops and joins owned worker process groups. Resume the same
+command to reuse completed, hash-bound work and revalidate exact imports.
+Another runner for the same platform/locale is refused; if a prior owner was
+killed without cleanup and a recorded worker is still alive, stop that owner
+before resuming. Invalid results fail the run for inspection rather than
+starting an unbounded retry loop. Keep aggregate concurrency at most three
+when running multiple platforms. Session logs and routing paths stay ignored
+under `.local/`; only reviewed catalog provenance is committed.
+
+The YA runner remains available for explicitly selected Claude pools:
+
 Start the local YA service separately. Select a pool by its visible name;
 account IDs and routing decisions are discovered at runtime and are never
 committed. This runner currently supports Claude-provider pools. For example:

@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [387 — French localization with local Codex](387-french-localization-with-local-codex.md):
+  in progress; local Sol 6.1/high normal-speed translation and independent
+  review, followed by French desktop/Android qualification and registration.
+
 - [386 — Browser handoff and report context](386-browser-handoff-and-report-context.md):
   website published and extension 1.1.7 submitted for Google review; handoff,
   reports and physical Android/extension interruption/removal checks pass.

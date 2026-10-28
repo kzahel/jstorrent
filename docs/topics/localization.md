@@ -1,5 +1,16 @@
 # Localization
 
+Tactical [387](../tactical/387-french-localization-with-local-codex.md) is
+completing French across React, native desktop and Android. The local
+`scripts/localization-codex.py` runner uses the existing ChatGPT CLI login,
+explicit model/effort, normal speed and independently verified permission
+settings. Separate sessions translate and review frozen batches; deterministic
+imports retain their actual identities. Completed outputs and imports are
+revalidated on resume, and the owner cancels and joins its worker groups.
+The maintainer selected Sol 6.1/high/normal with bypass for this campaign;
+no YA pool or external provider routing is used. French qualification and
+shipping registration are tracked in 387; this runner alone enables no locale.
+
 The October 28 extraction follow-up closes the three desktop/React gaps
 identified in Tactical 384: updater titles, version/download details and known
 host-authored statuses; complete removal confirmations, plural warnings and
