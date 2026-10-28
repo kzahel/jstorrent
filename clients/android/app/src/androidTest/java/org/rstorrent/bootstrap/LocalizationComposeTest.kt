@@ -5,6 +5,10 @@ import android.content.res.Configuration
 import android.os.LocaleList
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
@@ -12,15 +16,18 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import java.util.Locale
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertEquals
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.rstorrent.bootstrap.ui.AddTorrentDialog
+import org.rstorrent.bootstrap.ui.ChoiceSetting
 import org.rstorrent.bootstrap.ui.ProductApp
 import org.rstorrent.bootstrap.ui.ProductThemeMode
 
@@ -38,6 +45,31 @@ class LocalizationComposeTest {
     fun restoreActivityConfiguration() {
         val resources = compose.activity.resources
         resources.updateConfiguration(originalConfiguration, resources.displayMetrics)
+    }
+
+    @Test
+    fun longLanguageChoiceKeepsLastOptionAndCancelReachable() {
+        val context = applyActivityLocale("en")
+        val choices = (1..30).map { "Language fixture $it" }
+        var selected = choices.first()
+        compose.setContent {
+            localized(context) {
+                var choice by remember { mutableStateOf(choices.first()) }
+                ChoiceSetting(
+                    title = "Language list fixture",
+                    selected = choice,
+                    values = choices,
+                    label = { it },
+                    onSelected = { choice = it; selected = it },
+                )
+            }
+        }
+        compose.onNodeWithText(choices.first()).performClick()
+        compose.onNodeWithText(choices.last()).performScrollTo().assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(choices.last(), selected) }
+        compose.onNodeWithText(choices.last()).performClick()
+        compose.onNodeWithText(context.getString(R.string.action_cancel)).assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(choices.last(), selected) }
     }
 
     @Test

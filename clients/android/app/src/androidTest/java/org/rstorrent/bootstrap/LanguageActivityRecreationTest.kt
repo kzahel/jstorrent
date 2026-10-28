@@ -56,7 +56,7 @@ class LanguageActivityRecreationTest {
             compose.onNodeWithText(context.getString(R.string.settings_language)).performScrollTo().performClick()
             compose.onNodeWithText("English").performClick()
             val beforeChange = compose.activity
-            compose.onNodeWithText(targetName).performClick()
+            compose.onNodeWithText(targetName).performScrollTo().performClick()
             compose.waitUntil(10_000) {
                 compose.activity !== beforeChange && ProductAppLanguage.selected(context) == targetLocale
             }
@@ -65,7 +65,11 @@ class LanguageActivityRecreationTest {
             // one-off resource mutation, and verify the language page remains.
             compose.activityRule.scenario.recreate()
             compose.onNodeWithText(targetName).assertIsDisplayed()
-            assertEquals(targetLocale, compose.activity.resources.configuration.locales[0].language)
+            val requested = Locale.forLanguageTag(targetLocale)
+            val active = compose.activity.resources.configuration.locales[0]
+            assertEquals(requested.language, active.language)
+            if (requested.country.isNotEmpty()) assertEquals(requested.country, active.country)
+            if (requested.script.isNotEmpty()) assertEquals(requested.script, active.script)
 
             val afterRecreation = SystemClock.elapsedRealtime()
             compose.waitUntil(5_000) {

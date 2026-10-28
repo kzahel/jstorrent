@@ -59,6 +59,7 @@ impl LocaleRegistry {
         if matches!(candidate.as_str(), "C" | "POSIX") {
             return Some(self.fallback);
         }
+        let regional = regional_catalog_locale(&candidate);
         loop {
             if let Some(source) = self
                 .sources
@@ -67,7 +68,9 @@ impl LocaleRegistry {
             {
                 return Some(source.locale);
             }
-            let (parent, _) = candidate.rsplit_once('-')?;
+            let Some((parent, _)) = candidate.rsplit_once('-') else {
+                break;
+            };
             candidate.truncate(parent.len());
             // RFC 4647 lookup also removes a trailing extension singleton.
             if candidate
@@ -79,6 +82,10 @@ impl LocaleRegistry {
                 candidate.truncate(parent.len());
             }
         }
+        self.sources
+            .iter()
+            .find(|source| Some(source.locale) == regional)
+            .map(|source| source.locale)
     }
 
     fn resolve(&self, preference: &LocalePreference, requested: &[String]) -> &'static str {
@@ -114,6 +121,42 @@ impl LocaleRegistry {
                     .and_then(|catalog| catalog.get(key))
             })
             .map(String::as_str)
+    }
+}
+
+/// Catalog equivalences after exact and RFC 4647 parent lookup. Keep in sync
+/// with web and Android; explicit Chinese scripts always override the region.
+fn regional_catalog_locale(tag: &str) -> Option<&'static str> {
+    let tag = tag.to_ascii_lowercase();
+    let parts: Vec<_> = tag.split('-').take_while(|part| part.len() != 1).collect();
+    if parts == ["pt", "latn", "br"] {
+        return Some("pt-BR");
+    }
+    let ["zh", rest @ ..] = parts.as_slice() else {
+        return None;
+    };
+    let (script, rest) = match rest {
+        [script, rest @ ..]
+            if script.len() == 4 && script.bytes().all(|byte| byte.is_ascii_alphabetic()) =>
+        {
+            (Some(*script), rest)
+        }
+        _ => (None, rest),
+    };
+    let region = match rest {
+        [] => None,
+        [region]
+            if (region.len() == 2 && region.bytes().all(|byte| byte.is_ascii_alphabetic()))
+                || (region.len() == 3 && region.bytes().all(|byte| byte.is_ascii_digit())) =>
+        {
+            Some(*region)
+        }
+        _ => return None,
+    };
+    match (script, region) {
+        (Some("hans"), _) | (None, Some("cn" | "sg")) => Some("zh-CN"),
+        (Some("hant"), _) | (None, Some("tw" | "hk")) => Some("zh-TW"),
+        _ => None,
     }
 }
 
@@ -498,6 +541,204 @@ mod tests {
         }],
         catalogs: OnceLock::new(),
     };
+    static SYNTHETIC_REGIONAL: LocaleRegistry = LocaleRegistry {
+        declared: &["en", "pt-BR", "zh-CN", "zh-TW"],
+        fallback: "en",
+        sources: &[
+            LocaleCatalogSource {
+                locale: "en",
+                json: "{}",
+            },
+            LocaleCatalogSource {
+                locale: "pt-BR",
+                json: "{}",
+            },
+            LocaleCatalogSource {
+                locale: "zh-CN",
+                json: "{}",
+            },
+            LocaleCatalogSource {
+                locale: "zh-TW",
+                json: "{}",
+            },
+        ],
+        catalogs: OnceLock::new(),
+    };
+
+    #[test]
+    fn synthetic_regional_catalogs_match_system_and_override_tags() {
+        for (tag, expected) in [
+            ("pt-BR", "pt-BR"),
+            ("pt-Latn-BR", "pt-BR"),
+            ("zh-CN", "zh-CN"),
+            ("zh-Hans-CN", "zh-CN"),
+            ("zh-SG", "zh-CN"),
+            ("zh-TW", "zh-TW"),
+            ("zh-Hant-TW", "zh-TW"),
+            ("zh-HK", "zh-TW"),
+            ("zh-Hant-CN", "zh-TW"),
+            ("zh-Hans-TW", "zh-CN"),
+            ("zh-Hant-SG", "zh-TW"),
+            ("zh-Hans-HK", "zh-CN"),
+            ("zh-Hant", "zh-TW"),
+            ("zh-Hans", "zh-CN"),
+            ("zh-Hant-ZZ", "zh-TW"),
+            ("zh-Hans-ZZ", "zh-CN"),
+            ("PT-latn-br-u-nu-latn", "pt-BR"),
+            ("zh-Hant-TW-u-nu-hanidec", "zh-TW"),
+            ("zh-Hant-CN-u-rg-cnzzzz", "zh-TW"),
+            ("zh-Hans-TW-u-rg-twzzzz", "zh-CN"),
+            ("zh-SG-x-hant", "zh-CN"),
+            ("pt_Latn_BR.UTF-8", "pt-BR"),
+        ] {
+            assert_eq!(SYNTHETIC_REGIONAL.lookup(tag), Some(expected), "{tag}");
+            assert_eq!(
+                SYNTHETIC_REGIONAL.resolve(&language(tag), &[]),
+                expected,
+                "{tag}"
+            );
+            assert_eq!(
+                SYNTHETIC_REGIONAL.resolve(&LocalePreference::System, &[tag.into(), "en".into()]),
+                expected,
+                "{tag}"
+            );
+        }
+        assert_eq!(
+            SYNTHETIC_REGIONAL.resolve(
+                &LocalePreference::System,
+                &["zz-ZZ".into(), "zh-HK".into(), "zh-CN".into()]
+            ),
+            "zh-TW"
+        );
+        assert_eq!(
+            SYNTHETIC_REGIONAL
+                .resolve(&LocalePreference::System, &["en-US".into(), "zh-HK".into()]),
+            "en"
+        );
+        for tag in [
+            "zh",
+            "zh-ZZ",
+            "zh-Latn-CN",
+            "zh-Qaaa-TW",
+            "zh-u-rg-twzzzz",
+            "pt-Cyrl-BR",
+            "pt-Latn-ZZ",
+            "not-a-locale",
+        ] {
+            assert_eq!(SYNTHETIC_REGIONAL.lookup(tag), None, "{tag}");
+            assert_eq!(
+                SYNTHETIC_REGIONAL.resolve(&language(tag), &["zh-CN".into()]),
+                "en"
+            );
+        }
+    }
+
+    #[test]
+    fn synthetic_exact_and_parent_matches_precede_regional_aliases() {
+        let registry = LocaleRegistry {
+            declared: &[],
+            fallback: "en",
+            sources: &[
+                LocaleCatalogSource {
+                    locale: "pt-Latn-BR",
+                    json: "{}",
+                },
+                LocaleCatalogSource {
+                    locale: "zh-Hant-TW",
+                    json: "{}",
+                },
+                LocaleCatalogSource {
+                    locale: "zh-SG",
+                    json: "{}",
+                },
+                LocaleCatalogSource {
+                    locale: "zh-Hant",
+                    json: "{}",
+                },
+                LocaleCatalogSource {
+                    locale: "pt",
+                    json: "{}",
+                },
+                LocaleCatalogSource {
+                    locale: "fr-u",
+                    json: "{}",
+                },
+                LocaleCatalogSource {
+                    locale: "fr",
+                    json: "{}",
+                },
+                LocaleCatalogSource {
+                    locale: "pt-BR",
+                    json: "{}",
+                },
+                LocaleCatalogSource {
+                    locale: "zh-CN",
+                    json: "{}",
+                },
+                LocaleCatalogSource {
+                    locale: "zh-TW",
+                    json: "{}",
+                },
+            ],
+            catalogs: OnceLock::new(),
+        };
+        for tag in ["pt-Latn-BR", "zh-Hant-TW", "zh-SG"] {
+            assert_eq!(registry.lookup(tag), Some(tag));
+        }
+        assert_eq!(registry.lookup("zh-Hant-HK"), Some("zh-Hant"));
+        assert_eq!(registry.lookup("pt-Latn-PT"), Some("pt"));
+        assert_eq!(registry.lookup("fr-u-nu-latn"), Some("fr"));
+        for (available, unavailable) in [("zh-CN", "zh-Hant-CN"), ("zh-TW", "zh-Hans-TW")] {
+            let registry = LocaleRegistry {
+                declared: &[],
+                fallback: "en",
+                sources: if available == "zh-CN" {
+                    &[LocaleCatalogSource {
+                        locale: "zh-CN",
+                        json: "{}",
+                    }]
+                } else {
+                    &[LocaleCatalogSource {
+                        locale: "zh-TW",
+                        json: "{}",
+                    }]
+                },
+                catalogs: OnceLock::new(),
+            };
+            assert_eq!(registry.lookup(unavailable), None);
+        }
+    }
+
+    #[test]
+    fn regional_matching_does_not_rewrite_saved_preferences_or_accept_picker_aliases() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join(PREFERENCE_FILENAME);
+        for saved in ["pt-BR", "zh-CN", "zh-TW", "zh-Hant-TW", "future-locale"] {
+            let original = format!(r#"{{"language":"{saved}","future":7}}"#);
+            std::fs::write(&path, &original).unwrap();
+            let mut owner = DesktopLocaleOwner::open_with_registry(
+                directory.path(),
+                vec!["pt-Latn-BR".into()],
+                &SYNTHETIC_REGIONAL,
+            );
+            let expected = if SYNTHETIC_REGIONAL.declared.contains(&saved) {
+                language(saved)
+            } else {
+                LocalePreference::System
+            };
+            assert_eq!(owner.snapshot().preference, expected);
+            assert_eq!(
+                owner.snapshot().locale,
+                if SYNTHETIC_REGIONAL.declared.contains(&saved) {
+                    saved
+                } else {
+                    "pt-BR"
+                }
+            );
+            assert!(owner.select(language("zh-Hant-TW")).is_err());
+            assert_eq!(std::fs::read_to_string(&path).unwrap(), original);
+        }
+    }
 
     fn language(tag: &str) -> LocalePreference {
         LocalePreference::Language(tag.to_owned())

@@ -49,9 +49,7 @@ internal object ProductAppLanguage {
     /** Empty means follow the system, not the currently resolved language. */
     fun selected(context: Context): String {
         val tag = overrideTag(context)
-        val available = available(context)
-        return tag.takeIf { it in available }
-            ?: Locale.forLanguageTag(tag).language.takeIf { it in available }.orEmpty()
+        return matchProductAppLanguage(listOf(tag), available(context)).orEmpty()
     }
 
     private fun overrideTag(context: Context): String =
@@ -74,10 +72,9 @@ internal object ProductAppLanguage {
             val manager = context.getSystemService(LocaleManager::class.java)
             if (manager.applicationLocales.isEmpty) {
                 val oldTag = preferences.getString(LANGUAGE, null).orEmpty()
-                val tag = oldTag.takeIf { it.isNotEmpty() && it in available(context) }
-                    ?: Locale.forLanguageTag(oldTag).language.takeIf { it.isNotEmpty() && it in available(context) }
-                    ?: return false
-                manager.applicationLocales = LocaleList.forLanguageTags(tag)
+                if (matchProductAppLanguage(listOf(oldTag), available(context)) == null) return false
+                // Transfer the preference itself, not its matched catalog.
+                manager.applicationLocales = LocaleList.forLanguageTags(oldTag)
             }
             // Never clear the preference store: unrelated appearance fields
             // belong to their own owners. A removed key makes this one-shot.
@@ -107,6 +104,9 @@ internal object ProductAppLanguage {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.getSystemService(LocaleManager::class.java).applicationLocales =
                 LocaleList.forLanguageTags(tag)
+            // Wrapped resources project this choice immediately. Keep
+            // formatters coherent before the platform configuration callback.
+            refreshFormattingLocale(context)
         } else {
             val editor = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).edit()
             if (tag.isEmpty()) editor.remove(LANGUAGE) else editor.putString(LANGUAGE, tag)
@@ -127,8 +127,7 @@ internal object ProductAppLanguage {
         releaseChangeLease.run()
     }
 
-    fun wrap(context: Context): Context =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) context else LocaleContext(context)
+    fun wrap(context: Context): Context = LocaleContext(context)
 
     fun onConfigurationChanged(context: Context) {
         refreshFormattingLocale(context)
@@ -136,14 +135,20 @@ internal object ProductAppLanguage {
     }
 
     fun refreshFormattingLocale(context: Context) {
-        val locale =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.resources.configuration.locales[0]
-            } else {
-                selected(context).takeIf(String::isNotEmpty)?.let(Locale::forLanguageTag)
-                    ?: Resources.getSystem().configuration.locales[0]
-            }
-        Locale.setDefault(locale)
+        Locale.setDefault(Locale.forLanguageTag(resolvedTag(context)))
+    }
+
+    private fun resolvedTag(context: Context): String {
+        val system = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.getSystemService(LocaleManager::class.java).systemLocales
+        } else {
+            Resources.getSystem().configuration.locales
+        }
+        return resolveProductAppLanguage(
+            overrideTag(context),
+            (0 until system.size()).map { system[it].toLanguageTag() },
+            available(context),
+        )
     }
 
     private fun activity(context: Context): Activity? =
@@ -168,10 +173,9 @@ internal object ProductAppLanguage {
         @Synchronized
         override fun getResources(): Resources {
             val configuration = Configuration(baseContext.resources.configuration)
-            val tag = selected(baseContext)
-            configuration.setLocales(
-                if (tag.isEmpty()) Resources.getSystem().configuration.locales else LocaleList.forLanguageTags(tag),
-            )
+            // Android still owns the override on API 33+. Project it onto a
+            // packaged catalog without replacing the platform's saved tag.
+            configuration.setLocales(LocaleList.forLanguageTags(resolvedTag(baseContext)))
             if (configuration != lastConfiguration) {
                 lastResources = baseContext.createConfigurationContext(configuration).resources
                 lastConfiguration = configuration

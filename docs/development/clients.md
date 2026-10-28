@@ -20,8 +20,8 @@ packages, use [releasing](releasing.md).
 Both desktop launchers enable the registered development previews for the React
 build and native compile together. Native preview catalogs require debug
 assertions and `VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1` at compile time. Without
-that flag, direct Cargo builds offer configured shipping locales (currently
-English, German and French). Release builds exclude previews even with the flag.
+that flag, direct Cargo builds offer the registry's configured shipping locales.
+Release builds exclude previews even with the flag.
 System language
 remains the default; Settings → Appearance offers a local override.
 

@@ -11,6 +11,7 @@ import {
   type PrimitiveType,
 } from "react-intl";
 import { useSyncExternalStore, type ReactNode } from "react";
+import { regionalCatalogLocale } from "./locale-matching";
 
 import {
   catalogs as compiledCatalogs,
@@ -144,6 +145,7 @@ function negotiateLocale(requested: readonly string[], includePreview: boolean, 
     let canonical: string;
     try { canonical = Intl.getCanonicalLocales(candidate)[0] ?? ""; }
     catch { continue; }
+    const regional = regionalCatalogLocale(canonical);
     // BCP47 lookup: prefer a registered region/script before its parents.
     while (canonical !== "") {
       const match = available.find((locale) => locale === canonical);
@@ -153,6 +155,8 @@ function negotiateLocale(requested: readonly string[], includePreview: boolean, 
       canonical = canonical.slice(0, separator);
       if (canonical.split("-").at(-1)?.length === 1) canonical = canonical.slice(0, canonical.lastIndexOf("-"));
     }
+    const match = available.find((locale) => locale === regional);
+    if (match !== undefined) return match;
   }
   return registry.fallbackLocale;
 }

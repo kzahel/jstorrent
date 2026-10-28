@@ -17,7 +17,8 @@ provides direction for canonical locale tags; each platform's `supportedLocales`
 and `previewLocales` lists decide what is available. Defining a locale does not
 by itself enable it. Native desktop shipping locales must also ship in React;
 native previews require matching React registration. React, native desktop and
-Android release inputs support English, German and French.
+Android release inputs use the registry's shipping lists; English, German and
+French form the completed baseline for the remaining-language campaign.
 iOS remains English-only.
 
 The supervised sixteen-locale campaign uses the

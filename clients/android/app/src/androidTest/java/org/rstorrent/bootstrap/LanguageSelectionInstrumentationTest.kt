@@ -40,7 +40,10 @@ class LanguageSelectionInstrumentationTest {
             val translated = resourcesFor(targetLocale)
             await { context.getString(R.string.notification_ready) == translated.getString(R.string.notification_ready) }
             assertEquals(targetLocale, ProductAppLanguage.selected(context))
-            assertEquals(targetLocale, Locale.getDefault().language)
+            val requested = Locale.forLanguageTag(targetLocale)
+            assertEquals(requested.language, Locale.getDefault().language)
+            if (requested.country.isNotEmpty()) assertEquals(requested.country, Locale.getDefault().country)
+            if (requested.script.isNotEmpty()) assertEquals(requested.script, Locale.getDefault().script)
             assertFalse(english == context.getString(R.string.notification_ready))
             // The existing coordinator must see the new locale, not a cached
             // application/service context selected when it was constructed.

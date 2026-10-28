@@ -53,15 +53,16 @@ unless the maintainer asks again.
   and must additionally pass Android resource lint and API 28/35 execution.
   Never copy German examples or plural branches to another language.
 
-## Known qualification work
+## Qualification prerequisites
 
-Chinese needs explicit region/script System probes. Existing RFC 4647 parent
-lookup does not equate `zh-Hans-CN` with `zh-CN`, or `zh-Hant-TW` with `zh-TW`.
-The campaign must resolve and test that presentation-only matching gap before
-claiming Chinese System-language qualification. Keep Simplified and Traditional
-separate, and do not solve it by silently selecting the wrong script.
+Chinese needs explicit region/script System probes. The bootstrap now resolves
+`zh-Hans-CN` to `zh-CN`, `zh-Hant-TW` to `zh-TW`, and the relevant Hong Kong/
+Singapore forms after existing exact/parent lookup. Synthetic tests cover all
+three runtimes before real catalogs exist. Actual production and native
+resource probes remain required for each cohort. Simplified and Traditional
+stay separate; an unavailable script never silently selects the other one.
 
-Brazilian Portuguese must retain its regional identity, including a maximized
+Brazilian Portuguese retains its regional identity, including a maximized
 `pt-Latn-BR` System request. Slavic/Romanian/Czech
 quantity categories and Chinese/Japanese/Korean single-category quantities
 need real native-resource checks. A large language picker must keep its actions
@@ -93,7 +94,7 @@ over 100 GiB free without starting a model session.
 
 Preparation tests: six campaign regressions, all 61 shared workflow cases,
 three browser-harness argument cases, thirteen registry/fast-CI routing checks,
-web typecheck and all 928 web unit cases pass (three existing skips). The reusable browser
+and all 928 web unit cases pass (three existing skips). The reusable browser
 harness passes seven cases each for German and French against actual ordinary
 production assets with regional System probes, pseudo exclusion, exact shipping
 picker membership, switching/persistence/focus and narrow destructive dialogs.
@@ -107,21 +108,65 @@ rollout settings are checked before acceptance. Completed future glossaries
 remain ignored until that locale's active cohort, avoiding incomplete shipping
 registration. No remote CI watching or release publication is part of the run.
 
+Bootstrap recovery: one terminology reviewer rejected the ambiguous use of
+"SHA-256" for canonical JSON fingerprints rather than raw file bytes. The
+rejected report and interrupted attempts were retained, the exact canonical
+serialization was specified, and a new independent review approved the same
+frozen Portuguese inputs. Approved Spanish/Italian/Dutch outputs were reused;
+no hashes or approval flags were stamped current. Local process groups were
+joined before restart. Per-locale validation rejection now preserves its
+evidence and retries independently instead of cancelling healthy sibling work.
+
+The matching worker also found a TypeScript error in an intentional runtime
+rejection test introduced during German promotion. The negative case is now
+explicitly annotated, shipping-list expectations are data-driven for future
+cohorts, and verification is repeated with fail-on-error commands. Earlier
+shell sequences had continued past the typecheck error; their unit-test passes
+remain valid but do not establish typecheck success.
+
+Final bootstrap verification uses fail-on-error commands: web typecheck and all
+958 web cases pass (three existing skips); `cargo fmt --all -- --check`, focused
+desktop Clippy with warnings denied and all 94 desktop unit cases pass. Android
+debug/release unit suites pass 225 cases each; debug/release lint and APK/test
+compilation pass. The owned German matrix passes nine API 28 and eleven API 35
+cases, including native count formatting and a 30-option choice dialog. The
+first API 35 run exposed a lag between projected resources and `Locale` default;
+refreshing formatting immediately after the platform language setter fixes the
+race, and both API repeats pass without weakening the assertions. Regional
+locale assertions retain both language and region rather than comparing a
+language code to a full `pt-BR`-style tag. Both AVDs are removed afterward.
+
+The rebuilt production frontend passes all seven generic browser cases for
+each of German and French. Android's choice list now scrolls within its dialog,
+keeping the final item and Cancel reachable. Unsupported stored Android tags
+continue to follow System without rewriting their value, and the existing
+OS-upgrade handoff transfers the original tag rather than a lossy normalization;
+the migration ledger is updated in the same change.
+
+Reference paths consulted: qBittorrent `src/base/preferences.cpp` and
+`src/app/application.cpp` select System by default and retain English when no
+catalog loads; Transmission `qt/Application.cc` delegates locale-aware loading
+to Qt and explicitly retries English. We retain JSTorrent's existing System/
+explicit-choice ownership and final English fallback, adding bounded equivalent
+catalog matches in its three existing presentation runtimes rather than a Qt or
+new locale dependency. Bare Chinese/unknown regions do not guess a script.
+No reference source or third-party translation catalog is copied.
+
 | Locale | Terminology | React / desktop / Android | Qualification / release |
 | --- | --- | --- | --- |
-| es | Reviewed | Pending | Pending |
+| es | Reviewed | Queued | Pending |
 | it | Reviewed | Pending | Pending |
-| pt-BR | Authoring | Pending | Pending |
-| nl | Authoring | Pending | Pending |
-| sv | Queued | Pending | Pending |
-| da | Queued | Pending | Pending |
-| cs | Queued | Pending | Pending |
-| pl | Queued | Pending | Pending |
-| ro | Queued | Pending | Pending |
-| ru | Queued | Pending | Pending |
-| uk | Queued | Pending | Pending |
-| tr | Queued | Pending | Pending |
-| ja | Queued | Pending | Pending |
-| ko | Queued | Pending | Pending |
-| zh-CN | Queued | Pending | Pending |
-| zh-TW | Queued | Pending | Pending |
+| pt-BR | Reviewed | Pending | Pending |
+| nl | Reviewed | Pending | Pending |
+| sv | Reviewed | Pending | Pending |
+| da | Reviewed | Pending | Pending |
+| cs | Reviewed | Pending | Pending |
+| pl | Reviewed | Pending | Pending |
+| ro | Reviewed | Pending | Pending |
+| ru | Reviewed | Pending | Pending |
+| uk | Reviewed | Pending | Pending |
+| tr | Reviewed | Pending | Pending |
+| ja | Reviewed | Pending | Pending |
+| ko | Reviewed | Pending | Pending |
+| zh-CN | Reviewed | Pending | Pending |
+| zh-TW | Reviewed | Pending | Pending |

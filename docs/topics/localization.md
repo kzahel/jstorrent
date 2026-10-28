@@ -8,7 +8,7 @@ The planner starts no workers and never infers qualification from registration.
 
 The October 28 German release qualification moves all 2,479 independently
 reviewed German resources into shipping inputs for React, native desktop and
-Android. Shipping locale lists are now `en`, `de`, `fr`; none requires a
+Android. This establishes the `en`, `de`, `fr` baseline; none requires a
 preview flag. Android's German XML moves byte-for-byte into the main source
 set. No translation, terminology or per-message review identity changes.
 English remains the fallback and iOS remains English-only. No release/store
@@ -16,9 +16,13 @@ publication or installed production profile change is part of this promotion.
 
 German release evidence:
 
-- `node scripts/check-localization.mjs`, web typecheck and the full web unit
-  suite pass (925 tests, three existing skips). The existing German System/
+- `node scripts/check-localization.mjs` and the full web unit suite pass
+  (925 tests, three existing skips). The existing German System/
   formatting/persistence test now runs with previews explicitly disabled.
+  The overnight bootstrap later found that the intentional unsupported-tag
+  test needed an explicit TypeScript negative-case annotation; an earlier
+  shell sequence had masked that error by continuing to unit tests. Tactical
+  388 records its fix and the fail-on-error verification repeat.
 - Ordinary, companion and remote Vite builds with previews disabled include
   German and French. The existing CSP guard passes 51 + one + 28 bundles.
   Remote reuses the existing Wasm artifact and a nonconnecting example relay;
@@ -155,10 +159,12 @@ changing language does not restart the engine. Configured preview React assets
 require `VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1`; native previews require that
 flag at compile time plus debug assertions. Both ordinary desktop debug launchers
 pass it to the frontend and native builds together. English, German and French
-are shipping locales and are available without the flag.
+are the initial shipping baseline and are available without the flag. Further
+qualified cohorts and their evidence are recorded in Tactical 388; the locale
+registry is authoritative for current availability.
 System language is the default, with English fallback. React, desktop and
-Android release inputs support English, German and French; additional locales
-require their own completed review and qualification.
+Android release inputs advertise only the registry's shipping locales;
+additional locales require their own completed review and qualification.
 The October 28 follow-up above completes the previously recorded updater,
 removal and peer-state extraction cohort. Catalog coverage does not claim that
 every possible host diagnostic or desktop sentence is translated.
@@ -415,8 +421,8 @@ and `ar-XB` only for tests; production builds cannot select them.
 For Android, edit
 `clients/android/app/src/main/res/values/strings.xml` and use quantities for
 count-dependent copy. Android's debug build generates platform pseudo-locales;
-release resources advertise English, German and French from the main source
-set. Use the offline [translation workflow](../../clients/android/scripts/LOCALIZATION.md)
+release resources advertise the manifest's shipping languages from the main
+source set. Use the offline [translation workflow](../../clients/android/scripts/LOCALIZATION.md)
 to export missing/stale messages, validate independently reviewed responses,
 import corrections, check metadata and prune obsolete resources. The global
 checker also checks Android locale configuration and all declared catalogs.

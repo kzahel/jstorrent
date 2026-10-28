@@ -58,9 +58,9 @@ Do not unlink persistent kernel lock files.
 ## Execution sequence
 
 1. Confirm the three-language shipping baseline and clean ownership of pending
-   files. Fix and test the known script/region System-language matching gap for
-   `pt-Latn-BR`, Simplified Chinese and Traditional Chinese. Use synthetic
-   locale registrations before the real catalogs exist. Preserve ordered
+   files. Verify the bootstrap's script/region System matching for
+   `pt-Latn-BR`, Simplified Chinese and Traditional Chinese. Its synthetic
+   registrations are tested before the real catalogs exist. Preserve ordered
    language preferences, exact-match priority, unknown saved values, script
    distinctions and English fallback; do not change engine/application APIs.
 2. Prepare each locale's shared glossary before exporting. Follow its explicit

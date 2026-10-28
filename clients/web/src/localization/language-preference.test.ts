@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { localeRegistry } from "./generated/catalogs";
 
 const KEY = "rstorrent.presentation.language";
 class MemoryStorage implements Storage {
@@ -28,10 +29,11 @@ describe("local presentation language preferences", () => {
     const runtime = await import("./runtime");
     await runtime.initializeLocalization();
     expect(runtime.languagePreferenceSnapshot()).toBe("system");
-    expect(runtime.availableProductLanguages()).toEqual(["en", "de", "fr"]);
+    expect(runtime.availableProductLanguages()).toEqual(localeRegistry.supportedLocales);
     expect(runtime.currentLocale()).toBe("en");
     expect(localStorage.getItem(KEY)).toBe("unknown-future-language");
     expect(localStorage.getItem("unrelated-preference")).toBe("keep-me");
+    // @ts-expect-error Exercise runtime rejection of an unregistered picker value.
     await expect(runtime.setLanguagePreference("zz")).rejects.toThrow("Unsupported");
   });
 
@@ -86,7 +88,7 @@ it("ships German System language, formatters and shell without the preview gate"
   const runtime = await import("./runtime");
   await runtime.initializeLocalization();
   expect(runtime.currentLocale()).toBe("de");
-  expect(runtime.availableProductLanguages()).toEqual(["en", "de", "fr"]);
+  expect(runtime.availableProductLanguages()).toEqual(localeRegistry.supportedLocales);
   expect(runtime.message("localization.language.title")).toBe("Sprache");
   expect(runtime.formatNumber(1234.5)).toBe("1.234,5");
   expect(runtime.formatList(["TCP", "uTP"])).toContain("und");

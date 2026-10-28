@@ -819,7 +819,7 @@ internal fun <T> ChoiceSetting(
             onDismissRequest = { dialog = false },
             title = { Text(title) },
             text = {
-                Column(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                     values.forEach { value ->
                         ChoiceRow(label(value), value == selected) {
                             onSelected(value)
