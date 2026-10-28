@@ -28,6 +28,9 @@
     },
     "pt-BR": {
       "direction": "ltr"
+    },
+    "sv": {
+      "direction": "ltr"
     }
   },
   "previewLocales": {
@@ -44,7 +47,8 @@
       "es",
       "it",
       "pt-BR",
-      "nl"
+      "nl",
+      "sv"
     ],
     "desktop": [
       "en",
@@ -53,7 +57,8 @@
       "es",
       "it",
       "pt-BR",
-      "nl"
+      "nl",
+      "sv"
     ],
     "ios": [
       "en"
@@ -65,7 +70,8 @@
       "es",
       "it",
       "pt-BR",
-      "nl"
+      "nl",
+      "sv"
     ]
   },
   "testLocales": [

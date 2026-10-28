@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "Välj en nedladdningsmapp",
+  "dialog.settings-save.body": "JSTorrent kunde inte spara inställningen Kör i bakgrunden. Den tidigare inställningen gäller fortfarande.",
+  "dialog.settings-save.title": "JSTorrent-inställningen sparades inte",
+  "dialog.shutdown.body": "JSTorrent kunde inte avslutas helt. Dina data har inte tvångsstängts. Kontrollera diagnostikloggen innan du försöker igen.",
+  "dialog.shutdown.title": "JSTorrent kunde inte avslutas",
+  "dialog.torrent-list-export.title": "Exportera torrentlista",
+  "dialog.torrent-list-import.title": "Importera torrentlista",
+  "dialog.torrent-list.filter": "Torrentlista",
+  "notification.download-complete.body": "{name} har laddats ned.",
+  "notification.download-complete.title": "Nedladdningen är klar",
+  "notification.needs-attention.body": "{name} behöver åtgärdas. Öppna JSTorrent för mer information.",
+  "notification.needs-attention.title": "Nedladdningen behöver åtgärdas",
+  "notification.open": "Öppna JSTorrent",
+  "notification.unnamed-torrent": "Torrent",
+  "power.active-transfer-reason": "JSTorrent laddar ned eller kontrollerar innehåll",
+  "tray.check-updates": "Sök efter uppdateringar",
+  "tray.quit": "Avsluta JSTorrent",
+  "tray.run-in-background": "Kör i bakgrunden",
+  "tray.show": "Visa JSTorrent",
+  "tray.tooltip": "JSTorrent"
+}

@@ -45,6 +45,13 @@
         "many",
         "other"
       ]
+    },
+    "sv": {
+      "catalog": "clients/android/app/src/main/res/values-sv/strings.xml",
+      "quantities": [
+        "one",
+        "other"
+      ]
     }
   },
   "schemaVersion": 1

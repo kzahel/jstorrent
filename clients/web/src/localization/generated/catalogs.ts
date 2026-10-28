@@ -6,6 +6,7 @@ import catalog3 from "./es.json";
 import catalog4 from "./it.json";
 import catalog5 from "./pt-BR.json";
 import catalog6 from "./nl.json";
+import catalog7 from "./sv.json";
 
 export const localeRegistry = {
   "sourceLocale": "en",
@@ -17,7 +18,8 @@ export const localeRegistry = {
     "es",
     "it",
     "pt-BR",
-    "nl"
+    "nl",
+    "sv"
   ],
   "previewLocales": [],
   "localeDefinitions": {
@@ -40,6 +42,9 @@ export const localeRegistry = {
       "direction": "ltr"
     },
     "nl": {
+      "direction": "ltr"
+    },
+    "sv": {
       "direction": "ltr"
     }
   },
@@ -66,6 +71,7 @@ const supportedCatalogs = {
   "it": catalog4,
   "pt-BR": catalog5,
   "nl": catalog6,
+  "sv": catalog7,
 };
 const previewCatalogs = import.meta.env.VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES === "1" ? {
 
