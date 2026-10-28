@@ -66,6 +66,10 @@ must be `%%`. Quantity resources use exactly the configured target categories,
 not a copy of English categories. A count may be omitted in an appropriate
 branch, but arguments must retain their meanings/types and appear somewhere
 in the resource; shared non-count arguments remain required in each branch.
+Include the count in every category that can represent multiple numbers,
+even when the English branch omits it. Portuguese `one` includes zero and one;
+Russian `one` includes one and twenty-one. Android lint rejects ambiguous
+count-free singular wording in those categories.
 
 ## Validate and import
 

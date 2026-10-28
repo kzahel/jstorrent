@@ -164,6 +164,17 @@ normal frontend/binary restoration and joined shutdown remain intact. No focus
 assertion or timeout was weakened. Reviewed translation outputs are retained
 while the complete qualification is repeated against the corrected product.
 
+Brazilian Portuguese passed production-browser regional probes and the native
+product smoke, then Android lint rejected the count-free `remove_torrent_title`
+`one` branch: Portuguese uses that category for both zero and one. The existing
+importer permits the source count argument in every target branch, so no English
+or argument-contract change is needed. Worker guidance now explicitly requires
+counts in categories representing multiple numbers, including Portuguese and
+Slavic `one`. A fresh, narrowly selected export and separate local author/review
+sessions correct the resource; prior approved outputs remain intact. Full
+qualification must repeat against the reviewed correction before promotion is
+committed. Android lint is retained as a required gate.
+
 | Locale | Terminology | React / desktop / Android | Qualification / release |
 | --- | --- | --- | --- |
 | es | Reviewed | 1,797 / 20 / 662 reviewed | Release qualified |
