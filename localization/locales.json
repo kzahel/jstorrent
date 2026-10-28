@@ -8,6 +8,9 @@
   },
   "fallbackLocale": "en",
   "localeDefinitions": {
+    "da": {
+      "direction": "ltr"
+    },
     "de": {
       "direction": "ltr"
     },
@@ -48,7 +51,8 @@
       "it",
       "pt-BR",
       "nl",
-      "sv"
+      "sv",
+      "da"
     ],
     "desktop": [
       "en",
@@ -58,7 +62,8 @@
       "it",
       "pt-BR",
       "nl",
-      "sv"
+      "sv",
+      "da"
     ],
     "ios": [
       "en"
@@ -71,7 +76,8 @@
       "it",
       "pt-BR",
       "nl",
-      "sv"
+      "sv",
+      "da"
     ]
   },
   "testLocales": [

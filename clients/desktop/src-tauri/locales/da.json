@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "Vælg en downloadmappe",
+  "dialog.settings-save.body": "JSTorrent kunne ikke gemme indstillingen Kør i baggrunden. Den tidligere indstilling er stadig aktiv.",
+  "dialog.settings-save.title": "JSTorrent-indstillingen blev ikke gemt",
+  "dialog.shutdown.body": "JSTorrent kunne ikke afslutte nedlukningen. Dine data blev ikke tvangslukket. Se diagnoseloggen, før du prøver igen.",
+  "dialog.shutdown.title": "JSTorrent kunne ikke afsluttes",
+  "dialog.torrent-list-export.title": "Eksportér torrentliste",
+  "dialog.torrent-list-import.title": "Importér torrentliste",
+  "dialog.torrent-list.filter": "Torrentliste",
+  "notification.download-complete.body": "{name} er downloadet.",
+  "notification.download-complete.title": "Download fuldført",
+  "notification.needs-attention.body": "{name} kræver din opmærksomhed. Åbn JSTorrent for at se flere oplysninger.",
+  "notification.needs-attention.title": "Download kræver din opmærksomhed",
+  "notification.open": "Åbn JSTorrent",
+  "notification.unnamed-torrent": "Torrent",
+  "power.active-transfer-reason": "JSTorrent downloader eller kontrollerer data",
+  "tray.check-updates": "Søg efter opdateringer",
+  "tray.quit": "Afslut JSTorrent",
+  "tray.run-in-background": "Kør i baggrunden",
+  "tray.show": "Vis JSTorrent",
+  "tray.tooltip": "JSTorrent"
+}
