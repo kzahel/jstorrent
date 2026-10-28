@@ -212,7 +212,8 @@ python3 scripts/localization-codex.py status \
   --work-dir .local/translations/fr/web-run
 ```
 
-It requires an existing local ChatGPT CLI login and never selects a YA pool or
+The direct runner currently supports macOS/Linux process ownership. It requires
+an existing local ChatGPT CLI login and never selects a YA pool or
 API-key provider. Personal configuration is ignored for these workers; the
 model, reasoning, standard service tier and permission settings are explicit.
 Actual rollout metadata must match before accepting any response. Configuration

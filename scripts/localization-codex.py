@@ -11,8 +11,12 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
+
+if os.name == "posix":
+    import fcntl
 
 _SPEC = importlib.util.spec_from_file_location("localization_ya_shared", Path(__file__).with_name("localization-ya.py"))
 shared = importlib.util.module_from_spec(_SPEC)
@@ -34,6 +38,8 @@ def command(settings, last_message):
 
 
 def alive(pid):
+    if os.name != "posix":
+        raise ValueError("process liveness checks require POSIX")
     try:
         os.kill(pid, 0)
         return True
@@ -43,27 +49,42 @@ def alive(pid):
         return True
 
 
+def lock_owner(path):
+    """The kernel releases ownership on exit; never unlink a live lock inode."""
+    descriptor = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
+    handle = os.fdopen(descriptor, "r+")
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        handle.seek(0)
+        handle.truncate()
+        handle.write(str(os.getpid()))
+        handle.flush()
+        return handle
+    except BlockingIOError as error:
+        handle.close()
+        raise ValueError("another runner owns this platform/locale; stop that owner first") from error
+    except BaseException:
+        handle.close()
+        raise
+
+
 def stop(process):
-    if process.poll() is None:
-        if os.name == "nt":
-            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], check=False,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        else:
-            try:
-                os.killpg(process.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            if os.name != "nt":
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-            else:
-                process.kill()
-            process.wait(timeout=5)
+    # The CLI can exit before a child, and a child can ignore SIGTERM. Finish
+    # the whole owned group even when the direct child's wait already returned.
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        process.wait(timeout=5)
+        return
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait(timeout=5)
 
 
 def events(path):
@@ -136,6 +157,8 @@ def run(args):
         state = shared.read_json(state_path)
         print(json.dumps({"workers": [{k: w.get(k) for k in ("phase", "index", "status", "sessionId")} for w in state["workers"]], "imported": len(state["imported"])}))
         return
+    if os.name != "posix":
+        raise ValueError("local Codex worker ownership currently requires macOS/Linux process groups")
     executable = shutil.which(args.codex)
     if executable is None:
         raise ValueError("Codex CLI is not installed")
@@ -151,13 +174,7 @@ def run(args):
         raise ValueError("resume settings/source jobs changed; use a new work directory")
     lock = ROOT / ".local/localization-codex-locks" / f"{args.platform}-{args.locale}.lock"
     lock.parent.mkdir(parents=True, exist_ok=True)
-    if lock.exists():
-        if alive(int(lock.read_text())):
-            raise ValueError("another runner owns this platform/locale; stop that owner first")
-        lock.unlink()
-    descriptor = os.open(lock, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, "w") as output:
-        output.write(str(os.getpid()))
+    ownership = lock_owner(lock)
     active = {}
     def worker_for(phase, index):
         return next((w for w in reversed(state["workers"]) if w["phase"] == phase and w["index"] == index and w["status"] in ("running", "complete")), None)
@@ -181,6 +198,7 @@ def run(args):
                 if process.poll() is None:
                     continue
                 process.wait()
+                stop(process)
                 for handle in handles:
                     handle.close()
                 if process.returncode != 0:
@@ -203,25 +221,25 @@ def run(args):
                     if phase == "review":
                         verify_completed(translator)
                     candidates = list(map(Path, translator["outputs"])) if phase == "review" else []
-                    directory = work / f"{phase}-{index + 1}-{len(state['workers']) + 1}"
-                    directory.mkdir()
+                    directory = Path(tempfile.mkdtemp(prefix=f"{phase}-{index + 1}-", dir=work))
                     outputs = [directory / Path(j["path"]).name for j in group]
                     log, error = directory / "events.jsonl", directory / "stderr.log"
                     prompt = shared.worker_prompt(phase, args.platform, args.locale, group, outputs, candidates)
                     (directory / "prompt.txt").write_text(prompt, encoding="utf-8")
+                    candidate_hashes = {str(p): shared.fingerprint(p) for p in candidates}
+                    worker = {"phase": phase, "index": index, "jobs": group, "outputs": list(map(str, outputs)),
+                              "candidates": candidate_hashes, "log": str(log), "stderr": str(error),
+                              "startedAt": time.time(), "status": "running"}
                     handles = [log.open("wb"), error.open("wb")]
-                    kwargs = {"start_new_session": True} if os.name != "nt" else {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
                     try:
-                        process = subprocess.Popen(command(settings, directory / "last-message.txt"), cwd=ROOT, stdin=subprocess.PIPE, stdout=handles[0], stderr=handles[1], **kwargs)
+                        process = subprocess.Popen(command(settings, directory / "last-message.txt"), cwd=ROOT, stdin=subprocess.PIPE, stdout=handles[0], stderr=handles[1], start_new_session=True)
                     except BaseException:
                         for handle in handles:
                             handle.close()
                         raise
-                    worker = {"phase": phase, "index": index, "jobs": group, "outputs": list(map(str, outputs)),
-                              "candidates": {str(p): shared.fingerprint(p) for p in candidates}, "log": str(log), "stderr": str(error),
-                              "pid": process.pid, "startedAt": time.time(), "status": "running"}
-                    state["workers"].append(worker)
+                    worker["pid"] = process.pid
                     active[(phase, index)] = process, handles, worker
+                    state["workers"].append(worker)
                     shared.save(state_path, state)
                     process.stdin.write(prompt.encode("utf-8"))
                     process.stdin.close()
@@ -241,7 +259,7 @@ def run(args):
             worker["status"] = "cancelled"
         if active:
             shared.save(state_path, state)
-        lock.unlink(missing_ok=True)
+        ownership.close()
 
 
 def main(argv=None):

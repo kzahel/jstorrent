@@ -93,6 +93,45 @@ class CodexTranslationTest(unittest.TestCase):
         self.assertIsNotNone(process.returncode)
         self.assertFalse(runner.alive(process.pid))
 
+    @unittest.skipIf(os.name != "posix", "POSIX process-group assertion")
+    def test_cancellation_kills_descendant_even_after_group_leader_exits(self):
+        ready = self.root / "child-ready"
+        child = "import signal,time,sys; from pathlib import Path; signal.signal(signal.SIGTERM,signal.SIG_IGN); Path(sys.argv[1]).touch(); time.sleep(60)"
+        parent = ("import subprocess,sys,time; from pathlib import Path; "
+                  f"p=subprocess.Popen([sys.executable,'-c',{child!r},{str(ready)!r}],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); "
+                  f"\nwhile not Path({str(ready)!r}).exists(): time.sleep(0.01)\nprint(p.pid,flush=True)")
+        process = subprocess.Popen([sys.executable, "-c", parent], start_new_session=True, stdout=subprocess.PIPE, text=True)
+        try:
+            output, _ = process.communicate(timeout=5)
+            child_pid = int(output.strip())
+            self.assertTrue(runner.alive(child_pid))
+            runner.stop(process)
+            # Orphaned zombies may await the OS reaper; no descendant may keep
+            # running or writing after cancellation has returned.
+            status = subprocess.run(["ps", "-p", str(child_pid), "-o", "stat="], text=True, capture_output=True).stdout.strip()
+            self.assertTrue(not status or status.startswith("Z"), status)
+        finally:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=5)
+
+    @unittest.skipIf(os.name != "posix", "kernel advisory lock")
+    def test_kernel_lock_excludes_second_owner_and_recovers_after_close(self):
+        lock = self.root / "owner.lock"
+        lock.write_text("stale diagnostic pid")
+        first = runner.lock_owner(lock)
+        try:
+            inode = lock.stat().st_ino
+            with self.assertRaisesRegex(ValueError, "another runner owns"):
+                runner.lock_owner(lock)
+            self.assertEqual(inode, lock.stat().st_ino)
+        finally:
+            first.close()
+        with runner.lock_owner(lock):
+            self.assertEqual(inode, lock.stat().st_ino)
+
     @unittest.skipIf(os.name == "nt", "fake executable uses a POSIX shebang")
     def test_real_process_scheduler_reviews_and_resumes_without_new_workers(self):
         jobs = self.root / "jobs"
@@ -128,6 +167,13 @@ print(json.dumps({'type':'turn.completed'}))
             self.assertEqual(set(runner.shared.read_json(Path(job['path']))['resources']), set(runner.shared.read_json(response)['resources']))
         with patch.object(runner, "ROOT", self.root), patch.dict(os.environ, {"CODEX_HOME": self.settings['codexHome']}), \
              patch.object(runner.shared, "validate_jobs"), patch.object(runner.shared, "validate", side_effect=validate):
+            original_popen = subprocess.Popen
+            def fail_launch(argv, *positional, **kwargs):
+                if argv[1] == "exec":
+                    raise OSError("injected worker launch failure")
+                return original_popen(argv, *positional, **kwargs)
+            with patch.object(runner.subprocess, "Popen", side_effect=fail_launch), self.assertRaisesRegex(OSError, "injected"):
+                runner.run(args)
             runner.run(args)
             state = runner.shared.read_json(args.work_dir / 'state.json')
             self.assertEqual(4, len(state['workers']))
@@ -138,7 +184,8 @@ print(json.dumps({'type':'turn.completed'}))
             runner.shared.save(Path(state['workers'][-1]['outputs'][0]), {'mutated':'review'})
             with self.assertRaises(ValueError):
                 runner.run(args)
-            self.assertFalse((self.root/'.local/localization-codex-locks/web-fr.lock').exists())
+            with runner.lock_owner(self.root/'.local/localization-codex-locks/web-fr.lock'):
+                pass
 
     def test_import_rechecks_all_outputs_and_separate_review_before_writing(self):
         workers = {("translate", 0): {"sessionId": "translator", "actualModel": "sol", "outputs": ["t"]},
