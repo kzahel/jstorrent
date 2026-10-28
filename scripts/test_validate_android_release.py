@@ -70,6 +70,14 @@ class ArtifactTests(unittest.TestCase):
                 with self.assertRaises(AssertionError):
                     validator.check_application_labels(apk, bundle, names)
 
+    def test_shipping_languages_stay_in_base_apks_for_offline_picker(self):
+        validator.check_language_packaging({'optimizations': {'splitsConfig': {'splitDimension': [
+            {'value': 'ABI', 'negate': False}, {'value': 'LANGUAGE', 'negate': True},
+        ]}}})
+        for dimensions in ([], [{'value': 'LANGUAGE'}], [{'value': 'LANGUAGE', 'negate': False}]):
+            with self.subTest(dimensions=dimensions), self.assertRaises(AssertionError):
+                validator.check_language_packaging({'optimizations': {'splitsConfig': {'splitDimension': dimensions}}})
+
 
 if __name__ == '__main__':
     unittest.main()

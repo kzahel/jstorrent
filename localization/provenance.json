@@ -40,7 +40,6 @@
       "license": "MIT",
       "reviewState": "agent-reviewed",
       "reviewer": "Independent translation review sessions; see localization/android/de.json",
-      "model": "claude-opus-5-5",
       "distribution": "debug-preview"
     },
     {
@@ -61,6 +60,48 @@
       "reviewer": "Independent translation review sessions; see localization/desktop/de.json",
       "model": "claude-opus-5-5",
       "distribution": "debug-preview"
+    },
+    {
+      "locale": "fr",
+      "platform": "android",
+      "source": "Independently authored translations of the first-party English android catalog",
+      "license": "MIT",
+      "reviewState": "agent-reviewed",
+      "reviewer": "Independent translation review sessions; see localization/android/fr.json",
+      "model": "gpt-6.1-sol",
+      "distribution": "release",
+      "reasoningEffort": "high",
+      "serviceTier": "normal",
+      "permissionMode": "bypassPermissions",
+      "execution": "local ChatGPT Codex CLI"
+    },
+    {
+      "locale": "fr",
+      "platform": "desktop",
+      "source": "Independently authored translations of the first-party English desktop catalog",
+      "license": "MIT",
+      "reviewState": "agent-reviewed",
+      "reviewer": "Independent translation review sessions; see localization/desktop/fr.json",
+      "model": "gpt-6.1-sol",
+      "distribution": "release",
+      "reasoningEffort": "high",
+      "serviceTier": "normal",
+      "permissionMode": "bypassPermissions",
+      "execution": "local ChatGPT Codex CLI"
+    },
+    {
+      "locale": "fr",
+      "platform": "web",
+      "source": "Independently authored translations of the first-party English web catalog",
+      "license": "MIT",
+      "reviewState": "agent-reviewed",
+      "reviewer": "Independent translation review sessions; see localization/web/fr.json",
+      "model": "gpt-6.1-sol",
+      "distribution": "release",
+      "reasoningEffort": "high",
+      "serviceTier": "normal",
+      "permissionMode": "bypassPermissions",
+      "execution": "local ChatGPT Codex CLI"
     }
   ]
 }

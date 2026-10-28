@@ -1903,7 +1903,7 @@ private fun ProductNavHost(
                             ),
                         )
                         if (!deleteFolderData) {
-                            Text(pluralStringResource(R.plurals.remove_folder_torrents_wait, using.size))
+                            Text(stringResource(R.string.remove_folder_torrents_wait))
                         }
                         if (archived > 0) {
                             Text(

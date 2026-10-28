@@ -165,6 +165,13 @@ fallback. Google Play App Signing manages the distribution signing key;
 the upload key authenticates uploaded bundles. A directly installed APK may
 therefore have a different signing identity from the Play-installed app.
 
+Shipping language catalogs are included in every base APK: the in-app picker
+can switch languages offline independently of the system language, including
+on pre-Android-13 devices. `android.bundle.language.enableSplit` is disabled,
+following the [Android bundle guidance](https://developer.android.com/guide/app-bundle/configure-base#handling_language_changes),
+and the artifact validator checks the actual bundle configuration. This adds
+catalog resources to each install without a Play language-download dependency.
+
 ## Publish To Play
 
 Tactical [382](tactical/382-android-play-publication-and-rollout.md) owns the

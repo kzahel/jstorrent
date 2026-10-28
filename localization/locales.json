@@ -3,19 +3,43 @@
   "sourceLocale": "en",
   "fallbackLocale": "en",
   "localeDefinitions": {
-    "en": { "direction": "ltr" },
-    "de": { "direction": "ltr" }
+    "en": {
+      "direction": "ltr"
+    },
+    "de": {
+      "direction": "ltr"
+    },
+    "fr": {
+      "direction": "ltr"
+    }
   },
   "supportedLocales": {
-    "web": ["en"],
-    "desktop": ["en"],
-    "android": ["en"],
-    "ios": ["en"]
+    "web": [
+      "en",
+      "fr"
+    ],
+    "desktop": [
+      "en",
+      "fr"
+    ],
+    "android": [
+      "en",
+      "fr"
+    ],
+    "ios": [
+      "en"
+    ]
   },
   "previewLocales": {
-    "web": ["de"],
-    "desktop": ["de"],
-    "android": ["de"]
+    "web": [
+      "de"
+    ],
+    "desktop": [
+      "de"
+    ],
+    "android": [
+      "de"
+    ]
   },
   "testLocales": [
     {

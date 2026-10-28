@@ -21,7 +21,7 @@ Both desktop launchers enable the registered development previews for the React
 build and native compile together. Native preview catalogs require debug
 assertions and `VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1` at compile time. Without
 that flag, direct Cargo builds offer configured shipping locales (currently
-English). Release builds exclude previews even with the flag. System language
+English and French). Release builds exclude previews even with the flag. System language
 remains the default; Settings → Appearance offers a local override.
 
 For macOS extension testing, use the separate lightweight bundle launcher:
@@ -75,6 +75,10 @@ content is covered separately:
 ```bash
 VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1 cargo run -p rstorrent-desktop --example desktop_locale_smoke
 ```
+
+Pass `-- fr` after the example name to exercise actual French native menus and
+message templates. The example defaults to the German preview. The Android
+matrix accepts `--locale fr` for its actual-language switching and layout tests.
 
 Mac and Windows desktop start with incoming connections and automatic port
 forwarding off,

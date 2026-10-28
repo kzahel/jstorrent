@@ -14,6 +14,8 @@ function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "jst web locales "));
   fixtures.push(root);
   const registry = JSON.parse(fs.readFileSync(path.join(repositoryRoot, "localization/locales.json"), "utf8"));
+  // Synthetic preview cases stay independent of product shipping languages.
+  for (const platform of Object.keys(registry.supportedLocales)) registry.supportedLocales[platform] = ["en"];
   registry.previewLocales.web = ["fr", "fr-CA", "ar-EG"];
   registry.previewLocales.desktop = [];
   Object.assign(registry.localeDefinitions, { fr: { direction: "ltr" }, "fr-CA": { direction: "ltr" }, "ar-EG": { direction: "rtl" } });

@@ -4344,12 +4344,12 @@
     "remove_folder_torrents_wait": {
       "origin": "independently authored translation",
       "reviewState": "agent-reviewed",
-      "reviewer": "claude-opus-5-5/42ec701d-41a8-4e6e-9a62-7420cf4a007e",
-      "sourceHash": "7afc77308315fc620ac82180c3987daf9586b98711aae98279d4a056c905ed65",
-      "terminologyHash": "35236207eaa8ed0f8d4abe45b9c535fc08c45a98aa494c79e1dcda1a8f636d7f",
-      "terminologyReviewer": "claude-opus-5-5/03860bba-a295-4335-bea2-479bd1c18ac2",
-      "translationHash": "92b811c1d57a7f8fae9a4a424942eb5f049835619c0979903f34ce79f1e0d488",
-      "translator": "claude-opus-5-5/aa0e98fd-0162-41bd-9e12-135e9fefeb04"
+      "reviewer": "gpt-6.1-sol/01a1839a-c68e-79c0-b92a-8c69f668372c",
+      "sourceHash": "a85684941dd795741e5f5a34b1fa9549838ec64e43ec1a3af614954e70686ebf",
+      "terminologyHash": "f63bc812946b89d211319fedfb682204e7fec5c4ca2387ae851d84e87626ce7b",
+      "terminologyReviewer": "gpt-6.1-sol/01a1839a-c68e-79c0-b92a-8c69f668372c",
+      "translationHash": "80fe07dd2579e0983347477acc6f41adbd1a134a4766d93047481acac8ba81b4",
+      "translator": "gpt-6.1-sol/01a1839a-7fb5-7753-93d4-e7d9bbd0127e"
     },
     "remove_torrent_detail": {
       "origin": "independently authored translation",

@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "locale": "fr",
+  "register": "Use concise, natural, neutral French suitable across francophone regions. Prefer infinitive action labels and neutral sentences; use vous/votre consistently whenever addressing the user, never tu. Use natural French punctuation and typographic apostrophes without altering argument syntax. Keep JSTorrent, user-provided names, paths, hashes and protocol identifiers unchanged. Inflect preferred terms naturally for grammatical context. Distinguish removing a torrent from deleting its downloaded files, and app data from downloaded content. Use target-language plural rules, including French zero/one and million cases; do not copy German or English branches blindly.",
+  "terms": {
+    "torrent": {
+      "sourceTerms": [
+        "torrent",
+        "torrents"
+      ],
+      "preferred": "torrent / torrents",
+      "meaning": "A transfer may download, seed, be paused or fetch metadata; do not replace every occurrence with Download."
+    },
+    "peer": {
+      "sourceTerms": [
+        "peer",
+        "peers"
+      ],
+      "preferred": "pair / pairs",
+      "meaning": "Another BitTorrent participant."
+    },
+    "tracker": {
+      "sourceTerms": [
+        "tracker",
+        "trackers"
+      ],
+      "preferred": "tracker / trackers",
+      "meaning": "A service introducing peers, not a data server."
+    },
+    "remove": {
+      "sourceTerms": [
+        "remove",
+        "removes",
+        "removed",
+        "removing"
+      ],
+      "preferred": "Retirer",
+      "meaning": "Removing a torrent preserves downloaded data unless deletion is explicitly selected. Never conflate this with deleting files."
+    },
+    "delete_data": {
+      "sourceTerms": [
+        "delete data",
+        "delete downloaded",
+        "delete files",
+        "deleting files"
+      ],
+      "preferred": "Supprimer les données",
+      "meaning": "Deletes the torrent's downloaded files after explicit confirmation; preserve the consequence."
+    },
+    "download_folder": {
+      "sourceTerms": [
+        "download folder",
+        "download folders",
+        "download root",
+        "download directory"
+      ],
+      "preferred": "Dossier de téléchargement",
+      "meaning": "User-selected folder used to store downloads. Keep wording consistent across Android and the shared React UI."
+    },
+    "share_link": {
+      "sourceTerms": [
+        "share link",
+        "share links"
+      ],
+      "preferred": "Lien de partage",
+      "meaning": "JSTorrent's share link, distinct from a magnet link."
+    },
+    "magnet_link": {
+      "sourceTerms": [
+        "magnet link",
+        "magnet links"
+      ],
+      "preferred": "Lien magnet",
+      "meaning": "A BitTorrent magnet URI."
+    },
+    "checking": {
+      "sourceTerms": [
+        "checking",
+        "recheck",
+        "rechecking",
+        "force recheck"
+      ],
+      "preferred": "Vérifier / Vérification en cours",
+      "meaning": "Hash verification in progress, not completion. Checking for updates is a different context and may use Rechercher des mises à jour."
+    },
+    "verified": {
+      "sourceTerms": [
+        "verified",
+        "unverified",
+        "verifying"
+      ],
+      "preferred": "Vérifié / Non vérifié",
+      "meaning": "Distinguish verified data from the checking-in-progress state; inflect naturally."
+    },
+    "completed": {
+      "sourceTerms": [
+        "complete",
+        "completed"
+      ],
+      "preferred": "Terminé",
+      "meaning": "All selected data is verified. A torrent may still seed. A download-complete notification can naturally say Le téléchargement est terminé."
+    },
+    "done_button": {
+      "sourceTerms": [
+        "Done"
+      ],
+      "preferred": "Terminé",
+      "meaning": "A button dismissing or completing a dialog. Translate naturally in context; do not confuse the button with the transfer completion fact."
+    },
+    "archive": {
+      "sourceTerms": [
+        "archive",
+        "archived",
+        "archiving"
+      ],
+      "preferred": "Archiver / Archivé / Archives",
+      "meaning": "Retains a paused torrent in Archived; not deletion."
+    },
+    "restore": {
+      "sourceTerms": [
+        "restore",
+        "restored",
+        "restoring"
+      ],
+      "preferred": "Restaurer",
+      "meaning": "For archived torrents, return them from Archived. Distinguish file repair, settings reset and backup restoration when context differs."
+    },
+    "paused": {
+      "sourceTerms": [
+        "paused",
+        "pause"
+      ],
+      "preferred": "En pause / Mettre en pause",
+      "meaning": "Torrent is retained and ordinary transfer work is stopped."
+    },
+    "resume": {
+      "sourceTerms": [
+        "resume",
+        "resuming"
+      ],
+      "preferred": "Reprendre",
+      "meaning": "Resume a retained paused transfer; use Démarrer only when the action actually starts a new operation."
+    },
+    "seeding": {
+      "sourceTerms": [
+        "seeding",
+        "seed"
+      ],
+      "preferred": "Partage / Partager",
+      "meaning": "Uploading verified completed data. Use Partage for the transfer state and Partager for the action, without conflating with sharing a link."
+    },
+    "share_ratio": {
+      "sourceTerms": [
+        "share ratio"
+      ],
+      "preferred": "Ratio de partage",
+      "meaning": "Uploaded divided by downloaded bytes, not a percentage."
+    },
+    "wifi_only": {
+      "sourceTerms": [
+        "Wi-Fi only",
+        "metered",
+        "unmetered"
+      ],
+      "preferred": "Wi-Fi uniquement / connexion facturée",
+      "meaning": "Preserve network-cost policy semantics. Do not promise all Wi-Fi is unmetered or free."
+    }
+  }
+}

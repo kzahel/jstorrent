@@ -28,7 +28,7 @@ describe("local presentation language preferences", () => {
     const runtime = await import("./runtime");
     await runtime.initializeLocalization();
     expect(runtime.languagePreferenceSnapshot()).toBe("system");
-    expect(runtime.availableProductLanguages()).toEqual(["en"]);
+    expect(runtime.availableProductLanguages()).toEqual(["en", "fr"]);
     expect(runtime.currentLocale()).toBe("en");
     expect(localStorage.getItem(KEY)).toBe("unknown-future-language");
     expect(localStorage.getItem("unrelated-preference")).toBe("keep-me");
@@ -87,7 +87,7 @@ it("negotiates German System language, refreshes formatters and shell, and keeps
   const runtime = await import("./runtime");
   await runtime.initializeLocalization();
   expect(runtime.currentLocale()).toBe("de");
-  expect(runtime.availableProductLanguages()).toEqual(["en", "de"]);
+  expect(runtime.availableProductLanguages()).toEqual(["en", "fr", "de"]);
   expect(runtime.message("localization.language.title")).toBe("Sprache");
   expect(runtime.formatNumber(1234.5)).toBe("1.234,5");
   expect(runtime.formatList(["TCP", "uTP"])).toContain("und");

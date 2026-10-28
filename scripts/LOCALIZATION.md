@@ -16,10 +16,12 @@ before using the React adapter. Nothing fetches catalogs at application runtime.
 provides direction for canonical locale tags; each platform's `supportedLocales`
 and `previewLocales` lists decide what is available. Defining a locale does not
 by itself enable it. Native desktop shipping locales must also ship in React;
-native previews require matching React registration. Current product support
-remains English, with German previews only.
+native previews require matching React registration. React, native desktop and
+Android release inputs support English and French; German remains a preview.
+iOS remains English-only.
 
-For French (or another language), land one complete locale cohort:
+For another language, land one complete locale cohort (French is the completed
+example):
 
 1. Add its canonical tag and `direction` (`ltr` or `rtl`) to
    `localeDefinitions`. Regional/script tags such as `fr-CA` are supported;
@@ -73,6 +75,9 @@ lists, remove the corresponding preview entries, mark provenance as `release`,
 and move Android resources/configuration to release inputs. Validate those
 release packages and fallback behavior. Preview provenance cannot silently
 qualify a shipping locale; changing the preview build flag does not ship one.
+Android ships every supported language in the base APK so its picker works
+offline, including before Android 13; the release validator checks that language
+splitting is disabled in the actual bundle configuration.
 
 ## Source snapshots and shared terminology
 

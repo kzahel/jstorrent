@@ -5,8 +5,9 @@ translated Android XML are the text authorities; per-message sidecars under
 `localization/android/` record source/translation fingerprints and review
 provenance. JSON jobs are exchange files, not runtime catalogs.
 
-The initial German catalog is a debug-only preview. Its destination and plural
-categories are configured in `localization/android/locales.json`. Adding a
+French is a shipping catalog under `src/main/res/values-fr`; German remains a
+debug-only preview. Destinations and plural categories are configured in
+`localization/android/locales.json`. Adding a
 language here does not qualify it for release or advertise it in the picker.
 Keep that configuration aligned with the repository locale manifest.
 
@@ -118,3 +119,11 @@ lint after import. Generic XML/format validation does not replace Android
 compilation, runtime language/notification tests or review of the rendered UI.
 No upstream translation is imported automatically; origin/license evidence
 is required before any future borrowed-string importer is added.
+
+French uses `one`, `many` and `other`. Native tests exercise zero, one, two and
+one million on the owned API 28/35 matrix. A count-free explanation should be a
+complete string rather than a pronoun-only plural: French `one` includes zero
+and one, and Android lint correctly flags an implied unique quantity.
+The in-app picker is qualified with `run-localization-matrix.py --locale fr`;
+the same argument can qualify future locales. All shipping catalogs stay in
+the base APK, with no on-demand language-download dependency.

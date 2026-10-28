@@ -20,7 +20,8 @@ afterEach(() => {
 describe("product locale selection", () => {
   it("uses canonical English matches and falls back to English", () => {
     expect(resolveProductLocale(["de-DE", "en-GB"])).toBe("en");
-    expect(resolveProductLocale(["not a locale", "fr"])).toBe("en");
+    expect(resolveProductLocale(["not a locale", "zz"])).toBe("en");
+    expect(resolveProductLocale(["fr-CA", "en"])).toBe("fr");
   });
 
   it("keeps pseudo-locales behind the test gate", () => {
@@ -47,5 +48,18 @@ describe("product locale selection", () => {
     expect(formatDate(new Date("2026-08-31T12:00:00Z"), { timeZone: "UTC", year: "numeric" }))
       .toContain("2026");
     expect(formatList(["TCP", "uTP"])).toContain("and");
+  });
+
+  it("ships French formatting and zero/one/million plurals without the preview gate", () => {
+    restore = setProductLocaleForTest("fr");
+    const spaces = (value: string) => value.replace(/[\u00a0\u202f]/g, " ");
+    expect(message("common.count.peers", { count: 0 })).toBe("0 pair");
+    expect(message("common.count.peers", { count: 1 })).toBe("1 pair");
+    expect(message("common.count.peers", { count: 2 })).toBe("2 pairs");
+    expect(spaces(message("removal.title.multiple", { count: 1_000_000 })))
+      .toBe("Retirer 1 000 000 de torrents ?");
+    expect(spaces(formatNumber(1234.5))).toBe("1 234,5");
+    expect(spaces(message("updates.detail.download-progress", { percent: 0.5, size: "1,5 Mo" })))
+      .toBe("50 % · Volume téléchargé : 1,5 Mo.");
   });
 });

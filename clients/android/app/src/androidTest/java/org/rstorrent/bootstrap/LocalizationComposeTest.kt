@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import java.util.Locale
 import org.junit.Assert.assertNotEquals
 import org.junit.After
@@ -37,6 +38,29 @@ class LocalizationComposeTest {
     fun restoreActivityConfiguration() {
         val resources = compose.activity.resources
         resources.updateConfiguration(originalConfiguration, resources.displayMetrics)
+    }
+
+    @Test
+    fun actualLocaleKeepsAddDialogActionsReachable() {
+        val tag = InstrumentationRegistry.getArguments().getString("locale") ?: "de"
+        val english = localizedContext("en")
+        val context = applyActivityLocale(tag)
+        val title = context.getString(R.string.add_torrent_title)
+        val browse = context.getString(R.string.action_browse_torrent)
+        assertNotEquals(english.getString(R.string.add_torrent_title), title)
+        compose.setContent {
+            localized(context) {
+                AddTorrentDialog(
+                    enabled = true,
+                    onDismiss = {},
+                    onAddMagnet = { _, _ -> },
+                    onBrowse = {},
+                )
+            }
+        }
+        compose.onNodeWithText(title).assertIsDisplayed()
+        compose.onNodeWithText(browse).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.action_cancel)).assertIsDisplayed()
     }
 
     @Test

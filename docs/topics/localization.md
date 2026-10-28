@@ -1,15 +1,22 @@
 # Localization
 
-Tactical [387](../tactical/387-french-localization-with-local-codex.md) is
-completing French across React, native desktop and Android. The local
+Tactical [387](../tactical/387-french-localization-with-local-codex.md) adds
+complete reviewed French to release inputs for React (1,797 messages), native
+desktop (20) and Android (662 resources). English remains the source/fallback,
+German remains a preview and iOS remains English-only. The local
 `scripts/localization-codex.py` runner uses the existing ChatGPT CLI login,
 explicit model/effort, normal speed and independently verified permission
 settings. Separate sessions translate and review frozen batches; deterministic
 imports retain their actual identities. Completed outputs and imports are
 revalidated on resume, and the owner cancels and joins its worker groups.
 The maintainer selected Sol 6.1/high/normal with bypass for this campaign;
-no YA pool or external provider routing is used. French qualification and
-shipping registration are tracked in 387; this runner alone enables no locale.
+no YA pool or external provider routing is used. French platform qualification
+and exact evidence are recorded in 387; no release or store update is published.
+Android keeps all shipping catalogs in the base APK so offline language changes
+also work before Android 13. Native tests cover French zero/one/million plurals,
+notifications, recreation and retained service ownership. A formerly count-free
+plural explanation is now one complete count-neutral string, independently
+updated in French and German without suppressing lint.
 
 The October 28 extraction follow-up closes the three desktop/React gaps
 identified in Tactical 384: updater titles, version/download details and known
@@ -98,9 +105,10 @@ changing language does not restart the engine. German React assets require
 `VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1`; native desktop German requires the
 same flag at compile time plus debug assertions. Both ordinary desktop debug
 launchers pass it to the frontend and native builds together; direct Cargo
-builds without it remain English-only, matching ordinary production assets.
-System language is the default, with English fallback. Production support
-remains English; promotion and additional locales are separate work.
+builds without it offer English and French, matching ordinary production assets.
+System language is the default, with English fallback. React, desktop and
+Android release inputs support English and French; additional locales require
+their own completed review and qualification.
 The October 28 follow-up above completes the previously recorded updater,
 removal and peer-state extraction cohort. Catalog coverage does not claim that
 every possible host diagnostic or desktop sentence is translated.
@@ -109,8 +117,9 @@ Tactical [383](../tactical/383-android-translation-cohorts.md) implements
 source-aware Android translation tooling and a complete German debug preview:
 634 strings and 28 quantities, independently translated and reviewed by
 separate sessions. No third-party translations are imported. Settings →
-Language offers System language, English and Deutsch in debug; release
-resources remain English. Native locale ownership, localized notifications,
+Language initially offered System language, English and Deutsch in debug with
+English-only release resources; French is now available in both builds. Native
+locale ownership, localized notifications,
 saved settings drafts, playback position and exact decimal-comma rate input
 support switching without changing engine settings. Platform qualification
 and the requested Pixel 7a review build are recorded in 383.
@@ -271,8 +280,8 @@ no shipping locale or translation provenance changes.
 Status: **Foundation complete as of 2026-09-01.** Tactical
 [`204`](../tactical/204-cross-product-localization-foundation.md) completed
 English extraction and qualification across the shared React product, Tauri,
-Android, and iOS. English is the only supported locale. No multilingual
-product claim is currently authorized.
+Android, and iOS. The foundation was English-only; current platform language
+availability and qualification are recorded above and in the locale registry.
 
 ## Scope And Owners
 
@@ -356,7 +365,7 @@ and `ar-XB` only for tests; production builds cannot select them.
 For Android, edit
 `clients/android/app/src/main/res/values/strings.xml` and use quantities for
 count-dependent copy. Android's debug build generates platform pseudo-locales;
-release resources advertise only English. German is packaged only in the
+release resources advertise English and French. German is packaged only in the
 debug source set. Use the offline [translation workflow](../../clients/android/scripts/LOCALIZATION.md)
 to export missing/stale messages, validate independently reviewed responses,
 import corrections, check metadata and prune obsolete resources. The global
@@ -425,7 +434,7 @@ locale that falls through to raw keys or materially incomplete English.
 ## Evidence And Open Work
 
 The currently checked catalogs contain 1,797 React messages, 20 Tauri-native
-messages, 642 Android strings plus 28 quantities (eight strings are
+messages, 643 Android strings plus 27 quantities (eight strings are
 nontranslatable), 189 iOS product messages and six iOS Info.plist messages.
 The German debug catalog covers all 662 translatable Android resources.
 Tactical 204 records the foundation's exact
@@ -464,11 +473,10 @@ the checker reports 1,373 React messages. Remaining assembled English outside
 those feedback paths, such as torrent-action disabled reasons and
 confirmation prompts, is not yet extracted.
 
-A separate tactical is required to choose and ship the first real
-non-English cohort. Android replacement localization remains open until that
-cohort passes provenance, independent agent review, lifecycle, layout,
-accessibility, and release disclosure. Website, store, marketing, and support-copy
-localization remain outside this owner until explicitly planned.
+Tactical 387 completes the first shipping-input non-English cohort with French
+provenance, independent review and platform qualification. Actual release/store
+delivery remains a separate publication step. Website, store, marketing and
+support-copy localization remain outside this owner until explicitly planned.
 
 The 375 navigation synchronization passes all five UI tests in a fresh owned
 iOS 26.5 simulator under Xcode 26.6; the simulator is deleted afterward.

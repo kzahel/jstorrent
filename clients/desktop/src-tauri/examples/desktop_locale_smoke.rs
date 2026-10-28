@@ -26,16 +26,16 @@ addEventListener('DOMContentLoaded', async () => {
     const en = await invoke('smoke_locale', {preference:'en', reopen:false});
     results.push(en.snapshot.locale === 'en', en.show === 'Show JSTorrent', en.background === 'Run in Background');
     results.push(en.notification === '{name} finished downloading.', en.dialog === 'Choose a download folder');
-    const de = await invoke('smoke_locale', {preference:'de', reopen:false});
-    results.push(de.snapshot.locale === 'de', de.show !== en.show, de.background !== en.background);
-    results.push(de.notification !== en.notification && de.notification.includes('{name}'), de.dialog !== en.dialog);
+    const target = await invoke('smoke_locale', {preference:__LOCALE__, reopen:false});
+    results.push(target.snapshot.locale === __LOCALE__, target.show !== en.show, target.background !== en.background);
+    results.push(target.notification !== en.notification && target.notification.includes('{name}'), target.dialog !== en.dialog);
     const restarted = await invoke('smoke_locale', {preference:null, reopen:true});
-    results.push(restarted.snapshot.preference === 'de', restarted.snapshot.locale === 'de', restarted.show === de.show);
+    results.push(restarted.snapshot.preference === __LOCALE__, restarted.snapshot.locale === __LOCALE__, restarted.show === target.show);
     const system = await invoke('smoke_locale', {preference:'system', reopen:false});
     results.push(system.snapshot.preference === 'system', system.unknownPreserved);
     await new Promise(resolve => setTimeout(resolve, 100));
     await invoke('plugin:event|unlisten', {event:'desktop://locale-changed', eventId});
-    results.push(events.some(event => event.preference === 'de' && event.locale === 'de') && events.some(event => event.preference === 'system'));
+    results.push(events.some(event => event.preference === __LOCALE__ && event.locale === __LOCALE__) && events.some(event => event.preference === 'system'));
   } catch (error) { console.error(error); results.push(false); }
   await invoke('smoke_done', {results});
 });
@@ -117,14 +117,15 @@ fn smoke_done(app: tauri::AppHandle, results: Vec<bool>) {
 }
 
 fn main() {
+    let locale = std::env::args().nth(1).unwrap_or_else(|| "de".into());
     let probe = tempfile::tempdir().expect("create isolated locale probe");
     if !DesktopLocaleOwner::open(probe.path())
         .snapshot()
         .available_locales
-        .contains(&"de")
+        .contains(&locale.as_str())
     {
         eprintln!(
-            "German smoke requires a debug build with VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1"
+            "Locale {locale:?} is unavailable; preview locales require a debug build with VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES=1"
         );
         std::process::exit(2);
     }
@@ -135,7 +136,7 @@ fn main() {
     context.set_assets(Box::new(SmokeAssets));
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![smoke_locale, smoke_done])
-        .setup(|app| {
+        .setup(move |app| {
             let directory = tempfile::tempdir()?;
             std::fs::write(
                 directory.path().join("presentation-preferences.json"),
@@ -172,7 +173,7 @@ fn main() {
                 tauri::WebviewUrl::App("index.html".into()),
             )
             .visible(false)
-            .initialization_script(SCRIPT)
+            .initialization_script(SCRIPT.replace("__LOCALE__", &serde_json::to_string(&locale)?))
             .build()?;
             let handle = app.handle().clone();
             std::thread::spawn(move || {

@@ -11,8 +11,10 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.ServiceTestRule
 import java.util.concurrent.TimeUnit
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -32,6 +34,8 @@ class LanguageActivityRecreationTest {
     fun pickerRetainsNavigationAndLiveServiceAcrossLocaleRecreation() {
         val context: Context = ApplicationProvider.getApplicationContext()
         val originalLanguage = ProductAppLanguage.selected(context)
+        val targetLocale = InstrumentationRegistry.getArguments().getString("locale") ?: "de"
+        val targetName = Locale.forLanguageTag(targetLocale).let { it.getDisplayName(it) }
         val firstActivity = compose.activity
         compose.runOnUiThread { assertTrue(ProductAppLanguage.set(firstActivity, "en")) }
         val service = (serviceRule.bindService(Intent(context, ProductEngineService::class.java)) as ProductEngineService.LocalBinder).service
@@ -52,16 +56,16 @@ class LanguageActivityRecreationTest {
             compose.onNodeWithText(context.getString(R.string.settings_language)).performScrollTo().performClick()
             compose.onNodeWithText("English").performClick()
             val beforeChange = compose.activity
-            compose.onNodeWithText("Deutsch").performClick()
+            compose.onNodeWithText(targetName).performClick()
             compose.waitUntil(10_000) {
-                compose.activity !== beforeChange && ProductAppLanguage.selected(context) == "de"
+                compose.activity !== beforeChange && ProductAppLanguage.selected(context) == targetLocale
             }
-            compose.onNodeWithText("Deutsch").assertIsDisplayed()
+            compose.onNodeWithText(targetName).assertIsDisplayed()
             // Recreate again to distinguish a remembered override from a
             // one-off resource mutation, and verify the language page remains.
             compose.activityRule.scenario.recreate()
-            compose.onNodeWithText("Deutsch").assertIsDisplayed()
-            assertEquals("de", compose.activity.resources.configuration.locales[0].language)
+            compose.onNodeWithText(targetName).assertIsDisplayed()
+            assertEquals(targetLocale, compose.activity.resources.configuration.locales[0].language)
 
             val afterRecreation = SystemClock.elapsedRealtime()
             compose.waitUntil(5_000) {

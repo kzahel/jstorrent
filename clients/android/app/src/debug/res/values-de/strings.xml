@@ -497,10 +497,7 @@
         <item quantity="one">"%1$d Torrent verwendet diesen Ordner."</item>
         <item quantity="other">"%1$d Torrents verwenden diesen Ordner."</item>
     </plurals>
-    <plurals name="remove_folder_torrents_wait">
-        <item quantity="one">"Er wird angehalten, bis du diesen Ordner wieder auswählst."</item>
-        <item quantity="other">"Sie werden angehalten, bis du diesen Ordner wieder auswählst."</item>
-    </plurals>
+    <string name="remove_folder_torrents_wait">"Die Übertragungen werden angehalten, bis du diesen Ordner wieder auswählst."</string>
     <string name="remove_torrent_detail">"Heruntergeladene Dateien behalten oder ebenfalls löschen?"</string>
     <plurals name="remove_torrent_title">
         <item quantity="one">"Torrent entfernen?"</item>

@@ -99,6 +99,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--api", action="append", choices=["28", "35"])
     parser.add_argument("--class", dest="test_class")
+    parser.add_argument("--locale", help="Actual locale for the language switching/layout tests (default: de)")
     arguments = parser.parse_args()
     apis = arguments.api or ["28", "35"]
     abi = system_image_abi()
@@ -122,6 +123,8 @@ def main() -> int:
                     "-Pandroid.testInstrumentationRunnerArguments.class="
                     + arguments.test_class
                 )
+            if arguments.locale:
+                gradle.append("-Pandroid.testInstrumentationRunnerArguments.locale=" + arguments.locale)
             subprocess.run(
                 gradle,
                 cwd=ANDROID,

@@ -24,6 +24,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class LanguageSelectionInstrumentationTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
+    private val targetLocale = InstrumentationRegistry.getArguments().getString("locale") ?: "de"
 
     @Test
     fun overrideAndSystemResetReachApplicationAndNotificationResources() {
@@ -35,21 +36,21 @@ class LanguageSelectionInstrumentationTest {
             coordinator.initialize(0)
             val english = context.getString(R.string.notification_ready)
 
-            select("de")
-            val german = resourcesFor("de")
-            await { context.getString(R.string.notification_ready) == german.getString(R.string.notification_ready) }
-            assertEquals("de", ProductAppLanguage.selected(context))
-            assertEquals("de", Locale.getDefault().language)
+            select(targetLocale)
+            val translated = resourcesFor(targetLocale)
+            await { context.getString(R.string.notification_ready) == translated.getString(R.string.notification_ready) }
+            assertEquals(targetLocale, ProductAppLanguage.selected(context))
+            assertEquals(targetLocale, Locale.getDefault().language)
             assertFalse(english == context.getString(R.string.notification_ready))
             // The existing coordinator must see the new locale, not a cached
             // application/service context selected when it was constructed.
             val notification = coordinator.ongoingNotification(context.getString(R.string.notification_ready))
-            assertEquals(german.getString(R.string.notification_ready), notification.extras.getString(Notification.EXTRA_TEXT))
-            assertEquals(german.getString(R.string.action_stop), notification.actions.single().title)
+            assertEquals(translated.getString(R.string.notification_ready), notification.extras.getString(Notification.EXTRA_TEXT))
+            assertEquals(translated.getString(R.string.action_stop), notification.actions.single().title)
             coordinator.onLocaleChanged()
             val channel = context.getSystemService(NotificationManager::class.java)
                 .getNotificationChannel(AndroidNotificationContract.BACKGROUND_CHANNEL_ID)
-            assertEquals(german.getString(R.string.notification_channel_background), channel.name)
+            assertEquals(translated.getString(R.string.notification_channel_background), channel.name)
 
             select("")
             assertEquals("", ProductAppLanguage.selected(context))
@@ -66,7 +67,7 @@ class LanguageSelectionInstrumentationTest {
     @androidx.test.filters.SdkSuppress(minSdkVersion = 33)
     fun androidSystemAppLanguageAndPickerUseTheSameOwner() {
         assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-        PlatformLanguageChecks(context, ::select, ::await).androidSystemAppLanguageAndPickerUseTheSameOwner()
+        PlatformLanguageChecks(context, ::select, ::await).androidSystemAppLanguageAndPickerUseTheSameOwner(targetLocale)
     }
 
     @Test
@@ -103,14 +104,14 @@ private class PlatformLanguageChecks(
     private val select: (String) -> Unit,
     private val await: (() -> Boolean) -> Unit,
 ) {
-    fun androidSystemAppLanguageAndPickerUseTheSameOwner() {
+    fun androidSystemAppLanguageAndPickerUseTheSameOwner(targetLocale: String) {
         val manager = context.getSystemService(LocaleManager::class.java)
         val original = manager.applicationLocales
         try {
             InstrumentationRegistry.getInstrumentation().runOnMainSync {
-                manager.applicationLocales = LocaleList.forLanguageTags("de")
+                manager.applicationLocales = LocaleList.forLanguageTags(targetLocale)
             }
-            await { ProductAppLanguage.selected(context) == "de" }
+            await { ProductAppLanguage.selected(context) == targetLocale }
             select("en")
             assertEquals("en", manager.applicationLocales[0].language)
             select("")
@@ -118,7 +119,7 @@ private class PlatformLanguageChecks(
             // Clearing System must also clear an override no longer offered by
             // this build, rather than comparing only its displayed fallback.
             InstrumentationRegistry.getInstrumentation().runOnMainSync {
-                manager.applicationLocales = LocaleList.forLanguageTags("fr")
+                manager.applicationLocales = LocaleList.forLanguageTags("zz")
             }
             select("")
             assertTrue(manager.applicationLocales.isEmpty)

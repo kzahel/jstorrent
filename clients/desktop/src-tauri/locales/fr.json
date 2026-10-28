@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "Choisir un dossier de téléchargement",
+  "dialog.settings-save.body": "JSTorrent n’a pas pu enregistrer le paramètre « Exécuter en arrière-plan ». Le paramètre précédent reste actif.",
+  "dialog.settings-save.title": "Le paramètre de JSTorrent n’a pas été enregistré",
+  "dialog.shutdown.body": "JSTorrent n’a pas pu terminer son arrêt. La fermeture de vos données n’a pas été forcée. Consultez le journal de diagnostic avant de réessayer.",
+  "dialog.shutdown.title": "Impossible de quitter JSTorrent",
+  "dialog.torrent-list-export.title": "Exporter la liste des torrents",
+  "dialog.torrent-list-import.title": "Importer une liste de torrents",
+  "dialog.torrent-list.filter": "Liste de torrents",
+  "notification.download-complete.body": "Le téléchargement de {name} est terminé.",
+  "notification.download-complete.title": "Téléchargement terminé",
+  "notification.needs-attention.body": "{name} nécessite votre attention. Ouvrez JSTorrent pour en savoir plus.",
+  "notification.needs-attention.title": "Le téléchargement nécessite votre attention",
+  "notification.open": "Ouvrir JSTorrent",
+  "notification.unnamed-torrent": "Torrent",
+  "power.active-transfer-reason": "JSTorrent télécharge ou vérifie du contenu",
+  "tray.check-updates": "Rechercher des mises à jour",
+  "tray.quit": "Quitter JSTorrent",
+  "tray.run-in-background": "Exécuter en arrière-plan",
+  "tray.show": "Afficher JSTorrent",
+  "tray.tooltip": "JSTorrent"
+}

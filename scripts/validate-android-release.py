@@ -4,6 +4,7 @@ import argparse
 import base64
 import hashlib
 import importlib.util
+import json
 import os
 from pathlib import Path
 import re
@@ -78,6 +79,13 @@ def check_elf(data, name):
     assert loads, f'{name}: missing load segments'
 
 
+def check_language_packaging(config):
+    dimensions = config.get('optimizations', {}).get('splitsConfig', {}).get('splitDimension', [])
+    languages = [item for item in dimensions if item.get('value') == 'LANGUAGE']
+    assert len(languages) == 1 and languages[0].get('negate') is True, \
+        'In-app language selection requires shipping catalogs in every base APK'
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--bundletool', type=Path, required=True)
@@ -106,6 +114,7 @@ def main():
     app_name = run('java', '-jar', args.bundletool, 'dump', 'resources', f'--bundle={aab}', '--resource=string/app_name', '--values')
     check_application_labels(badging, aab_manifest, app_name)
     config = run('java', '-jar', args.bundletool, 'dump', 'config', f'--bundle={aab}')
+    check_language_packaging(json.loads(config))
     assert 'PAGE_ALIGNMENT_16K' in config, 'AAB must request 16 KiB ZIP alignment'
     run('java', '-jar', args.bundletool, 'validate', f'--bundle={aab}')
     native = []

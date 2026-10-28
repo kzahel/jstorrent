@@ -78,6 +78,14 @@ android {
         buildConfig = true
         compose = true
     }
+
+    // The in-app picker can select a different language while offline, also
+    // before Android 13. Keep every shipping catalog in the base APK.
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
 }
 
 androidComponents {

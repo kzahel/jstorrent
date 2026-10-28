@@ -21,9 +21,10 @@ class RateLimitLocalizationTest {
     @Test
     fun localizedCustomTextKeepsExactByteGeometry() {
         assertEquals("1,5", customRateText(TransferRateLimit.Limited(1536U), Locale.GERMANY))
+        assertEquals("1,5", customRateText(TransferRateLimit.Limited(1536U), Locale.FRANCE))
         assertEquals("1.5", customRateText(TransferRateLimit.Limited(1536U), Locale.US))
         listOf(1024U, 1025U, 1536U, 1_048_575U, UInt.MAX_VALUE).forEach { bytes ->
-            listOf(Locale.GERMANY, Locale.US, Locale.forLanguageTag("ar")).forEach { locale ->
+            listOf(Locale.GERMANY, Locale.FRANCE, Locale.US, Locale.forLanguageTag("ar")).forEach { locale ->
                 val limit = TransferRateLimit.Limited(bytes)
                 assertEquals(limit, parseRateLimit(customRateText(limit, locale), locale))
             }

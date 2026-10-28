@@ -38,7 +38,16 @@ SCRIPT = r"""
   const wait = async (test, description) => {
     const until = Date.now() + 20000;
     while (Date.now() < until) { if (await test()) return; await new Promise(resolve => setTimeout(resolve, 50)); }
-    throw new Error('Timed out: ' + description);
+    const active = document.activeElement;
+    const focus = {
+      tag: active?.tagName, id: active?.id, name: active?.getAttribute('name'),
+      language: active?.name === 'language' ? active.value : null,
+      documentFocused: document.hasFocus(),
+      radios: [...document.querySelectorAll('input[name="language"]')].map(control => ({
+        value:control.value, checked:control.checked, disabled:control.disabled, active:active === control,
+      })),
+    };
+    throw new Error('Timed out: ' + description + '; focus=' + JSON.stringify(focus));
   };
   const invoke = (command, args) => window.__TAURI_INTERNALS__.invoke(command, args);
   const events = [];
