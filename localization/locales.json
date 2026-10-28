@@ -23,6 +23,9 @@
     "it": {
       "direction": "ltr"
     },
+    "nl": {
+      "direction": "ltr"
+    },
     "pt-BR": {
       "direction": "ltr"
     }
@@ -40,7 +43,8 @@
       "fr",
       "es",
       "it",
-      "pt-BR"
+      "pt-BR",
+      "nl"
     ],
     "desktop": [
       "en",
@@ -48,7 +52,8 @@
       "fr",
       "es",
       "it",
-      "pt-BR"
+      "pt-BR",
+      "nl"
     ],
     "ios": [
       "en"
@@ -59,7 +64,8 @@
       "fr",
       "es",
       "it",
-      "pt-BR"
+      "pt-BR",
+      "nl"
     ]
   },
   "testLocales": [

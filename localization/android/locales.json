@@ -31,6 +31,13 @@
         "other"
       ]
     },
+    "nl": {
+      "catalog": "clients/android/app/src/main/res/values-nl/strings.xml",
+      "quantities": [
+        "one",
+        "other"
+      ]
+    },
     "pt-BR": {
       "catalog": "clients/android/app/src/main/res/values-pt-rBR/strings.xml",
       "quantities": [

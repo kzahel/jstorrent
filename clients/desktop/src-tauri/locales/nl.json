@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "Kies een downloadmap",
+  "dialog.settings-save.body": "JSTorrent kon de instelling ‘Op de achtergrond uitvoeren’ niet opslaan. De vorige instelling is nog actief.",
+  "dialog.settings-save.title": "JSTorrent-instelling is niet opgeslagen",
+  "dialog.shutdown.body": "JSTorrent kon niet volledig afsluiten. Je gegevens zijn niet geforceerd afgesloten. Controleer het diagnostische logboek voordat je het opnieuw probeert.",
+  "dialog.shutdown.title": "JSTorrent kon niet afsluiten",
+  "dialog.torrent-list-export.title": "Torrentlijst exporteren",
+  "dialog.torrent-list-import.title": "Torrentlijst importeren",
+  "dialog.torrent-list.filter": "Torrentlijst",
+  "notification.download-complete.body": "{name} is gedownload.",
+  "notification.download-complete.title": "Download voltooid",
+  "notification.needs-attention.body": "{name} heeft je aandacht nodig. Open JSTorrent voor meer informatie.",
+  "notification.needs-attention.title": "Download heeft je aandacht nodig",
+  "notification.open": "JSTorrent openen",
+  "notification.unnamed-torrent": "Torrent",
+  "power.active-transfer-reason": "JSTorrent is inhoud aan het downloaden of controleren",
+  "tray.check-updates": "Controleren op updates",
+  "tray.quit": "JSTorrent afsluiten",
+  "tray.run-in-background": "Op de achtergrond uitvoeren",
+  "tray.show": "JSTorrent weergeven",
+  "tray.tooltip": "JSTorrent"
+}

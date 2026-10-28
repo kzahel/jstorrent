@@ -1,7 +1,7 @@
 # Implementation Tactical Docs
 
 - [388 — Remaining localization campaign](388-remaining-localization-campaign.md):
-  active; 3/16 qualified; sixteen remaining locales, local Sol/high/normal/bypass workers,
+  active; 4/16 qualified; sixteen remaining locales, local Sol/high/normal/bypass workers,
   reusable qualification and overnight kickoff/resume checkpoints.
 
 - [387 — French localization with local Codex](387-french-localization-with-local-codex.md):
