@@ -30,6 +30,14 @@
         "many",
         "other"
       ]
+    },
+    "pt-BR": {
+      "catalog": "clients/android/app/src/main/res/values-pt-rBR/strings.xml",
+      "quantities": [
+        "one",
+        "many",
+        "other"
+      ]
     }
   },
   "schemaVersion": 1
