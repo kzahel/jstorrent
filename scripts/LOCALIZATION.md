@@ -20,6 +20,13 @@ native previews require matching React registration. React, native desktop and
 Android release inputs support English, German and French.
 iOS remains English-only.
 
+The supervised sixteen-locale campaign uses the
+[overnight runbook](../docs/development/localization-overnight.md).
+`python3 scripts/localization-campaign.py plan --check-env` freezes its queue
+without launching workers; `verify` and `status` provide read-only resume checks.
+The reusable `clients/web/scripts/qualify-localization.mjs` harness checks actual
+production assets for any shipping target, including its System-language probes.
+
 For another language, land one complete locale cohort (French is the completed
 example):
 

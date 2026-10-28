@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [388 — Remaining localization campaign](388-remaining-localization-campaign.md):
+  active; sixteen remaining locales, local Sol/high/normal/bypass workers,
+  reusable qualification and overnight kickoff/resume checkpoints.
+
 - [387 — French localization with local Codex](387-french-localization-with-local-codex.md):
   complete; 2,479 reviewed French resources, local Sol 6.1/high normal-speed
   workers, desktop/Android qualification and enabled release inputs.

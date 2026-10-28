@@ -45,13 +45,15 @@ test('translation-only changes run catalog and offline checks without engine bui
   for (const path of ['localization/terminology/de.json', 'localization/android/de.json',
     'clients/desktop/src-tauri/locales/de.json', 'clients/desktop/src-tauri/locales/en.comments.json',
     'clients/android/app/src/debug/res/values-de/strings.xml',
+    'clients/android/app/src/main/res/values-de/strings.xml',
     'clients/android/app/src/main/res/values/strings.xml', 'clients/android/scripts/localization.py',
     'scripts/localization.py', 'scripts/localization-ya.py', 'scripts/localization-icu.mjs',
     'scripts/translation_terms.py', 'scripts/check-localization.mjs',
     'scripts/localization-registry.mjs', 'scripts/test-localization-registry.mjs',
     'scripts/desktop-locale-smoke.py', 'scripts/test_desktop_localization_smoke.py',
     'scripts/test_shared_localization.py', 'scripts/test_localization_ya.py',
-    'scripts/localization-codex.py', 'scripts/test_localization_codex.py']) {
+    'scripts/localization-codex.py', 'scripts/test_localization_codex.py',
+    'scripts/localization-campaign.py', 'scripts/test_localization_campaign.py']) {
     const plan = planChecks([path], metadata);
     assert.equal(plan.web, true, path);
     assert.deepEqual(plan.packages, [], path);

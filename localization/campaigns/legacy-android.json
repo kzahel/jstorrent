@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 1,
+  "name": "legacy-android-parity",
+  "platforms": [
+    "web",
+    "desktop",
+    "android"
+  ],
+  "baselineLocales": [
+    "en",
+    "de",
+    "fr"
+  ],
+  "targetDistribution": "release",
+  "workerSettings": {
+    "model": "gpt-6.1-sol",
+    "effort": "high",
+    "serviceTier": "normal",
+    "permissionMode": "bypassPermissions",
+    "concurrency": 3,
+    "batchSize": 80,
+    "jobsPerWorker": 3
+  },
+  "qualification": {
+    "androidApis": [
+      28,
+      35
+    ],
+    "browserWidths": [
+      1440,
+      390
+    ],
+    "minimumFreeGiB": 10,
+    "stopBelowFreeGiB": 4,
+    "publish": false
+  },
+  "locales": [
+    {
+      "tag": "es",
+      "name": "Spanish",
+      "legacyAndroidQualifier": "es",
+      "androidQualifier": "es",
+      "direction": "ltr",
+      "register": "Use neutral international Spanish, concise infinitive action labels and polite usted when direct address is necessary; avoid region-specific slang and vosotros.",
+      "androidQuantities": [
+        "one",
+        "many",
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "es-ES",
+        "es-MX"
+      ]
+    },
+    {
+      "tag": "it",
+      "name": "Italian",
+      "legacyAndroidQualifier": "it",
+      "androidQualifier": "it",
+      "direction": "ltr",
+      "register": "Use concise natural Italian, infinitive action labels and impersonal instructions; avoid mixing tu and Lei.",
+      "androidQuantities": [
+        "one",
+        "many",
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "it-IT"
+      ]
+    },
+    {
+      "tag": "pt-BR",
+      "name": "Brazilian Portuguese",
+      "legacyAndroidQualifier": "pt-rBR",
+      "androidQualifier": "pt-rBR",
+      "direction": "ltr",
+      "register": "Use Brazilian Portuguese, concise action labels and consistent você/seu when addressing the user; use Brazilian software terminology rather than European Portuguese.",
+      "androidQuantities": [
+        "one",
+        "many",
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "pt-BR",
+        "pt-Latn-BR"
+      ]
+    },
+    {
+      "tag": "nl",
+      "name": "Dutch",
+      "legacyAndroidQualifier": "nl",
+      "androidQualifier": "nl",
+      "direction": "ltr",
+      "register": "Use concise natural Dutch and consistent je/jouw when addressing the user; use normal Dutch software terminology.",
+      "androidQuantities": [
+        "one",
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "nl-NL",
+        "nl-BE"
+      ]
+    },
+    {
+      "tag": "sv",
+      "name": "Swedish",
+      "legacyAndroidQualifier": "sv",
+      "androidQualifier": "sv",
+      "direction": "ltr",
+      "register": "Use concise natural Swedish and consistent du/din when addressing the user; keep compound words natural.",
+      "androidQuantities": [
+        "one",
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "sv-SE"
+      ]
+    },
+    {
+      "tag": "da",
+      "name": "Danish",
+      "legacyAndroidQualifier": "da",
+      "androidQualifier": "da",
+      "direction": "ltr",
+      "register": "Use concise natural Danish and consistent du/din when addressing the user; use ordinary Danish software terminology.",
+      "androidQuantities": [
+        "one",
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "da-DK"
+      ]
+    },
+    {
+      "tag": "cs",
+      "name": "Czech",
+      "legacyAndroidQualifier": "cs",
+      "androidQualifier": "cs",
+      "direction": "ltr",
+      "register": "Use natural Czech with concise action labels and polite plural vy when needed; avoid gender assumptions and preserve all target plural distinctions.",
+      "androidQuantities": [
+        "one",
+        "few",
+        "many",
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "cs-CZ"
+      ]
+    },
+    {
+      "tag": "pl",
+      "name": "Polish",
+      "legacyAndroidQualifier": "pl",
+      "androidQualifier": "pl",
+      "direction": "ltr",
+      "register": "Use natural Polish, concise conventional action labels and impersonal instructions; avoid unnecessary pronouns and gender assumptions.",
+      "androidQuantities": [
+        "one",
+        "few",
+        "many",
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "pl-PL"
+      ]
+    },
+    {
+      "tag": "ro",
+      "name": "Romanian",
+      "legacyAndroidQualifier": "ro",
+      "androidQualifier": "ro",
+      "direction": "ltr",
+      "register": "Use natural Romanian with diacritics, concise conventional action labels and impersonal instructions; use consistent polite wording when direct address is necessary.",
+      "androidQuantities": [
+        "one",
+        "few",
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "ro-RO"
+      ]
+    },
+    {
+      "tag": "ru",
+      "name": "Russian",
+      "legacyAndroidQualifier": "ru",
+      "androidQualifier": "ru",
+      "direction": "ltr",
+      "register": "Use natural Russian with concise action labels and polite lowercase вы when needed; preserve zero, singular, few and many count distinctions.",
+      "androidQuantities": [
+        "one",
+        "few",
+        "many",
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "ru-RU"
+      ]
+    },
+    {
+      "tag": "uk",
+      "name": "Ukrainian",
+      "legacyAndroidQualifier": "uk",
+      "androidQualifier": "uk",
+      "direction": "ltr",
+      "register": "Use natural Ukrainian terminology and spelling, concise action labels and polite lowercase ви when needed; avoid Russian calques.",
+      "androidQuantities": [
+        "one",
+        "few",
+        "many",
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "uk-UA"
+      ]
+    },
+    {
+      "tag": "tr",
+      "name": "Turkish",
+      "legacyAndroidQualifier": "tr",
+      "androidQualifier": "tr",
+      "direction": "ltr",
+      "register": "Use concise natural Turkish and consistent polite or impersonal instructions; respect Turkish dotted and dotless I and natural suffixes around placeholders.",
+      "androidQuantities": [
+        "one",
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "tr-TR"
+      ]
+    },
+    {
+      "tag": "ja",
+      "name": "Japanese",
+      "legacyAndroidQualifier": "ja",
+      "androidQualifier": "ja",
+      "direction": "ltr",
+      "register": "Use natural Japanese, concise conventional noun/action labels and consistent polite です/ます sentences; avoid unnecessary personal pronouns and unnatural literal loanwords.",
+      "androidQuantities": [
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "ja-JP"
+      ]
+    },
+    {
+      "tag": "ko",
+      "name": "Korean",
+      "legacyAndroidQualifier": "ko",
+      "androidQualifier": "ko",
+      "direction": "ltr",
+      "register": "Use natural Korean, concise conventional noun/action labels and consistent formal polite 합니다/하십시오 sentences; choose natural particles around placeholders.",
+      "androidQuantities": [
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "ko-KR"
+      ]
+    },
+    {
+      "tag": "zh-CN",
+      "name": "Simplified Chinese",
+      "legacyAndroidQualifier": "zh-rCN",
+      "androidQualifier": "zh-rCN",
+      "direction": "ltr",
+      "register": "Use Simplified Chinese and mainland software terminology, concise action labels and neutral instructions; use 您 only when necessary and never mix Traditional characters.",
+      "androidQuantities": [
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "zh-CN",
+        "zh-Hans-CN",
+        "zh-SG"
+      ]
+    },
+    {
+      "tag": "zh-TW",
+      "name": "Traditional Chinese",
+      "legacyAndroidQualifier": "zh-rTW",
+      "androidQualifier": "zh-rTW",
+      "direction": "ltr",
+      "register": "Use Traditional Chinese with Taiwan software terminology such as 檔案 and 資料夾, concise labels and neutral instructions; never mix Simplified characters.",
+      "androidQuantities": [
+        "other"
+      ],
+      "systemLocaleProbes": [
+        "zh-TW",
+        "zh-Hant-TW",
+        "zh-HK"
+      ]
+    }
+  ]
+}

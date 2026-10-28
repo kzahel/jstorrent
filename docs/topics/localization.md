@@ -1,5 +1,11 @@
 # Localization
 
+Tactical [388](../tactical/388-remaining-localization-campaign.md) is executing
+the sixteen remaining legacy-language cohorts using local Sol/high/normal/
+bypass workers. The [overnight runbook](../development/localization-overnight.md)
+owns queue preparation, independent review, real qualification and resumption.
+The planner starts no workers and never infers qualification from registration.
+
 The October 28 German release qualification moves all 2,479 independently
 reviewed German resources into shipping inputs for React, native desktop and
 Android. Shipping locale lists are now `en`, `de`, `fr`; none requires a
