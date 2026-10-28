@@ -22,6 +22,14 @@
         "many",
         "other"
       ]
+    },
+    "it": {
+      "catalog": "clients/android/app/src/main/res/values-it/strings.xml",
+      "quantities": [
+        "one",
+        "many",
+        "other"
+      ]
     }
   },
   "schemaVersion": 1
