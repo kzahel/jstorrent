@@ -5,6 +5,10 @@ the sixteen remaining legacy-language cohorts using local Sol/high/normal/
 bypass workers. The [overnight runbook](../development/localization-overnight.md)
 owns queue preparation, independent review, real qualification and resumption.
 The planner starts no workers and never infers qualification from registration.
+The first Spanish native qualification also closes the Settings startup-focus
+race: initial autofocus settles during layout, so a quick language choice keeps
+its keyboard focus. A regression reproduces the former Close-button focus
+theft; the corrected isolated product smoke passes all 29 live/restart checks.
 
 The October 28 German release qualification moves all 2,479 independently
 reviewed German resources into shipping inputs for React, native desktop and

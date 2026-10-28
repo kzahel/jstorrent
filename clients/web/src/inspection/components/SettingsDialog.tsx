@@ -1,6 +1,7 @@
 import { message as localizedMessage } from "../../localization/runtime";
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -180,7 +181,9 @@ export function SettingsDialog({
     : "appearance";
   const setCategory = onCategoryChange ?? setLocalCategory;
 
-  useEffect(() => {
+  // Set initial focus before interaction; a passive effect can otherwise
+  // steal it back after a quick language choice in a native webview.
+  useLayoutEffect(() => {
     closeRef.current?.focus();
     return () => returnFocus.current?.focus();
   }, [returnFocus]);

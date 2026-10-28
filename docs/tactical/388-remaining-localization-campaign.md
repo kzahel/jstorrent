@@ -152,6 +152,18 @@ catalog matches in its three existing presentation runtimes rather than a Qt or
 new locale dependency. Bare Chinese/unknown regions do not guess a script.
 No reference source or third-party translation catalog is copied.
 
+Spanish native qualification reproduced the earlier intermittent startup-focus
+failure: all live checks passed, but reopening Settings and immediately choosing
+System let the dialog's delayed autofocus move focus to Close. A deterministic
+React regression reproduces that exact outcome before the fix. Initial dialog
+focus now runs during layout, before later interaction, rather than as a passive
+effect. The language-save focus guard is unchanged and still respects focus
+moved elsewhere by the user. Strict typecheck, all 959 web cases and the full
+isolated Spanish native product smoke (16 live + 13 restart) pass afterward;
+normal frontend/binary restoration and joined shutdown remain intact. No focus
+assertion or timeout was weakened. Reviewed translation outputs are retained
+while the complete qualification is repeated against the corrected product.
+
 | Locale | Terminology | React / desktop / Android | Qualification / release |
 | --- | --- | --- | --- |
 | es | Reviewed | Queued | Pending |
