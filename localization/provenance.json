@@ -1,107 +1,149 @@
 {
-  "schemaVersion": 1,
   "catalogs": [
     {
+      "license": "MIT",
       "locale": "en",
       "platform": "web",
-      "source": "RSTorrent product source copy",
-      "license": "MIT",
       "reviewState": "source",
-      "reviewer": "maintainers"
+      "reviewer": "maintainers",
+      "source": "RSTorrent product source copy"
     },
     {
+      "license": "MIT",
       "locale": "en",
       "platform": "desktop",
-      "source": "JSTorrent product source copy",
-      "license": "MIT",
       "reviewState": "source",
-      "reviewer": "maintainers"
+      "reviewer": "maintainers",
+      "source": "JSTorrent product source copy"
     },
     {
+      "license": "MIT",
       "locale": "en",
       "platform": "android",
-      "source": "RSTorrent product source copy",
-      "license": "MIT",
       "reviewState": "source",
-      "reviewer": "maintainers"
+      "reviewer": "maintainers",
+      "source": "RSTorrent product source copy"
     },
     {
+      "license": "MIT",
       "locale": "en",
       "platform": "ios",
-      "source": "RSTorrent product source copy",
-      "license": "MIT",
       "reviewState": "source",
-      "reviewer": "maintainers"
+      "reviewer": "maintainers",
+      "source": "RSTorrent product source copy"
     },
     {
+      "distribution": "release",
+      "license": "MIT",
       "locale": "de",
       "platform": "android",
-      "source": "Independently authored translations of the first-party English Android catalog",
-      "license": "MIT",
       "reviewState": "agent-reviewed",
       "reviewer": "Independent translation review sessions; see localization/android/de.json",
-      "distribution": "release"
+      "source": "Independently authored translations of the first-party English Android catalog"
     },
     {
+      "distribution": "release",
+      "license": "MIT",
       "locale": "de",
       "platform": "web",
-      "source": "Independently authored translations of the first-party English web catalog",
-      "license": "MIT",
       "reviewState": "agent-reviewed",
       "reviewer": "Independent translation review sessions; see localization/web/de.json",
-      "distribution": "release"
+      "source": "Independently authored translations of the first-party English web catalog"
     },
     {
-      "locale": "de",
-      "platform": "desktop",
-      "source": "Independently authored translations of the first-party English desktop catalog",
+      "distribution": "release",
       "license": "MIT",
+      "locale": "de",
+      "model": "claude-opus-5-5",
+      "platform": "desktop",
       "reviewState": "agent-reviewed",
       "reviewer": "Independent translation review sessions; see localization/desktop/de.json",
-      "model": "claude-opus-5-5",
-      "distribution": "release"
+      "source": "Independently authored translations of the first-party English desktop catalog"
     },
     {
-      "locale": "fr",
-      "platform": "android",
-      "source": "Independently authored translations of the first-party English android catalog",
+      "distribution": "release",
+      "execution": "local ChatGPT Codex CLI",
       "license": "MIT",
+      "locale": "fr",
+      "model": "gpt-6.1-sol",
+      "permissionMode": "bypassPermissions",
+      "platform": "android",
+      "reasoningEffort": "high",
       "reviewState": "agent-reviewed",
       "reviewer": "Independent translation review sessions; see localization/android/fr.json",
-      "model": "gpt-6.1-sol",
-      "distribution": "release",
-      "reasoningEffort": "high",
       "serviceTier": "normal",
-      "permissionMode": "bypassPermissions",
-      "execution": "local ChatGPT Codex CLI"
+      "source": "Independently authored translations of the first-party English android catalog"
     },
     {
-      "locale": "fr",
-      "platform": "desktop",
-      "source": "Independently authored translations of the first-party English desktop catalog",
+      "distribution": "release",
+      "execution": "local ChatGPT Codex CLI",
       "license": "MIT",
+      "locale": "fr",
+      "model": "gpt-6.1-sol",
+      "permissionMode": "bypassPermissions",
+      "platform": "desktop",
+      "reasoningEffort": "high",
       "reviewState": "agent-reviewed",
       "reviewer": "Independent translation review sessions; see localization/desktop/fr.json",
-      "model": "gpt-6.1-sol",
-      "distribution": "release",
-      "reasoningEffort": "high",
       "serviceTier": "normal",
-      "permissionMode": "bypassPermissions",
-      "execution": "local ChatGPT Codex CLI"
+      "source": "Independently authored translations of the first-party English desktop catalog"
     },
     {
-      "locale": "fr",
-      "platform": "web",
-      "source": "Independently authored translations of the first-party English web catalog",
+      "distribution": "release",
+      "execution": "local ChatGPT Codex CLI",
       "license": "MIT",
+      "locale": "fr",
+      "model": "gpt-6.1-sol",
+      "permissionMode": "bypassPermissions",
+      "platform": "web",
+      "reasoningEffort": "high",
       "reviewState": "agent-reviewed",
       "reviewer": "Independent translation review sessions; see localization/web/fr.json",
-      "model": "gpt-6.1-sol",
-      "distribution": "release",
-      "reasoningEffort": "high",
       "serviceTier": "normal",
+      "source": "Independently authored translations of the first-party English web catalog"
+    },
+    {
+      "distribution": "release",
+      "execution": "local ChatGPT Codex CLI",
+      "license": "MIT",
+      "locale": "es",
+      "model": "gpt-6.1-sol",
       "permissionMode": "bypassPermissions",
-      "execution": "local ChatGPT Codex CLI"
+      "platform": "web",
+      "reasoningEffort": "high",
+      "reviewState": "agent-reviewed",
+      "reviewer": "Independent translation review sessions; see localization/web/es.json",
+      "serviceTier": "normal",
+      "source": "Independently authored translations of the first-party English web catalog"
+    },
+    {
+      "distribution": "release",
+      "execution": "local ChatGPT Codex CLI",
+      "license": "MIT",
+      "locale": "es",
+      "model": "gpt-6.1-sol",
+      "permissionMode": "bypassPermissions",
+      "platform": "desktop",
+      "reasoningEffort": "high",
+      "reviewState": "agent-reviewed",
+      "reviewer": "Independent translation review sessions; see localization/desktop/es.json",
+      "serviceTier": "normal",
+      "source": "Independently authored translations of the first-party English desktop catalog"
+    },
+    {
+      "distribution": "release",
+      "execution": "local ChatGPT Codex CLI",
+      "license": "MIT",
+      "locale": "es",
+      "model": "gpt-6.1-sol",
+      "permissionMode": "bypassPermissions",
+      "platform": "android",
+      "reasoningEffort": "high",
+      "reviewState": "agent-reviewed",
+      "reviewer": "Independent translation review sessions; see localization/android/es.json",
+      "serviceTier": "normal",
+      "source": "Independently authored translations of the first-party English android catalog"
     }
-  ]
+  ],
+  "schemaVersion": 1
 }

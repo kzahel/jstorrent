@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "Elegir una carpeta de descargas",
+  "dialog.settings-save.body": "JSTorrent no pudo guardar el ajuste «Ejecutar en segundo plano». El ajuste anterior sigue activo.",
+  "dialog.settings-save.title": "No se guardó el ajuste de JSTorrent",
+  "dialog.shutdown.body": "JSTorrent no pudo terminar de cerrarse. No se ha forzado el cierre para proteger sus datos. Revise el registro de diagnóstico antes de volver a intentarlo.",
+  "dialog.shutdown.title": "JSTorrent no pudo cerrarse",
+  "dialog.torrent-list-export.title": "Exportar lista de torrents",
+  "dialog.torrent-list-import.title": "Importar lista de torrents",
+  "dialog.torrent-list.filter": "Lista de torrents",
+  "notification.download-complete.body": "Se ha completado la descarga de {name}.",
+  "notification.download-complete.title": "Descarga completada",
+  "notification.needs-attention.body": "{name} necesita atención. Abra JSTorrent para ver los detalles.",
+  "notification.needs-attention.title": "La descarga necesita atención",
+  "notification.open": "Abrir JSTorrent",
+  "notification.unnamed-torrent": "Torrent",
+  "power.active-transfer-reason": "JSTorrent está descargando o verificando contenido",
+  "tray.check-updates": "Buscar actualizaciones",
+  "tray.quit": "Salir de JSTorrent",
+  "tray.run-in-background": "Ejecutar en segundo plano",
+  "tray.show": "Mostrar JSTorrent",
+  "tray.tooltip": "JSTorrent"
+}

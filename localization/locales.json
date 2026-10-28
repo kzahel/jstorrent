@@ -1,59 +1,65 @@
 {
   "$schema": "./locales.schema.json",
-  "sourceLocale": "en",
+  "catalogs": {
+    "android": "clients/android/app/src/main/res/values/strings.xml",
+    "desktop": "clients/desktop/src-tauri/locales/en.json",
+    "ios": "clients/ios/App/Localization/Localizable.xcstrings",
+    "web": "clients/web/src/localization/messages/en.json"
+  },
   "fallbackLocale": "en",
   "localeDefinitions": {
+    "de": {
+      "direction": "ltr"
+    },
     "en": {
       "direction": "ltr"
     },
-    "de": {
+    "es": {
       "direction": "ltr"
     },
     "fr": {
       "direction": "ltr"
     }
   },
+  "previewLocales": {
+    "android": [],
+    "desktop": [],
+    "web": []
+  },
+  "sourceLocale": "en",
   "supportedLocales": {
-    "web": [
+    "android": [
       "en",
       "de",
-      "fr"
+      "fr",
+      "es"
     ],
     "desktop": [
       "en",
       "de",
-      "fr"
-    ],
-    "android": [
-      "en",
-      "de",
-      "fr"
+      "fr",
+      "es"
     ],
     "ios": [
       "en"
+    ],
+    "web": [
+      "en",
+      "de",
+      "fr",
+      "es"
     ]
-  },
-  "previewLocales": {
-    "web": [],
-    "desktop": [],
-    "android": []
   },
   "testLocales": [
     {
-      "tag": "en-XA",
       "direction": "ltr",
-      "purpose": "expanded accented pseudo-localization"
+      "purpose": "expanded accented pseudo-localization",
+      "tag": "en-XA"
     },
     {
-      "tag": "ar-XB",
       "direction": "rtl",
-      "purpose": "mirrored bidirectional pseudo-localization"
+      "purpose": "mirrored bidirectional pseudo-localization",
+      "tag": "ar-XB"
     }
-  ],
-  "catalogs": {
-    "web": "clients/web/src/localization/messages/en.json",
-    "desktop": "clients/desktop/src-tauri/locales/en.json",
-    "android": "clients/android/app/src/main/res/values/strings.xml",
-    "ios": "clients/ios/App/Localization/Localizable.xcstrings"
-  }
+  ]
 }
