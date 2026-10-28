@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useInspectionStore } from "../context";
 import type { DataUnits } from "../appearance";
 import { formatBytes, formatProgress, formatRate } from "../format";
-import type { PeerRow, ViewMaterialization } from "../model";
+import type { PeerRow, PeerState, ViewMaterialization } from "../model";
 import {
   describePeerFlags,
   formatPeerFlags,
@@ -31,12 +31,15 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
       "connecting",
       "disconnecting",
     ],
-    render: (row) => (
-      <span className={styles.state} data-state={row.state}>
-        <span aria-hidden="true" />
-        {row.state}
-      </span>
-    ),
+    render: (row) => {
+      const label = peerStateLabel(row.state);
+      return (
+        <span className={styles.state} data-state={row.state} title={label}>
+          <span aria-hidden="true" />
+          {label}
+        </span>
+      );
+    },
   },
   {
     id: "endpoint",
@@ -190,6 +193,17 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
     },
   },
 ];
+
+function peerStateLabel(state: PeerState): string {
+  switch (state) {
+    case "connecting": return localizedMessage("peers.state.connecting");
+    case "handshaking": return localizedMessage("peers.state.handshaking");
+    case "connected": return localizedMessage("peers.state.connected");
+    case "choked": return localizedMessage("peers.state.choked");
+    case "stalled": return localizedMessage("peers.state.stalled");
+    case "disconnecting": return localizedMessage("peers.state.disconnecting");
+  }
+}
 
 function formatDuration(milliseconds: number | null): string {
   if (milliseconds === null) return "—";

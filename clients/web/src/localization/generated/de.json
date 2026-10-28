@@ -8341,12 +8341,6 @@
       "value": "Auch heruntergeladene Daten löschen"
     }
   ],
-  "inspection.components.remove.torrent.dialog.and": [
-    {
-      "type": 0,
-      "value": "und"
-    }
-  ],
   "inspection.components.remove.torrent.dialog.cancel": [
     {
       "type": 0,
@@ -8357,24 +8351,6 @@
     {
       "type": 0,
       "value": "Heruntergeladene Daten bleiben standardmäßig erhalten."
-    }
-  ],
-  "inspection.components.remove.torrent.dialog.from.rstorrent": [
-    {
-      "type": 0,
-      "value": "aus JSTorrent."
-    }
-  ],
-  "inspection.components.remove.torrent.dialog.more": [
-    {
-      "type": 0,
-      "value": "weitere"
-    }
-  ],
-  "inspection.components.remove.torrent.dialog.not.support.downloaded.data.deletion.keep.downloaded": [
-    {
-      "type": 0,
-      "value": "das Löschen heruntergeladener Daten nicht. Behalte die heruntergeladenen Daten, um die gesamte Auswahl zu entfernen."
     }
   ],
   "inspection.components.remove.torrent.dialog.remove": [
@@ -8405,30 +8381,6 @@
     {
       "type": 0,
       "value": "Fehlgeschlagene wiederholen"
-    }
-  ],
-  "inspection.components.remove.torrent.dialog.selected": [
-    {
-      "type": 0,
-      "value": "der ausgewählten Torrents"
-    }
-  ],
-  "inspection.components.remove.torrent.dialog.this.permanently.deletes.this.torrent.s.downloaded": [
-    {
-      "type": 0,
-      "value": "Dadurch werden die heruntergeladenen Dateien und Teildaten dieses Torrents endgültig gelöscht. Das kann nicht rückgängig gemacht werden."
-    }
-  ],
-  "inspection.components.remove.torrent.dialog.torrent.does": [
-    {
-      "type": 0,
-      "value": "unterstützt"
-    }
-  ],
-  "inspection.components.remove.torrent.dialog.torrents.do": [
-    {
-      "type": 0,
-      "value": "unterstützen"
     }
   ],
   "inspection.components.remove.torrent.dialog.torrents.to.remove": [
@@ -12503,6 +12455,42 @@
       "value": "Sprache"
     }
   ],
+  "peers.state.choked": [
+    {
+      "type": 0,
+      "value": "Blockiert"
+    }
+  ],
+  "peers.state.connected": [
+    {
+      "type": 0,
+      "value": "Verbunden"
+    }
+  ],
+  "peers.state.connecting": [
+    {
+      "type": 0,
+      "value": "Verbindungsaufbau"
+    }
+  ],
+  "peers.state.disconnecting": [
+    {
+      "type": 0,
+      "value": "Verbindung wird getrennt"
+    }
+  ],
+  "peers.state.handshaking": [
+    {
+      "type": 0,
+      "value": "Handshake"
+    }
+  ],
+  "peers.state.stalled": [
+    {
+      "type": 0,
+      "value": "Stockt"
+    }
+  ],
   "product.feedback.description": [
     {
       "type": 0,
@@ -12847,6 +12835,188 @@
     {
       "type": 0,
       "value": "Dieser Remote-Host unterstützt keine Videowiedergabe."
+    }
+  ],
+  "removal.deletion.unsupported": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ausgewählter Torrent unterstützt das Löschen heruntergeladener Daten nicht."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ausgewählte Torrents unterstützen das Löschen heruntergeladener Daten nicht."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " Behalte die heruntergeladenen Daten, um die gesamte Auswahl zu entfernen."
+    }
+  ],
+  "removal.deletion.warning": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Die heruntergeladenen Dateien und unvollständigen Daten dieses Torrents werden dauerhaft gelöscht."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Die heruntergeladenen Dateien und unvollständigen Daten dieser Torrents werden dauerhaft gelöscht."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " Das kann nicht rückgängig gemacht werden."
+    }
+  ],
+  "removal.description.single": [
+    {
+      "type": 8,
+      "value": "strong",
+      "children": [
+        {
+          "type": 1,
+          "value": "name"
+        }
+      ]
+    },
+    {
+      "type": 0,
+      "value": " aus JSTorrent entfernen."
+    }
+  ],
+  "removal.more": [
+    {
+      "type": 0,
+      "value": "und "
+    },
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " weiterer Torrent"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " weitere Torrents"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "removal.pending": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " wird entfernt…"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " werden entfernt…"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "removal.title.multiple": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " Torrent entfernen?"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " Torrents entfernen?"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
     }
   ],
   "safety.files.allowed": [
@@ -13522,6 +13692,145 @@
       "value": "Update-Befehl kopieren"
     }
   ],
+  "updates.detail.approval-required": [
+    {
+      "type": 0,
+      "value": "Die Installation beginnt erst nach deiner Zustimmung."
+    }
+  ],
+  "updates.detail.automatic-off": [
+    {
+      "type": 0,
+      "value": "Heruntergeladen; automatische Installation ist ausgeschaltet"
+    }
+  ],
+  "updates.detail.browser-check-only": [
+    {
+      "type": 0,
+      "value": "Der Browser prüft den signierten Update-Kanal, kann den laufenden Dienst aber nicht ersetzen."
+    }
+  ],
+  "updates.detail.channel-paused": [
+    {
+      "type": 0,
+      "value": "Die automatische Installation ist für diesen Kanal ausgesetzt"
+    }
+  ],
+  "updates.detail.current-version": [
+    {
+      "type": 0,
+      "value": "Derzeit läuft Version "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": "."
+    }
+  ],
+  "updates.detail.download-progress": [
+    {
+      "type": 2,
+      "value": "percent",
+      "style": "percent"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 1,
+      "value": "size"
+    },
+    {
+      "type": 0,
+      "value": " heruntergeladen."
+    }
+  ],
+  "updates.detail.downloaded": [
+    {
+      "type": 1,
+      "value": "size"
+    },
+    {
+      "type": 0,
+      "value": " heruntergeladen."
+    }
+  ],
+  "updates.detail.install-incomplete": [
+    {
+      "type": 0,
+      "value": "Die Update-Installation wurde nicht abgeschlossen"
+    }
+  ],
+  "updates.detail.install-to-finish": [
+    {
+      "type": 0,
+      "value": "Heruntergeladen; wähle „Installieren und neu starten“, um das Update abzuschließen"
+    }
+  ],
+  "updates.detail.package-channel": [
+    {
+      "type": 0,
+      "value": "Für "
+    },
+    {
+      "type": 1,
+      "value": "package"
+    },
+    {
+      "type": 0,
+      "value": " bleibt der Paketkanal unverändert."
+    }
+  ],
+  "updates.detail.restarting": [
+    {
+      "type": 0,
+      "value": "JSTorrent startet gleich neu, um das Update zu installieren"
+    }
+  ],
+  "updates.detail.up-to-date": [
+    {
+      "type": 0,
+      "value": "Version "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": " ist die neueste kompatible Version."
+    }
+  ],
+  "updates.detail.updated": [
+    {
+      "type": 0,
+      "value": "Auf Version "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": " aktualisiert"
+    }
+  ],
+  "updates.detail.waiting-for-work": [
+    {
+      "type": 0,
+      "value": "Heruntergeladen; wartet auf das Ende der Wiedergabe, den Abschluss offener Vorgänge oder das Trennen verbundener Clients"
+    }
+  ],
+  "updates.detail.waiting-until-away": [
+    {
+      "type": 0,
+      "value": "Heruntergeladen; wartet, bis du nicht mehr aktiv bist"
+    }
+  ],
   "updates.last-outcome": [
     {
       "type": 0,
@@ -13544,6 +13853,60 @@
     {
       "type": 0,
       "value": " Sekunden, um das Update zu installieren"
+    }
+  ],
+  "updates.status.available": [
+    {
+      "type": 0,
+      "value": "JSTorrent "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": " ist verfügbar"
+    }
+  ],
+  "updates.status.check-failed": [
+    {
+      "type": 0,
+      "value": "Suche nach Updates fehlgeschlagen"
+    }
+  ],
+  "updates.status.downloading": [
+    {
+      "type": 0,
+      "value": "JSTorrent "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": " wird heruntergeladen"
+    }
+  ],
+  "updates.status.install-failed": [
+    {
+      "type": 0,
+      "value": "Update-Installation fehlgeschlagen"
+    }
+  ],
+  "updates.status.installing": [
+    {
+      "type": 0,
+      "value": "JSTorrent "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": " wird installiert"
     }
   ],
   "updates.updated-version": [

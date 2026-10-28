@@ -50,7 +50,6 @@
       "license": "MIT",
       "reviewState": "agent-reviewed",
       "reviewer": "Independent translation review sessions; see localization/web/de.json",
-      "model": "claude-opus-5-5",
       "distribution": "debug-preview"
     },
     {

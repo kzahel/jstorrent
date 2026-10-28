@@ -80,3 +80,43 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     }
   });
 }
+
+for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  test(`German removal uses complete plural messages at ${viewport.width}px`, async ({ page }) => {
+    // Select multiple torrents in table mode, then check the same dialog at
+    // each width; the narrow list intentionally has no selection checkboxes.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.addInitScript((key) => localStorage.setItem(key, "de"), KEY);
+    await page.goto(DEMO);
+    await page.getByRole("checkbox", { name: /Big Buck Bunny 1080p surround/ }).check();
+    await page.getByRole("checkbox", { name: /Sintel 4K open movie/ }).check();
+    await page.getByRole("button", { name: "Entfernen", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "2 Torrents entfernen?" });
+    await page.setViewportSize(viewport);
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("checkbox")).not.toBeChecked();
+    await dialog.getByRole("checkbox").check();
+    await expect(dialog.getByRole("alert")).toContainText("dieser Torrents");
+    await expect(dialog.getByRole("button", { name: "Entfernen und Daten löschen", exact: true })).toBeVisible();
+    expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const violations = (await new AxeBuilder({ page }).analyze()).violations.filter(
+      violation => violation.impact === "serious" || violation.impact === "critical",
+    );
+    expect(violations).toEqual([]);
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
+  });
+}
+
+test("peer state labels follow a live language switch", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(DEMO);
+  await page.getByRole("tab", { name: "Peers", exact: true }).click();
+  await expect(page.locator('[data-state="connected"]').first()).toHaveText("Connected");
+  await page.locator('header button[aria-haspopup="dialog"]').click();
+  await page.getByRole("radio", { name: "Deutsch", exact: true }).check();
+  await page.keyboard.press("Escape");
+  await expect(page.locator('[data-state="connected"]').first()).toHaveText("Verbunden");
+  await expect(page.locator('[data-state="connected"]').first()).toHaveAttribute("title", "Verbunden");
+});

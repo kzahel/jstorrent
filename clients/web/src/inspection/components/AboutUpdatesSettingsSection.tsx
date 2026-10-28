@@ -150,8 +150,12 @@ function UpdatesFieldset({
       ) : null}
       <div className={styles.updateStatus} aria-live="polite">
         <strong>{state.phase === "idle" && snapshot.automaticAvailable === false ? localizedMessage("updates.automatic-awaiting-qualification") : state.phase === "idle" && snapshot.automaticUpdates === false ? localizedMessage("updates.automatic-install-off") : statusTitle(state)}</strong>
-        <span>{snapshot.updateMessage ?? statusDetail(state, info.version)}</span>
-        {snapshot.lastOutcome === undefined ? null : <span>{localizedMessage("updates.last-outcome", { message: snapshot.lastOutcome.message })}</span>}
+        <span>{snapshot.updateMessage === undefined
+          ? statusDetail(state, info)
+          : hostUpdateDetail(snapshot.updateMessage, info.version)}</span>
+        {snapshot.lastOutcome === undefined ? null : <span>{localizedMessage("updates.last-outcome", {
+          message: hostUpdateDetail(snapshot.lastOutcome.message, snapshot.lastOutcome.version),
+        })}</span>}
       </div>
       {state.phase === "downloading" ? (
         <progress
@@ -258,41 +262,41 @@ function statusTitle(state: UpdaterState): string {
     case "waiting-for-stable":
       return localizedMessage("inspection.components.about.updates.settings.section.waiting.for.stable");
     case "available":
-      return `JSTorrent ${state.version} is available`;
+      return localizedMessage("updates.status.available", { version: state.version });
     case "manual-install":
       return localizedMessage("inspection.components.about.updates.settings.section.manual.update.required");
     case "downloading":
-      return `Downloading JSTorrent ${state.version}`;
+      return localizedMessage("updates.status.downloading", { version: state.version });
     case "installing":
-      return `Installing JSTorrent ${state.version}`;
+      return localizedMessage("updates.status.installing", { version: state.version });
     case "error":
       return state.operation === "check"
-        ? "Update check failed"
-        : "Update installation failed";
+        ? localizedMessage("updates.status.check-failed")
+        : localizedMessage("updates.status.install-failed");
   }
 }
 
-function statusDetail(state: UpdaterState, currentVersion: string): string {
+function statusDetail(state: UpdaterState, info: DesktopUpdaterSnapshot["info"]): string {
   switch (state.phase) {
     case "idle":
-      return `Currently running ${currentVersion}.`;
+      return localizedMessage("updates.detail.current-version", { version: info.version });
     case "checking":
       return localizedMessage("inspection.components.about.updates.settings.section.contacting.the.rstorrent.update.service");
     case "up-to-date":
-      return `Version ${currentVersion} is the newest compatible release.`;
+      return localizedMessage("updates.detail.up-to-date", { version: info.version });
     case "waiting-for-stable":
       return localizedMessage("inspection.components.about.updates.settings.section.waiting.for.stable.description");
     case "available":
       return state.manualApply === undefined
-        ? "Installation happens only after you approve it."
-        : "The browser checks the signed channel but cannot replace the running service.";
+        ? localizedMessage("updates.detail.approval-required")
+        : localizedMessage("updates.detail.browser-check-only");
     case "manual-install":
-      return `This ${state.packageLabel} stays with its package channel.`;
+      return localizedMessage("updates.detail.package-channel", { package: packageLabel(info.bundleType) });
     case "downloading": {
       const percent = progressPercent(state);
       return percent === undefined
-        ? `${formatBytes(state.downloadedBytes)} downloaded.`
-        : `${percent}% · ${formatBytes(state.downloadedBytes)} downloaded.`;
+        ? localizedMessage("updates.detail.downloaded", { size: formatBytes(state.downloadedBytes) })
+        : localizedMessage("updates.detail.download-progress", { percent: percent / 100, size: formatBytes(state.downloadedBytes) });
     }
     case "installing":
       return localizedMessage("inspection.components.about.updates.settings.section.rstorrent.will.relaunch.after.installation.succeeds");
@@ -303,6 +307,32 @@ function statusDetail(state: UpdaterState, currentVersion: string): string {
 
 function isInstalling(state: UpdaterState): boolean {
   return state.phase === "downloading" || state.phase === "installing";
+}
+
+/** Existing hosts send free text. Recognize their product statuses at presentation
+ * time so live language changes work, retaining unknown diagnostics verbatim. */
+function hostUpdateDetail(detail: string, installedVersion: string): string {
+  if (detail === `Updated to ${installedVersion}`) {
+    return localizedMessage("updates.detail.updated", { version: installedVersion });
+  }
+  switch (detail) {
+    case "Downloaded; waiting for playback, unfinished work or connected clients":
+      return localizedMessage("updates.detail.waiting-for-work");
+    case "Downloaded; choose Install & restart to finish the update":
+      return localizedMessage("updates.detail.install-to-finish");
+    case "Downloaded; automatic installation is off":
+      return localizedMessage("updates.detail.automatic-off");
+    case "Restarting shortly to install the update":
+      return localizedMessage("updates.detail.restarting");
+    case "Downloaded; waiting until you're away":
+      return localizedMessage("updates.detail.waiting-until-away");
+    case "Automatic installation is paused for this channel":
+      return localizedMessage("updates.detail.channel-paused");
+    case "Update installation did not finish":
+      return localizedMessage("updates.detail.install-incomplete");
+    default:
+      return detail;
+  }
 }
 
 function shortBuildId(buildId: string): string {

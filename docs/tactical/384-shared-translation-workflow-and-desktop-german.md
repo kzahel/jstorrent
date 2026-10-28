@@ -230,7 +230,9 @@ that every possible desktop sentence has been extracted. The bounded source
 audit also found updater `statusDetail` version/download templates and the
 multi-selection Remove dialog title/busy templates and engine-authored Peer
 connection-state display outside the catalog. These
-remain an explicit next extraction cohort. Raw host errors, log content,
+formed the next extraction cohort, completed by the October 28 follow-up in
+[Localization](../topics/localization.md) with 32 reviewed additions and eight
+retired fragments (1,797 current React messages). Raw host errors, log content,
 protocol identifiers and unknown future diagnostic enum values stay verbatim.
 Same-locale catalog hot edits can retain memoized table column labels until a
 reload; shipped locale changes invalidate them correctly. No further wording

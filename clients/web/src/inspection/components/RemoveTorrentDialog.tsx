@@ -1,4 +1,4 @@
-import { formatNumber, message as localizedMessage  } from "../../localization/runtime";
+import { message as localizedMessage, richMessage } from "../../localization/runtime";
 import {
   useEffect,
   useRef,
@@ -104,11 +104,14 @@ export function RemoveTorrentDialog({
         <h2 id="remove-torrent-title">
           {targets.length === 1
             ? localizedMessage("inspection.components.remove.torrent.dialog.remove.torrent")
-            : `Remove ${formatNumber(targets.length)} torrents?`}
+            : localizedMessage("removal.title.multiple", { count: targets.length })}
         </h2>
         <p id="remove-torrent-description">
           {targets.length === 1 ? (
-            <>{localizedMessage("inspection.components.remove.torrent.dialog.remove")}{" "}<strong>{targets[0]?.name}</strong>{" "}{localizedMessage("inspection.components.remove.torrent.dialog.from.rstorrent")}</>
+            richMessage("removal.description.single", {
+              name: targets[0]?.name ?? "",
+              strong: (chunks) => <strong>{chunks}</strong>,
+            })
           ) : (
             <>{localizedMessage("inspection.components.remove.torrent.dialog.remove.the.selected.torrents.from.rstorrent")}</>
           )}{" "}{localizedMessage("inspection.components.remove.torrent.dialog.downloaded.data.is.kept.by.default")}</p>
@@ -118,7 +121,7 @@ export function RemoveTorrentDialog({
               <li key={target.id}>{target.name}</li>
             ))}
             {targets.length <= 5 ? null : (
-              <li>{localizedMessage("inspection.components.remove.torrent.dialog.and")}{" "}{formatNumber(targets.length - 5)}{" "}{localizedMessage("inspection.components.remove.torrent.dialog.more")}</li>
+              <li>{localizedMessage("removal.more", { count: targets.length - 5 })}</li>
             )}
           </ul>
         )}
@@ -132,9 +135,8 @@ export function RemoveTorrentDialog({
           />{localizedMessage("inspection.components.remove.torrent.dialog.also.delete.downloaded.data")}</label>
         {!deleteDataSupported ? (
           <p className={styles.note}>
-            {formatNumber(unsupportedDeleteCount)}{" "}{localizedMessage("inspection.components.remove.torrent.dialog.selected")}{" "}
-            {unsupportedDeleteCount === 1 ? localizedMessage("inspection.components.remove.torrent.dialog.torrent.does") : localizedMessage("inspection.components.remove.torrent.dialog.torrents.do")}
-            {" "}{localizedMessage("inspection.components.remove.torrent.dialog.not.support.downloaded.data.deletion.keep.downloaded")}</p>
+            {localizedMessage("removal.deletion.unsupported", { count: unsupportedDeleteCount })}
+          </p>
         ) : null}
         {deleteDataSupported ? (
           <p
@@ -142,7 +144,7 @@ export function RemoveTorrentDialog({
             data-visible={deleteData}
             role={deleteData ? "alert" : undefined}
             aria-hidden={!deleteData}
-          >{localizedMessage("inspection.components.remove.torrent.dialog.this.permanently.deletes.this.torrent.s.downloaded")}</p>
+          >{localizedMessage("removal.deletion.warning", { count: targets.length })}</p>
         ) : null}
         {error === "" ? null : (
           <p className={styles.error} role="alert">{error}</p>
@@ -160,7 +162,7 @@ export function RemoveTorrentDialog({
             </span>
             <span className={styles.removeLabel}>
               {pending
-                ? `Removing ${formatNumber(targets.length)}…`
+                ? localizedMessage("removal.pending", { count: targets.length })
                 : error === ""
                   ? deleteData
                     ? localizedMessage("inspection.components.remove.torrent.dialog.remove.and.delete.data")

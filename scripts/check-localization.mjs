@@ -249,7 +249,7 @@ async function checkWebCatalog() {
   );
   for (const file of sourceFiles) {
     const source = fs.readFileSync(file, "utf8");
-    for (const match of source.matchAll(/(?:localizedMessage|message)\(\s*"([^"]+)"/g)) {
+    for (const match of source.matchAll(/(?:localizedMessage|richMessage|message)\(\s*"([^"]+)"/g)) {
       referenced.add(match[1]);
     }
     const relative = path.relative(repositoryRoot, file);

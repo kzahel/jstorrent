@@ -1,5 +1,53 @@
 # Localization
 
+The October 28 extraction follow-up closes the three desktop/React gaps
+identified in Tactical 384: updater titles, version/download details and known
+host-authored statuses; complete removal confirmations, plural warnings and
+busy labels; and all six displayed peer connection states. The React catalog
+now has 1,797 messages. All 32 new German messages were independently reviewed
+and imported through the maintained workflow; eight obsolete removal fragments
+were retired with their provenance, and all retained German messages and review
+records are unchanged. Android and native desktop catalogs are unchanged.
+
+Single-torrent confirmations retain safe, explicitly supplied bold markup
+around the untrusted torrent name. Peer labels and their full-text tooltips
+change with the locale, while sorting and diagnostic state values stay stable.
+Existing host update statuses are recognized by their exact established text
+at presentation time, including saved outcomes; unknown host text and technical
+errors remain verbatim. Host wording changes need matching presentation updates
+until a separately designed semantic status contract replaces this bridge.
+
+Validation for this follow-up:
+
+- `npm run typecheck --prefix clients/web` and
+  `npm run test --prefix clients/web`: 924 tests pass, three existing skips.
+  Regressions cover safe rich-text interpolation, removal plurals, pending
+  intent, live peer labels, update progress and host-status fallback.
+- `npm run test:e2e --prefix clients/web -- german-localization.spec.ts
+  localization.spec.ts`: nine bundled-Chromium cases pass, including 1440/390px
+  German removal layout/Axe and live peer-label switching.
+- `npm run test:e2e --prefix clients/web -- inspection-demo.spec.ts --grep
+  'removal keeps data by default|torrent and file rows expose exact accessible
+  context actions'`: both English removal/context-action regressions pass.
+- `python3 -m unittest discover -s scripts -p 'test_*localization*.py'`:
+  46 tests; `python3 -m unittest discover -s clients/android/scripts
+  -p test_localization.py`: 13 tests; `node --test
+  scripts/test-localization-registry.mjs`: four tests pass.
+- `npm exec --prefix clients/web -- vitest run --root clients/web
+  scripts/generate-localization.test.mjs
+  src/inspection/components/PeerTable.test.tsx`: five focused cases pass.
+- `node scripts/check-localization.mjs` and `node scripts/check-branding.mjs`
+  pass; all missing/stale/conflicting/invalid/unreviewed/terminology categories
+  are empty. Branding checks 2,724 display values and 40 original assets.
+- Vite production builds with the preview flag absent and enabled both pass.
+  The existing `dynamicCodeViolations` CSP guard passes all 51 JavaScript
+  bundles per build; German catalog text is excluded from release output and
+  included in preview output. Build outputs use disposable ignored paths.
+
+This is presentation extraction and translation maintenance. Shipping locale
+lists and native/platform behavior are unchanged; release promotion remains
+separate work.
+
 The web catalog generator launches FormatJS's resolved JavaScript entry point
 with the current Node executable, avoiding platform-specific npm shims. Desktop
 CI runs generation, the compiler and catalog regression tests, and a generated
@@ -42,10 +90,9 @@ launchers pass it to the frontend and native builds together; direct Cargo
 builds without it remain English-only, matching ordinary production assets.
 System language is the default, with English fallback. Production support
 remains English; promotion and additional locales are separate work.
-Updater version/download status, multi-selection removal templates and
-engine-authored peer diagnostic states remain
-an explicit extraction follow-up; preview catalog coverage is not a claim
-that every possible desktop sentence is translated.
+The October 28 follow-up above completes the previously recorded updater,
+removal and peer-state extraction cohort. Catalog coverage does not claim that
+every possible host diagnostic or desktop sentence is translated.
 
 Tactical [383](../tactical/383-android-translation-cohorts.md) implements
 source-aware Android translation tooling and a complete German debug preview:
@@ -366,7 +413,7 @@ locale that falls through to raw keys or materially incomplete English.
 
 ## Evidence And Open Work
 
-The currently checked catalogs contain 1,632 React messages, 20 Tauri-native
+The currently checked catalogs contain 1,797 React messages, 20 Tauri-native
 messages, 642 Android strings plus 28 quantities (eight strings are
 nontranslatable), 189 iOS product messages and six iOS Info.plist messages.
 The German debug catalog covers all 662 translatable Android resources.

@@ -84,6 +84,14 @@ export function message(id: MessageId, values?: MessageValues): string {
   );
 }
 
+/** Rich messages accept only elements explicitly supplied by their caller. */
+export function richMessage(
+  id: MessageId,
+  values: Readonly<Record<string, PrimitiveType | ((chunks: ReactNode[]) => ReactNode)>>,
+): ReactNode {
+  return current.intl.formatMessage({ id }, values);
+}
+
 export function formatNumber(
   value: number | bigint,
   options?: FormatNumberOptions,

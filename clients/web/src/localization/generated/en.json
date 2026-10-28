@@ -8292,12 +8292,6 @@
       "value": "Also delete downloaded data"
     }
   ],
-  "inspection.components.remove.torrent.dialog.and": [
-    {
-      "type": 0,
-      "value": "and"
-    }
-  ],
   "inspection.components.remove.torrent.dialog.cancel": [
     {
       "type": 0,
@@ -8308,24 +8302,6 @@
     {
       "type": 0,
       "value": "Downloaded data is kept by default."
-    }
-  ],
-  "inspection.components.remove.torrent.dialog.from.rstorrent": [
-    {
-      "type": 0,
-      "value": "from JSTorrent."
-    }
-  ],
-  "inspection.components.remove.torrent.dialog.more": [
-    {
-      "type": 0,
-      "value": "more"
-    }
-  ],
-  "inspection.components.remove.torrent.dialog.not.support.downloaded.data.deletion.keep.downloaded": [
-    {
-      "type": 0,
-      "value": "not support downloaded-data deletion. Keep downloaded data to remove the complete selection."
     }
   ],
   "inspection.components.remove.torrent.dialog.remove": [
@@ -8356,30 +8332,6 @@
     {
       "type": 0,
       "value": "Retry failed"
-    }
-  ],
-  "inspection.components.remove.torrent.dialog.selected": [
-    {
-      "type": 0,
-      "value": "selected"
-    }
-  ],
-  "inspection.components.remove.torrent.dialog.this.permanently.deletes.this.torrent.s.downloaded": [
-    {
-      "type": 0,
-      "value": "This permanently deletes this torrent's downloaded files and part data. It cannot be undone."
-    }
-  ],
-  "inspection.components.remove.torrent.dialog.torrent.does": [
-    {
-      "type": 0,
-      "value": "torrent does"
-    }
-  ],
-  "inspection.components.remove.torrent.dialog.torrents.do": [
-    {
-      "type": 0,
-      "value": "torrents do"
     }
   ],
   "inspection.components.remove.torrent.dialog.torrents.to.remove": [
@@ -12446,6 +12398,42 @@
       "value": "Language"
     }
   ],
+  "peers.state.choked": [
+    {
+      "type": 0,
+      "value": "Choked"
+    }
+  ],
+  "peers.state.connected": [
+    {
+      "type": 0,
+      "value": "Connected"
+    }
+  ],
+  "peers.state.connecting": [
+    {
+      "type": 0,
+      "value": "Connecting"
+    }
+  ],
+  "peers.state.disconnecting": [
+    {
+      "type": 0,
+      "value": "Disconnecting"
+    }
+  ],
+  "peers.state.handshaking": [
+    {
+      "type": 0,
+      "value": "Handshaking"
+    }
+  ],
+  "peers.state.stalled": [
+    {
+      "type": 0,
+      "value": "Stalled"
+    }
+  ],
   "product.feedback.description": [
     {
       "type": 0,
@@ -12790,6 +12778,208 @@
     {
       "type": 0,
       "value": "This remote host does not support video playback."
+    }
+  ],
+  "removal.deletion.unsupported": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " selected torrent does not support downloaded-data deletion."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " selected torrents do not support downloaded-data deletion."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " Keep downloaded data to remove the complete selection."
+    }
+  ],
+  "removal.deletion.warning": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "This permanently deletes this torrent's downloaded files and part data."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "This permanently deletes these torrents' downloaded files and part data."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " It cannot be undone."
+    }
+  ],
+  "removal.description.single": [
+    {
+      "type": 0,
+      "value": "Remove "
+    },
+    {
+      "type": 8,
+      "value": "strong",
+      "children": [
+        {
+          "type": 1,
+          "value": "name"
+        }
+      ]
+    },
+    {
+      "type": 0,
+      "value": " from JSTorrent."
+    }
+  ],
+  "removal.more": [
+    {
+      "type": 0,
+      "value": "and "
+    },
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " more"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " more"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "removal.pending": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Removing "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": "…"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Removing "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": "…"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "removal.title.multiple": [
+    {
+      "type": 0,
+      "value": "Remove "
+    },
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrent"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrents"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": "?"
     }
   ],
   "safety.files.allowed": [
@@ -13465,6 +13655,137 @@
       "value": "Copy update command"
     }
   ],
+  "updates.detail.approval-required": [
+    {
+      "type": 0,
+      "value": "Installation happens only after you approve it."
+    }
+  ],
+  "updates.detail.automatic-off": [
+    {
+      "type": 0,
+      "value": "Downloaded; automatic installation is off"
+    }
+  ],
+  "updates.detail.browser-check-only": [
+    {
+      "type": 0,
+      "value": "The browser checks the signed channel but cannot replace the running service."
+    }
+  ],
+  "updates.detail.channel-paused": [
+    {
+      "type": 0,
+      "value": "Automatic installation is paused for this channel"
+    }
+  ],
+  "updates.detail.current-version": [
+    {
+      "type": 0,
+      "value": "Currently running "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": "."
+    }
+  ],
+  "updates.detail.download-progress": [
+    {
+      "type": 2,
+      "value": "percent",
+      "style": "percent"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 1,
+      "value": "size"
+    },
+    {
+      "type": 0,
+      "value": " downloaded."
+    }
+  ],
+  "updates.detail.downloaded": [
+    {
+      "type": 1,
+      "value": "size"
+    },
+    {
+      "type": 0,
+      "value": " downloaded."
+    }
+  ],
+  "updates.detail.install-incomplete": [
+    {
+      "type": 0,
+      "value": "Update installation did not finish"
+    }
+  ],
+  "updates.detail.install-to-finish": [
+    {
+      "type": 0,
+      "value": "Downloaded; choose Install & restart to finish the update"
+    }
+  ],
+  "updates.detail.package-channel": [
+    {
+      "type": 1,
+      "value": "package"
+    },
+    {
+      "type": 0,
+      "value": " stays with its package channel."
+    }
+  ],
+  "updates.detail.restarting": [
+    {
+      "type": 0,
+      "value": "Restarting shortly to install the update"
+    }
+  ],
+  "updates.detail.up-to-date": [
+    {
+      "type": 0,
+      "value": "Version "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": " is the newest compatible release."
+    }
+  ],
+  "updates.detail.updated": [
+    {
+      "type": 0,
+      "value": "Updated to "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    }
+  ],
+  "updates.detail.waiting-for-work": [
+    {
+      "type": 0,
+      "value": "Downloaded; waiting for playback, unfinished work or connected clients"
+    }
+  ],
+  "updates.detail.waiting-until-away": [
+    {
+      "type": 0,
+      "value": "Downloaded; waiting until you're away"
+    }
+  ],
   "updates.last-outcome": [
     {
       "type": 0,
@@ -13487,6 +13808,52 @@
     {
       "type": 0,
       "value": " seconds to install the update"
+    }
+  ],
+  "updates.status.available": [
+    {
+      "type": 0,
+      "value": "JSTorrent "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": " is available"
+    }
+  ],
+  "updates.status.check-failed": [
+    {
+      "type": 0,
+      "value": "Update check failed"
+    }
+  ],
+  "updates.status.downloading": [
+    {
+      "type": 0,
+      "value": "Downloading JSTorrent "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    }
+  ],
+  "updates.status.install-failed": [
+    {
+      "type": 0,
+      "value": "Update installation failed"
+    }
+  ],
+  "updates.status.installing": [
+    {
+      "type": 0,
+      "value": "Installing JSTorrent "
+    },
+    {
+      "type": 1,
+      "value": "version"
     }
   ],
   "updates.updated-version": [

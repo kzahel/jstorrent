@@ -3520,28 +3520,12 @@
     "defaultMessage": "Also delete downloaded data",
     "description": "Product copy in inspection/components/RemoveTorrentDialog.tsx"
   },
-  "inspection.components.remove.torrent.dialog.and": {
-    "defaultMessage": "and",
-    "description": "Product copy in inspection/components/RemoveTorrentDialog.tsx"
-  },
   "inspection.components.remove.torrent.dialog.cancel": {
     "defaultMessage": "Cancel",
     "description": "Product copy in inspection/components/RemoveTorrentDialog.tsx"
   },
   "inspection.components.remove.torrent.dialog.downloaded.data.is.kept.by.default": {
     "defaultMessage": "Downloaded data is kept by default.",
-    "description": "Product copy in inspection/components/RemoveTorrentDialog.tsx"
-  },
-  "inspection.components.remove.torrent.dialog.from.rstorrent": {
-    "defaultMessage": "from JSTorrent.",
-    "description": "Product copy in inspection/components/RemoveTorrentDialog.tsx"
-  },
-  "inspection.components.remove.torrent.dialog.more": {
-    "defaultMessage": "more",
-    "description": "Product copy in inspection/components/RemoveTorrentDialog.tsx"
-  },
-  "inspection.components.remove.torrent.dialog.not.support.downloaded.data.deletion.keep.downloaded": {
-    "defaultMessage": "not support downloaded-data deletion. Keep downloaded data to remove the complete selection.",
     "description": "Product copy in inspection/components/RemoveTorrentDialog.tsx"
   },
   "inspection.components.remove.torrent.dialog.remove": {
@@ -3562,22 +3546,6 @@
   },
   "inspection.components.remove.torrent.dialog.retry.failed": {
     "defaultMessage": "Retry failed",
-    "description": "Product copy in inspection/components/RemoveTorrentDialog.tsx"
-  },
-  "inspection.components.remove.torrent.dialog.selected": {
-    "defaultMessage": "selected",
-    "description": "Product copy in inspection/components/RemoveTorrentDialog.tsx"
-  },
-  "inspection.components.remove.torrent.dialog.this.permanently.deletes.this.torrent.s.downloaded": {
-    "defaultMessage": "This permanently deletes this torrent's downloaded files and part data. It cannot be undone.",
-    "description": "Product copy in inspection/components/RemoveTorrentDialog.tsx"
-  },
-  "inspection.components.remove.torrent.dialog.torrent.does": {
-    "defaultMessage": "torrent does",
-    "description": "Product copy in inspection/components/RemoveTorrentDialog.tsx"
-  },
-  "inspection.components.remove.torrent.dialog.torrents.do": {
-    "defaultMessage": "torrents do",
     "description": "Product copy in inspection/components/RemoveTorrentDialog.tsx"
   },
   "inspection.components.remove.torrent.dialog.torrents.to.remove": {
@@ -6874,5 +6842,133 @@
   "inspection.components.disk.panel.value.committing": {
     "defaultMessage": "Committing",
     "description": "Computed table or diagnostic presentation label. Translate the UI text; placeholders are formatted values or counts, not engine data."
+  },
+  "peers.state.choked": {
+    "defaultMessage": "Choked",
+    "description": "Peer table diagnostic state: the peer is not currently allowing download requests (BitTorrent choke), not a bandwidth rate limit."
+  },
+  "peers.state.connected": {
+    "defaultMessage": "Connected",
+    "description": "Peer table connection-state label: connection established with another BitTorrent participant."
+  },
+  "peers.state.connecting": {
+    "defaultMessage": "Connecting",
+    "description": "Peer table connection-state label: attempting to establish a connection to another BitTorrent participant."
+  },
+  "peers.state.disconnecting": {
+    "defaultMessage": "Disconnecting",
+    "description": "Peer table connection-state label: closing the connection to another BitTorrent participant."
+  },
+  "peers.state.handshaking": {
+    "defaultMessage": "Handshaking",
+    "description": "Peer table connection-state label: the BitTorrent protocol handshake is in progress."
+  },
+  "peers.state.stalled": {
+    "defaultMessage": "Stalled",
+    "description": "Peer table diagnostic state: the connection is not making progress; does not imply verified completion or disconnection."
+  },
+  "removal.deletion.unsupported": {
+    "defaultMessage": "{count, plural, one {# selected torrent does not support downloaded-data deletion.} other {# selected torrents do not support downloaded-data deletion.}} Keep downloaded data to remove the complete selection.",
+    "description": "Removal confirmation when some selected torrents cannot delete their downloaded files. count is the number without delete-data support; the selection can still be removed while keeping all downloaded data."
+  },
+  "removal.deletion.warning": {
+    "defaultMessage": "{count, plural, one {This permanently deletes this torrent's downloaded files and part data.} other {This permanently deletes these torrents' downloaded files and part data.}} It cannot be undone.",
+    "description": "Destructive confirmation shown only when deleting downloaded data is selected. count is the total number of torrents; downloaded files and incomplete part data are permanently deleted."
+  },
+  "removal.description.single": {
+    "defaultMessage": "Remove <strong>{name}</strong> from JSTorrent.",
+    "description": "Single-torrent removal confirmation. name is an untrusted torrent name rendered as text in the supplied strong element. Removing does not delete downloaded files by default."
+  },
+  "removal.more": {
+    "defaultMessage": "and {count, plural, one {# more} other {# more}}",
+    "description": "Final list item in removal confirmation, after the first five torrent names; count is the number of additional torrents."
+  },
+  "removal.pending": {
+    "defaultMessage": "{count, plural, one {Removing #…} other {Removing #…}}",
+    "description": "Busy removal button; count is the number of torrents being removed, including one. Removal may also delete data only if explicitly selected."
+  },
+  "removal.title.multiple": {
+    "defaultMessage": "Remove {count, plural, one {# torrent} other {# torrents}}?",
+    "description": "Multi-selection removal dialog title; count is the number of torrents. Removing keeps downloaded files unless deletion is explicitly selected."
+  },
+  "updates.detail.approval-required": {
+    "defaultMessage": "Installation happens only after you approve it.",
+    "description": "Available update detail for the manual-install controller; does not describe automatic installation."
+  },
+  "updates.detail.browser-check-only": {
+    "defaultMessage": "The browser checks the signed channel but cannot replace the running service.",
+    "description": "Headless server update detail. The browser checks signed release metadata; the user applies the update with a shell command."
+  },
+  "updates.detail.current-version": {
+    "defaultMessage": "Currently running {version}.",
+    "description": "Idle updater detail; version is the currently running product version."
+  },
+  "updates.detail.download-progress": {
+    "defaultMessage": "{percent, number, percent} · {size} downloaded.",
+    "description": "Update download progress with known total; percent is a fraction from zero to one, formatted as a locale-aware percentage. size is an already localized byte quantity with its unit."
+  },
+  "updates.detail.downloaded": {
+    "defaultMessage": "{size} downloaded.",
+    "description": "Update download progress when total size is unknown; size is an already localized byte quantity with its unit."
+  },
+  "updates.detail.package-channel": {
+    "defaultMessage": "{package} stays with its package channel.",
+    "description": "Manual update detail for package-managed installations; package is an already localized package-type label such as Linux DEB. Use a sentence that works with any package label without assuming its gender."
+  },
+  "updates.detail.up-to-date": {
+    "defaultMessage": "Version {version} is the newest compatible release.",
+    "description": "Updater detail after a manual check; version is the currently running compatible product version."
+  },
+  "updates.status.available": {
+    "defaultMessage": "JSTorrent {version} is available",
+    "description": "Update status title; version is the new product version and must remain unchanged."
+  },
+  "updates.status.check-failed": {
+    "defaultMessage": "Update check failed",
+    "description": "Update status title when checking for an update failed; technical detail is displayed separately."
+  },
+  "updates.status.downloading": {
+    "defaultMessage": "Downloading JSTorrent {version}",
+    "description": "Update download status title; version is the new product version, not torrent progress."
+  },
+  "updates.status.install-failed": {
+    "defaultMessage": "Update installation failed",
+    "description": "Update status title when installation failed; technical detail is displayed separately."
+  },
+  "updates.status.installing": {
+    "defaultMessage": "Installing JSTorrent {version}",
+    "description": "Update installation status title; version is the new product version."
+  },
+  "updates.detail.updated": {
+    "defaultMessage": "Updated to {version}",
+    "description": "Successful desktop update detail; version is the installed product version. Also shown within the last-update outcome."
+  },
+  "updates.detail.waiting-for-work": {
+    "defaultMessage": "Downloaded; waiting for playback, unfinished work or connected clients",
+    "description": "Host updater has staged an update but playback, unfinished work, or connected clients block restart. Preserve every reason."
+  },
+  "updates.detail.install-to-finish": {
+    "defaultMessage": "Downloaded; choose Install & restart to finish the update",
+    "description": "Host update is downloaded; automatic installation is unavailable here. Refer to the Install and restart button."
+  },
+  "updates.detail.automatic-off": {
+    "defaultMessage": "Downloaded; automatic installation is off",
+    "description": "Host update is downloaded, but the user disabled automatic installation."
+  },
+  "updates.detail.restarting": {
+    "defaultMessage": "Restarting shortly to install the update",
+    "description": "Host updater is in its restart notice interval before installing the downloaded update."
+  },
+  "updates.detail.waiting-until-away": {
+    "defaultMessage": "Downloaded; waiting until you're away",
+    "description": "Host update is downloaded, waiting for user inactivity before restarting. Use the locale register consistently."
+  },
+  "updates.detail.channel-paused": {
+    "defaultMessage": "Automatic installation is paused for this channel",
+    "description": "The update service paused automatic installation for the selected release channel, not the user's preference."
+  },
+  "updates.detail.install-incomplete": {
+    "defaultMessage": "Update installation did not finish",
+    "description": "Durable result when an installation attempt did not finish; not a successful update."
   }
 }
