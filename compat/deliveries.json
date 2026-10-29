@@ -252,6 +252,20 @@
       "roles": [
         "client"
       ]
+    },
+    {
+      "surface": "remote",
+      "version": "0.3.5",
+      "tag": "remote-v0.3.5",
+      "commit": "b4763454d4fadc87b388407cbc17929074343907",
+      "channel": "remote-pages",
+      "status": "submitted",
+      "submitted": "2026-10-29",
+      "firstPublic": null,
+      "channelBasis": "Exact captured corrected client candidate submitted for tagged production build and deployment; public availability remains pending gates and canary. Supersedes unserved remote 0.3.4.",
+      "roles": [
+        "client"
+      ]
     }
   ]
 }
