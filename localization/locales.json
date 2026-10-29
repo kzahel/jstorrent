@@ -58,6 +58,9 @@
     },
     "uk": {
       "direction": "ltr"
+    },
+    "zh-CN": {
+      "direction": "ltr"
     }
   },
   "previewLocales": {
@@ -84,7 +87,8 @@
       "uk",
       "tr",
       "ja",
-      "ko"
+      "ko",
+      "zh-CN"
     ],
     "desktop": [
       "en",
@@ -103,7 +107,8 @@
       "uk",
       "tr",
       "ja",
-      "ko"
+      "ko",
+      "zh-CN"
     ],
     "ios": [
       "en"
@@ -125,7 +130,8 @@
       "uk",
       "tr",
       "ja",
-      "ko"
+      "ko",
+      "zh-CN"
     ]
   },
   "testLocales": [

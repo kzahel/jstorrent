@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "选择下载文件夹",
+  "dialog.settings-save.body": "JSTorrent 无法保存“后台运行”设置。之前的设置仍然有效。",
+  "dialog.settings-save.title": "JSTorrent 设置未保存",
+  "dialog.shutdown.body": "JSTorrent 未能完成关闭。未对数据执行强制关闭操作。请先查看诊断日志，再重试。",
+  "dialog.shutdown.title": "JSTorrent 无法退出",
+  "dialog.torrent-list-export.title": "导出种子任务列表",
+  "dialog.torrent-list-import.title": "导入种子任务列表",
+  "dialog.torrent-list.filter": "种子任务列表",
+  "notification.download-complete.body": "{name} 下载完成。",
+  "notification.download-complete.title": "下载完成",
+  "notification.needs-attention.body": "{name} 需要处理。请打开 JSTorrent 查看详情。",
+  "notification.needs-attention.title": "下载任务需要处理",
+  "notification.open": "打开 JSTorrent",
+  "notification.unnamed-torrent": "种子任务",
+  "power.active-transfer-reason": "JSTorrent 正在下载或校验内容",
+  "tray.check-updates": "检查更新",
+  "tray.quit": "退出 JSTorrent",
+  "tray.run-in-background": "后台运行",
+  "tray.show": "显示 JSTorrent",
+  "tray.tooltip": "JSTorrent"
+}

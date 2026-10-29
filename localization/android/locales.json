@@ -122,6 +122,12 @@
         "many",
         "other"
       ]
+    },
+    "zh-CN": {
+      "catalog": "clients/android/app/src/main/res/values-zh-rCN/strings.xml",
+      "quantities": [
+        "other"
+      ]
     }
   },
   "schemaVersion": 1
