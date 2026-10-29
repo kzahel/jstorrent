@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "extensionId": "dbokmlpefliilbjldladbimlcfgbolhk",
+  "catalogHash": "cb8bce9f1afd5cfcc0e3e7648762322507b9fd1d6ccb3cd8467fd0350eeeb013",
+  "observedAt": "2026-10-29T12:17:01.171Z",
+  "status": "partial-dashboard-sync",
+  "reviewSubmitted": false,
+  "saved": [
+    {
+      "locale": "en",
+      "evidence": "Reviewed English text observed after full dashboard reload",
+      "reloadVerified": true
+    },
+    {
+      "locale": "de",
+      "descriptionSha256": "a9f17156e5af6559a739cbd6b0011d28f29e3a177f57f3a59b4a7af8ba381e14",
+      "characters": 1399,
+      "exactReadback": true,
+      "saveDraftDisabled": true,
+      "reloadVerified": false
+    }
+  ],
+  "pending": [
+    "cs",
+    "da",
+    "es",
+    "fr",
+    "it",
+    "ja",
+    "ko",
+    "nl",
+    "pl",
+    "pt_BR",
+    "ro",
+    "ru",
+    "sv",
+    "tr",
+    "uk",
+    "zh_CN",
+    "zh_TW"
+  ],
+  "blocker": "Machine Control session ended guardian_safety_unavailable; desktop phase paused",
+  "method": "Native dashboard controls and paste; no private endpoints or browser cookies"
+}

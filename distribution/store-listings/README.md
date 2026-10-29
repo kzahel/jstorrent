@@ -71,3 +71,14 @@ existing extension release workflow, synchronize the matching reviewed
 and submit the combined change. Do not add private dashboard RPCs or browser
 cookies to CI. The default icon and graphics remain valid fallbacks for locales
 without their own images; image replacement is an explicit separate operation.
+
+The dashboard step can use approved local UI automation with the generated
+text bundle. Verify the selected locale, paste the exact catalog text through
+the editable field, compare its readback, invoke Save draft and verify that
+the save completes. Direct native accessibility value-setting can acknowledge
+delivery without updating the form model; do not treat that acknowledgement
+as a saved translation. Reload and compare every locale before submission.
+Use fresh control references and native bounds, stop on lost control or failed
+readback, and keep review submission separate. This browser step is not a
+supported store-metadata API and does not belong in unattended CI with copied
+browser credentials. Fastlane cannot supply a missing Chrome API endpoint.

@@ -207,3 +207,31 @@ and failure. No Machine Control code or security settings were changed. Resume
 only through its normal healthy desktop-control admission, recheck English
 from the server, and complete all nineteen exact catalog comparisons before
 submission.
+
+### Partial dashboard progress (October 29, 12:15 UTC)
+
+The next authorized resume established a working input sequence: native paste
+into the field updates the form model, followed by the native Save draft
+accessibility action. Direct native `set_value` and acknowledged pointer
+delivery were insufficient evidence. The English description was observed
+matching the reviewed source after a complete reload. German was normalized
+to the exact 1,399-character catalog value, read back exactly, and saved; native
+readback then showed Save draft disabled and Submit for review enabled. Its
+final reload verification remains pending. The other seventeen descriptions
+remain pending. French was selected, but its edit did not start.
+
+The bounded session then ended with `guardian_safety_unavailable` and an
+observed lock. Desktop status reports `paused`; no automatic rearm or review
+submission followed. The maintainer was asked to restore normal desktop
+control. The partial receipt
+`distribution/store-listings/receipts/2026-10-29-chrome-descriptions.json`
+records the catalog fingerprint, German readback hash and remaining locales.
+Continue from this state, verify English and German again, and finish the
+seventeen remaining descriptions plus full reload comparisons before tagging.
+
+The supported Chrome v2 reference was rechecked: its methods remain upload,
+fetchStatus, publish, cancelSubmission and setPublishedDeployPercentage, with
+no listing-text endpoint. Play text, Chrome package summaries, package upload
+and review submission already have API/CI paths; only Chrome long descriptions
+require this local dashboard step. No private RPC or browser credential copy
+is introduced.
