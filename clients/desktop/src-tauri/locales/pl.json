@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "Wybierz folder pobierania",
+  "dialog.settings-save.body": "JSTorrent nie mógł zapisać ustawienia „Praca w tle”. Poprzednie ustawienie nadal obowiązuje.",
+  "dialog.settings-save.title": "Nie zapisano ustawienia JSTorrent",
+  "dialog.shutdown.body": "JSTorrent nie mógł zakończyć zamykania. Aby chronić dane, nie wymuszono zamknięcia. Przed ponowną próbą należy sprawdzić dziennik diagnostyczny.",
+  "dialog.shutdown.title": "Nie udało się zamknąć JSTorrent",
+  "dialog.torrent-list-export.title": "Eksportuj listę torrentów",
+  "dialog.torrent-list-import.title": "Importuj listę torrentów",
+  "dialog.torrent-list.filter": "Lista torrentów",
+  "notification.download-complete.body": "Zakończono pobieranie: {name}.",
+  "notification.download-complete.title": "Pobieranie zakończone",
+  "notification.needs-attention.body": "{name} wymaga uwagi. Aby zobaczyć szczegóły, należy otworzyć JSTorrent.",
+  "notification.needs-attention.title": "Pobieranie wymaga uwagi",
+  "notification.open": "Otwórz JSTorrent",
+  "notification.unnamed-torrent": "Torrent",
+  "power.active-transfer-reason": "JSTorrent pobiera lub sprawdza dane",
+  "tray.check-updates": "Sprawdź dostępność aktualizacji",
+  "tray.quit": "Zamknij JSTorrent",
+  "tray.run-in-background": "Praca w tle",
+  "tray.show": "Pokaż JSTorrent",
+  "tray.tooltip": "JSTorrent"
+}

@@ -54,6 +54,15 @@
         "other"
       ]
     },
+    "pl": {
+      "catalog": "clients/android/app/src/main/res/values-pl/strings.xml",
+      "quantities": [
+        "one",
+        "few",
+        "many",
+        "other"
+      ]
+    },
     "pt-BR": {
       "catalog": "clients/android/app/src/main/res/values-pt-rBR/strings.xml",
       "quantities": [
