@@ -14,8 +14,10 @@ live matrices. Remote 0.3.4 remains an unserved, withdrawn attempt. Android
 its production candidacy is withdrawn in favor of 1.0.35's ZIP security repair.
 Android 1.0.35 is now publicly rolling out at one percent, firstPublic October
 29, after the same internal AAB passes physical Play-upgrade qualification.
-Desktop 0.3.6 selects full-CI-qualified source 5e3af4fd; its exact host capture
-and 91 compatibility cases pass before signed construction and promotion. New
+Desktop 0.3.6 is public on both Stable and Latest at full-CI-qualified source
+5e3af4fd. Its exact host capture and 91 compatibility cases pass; promotion
+40872253650 preserves native/source bytes and rebinds authenticated updater
+metadata. All public assets and target/channel feeds verify. New
 client captures must decode all raw frames unless an explicit legacy failure
 is recorded; strictness and unattributed-exposure checks remain unchanged.
 

@@ -302,13 +302,14 @@
       "tag": "desktop-v0.3.6",
       "commit": "5e3af4fdaac41200173ca18fea13a049d7903d08",
       "channel": "stable",
-      "status": "submitted",
+      "status": "published",
       "submitted": "2026-10-29",
-      "firstPublic": null,
-      "channelBasis": "Signed Latest workflow 40860728878 selects this exact source after successful full source CI 40855333497. The host capture and 91 compatibility cases pass. Native construction, installed qualification and unchanged-byte Stable promotion remain pending; no public Stable delivery is claimed.",
+      "firstPublic": "2026-10-29",
+      "channelBasis": "Stable promotion 40872253650 succeeds from public Latest 0.3.6 at this exact source, following successful full source CI 40855333497. All five signed native legs from 40860728878 are independently reassembled and verified. The original collector stops on changed Ubuntu source revisions; reviewed source pins c5b3b2fb and the maintained local source/final-draft validators complete the same immutable draft without changing native packages, payload signatures or authenticated database facts. Both channels preserve the same native/source bytes.",
       "roles": [
         "host"
-      ]
+      ],
+      "firstPublicBasis": "Public Stable 0.3.6 observed October 29 at 12:20:51 UTC. All seventeen public assets on each channel verify against SHA-256 and size inventories; all ten target/channel updater offers match their authenticated manifests. Both Mac architectures pass independent signing, notarization, stapling and Gatekeeper checks. Additional Windows installed qualification stops at a canceled protected login before installation; no Windows installed-runtime result is claimed. Canonical website deployment 40872952636 serves version 0.3.6 and all six qualified download links."
     }
   ]
 }

@@ -1,15 +1,16 @@
 # 389 — Localized product release
 
-Status: **Active (October 29, 2026).** The maintainer explicitly requests a new
+Status: **Complete (October 29, 2026), with Android on its standard staged rollout.** The maintainer explicitly requests a new
 release across desktop, extension, mobile, website and the other production
 surfaces after accepting the localized Pixel 9 development build.
 
-Current delivery: extension 1.1.8 and remote controller 0.3.5 are public. Android
-1.0.35 is publicly rolling out at one percent. Desktop 0.3.6 selects source
-5e3af4fdaac41200173ca18fea13a049d7903d08 after full source CI 40855333497;
-all five signed native jobs and source checks pass in workflow 40860728878.
-The collector stops before publication on unreviewed Ubuntu source revisions;
-Stable and website promotion remain pending. The prior private draft 0.3.5 is preserved unchanged.
+Current delivery: desktop 0.3.6 is public on Stable and Latest; extension
+1.1.8 and remote controller 0.3.5 are public; Android 1.0.35 is publicly rolling
+out at one percent on the registered standard seven-day plan. The canonical
+website serves the qualified 0.3.6 downloads and nineteen-language release
+notes. The original desktop 0.3.5 private draft is preserved unchanged.
+The separate localized extension 1.1.9/store-description follow-up remains
+owned by Tactical 390 and is not reported as published here.
 
 ## Scope and stopping condition
 
@@ -302,3 +303,85 @@ facts, source carrier contents and final uploaded bytes before publication;
 record local recovery separately from the failed collector workflow. A new
 application source still requires a new numeric version. The older draft
 0.3.5 is not part of recovery and stays unchanged.
+
+## Published delivery and final verification
+
+All requested production lanes reach their stopping condition on October 29:
+
+| Surface | Delivery | Source and production evidence |
+| --- | --- | --- |
+| Desktop | 0.3.6 Stable and Latest, public | `5e3af4fd`; full source CI 40855333497, five signed builds/source checks 40860728878, unchanged-byte Stable promotion 40872253650 |
+| Android | 1.0.35/code 35, available to 1% | `7bed9c13`; signed build 40842706846, exact-source CI 40842999153 attempt 2, internal 40852868563, production 40854017766, standard-7d deployment 7409239330 |
+| Extension | 1.1.8, public | `7d172835`; build/store workflow 40829159867, authenticated PUBLISHED status 40838594752, independent update endpoint serves 1.1.8 |
+| Remote controller | 0.3.5, public | `b4763454`; production 40833955970, all 42 files and headers verified, public canary passes with signed route cleanup |
+| Website | 0.3.6 downloads, public | verified inventory promotion 40872582144, initial deployment 40872726897, final copy deployment 40872952636 at `08f422ffd20c4b8e0c53be10c31866ee70966cbd` |
+
+### Desktop recovery and public bytes
+
+The five native CI legs are independently reassembled with their original
+run/source/version facts, then compared with the existing draft. All fifteen
+core assets, original updater manifest and authenticated database facts match;
+all six payload signatures verify against the retained original key. The
+source carrier is completed using reviewed pins at `c5b3b2fb`, without changing
+any native executable or signature. Its SHA-256 is
+`da04232859ac2dbc2eb214ef673f7ca7fcc6ee75d4e6e9db683fa3de8340be81`,
+size 1,383,075,962 bytes. All 39,597 archive members verify; all 85 native source
+pairs and both exact AppImage hashes are bound. Its 781 current locked Cargo
+packages pass empty-Cargo-home offline metadata on both Linux targets.
+All six current-source and seven source-carrier regressions pass.
+The original collector remains a failed historical workflow; completion is
+local recovery through the maintained source and complete final-draft gates,
+followed by successful unchanged-byte Stable promotion. No exception or gate
+is removed or waived.
+
+Latest is public at 12:17:11 UTC and Stable at 12:20:51 UTC. All seventeen
+assets from each public channel are independently downloaded without
+credentials; sizes, SHA-256 digests and complete checksum inventories verify. Stable retains
+all original native/source bytes. All ten public target/channel offers match
+their exact manifests and retained-key authenticated compatibility envelopes.
+The original database versions remain session 29/product 4/metrics 1. The four
+automatic targets and manual Linux ARM64 policy are unchanged.
+
+Both Mac architectures independently pass strict deep code signatures, original
+Developer ID team continuity, app/DMG Gatekeeper acceptance, valid staples and
+accepted notarization tickets bound by code hashes. Notarization log file hashes
+are pre-staple values; they are not misreported as final DMG byte hashes.
+Prior localization runtime evidence remains macOS and Android. The extra
+Windows installed smoke stops at a canceled protected login before installation;
+no login retry, installed Windows result or physical x64 result is claimed.
+Normal guest shutdown and exact owned workspace/claim release succeed, and
+independent inspection confirms the source off and exclusive claim available.
+Preexisting persistent workspace records and primary app profiles are preserved.
+
+The actual desktop dependency review is release-ready, with no new exception:
+only the previously authorized crypto-bigint finding remains, retaining its
+October 24 authorization and November 12 expiry. Both ZIP advisory records are
+fixed, and a fresh GitHub alert read returns no open findings. This is bounded
+release evidence, not comprehensive security clearance.
+
+### Final live website and store state
+
+The final canonical provenance marker reports source
+`08f422ffd20c4b8e0c53be10c31866ee70966cbd` and desktopVersion 0.3.6. All six public
+download/source links resolve to the exact qualified Stable asset names. The
+live page includes the nineteen-language release notes and CSP; the update
+guide no longer advertises its stale first-cutover version. Astro checks all 27
+files without diagnostics, and the production build plus 58 generated route
+policies pass. The actual website workflows also pass their test/build gates.
+
+Android remains available to one percent, with automatic standard-7d holds and
+increments; do not confuse this with 100% rollout or manually advance it.
+The official physical Play upgrade, retained Google signer, exact installed
+native libraries, five retained seeding torrents, all nineteen picker locales,
+French restart and restored System preference are recorded above. Extension
+1.1.8 is independently rechecked at the public update endpoint. The separately
+staged 1.1.9 and Chrome description synchronization are not duplicated here.
+The already current Link service is not redeployed merely to create a new tag;
+iOS remains development-only and frozen release identities stay frozen.
+
+Final delivery status/captures and the living topics are updated together.
+All seven ledger/window regressions pass. Ledger checks pass for all
+twenty-three entries and their required captures.
+Task-owned captures, downloads, logs, helper processes and the isolated release
+checkout are removed after their durable evidence is committed and pushed;
+other sessions, store dashboard state and localization locks are preserved.

@@ -9,9 +9,11 @@ submission from approval. The nineteen-locale source is qualified in 388.
 The extension and remote controller are public. Android 1.0.35 is available to
 one percent of production users across the existing 178 countries, following
 a verified Play-signed upgrade and the registered standard seven-day plan.
-Desktop 0.3.6 has selected full-CI-qualified source 5e3af4fd for signed
-construction; Stable and canonical website promotion remain pending. Desktop
-selection verifies effective draft access and refreshes drafts by ID, reserving
+Desktop 0.3.6 is public on Stable and Latest from full-CI-qualified source
+5e3af4fd. All seventeen public assets per channel and all ten updater offers
+verify; unchanged-byte promotion 40872253650 and canonical website deployment
+40872952636 succeed. The website serves the six qualified 0.3.6 download links.
+Desktop selection verifies effective draft access and refreshes drafts by ID, reserving
 interrupted versions without replacing their source or signed assets.
 The internal-only Android 1.0.34 candidate is superseded by 1.0.35 so both new
 hosts include ZIP 9.0.5 and explicit header-consistency checks for torrent-list

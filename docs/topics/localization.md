@@ -11,8 +11,10 @@ Production delivery is recorded in Tactical
 [389](../tactical/389-localized-product-release.md). Android 1.0.35 is public
 at one percent on the existing staged plan, with an actual Play-signed upgrade
 retaining the library and original language preference. Remote controller
-0.3.5 is public. Desktop 0.3.6 has selected its full-CI-qualified source and is
-undergoing signed construction before Stable and website promotion.
+0.3.5 and desktop 0.3.6 are public; Stable/Latest retain the same signed native
+bytes, and the canonical website serves the qualified 0.3.6 downloads and
+nineteen-language release notes. Extension 1.1.8 is public; the separately
+staged localized 1.1.9 and Chrome description follow-up remain owned by Tactical 390.
 
 All accepted local sessions verify Sol 6.1/high/normal/bypass settings. Final
 qualification includes 133 production-browser cases across all eighteen
