@@ -79,3 +79,22 @@ and all five Android version-helper cases pass. Both exact new host tags pass
 the unchanged-eight-field acceptance; database compatibility metadata is current.
 No store, permissions, schema or native runtime behavior changes are included
 in preparation. Hosted signed construction and store submission remain pending.
+
+## Corresponding-source prerequisite
+
+The retained 0.3.5 draft failed its collector on a missing preferred-source
+record for fast-uri 3.1.9. Inspection finds three missing records for already
+locked dependencies: fast-uri 3.1.9 (BSD-3-Clause), undici 7.30.1 and zustand
+5.0.15 (MIT). Exact npm integrity, upstream version/commit, root license text
+and preferred-archive SHA-256 are checked before adding their source pins. The
+[license inventory](../../distribution/licenses/README.md) records origin,
+reuse permission and the source bindings. Existing dependency versions and
+license/advisory gates are unchanged. Preflight against the prior release
+lockfile now resolves all changed web inputs. Final same-run Linux package and
+source-carrier binding still belongs to the fresh desktop collector.
+
+All sixteen changed web inputs relative to the pinned prior release now resolve
+to exact reviewed records; the six current-source carrier regressions pass.
+The read-only Play check in Actions 40829325910 confirms that production code
+33 is now completed, so the next standard staged rollout has no unfinished
+predecessor to alter. This inspection made no Play track change.

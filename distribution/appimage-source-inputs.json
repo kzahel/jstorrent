@@ -135,6 +135,36 @@
         "commit": "d7c7339e5e3b75349466f253f20a64880fda44c7",
         "sha256": "a80df40b2c176fc45e03903abdc38a51c49c17993ca982bc7f4c28f3ed17276b"
       }
+    },
+    "fast-uri@3.1.9": {
+      "distribution": "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.9.tgz",
+      "integrity": "sha512-hS/0Wt3Ya043oKXs0sIxrMpKQITXhMLIrVAKKXi4gozGC9v7YRWVnXIZzjNPTO02M9BdxLCWqK1yRXgNziVyJQ==",
+      "license": "BSD-3-Clause",
+      "preferred": {
+        "url": "https://codeload.github.com/fastify/fast-uri/tar.gz/0def70338a0fa2f12a10c83ae8eafc2139ae9a07",
+        "commit": "0def70338a0fa2f12a10c83ae8eafc2139ae9a07",
+        "sha256": "a4b9550cb6c9fff83506f0924376603054c09199dc0483c08efc3bafacef82ca"
+      }
+    },
+    "undici@7.30.1": {
+      "distribution": "https://registry.npmjs.org/undici/-/undici-7.30.1.tgz",
+      "integrity": "sha512-03KrMbjIFDWQR5RNPrSw3bd1r12JpyFQl9/yxjUbJtqkjmllqC5lFjZh6ujeuJCKr8EOQvRW872Oy/az+nLYxg==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/nodejs/undici/tar.gz/7507102a675b082a71437f0a00681e537875556c",
+        "commit": "7507102a675b082a71437f0a00681e537875556c",
+        "sha256": "4501d8627f3801447b3aa7c5467c8c9ae286b8302d8a461c0cef96d864ea11ce"
+      }
+    },
+    "zustand@5.0.15": {
+      "distribution": "https://registry.npmjs.org/zustand/-/zustand-5.0.15.tgz",
+      "integrity": "sha512-MpSEjRiBkA9crSYeOUH32rJC7SVqAbm0Fqcqge/bUi2PPoLcBWKOsG+C8mevmpr8TwXHBVkChbbJiyvkE+i/3A==",
+      "license": "MIT",
+      "preferred": {
+        "url": "https://codeload.github.com/pmndrs/zustand/tar.gz/2115efb9e270e73ad1d3472dfe0e0c7b8c6abcd4",
+        "commit": "2115efb9e270e73ad1d3472dfe0e0c7b8c6abcd4",
+        "sha256": "707690a760099b320afddcb57d6d374420559fbd1c5314e394afcaec62267605"
+      }
     }
   },
   "additionalNativeSources": {

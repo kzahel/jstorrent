@@ -64,3 +64,35 @@ The catalog reuses those original terms and attribution with immutable source
 URLs. No implementation source is imported. The newer interceptor no longer
 depends on `rtc-interceptor-derive`; its isolated 0.20.5 proposal is superseded
 by this graph update.
+
+## October 29 AppImage preferred-source inventory
+
+Tactical 389 completes source records for three dependencies already present in
+the committed web lockfile. The preceding unpublished desktop 0.3.5 collector
+stopped at the missing `fast-uri@3.1.9` record; this does not add or upgrade a
+dependency. `distribution/appimage-source-inputs.json` binds each exact npm
+distribution URL/SHA-512 integrity, license and preferred upstream commit/archive
+SHA-256. Current-versus-prior lockfile comparison now resolves every changed
+web input without an unreviewed fallback.
+
+| Package | License | Preferred source |
+| --- | --- | --- |
+| fast-uri 3.1.9 | BSD-3-Clause | [Fastify source at 0def7033](https://github.com/fastify/fast-uri/tree/0def70338a0fa2f12a10c83ae8eafc2139ae9a07) |
+| undici 7.30.1 | MIT | [Node.js source at 7507102a](https://github.com/nodejs/undici/tree/7507102a675b082a71437f0a00681e537875556c) |
+| zustand 5.0.15 | MIT | [pmndrs source at 2115efb9](https://github.com/pmndrs/zustand/tree/2115efb9e270e73ad1d3472dfe0e0c7b8c6abcd4) |
+
+For each package, the npm artifact matches the lockfile's complete integrity
+value; upstream and packaged root license texts match, as do package name,
+version and declared license. Fast-uri and undici identify their source through
+npm `gitHead`. Zustand's npm provenance statement binds the same distribution
+SHA-512 to `refs/tags/v5.0.15`/2115efb9, agreeing with the upstream GitHub tag;
+this records the source binding without claiming independent Sigstore signature
+verification. Downloaded preferred archives are hashed before adding the pins.
+
+MIT permits redistribution with its copyright/permission notice. The reviewed
+BSD three-clause text permits source/binary redistribution while preserving its
+copyright, conditions and disclaimer and prohibiting contributor endorsement.
+Both complete archives retain those unmodified texts and original headers in
+the corresponding-source carrier; existing packaged notices remain required.
+No third-party source is copied into application source files, and no license
+exception or release gate is waived.
