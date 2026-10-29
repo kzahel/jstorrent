@@ -266,6 +266,20 @@
       "roles": [
         "client"
       ]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.34",
+      "tag": "android-v1.0.34",
+      "commit": "4b0c6d52a70f7a2c3b51391104f1475da1d162c3",
+      "channel": "play-production",
+      "status": "submitted",
+      "submitted": "2026-10-29",
+      "firstPublic": null,
+      "channelBasis": "Exact tagged host candidate and independent capture; signed dual-ABI construction and internal/production Play submission remain pending, with no claimed public availability.",
+      "roles": [
+        "host"
+      ]
     }
   ]
 }
