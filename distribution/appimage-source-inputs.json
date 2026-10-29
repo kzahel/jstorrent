@@ -248,6 +248,56 @@
           "bytes": 33844
         }
       ]
+    },
+    "brotli@1.1.0-2ubuntu0.1": {
+      "sourcePackage": "brotli",
+      "sourceVersion": "1.1.0-2ubuntu0.1",
+      "authentication": "Primary HTTPS and exact descriptor identity; original OpenPGP retained, not independently verified",
+      "files": [
+        {
+          "filename": "brotli_1.1.0-2ubuntu0.1.dsc",
+          "url": "https://security.ubuntu.com/ubuntu/pool/main/b/brotli/brotli_1.1.0-2ubuntu0.1.dsc",
+          "sha256": "20d71900a6ed7f7edf6ef3b0084892510aae1b3b72ed7b99f38919f802c2a779",
+          "bytes": 2376
+        },
+        {
+          "filename": "brotli_1.1.0.orig.tar.gz",
+          "url": "https://security.ubuntu.com/ubuntu/pool/main/b/brotli/brotli_1.1.0.orig.tar.gz",
+          "sha256": "10973f4b4199eafa1d5735ef661ddb2ec2f97319ee9fd1824d4aabe08cff5265",
+          "bytes": 512036
+        },
+        {
+          "filename": "brotli_1.1.0-2ubuntu0.1.debian.tar.xz",
+          "url": "https://security.ubuntu.com/ubuntu/pool/main/b/brotli/brotli_1.1.0-2ubuntu0.1.debian.tar.xz",
+          "sha256": "744230cae71f1ba9fbef6b897195393dca0f94641b286a3a183898fe6a77ef59",
+          "bytes": 7892
+        }
+      ]
+    },
+    "systemd@255.4-1ubuntu8.18": {
+      "sourcePackage": "systemd",
+      "sourceVersion": "255.4-1ubuntu8.18",
+      "authentication": "Primary HTTPS and exact descriptor identity; original OpenPGP retained, not independently verified",
+      "files": [
+        {
+          "filename": "systemd_255.4-1ubuntu8.18.dsc",
+          "url": "https://security.ubuntu.com/ubuntu/pool/main/s/systemd/systemd_255.4-1ubuntu8.18.dsc",
+          "sha256": "04154737afced0898fc7966b85e88505fb3a17f46c8c7079576d022cdeb67304",
+          "bytes": 7324
+        },
+        {
+          "filename": "systemd_255.4.orig.tar.gz",
+          "url": "https://security.ubuntu.com/ubuntu/pool/main/s/systemd/systemd_255.4.orig.tar.gz",
+          "sha256": "96e75bd08c57ad401677456fb88ef54a9f05bb1695693013bc6ecce839640fd5",
+          "bytes": 14952427
+        },
+        {
+          "filename": "systemd_255.4-1ubuntu8.18.debian.tar.xz",
+          "url": "https://security.ubuntu.com/ubuntu/pool/main/s/systemd/systemd_255.4-1ubuntu8.18.debian.tar.xz",
+          "sha256": "ec3ce620c3e072d34bbeaf9a4155cd91b5bee94eb412071bf81182f230ae2657",
+          "bytes": 273272
+        }
+      ]
     }
   },
   "additionalRuntimes": {

@@ -107,3 +107,18 @@ packaged notices bind these source pairs to the actual binaries. Primary HTTPS,
 descriptor identity, byte counts and descriptor SHA-256 inventories are checked;
 the original OpenPGP signatures are retained without claiming independent key
 verification. Original component terms and Ubuntu patches accompany the sources.
+
+The October 29 carrier additionally supplies Ubuntu Brotli
+`1.1.0-2ubuntu0.1` and systemd `255.4-1ubuntu8.18`. These are the only new
+source/version pairs found across both exact 0.3.6 AppImages after subtracting
+the prior carrier and already reviewed additions. Exact signed descriptors,
+every descriptor-referenced archive, sizes and SHA-256 inventories are checked
+over primary `security.ubuntu.com` HTTPS. OpenPGP signatures are preserved;
+independent key verification is not claimed. Brotli's original MIT license and
+Debian copyright/patch series are retained, including Ubuntu's
+[CVE-2026-111497 fix](https://ubuntu.com/security/notices/USN-8956-1).
+Systemd's original LGPL-2.1+ library terms, other component-specific terms,
+Debian copyright and complete Ubuntu patch series remain intact. Supplying
+these unchanged upstream sources permits the existing source/relink workflow;
+it imports no third-party code into first-party application code. It does not
+change or re-sign any already collected native executable.

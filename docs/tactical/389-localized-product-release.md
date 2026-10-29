@@ -7,8 +7,9 @@ surfaces after accepting the localized Pixel 9 development build.
 Current delivery: extension 1.1.8 and remote controller 0.3.5 are public. Android
 1.0.35 is publicly rolling out at one percent. Desktop 0.3.6 selects source
 5e3af4fdaac41200173ca18fea13a049d7903d08 after full source CI 40855333497;
-signed workflow 40860728878 is in progress. Stable and website promotion remain
-pending. The prior private draft 0.3.5 is preserved unchanged.
+all five signed native jobs and source checks pass in workflow 40860728878.
+The collector stops before publication on unreviewed Ubuntu source revisions;
+Stable and website promotion remain pending. The prior private draft 0.3.5 is preserved unchanged.
 
 ## Scope and stopping condition
 
@@ -277,3 +278,27 @@ Capture the exact selected 5e3af4fd host; all 91 compatibility cases and the
 delivery ledger pass. Remove only the unused, uncommitted exploratory96
 capture. Native packages, original-key signatures, fresh dependency/licensing
 review and corresponding source remain construction/qualification gates.
+
+## Exact-source draft completion
+
+Collector 40860728878 stops at the corresponding-source gate after signing and
+uploading the fifteen core assets and initial checksum inventory to private
+draft 427807280. Publication has not occurred. Inspection of both exact
+AppImages identifies two new pairs, Brotli `1.1.0-2ubuntu0.1` and systemd
+`255.4-1ubuntu8.18`; the gate initially reports only Brotli. Review the complete
+pair difference, original licenses, Ubuntu changelogs and patches, exact
+primary HTTPS descriptors and every referenced archive before adding pins.
+The [native source guide](../../distribution/linux-native/README.md) records
+origin and reuse terms. No advisory/source gate is waived.
+
+Complete this same draft from its original source `5e3af4fd` and immutable
+native assets, using the maintained source packager and final draft validators
+locally. The source index records the updated input-pin hash separately from
+the original application source. Only the missing corresponding-source carrier,
+its checksum inventory and release notes may be added/updated. Neither native
+payloads nor signatures nor authenticated updater facts may change. Verify
+all exact CI leg provenance, original updater signatures, signed database
+facts, source carrier contents and final uploaded bytes before publication;
+record local recovery separately from the failed collector workflow. A new
+application source still requires a new numeric version. The older draft
+0.3.5 is not part of recovery and stays unchanged.
