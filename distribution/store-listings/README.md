@@ -55,6 +55,14 @@ concurrent Console edit invalidates a transaction or changes its fingerprint;
 export and inspect a fresh diff rather than replaying it. A commit with an
 unknown result is never retried or deleted. Reconcile it in Play Console.
 API acceptance is not proof of completed Google review or public availability.
+Delivery receipts under `receipts/` record those distinctions and the exact
+workflow runs. For example:
+
+```bash
+gh workflow run store-listings.yml --ref main -f operation=diff
+# Inspect the successful run's play-listing-diff artifact, then use its run ID.
+gh workflow run store-listings.yml --ref main -f operation=apply -f diff_run=RUN_ID
+```
 
 Chrome's supported v2 API uploads packages and submits review but cannot write
 long descriptions or screenshots. Upload the localized package using the

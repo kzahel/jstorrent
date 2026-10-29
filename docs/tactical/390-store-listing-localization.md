@@ -1,6 +1,7 @@
 # 390 — Localized store listings and extension entry points
 
-Status: **Active (October 29, 2026).** The maintainer authorizes planning,
+Status: **Implemented; Play submitted; Chrome staged, dashboard blocked
+(October 29, 2026).** The maintainer authorizes planning,
 implementation, translation, independent review, CI setup and delivery through
 the existing production Google Play and Chrome Web Store identities.
 
@@ -142,3 +143,44 @@ has been asked to click Deny; no password or keychain grant is needed. Continue
 Play delivery and CI package staging independently. The supported Chrome API
 cannot save long descriptions, so do not call a staged package a completed
 localized listing submission.
+
+### Play delivery (October 29)
+
+Implementation commit `96c1a27ff9ca11420ba180bb2083bd0d6ccb6ed6` is pushed to
+main. Diff run [40854246101](https://github.com/kzahel/jstorrent/actions/runs/40854246101)
+matched the exported baseline exactly and proposed 61 owned-field changes in
+30 locales, including new `zh-TW`. Apply run
+[40854376828](https://github.com/kzahel/jstorrent/actions/runs/40854376828)
+validated, read back and committed the single edit successfully. A fresh
+read-only export in
+[40854495072](https://github.com/kzahel/jstorrent/actions/runs/40854495072)
+matches all 30 reviewed catalogs exactly. The receipt is retained under
+`distribution/store-listings/receipts/2026-10-29-play.json`. Google review and
+public availability remain unverified; the public Play pages were inaccessible
+to the web checker.
+
+### Chrome staging and remaining delivery
+
+The initial Chrome staging attempt 40854251913 failed before upload on an existing
+web test's one-second canvas-render lookup (970 tests passed, one failed,
+three skipped). The same complete suite passed locally, and no React source
+changed here. The failed-job rerun passed all package gates and successfully
+uploaded version 1.1.9 in
+[40854251913, attempt 2](https://github.com/kzahel/jstorrent/actions/runs/40854251913/attempts/2).
+The downloaded CI artifact has `sourceDirty: false`, source commit
+`96c1a27ff9ca11420ba180bb2083bd0d6ccb6ed6`, and verified SHA-256
+`462b09c1cc608f309f034b248559e3bb15f1bb268e7378ab6bbfd3d8be36ece6`.
+The receipt explicitly says `staged-upload` / `reviewSubmitted: false`; 1.1.8
+remains published. A durable receipt is retained alongside the Play receipt.
+Fast CI's web/extension, workflow, notice and contract jobs pass; broader
+platform and Rust checks are still running as of this handoff.
+
+After the human dismisses the keychain prompt with Deny, continue from the
+staged 1.1.9 dashboard item. Regenerate `chrome-text`, save and reload-verify all
+nineteen `chrome_full` descriptions against their mapped Chrome locales, then
+run `scripts/release-extension.sh 1.1.9` from clean/current main. The normal
+tag workflow runs the live compatibility matrix and submits review. Record
+the actual submitted source in `compat/deliveries.json` and capture its client
+with `scripts/compat-capture.mjs`. Do not claim completion, submit the package
+ahead of those descriptions, or cancel an unrelated review. Public availability
+must be checked separately after Google's review.

@@ -1,8 +1,8 @@
 # Implementation Tactical Docs
 
 - [390 — Store listing localization](390-store-listing-localization.md):
-  active; production listing catalogs, reviewed Play/Chrome translations,
-  native extension i18n and keyless metadata delivery.
+  implemented; 30 Play listings submitted and verified, extension 1.1.9 staged
+  with nineteen native locales; Chrome dashboard blocked on a human-only dialog.
 
 - [389 — Localized product release](389-localized-product-release.md):
   active; coordinated desktop, extension, Android, remote and website release

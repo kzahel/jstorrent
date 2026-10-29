@@ -553,7 +553,13 @@ provenance, independent review and platform qualification. Actual release/store
 delivery remains a separate publication step. Tactical
 [390](../tactical/390-store-listing-localization.md) now owns production
 Play/Chrome listing catalogs, native extension entry-point translations and
-keyless Play metadata delivery. Store-language availability is separate from
+keyless Play metadata delivery. Its 30 Play catalogs have been submitted by
+the metadata workflow and verified through a fresh API export; public delivery
+is not yet established. Nineteen reviewed native extension catalogs pass
+package and isolated-browser checks; version 1.1.9 is uploaded as a draft with
+review explicitly unsubmitted. Chrome dashboard text synchronization
+remains pending the human dismissal of a blocking macOS keychain dialog.
+Store-language availability is separate from
 application UI languages. Website and general support-copy localization remain
 outside this work.
 

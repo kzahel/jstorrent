@@ -1,0 +1,19 @@
+{
+  "extensionId": "dbokmlpefliilbjldladbimlcfgbolhk",
+  "longDescriptions": "reviewed catalogs ready; dashboard synchronization pending",
+  "publicAvailability": "1.1.8 remains published",
+  "published": {
+    "state": "PUBLISHED",
+    "versions": [
+      "1.1.8"
+    ]
+  },
+  "reviewSubmitted": false,
+  "revision": "96c1a27ff9ca11420ba180bb2083bd0d6ccb6ed6",
+  "sha256": "462b09c1cc608f309f034b248559e3bb15f1bb268e7378ab6bbfd3d8be36ece6",
+  "status": "staged-upload",
+  "submission": "not submitted",
+  "version": "1.1.9",
+  "workflowAttempt": 2,
+  "workflowRun": 40854251913
+}
