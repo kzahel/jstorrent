@@ -172,8 +172,8 @@ TEXT is a raw string; Android plurals instead use an object with every required
 quantity key and its raw translated string.
 For Android plurals, include the count formatting argument in any category that
 can match multiple numbers in the target language, even if the English branch
-omits it. For example, Portuguese one includes 0 and 1, and Slavic one includes
-1 and 21. A count-free singular phrase is ambiguous in those categories.
+omits it. For example, Portuguese one includes 0 and 1; Russian and Ukrainian
+one include 1 and 21. A count-free singular phrase is ambiguous there.
 Keep all named/positional arguments, ICU argument types, tags and select keys.
 Use target-language plural branches; preserve =number special cases, nesting,
 apostrophe escaping and # meaning. Native named placeholders retain their names.

@@ -17,11 +17,14 @@ provides direction for canonical locale tags; each platform's `supportedLocales`
 and `previewLocales` lists decide what is available. Defining a locale does not
 by itself enable it. Native desktop shipping locales must also ship in React;
 native previews require matching React registration. React, native desktop and
-Android release inputs use the registry's shipping lists; English, German and
-French form the completed baseline for the remaining-language campaign.
-iOS remains English-only.
+Android release inputs use the registry's shipping lists. The October 2026
+campaign completed all sixteen remaining legacy locales, yielding nineteen
+release-input locales across those three platforms. The registry is the current
+availability authority; iOS remains English-only.
 
-The supervised sixteen-locale campaign uses the
+The completed sixteen-locale campaign is recorded in
+[Tactical 388](../docs/tactical/388-remaining-localization-campaign.md); future
+supervised campaigns use the
 [overnight runbook](../docs/development/localization-overnight.md).
 `python3 scripts/localization-campaign.py plan --check-env` freezes its queue
 without launching workers; `verify` and `status` provide read-only resume checks.

@@ -5,9 +5,10 @@ translated Android XML are the text authorities; per-message sidecars under
 `localization/android/` record source/translation fingerprints and review
 provenance. JSON jobs are exchange files, not runtime catalogs.
 
-French and German are shipping catalogs under `src/main/res/values-fr` and
-`src/main/res/values-de`. Destinations and plural categories are configured in
-`localization/android/locales.json`. Adding a
+All eighteen translated shipping catalogs are under `src/main/res/values-*`;
+with English, release inputs support nineteen locales. The shared product
+registry owns current availability, and destinations/plural categories are
+configured in `localization/android/locales.json`. Adding a
 language here does not qualify it for release or advertise it in the picker.
 Keep that configuration aligned with the repository locale manifest.
 

@@ -1,11 +1,17 @@
 # Supervised remaining-language run
 
+The October 28–29 campaign is complete: all sixteen queued locales are reviewed,
+release-qualified and committed, with nineteen total release-input locales.
+Tactical [388](../tactical/388-remaining-localization-campaign.md) records
+per-locale and final aggregate evidence. This runbook remains the workflow for a
+future supervised campaign; completed locales do not need to be reauthored.
+
 The maintainer authorized execution on October 28, 2026. Tactical
-[388](../tactical/388-remaining-localization-campaign.md) owns the current run.
+[388](../tactical/388-remaining-localization-campaign.md) records the completed run.
 The sixteen-locale queue, register profiles, quantity categories and System
 probes live in
 [`localization/campaigns/legacy-android.json`](../../localization/campaigns/legacy-android.json).
-English, German and French are the shipping baseline; the remaining campaign
+English, German and French were the shipping baseline; the completed campaign
 covers 39,664 resources at the frozen source counts (1,797 React, 20 native
 desktop and 662 Android per locale).
 

@@ -1,8 +1,8 @@
 # Implementation Tactical Docs
 
 - [388 — Remaining localization campaign](388-remaining-localization-campaign.md):
-  active; 16/16 qualified; sixteen remaining locales, local Sol/high/normal/bypass workers,
-  reusable qualification and overnight kickoff/resume checkpoints.
+  complete; 16/16 qualified, nineteen release-input locales across React, native
+  desktop and Android; local Sol/high/normal/bypass and final aggregate evidence.
 
 - [387 — French localization with local Codex](387-french-localization-with-local-codex.md):
   complete; 2,479 reviewed French resources, local Sol 6.1/high normal-speed

@@ -1,10 +1,25 @@
 # Localization
 
-Tactical [388](../tactical/388-remaining-localization-campaign.md) is executing
-the sixteen remaining legacy-language cohorts using local Sol/high/normal/
-bypass workers. The [overnight runbook](../development/localization-overnight.md)
-owns queue preparation, independent review, real qualification and resumption.
-The planner starts no workers and never infers qualification from registration.
+Tactical [388](../tactical/388-remaining-localization-campaign.md) completed the
+sixteen remaining legacy-language cohorts on October 29, 2026: all 39,664
+resources are independently reviewed and release-qualified across React, native
+desktop and Android. Release inputs now support nineteen locales, including
+English, German and French, without preview flags. The locale registry remains
+the authoritative availability list; iOS remains English-only.
+
+All accepted local sessions verify Sol 6.1/high/normal/bypass settings. Final
+qualification includes 133 production-browser cases across all eighteen
+translated targets, native desktop switching/restart, full Android Rust/JNI and
+Kotlin release builds, signed APK/AAB validation, exact packaged language values
+and owned API 28/35 runtime checks. Language splitting stays disabled for offline
+selection. German/French translation and review records are unchanged. Runtime
+evidence is macOS and owned Android; no release was published or CI watched.
+
+The [overnight runbook](../development/localization-overnight.md) owns queue
+preparation, independent review, qualification and exact resumption for future
+campaigns. The planner starts no workers and never infers qualification from
+registration.
+
 The first Spanish native qualification also closes the Settings startup-focus
 race: initial autofocus settles during layout, so a quick language choice keeps
 its keyboard focus. A regression reproduces the former Close-button focus

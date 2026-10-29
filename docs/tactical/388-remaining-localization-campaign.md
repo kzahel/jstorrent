@@ -1,7 +1,9 @@
 # 388 — Remaining localization campaign
 
-Status: **Active.** Preparation passed; the maintainer authorized supervised
-overnight execution on October 28. Local glossary and platform work follows.
+Status: **Complete (October 29, 2026).** All sixteen remaining locales are
+independently reviewed, release-qualified and committed across React, native
+desktop and Android: 39,664 resources and nineteen total release-input locales.
+Final aggregate builds, packaged-language checks and runtime repeats pass.
 
 ## Scope and stopping condition
 
@@ -565,3 +567,68 @@ remote frontend CSP checks pass. Android packaging reuses unchanged prequalified
 Rust/JNI inputs; remote frontend reuses unchanged Wasm with a nonconnecting
 example relay. Runtime evidence is macOS/owned Android, with no deployed relay,
 Windows/Linux runtime or publication claim.
+
+## Final aggregate qualification
+
+The campaign completed every legacy Android locale in the frozen manifest.
+All sixteen terminology sets have distinct author/reviewer identities. The
+source/catalog/provenance audit verifies all 39,664 resource reviews, all sixteen
+qualified commits and their exact catalog hashes. Replaying actual CLI rollout
+evidence verifies 419 accepted local Sol 6.1/high/normal/bypass sessions: 384
+catalog sessions, 32 terminology sessions, two Portuguese correction sessions
+and one bootstrap matching implementation session. German/French catalogs,
+terminology and per-message review ledgers remain byte-for-byte equal to the
+qualified baseline; frozen English source/context inputs are unchanged.
+
+One Simplified Chinese worker hit temporary selected-model capacity. Completed
+outputs were retained, owned groups were joined and only unfinished work resumed
+on the same local account/model/settings after a short backoff. The interrupted
+review was rerun independently; neither cancelled attempt was accepted. No
+alternate provider, model, account or speed tier was used.
+
+Every locale passed 23 qualification gates, including strict React typecheck,
+959 web unit cases (three existing skips), 94 desktop unit cases, ordinary/
+companion/remote release frontend builds and CSP, production-browser probes,
+17 native menu cases and 29 native product live/restart cases. Both Android
+unit variants pass 225 cases, release/debug lint and package builds pass, and
+the owned API 28/35 matrix passes nine/eleven cases per locale. The System-reset
+case now additionally repeats ten override/reset cycles. Per-locale evidence
+above records the actual profile probes and browser counts.
+
+Final aggregate commands and evidence:
+
+- `node scripts/check-localization.mjs` and
+  `python3 scripts/localization-campaign.py verify --check-env` pass against all
+  nineteen release registrations, with no preview registrations.
+- `python3 -m unittest discover -s scripts -p 'test_*localization*.py'` passes
+  61 cases; the Android adapter's `test_localization.py` passes thirteen.
+  `npm run test --prefix clients/web -- scripts/qualify-localization.test.mjs`
+  passes all three harness argument cases.
+- The maintained production-browser harness passes 133 cases across all
+  eighteen translated targets against the same final nineteen-locale ordinary
+  release assets. It verifies the exact picker, script/region System probes,
+  pseudo exclusion, persistence, focus, destructive/plural copy, narrow layout
+  and Axe. Every bundled Chromium/server is closed on exit.
+- `clients/android/build.sh release` completes the full locked Rust build for
+  both Android ABIs, host binding generation and fresh Kotlin/resource release
+  packaging, tests and lint. Final local Gradle runs use a 4 GiB heap and two
+  workers after a 1.5 GiB daemon stopped for GC thrashing. The project default
+  and global machine configuration are unchanged.
+- `scripts/validate-android-release.py` validates the rebuilt signed APK/AAB,
+  JSTorrent identity, both ABIs, notices, upload certificate and 16 KiB ELF/ZIP
+  alignment. Compiled `notification_ready` values in both archives exactly
+  match the first-party source for all nineteen locales. AAB language splitting
+  is disabled, retaining offline base-package language selection.
+- Fresh debug APK/test assembly, debug unit tests and debug lint pass after
+  binding regeneration. The final owned API 28/35 matrix for `zh-TW` passes
+  nine/eleven cases with the rebuilt JNI inputs; both AVDs are removed.
+- `cargo fmt --all -- --check` and `git diff --check` pass. No engine behavior,
+  application API or durable schema changes were needed.
+
+Runtime evidence is macOS and owned Android API 28/35. Windows/Linux runtime,
+iOS localization, deployed remote relay behavior, human linguistic approval
+and publication are not claimed. iOS remains English-only. Checkpoint pushes
+were made after four, eight and twelve qualified locales; remote CI was not
+watched. The final push includes all sixteen cohorts and this completion record.
+Task-owned temporary run state and the sleep inhibitor are removed at handoff;
+preexisting tooling and persistent kernel lock files are retained.
