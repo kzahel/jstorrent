@@ -7,13 +7,21 @@ desktop and Android. Release inputs now support nineteen locales, including
 English, German and French, without preview flags. The locale registry remains
 the authoritative availability list; iOS remains English-only.
 
+Production delivery is recorded in Tactical
+[389](../tactical/389-localized-product-release.md). Android 1.0.35 is public
+at one percent on the existing staged plan, with an actual Play-signed upgrade
+retaining the library and original language preference. Remote controller
+0.3.5 is public. Desktop 0.3.6 has selected its full-CI-qualified source and is
+undergoing signed construction before Stable and website promotion.
+
 All accepted local sessions verify Sol 6.1/high/normal/bypass settings. Final
 qualification includes 133 production-browser cases across all eighteen
 translated targets, native desktop switching/restart, full Android Rust/JNI and
 Kotlin release builds, signed APK/AAB validation, exact packaged language values
 and owned API 28/35 runtime checks. Language splitting stays disabled for offline
 selection. German/French translation and review records are unchanged. Runtime
-evidence is macOS and owned Android; no release was published or CI watched.
+evidence for 388 is macOS and owned Android; that source-qualification
+campaign did not publish a release or watch CI.
 
 The [overnight runbook](../development/localization-overnight.md) owns queue
 preparation, independent review, qualification and exact resumption for future

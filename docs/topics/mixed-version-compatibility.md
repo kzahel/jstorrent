@@ -12,9 +12,12 @@ public on October 29, with exact independent client captures and successful
 live matrices. Remote 0.3.4 remains an unserved, withdrawn attempt. Android
 1.0.34 passed its tagged build, exact-source CI and internal Play upload, but
 its production candidacy is withdrawn in favor of 1.0.35's ZIP security repair.
-Production delivery remains pending. New client captures must decode all raw
-frames unless an explicit legacy failure is recorded; the strictness and
-unattributed-exposure checks remain unchanged.
+Android 1.0.35 is now publicly rolling out at one percent, firstPublic October
+29, after the same internal AAB passes physical Play-upgrade qualification.
+Desktop 0.3.6 selects full-CI-qualified source 5e3af4fd; its exact host capture
+and 91 compatibility cases pass before signed construction and promotion. New
+client captures must decode all raw frames unless an explicit legacy failure
+is recorded; strictness and unattributed-exposure checks remain unchanged.
 
 Tactical [386](../tactical/386-browser-handoff-and-report-context.md) submits
 extension 1.1.7 at `0f128550` after the hosted 16-pair live matrix passes. Its

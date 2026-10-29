@@ -287,10 +287,25 @@
       "tag": "android-v1.0.35",
       "commit": "7bed9c13ede966796a8e953794f83e6a55ae4ee7",
       "channel": "play-production",
+      "status": "rolling-out",
+      "submitted": "2026-10-29",
+      "firstPublic": "2026-10-29",
+      "channelBasis": "Production workflow 40854017766 promoted the exact internal code 35 AAB without reupload; source 7bed9c13ede966796a8e953794f83e6a55ae4ee7, SHA-256 edcf00fc29b6e80a44a601f6b9859bb37a01d822e1d190c222938a3bf1fc1fb7. Source, signed-build, live-compatibility and audit checks pass. The official Play 1.0.33-to-1.0.35 physical upgrade preserves Google signing, exact native payload and five visible seeding torrents. Nineteen-language selection and French switching/restart pass; the original System preference is restored.",
+      "roles": [
+        "host"
+      ],
+      "firstPublicBasis": "Play Console Production > Releases independently confirms 1.0.35 available to 1% of users on Google Play, released October 29 at 11:19 AM Console-local, across the existing 178 countries/regions. The unchanged standard-7d plan is registered under deployment 7409239330."
+    },
+    {
+      "surface": "desktop",
+      "version": "0.3.6",
+      "tag": "desktop-v0.3.6",
+      "commit": "5e3af4fdaac41200173ca18fea13a049d7903d08",
+      "channel": "stable",
       "status": "submitted",
       "submitted": "2026-10-29",
       "firstPublic": null,
-      "channelBasis": "Exact tagged code35 host candidate supersedes internal-only code34 with ZIP9.0.5 and explicit header validation. Signed construction and internal then staged production Play promotion remain pending; no public availability claimed.",
+      "channelBasis": "Signed Latest workflow 40860728878 selects this exact source after successful full source CI 40855333497. The host capture and 91 compatibility cases pass. Native construction, installed qualification and unchanged-byte Stable promotion remain pending; no public Stable delivery is claimed.",
       "roles": [
         "host"
       ]

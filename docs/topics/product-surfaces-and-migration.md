@@ -1,14 +1,18 @@
 # Product Surfaces And JSTorrent Migration
 
-Tactical [389](../tactical/389-localized-product-release.md) is preparing the
+Tactical [389](../tactical/389-localized-product-release.md) coordinates the
 maintainer-authorized October 29 coordinated release: desktop 0.3.6, extension
 1.1.8, Android 1.0.35/code 35, remote controller 0.3.5 and the canonical website.
 It carries forward the existing extension 1.1.5+ host requirement for the same
 eight reviewed fields, preserves identities/signing/data and separates store
 submission from approval. The nineteen-locale source is qualified in 388.
-The extension and remote controller are public. Desktop selection now requires
-draft visibility and ID-based refresh so interrupted private drafts reserve
-their versions; signed desktop and Android production publication remain active.
+The extension and remote controller are public. Android 1.0.35 is available to
+one percent of production users across the existing 178 countries, following
+a verified Play-signed upgrade and the registered standard seven-day plan.
+Desktop 0.3.6 has selected full-CI-qualified source 5e3af4fd for signed
+construction; Stable and canonical website promotion remain pending. Desktop
+selection verifies effective draft access and refreshes drafts by ID, reserving
+interrupted versions without replacing their source or signed assets.
 The internal-only Android 1.0.34 candidate is superseded by 1.0.35 so both new
 hosts include ZIP 9.0.5 and explicit header-consistency checks for torrent-list
 imports. No new schema, API, signing root or advisory exception is introduced.

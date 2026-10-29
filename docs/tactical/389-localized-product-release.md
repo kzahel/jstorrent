@@ -4,6 +4,12 @@ Status: **Active (October 29, 2026).** The maintainer explicitly requests a new
 release across desktop, extension, mobile, website and the other production
 surfaces after accepting the localized Pixel 9 development build.
 
+Current delivery: extension 1.1.8 and remote controller 0.3.5 are public. Android
+1.0.35 is publicly rolling out at one percent. Desktop 0.3.6 selects source
+5e3af4fdaac41200173ca18fea13a049d7903d08 after full source CI 40855333497;
+signed workflow 40860728878 is in progress. Stable and website promotion remain
+pending. The prior private draft 0.3.5 is preserved unchanged.
+
 ## Scope and stopping condition
 
 Publish desktop 0.3.6 through the existing signed Latest pipeline and unchanged
@@ -203,3 +209,71 @@ preserved and excluded from these pinned release candidates. Android 1.0.35's
 signed construction 40842706846 and fresh hosted dependency review 40843105049
 pass. Full exact-source CI 40842999153 must finish before pushing this selector
 correction, preserving its compat-only provenance for Play publication.
+
+
+## Final Android candidate qualification
+
+Exact-source main CI 40842999153 passes on its second attempt at db0d7490.
+The first attempt was canceled by a concurrent store-listing push; only its
+canceled jobs were restarted, preserving the successful checks. Android's
+signed build 40842706846, live compatibility 40842706853 and fresh strict
+dependency review 40843105049 all pass. GitHub marks both manifest/lock records
+of the ZIP advisory fixed at 09:04:02 UTC.
+
+Internal Play workflow 40852868563 accepts the exact code35 AAB with SHA-256
+edcf00fc29b6e80a44a601f6b9859bb37a01d822e1d190c222938a3bf1fc1fb7.
+The already-enrolled physical API-37 tester updates production 1.0.33 through
+the official Play Store to 1.0.35. Its original app ID, first-install timestamp
+and Google app-signing certificate are preserved. All three installed ARM64
+native libraries match that exact AAB. All five visible torrent identities and seeding states
+survive the upgrade, French switching and process restart. The picker exposes
+all nineteen languages plus System; French persists across restart, then the
+original System preference is restored. No uninstall, data clear, torrent
+mutation, signing substitution or browser-download workaround is used.
+
+Selector correction 36ce7c40 preserves the concurrent committed store work.
+Actual workflow-token preflight 40852872411 passes the effective-write probe,
+reserves the original draft 0.3.5 by ID, then stops only at the pending new
+source CI gate. Full desktop-source CI 40852865492 remains required. The first
+36ce7c40 host capture passes all 91 compatibility cases. A later committed
+store/extension-localization push cancels its pending full CI before desktop
+construction. Desktop source advances to 96c1a27f, retaining the selector fix;
+there is no Cargo, web UI or native-desktop delta. Discard only the unused,
+uncommitted 36ce7c40 capture and capture the exact new source. Full CI
+40854238086 now owns desktop qualification.
+Production Play workflow 40854017766 requests the same internal bundle on the
+standard seven-day staged plan starting at one percent; acceptance and actual
+review/availability still require verification. Its normal production
+environment review is approved without changing protection rules.
+
+
+Production Android workflow 40854017766 succeeds and its receipt binds the
+same internal AAB without another upload, previous production code33, code35,
+status inProgress and userFraction0.01. Play Console independently shows
+1.0.35 under Changes in review/quick checks, Start staged rollout at1%, and
+managed publishing off. This is accepted automatic-publication submission,
+not yet observed public production availability.
+
+
+### Observed Android production availability
+
+A fresh Console inspection now shows no unpublished changes and a production
+release 1.0.35 **Available to 1% of users on Google Play**, released October 29
+at 11:19 AM Console-local, across the existing 178 countries/regions. Record
+firstPublic October29 and status rolling-out, rather than treating the earlier
+submission receipt as publication. Deployment7409239330 binds the same AAB and
+records the unchanged standard-7d fractions/hold periods. No manual rollout
+increase is performed.
+
+
+## Pinned desktop construction
+
+After the separate store-delivery documentation lands, full main-push CI
+40855333497 and Fast CI 40855333476 pass at 5e3af4fd. Latest workflow
+40860728878 proves effective draft access, reserves the original 0.3.5 by ID
+and selects 0.3.6 at that exact successful source. The delayed scheduled run
+40855104583 safely skips unqualified source96 rather than starting a build.
+Capture the exact selected 5e3af4fd host; all 91 compatibility cases and the
+delivery ledger pass. Remove only the unused, uncommitted exploratory96
+capture. Native packages, original-key signatures, fresh dependency/licensing
+review and corresponding source remain construction/qualification gates.

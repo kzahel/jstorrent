@@ -1,9 +1,14 @@
 # Android Release Runbook
 
-Tactical [389](tactical/389-localized-product-release.md) prepares October 29's
-localized 1.0.35/code 35 production candidate. Internal-only 1.0.34 is superseded
-before production so the release includes ZIP 9.0.5 and explicit torrent-list
-header validation. Its source/build/store qualification remains an active gate.
+Tactical [389](tactical/389-localized-product-release.md) records October 29's
+public 1.0.35/code 35 production rollout, starting at one percent across the
+existing 178 countries on the registered standard seven-day plan. The same
+internal AAB passes an actual Play 1.0.33-to-1.0.35 upgrade, retaining Google's
+signing identity, native payload, library and original System preference;
+nineteen-language selection and French switching/restart pass. Internal-only
+1.0.34 is superseded before production so both new hosts include ZIP 9.0.5 and
+explicit torrent-list header validation. Source CI, signed construction, live
+compatibility and fresh strict dependency review pass before submission.
 
 Android release targets the existing JSTorrent `com.jstorrent.app` app,
 with `android-vX.Y.Z` tags. Tactical
