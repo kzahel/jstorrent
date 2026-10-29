@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "Alege un dosar pentru descărcări",
+  "dialog.settings-save.body": "JSTorrent nu a putut salva setarea „Rulează în fundal”. Setarea anterioară este în continuare activă.",
+  "dialog.settings-save.title": "Setarea JSTorrent nu a fost salvată",
+  "dialog.shutdown.body": "JSTorrent nu a putut finaliza închiderea. Nu s-a forțat închiderea datelor. Consultați jurnalul de diagnostic înainte de a încerca din nou.",
+  "dialog.shutdown.title": "JSTorrent nu s-a putut închide",
+  "dialog.torrent-list-export.title": "Exportă lista de torente",
+  "dialog.torrent-list-import.title": "Importă lista de torente",
+  "dialog.torrent-list.filter": "Listă de torente",
+  "notification.download-complete.body": "Descărcarea „{name}” s-a încheiat.",
+  "notification.download-complete.title": "Descărcare finalizată",
+  "notification.needs-attention.body": "„{name}” necesită atenție. Deschideți JSTorrent pentru detalii.",
+  "notification.needs-attention.title": "Descărcarea necesită atenție",
+  "notification.open": "Deschide JSTorrent",
+  "notification.unnamed-torrent": "Torent",
+  "power.active-transfer-reason": "JSTorrent descarcă sau verifică conținut",
+  "tray.check-updates": "Caută actualizări",
+  "tray.quit": "Închide JSTorrent",
+  "tray.run-in-background": "Rulează în fundal",
+  "tray.show": "Afișează JSTorrent",
+  "tray.tooltip": "JSTorrent"
+}

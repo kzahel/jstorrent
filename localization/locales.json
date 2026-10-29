@@ -38,6 +38,9 @@
     "pt-BR": {
       "direction": "ltr"
     },
+    "ro": {
+      "direction": "ltr"
+    },
     "sv": {
       "direction": "ltr"
     }
@@ -60,7 +63,8 @@
       "sv",
       "da",
       "cs",
-      "pl"
+      "pl",
+      "ro"
     ],
     "desktop": [
       "en",
@@ -73,7 +77,8 @@
       "sv",
       "da",
       "cs",
-      "pl"
+      "pl",
+      "ro"
     ],
     "ios": [
       "en"
@@ -89,7 +94,8 @@
       "sv",
       "da",
       "cs",
-      "pl"
+      "pl",
+      "ro"
     ]
   },
   "testLocales": [

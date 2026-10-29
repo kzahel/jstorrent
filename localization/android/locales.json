@@ -71,6 +71,14 @@
         "other"
       ]
     },
+    "ro": {
+      "catalog": "clients/android/app/src/main/res/values-ro/strings.xml",
+      "quantities": [
+        "one",
+        "few",
+        "other"
+      ]
+    },
     "sv": {
       "catalog": "clients/android/app/src/main/res/values-sv/strings.xml",
       "quantities": [
