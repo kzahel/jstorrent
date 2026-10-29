@@ -41,6 +41,9 @@
     "ro": {
       "direction": "ltr"
     },
+    "ru": {
+      "direction": "ltr"
+    },
     "sv": {
       "direction": "ltr"
     }
@@ -64,7 +67,8 @@
       "da",
       "cs",
       "pl",
-      "ro"
+      "ro",
+      "ru"
     ],
     "desktop": [
       "en",
@@ -78,7 +82,8 @@
       "da",
       "cs",
       "pl",
-      "ro"
+      "ro",
+      "ru"
     ],
     "ios": [
       "en"
@@ -95,7 +100,8 @@
       "da",
       "cs",
       "pl",
-      "ro"
+      "ro",
+      "ru"
     ]
   },
   "testLocales": [
