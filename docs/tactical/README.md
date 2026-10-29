@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [390 — Store listing localization](390-store-listing-localization.md):
+  active; production listing catalogs, reviewed Play/Chrome translations,
+  native extension i18n and keyless metadata delivery.
+
 - [389 — Localized product release](389-localized-product-release.md):
   active; coordinated desktop, extension, Android, remote and website release
   of the nineteen-locale product, preserving identities and store review gates.
