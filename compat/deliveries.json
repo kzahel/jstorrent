@@ -238,6 +238,20 @@
       "roles": [
         "client"
       ]
+    },
+    {
+      "surface": "remote",
+      "version": "0.3.4",
+      "tag": "remote-v0.3.4",
+      "commit": "bbb01b480b770981d44b6e75b58ea19f9c6aa2ba",
+      "channel": "remote-pages",
+      "status": "submitted",
+      "submitted": "2026-10-29",
+      "firstPublic": null,
+      "channelBasis": "Exact captured client candidate submitted for the tagged production-controller build/deployment workflow; public deployment remains unverified until its gates and canary pass.",
+      "roles": [
+        "client"
+      ]
     }
   ]
 }
