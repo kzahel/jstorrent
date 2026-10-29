@@ -1,0 +1,93 @@
+name: Store listings
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Export current Play text, inspect a diff, or apply an exact prior diff
+        type: choice
+        options: [export, diff, apply]
+        default: export
+      diff_run:
+        description: Apply only. Successful diff run ID at this exact main commit
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-play
+  cancel-in-progress: false
+
+jobs:
+  listings:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: android-play-listings
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Test the metadata publisher
+        run: python3 -m unittest discover -s scripts -p test_store_listings.py
+      - name: Verify reviewed catalogs and generated Chrome resources
+        if: inputs.operation != 'export'
+        run: python3 scripts/store-listings.py check
+      - name: Fetch the exact prior diff
+        if: inputs.operation == 'apply'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIFF_RUN: ${{ inputs.diff_run }}
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          run = os.environ['DIFF_RUN']
+          if not run.isdecimal(): raise SystemExit('A numeric diff run ID is required')
+          repository = os.environ['GITHUB_REPOSITORY']
+          data = json.loads(subprocess.check_output(['gh', 'api', f'repos/{repository}/actions/runs/{run}']))
+          if (data['head_sha'] != os.environ['GITHUB_SHA'] or data['head_branch'] != 'main'
+              or data['conclusion'] != 'success' or data['event'] != 'workflow_dispatch'
+              or data['path'] != '.github/workflows/store-listings.yml'):
+              raise SystemExit('Diff must come from this workflow and exact main source')
+          subprocess.run(['gh', 'run', 'download', run, '--repo', repository,
+                          '--name', 'play-listing-diff', '--dir', 'reviewed-diff'], check=True)
+          PY
+      - name: Authenticate without a service-account key
+        id: google
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.ANDROID_PLAY_WIF_PROVIDER }}
+          service_account: ${{ vars.ANDROID_PLAY_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/androidpublisher
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Export, compare or apply listing text
+        env:
+          PLAY_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+          from pathlib import Path
+          operation = os.environ['OPERATION']
+          if operation not in ['export', 'diff', 'apply']: raise SystemExit('Invalid operation')
+          output = Path(os.environ['RUNNER_TEMP']) / f'play-listing-{operation}.json'
+          args = ['python3', 'scripts/store-listings.py', operation, '--out', str(output)]
+          if operation == 'apply': args += ['--plan', 'reviewed-diff/play-listing-diff.json']
+          subprocess.run(args, check=True)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('```json\n' + output.read_text() + '\n```\n')
+              summary.write('Export/diff discard their temporary edit. Apply is API submission; Google review and public delivery are separate.\n')
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: play-listing-${{ inputs.operation }}
+          path: ${{ runner.temp }}/play-listing-${{ inputs.operation }}.json
+          retention-days: 30

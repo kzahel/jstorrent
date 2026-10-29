@@ -550,8 +550,12 @@ confirmation prompts, is not yet extracted.
 
 Tactical 387 completes the first shipping-input non-English cohort with French
 provenance, independent review and platform qualification. Actual release/store
-delivery remains a separate publication step. Website, store, marketing and
-support-copy localization remain outside this owner until explicitly planned.
+delivery remains a separate publication step. Tactical
+[390](../tactical/390-store-listing-localization.md) now owns production
+Play/Chrome listing catalogs, native extension entry-point translations and
+keyless Play metadata delivery. Store-language availability is separate from
+application UI languages. Website and general support-copy localization remain
+outside this work.
 
 The 375 navigation synchronization passes all five UI tests in a fresh owned
 iOS 26.5 simulator under Xcode 26.6; the simulator is deleted afterward.

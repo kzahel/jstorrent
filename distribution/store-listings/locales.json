@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.jstorrent.app",
+  "extensionId": "dbokmlpefliilbjldladbimlcfgbolhk",
+  "locales": {
+    "ar": {
+      "play": "ar"
+    },
+    "cs": {
+      "play": "cs-CZ",
+      "chrome": "cs"
+    },
+    "da": {
+      "play": "da-DK",
+      "chrome": "da"
+    },
+    "de": {
+      "play": "de-DE",
+      "chrome": "de"
+    },
+    "en": {
+      "play": "en-US",
+      "chrome": "en"
+    },
+    "es": {
+      "play": "es-ES",
+      "chrome": "es"
+    },
+    "es-419": {
+      "play": "es-419"
+    },
+    "fi": {
+      "play": "fi-FI"
+    },
+    "fr": {
+      "play": "fr-FR",
+      "chrome": "fr"
+    },
+    "he": {
+      "play": "iw-IL"
+    },
+    "hi": {
+      "play": "hi-IN"
+    },
+    "hu": {
+      "play": "hu-HU"
+    },
+    "id": {
+      "play": "id"
+    },
+    "it": {
+      "play": "it-IT",
+      "chrome": "it"
+    },
+    "ja": {
+      "play": "ja-JP",
+      "chrome": "ja"
+    },
+    "ko": {
+      "play": "ko-KR",
+      "chrome": "ko"
+    },
+    "nl": {
+      "play": "nl-NL",
+      "chrome": "nl"
+    },
+    "no": {
+      "play": "no-NO"
+    },
+    "pl": {
+      "play": "pl-PL",
+      "chrome": "pl"
+    },
+    "pt-BR": {
+      "play": "pt-BR",
+      "chrome": "pt_BR"
+    },
+    "ro": {
+      "play": "ro",
+      "chrome": "ro"
+    },
+    "ru": {
+      "play": "ru-RU",
+      "chrome": "ru"
+    },
+    "sk": {
+      "play": "sk"
+    },
+    "sv": {
+      "play": "sv-SE",
+      "chrome": "sv"
+    },
+    "th": {
+      "play": "th"
+    },
+    "tr": {
+      "play": "tr-TR",
+      "chrome": "tr"
+    },
+    "uk": {
+      "play": "uk",
+      "chrome": "uk"
+    },
+    "vi": {
+      "play": "vi"
+    },
+    "zh-CN": {
+      "play": "zh-CN",
+      "chrome": "zh_CN"
+    },
+    "zh-TW": {
+      "play": "zh-TW",
+      "chrome": "zh_TW"
+    }
+  }
+}

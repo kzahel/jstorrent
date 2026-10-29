@@ -266,7 +266,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["run", "status"])
     parser.add_argument("--work-dir", type=Path, required=True)
-    parser.add_argument("--platform", choices=["web", "desktop", "android"])
+    parser.add_argument("--platform", choices=["web", "desktop", "android", "store", "extension"])
     parser.add_argument("--locale")
     parser.add_argument("--jobs", type=Path)
     parser.add_argument("--model")

@@ -21,6 +21,8 @@ _spec.loader.exec_module(android)
 Invalid, read_json, json_text, digest, atomic_write = android.Invalid, android.read_json, android.json_text, android.digest, android.atomic_write
 
 CATALOGS = {
+    "store": ("distribution/store-listings/en.json", "distribution/store-listings/{locale}.json"),
+    "extension": ("clients/extension/locales/en.json", "clients/extension/locales/{locale}.json"),
     "web": ("clients/web/src/localization/messages/en.json", "clients/web/src/localization/messages/{locale}.json"),
     "desktop": ("clients/desktop/src-tauri/locales/en.json", "clients/desktop/src-tauri/locales/{locale}.json"),
 }
@@ -56,7 +58,8 @@ class Workspace:
         source = read_json(root / source_path)
         if not isinstance(source, dict) or not 0 < len(source) <= 10000:
             raise Invalid("source catalog must contain 1–10000 entries")
-        comments = read_json(root / "clients/desktop/src-tauri/locales/en.comments.json") if platform == "desktop" else {}
+        comments_path = (root / source_path).with_name("en.comments.json")
+        comments = read_json(comments_path) if comments_path.exists() else {}
         texts = {name: value["defaultMessage"] if platform == "web" else value for name, value in source.items()}
         contracts = icu_contracts(texts, "en", root) if platform == "web" else {name: native_contract(value) for name, value in texts.items()}
         self.source = {}
@@ -85,6 +88,12 @@ class Workspace:
         for name, text in values.items():
             if not isinstance(text, str) or not text.strip() or len(text) > 65536 or any(0xD800 <= ord(c) <= 0xDFFF or ord(c) == 0 for c in text):
                 raise Invalid(f"invalid translated text: {name}")
+            limits = {"play_title": 30, "play_short": 80, "play_full": 4000,
+                      "chrome_full": 16000, "extension_summary": 132}
+            if name in limits and len(text) > limits[name]:
+                raise Invalid(f"{name}: exceeds store limit of {limits[name]} characters")
+            if self.platform == "store" and name == "play_title" and text != "JSTorrent":
+                raise Invalid("the JSTorrent brand must remain unchanged")
         contracts = icu_contracts(values, self.locale, self.root, {name: self.source[name]["value"] for name in values}) if self.platform == "web" else {name: native_contract(value) for name, value in values.items()}
         for name, contract in contracts.items():
             if contract != self.source[name]["arguments"]:
@@ -229,7 +238,7 @@ def main(argv=None):
     commands = parser.add_subparsers(dest="command", required=True)
     for command in ("export", "validate-job", "validate-response", "import", "check", "prune", "terms-snapshot", "adopt-terminology"):
         p = commands.add_parser(command)
-        p.add_argument("platform", choices=("android", "web", "desktop")); p.add_argument("locale")
+        p.add_argument("platform", choices=("android", *CATALOGS)); p.add_argument("locale")
         if command == "export":
             p.add_argument("--all", action="store_true"); p.add_argument("--batch-size", type=int, default=80); p.add_argument("--out-dir", required=True, type=Path)
         if command in ("validate-response", "import"):

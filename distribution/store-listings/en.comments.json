@@ -1,0 +1,6 @@
+{
+  "play_title": "Google Play app name, maximum 30 characters. Keep the brand JSTorrent unchanged.",
+  "play_short": "Google Play short description, maximum 80 characters. Natural concise marketing copy; preserve supported-device qualification.",
+  "play_full": "Google Play full description, maximum 4000 characters. Preserve Android 9 and 64-bit requirements, optional extension, 19 UI languages and account qualification; a translated listing does not add UI languages. Preserve URL.",
+  "chrome_full": "Chrome Web Store detailed description, maximum 16000 characters. Preserve native-app requirement, platform distinctions, 19 UI languages, best-effort Linux qualification and URL."
+}
