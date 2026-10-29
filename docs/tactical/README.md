@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [389 — Localized product release](389-localized-product-release.md):
+  active; coordinated desktop, extension, Android, remote and website release
+  of the nineteen-locale product, preserving identities and store review gates.
+
 - [388 — Remaining localization campaign](388-remaining-localization-campaign.md):
   complete; 16/16 qualified, nineteen release-input locales across React, native
   desktop and Android; local Sol/high/normal/bypass and final aggregate evidence.

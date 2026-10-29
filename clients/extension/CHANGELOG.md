@@ -5,6 +5,14 @@ Production releases of the existing JSTorrent Chrome Web Store item
 `scripts/release-extension.sh <version>`; see
 [`docs/topics/mixed-version-compatibility.md`](../../docs/topics/mixed-version-compatibility.md).
 
+## [1.1.8]
+
+- Use the torrent library in nineteen languages, with translations bundled for
+  offline use.
+- Match regional System languages and keep keyboard focus when switching languages.
+- Improve narrow layouts and language selection across supported app connections.
+- Preserve existing permissions and compatibility with older supported hosts.
+
 ## [1.1.7]
 
 - Fix opening the Chrome library from the website after its address redirects.

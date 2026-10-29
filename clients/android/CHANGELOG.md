@@ -1,5 +1,12 @@
 # Android Changelog
 
+## [1.0.34]
+
+- Choose from nineteen languages, with complete translations available offline.
+- Improve regional System-language matching and keep long language lists easy to use.
+- Improve browser handoff and optional diagnostic feedback.
+- Chromebook browser control continues to require extension 1.1.5 or newer.
+
 ## [1.0.33]
 
 - Smaller, faster app: release builds are now optimized and shrunk.

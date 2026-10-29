@@ -1,5 +1,12 @@
 # Mixed-Version Compatibility
 
+Tactical [389](../tactical/389-localized-product-release.md) carries forward the
+existing Stable 0.3.4/Android 1.0.33 companion requirement for the explicitly
+requested localized desktop 0.3.6 and Android 1.0.34 releases. Only the same
+eight reviewed fields are accepted for those exact tags; browser control still
+requires extension 1.1.5+. Strict-client policy remains enabled, with no new
+enum or unsolicited view exposure accepted.
+
 Tactical [386](../tactical/386-browser-handoff-and-report-context.md) submits
 extension 1.1.7 at `0f128550` after the hosted 16-pair live matrix passes. Its
 exact client capture accepts current host frames with zero raw failures. The

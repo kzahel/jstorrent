@@ -154,6 +154,11 @@ incubation nightly remains disabled. Both channels use the original app ID,
 updater key and installers. New metadata-required releases carry authenticated
 database ranges and migration prefixes, bound to the exact payload signatures.
 
+Recognizable JSTorrent drafts also reserve their numeric versions during
+allocation. They remain excluded from public channel selection. A new source
+must advance past an interrupted draft rather than replace its signed assets;
+Tactical 389 applies this to the retained 0.3.5 draft before building 0.3.6.
+
 Run `node scripts/desktop-compatibility.mjs` before a package build. On a real
 schema change, extend that script's source registry, regenerate with `--write`,
 and review its prefix against published releases; never rewrite a released

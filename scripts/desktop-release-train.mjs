@@ -23,7 +23,11 @@ export function nextDesktopVersion(base, releases) {
   let maximum = base;
   numericVersion(base);
   for (const release of releases) {
-    if (!isPublishedDesktopRelease(release)) continue;
+    // A recognizable JSTorrent draft already occupies its version. Keep
+    // public channel selection separate, and never reuse its signed assets
+    // for a different source after an interrupted publication.
+    if (!/^desktop-(?:latest-)?v\d+\.\d+\.\d+$/.test(release.tag_name) ||
+        !release.assets?.some(asset => asset.name === 'JSTorrent_x64.app.tar.gz')) continue;
     const match = /^desktop-(?:latest-)?v(\d+\.\d+\.\d+)$/.exec(release.tag_name);
     if (match && compare(match[1], maximum) > 0) maximum = match[1];
   }

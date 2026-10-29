@@ -4,6 +4,16 @@ Notable desktop changes are recorded here. JSTorrent follows
 three-component versions, and desktop release tags use
 `desktop-v<version>`.
 
+## [0.3.6] - 2026-10-29
+
+- Choose from nineteen interface languages, with complete shared UI and native
+  desktop translations available offline.
+- Improve System-language matching for Brazilian Portuguese and both Chinese
+  variants, and preserve keyboard focus when changing language.
+- Improve browser handoff and optional diagnostic feedback context.
+- Update cryptography and networking security dependencies.
+- Browser control continues to require JSTorrent extension 1.1.5 or newer.
+
 ## [0.3.4] - 2026-10-22
 
 - Browse videos and music across torrents in the Library, with search,

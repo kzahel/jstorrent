@@ -26,6 +26,11 @@ test('publication CLI reads paginated JSON without incompatible GitHub CLI flags
   });
  } finally {rmSync(temp,{recursive:true,force:true});}
 });
+test('an unpublished JSTorrent draft reserves its version without becoming public',()=>{
+ const draft={...release('desktop-latest-v0.3.5'),draft:true};
+ assert.equal(nextDesktopVersion('0.3.1',[release('desktop-v0.3.4'),draft]),'0.3.6');
+ assert.equal(draft.draft,true);
+});
 test('released migration prefixes cannot be dropped or rewritten',()=>{
  const old=databaseCompatibility(new URL('..',import.meta.url).pathname);
  const next=structuredClone(old); next.stores.session.target++;next.stores.session.lineage[next.stores.session.target]='a'.repeat(64);

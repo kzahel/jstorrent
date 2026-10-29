@@ -85,11 +85,11 @@ test('first public Latest uses the common train and ignores frozen incubation', 
   assert.deepEqual(planLatestRelease({ ...input, releases }),
     { build: true, sha, version: '0.3.2', tag: 'desktop-latest-v0.3.2' });
 });
-test('any new verified main commit qualifies and both channels advance the train', () => {
+test('new verified main advances both channels past occupied draft versions', () => {
   const releases = [release('desktop-latest-v0.3.9'), release('desktop-latest-v0.3.10'),
     release('desktop-v0.3.11', { prerelease: false }), release('desktop-latest-v0.3.90', { draft: true })];
   assert.equal(previousLatestRelease(releases).tag_name, 'desktop-latest-v0.3.10');
-  assert.equal(planLatestRelease({ ...input, releases, previousSha: old }).version, '0.3.12');
+  assert.equal(planLatestRelease({ ...input, releases, previousSha: old }).version, '0.3.91');
 });
 test('already released main is skipped without allocating another version', () => {
   assert.equal(planLatestRelease({ ...input, releases: [release('desktop-latest-v0.3.2')], previousSha: sha }).build, false);
