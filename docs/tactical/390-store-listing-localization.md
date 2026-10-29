@@ -1,7 +1,7 @@
 # 390 — Localized store listings and extension entry points
 
-Status: **Implemented; Play submitted; Chrome descriptions verified, submission pending
-(October 29, 2026).** The maintainer authorizes planning,
+Status: **Complete; Play submitted and verified; Chrome 1.1.9 submitted
+for review (October 29, 2026).** The maintainer authorizes planning,
 implementation, translation, independent review, CI setup and delivery through
 the existing production Google Play and Chrome Web Store identities.
 
@@ -159,7 +159,7 @@ matches all 30 reviewed catalogs exactly. The receipt is retained under
 public availability remain unverified; the public Play pages were inaccessible
 to the web checker.
 
-### Chrome staging and remaining delivery
+### Initial Chrome staging
 
 The initial Chrome staging attempt 40854251913 failed before upload on an existing
 web test's one-second canvas-render lookup (970 tests passed, one failed,
@@ -186,7 +186,7 @@ with `scripts/compat-capture.mjs`. Do not claim completion, submit the package
 ahead of those descriptions, or cancel an unrelated review. Public availability
 must be checked separately after Google's review.
 
-### Resume attempt after keychain dismissal
+### Historical blocked resume after keychain dismissal
 
 The maintainer reported the prompt resolved, and native observation confirmed
 it was absent. The staged package exposes the expected nineteen language
@@ -208,7 +208,7 @@ only through its normal healthy desktop-control admission, recheck English
 from the server, and complete all nineteen exact catalog comparisons before
 submission.
 
-### Partial dashboard progress (October 29, 12:15 UTC)
+### Historical partial progress (October 29, 12:15 UTC)
 
 The next authorized resume established a working input sequence: native paste
 into the field updates the form model, followed by the native Save draft
@@ -245,8 +245,8 @@ and per-locale SHA-256 checks confirm the same values after fast-forwarding
 the other product-release documentation. The complete receipt replaces the
 partial one at
 `distribution/store-listings/receipts/2026-10-29-chrome-descriptions.json`.
-There are no pending descriptions. Version 1.1.9 is still staged and review
-remains unsubmitted until the normal tagged workflow succeeds.
+There are no pending descriptions. At this pre-submission checkpoint, version
+1.1.9 remained staged until the normal tagged workflow below succeeded.
 
 Recovery used one mutation followed by clean completion and healthy
 re-admission before accepting the next readback. All 125 intentionally short
@@ -258,3 +258,38 @@ and proposed diagnostic probes are recorded in Machine Control; detailed
 private session/state evidence is retained by its usage journal. No runtime,
 watchdog, helper or security setting was changed. Desktop owners, debugger
 sessions and the target claim were released before CI publication.
+
+### Tagged Chrome submission complete
+
+Tag `extension-v1.1.9` names clean source
+`3f00e522c4907bf21ae6dd212bed6f39194f32e1`. Release workflow
+[40883865810](https://github.com/kzahel/jstorrent/actions/runs/40883865810)
+passes web typecheck/tests, all 75 extension tests, packaging and the 21-pair
+live compatibility matrix (including the explicitly recorded legacy failures).
+The downloaded package contains all nineteen native catalogs and its verified
+SHA-256 is `462b09c1cc608f309f034b248559e3bb15f1bb268e7378ab6bbfd3d8be36ece6`.
+It is byte-identical to the staged candidate; the clean build record now names
+the actual tagged source. Read-only preflight run 40883654791 reported
+1.1.8 published and no active submitted revision before tagging.
+
+Google accepted 1.1.9 at 14:16 UTC with `PENDING_REVIEW`. The immutable package,
+build record, checksum and original API receipt are attached to the
+[GitHub release](https://github.com/kzahel/jstorrent/releases/tag/extension-v1.1.9).
+The maintained submission receipt is
+`distribution/store-listings/receipts/2026-10-29-chrome-submission.json`;
+the separate dashboard receipt retains all nineteen exact description hashes.
+The public unauthenticated Chrome update endpoint still serves 1.1.8 at the
+submission checkpoint. Google review and public delivery are therefore pending.
+A fresh independent read-only authentication/status run
+[40889936649](https://github.com/kzahel/jstorrent/actions/runs/40889936649)
+confirms published 1.1.8 and submitted 1.1.9 / `PENDING_REVIEW`.
+
+The append-only delivery ledger records 1.1.9 as submitted, with no first-public
+date. Its exact client decoder/schema capture is retained at
+`compat/captures/3f00e522c4907bf21ae6dd212bed6f39194f32e1/`. This changes no host
+contract, capabilities, strict-client policy or compatibility horizon.
+Play's thirty catalogs remain API-verified after their separate submission.
+The final ledger check accepts all 24 deliveries and required captures; 58
+focused old-client, support-window and released-host cases pass with the new
+client capture. Store-catalog checks and `git diff --check` pass. These records
+meet this tactical's submission stopping condition.

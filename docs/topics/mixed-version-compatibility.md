@@ -1,5 +1,13 @@
 # Mixed-Version Compatibility
 
+Tactical [390](../tactical/390-store-listing-localization.md) submits extension
+1.1.9 at exact source `3f00e522` through tagged workflow 40883865810, after its
+21-pair live matrix passes with the existing reviewed legacy expectations.
+The exact client capture and append-only ledger record submission on October
+29, with Google review pending and no first-public date; the public update
+endpoint still serves 1.1.8 at this checkpoint. Native/store translations add
+no host contract, capability, strict-client exception or support-window change.
+
 Tactical [389](../tactical/389-localized-product-release.md) carries forward the
 existing Stable 0.3.4/Android 1.0.33 companion requirement for the explicitly
 requested localized desktop 0.3.6 and Android 1.0.35 releases. Only the same

@@ -1,9 +1,9 @@
 # Implementation Tactical Docs
 
 - [390 — Store listing localization](390-store-listing-localization.md):
-  implemented; 30 Play listings submitted and verified, extension 1.1.9 staged
-  with nineteen native locales; all descriptions saved and reload-verified,
-  awaiting normal tagged review submission.
+  complete; 30 Play listings submitted and API-verified; extension 1.1.9 with
+  nineteen native locales and reload-verified descriptions submitted through
+  the tagged workflow. Google review and public availability remain separate.
 
 - [389 — Localized product release](389-localized-product-release.md):
   complete; desktop 0.3.6 Stable/Latest, extension 1.1.8, remote 0.3.5 and website

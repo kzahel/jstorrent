@@ -13,8 +13,8 @@ at one percent on the existing staged plan, with an actual Play-signed upgrade
 retaining the library and original language preference. Remote controller
 0.3.5 and desktop 0.3.6 are public; Stable/Latest retain the same signed native
 bytes, and the canonical website serves the qualified 0.3.6 downloads and
-nineteen-language release notes. Extension 1.1.8 is public; the separately
-staged localized 1.1.9 and Chrome description follow-up remain owned by Tactical 390.
+nineteen-language release notes. Extension 1.1.8 is public; Tactical 390 has
+submitted localized 1.1.9 and all nineteen Chrome descriptions for review.
 
 All accepted local sessions verify Sol 6.1/high/normal/bypass settings. Final
 qualification includes 133 production-browser cases across all eighteen
@@ -566,10 +566,12 @@ Play/Chrome listing catalogs, native extension entry-point translations and
 keyless Play metadata delivery. Its 30 Play catalogs have been submitted by
 the metadata workflow and verified through a fresh API export; public delivery
 is not yet established. Nineteen reviewed native extension catalogs pass
-package and isolated-browser checks; version 1.1.9 is uploaded as a draft with
-review explicitly unsubmitted. All nineteen Chrome descriptions are now saved
-and match the reviewed catalog after a full dashboard reload and per-locale
-comparison. The normal tagged release workflow still needs to submit review.
+package and isolated-browser checks. All nineteen Chrome descriptions match
+the reviewed catalog after a full dashboard reload and per-locale comparison.
+Tagged release workflow 40883865810 passes its 21-pair live matrix and submits
+1.1.9 at exact source `3f00e522`; Google's receipt says `PENDING_REVIEW`.
+The public Chrome update endpoint still serves 1.1.8 at this checkpoint.
+Submission receipts and the exact client capture are retained.
 Store-language availability is separate from
 application UI languages. Website and general support-copy localization remain
 outside this work.

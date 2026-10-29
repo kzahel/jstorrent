@@ -310,6 +310,20 @@
         "host"
       ],
       "firstPublicBasis": "Public Stable 0.3.6 observed October 29 at 12:20:51 UTC. All seventeen public assets on each channel verify against SHA-256 and size inventories; all ten target/channel updater offers match their authenticated manifests. Both Mac architectures pass independent signing, notarization, stapling and Gatekeeper checks. Additional Windows installed qualification stops at a canceled protected login before installation; no Windows installed-runtime result is claimed. Canonical website deployment 40872952636 serves version 0.3.6 and all six qualified download links."
+    },
+    {
+      "surface": "extension",
+      "version": "1.1.9",
+      "tag": "extension-v1.1.9",
+      "commit": "3f00e522c4907bf21ae6dd212bed6f39194f32e1",
+      "channel": "chrome-web-store",
+      "status": "submitted",
+      "submitted": "2026-10-29",
+      "firstPublic": null,
+      "channelBasis": "Tagged release workflow 40883865810 passes web/extension tests and the 21-pair live matrix, uploads the checksum-verified ZIP and receives PENDING_REVIEW. All nineteen long descriptions match reviewed catalogs after a complete dashboard reload. The public Chrome update endpoint still serves 1.1.8 at the submission checkpoint. Exact client capture and separate description/submission receipts retained.",
+      "roles": [
+        "client"
+      ]
     }
   ]
 }

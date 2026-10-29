@@ -82,3 +82,14 @@ Use fresh control references and native bounds, stop on lost control or failed
 readback, and keep review submission separate. This browser step is not a
 supported store-metadata API and does not belong in unattended CI with copied
 browser credentials. Fastlane cannot supply a missing Chrome API endpoint.
+
+## Delivery evidence
+
+The October 29, 2026 Play submission updates all thirty reviewed locales and
+matches a fresh API export (`receipts/2026-10-29-play.json`). Chrome's nineteen
+long descriptions match exact catalogs after a full dashboard reload
+(`receipts/2026-10-29-chrome-descriptions.json`). Tagged workflow 40883865810
+submits extension 1.1.9 and receives `PENDING_REVIEW`
+(`receipts/2026-10-29-chrome-submission.json`). The earlier stage receipt remains
+historical evidence. Google review and public availability are separate; the
+Chrome public update endpoint still serves 1.1.8 at the submission checkpoint.

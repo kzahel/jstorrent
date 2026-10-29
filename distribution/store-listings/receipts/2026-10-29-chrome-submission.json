@@ -1,0 +1,41 @@
+{
+  "status": "submitted",
+  "extensionId": "dbokmlpefliilbjldladbimlcfgbolhk",
+  "published": {
+    "state": "PUBLISHED",
+    "versions": [
+      "1.1.8"
+    ]
+  },
+  "version": "1.1.9",
+  "revision": "3f00e522c4907bf21ae6dd212bed6f39194f32e1",
+  "sha256": "462b09c1cc608f309f034b248559e3bb15f1bb268e7378ab6bbfd3d8be36ece6",
+  "state": "PENDING_REVIEW",
+  "workflowRun": 40883865810,
+  "tag": "extension-v1.1.9",
+  "reviewSubmitted": true,
+  "descriptionReceipt": "2026-10-29-chrome-descriptions.json",
+  "descriptionLocales": 19,
+  "publicAvailability": {
+    "servedVersion": "1.1.8",
+    "method": "unauthenticated Chrome update endpoint",
+    "observedDate": "2026-10-29"
+  },
+  "verificationRun": 40889936649,
+  "verifiedStatus": {
+    "status": "authenticated",
+    "extensionId": "dbokmlpefliilbjldladbimlcfgbolhk",
+    "published": {
+      "state": "PUBLISHED",
+      "versions": [
+        "1.1.8"
+      ]
+    },
+    "submitted": {
+      "state": "PENDING_REVIEW",
+      "versions": [
+        "1.1.9"
+      ]
+    }
+  }
+}
