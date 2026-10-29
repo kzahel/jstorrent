@@ -1,13 +1,28 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { planLatestRelease, previousLatestRelease, verifiedDesktopInventory, verifiedMainPushRuns } from './latest-desktop-release.mjs';
+import { planLatestRelease, previousLatestRelease, verifiedDesktopInventory, verifiedMainPushRuns, verifyDraftInventoryAccess } from './latest-desktop-release.mjs';
 
 const old = 'a'.repeat(40), sha = 'b'.repeat(40);
 const release = (tag_name, extra = {}) => ({ tag_name, draft: false, prerelease: true,
   assets: [{ name: 'JSTorrent_x64.app.tar.gz' }], ...extra });
 const verified = { head_sha: sha, head_branch: 'main', event: 'push', path: '.github/workflows/ci.yml', status: 'completed', conclusion: 'success' };
 const input = { sha, baseVersion: '0.3.1', releases: [], runs: [verified], isAncestor: () => true };
+
+test('draft access uses a non-persisting API requiring effective write permission', () => {
+  assert.equal(verifyDraftInventoryAccess({ repo: 'owner/project', sha,
+    request: (path, body) => {
+      assert.equal(path, 'repos/owner/project/releases/generate-notes');
+      assert.deepEqual(body, { tag_name: 'desktop-inventory-access-check', target_commitish: sha });
+      return { name: 'Generated', body: '' };
+    } }), true);
+  assert.throws(() => verifyDraftInventoryAccess({ repo: 'owner/project', sha,
+    request: () => { throw new Error('HTTP 403'); } }), /HTTP 403/);
+  for (const response of [undefined, {}, { name: 'Generated' }]) {
+    assert.throws(() => verifyDraftInventoryAccess({ repo: 'owner/project', sha,
+      request: () => response }), /capability response/);
+  }
+});
 
 test('exact tags repair an incomplete list before choosing a version and previous source', () => {
   const latest = release('desktop-latest-v0.3.3');

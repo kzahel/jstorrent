@@ -4,6 +4,17 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { compare, isPublishedDesktopRelease, nextDesktopVersion } from './desktop-release-train.mjs';
 
+export function verifyDraftInventoryAccess({ repo, sha, request }) {
+  // This endpoint requires contents-write but saves neither notes, a tag nor
+  // a release. Repository user-role fields do not reflect App-token grants.
+  const notes = request(`repos/${repo}/releases/generate-notes`, {
+    tag_name: 'desktop-inventory-access-check', target_commitish: sha,
+  });
+  assert(typeof notes?.name === 'string' && typeof notes?.body === 'string',
+    'Invalid draft-inventory capability response');
+  return true;
+}
+
 export function verifiedDesktopInventory({ listed, tags, baseVersion, lookup, lookupDraft, canReadDrafts }) {
   assert.equal(canReadDrafts, true, 'Push access is required to include draft releases in version allocation');
   const releases = new Map(listed.map(release => [release.tag_name, release]));
@@ -82,14 +93,18 @@ export function planLatestRelease({ sha, baseVersion, releases, runs, previousSh
 function git(...args) {
   return execFileSync('git', args, { encoding: 'utf8' }).trim();
 }
-function api(path) {
-  return JSON.parse(execFileSync('gh', ['api', '-H', 'Cache-Control: no-cache', path], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }));
+function api(path, body) {
+  const args = ['api', '-H', 'Cache-Control: no-cache', path];
+  if (body !== undefined) args.push('--method', 'POST', '--input', '-');
+  return JSON.parse(execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
+    ...(body === undefined ? {} : { input: JSON.stringify(body) }) }));
 }
 async function main() {
   const repo = process.env.GITHUB_REPOSITORY;
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo ?? '')) throw new Error('GITHUB_REPOSITORY required');
   const sha = git('rev-parse', 'HEAD');
   if (process.env.GITHUB_SHA !== sha) throw new Error('Checkout must match the workflow main SHA');
+  const canReadDrafts = verifyDraftInventoryAccess({ repo, sha, request: api });
   const listed = [];
   for (let page = 1; ; page++) {
     if (page > 100) throw new Error('Release inventory exceeds 10,000 entries');
@@ -99,12 +114,14 @@ async function main() {
   }
   const baseVersion = JSON.parse(readFileSync('clients/desktop/src-tauri/tauri.conf.json', 'utf8')).version;
   const releases = verifiedDesktopInventory({
-    listed, baseVersion, canReadDrafts: api(`repos/${repo}`).permissions?.push,
+    listed, baseVersion, canReadDrafts,
     tags: git('tag', '--list', 'desktop-v*', 'desktop-latest-v*').split('\n').filter(Boolean),
     lookup: tag => api(`repos/${repo}/releases/tags/${tag}`),
     lookupDraft: id => api(`repos/${repo}/releases/${id}`),
   });
   console.log('Verified published desktop inventory: ' + releases.filter(isPublishedDesktopRelease).map(release => release.tag_name).sort().join(', '));
+  console.log('Reserved desktop drafts: ' + releases.filter(release => release.draft &&
+    release.assets?.some(asset => asset.name === 'JSTorrent_x64.app.tar.gz')).map(release => release.tag_name).sort().join(', '));
   const previous = previousLatestRelease(releases);
   // Match the exact SHA locally: GitHub's head_sha filter can return an empty
   // list even when the same main-push run is present without that filter.

@@ -184,3 +184,22 @@ the existing bigint exception. Its graph/source comparison is recorded in
 381's evidence; the accepted finding, authorization date and expiry remain
 unchanged. The eight companion exposures are carried forward to exact
 android-v1.0.35, with extension 1.1.5+ still required.
+
+
+The actual workflow-token preflight 40843398320 exposes a second visibility
+issue: GitHub reports `permissions.push: false` for this installation token
+even while its effective Contents permission is write. Replace that user-role
+check with the non-persisting
+[release-notes generation endpoint](https://docs.github.com/en/rest/releases/releases#generate-release-notes-content-for-a-release),
+which requires Contents write and saves no notes, tag or release. Keep API
+errors and malformed replies fatal. All 39 release-tool tests pass; the local
+live dry run proves access, reserves draft 0.3.5 by ID, then stops at the
+expected pending exact-main CI gate. A fresh workflow-token preflight and full
+CI remain required before desktop construction.
+
+This correction is isolated in a detached release checkout because another
+local session is editing extension and store-localization work. That work is
+preserved and excluded from these pinned release candidates. Android 1.0.35's
+signed construction 40842706846 and fresh hosted dependency review 40843105049
+pass. Full exact-source CI 40842999153 must finish before pushing this selector
+correction, preserving its compat-only provenance for Play publication.
