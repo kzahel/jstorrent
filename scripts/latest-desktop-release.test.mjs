@@ -15,7 +15,7 @@ test('exact tags repair an incomplete list before choosing a version and previou
   for (const listed of [[stable], [{ ...latest, assets: [] }]]) {
     const fetched = [];
     const releases = verifiedDesktopInventory({
-      listed, baseVersion: '0.3.1',
+      listed, baseVersion: '0.3.1', canReadDrafts: true,
       tags: [stable.tag_name, latest.tag_name, 'desktop-v0.1.4'],
       lookup: tag => { fetched.push(tag); return tag === stable.tag_name ? stable : latest; },
     });
@@ -26,7 +26,7 @@ test('exact tags repair an incomplete list before choosing a version and previou
 });
 test('an unavailable or malformed exact release stops selection', () => {
   const tag = 'desktop-latest-v0.3.3';
-  const inventory = { listed: [], tags: [tag], baseVersion: '0.3.1' };
+  const inventory = { listed: [], tags: [tag], baseVersion: '0.3.1', canReadDrafts: true };
   assert.throws(() => verifiedDesktopInventory({ ...inventory, lookup: () => { throw new Error('HTTP 503'); } }), /HTTP 503/);
   for (const value of [release(tag, { assets: undefined }), release(tag, { assets: [] }),
     release(tag, { assets: [{ name: 'JSTorrent_0.3.3_x64.dmg' }] }), release('desktop-latest-v0.3.2')]) {
@@ -35,13 +35,38 @@ test('an unavailable or malformed exact release stops selection', () => {
 });
 test('exact refresh preserves frozen identities and unpublished drafts', () => {
   const frozen = release('desktop-latest-v0.9.999', { assets: [{ name: 'RSTorrent_x64.app.tar.gz' }] });
-  const draft = release('desktop-latest-v0.3.90', { draft: true, assets: [] });
+  const draft = release('desktop-latest-v0.3.90', { id: 90, draft: true, assets: [] });
   const releases = verifiedDesktopInventory({
-    listed: [frozen, draft], tags: [], baseVersion: '0.3.1',
+    listed: [frozen, draft], tags: [], baseVersion: '0.3.1', canReadDrafts: true,
     lookup: tag => tag === frozen.tag_name ? frozen : draft,
+    lookupDraft: id => { assert.equal(id, 90); return draft; },
   });
   assert.equal(previousLatestRelease(releases), undefined);
   assert.equal(planLatestRelease({ ...input, releases }).version, '0.3.2');
+});
+test('selection requires draft visibility before allocating a version', () => {
+  const draft = release('desktop-latest-v0.3.5', { id: 55, draft: true });
+  const inventory = { listed: [release('desktop-v0.3.4')], tags: [],
+    baseVersion: '0.3.1', lookup: () => { throw new Error('must prove visibility first'); } };
+  for (const canReadDrafts of [undefined, false]) {
+    assert.throws(() => verifiedDesktopInventory({ ...inventory, canReadDrafts }), /Push access/);
+  }
+  const releases = verifiedDesktopInventory({ ...inventory, listed: [...inventory.listed, draft],
+    canReadDrafts: true, lookup: () => inventory.listed[0],
+    lookupDraft: id => { assert.equal(id, 55); return draft; } });
+  assert.equal(planLatestRelease({ ...input, releases }).version, '0.3.6');
+});
+test('draft refresh uses its exact ID rather than the published-only tag endpoint', () => {
+  const draft = release('desktop-latest-v0.3.5', { id: 55, draft: true });
+  const inventory = { listed: [{ ...draft, assets: [] }], tags: [], baseVersion: '0.3.1',
+    canReadDrafts: true, lookup: () => { throw new Error('by-tag lookup cannot read a draft'); } };
+  const releases = verifiedDesktopInventory({ ...inventory,
+    lookupDraft: id => { assert.equal(id, 55); return draft; } });
+  assert.equal(planLatestRelease({ ...input, releases }).version, '0.3.6');
+  assert.throws(() => verifiedDesktopInventory({ ...inventory, listed: [{ ...draft, id: undefined }] }), /draft release ID/);
+  assert.throws(() => verifiedDesktopInventory({ ...inventory, lookupDraft: () => { throw new Error('HTTP 503'); } }), /HTTP 503/);
+  assert.throws(() => verifiedDesktopInventory({ ...inventory,
+    lookupDraft: () => ({ ...draft, tag_name: 'desktop-latest-v0.3.6' }) }), /different tag/);
 });
 test('CI selection retries missing list entries and refreshes the exact matching run', () => {
   let calls = 0;
@@ -114,6 +139,7 @@ test('scheduled publication uses qualified production identity and actual releas
   assert.match(workflow, /schedule:\n\s+- cron:/);
   assert.match(workflow, /if: needs\.select\.outputs\.build == 'true'/);
   assert.match(workflow, /production_latest: true/);
+  assert.match(workflow, /permissions:\n\s+actions: read\n(?:\s+#[^\n]*\n)*\s+contents: write/);
   const publisher = readFileSync(new URL('../.github/workflows/desktop-release.yml', import.meta.url), 'utf8');
   assert.equal((publisher.match(/RELEASE: \$\{\{ steps\.identity\.outputs\.tag \|\|/g) ?? []).length, 2);
 });

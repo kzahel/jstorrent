@@ -16,7 +16,9 @@ jobs:
     timeout-minutes: 10
     permissions:
       actions: read
-      contents: read
+      # GitHub hides draft releases from callers without push access.
+      # Selection must reserve their versions as well as public releases.
+      contents: write
     outputs:
       build: ${{ steps.select.outputs.build }}
       sha: ${{ steps.select.outputs.sha }}

@@ -113,3 +113,32 @@ checks. This changes test expectations only, not application behavior.
 The immutable remote 0.3.4 candidate at bbb01b48 contains that test error and
 cannot pass its build. Retain its tag, withdraw its unserved ledger entry and
 advance the corrected candidate to 0.3.5. Do not retag or bypass the gate.
+
+## Public client delivery and selector visibility
+
+Extension 1.1.8 is now public: Chrome's update endpoint serves that exact
+version, and authenticated read-only workflow 40838594752 reports PUBLISHED.
+Remote 0.3.5 passes build, live compatibility and deployment in 40833955970.
+All 42 public files and headers verify against b4763454; its disposable public
+canary passes private/shared sign-in, reload/browser restart, revocation and
+signed route release. The rollback archive SHA-256 is
+89e140c45973f3e803d96123611ad7d87f5df8114e0b8f5cdec53f0c64195796.
+
+Full source CI 40834141428 and Fast CI 40834141486 pass at 32627b35. Android
+tagged construction 40834015653 and live matrix 40834015690 pass. Internal
+Play publication 40839278904 accepts code 34, with bundle SHA-256
+942e7a16e62e026e5fd14d27f7abc355a485dc87d64cb81a18dca3ea07e7c580.
+Production promotion still awaits the Play-signed physical update check.
+
+The first desktop dispatch, 40839275749, still selects occupied 0.3.5 because
+its job-level read-only token hides drafts. Cancellation occurs before native
+packaging; the collector reports that no release was created. The retained
+draft still has its original 474e139c target and sixteen assets. GitHub's
+[release API](https://docs.github.com/en/rest/releases/releases#list-releases)
+only lists drafts for callers with push access, and its by-tag endpoint only
+returns published releases. Give the main-only selector the parent workflow's
+existing contents-write permission, require proof of push access before
+allocation, and refresh drafts by exact release ID. Keep published-channel
+selection unchanged. Thirty-eight release-tool cases and a live read-only
+selector dry run now reserve the draft and choose 0.3.6. The corrected source
+must pass fresh full main CI before another desktop dispatch.

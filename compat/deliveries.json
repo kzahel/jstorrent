@@ -231,10 +231,10 @@
       "tag": "extension-v1.1.8",
       "commit": "7d1728352d928bd3436170c719bea67a87911bc1",
       "channel": "chrome-web-store",
-      "status": "submitted",
+      "status": "published",
       "submitted": "2026-10-29",
-      "firstPublic": null,
-      "channelBasis": "Actions 40829159867 succeeded; authenticated store receipt reports PENDING_REVIEW with automatic publication after approval. The checksum-bound tested ZIP and source are retained in the GitHub release.",
+      "firstPublic": "2026-10-29",
+      "channelBasis": "Chrome public update endpoint serves 1.1.8 and authenticated read-only workflow 40838594752 reports PUBLISHED; original tagged submission workflow 40829159867 and exact ZIP capture retained.",
       "roles": [
         "client"
       ]
@@ -259,10 +259,10 @@
       "tag": "remote-v0.3.5",
       "commit": "b4763454d4fadc87b388407cbc17929074343907",
       "channel": "remote-pages",
-      "status": "submitted",
+      "status": "published",
       "submitted": "2026-10-29",
-      "firstPublic": null,
-      "channelBasis": "Exact captured corrected client candidate submitted for tagged production build and deployment; public availability remains pending gates and canary. Supersedes unserved remote 0.3.4.",
+      "firstPublic": "2026-10-29",
+      "channelBasis": "Tagged build/live compatibility/deployment workflow 40833955970 passes. All 42 public files and security/cache headers match the exact artifact; private/shared sign-in, reload/restart, revocation and signed canary-route release pass.",
       "roles": [
         "client"
       ]
@@ -276,7 +276,7 @@
       "status": "submitted",
       "submitted": "2026-10-29",
       "firstPublic": null,
-      "channelBasis": "Exact tagged host candidate and independent capture; signed dual-ABI construction and internal/production Play submission remain pending, with no claimed public availability.",
+      "channelBasis": "Exact tagged build 40834015653 and live matrix 40834015690 pass; full main CI 40834141428 qualifies the compat-only capture commit. Internal Play publication 40839278904 accepts the exact bundle. Production promotion remains pending Play-signed physical qualification; no public production availability claimed.",
       "roles": [
         "host"
       ]

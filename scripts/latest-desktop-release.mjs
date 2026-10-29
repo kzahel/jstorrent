@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { compare, isPublishedDesktopRelease, nextDesktopVersion } from './desktop-release-train.mjs';
 
-export function verifiedDesktopInventory({ listed, tags, baseVersion, lookup }) {
+export function verifiedDesktopInventory({ listed, tags, baseVersion, lookup, lookupDraft, canReadDrafts }) {
+  assert.equal(canReadDrafts, true, 'Push access is required to include draft releases in version allocation');
   const releases = new Map(listed.map(release => [release.tag_name, release]));
   const candidates = new Set([...releases.keys(), ...tags].filter(tag => {
     const version = /^desktop-(?:latest-)?v(\d+\.\d+\.\d+)$/.exec(tag)?.[1];
@@ -15,7 +16,16 @@ export function verifiedDesktopInventory({ listed, tags, baseVersion, lookup }) 
     // List responses may omit a release or its assets. Fetch each known tag
     // separately before allocating a version or choosing the previous source.
     // Lookup failures must stop selection, never make a published tag vanish.
-    const release = lookup(tag);
+    const listedRelease = releases.get(tag);
+    let release;
+    if (listedRelease?.draft) {
+      // GitHub's by-tag endpoint only returns published releases. Drafts
+      // must be refreshed through their release ID, with push access.
+      assert(Number.isSafeInteger(listedRelease.id) && listedRelease.id > 0, `${tag}: exact draft release ID required`);
+      release = lookupDraft(listedRelease.id);
+    } else {
+      release = lookup(tag);
+    }
     assert.equal(release.tag_name, tag, 'Exact release lookup returned a different tag');
     assert(Array.isArray(release.assets), `${tag}: missing exact asset inventory`);
     if (!release.draft) {
@@ -89,9 +99,10 @@ async function main() {
   }
   const baseVersion = JSON.parse(readFileSync('clients/desktop/src-tauri/tauri.conf.json', 'utf8')).version;
   const releases = verifiedDesktopInventory({
-    listed, baseVersion,
+    listed, baseVersion, canReadDrafts: api(`repos/${repo}`).permissions?.push,
     tags: git('tag', '--list', 'desktop-v*', 'desktop-latest-v*').split('\n').filter(Boolean),
     lookup: tag => api(`repos/${repo}/releases/tags/${tag}`),
+    lookupDraft: id => api(`repos/${repo}/releases/${id}`),
   });
   console.log('Verified published desktop inventory: ' + releases.filter(isPublishedDesktopRelease).map(release => release.tag_name).sort().join(', '));
   const previous = previousLatestRelease(releases);

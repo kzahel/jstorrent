@@ -158,6 +158,10 @@ Recognizable JSTorrent drafts also reserve their numeric versions during
 allocation. They remain excluded from public channel selection. A new source
 must advance past an interrupted draft rather than replace its signed assets;
 Tactical 389 applies this to the retained 0.3.5 draft before building 0.3.6.
+The main-only selector needs contents-write access to see GitHub drafts and
+requires the repository API to confirm push access before allocation. Drafts
+are refreshed by release ID; GitHub's by-tag endpoint exposes published
+releases only. Public channel selection still excludes drafts.
 
 Run `node scripts/desktop-compatibility.mjs` before a package build. On a real
 schema change, extend that script's source registry, regenerate with `--write`,

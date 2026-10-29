@@ -2,10 +2,13 @@
 
 Tactical [389](../tactical/389-localized-product-release.md) is preparing the
 maintainer-authorized October 29 coordinated release: desktop 0.3.6, extension
-1.1.8, Android 1.0.34/code 34, remote controller 0.3.4 and the canonical website.
+1.1.8, Android 1.0.34/code 34, remote controller 0.3.5 and the canonical website.
 It carries forward the existing extension 1.1.5+ host requirement for the same
 eight reviewed fields, preserves identities/signing/data and separates store
 submission from approval. The nineteen-locale source is qualified in 388.
+The extension and remote controller are public. Desktop selection now requires
+draft visibility and ID-based refresh so interrupted private drafts reserve
+their versions; signed desktop and Android production publication remain active.
 
 Tactical [379](../tactical/379-release-security-dependencies.md) removes fresh
 dependency-audit blockers for 378's public Latest 0.3.2. It preserves the native

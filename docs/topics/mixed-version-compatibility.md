@@ -7,6 +7,14 @@ eight reviewed fields are accepted for those exact tags; browser control still
 requires extension 1.1.5+. Strict-client policy remains enabled, with no new
 enum or unsolicited view exposure accepted.
 
+The same tactical now records extension 1.1.8 and remote controller 0.3.5 as
+public on October 29, with exact independent client captures and successful
+live matrices. Remote 0.3.4 remains an unserved, withdrawn attempt. Android
+1.0.34 has passed its tagged build, exact-source CI and internal Play upload;
+production delivery remains pending. New client captures must decode all raw
+frames unless an explicit legacy failure is recorded; the strictness and
+unattributed-exposure checks remain unchanged.
+
 Tactical [386](../tactical/386-browser-handoff-and-report-context.md) submits
 extension 1.1.7 at `0f128550` after the hosted 16-pair live matrix passes. Its
 exact client capture accepts current host frames with zero raw failures. The
