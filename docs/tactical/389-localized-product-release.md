@@ -9,7 +9,7 @@ surfaces after accepting the localized Pixel 9 development build.
 Publish desktop 0.3.6 through the existing signed Latest pipeline and unchanged
 Stable promotion; extension 1.1.8 to the existing Chrome Web Store item; Android
 1.0.34/code 34 through signed tag construction, internal Play and production
-staged rollout; remote controller 0.3.4; and the canonical production website.
+staged rollout; remote controller 0.3.5; and the canonical production website.
 Store submission with automatic publication after review is the store stopping
 condition. Record pending review and staged availability separately from full
 public delivery. Verify the actual public desktop, updater, remote and website
@@ -98,3 +98,18 @@ to exact reviewed records; the six current-source carrier regressions pass.
 The read-only Play check in Actions 40829325910 confirms that production code
 33 is now completed, so the next standard staged rollout has no unfinished
 predecessor to alter. This inspection made no Play track change.
+
+## Client-capture expectation correction
+
+Extension 1.1.8 passes its tagged release workflow (40829159867) and is
+submitted to Chrome Web Store with automatic publication after review. The
+independent ZIP digest, build record, manifest and store receipt agree. Its
+exact client capture exposes a test bookkeeping error: the legacy raw-frame
+expectation table has no entry for a new client, so zero decoder failures are
+compared with `undefined`. Require zero failures by default; retain the exact
+reviewed failures for legacy clients and all unattributed-break and strictness
+checks. This changes test expectations only, not application behavior.
+
+The immutable remote 0.3.4 candidate at bbb01b48 contains that test error and
+cannot pass its build. Retain its tag, withdraw its unserved ledger entry and
+advance the corrected candidate to 0.3.5. Do not retag or bypass the gate.

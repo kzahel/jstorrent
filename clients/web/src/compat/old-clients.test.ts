@@ -115,7 +115,7 @@ function decode(decoder: CapturedDecoder, frame: Frame, value: unknown): string 
   }
 }
 
-/** Frames each released client fails on today; a change must be deliberate. */
+/** Known legacy frame failures. Every other captured client must accept all frames. */
 const RAW_FAILURES: Readonly<Record<string, readonly string[]>> = {
   "extension 1.1.3": [
     "library open",
@@ -160,7 +160,7 @@ describe.each(CLIENT_CAPTURES)("released client $deliveries", ({ deliveries, str
     });
     expect(unattributed).toEqual([]);
     // Record which frames break this client today, so a change is visible.
-    expect(failing.map((result) => result.frame)).toEqual(RAW_FAILURES[deliveries]);
+    expect(failing.map((result) => result.frame)).toEqual(RAW_FAILURES[deliveries] ?? []);
   });
 
   // A tolerant client accepts additions it does not know; a strict one
