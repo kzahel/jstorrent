@@ -1,6 +1,14 @@
 [
   {
     "product": "Desktop App",
+    "version": "0.3.6",
+    "date": "2026-10-29",
+    "items": [
+      "A new JSTorrent desktop release is available. See the release notes for details."
+    ]
+  },
+  {
+    "product": "Desktop App",
     "version": "0.3.4",
     "date": "2026-10-22",
     "items": [
