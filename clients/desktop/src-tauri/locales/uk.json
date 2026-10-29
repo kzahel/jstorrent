@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "Виберіть теку завантажень",
+  "dialog.settings-save.body": "JSTorrent не вдалося зберегти налаштування «Працювати у фоновому режимі». Попереднє налаштування залишається чинним.",
+  "dialog.settings-save.title": "Налаштування JSTorrent не збережено",
+  "dialog.shutdown.body": "Не вдалося повністю завершити роботу JSTorrent. Роботу з вашими даними не було завершено примусово. Перш ніж спробувати знову, перегляньте діагностичний журнал.",
+  "dialog.shutdown.title": "Не вдалося завершити роботу JSTorrent",
+  "dialog.torrent-list-export.title": "Експортувати список торентів",
+  "dialog.torrent-list-import.title": "Імпортувати список торентів",
+  "dialog.torrent-list.filter": "Список торентів",
+  "notification.download-complete.body": "Завантаження {name} завершено.",
+  "notification.download-complete.title": "Завантаження завершено",
+  "notification.needs-attention.body": "{name} потребує уваги. Відкрийте JSTorrent, щоб дізнатися подробиці.",
+  "notification.needs-attention.title": "Завантаження потребує уваги",
+  "notification.open": "Відкрити JSTorrent",
+  "notification.unnamed-torrent": "Торент",
+  "power.active-transfer-reason": "JSTorrent завантажує або перевіряє дані",
+  "tray.check-updates": "Перевірити наявність оновлень",
+  "tray.quit": "Завершити роботу JSTorrent",
+  "tray.run-in-background": "Працювати у фоновому режимі",
+  "tray.show": "Показати JSTorrent",
+  "tray.tooltip": "JSTorrent"
+}

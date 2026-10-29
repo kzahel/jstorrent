@@ -94,6 +94,15 @@
         "one",
         "other"
       ]
+    },
+    "uk": {
+      "catalog": "clients/android/app/src/main/res/values-uk/strings.xml",
+      "quantities": [
+        "one",
+        "few",
+        "many",
+        "other"
+      ]
     }
   },
   "schemaVersion": 1
