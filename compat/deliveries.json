@@ -273,10 +273,10 @@
       "tag": "android-v1.0.34",
       "commit": "4b0c6d52a70f7a2c3b51391104f1475da1d162c3",
       "channel": "play-production",
-      "status": "submitted",
+      "status": "withdrawn",
       "submitted": "2026-10-29",
       "firstPublic": null,
-      "channelBasis": "Exact tagged build 40834015653 and live matrix 40834015690 pass; full main CI 40834141428 qualifies the compat-only capture commit. Internal Play publication 40839278904 accepts the exact bundle. Production promotion remains pending Play-signed physical qualification; no public production availability claimed.",
+      "channelBasis": "Internal-only code34 was accepted by Play in 40839278904, but its production candidacy is withdrawn before promotion. The newly reviewed ZIP advisory requires 9.0.5 plus explicit header validation; 1.0.35 supersedes it. No production first-public delivery.",
       "roles": [
         "host"
       ]

@@ -1,5 +1,12 @@
 # Client Persistence And Session Boundary
 
+Tactical [389](../tactical/389-localized-product-release.md) rejects inconsistent
+local/central ZIP headers in torrent-list imports before any bundle records
+reach the importer. ZIP 9.0.5 supplies the explicit validation; existing
+256-MiB input and 4,096-torrent limits still bound it. Version-one ZIP-4
+fixtures and valid stored/deflated round trips remain readable. This adds no
+filesystem extraction, stored-data migration or partial import on parse failure.
+
 Tactical [384](../tactical/384-shared-translation-workflow-and-desktop-german.md)
 adds UI-only language overrides to browser local storage and desktop's
 `presentation-preferences.json` in its configuration directory. Native

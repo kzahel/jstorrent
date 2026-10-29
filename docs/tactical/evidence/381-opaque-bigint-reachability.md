@@ -144,3 +144,23 @@ Rebind the existing exception to these reviewed inputs without changing its
 advisory, package identity, scope or November 12 expiry. This is continued
 source-level reachability evidence, not a new timing proof or an additional
 exception. The tactical records functional and platform validation separately.
+
+## October 29 ZIP patch re-review
+
+The torrent-list dependency moves from ZIP 9.0.4 to the upstream-designated
+patched 9.0.5 for GHSA-m665-v7pm-7grj. Its existing `deflate-flate2` feature
+selection and dependency list are unchanged. The host also explicitly validates
+local/central-header consistency before reading bundle contents, after the
+existing archive/entry bounds; no ZIP filesystem extraction is introduced.
+
+Comparing fresh all-target/all-feature audit contexts before and after this
+patch shows identical identities, features, dependencies and dependents for
+all five reviewed bigint/OPAQUE/Dalek backends. Every remote-crypto source
+hash and the selected Suite are unchanged. Before this evidence update, only
+Cargo.lock and the session manifest hashes differ from the prior verified
+context. This preserves the earlier selected-source reachability conclusion;
+it adds no compiled-code timing proof or new accepted finding.
+
+Rebind the existing exception to the explicitly reviewed lockfile, manifest
+and this evidence update. Preserve its original authorization date and
+November 12 expiry. Tactical 389 owns ZIP regression and host/platform checks.

@@ -12,6 +12,7 @@ three-component versions, and desktop release tags use
   variants, and preserve keyboard focus when changing language.
 - Improve browser handoff and optional diagnostic feedback context.
 - Update cryptography and networking security dependencies.
+- Reject inconsistent ZIP headers when importing torrent lists.
 - Browser control continues to require JSTorrent extension 1.1.5 or newer.
 
 ## [0.3.4] - 2026-10-22

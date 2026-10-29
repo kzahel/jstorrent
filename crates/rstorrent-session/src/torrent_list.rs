@@ -272,6 +272,9 @@ pub(crate) fn read_bundle(bytes: &[u8]) -> Result<Vec<ImportedTorrent>, BundleEr
     if archive.len() > MAX_BUNDLE_TORRENTS + 1 {
         return Err(BundleError::TooLarge("entry count"));
     }
+    archive
+        .validate_header_consistency()
+        .map_err(|error| BundleError::NotAZip(error.to_string()))?;
     let mut manifest_bytes = None;
     let mut files = BTreeMap::new();
     let mut total = 0_u64;
@@ -551,6 +554,31 @@ mod tests {
         ]);
         let read = read_bundle(&bytes).expect("read bundle with unknown fields");
         assert_eq!(read[0].metainfo.as_deref(), Some(&b"d4:infod1:xi1eee"[..]));
+    }
+
+    #[test]
+    fn conflicting_local_and_central_entry_names_are_refused() {
+        let mut bytes = zip_with(&[
+            (MANIFEST_NAME, &manifest_json(""), CompressionMethod::Stored),
+            (
+                "torrents/a.torrent",
+                b"d4:infod1:xi1eee",
+                CompressionMethod::Stored,
+            ),
+        ]);
+        // Independently corrupt only the first local-header filename. The
+        // central directory still names the expected manifest entry.
+        assert_eq!(&bytes[..4], b"PK\x03\x04");
+        assert_eq!(
+            u16::from_le_bytes(bytes[26..28].try_into().unwrap()) as usize,
+            MANIFEST_NAME.len()
+        );
+        assert_eq!(
+            &bytes[30..30 + MANIFEST_NAME.len()],
+            MANIFEST_NAME.as_bytes()
+        );
+        bytes[30] = b'x';
+        assert!(matches!(read_bundle(&bytes), Err(BundleError::NotAZip(_))));
     }
 
     #[test]

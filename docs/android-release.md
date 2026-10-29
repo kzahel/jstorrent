@@ -1,5 +1,10 @@
 # Android Release Runbook
 
+Tactical [389](tactical/389-localized-product-release.md) prepares October 29's
+localized 1.0.35/code 35 production candidate. Internal-only 1.0.34 is superseded
+before production so the release includes ZIP 9.0.5 and explicit torrent-list
+header validation. Its source/build/store qualification remains an active gate.
+
 Android release targets the existing JSTorrent `com.jstorrent.app` app,
 with `android-vX.Y.Z` tags. Tactical
 [330](tactical/330-android-1-0-31-production-release.md) records the October 13

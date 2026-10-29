@@ -1,5 +1,13 @@
 # Android Changelog
 
+## [1.0.35]
+
+- Choose from nineteen languages, with complete translations available offline.
+- Improve regional System-language matching and long language lists.
+- Reject inconsistent ZIP headers when importing torrent lists.
+- Improve browser handoff and optional diagnostic feedback.
+- Chromebook browser control continues to require extension 1.1.5 or newer.
+
 ## [1.0.34]
 
 - Choose from nineteen languages, with complete translations available offline.

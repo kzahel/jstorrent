@@ -8,7 +8,7 @@ surfaces after accepting the localized Pixel 9 development build.
 
 Publish desktop 0.3.6 through the existing signed Latest pipeline and unchanged
 Stable promotion; extension 1.1.8 to the existing Chrome Web Store item; Android
-1.0.34/code 34 through signed tag construction, internal Play and production
+1.0.35/code 35 through signed tag construction, internal Play and production
 staged rollout; remote controller 0.3.5; and the canonical production website.
 Store submission with automatic publication after review is the store stopping
 condition. Record pending review and staged availability separately from full
@@ -142,3 +142,45 @@ allocation, and refresh drafts by exact release ID. Keep published-channel
 selection unchanged. Thirty-eight release-tool cases and a live read-only
 selector dry run now reserve the draft and choose 0.3.6. The corrected source
 must pass fresh full main CI before another desktop dispatch.
+
+## ZIP advisory discovered before host promotion
+
+The unmerged security-only dependency PR 30 identifies upstream
+[GHSA-m665-v7pm-7grj](https://github.com/zip-rs/zip2/security/advisories/GHSA-m665-v7pm-7grj):
+ZIP 9.0.4 is affected by local/central-header ambiguity; 9.0.5 is designated
+patched. The fresh RustSec report still contains only the existing bigint
+finding, so its absence there is not treated as clearance of the GitHub
+advisory. The host's torrent-list reader uses bounded in-memory ZipArchive
+reads, not streaming filesystem extraction. Adopt the upstream patch and
+explicit header-consistency validation before reading bundle contents.
+
+Keep the existing 256-MiB archive and 4,096-torrent limits; validate only after
+the entry-count check. This adds bounded metadata checks, not filesystem
+extraction, tasks, sockets, schema or application API changes. Preserve ZIP-4
+version-one fixture compatibility and normal stored/deflated round trips.
+Add an independently authored local/central-name mismatch regression; do not
+copy upstream source, tests or fixtures. Consult upstream `src/read/mod.rs`,
+`src/read/zip_archive.rs`, `src/read/stream.rs` and
+`tests/header_consistency.rs`, plus the existing 348 import design. The
+upstream MIT crate remains an existing dependency with unchanged features.
+
+Re-review the old bigint binding by comparing exact all-target/all-feature
+backend identities, features, dependencies, dependents and crypto-source
+hashes. Rebind only if unchanged; retain the original accepted finding and
+November 12 expiry. No new vulnerability exception is allowed.
+
+Android 1.0.34 remains an internal-only candidate and will be superseded by
+1.0.35/code 35 before production promotion. Desktop remains 0.3.6. Both hosts
+must pass fresh source, signed build, compatibility and proportional Android
+checks. The public extension/controller do not contain the host ZIP parser.
+
+The new mismatch test first fails on ZIP 9.0.5 without the explicit opt-in,
+then passes with header validation. All nine bundle tests pass, including
+the existing ZIP-4 fixture, normal round trips and compressed-size bounds;
+session all-target Clippy and workspace formatting pass. Strict web typecheck
+and 971 web cases pass (three existing skips), as do 48 dependency-review
+guard cases. Fresh strict dependency review is release-ready with exactly
+the existing bigint exception. Its graph/source comparison is recorded in
+381's evidence; the accepted finding, authorization date and expiry remain
+unchanged. The eight companion exposures are carried forward to exact
+android-v1.0.35, with extension 1.1.5+ still required.
