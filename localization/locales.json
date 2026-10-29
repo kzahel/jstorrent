@@ -47,6 +47,9 @@
     "sv": {
       "direction": "ltr"
     },
+    "tr": {
+      "direction": "ltr"
+    },
     "uk": {
       "direction": "ltr"
     }
@@ -72,7 +75,8 @@
       "pl",
       "ro",
       "ru",
-      "uk"
+      "uk",
+      "tr"
     ],
     "desktop": [
       "en",
@@ -88,7 +92,8 @@
       "pl",
       "ro",
       "ru",
-      "uk"
+      "uk",
+      "tr"
     ],
     "ios": [
       "en"
@@ -107,7 +112,8 @@
       "pl",
       "ro",
       "ru",
-      "uk"
+      "uk",
+      "tr"
     ]
   },
   "testLocales": [

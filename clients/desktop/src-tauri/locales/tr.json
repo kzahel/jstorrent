@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "İndirme klasörü seçin",
+  "dialog.settings-save.body": "JSTorrent, “Arka planda çalış” ayarını kaydedemedi. Önceki ayar hâlâ etkin.",
+  "dialog.settings-save.title": "JSTorrent ayarı kaydedilemedi",
+  "dialog.shutdown.body": "JSTorrent kapanma işlemini tamamlayamadı. Verilerinizle ilgili işlemler zorla sonlandırılmadı. Yeniden denemeden önce tanılama günlüğünü kontrol edin.",
+  "dialog.shutdown.title": "JSTorrent kapatılamadı",
+  "dialog.torrent-list-export.title": "Torrent listesini dışa aktar",
+  "dialog.torrent-list-import.title": "Torrent listesini içe aktar",
+  "dialog.torrent-list.filter": "Torrent listesi",
+  "notification.download-complete.body": "İndirme tamamlandı: {name}.",
+  "notification.download-complete.title": "İndirme tamamlandı",
+  "notification.needs-attention.body": "{name} için müdahale gerekiyor. Ayrıntılar için JSTorrent'i açın.",
+  "notification.needs-attention.title": "İndirmeye müdahale gerekiyor",
+  "notification.open": "JSTorrent'i aç",
+  "notification.unnamed-torrent": "Torrent",
+  "power.active-transfer-reason": "JSTorrent içerik indiriyor veya doğruluyor",
+  "tray.check-updates": "Güncellemeleri denetle",
+  "tray.quit": "JSTorrent'ten çık",
+  "tray.run-in-background": "Arka planda çalış",
+  "tray.show": "JSTorrent'i göster",
+  "tray.tooltip": "JSTorrent"
+}

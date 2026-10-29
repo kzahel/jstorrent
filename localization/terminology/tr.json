@@ -1,0 +1,174 @@
+{
+  "glossaryReview": {
+    "reviewState": "agent-reviewed",
+    "reviewer": "gpt-6.1-sol/01a18447-49a8-7573-bb89-7a32adb35cc6",
+    "translator": "gpt-6.1-sol/01a18445-e472-7501-b4d0-75319febbda8"
+  },
+  "locale": "tr",
+  "register": "Use concise natural Turkish and consistent polite or impersonal instructions; respect Turkish dotted and dotless I and natural suffixes around placeholders. Keep JSTorrent, protocol identifiers, user-provided names, paths and placeholder syntax unchanged. Distinguish removing a torrent from deleting downloaded files, and keep app data separate from downloaded content. Use natural grammatical inflections and consistent terminology across React, native desktop and Android.",
+  "schemaVersion": 1,
+  "terms": {
+    "archive": {
+      "meaning": "Retains a paused torrent in Archived; not deletion.",
+      "preferred": "Arşivle (eylem); Arşivde (durum); Arşivlendi (sonuç); Arşivleniyor (işlem); Arşivlenenler (bölüm).",
+      "sourceTerms": [
+        "archive",
+        "archived",
+        "archiving"
+      ]
+    },
+    "checking": {
+      "meaning": "Hash verification in progress, distinct from checking for application updates.",
+      "preferred": "Doğrulanıyor; Yeniden doğrula; Yeniden doğrulanıyor; Zorla yeniden doğrula. Güncelleme araması: Güncellemeleri denetle.",
+      "sourceTerms": [
+        "checking",
+        "recheck",
+        "rechecking",
+        "force recheck"
+      ]
+    },
+    "completed": {
+      "meaning": "All selected data is verified. A completed torrent may still seed. Notifications should use a natural target-language download completion sentence.",
+      "preferred": "Tamamlandı (durum); Tamamlananlar (filtre). Bildirim: İndirme tamamlandı; İndirme tamamlandı: {name}.",
+      "sourceTerms": [
+        "complete",
+        "completed"
+      ]
+    },
+    "delete_data": {
+      "meaning": "Deletes the torrent's downloaded files after explicit confirmation; preserve the consequence.",
+      "preferred": "İndirilen verileri sil; İndirilen dosyaları sil; Dosyaları sil; Dosyalar siliniyor.",
+      "sourceTerms": [
+        "delete data",
+        "delete downloaded",
+        "delete files",
+        "deleting files"
+      ]
+    },
+    "done_button": {
+      "meaning": "A button dismissing or completing a dialog. Translate naturally in context; do not confuse the button with the transfer completion fact.",
+      "preferred": "Tamam",
+      "sourceTerms": [
+        "Done"
+      ]
+    },
+    "download_folder": {
+      "meaning": "User-selected folder used to store downloads. Keep wording consistent across Android and the shared React UI.",
+      "preferred": "İndirme klasörü; İndirme klasörleri; İndirme kök klasörü (teknik bağlam).",
+      "sourceTerms": [
+        "download folder",
+        "download folders",
+        "download root",
+        "download directory"
+      ]
+    },
+    "magnet_link": {
+      "meaning": "A BitTorrent magnet URI.",
+      "preferred": "Magnet bağlantısı; Magnet bağlantıları",
+      "sourceTerms": [
+        "magnet link",
+        "magnet links"
+      ]
+    },
+    "paused": {
+      "meaning": "Torrent is retained and ordinary transfer work is stopped.",
+      "preferred": "Duraklatıldı (durum); Duraklat (eylem)",
+      "sourceTerms": [
+        "paused",
+        "pause"
+      ]
+    },
+    "peer": {
+      "meaning": "Another BitTorrent participant.",
+      "preferred": "Eş; Eşler",
+      "sourceTerms": [
+        "peer",
+        "peers"
+      ]
+    },
+    "remove": {
+      "meaning": "Removing a torrent preserves downloaded data unless deletion is explicitly selected. Never conflate this with deleting files.",
+      "preferred": "Kaldır (eylem); Kaldırır; Kaldırıldı (sonuç); Kaldırılıyor (işlem).",
+      "sourceTerms": [
+        "remove",
+        "removes",
+        "removed",
+        "removing"
+      ]
+    },
+    "restore": {
+      "meaning": "For archived torrents, return them from Archived. Distinguish file repair, settings reset and backup restoration when context differs.",
+      "preferred": "Arşivden çıkar; Arşivden çıkarıldı; Arşivden çıkarılıyor. Yedek: Geri yükle; varsayılan ayarlara dönüş: Varsayılanlara sıfırla; dosya onarımı: Onar.",
+      "sourceTerms": [
+        "restore",
+        "restored",
+        "restoring"
+      ]
+    },
+    "resume": {
+      "meaning": "Resume a retained paused transfer. Distinguish resuming existing work from starting a new operation.",
+      "preferred": "Devam et (eylem); Devam ediliyor (işlem)",
+      "sourceTerms": [
+        "resume",
+        "resuming"
+      ]
+    },
+    "seeding": {
+      "meaning": "Uploading verified completed data, distinct from sharing a link. Distinguish the transfer state from the action.",
+      "preferred": "Dağıtılıyor (durum); Dağıt (eylem); Dağıtıma devam et (sürdürme eylemi); Tam kaynak (eş türü).",
+      "sourceTerms": [
+        "seeding",
+        "seed"
+      ]
+    },
+    "share_link": {
+      "meaning": "JSTorrent's share link, distinct from a magnet link.",
+      "preferred": "Paylaşım bağlantısı; Paylaşım bağlantıları",
+      "sourceTerms": [
+        "share link",
+        "share links"
+      ]
+    },
+    "share_ratio": {
+      "meaning": "Uploaded divided by downloaded bytes, not a percentage.",
+      "preferred": "Paylaşım oranı",
+      "sourceTerms": [
+        "share ratio"
+      ]
+    },
+    "torrent": {
+      "meaning": "A transfer may download, seed, be paused or fetch metadata; do not replace every occurrence with Download.",
+      "preferred": "Torrent; Torrentler; {count} torrent",
+      "sourceTerms": [
+        "torrent",
+        "torrents"
+      ]
+    },
+    "tracker": {
+      "meaning": "A service introducing peers, not a data server.",
+      "preferred": "İzleyici; İzleyiciler",
+      "sourceTerms": [
+        "tracker",
+        "trackers"
+      ]
+    },
+    "verified": {
+      "meaning": "Distinguish verified data from the checking-in-progress state; inflect naturally.",
+      "preferred": "Doğrulanmış (veri); Doğrulandı (sonuç); Doğrulanmamış (henüz doğrulanmayan veri); Doğrulanıyor (işlem).",
+      "sourceTerms": [
+        "verified",
+        "unverified",
+        "verifying"
+      ]
+    },
+    "wifi_only": {
+      "meaning": "Preserve network-cost policy semantics. Do not promise all Wi-Fi is unmetered or free.",
+      "preferred": "Yalnızca Wi-Fi; Tarifeli bağlantı; Tarifeli olmayan bağlantı. Açıklama: Mobil veride ve tarifeli Wi-Fi ağlarında duraklat.",
+      "sourceTerms": [
+        "Wi-Fi only",
+        "metered",
+        "unmetered"
+      ]
+    }
+  }
+}
