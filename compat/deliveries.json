@@ -280,6 +280,20 @@
       "roles": [
         "host"
       ]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.35",
+      "tag": "android-v1.0.35",
+      "commit": "7bed9c13ede966796a8e953794f83e6a55ae4ee7",
+      "channel": "play-production",
+      "status": "submitted",
+      "submitted": "2026-10-29",
+      "firstPublic": null,
+      "channelBasis": "Exact tagged code35 host candidate supersedes internal-only code34 with ZIP9.0.5 and explicit header validation. Signed construction and internal then staged production Play promotion remain pending; no public availability claimed.",
+      "roles": [
+        "host"
+      ]
     }
   ]
 }
