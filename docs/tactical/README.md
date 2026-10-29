@@ -2,7 +2,8 @@
 
 - [390 — Store listing localization](390-store-listing-localization.md):
   implemented; 30 Play listings submitted and verified, extension 1.1.9 staged
-  with nineteen native locales; Chrome dashboard blocked on a human-only dialog.
+  with nineteen native locales; Chrome description sync awaits healthy desktop
+  control after a Machine Control guardian failure.
 
 - [389 — Localized product release](389-localized-product-release.md):
   active; coordinated desktop, extension, Android, remote and website release

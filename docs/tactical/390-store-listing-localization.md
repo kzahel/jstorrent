@@ -1,6 +1,6 @@
 # 390 — Localized store listings and extension entry points
 
-Status: **Implemented; Play submitted; Chrome staged, dashboard blocked
+Status: **Implemented; Play submitted; Chrome staged, desktop control blocked
 (October 29, 2026).** The maintainer authorizes planning,
 implementation, translation, independent review, CI setup and delivery through
 the existing production Google Play and Chrome Web Store identities.
@@ -137,12 +137,12 @@ native default/fallback; macOS retains `en-US` as its Chrome UI language, so
 automatic OS language selection is not claimed. Existing store graphics remain
 accurate fallbacks and are not replaced in a text localization transaction.
 
-The Chrome dashboard is presently blocked by a macOS keychain dialog for
-Google Chrome for Testing. Computer Use refuses SecurityAgent access. A human
-has been asked to click Deny; no password or keychain grant is needed. Continue
-Play delivery and CI package staging independently. The supported Chrome API
-cannot save long descriptions, so do not call a staged package a completed
-localized listing submission.
+The original Chrome dashboard blocker was a macOS keychain dialog for
+Google Chrome for Testing. The maintainer cleared it. The resumed session
+exposed the nineteen-language listing form but then encountered inconsistent
+native action/readback and a Machine Control guardian failure, detailed below.
+The supported Chrome API cannot save long descriptions, so do not call a staged
+package a completed localized listing submission.
 
 ### Play delivery (October 29)
 
@@ -172,11 +172,12 @@ The downloaded CI artifact has `sourceDirty: false`, source commit
 `462b09c1cc608f309f034b248559e3bb15f1bb268e7378ab6bbfd3d8be36ece6`.
 The receipt explicitly says `staged-upload` / `reviewSubmitted: false`; 1.1.8
 remains published. A durable receipt is retained alongside the Play receipt.
-Fast CI's web/extension, workflow, notice and contract jobs pass; broader
-platform and Rust checks are still running as of this handoff.
+Full CI [40855333497](https://github.com/kzahel/jstorrent/actions/runs/40855333497)
+and Fast CI [40855333476](https://github.com/kzahel/jstorrent/actions/runs/40855333476)
+both passed for evidence commit `5e3af4fdaac41200173ca18fea13a049d7903d08`.
 
-After the human dismisses the keychain prompt with Deny, continue from the
-staged 1.1.9 dashboard item. Regenerate `chrome-text`, save and reload-verify all
+After desktop control is healthy, continue from the staged 1.1.9 dashboard
+item. Regenerate `chrome-text`, save and reload-verify all
 nineteen `chrome_full` descriptions against their mapped Chrome locales, then
 run `scripts/release-extension.sh 1.1.9` from clean/current main. The normal
 tag workflow runs the live compatibility matrix and submits review. Record
@@ -184,3 +185,25 @@ the actual submitted source in `compat/deliveries.json` and capture its client
 with `scripts/compat-capture.mjs`. Do not claim completion, submit the package
 ahead of those descriptions, or cancel an unrelated review. Public availability
 must be checked separately after Google's review.
+
+### Resume attempt after keychain dismissal
+
+The maintainer reported the prompt resolved, and native observation confirmed
+it was absent. The staged package exposes the expected nineteen language
+choices. Native AX `set_value` and Save draft delivery were acknowledged, but
+immediate Machine Control readback still showed old English copy. Separate
+native Computer Use AX inspection later showed the desired English description
+and disabled Save draft; captured pixels still showed old content. English
+persistence has not been verified by a reload. No other locale description has
+been written or verified, and no review submission or release tag was created.
+
+The subsequent bounded desktop session ended with
+`guardian_safety_unavailable` and `lockObserved: true`. Machine Control reported
+`recovering` / `watchdog_interrupted` and refused further desktop input with
+`desktop_locked_browser_only`; saved browser access remained available. This
+is the current blocker, separate from the cleared keychain prompt. Private
+Machine Control usage note 269 records the commands, inconsistent observations
+and failure. No Machine Control code or security settings were changed. Resume
+only through its normal healthy desktop-control admission, recheck English
+from the server, and complete all nineteen exact catalog comparisons before
+submission.

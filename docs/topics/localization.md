@@ -558,7 +558,9 @@ the metadata workflow and verified through a fresh API export; public delivery
 is not yet established. Nineteen reviewed native extension catalogs pass
 package and isolated-browser checks; version 1.1.9 is uploaded as a draft with
 review explicitly unsubmitted. Chrome dashboard text synchronization
-remains pending the human dismissal of a blocking macOS keychain dialog.
+remains pending healthy desktop control. The keychain dialog was cleared, but
+the resumed Machine Control session ended with a guardian failure; the English
+description save is unverified and other descriptions remain pending.
 Store-language availability is separate from
 application UI languages. Website and general support-copy localization remain
 outside this work.
