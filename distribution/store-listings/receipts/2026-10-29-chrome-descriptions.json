@@ -1,44 +1,108 @@
 {
-  "schemaVersion": 1,
-  "extensionId": "dbokmlpefliilbjldladbimlcfgbolhk",
   "catalogHash": "cb8bce9f1afd5cfcc0e3e7648762322507b9fd1d6ccb3cd8467fd0350eeeb013",
-  "observedAt": "2026-10-29T12:17:01.171Z",
-  "status": "partial-dashboard-sync",
-  "reviewSubmitted": false,
-  "saved": [
-    {
-      "locale": "en",
-      "evidence": "Reviewed English text observed after full dashboard reload",
-      "reloadVerified": true
+  "extensionId": "dbokmlpefliilbjldladbimlcfgbolhk",
+  "locales": {
+    "cs": {
+      "characters": 1270,
+      "reloadVerified": true,
+      "sha256": "26b011cfbeda63e2cd3ade41329d0718d3cb19caac9d175a19028ad7f384ebde"
     },
-    {
-      "locale": "de",
-      "descriptionSha256": "a9f17156e5af6559a739cbd6b0011d28f29e3a177f57f3a59b4a7af8ba381e14",
+    "da": {
+      "characters": 1209,
+      "reloadVerified": true,
+      "sha256": "c1460ab6f7b9e78ceca4cc35b6dd7db18f41bf5c53242d197cde71bf36bba4c7"
+    },
+    "de": {
       "characters": 1399,
-      "exactReadback": true,
-      "saveDraftDisabled": true,
-      "reloadVerified": false
+      "reloadVerified": true,
+      "sha256": "a9f17156e5af6559a739cbd6b0011d28f29e3a177f57f3a59b4a7af8ba381e14"
+    },
+    "en": {
+      "characters": 1097,
+      "reloadVerified": true,
+      "sha256": "05f4f74a18cbce6fa6045b341484d093230d1866e4f4b629a834c89dfdfc6fe5"
+    },
+    "es": {
+      "characters": 1422,
+      "reloadVerified": true,
+      "sha256": "491447ac09a950c18a8c30229ffdb33e6d5f42059b43f78eeed1bb37604152d6"
+    },
+    "fr": {
+      "characters": 1550,
+      "reloadVerified": true,
+      "sha256": "235fab7397dbfa1317618006f1eea575e7e4ecab9a0da2f3613be11c0ca2e6d0"
+    },
+    "it": {
+      "characters": 1328,
+      "reloadVerified": true,
+      "sha256": "7d42493fb950310334eb7431bafed2d2bc8af108535f7f3c4a12b90a4578c207"
+    },
+    "ja": {
+      "characters": 685,
+      "reloadVerified": true,
+      "sha256": "4b3149a5eb40c497e68a983c76d0518654077d80a7953a6b83520a595c2ba5f2"
+    },
+    "ko": {
+      "characters": 709,
+      "reloadVerified": true,
+      "sha256": "ccd5f4655e80571c49348163dc447b937d438d6cba8299d3816605ca4774e20e"
+    },
+    "nl": {
+      "characters": 1297,
+      "reloadVerified": true,
+      "sha256": "1b2031a7caa4f2868ae653534ad5b23439a626b00deb94080bb322b41e99ccf6"
+    },
+    "pl": {
+      "characters": 1443,
+      "reloadVerified": true,
+      "sha256": "8ba95f3fabd5e8a0e8918e3af154992d35d057541508b7379550bc55c8083ce5"
+    },
+    "pt_BR": {
+      "characters": 1344,
+      "reloadVerified": true,
+      "sha256": "660b7e6f3321a7b244a2df90508622a483b9f8eb34061c6b3ad1f5cb00860235"
+    },
+    "ro": {
+      "characters": 1436,
+      "reloadVerified": true,
+      "sha256": "55a9b86e266638700bb2042858ba7cd700b638c20e584375c115281b08464312"
+    },
+    "ru": {
+      "characters": 1337,
+      "reloadVerified": true,
+      "sha256": "c725d6110a4a01056d0df418cede64cc5728d7c1d96870d13f0161001b27d422"
+    },
+    "sv": {
+      "characters": 1279,
+      "reloadVerified": true,
+      "sha256": "02061b7c974df5bcf40b5dd1997257d4d8543ae557ec4ab479e16e563492a84e"
+    },
+    "tr": {
+      "characters": 1256,
+      "reloadVerified": true,
+      "sha256": "d9545db222a126121580b2ea3544d514d07614a5d7df3b4dfdf055cce2d29299"
+    },
+    "uk": {
+      "characters": 1321,
+      "reloadVerified": true,
+      "sha256": "93174f5fe9b9cdd0c73eb488dbef65af51cc170a821f23f8d665ca53bb234ab7"
+    },
+    "zh_CN": {
+      "characters": 487,
+      "reloadVerified": true,
+      "sha256": "2a24cc585bdea307c9038276a4582b921ad19fd3db84335195e37c3766b2972a"
+    },
+    "zh_TW": {
+      "characters": 502,
+      "reloadVerified": true,
+      "sha256": "ebe61b10565dd2673e1948fca7ce97729479cb3faf4e0111c0a02bc3ddf3a8cc"
     }
-  ],
-  "pending": [
-    "cs",
-    "da",
-    "es",
-    "fr",
-    "it",
-    "ja",
-    "ko",
-    "nl",
-    "pl",
-    "pt_BR",
-    "ro",
-    "ru",
-    "sv",
-    "tr",
-    "uk",
-    "zh_CN",
-    "zh_TW"
-  ],
-  "blocker": "Machine Control session ended guardian_safety_unavailable; desktop phase paused",
-  "method": "Native dashboard controls and paste; no private endpoints or browser cookies"
+  },
+  "method": "Reviewed catalog values through native dashboard controls; no private endpoints or browser cookies",
+  "observedAt": "2026-10-29T13:32:51.334Z",
+  "pending": [],
+  "reviewSubmitted": false,
+  "schemaVersion": 1,
+  "status": "dashboard-sync-verified",
+  "verification": "Full dashboard reload followed by exact comparison of every locale"
 }

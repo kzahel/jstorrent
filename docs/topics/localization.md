@@ -567,11 +567,9 @@ keyless Play metadata delivery. Its 30 Play catalogs have been submitted by
 the metadata workflow and verified through a fresh API export; public delivery
 is not yet established. Nineteen reviewed native extension catalogs pass
 package and isolated-browser checks; version 1.1.9 is uploaded as a draft with
-review explicitly unsubmitted. Chrome dashboard text synchronization
-remains pending healthy desktop control. The keychain dialog was cleared, but
-the resumed Machine Control sessions ended with guardian failures. English
-survived a reload, German has an exact saved readback, and seventeen descriptions
-plus final per-locale reload verification remain pending. Review is unsubmitted.
+review explicitly unsubmitted. All nineteen Chrome descriptions are now saved
+and match the reviewed catalog after a full dashboard reload and per-locale
+comparison. The normal tagged release workflow still needs to submit review.
 Store-language availability is separate from
 application UI languages. Website and general support-copy localization remain
 outside this work.

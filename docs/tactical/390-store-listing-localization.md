@@ -1,6 +1,6 @@
 # 390 — Localized store listings and extension entry points
 
-Status: **Implemented; Play submitted; Chrome staged, desktop control blocked
+Status: **Implemented; Play submitted; Chrome descriptions verified, submission pending
 (October 29, 2026).** The maintainer authorizes planning,
 implementation, translation, independent review, CI setup and delivery through
 the existing production Google Play and Chrome Web Store identities.
@@ -235,3 +235,26 @@ no listing-text endpoint. Play text, Chrome package summaries, package upload
 and review submission already have API/CI paths; only Chrome long descriptions
 require this local dashboard step. No private RPC or browser credential copy
 is introduced.
+
+### Dashboard synchronization complete
+
+All nineteen `chrome_full` values are now saved. The dashboard was fully
+reloaded, then every locale was selected and its server-loaded description
+compared exactly with the reviewed Git catalog. The current catalog generator
+and per-locale SHA-256 checks confirm the same values after fast-forwarding
+the other product-release documentation. The complete receipt replaces the
+partial one at
+`distribution/store-listings/receipts/2026-10-29-chrome-descriptions.json`.
+There are no pending descriptions. Version 1.1.9 is still staged and review
+remains unsubmitted until the normal tagged workflow succeeds.
+
+Recovery used one mutation followed by clean completion and healthy
+re-admission before accepting the next readback. All 125 intentionally short
+600-second owner sessions ended cleanly with an observed lock; the maximum
+owner wall duration was 168,668 ms. Normal lifecycle transitions produced
+26 status-generation races and 13 status-interruption races, handled only by
+fresh read-only inspection before further admission. A sanitized gap report
+and proposed diagnostic probes are recorded in Machine Control; detailed
+private session/state evidence is retained by its usage journal. No runtime,
+watchdog, helper or security setting was changed. Desktop owners, debugger
+sessions and the target claim were released before CI publication.
