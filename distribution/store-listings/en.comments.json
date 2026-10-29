@@ -1,6 +1,6 @@
 {
   "play_title": "Google Play app name, maximum 30 characters. Keep the brand JSTorrent unchanged.",
   "play_short": "Google Play short description, maximum 80 characters. Natural concise marketing copy; preserve supported-device qualification.",
-  "play_full": "Google Play full description, maximum 4000 characters. Preserve Android 9 and 64-bit requirements, optional extension, 19 UI languages and account qualification; a translated listing does not add UI languages. Preserve URL.",
-  "chrome_full": "Chrome Web Store detailed description, maximum 16000 characters. Preserve native-app requirement, platform distinctions, 19 UI languages, best-effort Linux qualification and URL."
+  "play_full": "Google Play full description, maximum 4000 characters. Preserve Android 9 and 64-bit requirements, optional extension, 19 UI languages and account qualification; a translated listing does not add UI languages. Preserve URL. The nineteen-language native UI requires version 1.0.34 or later; Play may still serve an older version during independent rollout. Keep the explicit version qualification.",
+  "chrome_full": "Chrome Web Store detailed description, maximum 16000 characters. Preserve native-app requirement, platform distinctions, 19 UI languages, best-effort Linux qualification and URL. Claim nineteen languages for the bundled browser library only; native app language availability depends on its installed version."
 }

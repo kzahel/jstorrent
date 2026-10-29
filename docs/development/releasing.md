@@ -1,5 +1,21 @@
 # Building and shipping updates
 
+Production Play and Chrome listing text is owned in
+[`distribution/store-listings`](../../distribution/store-listings/README.md).
+The **Store listings** workflow exports, diffs and applies exact reviewed Play
+metadata without uploading a new app bundle. It shares `android-play`
+concurrency with releases/rollouts and uses a separate app-scoped keyless
+identity. Store language availability does not enable application UI locales.
+Optional localized Android release notes live under
+[`clients/android/play/release-notes`](../../clients/android/play/release-notes/README.md).
+
+For coordinated Chrome listing work, dispatch **Extension release** with
+`mode=stage` at main: it uploads the verified ZIP without submitting review or
+canceling an active submission. Save and verify the reviewed descriptions in
+the developer dashboard after its locale directories are available, then use
+the normal tagged extension release for submission. Long descriptions have no
+supported Chrome v2 write API; keep dashboard authentication out of CI.
+
 JSTorrent is the sole active product release identity. Preserve its established
 app IDs, updater endpoint and signing trust. RSTorrent incubation publication
 is frozen; isolated debug identities and internal `rstorrent-*` names remain

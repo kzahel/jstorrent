@@ -1,0 +1,181 @@
+{
+  "exportedAt": "2026-10-29T09:18:28.231750+00:00",
+  "listings": {
+    "ar": {
+      "fullDescription": "JSTorrent هو برنامج عميل BitTorrent سريع وخفيف الوزن مخصص لأجهزة Android.\n\nالميزات:\n• قم بتنزيل ملفات التورنت مباشرة على هاتفك أو جهازك اللوحي\n• أضف ملفات التورنت باستخدام روابط المغناطيس أو ملفات .torrent\n• التنزيل في الخلفية مع إشعارات تظهر التقدم\n• واجهة نظيفة وبسيطة\n\nالتكامل مع ChromeOS:\nعلى أجهزة Chromebook، يمكن لـ JSTorrent العمل أيضاً كبرنامج مصاحب لإضافة JSTorrent على متصفح Chrome، مما يتيح التنزيلات من خلال التعامل مع طبقة الشبكة والملفات بشكل أساسي.",
+      "language": "ar",
+      "shortDescription": "عميل تورنت سريع وخفيف الوزن لنظامي التشغيل أندرويد وكروم أو إس.",
+      "title": "JSTorrent"
+    },
+    "cs-CZ": {
+      "fullDescription": "JSTorrent je rychlý a nenáročný BitTorrent klient pro Android.\n\nFunkce:\n• Stahujte torrenty přímo do telefonu nebo tabletu\n• Přidávejte torrenty pomocí magnetických odkazů nebo souborů .torrent\n• Stahování na pozadí s upozorněními o průběhu\n• Přehledné a jednoduché rozhraní\n\nIntegrace s ChromeOS:\nNa Chromeboocích může JSTorrent fungovat i jako doplněk k rozšíření JSTorrent pro Chrome, čímž umožňuje stahování díky nativnímu zpracování síťové a souborové vrstvy.",
+      "language": "cs-CZ",
+      "shortDescription": "Rychlý a lehký torrent klient pro Android a ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "da-DK": {
+      "fullDescription": "JSTorrent er en hurtig og let BitTorrent-klient til Android.\n\nFunktioner:\n• Download torrents direkte på din telefon eller tablet\n• Tilføj torrents via magnetlinks eller .torrent-filer\n• Download i baggrunden med statusnotifikationer\n• Ren og enkel brugerflade\n\nChromeOS-integration:\nPå Chromebooks kan JSTorrent også fungere som et supplement til JSTorrent Chrome Extension, hvilket muliggør downloads ved at håndtere netværks- og filhåndteringen direkte.",
+      "language": "da-DK",
+      "shortDescription": "Hurtig og let torrentklient til Android og ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "de-DE": {
+      "fullDescription": "JSTorrent ist ein schneller, schlanker BitTorrent-Client für Android.\n\nFunktionen:\n• Lade Torrents direkt auf dein Handy oder Tablet herunter\n• Füge Torrents über Magnet-Links oder .torrent-Dateien hinzu\n• Downloads im Hintergrund mit Fortschrittsbenachrichtigungen\n• Klare, einfache Benutzeroberfläche\n\nChromeOS-Integration:\nAuf Chromebooks kann JSTorrent auch als Ergänzung zur JSTorrent Chrome-Erweiterung dienen und Downloads ermöglichen, indem es die Netzwerk- und Dateiebene nativ verarbeitet.",
+      "language": "de-DE",
+      "shortDescription": "Schneller, ressourcenschonender Torrent-Client für Android und ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "en-US": {
+      "fullDescription": "JSTorrent is a BitTorrent client for Android and supported Chromebooks, powered by a native torrent engine.\n\nFeatures:\n• Add torrents using magnet links or .torrent files\n• Choose a download folder and select the files you want\n• Pause and resume downloads\n• Download in the background when enabled, with progress notifications\n• Review files, trackers and peers in the app\n\nChromeOS integration:\nUse the Android app on its own, or pair it with the updated JSTorrent Chrome extension to control the same library from your browser. Extension and Android updates may arrive separately; the Android app remains available directly.\n\nExisting downloads are imported where supported. If a download folder needs access again, use Repair in Storage settings and select the folder containing your files. Paused downloads stay paused.\n\nRequires Android 9 or later on a supported 64-bit ARM or x86 device. No account is required.",
+      "language": "en-US",
+      "shortDescription": "Fast, lightweight torrent client for Android and ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "es-419": {
+      "fullDescription": "JSTorrent es un cliente BitTorrent rápido y ligero para Android.\n\nCaracterísticas:\n• Descarga torrents directamente en tu teléfono o tablet\n• Agrega torrents usando enlaces magnet o archivos .torrent\n• Descarga en segundo plano con notificaciones de progreso\n• Interfaz limpia y simple\n\nIntegración con ChromeOS:\nEn Chromebooks, JSTorrent también puede funcionar como complemento de la Extensión de Chrome JSTorrent, permitiendo descargas al gestionar la red y los archivos de forma nativa.",
+      "language": "es-419",
+      "shortDescription": "Cliente de torrents rápido y ligero para Android y ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "es-ES": {
+      "fullDescription": "JSTorrent es un cliente BitTorrent rápido y ligero para Android.\n\nCaracterísticas:\n• Descarga torrents directamente en tu teléfono o tablet\n• Añade torrents mediante enlaces magnet o archivos .torrent\n• Descarga en segundo plano con notificaciones de progreso\n• Interfaz limpia y sencilla\n\nIntegración con ChromeOS:\nEn Chromebooks, JSTorrent también puede funcionar como complemento de la extensión de Chrome JSTorrent, permitiendo descargas al gestionar la capa de red y archivos de forma nativa.",
+      "language": "es-ES",
+      "shortDescription": "Cliente de torrents rápido y ligero para Android y ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "fi-FI": {
+      "fullDescription": "JSTorrent on nopea ja kevyt BitTorrent-asiakas Androidille.\n\nOminaisuudet:\n• Lataa torrentteja suoraan puhelimeesi tai tablettiisi\n• Lisää torrentteja magneettilinkkien tai .torrent-tiedostojen avulla\n• Taustalataus edistymisilmoituksineen\n• Selkeä ja yksinkertainen käyttöliittymä\n\nChromeOS-integraatio:\nChromebookeilla JSTorrent voi toimia myös JSTorrent Chrome -laajennuksen kumppanina, mahdollistaen lataukset käsittelemällä verkko- ja tiedostokerrosta natiivisti.",
+      "language": "fi-FI",
+      "shortDescription": "Nopea ja kevyt torrent-asiakasohjelma Androidille ja ChromeOS:lle.",
+      "title": "JSTorrent"
+    },
+    "fr-FR": {
+      "fullDescription": "JSTorrent est un client BitTorrent rapide et léger pour Android.\n\nFonctionnalités :\n• Téléchargez des torrents directement sur votre téléphone ou votre tablette\n• Ajoutez des torrents via des liens magnet ou des fichiers .torrent\n• Téléchargement en arrière-plan avec notifications de progression\n• Interface épurée et simple\n\nIntégration ChromeOS :\nSur les Chromebooks, JSTorrent peut également servir de complément à l'extension Chrome JSTorrent, permettant les téléchargements en gérant nativement les couches réseau et fichier.",
+      "language": "fr-FR",
+      "shortDescription": "Client torrent rapide et léger pour Android et ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "hi-IN": {
+      "fullDescription": "JSTorrent Android के लिए एक तेज़ और हल्का BitTorrent क्लाइंट है.\n\nविशेषताएं:\n• सीधे अपने फ़ोन या टैबलेट पर टोरेंट डाउनलोड करें\n• मैग्नेट लिंक या .torrent फ़ाइलों से टोरेंट जोड़ें\n• प्रगति सूचनाओं के साथ बैकग्राउंड में डाउनलोड करें\n• साफ़ और आसान इंटरफ़ेस\n\nChromeOS इंटीग्रेशन:\nChromebooks पर, JSTorrent JSTorrent Chrome एक्सटेंशन के साथ मिलकर भी काम कर सकता है. यह नेटवर्क और फ़ाइल लेयर को सीधे संभालकर डाउनलोड करने में मदद करता है.",
+      "language": "hi-IN",
+      "shortDescription": "एंड्रॉइड और क्रोमओएस के लिए तेज़, हल्का टॉरेंट क्लाइंट.",
+      "title": "JSTorrent"
+    },
+    "hu-HU": {
+      "fullDescription": "A JSTorrent egy gyors, könnyű BitTorrent kliens Androidra.\n\nJellemzők:\n• Tölts le torrenteket közvetlenül a telefonodra vagy tabletedre\n• Torrentek hozzáadása mágnes linkekkel vagy .torrent fájlokkal\n• Háttérben futó letöltés előrehaladásról szóló értesítésekkel\n• Tiszta, egyszerű kezelőfelület\n\nChromeOS integráció:\nChromebookokon a JSTorrent a JSTorrent Chrome kiterjesztés kiegészítőjeként is működhet, natívan kezelve a hálózati és fájlréteget a letöltésekhez.",
+      "language": "hu-HU",
+      "shortDescription": "Gyors, könnyű torrent kliens Androidra és ChromeOS-re.",
+      "title": "JSTorrent"
+    },
+    "id": {
+      "fullDescription": "JSTorrent adalah klien BitTorrent yang cepat dan ringan untuk Android.\n\nFitur:\n• Unduh torrent langsung di ponsel atau tablet Anda\n• Tambahkan torrent melalui tautan magnet atau file .torrent\n• Pengunduhan di latar belakang dengan notifikasi progres\n• Antarmuka yang bersih dan sederhana\n\nIntegrasi ChromeOS:\nDi Chromebook, JSTorrent juga dapat berfungsi sebagai pendamping Ekstensi Chrome JSTorrent, memungkinkan pengunduhan dengan menangani lapisan jaringan dan file secara native.",
+      "language": "id",
+      "shortDescription": "Aplikasi torrent yang cepat dan ringan untuk Android dan ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "it-IT": {
+      "fullDescription": "JSTorrent è un client BitTorrent veloce e leggero per Android.\n\nCaratteristiche:\n• Scarica torrent direttamente sul tuo telefono o tablet\n• Aggiungi torrent tramite link magnetici o file .torrent\n• Download in background con notifiche di avanzamento\n• Interfaccia pulita e intuitiva\n\nIntegrazione con ChromeOS:\nSui Chromebook, JSTorrent può anche funzionare in abbinamento all'estensione Chrome JSTorrent, permettendo i download gestendo nativamente la rete e i file.",
+      "language": "it-IT",
+      "shortDescription": "Client torrent veloce e leggero per Android e ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "iw-IL": {
+      "fullDescription": "JSTorrent הוא לקוח BitTorrent מהיר וקל משקל לאנדרואיד.\n\nתכונות:\n• הורדת טורנטים ישירות לטלפון או לטאבלט\n• הוספת טורנטים באמצעות קישורי מגנט או קבצי .torrent\n• הורדה ברקע עם התראות על התקדמות\n• ממשק נקי ופשוט\n\nשילוב עם ChromeOS:\nבמכשירי Chromebook, JSTorrent יכול לשמש גם כתוסף להרחבת JSTorrent Chrome, ולאפשר הורדות על ידי טיפול בשכבת הרשת והקבצים באופן מובנה.",
+      "language": "iw-IL",
+      "shortDescription": "תוכנת טורנט מהירה וקל משקל לאנדרואיד ול-ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "ja-JP": {
+      "fullDescription": "JSTorrent は、Android 向けの高速かつ軽量な BitTorrent クライアントです。\n\n特徴：\n• スマートフォンやタブレットで直接トレントをダウンロード\n• マグネットリンクまたは.torrent ファイルからトレントを追加\n• 進行状況を通知するバックグラウンドダウンロード\n• シンプルで分かりやすいインターフェース\n\nChromeOS 連携：\nChromebook では、JSTorrent Chrome 拡張機能と連携して動作させることも可能です。ネットワークやファイル処理をネイティブに行うことで、ダウンロードをよりスムーズにします。",
+      "language": "ja-JP",
+      "shortDescription": "Android および ChromeOS 向けの高速で軽量なトレント クライアント。",
+      "title": "JSTorrent"
+    },
+    "ko-KR": {
+      "fullDescription": "JSTorrent는 안드로이드용 빠르고 가벼운 BitTorrent 클라이언트입니다.\n\n주요 기능:\n• 휴대폰이나 태블릿에서 토렌트를 바로 다운로드할 수 있습니다.\n• 마그넷 링크나 .torrent 파일을 통해 토렌트를 추가할 수 있습니다.\n• 백그라운드에서 다운로드하며 진행 상황을 알림으로 확인할 수 있습니다.\n• 깔끔하고 사용하기 쉬운 인터페이스를 제공합니다.\n\nChromeOS 연동:\nChromebook에서는 JSTorrent Chrome 확장 프로그램과 함께 사용할 수 있습니다. 확장 프로그램의 보조 역할을 하며, 네트워크 및 파일 처리를 네이티브 방식으로 수행하여 다운로드를 지원합니다.",
+      "language": "ko-KR",
+      "shortDescription": "안드로이드 및 크롬OS용 빠르고 가벼운 토렌트 클라이언트입니다.",
+      "title": "JSTorrent"
+    },
+    "nl-NL": {
+      "fullDescription": "JSTorrent is een snelle, lichtgewicht BitTorrent-client voor Android.\n\nFuncties:\n• Download torrents rechtstreeks op je telefoon of tablet\n• Voeg torrents toe via magneetlinks of .torrent-bestanden\n• Downloaden op de achtergrond met voortgangsmeldingen\n• Een overzichtelijke, eenvoudige interface\n\nChromeOS Integratie:\nOp Chromebooks kan JSTorrent ook functioneren als aanvulling op de JSTorrent Chrome Extensie, waardoor downloads mogelijk worden gemaakt door de netwerk- en bestandslagen native af te handelen.",
+      "language": "nl-NL",
+      "shortDescription": "Snelle, lichtgewicht torrentclient voor Android en ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "no-NO": {
+      "fullDescription": "JSTorrent er en rask og lett BitTorrent-klient for Android.\n\nFunksjoner:\n• Last ned torrenter direkte på telefonen eller nettbrettet ditt\n• Legg til torrenter via magnetlenker eller .torrent-filer\n• Nedlasting i bakgrunnen med fremdriftsvarsler\n• Rent og enkelt grensesnitt\n\nChromeOS-integrasjon:\nPå Chromebooks kan JSTorrent også fungere som en følgesvenn til JSTorrent Chrome-utvidelsen, og muliggjør nedlastinger ved å håndtere nettverks- og filnivået direkte.",
+      "language": "no-NO",
+      "shortDescription": "Rask og lett torrentklient for Android og ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "pl-PL": {
+      "fullDescription": "JSTorrent to szybki i lekki klient BitTorrent na Androida.\n\nFunkcje:\n• Pobieraj torrenty bezpośrednio na telefon lub tablet\n• Dodawaj torrenty za pomocą linków magnet lub plików .torrent\n• Pobieranie w tle z powiadomieniami o postępie\n• Czysty, prosty interfejs\n\nIntegracja z ChromeOS:\nNa Chromebookach JSTorrent może również działać jako uzupełnienie rozszerzenia JSTorrent Chrome, umożliwiając pobieranie poprzez natywną obsługę sieci i plików.",
+      "language": "pl-PL",
+      "shortDescription": "Szybki i lekki klient torrentowy dla systemów Android i ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "pt-BR": {
+      "fullDescription": "JSTorrent é um cliente BitTorrent rápido e leve para Android.\n\nRecursos:\n• Baixe torrents diretamente no seu celular ou tablet\n• Adicione torrents via links magnet ou arquivos .torrent\n• Downloads em segundo plano com notificações de progresso\n• Interface limpa e simples\n\nIntegração com ChromeOS:\nEm Chromebooks, o JSTorrent também pode funcionar em conjunto com a Extensão JSTorrent para Chrome, permitindo downloads ao gerenciar as camadas de rede e arquivo de forma nativa.",
+      "language": "pt-BR",
+      "shortDescription": "Cliente de torrent rápido e leve para Android e ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "ro": {
+      "fullDescription": "JSTorrent este un client BitTorrent rapid și ușor pentru Android.\n\nCaracteristici:\n• Descarcă torrente direct pe telefon sau tabletă\n• Adaugă torrente prin linkuri magnet sau fișiere .torrent\n• Descărcare în fundal cu notificări despre progres\n• Interfață curată și simplă\n\nIntegrare ChromeOS:\nPe Chromebookuri, JSTorrent poate funcționa și ca un companion pentru extensia JSTorrent Chrome, permițând descărcările prin gestionarea nativă a rețelei și a fișierelor.",
+      "language": "ro",
+      "shortDescription": "Client torrent rapid și ușor pentru Android și ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "ru-RU": {
+      "fullDescription": "JSTorrent — это быстрый и легкий BitTorrent-клиент для Android.\n\nВозможности:\n• Загружайте торренты прямо на свой телефон или планшет\n• Добавляйте торренты по magnet-ссылкам или через .torrent файлы\n• Фоновая загрузка с уведомлениями о ходе выполнения\n• Чистый и простой интерфейс\n\nИнтеграция с ChromeOS:\nНа Chromebook'ах JSTorrent также может работать в связке с расширением JSTorrent для Chrome, обеспечивая загрузку за счет нативной обработки сетевого и файлового уровней.",
+      "language": "ru-RU",
+      "shortDescription": "Быстрый и лёгкий торрент-клиент для Android и ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "sk": {
+      "fullDescription": "JSTorrent je rýchly a ľahký BitTorrent klient pre Android.\n\nFunkcie:\n• Sťahujte torrenty priamo do telefónu alebo tabletu\n• Pridávajte torrenty pomocou magnetických odkazov alebo .torrent súborov\n• Sťahovanie na pozadí s notifikáciami o priebehu\n• Čisté a jednoduché rozhranie\n\nIntegrácia s ChromeOS:\nNa Chromebookoch môže JSTorrent fungovať aj ako doplnok k rozšíreniu JSTorrent pre Chrome, čím umožňuje sťahovanie vďaka natívnemu spracovaniu sieťovej a súborovej vrstvy.",
+      "language": "sk",
+      "shortDescription": "Rýchly a ľahký torrent klient pre Android a ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "sv-SE": {
+      "fullDescription": "JSTorrent är en snabb och lätt BitTorrent-klient för Android.\n\nFunktioner:\n• Ladda ner torrents direkt till din telefon eller surfplatta\n• Lägg till torrents via magnetlänkar eller .torrent-filer\n• Nedladdning i bakgrunden med notiser om framsteg\n• Rent och enkelt gränssnitt\n\nChromeOS-integration:\nPå Chromebooks kan JSTorrent även fungera som ett komplement till JSTorrent Chrome-tillägget. Det möjliggör nedladdningar genom att hantera nätverks- och fillagret direkt i systemet.",
+      "language": "sv-SE",
+      "shortDescription": "Snabb, lätt torrentklient för Android och ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "th": {
+      "fullDescription": "JSTorrent คือโปรแกรม BitTorrent ที่ทำงานได้รวดเร็วและใช้ทรัพยากรน้อยสำหรับ Android\n\nคุณสมบัติ:\n• ดาวน์โหลดไฟล์ torrent ได้โดยตรงบนโทรศัพท์หรือแท็บเล็ตของคุณ\n• เพิ่มไฟล์ torrent ได้ทั้งจากลิงก์แม่เหล็ก (magnet links) หรือไฟล์ .torrent\n• ดาวน์โหลดแบบเบื้องหลังพร้อมแจ้งเตือนความคืบหน้า\n• หน้าตาโปรแกรมสะอาดตา ใช้งานง่าย\n\nการทำงานร่วมกับ ChromeOS:\nสำหรับผู้ใช้ Chromebooks, JSTorrent ยังสามารถทำงานร่วมกับส่วนขยาย JSTorrent Chrome Extension ได้อย่างราบรื่น ช่วยให้การดาวน์โหลดทำได้ดียิ่งขึ้นด้วยการจัดการเครือข่ายและไฟล์ในระดับระบบปฏิบัติการโดยตรง",
+      "language": "th",
+      "shortDescription": "โปรแกรมดาวน์โหลด torrent ที่รวดเร็วและน้ำหนักเบาสำหรับ Android และ ChromeOS",
+      "title": "JSTorrent"
+    },
+    "tr-TR": {
+      "fullDescription": "JSTorrent, Android için hızlı ve hafif bir BitTorrent istemcisidir.\n\nÖzellikler:\n• Torrentleri doğrudan telefonunuza veya tabletinize indirin\n• Magnet bağlantıları veya .torrent dosyalarıyla torrent ekleyin\n• İlerleme bildirimleriyle arka planda indirme\n• Sade ve kullanışlı arayüz\n\nChromeOS Entegrasyonu:\nChromebook'larda JSTorrent, JSTorrent Chrome Uzantısı ile birlikte de çalışabilir. Bu sayede ağ ve dosya katmanını yerel olarak yöneterek indirmeleri mümkün kılar.",
+      "language": "tr-TR",
+      "shortDescription": "Android ve ChromeOS için hızlı, hafif torrent istemcisi.",
+      "title": "JSTorrent"
+    },
+    "uk": {
+      "fullDescription": "JSTorrent – це швидкий і легкий BitTorrent клієнт для Android.\n\nОсобливості:\n• Завантажуйте торренти прямо на свій телефон чи планшет\n• Додавайте торренти за допомогою магнітних посилань або .torrent файлів\n• Фонове завантаження зі сповіщеннями про прогрес\n• Чистий, простий інтерфейс\n\nІнтеграція з ChromeOS:\nНа Chromebook JSTorrent також може працювати в парі з розширенням JSTorrent для Chrome, забезпечуючи завантаження шляхом нативної обробки мережевого та файлового рівня.",
+      "language": "uk",
+      "shortDescription": "Швидкий, легкий торрент-клієнт для Android та ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "vi": {
+      "fullDescription": "JSTorrent là ứng dụng khách BitTorrent nhanh và nhẹ dành cho Android.\n\nCác tính năng:\n• Tải torrent trực tiếp về điện thoại hoặc máy tính bảng của bạn\n• Thêm torrent qua liên kết magnet hoặc tệp .torrent\n• Tải xuống nền với thông báo tiến độ\n• Giao diện gọn gàng, đơn giản\n\nTích hợp với ChromeOS:\nTrên Chromebook, JSTorrent còn có thể hoạt động song song với Tiện ích mở rộng JSTorrent trên Chrome, hỗ trợ tải xuống bằng cách xử lý trực tiếp các tác vụ mạng và tệp.",
+      "language": "vi",
+      "shortDescription": "Ứng dụng tải torrent nhanh và nhẹ dành cho Android và ChromeOS.",
+      "title": "JSTorrent"
+    },
+    "zh-CN": {
+      "fullDescription": "JSTorrent 是一款快速、轻量级的 Android BitTorrent 客户端。\n\n主要功能：\n• 直接在手机或平板电脑上下载种子文件\n• 支持通过磁力链接或 .torrent 文件添加下载任务\n• 后台下载，并提供进度通知\n• 界面简洁易用\n\nChromeOS 集成：\n在 Chromebook 上，JSTorrent 可以与 JSTorrent Chrome 扩展程序配合使用，通过原生处理网络和文件层，实现更顺畅的下载体验。",
+      "language": "zh-CN",
+      "shortDescription": "适用于安卓和 ChromeOS 的快速、轻量级 BT 客户端。",
+      "title": "JSTorrent"
+    }
+  },
+  "packageName": "com.jstorrent.app",
+  "schemaVersion": 1
+}

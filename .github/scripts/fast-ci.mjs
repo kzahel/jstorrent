@@ -18,6 +18,7 @@ const localizationTools = new Set([
   'clients/android/scripts/check-locale-config.mjs',
 ]);
 const localizationInput = path => localizationTools.has(path) || path.startsWith('localization/') ||
+  path.startsWith('distribution/store-listings/') || path === 'scripts/store-listings.py' ||
   /^clients\/desktop\/src-tauri\/locales\/[^/]+\.json$/.test(path) ||
   /^clients\/android\/app\/src\/(main|debug)\/res\/values(?:-[^/]+)?\/strings\.xml$/.test(path);
 
@@ -47,6 +48,9 @@ export function planChecks(paths, metadata) {
   const selected = new Set(); let allRust = false;
   let web = false; let extension = false; let website = false; let notices = false;
   for (const path of paths) {
+    if (path.startsWith('distribution/store-listings/') || path === 'scripts/store-listings.py' || path === 'scripts/test_store_listings.py') {
+      web = true; extension = true; continue;
+    }
     if (/(^|\/)Cargo\.(toml|lock)$/.test(path) || path.startsWith('vendor/') ||
         path.startsWith('distribution/') || /^scripts\/(prepare-release-notices|glib_backport)\.py$/.test(path) ||
         /^clients\/web\/package(-lock)?\.json$/.test(path) || path === 'clients/web/scripts/patch-playsvideo.mjs' ||

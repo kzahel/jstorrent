@@ -1,0 +1,533 @@
+{
+  "catalog_direction": {
+    "message": "ltr"
+  },
+  "catalog_locale": {
+    "message": "tr"
+  },
+  "connect_001": {
+    "message": "JSTorrent Linux bağlantısı"
+  },
+  "connect_002": {
+    "message": "JSTorrent · ChromeOS Linux"
+  },
+  "connect_003": {
+    "message": "Linux’a bağlanın"
+  },
+  "connect_004": {
+    "message": "Linux’un kendi kitaplığı, ayarları ve indirme klasörleri vardır. Android torrentleri Android’de kalır."
+  },
+  "connect_005": {
+    "message": "Linux hizmetini denetlemek için bağlanma düğmesini seçin."
+  },
+  "connect_006": {
+    "message": "Linux’a bağlan"
+  },
+  "connect_007": {
+    "message": "Linux’a bağlanamazsanız"
+  },
+  "connect_008": {
+    "message": "Terminal"
+  },
+  "connect_009": {
+    "message": "penguin"
+  },
+  "connect_010": {
+    "message": "Chromebook’unuzdaki Başlatıcı’dan {slot1} uygulamasını açın ve gösteriliyorsa {slot2} seçeneğini seçin. Linux komut isteminin açılmasını bekleyin."
+  },
+  "connect_011": {
+    "message": "ChromeOS Linux için JSTorrent"
+  },
+  "connect_012": {
+    "message": "Yeniden dene"
+  },
+  "connect_013": {
+    "message": "Başlatıcı’dan {slot1} uygulamasını açın, ardından buraya dönüp “{slot2}” seçeneğini seçin."
+  },
+  "connect_014": {
+    "message": "Uzantıyı yakın zamanda güncellediyseniz Linux uygulamasını da güncelleyin. Güncel sürümler, Linux ana makine adı kayıt hatalarını önleyen yerel bir bağlantı kullanır. Linux ortamınızı ve indirilen dosyalarınızı koruyun."
+  },
+  "connect_015": {
+    "message": "Başarısız bir bağlantıdan Linux’un etkin olup olmadığını, paketin yüklü olup olmadığını veya cihaz politikasının buna izin verip vermediğini öğrenemeyiz. Bağlantı hatasını gidermek için Linux ortamını kaldırmayın veya yeniden yüklemeyin."
+  },
+  "connect_016": {
+    "message": "Kurulum ve sorun giderme"
+  },
+  "connect_017": {
+    "message": "Bunun yerine Android kullanın"
+  },
+  "connect_dynamic_001": {
+    "message": "Linux bağlantısı için erişim izni verilmedi. Hiçbir hizmetle iletişim kurulmadı. Erişim izni istemek için “Yeniden dene” seçeneğini seçin veya kurulum ve sorun giderme sayfasını kullanın."
+  },
+  "connect_dynamic_002": {
+    "message": "Linux hizmetine ulaşılamadı. Terminal’i ve Linux uygulamasını açın, ardından yeniden deneyin. Linux kurulumu, paket yüklemesi ve cihaz politikasının durumu bilinmiyor."
+  },
+  "connect_dynamic_003": {
+    "message": "Linux hizmeti 10 saniye içinde yanıt vermedi. Terminal’i ve Linux uygulamasını açın, ardından yeniden deneyin."
+  },
+  "connect_dynamic_004": {
+    "message": "Linux hizmeti bir hata döndürdü. Linux uygulamasını açıp durumunu kontrol edin, ardından yeniden deneyin."
+  },
+  "connect_dynamic_005": {
+    "message": "Yanıt veren hizmet ChromeOS Linux için JSTorrent değil. Yeniden denemeden önce Linux uygulamasını açıp durumunu kontrol edin."
+  },
+  "connect_dynamic_006": {
+    "message": "Linux uygulaması ve uzantı için birbiriyle uyumlu güncellemeler gerekiyor. Kurulum ve sorun giderme sayfasını kontrol edin; Linux kitaplığınız Android kitaplığından ayrı kalır."
+  },
+  "connect_dynamic_007": {
+    "message": "Linux hizmeti geçersiz bir yanıt döndürdü. Yeniden denemeden önce yüklü uygulamayı kontrol edin."
+  },
+  "connect_dynamic_008": {
+    "message": "Bağlantı iptal edildi. Hazır olduğunuzda “Yeniden dene” seçeneğini seçin."
+  },
+  "connect_dynamic_009": {
+    "message": "İptal"
+  },
+  "connect_dynamic_010": {
+    "message": "Linux bağlantısı için erişim izni denetleniyor…"
+  },
+  "connect_dynamic_011": {
+    "message": "Linux hizmeti denetleniyor…"
+  },
+  "connect_dynamic_012": {
+    "message": "Linux hizmeti hazır. Linux kitaplığınız açılıyor…"
+  },
+  "connect_dynamic_013": {
+    "message": "Yeniden dene"
+  },
+  "connect_dynamic_014": {
+    "message": "Yeniden dene"
+  },
+  "extension_summary": {
+    "message": "Chrome’dan masaüstü veya Chromebook’taki JSTorrent uygulamasına torrent ekleyin."
+  },
+  "metrics_connected": {
+    "message": "Bağlantı kuruldu"
+  },
+  "metrics_not_connected": {
+    "message": "Henüz bağlantı kurulmadı"
+  },
+  "metrics_summary": {
+    "message": "İlk kullanımdan bu yana geçen gün sayısı: {days} · Görünür oturumlar: {sessions} · {connection}"
+  },
+  "popup_001": {
+    "message": "Torrent kitaplığınız"
+  },
+  "popup_002": {
+    "message": "Masaüstü uygulaması"
+  },
+  "popup_003": {
+    "message": "Masaüstü kurulumu denetleniyor…"
+  },
+  "popup_004": {
+    "message": "Masaüstü uygulamasına bağlanılıyor."
+  },
+  "popup_005": {
+    "message": "Torrent kitaplığını aç"
+  },
+  "popup_006": {
+    "message": "Chromebook’unuzda"
+  },
+  "popup_007": {
+    "message": "Torrent indirmek için Android uygulamasını kullanın, ardından aynı kitaplığı burada, Chrome’da yönetin."
+  },
+  "popup_008": {
+    "message": "Android için JSTorrent"
+  },
+  "popup_009": {
+    "message": "Torrentleriniz ve indirme klasörleriniz Android uygulamasında kalır. Kurulumu tamamlamak için Android uygulamasını açın, ardından kitaplığınıza bağlanın."
+  },
+  "popup_010": {
+    "message": "JSTorrent Android’i aç"
+  },
+  "popup_011": {
+    "message": "Chrome’da bağlan"
+  },
+  "popup_012": {
+    "message": "Android uygulamasını edinin veya güncelleyin"
+  },
+  "popup_013": {
+    "message": "Kurulum ve sorun giderme"
+  },
+  "popup_014": {
+    "message": "Bunun yerine Linux kullanın"
+  },
+  "popup_015": {
+    "message": "Bunun yerine ChromeOS Linux mu kullanıyorsunuz?"
+  },
+  "popup_016": {
+    "message": "Linux önizleme sürümü"
+  },
+  "popup_017": {
+    "message": "ChromeOS Linux için JSTorrent"
+  },
+  "popup_018": {
+    "message": "Ayrı Linux önizleme sürümünü zaten kullanıyorsanız önce Chromebook’unuzdaki Başlatıcı’dan {slot1} uygulamasını başlatın."
+  },
+  "popup_019": {
+    "message": "Linux kitaplığını aç"
+  },
+  "popup_020": {
+    "message": "Kurulum ve kurtarma"
+  },
+  "popup_021": {
+    "message": "Android ve ChromeOS Linux; torrent kitaplıklarını, ayarlarını ve indirme konumlarını ayrı tutar."
+  },
+  "popup_022": {
+    "message": "Gizlilik ve geri bildirim"
+  },
+  "popup_023": {
+    "message": "İstatistikler etkin olduğunda geri bildirim ve kaldırma anketleri; işletim sistemi, tarayıcı ve uzantı sürümlerinizi, son uzantı sayfasını ve bir bağlantı sonuç kodunu içerir. Tarayıcı sürümü daha az ayrıntıyla belirtilebilir. Tarama geçmişi veya ham hata bilgileri dahil edilmez."
+  },
+  "popup_024": {
+    "message": "Geri bildirim bağlantısını incele"
+  },
+  "popup_025": {
+    "message": "Geri bildirim sayfasını aç"
+  },
+  "popup_026": {
+    "message": "Kullanım istatistikleri"
+  },
+  "popup_027": {
+    "message": "Uzantı; rastgele oluşturulmuş, sıfırlanabilir tek bir kurulum kimliğini, ilk kullanımdan bu yana geçen gün sayısını, görünür oturumları ve daha önce bağlanıp bağlanmadığını kaydeder. Devam etmenizin ardından istatistikler etkinse bu değerler kaldırma anketinin URL’sine eklenebilir. Torrent adları, özet değerleri, yollar, eşler, izleyiciler, kimlik bilgileri, günlükler ve hatalar hiçbir zaman dahil edilmez."
+  },
+  "popup_028": {
+    "message": "{slot1} Takma kimlikle tutulan kullanım istatistiklerini dahil et"
+  },
+  "popup_029": {
+    "message": "Kaydet ve devam et"
+  },
+  "popup_030": {
+    "message": "{slot1} Takma kimlikle tutulan kullanım istatistiklerini dahil et"
+  },
+  "popup_031": {
+    "message": "İstatistikleri ve kimliği sıfırla"
+  },
+  "popup_032": {
+    "message": "Kaldırma URL’si Chrome tarafından yerel olarak saklanır. Bu URL açıldığında içerdiği değerler tarayıcı geçmişine, web sitesi günlüklerine ve yönlendiren bilgilerine, anket formuna ve sayfanın Cloudflare analizlerine aktarılabilir."
+  },
+  "popup_033": {
+    "message": "Gizlilik politikası"
+  },
+  "popup_dynamic_001": {
+    "message": "Geri bildirim bağlantısı kullanılamıyor. Yeniden deneyin."
+  },
+  "popup_dynamic_002": {
+    "message": "Masaüstü kurulumu denetleniyor…"
+  },
+  "popup_dynamic_003": {
+    "message": "Masaüstü uygulamasına bağlanılıyor."
+  },
+  "popup_dynamic_004": {
+    "message": "JSTorrent Desktop kullanılamıyor."
+  },
+  "popup_dynamic_005": {
+    "message": "JSTorrent Desktop hazır"
+  },
+  "popup_dynamic_006": {
+    "message": "Kitaplığınızı burada açın. İndirmeler masaüstü uygulamasında yürütülür."
+  },
+  "popup_dynamic_008": {
+    "message": "Masaüstü kurulumu gerekiyor"
+  },
+  "popup_dynamic_009": {
+    "message": "JSTorrent Desktop’ı yükleyin ve kurulumu tamamlamak için bir kez açın."
+  },
+  "popup_dynamic_010": {
+    "message": "JSTorrent açılıyor…"
+  },
+  "popup_dynamic_011": {
+    "message": "Masaüstü uygulamasına başlatma isteği gönderiliyor."
+  },
+  "popup_dynamic_012": {
+    "message": "JSTorrent açılamadı."
+  },
+  "popup_dynamic_013": {
+    "message": "Başlatma isteği gönderildi"
+  },
+  "popup_dynamic_014": {
+    "message": "Masaüstü kitaplığınız tarayıcıda açık."
+  },
+  "popup_dynamic_015": {
+    "message": "JSTorrent açılmadı"
+  },
+  "popup_dynamic_016": {
+    "message": "JSTorrent Desktop’ı doğrudan açın ve yeniden deneyin."
+  },
+  "popup_dynamic_017": {
+    "message": "ChromeOS Linux arayüzü açılıyor…"
+  },
+  "popup_dynamic_018": {
+    "message": "Chrome, Linux önizleme sürümünü açamadı."
+  },
+  "popup_dynamic_019": {
+    "message": "Sayfanın açılması istendi; Linux bağlantısı doğrulanmadı. Linux durmuşsa veya kullanılamıyorsa sayfadaki bağlantı denetimini ve sorun giderme adımlarını kullanın."
+  },
+  "popup_dynamic_020": {
+    "message": "Chromebook’unuzdaki Başlatıcı’dan ChromeOS Linux için JSTorrent uygulamasını kullanın."
+  },
+  "popup_dynamic_021": {
+    "message": "Android hizmetine erişim isteniyor…"
+  },
+  "popup_dynamic_022": {
+    "message": "Android bağlantısı için erişim izni verilmedi. Hiçbir yerel hizmetle iletişim kurulmadı."
+  },
+  "popup_dynamic_023": {
+    "message": "Chrome, Android bağlantı sürecini başlatamadı."
+  },
+  "popup_dynamic_024": {
+    "message": "Bağlantı sayfası açıldı. Android hazır değilse “JSTorrent Android’i aç” seçeneğini kullanıp kurulumu orada tamamlayın. Uygulamanın başlatıldığı ve eşleştirildiği henüz doğrulanmadı."
+  },
+  "popup_dynamic_025": {
+    "message": "Gizlilik ayarları kaydedilemedi."
+  },
+  "popup_dynamic_026": {
+    "message": "Gizlilik tercihi kaydedildi."
+  },
+  "popup_dynamic_027": {
+    "message": "Gizlilik tercihi kaydedildi."
+  },
+  "popup_dynamic_028": {
+    "message": "Yeni bir kimlik oluşturulup uzantının kullanım istatistikleri temizlensin mi?"
+  },
+  "popup_dynamic_029": {
+    "message": "İstatistikler ve kimlik sıfırlandı."
+  },
+  "setup_001": {
+    "message": "JSTorrent Chromebook kurulumu ve sorun giderme"
+  },
+  "setup_002": {
+    "message": "Chromebook kurulumu ve sorun giderme"
+  },
+  "setup_003": {
+    "message": "Android kurulumu veya bağlantısı"
+  },
+  "setup_004": {
+    "message": "Yanıt vermeyen bir hizmetten Play’in kullanılabilir olup olmadığını, uygulamanın yüklü olup olmadığını veya yöneticinizin kısıtlama uygulayıp uygulamadığını öğrenemeyiz. Aşağıdan doğrulayabildiğiniz aşamayı seçin. Mağaza bağlantısını açmak, uygulamanın yüklendiğini doğrulamaz."
+  },
+  "setup_005": {
+    "message": "Play etkin değil veya kurulum tamamlanmadı"
+  },
+  "setup_006": {
+    "message": "Bunun yerine Linux kullanın"
+  },
+  "setup_007": {
+    "message": "ChromeOS ayarlarını açın, Google Play’i bulun ve seçenek sunuluyorsa ve izin veriliyorsa kurulumunu tamamlayın. Seçenek yoksa veya yönetici tarafından denetleniyorsa yöneticinize danışın; politikayı aşmaya çalışmayın. İzin veriliyorsa {slot1}."
+  },
+  "setup_008": {
+    "message": "Play kullanılabilir; uygulamayı yüklemem gerekiyor"
+  },
+  "setup_009": {
+    "message": "JSTorrent Play sayfası"
+  },
+  "setup_010": {
+    "message": "{slot1} bağlantısını açın ve yüklemenin gerçek sonucunu kontrol edin. Yüklemeden sonra JSTorrent’i Başlatıcı’dan açın. Play henüz güncelleme sunmuyorsa doğrudan Android uygulamasını kullanın ve daha sonra tekrar kontrol edin."
+  },
+  "setup_011": {
+    "message": "Yükleme başarısız oldu veya uygulama kullanılamıyor"
+  },
+  "setup_012": {
+    "message": "Bunun yerine Linux kullanın"
+  },
+  "setup_013": {
+    "message": "Play’in gösterdiği hatayı okuyun. Bu uzantı hatanın nedenini belirleyemez. Mağazanın belirttiği hesap, depolama, uyumluluk veya politika sorununu giderin, ardından elle yeniden deneyin. Yükleme sorunlarını giderirken mevcut uygulamalarınızı ve verilerinizi koruyun. Uygulama hâlâ yüklenemiyorsa {slot1}."
+  },
+  "setup_014": {
+    "message": "Yüklü uygulama açılmadı"
+  },
+  "setup_015": {
+    "message": "JSTorrent Android’i aç"
+  },
+  "setup_016": {
+    "message": "Birlikte aç"
+  },
+  "setup_017": {
+    "message": "Ayarlar → Gelişmiş → Chrome uzantısını bağla"
+  },
+  "setup_018": {
+    "message": "Chrome kitaplığını aç"
+  },
+  "setup_019": {
+    "message": "Chrome’da bağlan"
+  },
+  "setup_020": {
+    "message": "“{slot1}” seçeneğini seçin ve ChromeOS bir “{slot2}” istemi gösterirse onaylayın. Bağlantı kullanılamıyorsa JSTorrent’i Başlatıcı’dan açıp “{slot3}” yolunu izleyin. Sorulursa Android bildirimlerine izin verin, ardından “{slot4}” seçeneğini seçin. Web sitesi çevrimdışıyken de “{slot5}” ile uzantıya elle dönebilirsiniz. Kurulum seçeneği yoksa Android uygulamasını güncelleyin. Uygulamayı uzantı denetimi olmadan doğrudan da kullanabilirsiniz."
+  },
+  "setup_021": {
+    "message": "Tarayıcı erişimi veya eşleştirme reddedildi"
+  },
+  "setup_022": {
+    "message": "Chrome’da bağlan"
+  },
+  "setup_023": {
+    "message": "Android bağlantısına izin ver"
+  },
+  "setup_024": {
+    "message": "Bağlantıyı yeniden dene"
+  },
+  "setup_025": {
+    "message": "İptal"
+  },
+  "setup_026": {
+    "message": "Tarayıcı erişimi istemek için açılır pencerede “{slot1}” veya bağlantı sayfasında “{slot2}” seçeneğini kullanın. Chrome bir Yerel Ağ Erişimi istemi gösterirse yalnızca bağlanmak istiyorsanız erişime izin verin. JSTorrent’i açın ve uzantının adını belirten eşleştirme isteğini onaylayın. Reddedilen veya süresi dolan bir istek için “{slot3}” seçeneğini elle kullanmanız gerekir; “{slot4}” seçeneği kitaplığınızı değiştirmeden sayfanın denemesini durdurur. İptal edilen bir eşleştirme denemesinin Android onay isteği iki dakikaya kadar beklemede kalabilir; yeniden denemeden önce süresinin dolmasını bekleyin. İptal işlemi, işletim sisteminin ayrı bir başlatma istemini kapatmaz veya mevcut bir eşleştirmeyi kaldırmaz."
+  },
+  "setup_027": {
+    "message": "Kayıtlı eşleştirme, güncelleme veya bağlantı hatası"
+  },
+  "setup_028": {
+    "message": "Google Play’de JSTorrent"
+  },
+  "setup_029": {
+    "message": "Bunun yerine Linux kullanın"
+  },
+  "setup_030": {
+    "message": "Chrome Web Mağazası’nda JSTorrent"
+  },
+  "setup_031": {
+    "message": "Aynı Android uygulamasını açın ve yeniden deneyin. Android uygulamasının güncellenmesi gerekiyorsa “{slot1}” sayfasını kontrol edin. Güncelleme sunulmuyorsa doğrudan Android uygulamasını kullanın ve daha sonra tekrar kontrol edin. İşletim sisteminiz desteklenmiyorsa desteklenen bir cihaz kullanın veya kullanılabiliyorsa {slot2}. Uzantının güncellenmesi gerekiyorsa “{slot3}” sayfasını kontrol edin, ardından uzantıyı yeniden açın. Yeniden eşleştirmeyi yalnızca Android’de açıkça onaylayarak yapın. Tarayıcıda yeniden denemek uygulamayı otomatik başlatmaz."
+  },
+  "setup_032": {
+    "message": "İndirme klasörüne erişilemiyor"
+  },
+  "setup_033": {
+    "message": "Linux ile paylaş"
+  },
+  "setup_034": {
+    "message": "Android Depolama ayarlarında Android klasör seçicisini kullanarak özgün klasör bağlantısını onarın ve erişimi onaylayın. ChromeOS’taki “{slot1}” seçeneği Android’e erişim izni vermez. İlgisiz dosyaları ve mevcut kök klasörleri koruyun."
+  },
+  "setup_035": {
+    "message": "Bağlantı sayfası, isteğe bağlı olarak destek bağlamının önizlemesini sunar. Bu önizleme başarısız olan aşamayı, Android arka ucunu, bilinen izin durumunu ve tarayıcı/derleme sürümlerini içerir. Destek için kopyalamadan önce inceleyin. Play’in durumu, uygulamanın yüklü olup olmadığı ve politika durumu bilinmez; hiçbir günlük otomatik olarak yüklenmez."
+  },
+  "setup_036": {
+    "message": "Bunun yerine Linux kullanın"
+  },
+  "setup_037": {
+    "message": "Bu seçimle ayrı bir Linux kitaplığına, ayarlarına ve indirme klasörlerine geçersiniz. Android torrentleri Android’de kalır; Linux kitaplığının boş olması bunların kaybolduğu anlamına gelmez. Linux için aynı veri klasörünü seçmeden önce Android’deki işlemleri bitirin veya durdurun. Otomatik veri taşıma yapılmaz."
+  },
+  "setup_038": {
+    "message": "Linux seçeneği yoksa veya politika tarafından engelleniyorsa bu cihazda kullanılamayabilir. Hem izin verilen hem de kullanılabilir olan bir Android veya Linux ortamı yoksa bu Chromebook ortamı desteklenmez. Yöneticinize danışın veya desteklenen başka bir cihaz kullanın; yükleme bağlantılarını tekrar açmak bu kısıtlamayı gidermez."
+  },
+  "setup_039": {
+    "message": "ChromeOS Linux, Rust torrent motorunu çalıştırır ve JSTorrent arayüzünün tamamını Chrome’a sunar. Bu uzantı aradaki geçişi sağlar; tamamen durdurulmuş bir Linux ortamını tek başına uyandıramaz."
+  },
+  "setup_040": {
+    "message": "Önizleme sürümünü yükleyin"
+  },
+  "setup_041": {
+    "message": "Linux geliştirme ortamı"
+  },
+  "setup_042": {
+    "message": "ChromeOS ayarlarında “{slot1}” seçeneğini yalnızca sunuluyorsa ve izin veriliyorsa etkinleştirin."
+  },
+  "setup_043": {
+    "message": "özgünlüğü doğrulanan resmî yükleyici"
+  },
+  "setup_044": {
+    "message": "Yükleyici komutunu kopyala"
+  },
+  "setup_045": {
+    "message": "“{slot2}” düğmesini kullanarak {slot1} komutunu Terminal’de çalıştırın. Yükleyici, imzalı sürüm bildirim dosyasını ve paket özet değerini doğrular, ardından uygulamayı otomatik olarak yükler."
+  },
+  "setup_046": {
+    "message": "ChromeOS Linux için JSTorrent"
+  },
+  "setup_047": {
+    "message": "Chromebook’unuzdaki Başlatıcı’dan {slot1} uygulamasını açın. Linux’u uyandırır, JSTorrent’i başlatır ve Chrome’a döner."
+  },
+  "setup_048": {
+    "message": "Özgünlüğü önceden doğrulanmış yerel bir paket kullanıyorsanız paketi Linux dosyalarına çıkarın, çıkarılan klasörde Terminal’i açın ve web sitesindeki komut yerine {slot1} komutunu çalıştırın. Geliştirme aşamasındaki bir aday sürüm, kendiliğinden yayımlanmış bir sürüm sayılmaz."
+  },
+  "setup_049": {
+    "message": "Günlük kullanımda başlatma"
+  },
+  "setup_050": {
+    "message": "Linux’un durmuş olma ihtimali varsa Chromebook’unuzdaki Başlatıcı’yı kullanın. Yerel arka uç çalışmaya başladıktan sonra bu uzantının ChromeOS Linux düğmesi arayüzü açar veya öne getirir. Sekmeyi kapatmak etkin torrentleri durdurmaz."
+  },
+  "setup_051": {
+    "message": "Uzantı önce çevrimdışı bir Linux bağlantı sayfası açar. Sayfadaki denetim, tarayıcıdan yalnızca {slot1} adresine erişim izni ister, yanıt veren uygulamayı doğrular ve ardından Linux kitaplığını açar. Yalnızca sekme oluşturulması bağlantıyı doğrulamaz. “Yeniden dene” Linux’u başlatmadan yeniden denetler; “İptal” denetimi durdurur."
+  },
+  "setup_052": {
+    "message": "Linux sayfasına erişilemiyor"
+  },
+  "setup_053": {
+    "message": "Terminal"
+  },
+  "setup_054": {
+    "message": "penguin"
+  },
+  "setup_055": {
+    "message": "ChromeOS Linux için JSTorrent"
+  },
+  "setup_056": {
+    "message": "Linux bağlantısı"
+  },
+  "setup_057": {
+    "message": "Chromebook’unuzdaki Başlatıcı’dan {slot1} uygulamasını açın, sunuluyorsa {slot2} seçeneğini seçin ve Linux komut isteminin açılmasını bekleyin. Ardından Başlatıcı’dan {slot3} uygulamasını açın ve uzantının “{slot4}” seçeneğini yeniden deneyin."
+  },
+  "setup_058": {
+    "message": "Güncel sürümler, ChromeOS’un Linux uygulamanıza yönlendirdiği yerel bir bağlantı olan {slot1} adresini kullanır. Böylece bazı ChromeOS 150 sistemlerinde gözlenen Linux ana makine adı kayıt hatası önlenir. Aynı Linux kitaplığı ve indirme klasörleri açılır."
+  },
+  "setup_059": {
+    "message": "Eski bir yer işareti veya yüklü sürüm {slot1} adresini açıyorsa Linux uygulamasını ve uzantıyı birlikte güncelleyin, ardından uygulamayı yeniden başlatın. Yeni adres için tarayıcı onayını ve görünüm tercihlerini yeniden ayarlamanız gerekebilir; Linux kitaplığınız olduğu yerde kalır."
+  },
+  "setup_060": {
+    "message": "Başarısız bir denetim, sorunun Linux’un başlatılmasıyla mı, yerel yönlendirmeyle mi, tarayıcı izniyle mi yoksa uygulamayla mı ilgili olduğunu belirleyemez. Terminal de açılmıyorsa önce onun belirttiği hatayı giderin. Linux ortamınızı ve dosyalarınızı koruyun; kitaplığınızı silmek bağlantı sorununu gidermez."
+  },
+  "setup_061": {
+    "message": "Linux’u kapat"
+  },
+  "setup_062": {
+    "message": "Terminal açılıyor ancak uygulamaya hâlâ ulaşılamıyorsa Linux uygulamalarını kapatın, Terminal’in “{slot1}” eylemini kullanın, Terminal’i yeniden açın ve uygulamayı yeniden başlatın. Bu işlem etkin Linux aktarımlarını durdurur; kitaplığınız ve indirilen dosyalarınız diskte kalır."
+  },
+  "setup_063": {
+    "message": "Dosyalar ve kurtarma"
+  },
+  "setup_064": {
+    "message": "Linux ile paylaş"
+  },
+  "setup_065": {
+    "message": "İndirmeler başlangıçta Linux’taki {slot1} klasörüne kaydedilir. Bir Chromebook klasörünü kullanmak için JSTorrent’e eklemeden önce Dosyalar uygulamasında “{slot2}” seçeneğini seçin."
+  },
+  "setup_066": {
+    "message": "Yüklü arka ucu denetleyin"
+  },
+  "setup_067": {
+    "message": "Durum komutunu kopyala"
+  },
+  "setup_068": {
+    "message": "Arka ucu yeniden başlatın"
+  },
+  "setup_069": {
+    "message": "Yeniden başlatma komutunu kopyala"
+  },
+  "setup_070": {
+    "message": "Uygulama dosyalarını kaldırın, profili ve indirilenleri koruyun"
+  },
+  "setup_071": {
+    "message": "Kaldırma komutunu kopyala"
+  },
+  "setup_072": {
+    "message": "Crostini profilini de kaldırın"
+  },
+  "setup_073": {
+    "message": "Uygulamayı ve profili kaldırma komutunu kopyala"
+  },
+  "setup_dynamic_001": {
+    "message": "Komut kopyalandı. Linux’taki Terminal uygulamasında çalıştırın."
+  },
+  "setup_dynamic_002": {
+    "message": "Komut kopyalanamadı. Tarayıcının pano erişimini kontrol edin ve yeniden deneyin."
+  },
+  "worker_error_001": {
+    "message": "Masaüstü uygulaması zamanında yanıt vermedi. “Başlat” seçeneğini yeniden deneyin."
+  },
+  "worker_error_002": {
+    "message": "JSTorrent Desktop kullanılamıyor. Yükleyin ve kurulumu tamamlamak için bir kez açın."
+  },
+  "worker_error_003": {
+    "message": "JSTorrent Desktop geçersiz bir başlangıç yanıtı döndürdü."
+  },
+  "worker_error_004": {
+    "message": "Chrome, JSTorrent Linux sayfasını açamadı."
+  }
+}

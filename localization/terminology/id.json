@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "locale": "id",
+  "register": "Use natural Indonesian, concise imperative labels and consistent neutral address using Anda when needed. Avoid overly formal bureaucratic wording. Preserve privacy, deletion and device requirements exactly. Translate all marketing prose naturally; the brand JSTorrent never changes.",
+  "terms": {
+    "torrent": {
+      "sourceTerms": [
+        "torrent",
+        "torrents"
+      ],
+      "preferred": "torrent",
+      "meaning": "BitTorrent transfer; choose the natural local technical term, distinguishing downloading, seeding and paused transfers."
+    }
+  }
+}

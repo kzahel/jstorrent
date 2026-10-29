@@ -1,0 +1,533 @@
+{
+  "catalog_direction": {
+    "message": "ltr"
+  },
+  "catalog_locale": {
+    "message": "cs"
+  },
+  "connect_001": {
+    "message": "JSTorrent – připojení k Linuxu"
+  },
+  "connect_002": {
+    "message": "JSTorrent · Linux v ChromeOS"
+  },
+  "connect_003": {
+    "message": "Připojit k Linuxu"
+  },
+  "connect_004": {
+    "message": "Linux má vlastní knihovnu, nastavení a složky pro stahování. Torrenty z Androidu zůstávají v Androidu."
+  },
+  "connect_005": {
+    "message": "Pro ověření služby v Linuxu zvolte Připojit k Linuxu."
+  },
+  "connect_006": {
+    "message": "Připojit k Linuxu"
+  },
+  "connect_007": {
+    "message": "Pokud se k Linuxu nelze připojit"
+  },
+  "connect_008": {
+    "message": "Terminál"
+  },
+  "connect_009": {
+    "message": "penguin"
+  },
+  "connect_010": {
+    "message": "Ze spouštěče Chromebooku otevřete aplikaci {slot1} a vyberte {slot2}, pokud se tato možnost zobrazí. Počkejte na příkazový řádek Linuxu."
+  },
+  "connect_011": {
+    "message": "JSTorrent pro Linux v ChromeOS"
+  },
+  "connect_012": {
+    "message": "Zkusit znovu"
+  },
+  "connect_013": {
+    "message": "Ze spouštěče otevřete aplikaci {slot1}, poté se sem vraťte a zvolte {slot2}."
+  },
+  "connect_014": {
+    "message": "Po nedávné aktualizaci rozšíření aktualizujte i aplikaci pro Linux. Aktuální verze používají místní připojení, které předchází selháním registrace názvu hostitele v Linuxu. Zachovejte své prostředí Linuxu i stažené soubory."
+  },
+  "connect_015": {
+    "message": "Ze selhání připojení nelze zjistit, zda je Linux povolený, zda je balíček nainstalovaný nebo zda ho pravidla zařízení povolují. Kvůli chybě připojení neodstraňujte ani nepřeinstalovávejte prostředí Linuxu."
+  },
+  "connect_016": {
+    "message": "Nastavení a řešení problémů"
+  },
+  "connect_017": {
+    "message": "Použít místo toho Android"
+  },
+  "connect_dynamic_001": {
+    "message": "Přístup pro připojení k Linuxu nebyl udělen. Žádná služba nebyla kontaktována. Zvolte Zkusit znovu a požádejte o přístup nebo otevřete nastavení a řešení problémů."
+  },
+  "connect_dynamic_002": {
+    "message": "Ke službě v Linuxu se nepodařilo připojit. Otevřete Terminál a aplikaci pro Linux a zkuste to znovu. Stav nastavení Linuxu, instalace balíčku a pravidel zařízení není znám."
+  },
+  "connect_dynamic_003": {
+    "message": "Služba v Linuxu neodpověděla do 10 sekund. Otevřete Terminál a aplikaci pro Linux a zkuste to znovu."
+  },
+  "connect_dynamic_004": {
+    "message": "Služba v Linuxu vrátila chybu. Otevřete aplikaci pro Linux, zkontrolujte její stav a zkuste to znovu."
+  },
+  "connect_dynamic_005": {
+    "message": "Služba, která odpověděla, není JSTorrent pro Linux v ChromeOS. Než to zkusíte znovu, otevřete aplikaci pro Linux a zkontrolujte její stav."
+  },
+  "connect_dynamic_006": {
+    "message": "Aplikace pro Linux a rozšíření vyžadují vzájemně kompatibilní aktualizace. Podívejte se na nastavení a řešení problémů; vaše knihovna v Linuxu zůstává oddělená od Androidu."
+  },
+  "connect_dynamic_007": {
+    "message": "Služba v Linuxu vrátila neplatnou odpověď. Než to zkusíte znovu, zkontrolujte nainstalovanou aplikaci."
+  },
+  "connect_dynamic_008": {
+    "message": "Připojování bylo zrušeno. Až budete chtít pokračovat, zvolte Zkusit znovu."
+  },
+  "connect_dynamic_009": {
+    "message": "Zrušit"
+  },
+  "connect_dynamic_010": {
+    "message": "Ověřování přístupu pro připojení k Linuxu…"
+  },
+  "connect_dynamic_011": {
+    "message": "Ověřování služby v Linuxu…"
+  },
+  "connect_dynamic_012": {
+    "message": "Služba v Linuxu je připravená. Otevírání vaší knihovny v Linuxu…"
+  },
+  "connect_dynamic_013": {
+    "message": "Zkusit znovu"
+  },
+  "connect_dynamic_014": {
+    "message": "Zkusit znovu"
+  },
+  "extension_summary": {
+    "message": "Přidávejte torrenty z Chromu do aplikace JSTorrent na počítači nebo Chromebooku."
+  },
+  "metrics_connected": {
+    "message": "Připojení již proběhlo"
+  },
+  "metrics_not_connected": {
+    "message": "Připojení zatím neproběhlo"
+  },
+  "metrics_summary": {
+    "message": "Počet dní od prvního použití: {days} · Počet relací s viditelným rozhraním: {sessions} · {connection}"
+  },
+  "popup_001": {
+    "message": "Vaše knihovna torrentů"
+  },
+  "popup_002": {
+    "message": "Desktopová aplikace"
+  },
+  "popup_003": {
+    "message": "Ověřování nastavení desktopové aplikace…"
+  },
+  "popup_004": {
+    "message": "Připojování k desktopové aplikaci."
+  },
+  "popup_005": {
+    "message": "Otevřít knihovnu torrentů"
+  },
+  "popup_006": {
+    "message": "Na vašem Chromebooku"
+  },
+  "popup_007": {
+    "message": "Ke stahování torrentů použijte aplikaci pro Android. Stejnou knihovnu pak můžete spravovat zde v Chromu."
+  },
+  "popup_008": {
+    "message": "JSTorrent pro Android"
+  },
+  "popup_009": {
+    "message": "Vaše torrenty a složky pro stahování zůstávají v aplikaci pro Android. Otevřete aplikaci pro Android, dokončete nastavení a poté se připojte ke své knihovně."
+  },
+  "popup_010": {
+    "message": "Otevřít JSTorrent pro Android"
+  },
+  "popup_011": {
+    "message": "Připojit v Chromu"
+  },
+  "popup_012": {
+    "message": "Získat nebo aktualizovat aplikaci pro Android"
+  },
+  "popup_013": {
+    "message": "Nastavení a řešení problémů"
+  },
+  "popup_014": {
+    "message": "Použít místo toho Linux"
+  },
+  "popup_015": {
+    "message": "Používáte místo toho Linux v ChromeOS?"
+  },
+  "popup_016": {
+    "message": "Předběžná verze pro Linux"
+  },
+  "popup_017": {
+    "message": "JSTorrent pro Linux v ChromeOS"
+  },
+  "popup_018": {
+    "message": "Pokud již používáte samostatnou předběžnou verzi pro Linux, nejprve spusťte aplikaci {slot1} ze spouštěče Chromebooku."
+  },
+  "popup_019": {
+    "message": "Otevřít knihovnu v Linuxu"
+  },
+  "popup_020": {
+    "message": "Nastavení a obnova"
+  },
+  "popup_021": {
+    "message": "Android a Linux v ChromeOS mají oddělené knihovny torrentů, nastavení i umístění pro stahování."
+  },
+  "popup_022": {
+    "message": "Soukromí a zpětná vazba"
+  },
+  "popup_023": {
+    "message": "Když jsou statistiky zapnuté, zpětná vazba a dotazníky při odinstalaci obsahují verze operačního systému, prohlížeče a rozšíření, poslední stránku rozšíření a kód výsledku připojení. Verze prohlížeče může být uvedena méně podrobně. Historie prohlížení ani nezpracované chybové zprávy se nezahrnují."
+  },
+  "popup_024": {
+    "message": "Zkontrolovat odkaz pro zpětnou vazbu"
+  },
+  "popup_025": {
+    "message": "Otevřít stránku pro zpětnou vazbu"
+  },
+  "popup_026": {
+    "message": "Statistiky používání"
+  },
+  "popup_027": {
+    "message": "Rozšíření uchovává jeden náhodný identifikátor instalace, který lze resetovat, počet dní od prvního použití, počet relací s viditelným rozhraním a údaj o tom, zda se již připojilo. Pokud budou statistiky po pokračování zapnuté, mohou být tyto údaje vloženy do URL dotazníku při odinstalaci. Názvy torrentů, hashe, cesty, protějšky, trackery, přihlašovací údaje, protokoly ani chyby se nikdy nezahrnují."
+  },
+  "popup_028": {
+    "message": "{slot1} Zahrnout pseudonymní statistiky používání"
+  },
+  "popup_029": {
+    "message": "Uložit a pokračovat"
+  },
+  "popup_030": {
+    "message": "{slot1} Zahrnout pseudonymní statistiky používání"
+  },
+  "popup_031": {
+    "message": "Resetovat statistiky a identifikátor"
+  },
+  "popup_032": {
+    "message": "Chrome ukládá URL dotazníku při odinstalaci místně. Otevřením této adresy se mohou zahrnuté údaje dostat do historie prohlížeče, protokolů webu a údajů o odkazující stránce, formuláře dotazníku i analytiky Cloudflare na dané stránce."
+  },
+  "popup_033": {
+    "message": "Zásady ochrany soukromí"
+  },
+  "popup_dynamic_001": {
+    "message": "Odkaz pro zpětnou vazbu není dostupný. Zkuste to znovu."
+  },
+  "popup_dynamic_002": {
+    "message": "Ověřování nastavení desktopové aplikace…"
+  },
+  "popup_dynamic_003": {
+    "message": "Připojování k desktopové aplikaci."
+  },
+  "popup_dynamic_004": {
+    "message": "JSTorrent Desktop není dostupný."
+  },
+  "popup_dynamic_005": {
+    "message": "JSTorrent Desktop je připraven"
+  },
+  "popup_dynamic_006": {
+    "message": "Zde otevřete svou knihovnu. Stahování probíhá v desktopové aplikaci."
+  },
+  "popup_dynamic_008": {
+    "message": "Je třeba nastavit desktopovou aplikaci"
+  },
+  "popup_dynamic_009": {
+    "message": "Nainstalujte JSTorrent Desktop a jednou jej otevřete pro dokončení nastavení."
+  },
+  "popup_dynamic_010": {
+    "message": "Otevírání JSTorrent…"
+  },
+  "popup_dynamic_011": {
+    "message": "Odesílání požadavku na spuštění desktopové aplikace."
+  },
+  "popup_dynamic_012": {
+    "message": "JSTorrent se nepodařilo otevřít."
+  },
+  "popup_dynamic_013": {
+    "message": "Požadavek na spuštění byl odeslán"
+  },
+  "popup_dynamic_014": {
+    "message": "Vaše knihovna z desktopové aplikace je otevřená v prohlížeči."
+  },
+  "popup_dynamic_015": {
+    "message": "JSTorrent se neotevřel"
+  },
+  "popup_dynamic_016": {
+    "message": "Otevřete JSTorrent Desktop přímo a zkuste to znovu."
+  },
+  "popup_dynamic_017": {
+    "message": "Otevírání rozhraní pro Linux v ChromeOS…"
+  },
+  "popup_dynamic_018": {
+    "message": "Chromu se nepodařilo otevřít předběžnou verzi pro Linux."
+  },
+  "popup_dynamic_019": {
+    "message": "Bylo vyžádáno otevření stránky; připojení k Linuxu není potvrzené. Pokud je Linux zastavený nebo nedostupný, použijte na stránce ověření připojení a řešení problémů."
+  },
+  "popup_dynamic_020": {
+    "message": "Spusťte JSTorrent pro Linux v ChromeOS ze spouštěče Chromebooku."
+  },
+  "popup_dynamic_021": {
+    "message": "Žádost o přístup ke službě v Androidu…"
+  },
+  "popup_dynamic_022": {
+    "message": "Přístup pro připojení k Androidu nebyl udělen. Žádná místní služba nebyla kontaktována."
+  },
+  "popup_dynamic_023": {
+    "message": "Chromu se nepodařilo zahájit postup připojení k Androidu."
+  },
+  "popup_dynamic_024": {
+    "message": "Stránka připojení byla otevřena. Pokud Android není připravený, zvolte Otevřít JSTorrent pro Android a dokončete nastavení v aplikaci. Spuštění aplikace ani spárování zatím nejsou potvrzena."
+  },
+  "popup_dynamic_025": {
+    "message": "Nastavení soukromí se nepodařilo uložit."
+  },
+  "popup_dynamic_026": {
+    "message": "Volba soukromí byla uložena."
+  },
+  "popup_dynamic_027": {
+    "message": "Volba soukromí byla uložena."
+  },
+  "popup_dynamic_028": {
+    "message": "Vytvořit nový identifikátor a vymazat statistiky používání rozšíření?"
+  },
+  "popup_dynamic_029": {
+    "message": "Statistiky a identifikátor byly resetovány."
+  },
+  "setup_001": {
+    "message": "JSTorrent – nastavení a řešení problémů na Chromebooku"
+  },
+  "setup_002": {
+    "message": "Nastavení a řešení problémů na Chromebooku"
+  },
+  "setup_003": {
+    "message": "Nastavení nebo připojení Androidu"
+  },
+  "setup_004": {
+    "message": "Pokud služba neodpovídá, nelze zjistit, zda je obchod Play dostupný, zda je aplikace nainstalovaná nebo zda ji správce omezuje. Níže vyberte fázi, kterou můžete potvrdit. Otevření odkazu do obchodu nepotvrzuje instalaci."
+  },
+  "setup_005": {
+    "message": "Obchod Play není povolený nebo jeho nastavení není dokončené"
+  },
+  "setup_006": {
+    "message": "Použít místo toho Linux"
+  },
+  "setup_007": {
+    "message": "Otevřete Nastavení ChromeOS, vyhledejte Google Play a dokončete jeho nastavení, pokud je tato možnost dostupná a povolená. Pokud možnost chybí nebo ji řídí správce, obraťte se na něj; neobcházejte stanovená pravidla. Pokud je to povoleno, můžete zvolit možnost {slot1}."
+  },
+  "setup_008": {
+    "message": "Obchod Play je dostupný; potřebuji nainstalovat aplikaci"
+  },
+  "setup_009": {
+    "message": "Stránka JSTorrent v obchodě Play"
+  },
+  "setup_010": {
+    "message": "Otevřete odkaz {slot1} a ověřte skutečný výsledek instalace. Po instalaci otevřete JSTorrent ze spouštěče. Pokud obchod Play zatím nenabízí aktualizaci, používejte přímo aplikaci pro Android a dostupnost aktualizace zkontrolujte později."
+  },
+  "setup_011": {
+    "message": "Instalace se nezdařila nebo aplikace není dostupná"
+  },
+  "setup_012": {
+    "message": "Použít místo toho Linux"
+  },
+  "setup_013": {
+    "message": "Přečtěte si chybu zobrazenou v obchodě Play. Toto rozšíření nedokáže určit její příčinu. Vyřešte uvedený problém s účtem, úložištěm, kompatibilitou nebo pravidly a poté instalaci ručně zkuste znovu. Při řešení problémů s instalací zachovejte stávající aplikace a data. Pokud instalace zůstává nedostupná, zvolte možnost {slot1}."
+  },
+  "setup_014": {
+    "message": "Nainstalovaná aplikace se neotevřela"
+  },
+  "setup_015": {
+    "message": "Otevřít JSTorrent pro Android"
+  },
+  "setup_016": {
+    "message": "Otevřít v aplikaci"
+  },
+  "setup_017": {
+    "message": "Nastavení → Pokročilé → Připojit rozšíření pro Chrome"
+  },
+  "setup_018": {
+    "message": "Otevřít knihovnu v Chromu"
+  },
+  "setup_019": {
+    "message": "Připojit v Chromu"
+  },
+  "setup_020": {
+    "message": "Zvolte možnost {slot1} a potvrďte případnou výzvu ChromeOS s názvem {slot2}. Pokud odkaz není dostupný, otevřete JSTorrent ze spouštěče a zvolte {slot3}. Pokud se zobrazí výzva, povolte oznámení Androidu a poté zvolte {slot4}. Do rozšíření se také můžete vrátit ručně pomocí možnosti {slot5}, a to i v případě, že je web offline. Pokud nastavení chybí, aktualizujte aplikaci pro Android. Aplikaci lze používat i přímo bez ovládání přes rozšíření."
+  },
+  "setup_021": {
+    "message": "Přístup prohlížeče nebo párování byly zamítnuty"
+  },
+  "setup_022": {
+    "message": "Připojit v Chromu"
+  },
+  "setup_023": {
+    "message": "Povolit připojení k Androidu"
+  },
+  "setup_024": {
+    "message": "Zkusit připojení znovu"
+  },
+  "setup_025": {
+    "message": "Zrušit"
+  },
+  "setup_026": {
+    "message": "O přístup prohlížeče požádejte pomocí možnosti {slot1} ve vyskakovacím okně nebo {slot2} na stránce připojení. Pokud Chrome zobrazí výzvu k přístupu k místní síti, povolte přístup pouze tehdy, pokud se chcete připojit. Otevřete JSTorrent a schvalte jeho žádost o spárování s uvedeným rozšířením. Po zamítnutí nebo vypršení žádosti je třeba ručně zvolit {slot3}; možnost {slot4} zastaví pokus na stránce, aniž by změnila vaši knihovnu. Po zrušení pokusu o spárování může žádost o schválení v Androidu zůstat aktivní až dvě minuty; před dalším pokusem počkejte, až vyprší. Volba Zrušit nezavře samostatnou systémovou výzvu ke spuštění ani nezruší existující spárování."
+  },
+  "setup_027": {
+    "message": "Uložené spárování, aktualizace nebo selhání připojení"
+  },
+  "setup_028": {
+    "message": "JSTorrent v Google Play"
+  },
+  "setup_029": {
+    "message": "Použít místo toho Linux"
+  },
+  "setup_030": {
+    "message": "JSTorrent v Internetovém obchodě Chrome"
+  },
+  "setup_031": {
+    "message": "Otevřete stejnou aplikaci pro Android a zkuste to znovu. Pokud aplikace pro Android vyžaduje aktualizaci, podívejte se na {slot1}. Pokud aktualizace není nabízena, používejte přímo aplikaci pro Android a dostupnost aktualizace zkontrolujte později. Pokud váš operační systém není podporován, použijte podporované zařízení nebo zvolte možnost {slot2}, pokud je dostupná. Pokud rozšíření vyžaduje aktualizaci, podívejte se na {slot3} a poté rozšíření znovu otevřete. Nové spárování proveďte pouze s výslovným schválením v Androidu. Opakované pokusy v prohlížeči aplikaci automaticky nespustí."
+  },
+  "setup_032": {
+    "message": "Složka pro stahování není dostupná"
+  },
+  "setup_033": {
+    "message": "Sdílet s Linuxem"
+  },
+  "setup_034": {
+    "message": "V nastavení úložiště aplikace pro Android opravte původní přiřazení složky pomocí systémového výběru složky v Androidu a schvalte přístup. Možnost {slot1} v ChromeOS neuděluje přístup Androidu. Zachovejte nesouvisející soubory a stávající složky pro stahování."
+  },
+  "setup_035": {
+    "message": "Stránka připojení nabízí volitelný náhled údajů pro podporu: fázi selhání, backend Androidu, známá oprávnění a verze prohlížeče a sestavení. Před zkopírováním pro podporu si údaje zkontrolujte. Dostupnost obchodu Play, přítomnost aplikace a pravidla zůstávají neznámé; žádné protokoly se neodesílají automaticky."
+  },
+  "setup_036": {
+    "message": "Použít místo toho Linux"
+  },
+  "setup_037": {
+    "message": "Tímto výslovně přecházíte na samostatnou knihovnu, nastavení a složky pro stahování v Linuxu. Torrenty z Androidu zůstávají v Androidu; prázdná knihovna v Linuxu neznamená, že se ztratily. Než pro Linux vyberete stejnou složku s obsahem, dokončete nebo zastavte přenosy v Androidu. Žádná automatická migrace neprobíhá."
+  },
+  "setup_038": {
+    "message": "Pokud Linux chybí nebo je blokován pravidly, nemusí být na tomto zařízení dostupný. Pokud není povolený a použitelný ani Android, ani Linux, není toto prostředí Chromebooku podporováno. Obraťte se na správce nebo použijte jiné podporované zařízení; opakované otevírání instalačních odkazů toto omezení nevyřeší."
+  },
+  "setup_039": {
+    "message": "Linux v ChromeOS spouští torrentový engine v Rustu a poskytuje Chromu kompletní rozhraní JSTorrent. Toto rozšíření zajišťuje přechod do tohoto rozhraní; samo nedokáže probudit zcela zastavené prostředí Linuxu."
+  },
+  "setup_040": {
+    "message": "Nainstalovat předběžnou verzi"
+  },
+  "setup_041": {
+    "message": "Vývojové prostředí Linux"
+  },
+  "setup_042": {
+    "message": "V Nastavení ChromeOS povolte možnost {slot1}, pouze pokud je dostupná a povolená pravidly."
+  },
+  "setup_043": {
+    "message": "oficiální instalační program s ověřením pravosti"
+  },
+  "setup_044": {
+    "message": "Zkopírovat instalační příkaz"
+  },
+  "setup_045": {
+    "message": "Použijte možnost {slot2} a zkopírovaným příkazem spusťte v Terminálu {slot1}. Ověří podepsaný manifest vydání a hash balíčku a poté aplikaci automaticky nainstaluje."
+  },
+  "setup_046": {
+    "message": "JSTorrent pro Linux v ChromeOS"
+  },
+  "setup_047": {
+    "message": "Ze spouštěče Chromebooku otevřete aplikaci {slot1}. Probudí Linux, spustí JSTorrent a vrátí vás do Chromu."
+  },
+  "setup_048": {
+    "message": "Pokud již máte místní balíček s ověřenou pravostí, rozbalte jej v úložišti Linuxu, v rozbalené složce otevřete Terminál a místo příkazu z webu spusťte {slot1}. Vývojová kandidátní verze není automaticky publikovaným vydáním."
+  },
+  "setup_049": {
+    "message": "Běžné spouštění"
+  },
+  "setup_050": {
+    "message": "Pokud může být Linux zastavený, použijte spouštěč Chromebooku. Jakmile běží místní backend, tlačítko tohoto rozšíření pro Linux v ChromeOS otevře jeho rozhraní nebo ho přenese do popředí. Zavření karty nezastaví aktivní torrenty."
+  },
+  "setup_051": {
+    "message": "Rozšíření nejprve otevře stránku připojení k Linuxu dostupnou i offline. Ověření na této stránce požádá prohlížeč o přístup pouze k adrese {slot1}, ověří aplikaci, která odpověděla, a poté otevře knihovnu v Linuxu. Samotné vytvoření karty nepotvrzuje připojení. Volba Zkusit znovu zopakuje ověření, aniž by spustila Linux; volba Zrušit ověření zastaví."
+  },
+  "setup_052": {
+    "message": "Stránka Linuxu není dostupná"
+  },
+  "setup_053": {
+    "message": "Terminál"
+  },
+  "setup_054": {
+    "message": "penguin"
+  },
+  "setup_055": {
+    "message": "JSTorrent pro Linux v ChromeOS"
+  },
+  "setup_056": {
+    "message": "Připojení k Linuxu"
+  },
+  "setup_057": {
+    "message": "Ze spouštěče Chromebooku otevřete aplikaci {slot1}, vyberte {slot2}, pokud je tato možnost nabízena, a počkejte na příkazový řádek Linuxu. Poté ze spouštěče otevřete aplikaci {slot3} a v rozšíření znovu vyzkoušejte možnost {slot4}."
+  },
+  "setup_058": {
+    "message": "Aktuální verze používají adresu {slot1} pro místní připojení, které ChromeOS přesměruje do vaší aplikace pro Linux. Tím se předchází selhání registrace názvu hostitele v Linuxu, které bylo zaznamenáno na některých systémech ChromeOS 150. Otevírá se stejná knihovna v Linuxu a stejné složky pro stahování."
+  },
+  "setup_059": {
+    "message": "Pokud starší záložka nebo nainstalovaná verze otevírá adresu {slot1}, aktualizujte aplikaci pro Linux i rozšíření a poté aplikaci znovu spusťte. Pro novou adresu možná bude nutné znovu udělit souhlas v prohlížeči a nastavit předvolby vzhledu; vaše knihovna v Linuxu zůstane zachována."
+  },
+  "setup_060": {
+    "message": "Neúspěšné ověření neurčí, zda je příčinou spouštění Linuxu, místní přesměrování, oprávnění prohlížeče nebo aplikace. Pokud nefunguje ani Terminál, nejprve vyřešte chybu, kterou uvádí. Zachovejte prostředí Linuxu i soubory; smazání knihovny připojení neopraví."
+  },
+  "setup_061": {
+    "message": "Vypnout Linux"
+  },
+  "setup_062": {
+    "message": "Pokud se Terminál otevře, ale aplikace zůstává nedostupná, zavřete aplikace pro Linux, použijte akci {slot1} v Terminálu, znovu otevřete Terminál a spusťte aplikaci. Tím se zastaví aktivní přenosy v Linuxu; knihovna i stažené soubory zůstanou na disku."
+  },
+  "setup_063": {
+    "message": "Soubory a obnova"
+  },
+  "setup_064": {
+    "message": "Sdílet s Linuxem"
+  },
+  "setup_065": {
+    "message": "Pro stahování se zpočátku používá složka {slot1} v Linuxu. Chcete-li používat složku Chromebooku, zvolte u ní v aplikaci Soubory možnost {slot2}, než ji přidáte v JSTorrent."
+  },
+  "setup_066": {
+    "message": "Zkontrolovat nainstalovaný backend"
+  },
+  "setup_067": {
+    "message": "Zkopírovat příkaz pro zjištění stavu"
+  },
+  "setup_068": {
+    "message": "Restartovat backend"
+  },
+  "setup_069": {
+    "message": "Zkopírovat příkaz pro restart"
+  },
+  "setup_070": {
+    "message": "Odstranit soubory aplikace a zachovat profil i stažené soubory"
+  },
+  "setup_071": {
+    "message": "Zkopírovat příkaz pro odstranění"
+  },
+  "setup_072": {
+    "message": "Odstranit také profil Crostini"
+  },
+  "setup_073": {
+    "message": "Zkopírovat příkaz pro odstranění včetně profilu"
+  },
+  "setup_dynamic_001": {
+    "message": "Příkaz byl zkopírován. Spusťte jej v Terminálu v Linuxu."
+  },
+  "setup_dynamic_002": {
+    "message": "Příkaz se nepodařilo zkopírovat. Zkontrolujte přístup prohlížeče ke schránce a zkuste to znovu."
+  },
+  "worker_error_001": {
+    "message": "Desktopová aplikace neodpověděla včas. Zkuste znovu zvolit Spustit."
+  },
+  "worker_error_002": {
+    "message": "JSTorrent Desktop není dostupný. Nainstalujte jej a jednou jej otevřete pro dokončení nastavení."
+  },
+  "worker_error_003": {
+    "message": "JSTorrent Desktop vrátil neplatnou odpověď při inicializaci připojení."
+  },
+  "worker_error_004": {
+    "message": "Chromu se nepodařilo otevřít stránku JSTorrent pro Linux."
+  }
+}

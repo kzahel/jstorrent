@@ -1,4 +1,7 @@
+import { t, localizeDocument, errorText } from "../src/localization.js";
 import { applyPresentation, presentationForPlatform } from "./platform.js";
+
+localizeDocument(document);
 
 const desktopSurface = document.querySelector("#desktop-surface");
 const chromeosSurface = document.querySelector("#chromeos-surface");
@@ -45,7 +48,7 @@ document.querySelector("#feedback-preview").addEventListener("click", async () =
     link.href = response.state.url;
     link.hidden = false;
   } catch {
-    metricsStatus.textContent = "Feedback link unavailable. Try again.";
+    metricsStatus.textContent = t("popup_dynamic_001");
   }
 });
 
@@ -54,17 +57,17 @@ function request(op) {
 }
 
 async function checkDesktop() {
-  setStatus("checking", "Checking desktop setup…", "Connecting to the desktop app.");
+  setStatus("checking", t("popup_dynamic_002"), t("popup_dynamic_003"));
   launchButton.disabled = true;
   try {
     const response = await request("hello");
     if (!response?.ok || response.result?.kind !== "hello") {
-      throw new Error(response?.error?.message || "JSTorrent Desktop is unavailable.");
+      throw new Error(response?.error?.message || t("popup_dynamic_004"));
     }
     setStatus(
       "ready",
-      "JSTorrent Desktop is ready",
-      "Open your library here. Downloads run in the desktop app.",
+      t("popup_dynamic_005"),
+      t("popup_dynamic_006"),
     );
     void updateMetrics("connected");
     recordSupport("none");
@@ -73,32 +76,32 @@ async function checkDesktop() {
     recordSupport("connection_failed");
     setStatus(
       "error",
-      "Desktop setup needed",
+      t("popup_dynamic_008"),
       error instanceof Error
-        ? error.message
-        : "Install JSTorrent Desktop and open it once to finish setup.",
+        ? errorText(error.message)
+        : t("popup_dynamic_009"),
     );
   }
 }
 
 launchButton.addEventListener("click", async () => {
   launchButton.disabled = true;
-  setStatus("checking", "Opening JSTorrent…", "Sending a launch request to the desktop app.");
+  setStatus("checking", t("popup_dynamic_010"), t("popup_dynamic_011"));
   try {
     const response = await chrome.runtime.sendMessage({ type: "desktopBootstrap", op: "open" });
     if (!response?.ok || response.result?.kind !== "desktop_ui") {
-      throw new Error(response?.error?.message || "JSTorrent could not be opened.");
+      throw new Error(response?.error?.message || t("popup_dynamic_012"));
     }
     setStatus(
       "ready",
-      "Launch requested",
-      "Your desktop library is open in the browser.",
+      t("popup_dynamic_013"),
+      t("popup_dynamic_014"),
     );
   } catch (error) {
     setStatus(
       "error",
-      "JSTorrent did not open",
-      error instanceof Error ? error.message : "Open JSTorrent Desktop directly and try again.",
+      t("popup_dynamic_015"),
+      error instanceof Error ? errorText(error.message) : t("popup_dynamic_016"),
     );
     launchButton.disabled = false;
   }
@@ -106,19 +109,19 @@ launchButton.addEventListener("click", async () => {
 
 linuxButton.addEventListener("click", async () => {
   linuxButton.disabled = true;
-  linuxStatus.textContent = "Opening the ChromeOS Linux UI…";
+  linuxStatus.textContent = t("popup_dynamic_017");
   try {
     const response = await requestCrostini();
     if (!response?.ok) {
-      throw new Error(response?.error?.message || "Chrome could not open the Linux preview.");
+      throw new Error(response?.error?.message || t("popup_dynamic_018"));
     }
     linuxStatus.textContent =
-      "Page requested; Linux connection is not confirmed. Use its connection check and troubleshooting if Linux is stopped or unavailable.";
+      t("popup_dynamic_019");
   } catch (error) {
     linuxStatus.textContent =
       error instanceof Error
-        ? error.message
-        : "Use JSTorrent for ChromeOS Linux from the Chromebook Launcher.";
+        ? errorText(error.message)
+        : t("popup_dynamic_020");
   } finally {
     linuxButton.disabled = false;
   }
@@ -130,7 +133,7 @@ linuxHelpButton.addEventListener("click", () => {
 
 androidButton.addEventListener("click", async () => {
   androidButton.disabled = true;
-  androidStatus.textContent = "Requesting access to the Android service…";
+  androidStatus.textContent = t("popup_dynamic_021");
   try {
     const granted = await chrome.permissions.request({
       origins: [ANDROID_HOST_PERMISSION],
@@ -138,7 +141,7 @@ androidButton.addEventListener("click", async () => {
     if (!granted) {
       recordSupport("permission_denied");
       androidStatus.textContent =
-        "Android connection access was not granted. No local service was contacted.";
+        t("popup_dynamic_022");
       return;
     }
     const response = await chrome.runtime.sendMessage({
@@ -146,12 +149,12 @@ androidButton.addEventListener("click", async () => {
       op: "open",
     });
     if (!response?.ok) {
-      throw new Error(response?.error?.message || "Chrome could not start the Android flow.");
+      throw new Error(response?.error?.message || t("popup_dynamic_023"));
     }
     androidStatus.textContent =
-      "Connection page opened. If Android is not ready, use Open JSTorrent Android and finish setup there. App startup and pairing are not yet confirmed.";
+      t("popup_dynamic_024");
   } catch (error) {
-    androidStatus.textContent = error instanceof Error ? error.message : String(error);
+    androidStatus.textContent = error instanceof Error ? errorText(error.message) : String(error);
   } finally {
     androidButton.disabled = false;
   }
@@ -197,14 +200,16 @@ function renderMetrics(state) {
   metricsSettings.hidden = !disclosed;
   metricsEnabled.checked = state.statisticsEnabled;
   const days = Math.max(0, Math.floor((Date.now() - Number(state.createdAtMillis)) / 86_400_000));
-  metricsSummary.textContent =
-    `${days} days since first use · ${state.sessions} visible sessions · ` +
-    (state.everConnected ? "connected" : "not connected yet");
+  const numbers = new Intl.NumberFormat(globalThis.chrome?.i18n?.getUILanguage?.() || "en");
+  metricsSummary.textContent = t("metrics_summary", {
+    days: numbers.format(days), sessions: numbers.format(state.sessions),
+    connection: state.everConnected ? t("metrics_connected") : t("metrics_not_connected"),
+  });
 }
 
 async function updateMetrics(op, extra = {}) {
   const response = await metricsRequest(op, extra);
-  if (!response?.ok) throw new Error(response?.error || "Privacy settings could not be saved.");
+  if (!response?.ok) throw new Error(response?.error || t("popup_dynamic_025"));
   renderMetrics(response.state);
   document.querySelector("#feedback-context").hidden = true;
   document.querySelector("#feedback-open").hidden = true;
@@ -214,9 +219,9 @@ metricsContinue.addEventListener("click", async () => {
   metricsContinue.disabled = true;
   try {
     await updateMetrics("acknowledge", { enabled: metricsDisclosureEnabled.checked });
-    metricsStatus.textContent = "Privacy preference saved.";
+    metricsStatus.textContent = t("popup_dynamic_026");
   } catch (error) {
-    metricsStatus.textContent = error instanceof Error ? error.message : String(error);
+    metricsStatus.textContent = error instanceof Error ? errorText(error.message) : String(error);
   } finally {
     metricsContinue.disabled = false;
   }
@@ -226,21 +231,21 @@ metricsEnabled.addEventListener("change", async () => {
   metricsEnabled.disabled = true;
   try {
     await updateMetrics("setEnabled", { enabled: metricsEnabled.checked });
-    metricsStatus.textContent = "Privacy preference saved.";
+    metricsStatus.textContent = t("popup_dynamic_027");
   } catch (error) {
-    metricsStatus.textContent = error instanceof Error ? error.message : String(error);
+    metricsStatus.textContent = error instanceof Error ? errorText(error.message) : String(error);
   } finally {
     metricsEnabled.disabled = false;
   }
 });
 
 metricsReset.addEventListener("click", async () => {
-  if (!confirm("Create a new identifier and clear extension usage statistics?")) return;
+  if (!confirm(t("popup_dynamic_028"))) return;
   try {
     await updateMetrics("reset");
-    metricsStatus.textContent = "Statistics and identifier reset.";
+    metricsStatus.textContent = t("popup_dynamic_029");
   } catch (error) {
-    metricsStatus.textContent = error instanceof Error ? error.message : String(error);
+    metricsStatus.textContent = error instanceof Error ? errorText(error.message) : String(error);
   }
 });
 
@@ -251,5 +256,5 @@ async function initialize() {
 }
 
 initialize().catch((error) => {
-  metricsStatus.textContent = error instanceof Error ? error.message : String(error);
+  metricsStatus.textContent = error instanceof Error ? errorText(error.message) : String(error);
 });

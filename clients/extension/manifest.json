@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "JSTorrent",
   "version": "0.4.0",
-  "description": "Add and manage torrents with JSTorrent on desktop and Chromebook.",
+  "description": "__MSG_extension_summary__",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3AFwJOzp3W8MI77V5XNpz3uyzSmu1pPmzjvjyvM5v3KiPMGdzU3IQMlm2ErDgi6JWDYsmvF8OprEmGCf9HhAjKms2ZndB0gBcmyB8ssKCkwuHnWT5sIAx3dBr2fdJ240I2lHIisvaB3C39wY8tXYBxRE+8SyyOalRkapZyi2ZEvWj8GORGUGxebTQe0Czuep5NzYnE80fIGzKTJ3Yqd90rWwvc783ozX3WiuRcES4lN7UqzidHhSwJIwokY85+5ENW6X7Xk7XrReNJkXA7+hqPyN4bxpu7mMirnQXzdjXi1411k7qSb2eWcsrqdbSKifIyH/+H3/EOzYBACtcSMjeQIDAQAB",
   "permissions": [
     "nativeMessaging",
@@ -36,5 +36,6 @@
   },
   "host_permissions": [
     "http://127.0.0.1/*"
-  ]
+  ],
+  "default_locale": "en"
 }

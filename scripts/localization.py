@@ -92,8 +92,12 @@ class Workspace:
                       "chrome_full": 16000, "extension_summary": 132}
             if name in limits and len(text) > limits[name]:
                 raise Invalid(f"{name}: exceeds store limit of {limits[name]} characters")
+            if self.platform in ("store", "extension") and name in ("play_title", "play_short", "extension_summary") and any(c in text for c in "\r\n"):
+                raise Invalid(f"{name}: store summary must be a single line")
             if self.platform == "store" and name == "play_title" and text != "JSTorrent":
                 raise Invalid("the JSTorrent brand must remain unchanged")
+            if self.platform == "store" and sorted(re.findall(r'https?://[^\s]+', text)) != sorted(re.findall(r'https?://[^\s]+', self.source[name]["value"])):
+                raise Invalid(f"{name}: store support URLs must remain unchanged")
         contracts = icu_contracts(values, self.locale, self.root, {name: self.source[name]["value"] for name in values}) if self.platform == "web" else {name: native_contract(value) for name, value in values.items()}
         for name, contract in contracts.items():
             if contract != self.source[name]["arguments"]:

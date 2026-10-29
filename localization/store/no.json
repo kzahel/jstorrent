@@ -1,0 +1,43 @@
+{
+  "locale": "no",
+  "platform": "store",
+  "resources": {
+    "chrome_full": {
+      "origin": "independently authored translation",
+      "reviewState": "agent-reviewed",
+      "reviewer": "gpt-6.1-sol/01a18715-7c88-70c2-a8cb-428ef1d67457",
+      "sourceHash": "3b7d6c83292daa59b7aafae27506bba856f4d126744c0b3158f7f4f17a143a29",
+      "terminologyHash": "77715c16f31a6d0fb5935b2d46d080ae2ca7379262411a6be45e19a3dc578957",
+      "translationHash": "c9af0a050c45b7cd77a7682b99df7a208cabbd24dc8df849dabbd1ec3dfe8fad",
+      "translator": "gpt-6.1-sol/01a18714-ef2c-7de3-94df-5c4a2cc5e2f8"
+    },
+    "play_full": {
+      "origin": "independently authored translation",
+      "reviewState": "agent-reviewed",
+      "reviewer": "gpt-6.1-sol/01a18715-7c88-70c2-a8cb-428ef1d67457",
+      "sourceHash": "137dfa64946f4053adde1286c9ace1a8a21a2374c6460ac828535d1f8c0de802",
+      "terminologyHash": "77715c16f31a6d0fb5935b2d46d080ae2ca7379262411a6be45e19a3dc578957",
+      "translationHash": "f882a6c5316cbe61e676d0b847d71eaf993dff9da35ad52454690e560f88c40a",
+      "translator": "gpt-6.1-sol/01a18714-ef2c-7de3-94df-5c4a2cc5e2f8"
+    },
+    "play_short": {
+      "origin": "independently authored translation",
+      "reviewState": "agent-reviewed",
+      "reviewer": "gpt-6.1-sol/01a186f4-c9b8-7b42-876d-f87a0105837e",
+      "sourceHash": "86feab82441b3a70bb7bd4099bb1313a74686f6f25f8f60a75a97fa404481f06",
+      "terminologyHash": "6f7f2828d9b16a64927c63778e375b70df0fa1295b688ca8a9c3208609acb65c",
+      "translationHash": "f488c6c11e850e7fcec81296bc0fcdedb4f0859f64783ec8ab90f546a8b953ec",
+      "translator": "gpt-6.1-sol/01a186f3-fda6-7203-b9aa-1ed82e207005"
+    },
+    "play_title": {
+      "origin": "independently authored translation",
+      "reviewState": "agent-reviewed",
+      "reviewer": "gpt-6.1-sol/01a186f4-c9b8-7b42-876d-f87a0105837e",
+      "sourceHash": "080d2a780b5ad502a79f5bcad6de10931c346ca6ca7c402a5e66d86762cc6391",
+      "terminologyHash": "0c7f7cdf7c54376f69b0f8993acf857f377ff04920c9218b4af45a49e945f217",
+      "translationHash": "dddb28c17fe5f81227a42625b1209b014b7bedd2450d75916df2d3f4be654209",
+      "translator": "gpt-6.1-sol/01a186f3-fda6-7203-b9aa-1ed82e207005"
+    }
+  },
+  "schemaVersion": 1
+}

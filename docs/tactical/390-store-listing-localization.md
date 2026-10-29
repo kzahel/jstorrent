@@ -99,3 +99,46 @@ adds no required capability and is not added.
 
 No engine, application-contract, database, app UI language-policy, website
 localization, consent-policy or new release-platform changes are included.
+
+## Execution evidence
+
+The production baseline contains 29 Play locales and Chrome 1.1.8's English
+copy. The new catalogs retain every Play locale and add `zh-TW`; the nineteen
+extension locales match the shipping React language registry. All 175 extension
+messages and four store fields use the existing source-bound translation and
+independent review importer, with actual session identities in the per-message
+ledgers. The initial campaign completed all 47 non-English platform/locale jobs
+(3,284 resources before removing one non-display protocol token from each
+extension catalog). A second store-only campaign completed all 29 review jobs
+and updates both full descriptions
+after checking the actual production version: Play still serves 1.0.33, while
+native nineteen-language support starts with 1.0.34. Copy qualifies that version
+and distinguishes the bundled browser library from installed native apps.
+
+The separate Play listings service account has no user-managed keys. Its
+GitHub environment is main-only and its WIF subject is limited to the manual
+metadata workflow. Play access is app-scoped store presence plus the read and
+related declaration permissions Google bundles with it; no release, financial
+or administration access. Read-only Actions run 40848405954 successfully
+exported production metadata. Managed publishing is off; this workflow never
+publishes unrelated pending changes through Console controls.
+
+Local qualification passes: 61 translation-workflow tests, 42 Play-publisher
+tests, seven store transaction tests, 75 extension tests, ten fast-CI selection
+tests, web typecheck and 971 web tests (three skipped), workflow actionlint,
+branding and package validation. Chrome for Testing loads each of nineteen
+native catalogs in an isolated profile, checks the reviewed summary, original
+Play link, named slots and layout at 360px popup / 390px setup and connection
+widths, and
+records no page errors or horizontal overflow. German, Japanese and Traditional
+Chinese captures were visually reviewed. This uses each exact catalog as the
+native default/fallback; macOS retains `en-US` as its Chrome UI language, so
+automatic OS language selection is not claimed. Existing store graphics remain
+accurate fallbacks and are not replaced in a text localization transaction.
+
+The Chrome dashboard is presently blocked by a macOS keychain dialog for
+Google Chrome for Testing. Computer Use refuses SecurityAgent access. A human
+has been asked to click Deny; no password or keychain grant is needed. Continue
+Play delivery and CI package staging independently. The supported Chrome API
+cannot save long descriptions, so do not call a staged package a completed
+localized listing submission.

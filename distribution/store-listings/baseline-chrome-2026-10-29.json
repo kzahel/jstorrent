@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "extensionId": "dbokmlpefliilbjldladbimlcfgbolhk",
+  "version": "1.1.8",
+  "exportedAt": "2026-10-29T09:33:33.085792+00:00",
+  "sourceUrl": "https://chromewebstore.google.com/detail/jstorrent/dbokmlpefliilbjldladbimlcfgbolhk?hl=en",
+  "languages": [
+    "en-US"
+  ],
+  "summary": "Add and manage torrents with JSTorrent on desktop and Chromebook.",
+  "fullDescription": "JSTorrent lets you add and manage torrents from Chrome on desktop and Chromebook.\n\nOn Windows, macOS and Linux, install the JSTorrent Desktop app. On Chromebook, install the JSTorrent Android app from Google Play. Open the app, connect the extension and approve pairing when asked.\n\nAdd magnet links or torrent files, view progress and manage your library. The native app handles downloads and stores your files. You can also use the native app directly.\n\nIf an update is still rolling out, keep using the installed native app and retry later. Update instructions identify whether the desktop app, Android app or Chrome extension needs updating. Updating does not require clearing your library.\n\nLinux desktop support is best effort; check the website’s minimum requirements and headless instructions. Android and Linux libraries are separate."
+}

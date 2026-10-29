@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "locale": "es-419",
+  "register": "Use neutral Latin American Spanish, concise imperative labels and consistent tú/tu address. Avoid Spain-specific vosotros and regional slang. Preserve privacy, deletion and device requirements exactly. Translate all marketing prose naturally; the brand JSTorrent never changes.",
+  "terms": {
+    "torrent": {
+      "sourceTerms": [
+        "torrent",
+        "torrents"
+      ],
+      "preferred": "torrent",
+      "meaning": "BitTorrent transfer; choose the natural local technical term, distinguishing downloading, seeding and paused transfers."
+    }
+  }
+}

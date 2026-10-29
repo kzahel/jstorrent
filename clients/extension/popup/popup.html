@@ -12,40 +12,40 @@
         <img src="../icons/icon-32.png" width="32" height="32" alt="" />
         <div>
           <h1>JSTorrent</h1>
-          <p class="eyebrow">Your torrent library</p>
+          <p class="eyebrow" data-i18n="popup_001">Your torrent library</p>
         </div>
       </div>
 
       <section id="desktop-surface" hidden>
-        <h2>Desktop app</h2>
+        <h2 data-i18n="popup_002">Desktop app</h2>
         <div class="status-card" aria-live="polite">
           <span id="status-dot" class="status-dot checking"></span>
           <div>
-            <p id="status-title" class="status-title">Checking desktop setup…</p>
-            <p id="status-detail" class="status-detail">
+            <p id="status-title" class="status-title" data-i18n="popup_003">Checking desktop setup…</p>
+            <p id="status-detail" class="status-detail" data-i18n="popup_004">
               Connecting to the desktop app.
             </p>
           </div>
         </div>
 
-        <button id="launch" type="button" disabled>Open torrent library</button>
+        <button id="launch" type="button" disabled data-i18n="popup_005">Open torrent library</button>
       </section>
 
       <section id="chromeos-surface" hidden>
-        <h2>On your Chromebook</h2>
-        <p class="surface-intro">
+        <h2 data-i18n="popup_006">On your Chromebook</h2>
+        <p class="surface-intro" data-i18n="popup_007">
           Use the Android app to download torrents, then manage the same library here in Chrome.
         </p>
 
         <article class="choice-card android-card">
           <p class="choice-label">Android</p>
-          <h3>JSTorrent for Android</h3>
-          <p>
+          <h3 data-i18n="popup_008">JSTorrent for Android</h3>
+          <p data-i18n="popup_009">
             Your torrents and download folders stay in the Android app.
             Open Android to finish setup, then connect to your library.
           </p>
-          <a id="open-android" class="button-link" href="intent://chromeos-companion#Intent;scheme=jstorrent;package=com.jstorrent.app;end">Open JSTorrent Android</a>
-          <button id="connect-android" type="button">Connect in Chrome</button>
+          <a id="open-android" class="button-link" href="intent://chromeos-companion#Intent;scheme=jstorrent;package=com.jstorrent.app;end" data-i18n="popup_010">Open JSTorrent Android</a>
+          <button id="connect-android" type="button" data-i18n="popup_011">Connect in Chrome</button>
           <p id="android-status" class="status-detail" role="status"></p>
           <a
             id="android-link"
@@ -53,28 +53,28 @@
             href="https://play.google.com/store/apps/details?id=com.jstorrent.app"
             target="_blank"
             rel="noopener noreferrer"
-          >Get or update the Android app</a>
-          <a class="button-link secondary" href="../crostini/setup.html#android" target="_blank" rel="noopener noreferrer">Setup and troubleshooting</a>
-          <a class="button-link secondary" href="../crostini/setup.html#linux" target="_blank" rel="noopener noreferrer">Use Linux instead</a>
+           data-i18n="popup_012">Get or update the Android app</a>
+          <a class="button-link secondary" href="../crostini/setup.html#android" target="_blank" rel="noopener noreferrer" data-i18n="popup_013">Setup and troubleshooting</a>
+          <a class="button-link secondary" href="../crostini/setup.html#linux" target="_blank" rel="noopener noreferrer" data-i18n="popup_014">Use Linux instead</a>
         </article>
 
         <details class="linux-alternative">
-          <summary>Using ChromeOS Linux instead?</summary>
+          <summary data-i18n="popup_015">Using ChromeOS Linux instead?</summary>
           <article class="choice-card linux-card">
             <p class="choice-label">ChromeOS Linux</p>
-            <h3>Linux preview</h3>
-            <p>
+            <h3 data-i18n="popup_016">Linux preview</h3>
+            <p data-i18n="popup_018">
               If you already use the separate Linux preview, start
-              <strong>JSTorrent for ChromeOS Linux</strong>
+              <strong data-i18n="popup_017">JSTorrent for ChromeOS Linux</strong>
               from the Chromebook Launcher first.
             </p>
-            <button id="launch-linux" type="button">Open Linux library</button>
-            <button id="linux-help" class="secondary" type="button">Setup and recovery</button>
+            <button id="launch-linux" type="button" data-i18n="popup_019">Open Linux library</button>
+            <button id="linux-help" class="secondary" type="button" data-i18n="popup_020">Setup and recovery</button>
             <p id="linux-status" class="status-detail" role="status"></p>
           </article>
         </details>
 
-        <p class="footnote">
+        <p class="footnote" data-i18n="popup_021">
           Android and ChromeOS Linux keep separate torrent libraries, settings,
           and download locations.
         </p>
@@ -82,44 +82,44 @@
 
       <section id="privacy-surface">
         <details id="privacy-details">
-          <summary>Privacy &amp; feedback</summary>
-          <p>When statistics are enabled, feedback and uninstall surveys include your OS,
+          <summary data-i18n="popup_022">Privacy &amp; feedback</summary>
+          <p data-i18n="popup_023">When statistics are enabled, feedback and uninstall surveys include your OS,
             browser and extension versions, the last extension page and a connection result code.
             The browser version may be reduced. No browsing history or raw errors are included.</p>
-          <button id="feedback-preview" type="button">Review feedback link</button>
+          <button id="feedback-preview" type="button" data-i18n="popup_024">Review feedback link</button>
           <p id="feedback-context" hidden></p>
-          <a id="feedback-open" hidden target="_blank" rel="noopener noreferrer">Open feedback page</a>
+          <a id="feedback-open" hidden target="_blank" rel="noopener noreferrer" data-i18n="popup_025">Open feedback page</a>
           <div id="metrics-disclosure" class="choice-card" hidden>
-            <h3>Usage statistics</h3>
-            <p>
+            <h3 data-i18n="popup_026">Usage statistics</h3>
+            <p data-i18n="popup_027">
               The extension keeps one random resettable installation identifier,
               days since first use, visible sessions, and whether it has connected.
               If enabled after you continue, those values may be placed in the
               uninstall survey URL. Torrent names, hashes, paths, peers, trackers,
               credentials, logs, and errors are never included.
             </p>
-            <label>
+            <label data-i18n="popup_028">
               <input id="metrics-disclosure-enabled" type="checkbox" checked />
               Include pseudonymous usage statistics
             </label>
-            <button id="metrics-continue" type="button">Save and continue</button>
+            <button id="metrics-continue" type="button" data-i18n="popup_029">Save and continue</button>
           </div>
           <div id="metrics-settings" class="choice-card" hidden>
-            <label>
+            <label data-i18n="popup_030">
               <input id="metrics-enabled" type="checkbox" />
               Include pseudonymous usage statistics
             </label>
             <p id="metrics-summary" class="status-detail"></p>
-            <button id="metrics-reset" class="secondary" type="button">
+            <button id="metrics-reset" class="secondary" type="button" data-i18n="popup_031">
               Reset statistics and identifier
             </button>
           </div>
-          <p class="footnote">
+          <p class="footnote" data-i18n="popup_032">
             The uninstall URL is stored locally by Chrome. Opening it can disclose
             included values to browser history, website logs and referrers, the
             survey form, and the page’s Cloudflare analytics.
           </p>
-          <button id="privacy-policy" class="secondary" type="button">Privacy policy</button>
+          <button id="privacy-policy" class="secondary" type="button" data-i18n="popup_033">Privacy policy</button>
         </details>
         <p id="metrics-status" class="status-detail" role="status"></p>
       </section>

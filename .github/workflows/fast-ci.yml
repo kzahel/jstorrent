@@ -147,6 +147,8 @@ jobs:
           node --test scripts/test-localization-registry.mjs
           python3 -m unittest discover -s scripts -p 'test_*localization*.py'
           python3 -m unittest discover -s clients/android/scripts -p test_localization.py
+          python3 scripts/store-listings.py check
+          python3 -m unittest discover -s scripts -p test_store_listings.py
           npm run test --prefix clients/web
           npm run build --prefix clients/web
       - name: Test and package the companion extension

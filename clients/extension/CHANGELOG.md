@@ -5,6 +5,14 @@ Production releases of the existing JSTorrent Chrome Web Store item
 `scripts/release-extension.sh <version>`; see
 [`docs/topics/mixed-version-compatibility.md`](../../docs/topics/mixed-version-compatibility.md).
 
+## [1.1.9]
+
+- Translate the extension popup, privacy controls and Chromebook setup/recovery
+  pages into the same nineteen languages as the torrent library.
+- Show a localized store summary and preserve English fallback for other
+  browser languages.
+- Keep existing pairing, permissions, privacy choices and host compatibility.
+
 ## [1.1.8]
 
 - Use the torrent library in nineteen languages, with translations bundled for

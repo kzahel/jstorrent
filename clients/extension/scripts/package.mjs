@@ -24,6 +24,9 @@ import {
 } from "./validate.mjs";
 
 const production = process.argv.includes("--production");
+execFileSync("python3", [path.resolve(extensionRoot, "../../scripts/store-listings.py"), "check"], {
+  cwd: path.resolve(extensionRoot, "../.."), stdio: "inherit",
+});
 const manifest = validateSource(production);
 const webRoot = path.resolve(extensionRoot, "../web");
 execFileSync("npm", ["run", "build:companion"], {

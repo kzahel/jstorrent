@@ -299,3 +299,13 @@ test("release artifacts must match the clean source and checksum before a networ
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('listing preparation stages verified bytes without publishing or canceling review', async () => {
+  const {calls,request}=sequence([status,{uploadState:'SUCCEEDED',crxVersion:build.version}]);
+  const result=await publishStore({token:'test-token',publisherId,candidate,request,stageOnly:true});
+  assert.equal(result.status,'staged-upload'); assert.equal(result.reviewSubmitted,false);
+  assert.deepEqual(calls.map(c=>c.url.split(':').at(-1)),['fetchStatus','upload']);
+  const pending=sequence([{...status,submittedItemRevisionStatus:{state:'PENDING_REVIEW',distributionChannels:[{crxVersion:'0.1.3'}]}}]);
+  await assert.rejects(publishStore({token:'test-token',publisherId,candidate,request:pending.request,stageOnly:true}),/active submission/);
+  assert.equal(pending.calls.length,1);
+});

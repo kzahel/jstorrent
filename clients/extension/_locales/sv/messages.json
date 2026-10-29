@@ -1,0 +1,533 @@
+{
+  "catalog_direction": {
+    "message": "ltr"
+  },
+  "catalog_locale": {
+    "message": "sv"
+  },
+  "connect_001": {
+    "message": "JSTorrent: Linux-anslutning"
+  },
+  "connect_002": {
+    "message": "JSTorrent · ChromeOS Linux"
+  },
+  "connect_003": {
+    "message": "Anslut till Linux"
+  },
+  "connect_004": {
+    "message": "Linux har ett eget bibliotek med egna inställningar och nedladdningsmappar. Android-torrenter finns kvar i Android."
+  },
+  "connect_005": {
+    "message": "Välj Anslut till Linux för att kontrollera Linux-tjänsten."
+  },
+  "connect_006": {
+    "message": "Anslut till Linux"
+  },
+  "connect_007": {
+    "message": "Om Linux inte ansluter"
+  },
+  "connect_008": {
+    "message": "Terminal"
+  },
+  "connect_009": {
+    "message": "penguin"
+  },
+  "connect_010": {
+    "message": "Öppna {slot1} från appstartaren på din Chromebook och välj {slot2} om alternativet visas. Vänta på kommandoprompten i Linux."
+  },
+  "connect_011": {
+    "message": "JSTorrent för ChromeOS Linux"
+  },
+  "connect_012": {
+    "message": "Försök igen"
+  },
+  "connect_013": {
+    "message": "Öppna {slot1} från appstartaren, återvänd hit och välj {slot2}."
+  },
+  "connect_014": {
+    "message": "Om du nyligen uppdaterade tillägget, uppdatera även Linux-appen. Aktuella versioner använder en lokal anslutning som undviker fel vid registrering av Linux-värdnamn. Behåll din Linux-miljö och dina nedladdade filer."
+  },
+  "connect_015": {
+    "message": "En misslyckad anslutning kan inte tala om för oss om Linux är aktiverat, om paketet är installerat eller om enhetens policy tillåter det. Ta inte bort Linux-miljön och installera inte om den för att lösa ett anslutningsfel."
+  },
+  "connect_016": {
+    "message": "Konfiguration och felsökning"
+  },
+  "connect_017": {
+    "message": "Använd Android i stället"
+  },
+  "connect_dynamic_001": {
+    "message": "Åtkomst för Linux-anslutningen beviljades inte. Ingen tjänst kontaktades. Välj Försök igen för att begära åtkomst eller öppna konfiguration och felsökning."
+  },
+  "connect_dynamic_002": {
+    "message": "Det gick inte att nå Linux-tjänsten. Öppna Terminal och Linux-appen och försök sedan igen. Det är okänt hur Linux är konfigurerat, om paketet är installerat och vilken policy som gäller för enheten."
+  },
+  "connect_dynamic_003": {
+    "message": "Linux-tjänsten svarade inte inom 10 sekunder. Öppna Terminal och Linux-appen och försök sedan igen."
+  },
+  "connect_dynamic_004": {
+    "message": "Linux-tjänsten returnerade ett fel. Öppna Linux-appen och kontrollera dess status och försök sedan igen."
+  },
+  "connect_dynamic_005": {
+    "message": "Tjänsten som svarar är inte JSTorrent för ChromeOS Linux. Öppna Linux-appen och kontrollera dess status innan du försöker igen."
+  },
+  "connect_dynamic_006": {
+    "message": "Linux-appen och tillägget behöver uppdateringar som är kompatibla med varandra. Se konfiguration och felsökning. Ditt Linux-bibliotek förblir separat från Android."
+  },
+  "connect_dynamic_007": {
+    "message": "Linux-tjänsten returnerade ett ogiltigt svar. Kontrollera den installerade appen innan du försöker igen."
+  },
+  "connect_dynamic_008": {
+    "message": "Anslutningen avbröts. Välj Försök igen när du är redo."
+  },
+  "connect_dynamic_009": {
+    "message": "Avbryt"
+  },
+  "connect_dynamic_010": {
+    "message": "Kontrollerar åtkomst för Linux-anslutningen…"
+  },
+  "connect_dynamic_011": {
+    "message": "Kontrollerar Linux-tjänsten…"
+  },
+  "connect_dynamic_012": {
+    "message": "Linux-tjänsten är redo. Öppnar ditt Linux-bibliotek…"
+  },
+  "connect_dynamic_013": {
+    "message": "Försök igen"
+  },
+  "connect_dynamic_014": {
+    "message": "Försök igen"
+  },
+  "extension_summary": {
+    "message": "Lägg till torrenter från Chrome i JSTorrent-appen på din dator eller Chromebook."
+  },
+  "metrics_connected": {
+    "message": "Ansluten"
+  },
+  "metrics_not_connected": {
+    "message": "Har inte anslutit än"
+  },
+  "metrics_summary": {
+    "message": "Dagar sedan första användningen: {days} · Synliga sessioner: {sessions} · {connection}"
+  },
+  "popup_001": {
+    "message": "Ditt torrentbibliotek"
+  },
+  "popup_002": {
+    "message": "Skrivbordsapp"
+  },
+  "popup_003": {
+    "message": "Kontrollerar skrivbordsappens konfiguration…"
+  },
+  "popup_004": {
+    "message": "Ansluter till skrivbordsappen."
+  },
+  "popup_005": {
+    "message": "Öppna torrentbiblioteket"
+  },
+  "popup_006": {
+    "message": "På din Chromebook"
+  },
+  "popup_007": {
+    "message": "Använd Android-appen för att ladda ned torrenter och hantera sedan samma bibliotek här i Chrome."
+  },
+  "popup_008": {
+    "message": "JSTorrent för Android"
+  },
+  "popup_009": {
+    "message": "Dina torrenter och nedladdningsmappar finns kvar i Android-appen. Öppna Android-appen för att slutföra konfigurationen och anslut sedan till ditt bibliotek."
+  },
+  "popup_010": {
+    "message": "Öppna JSTorrent för Android"
+  },
+  "popup_011": {
+    "message": "Anslut i Chrome"
+  },
+  "popup_012": {
+    "message": "Hämta eller uppdatera Android-appen"
+  },
+  "popup_013": {
+    "message": "Konfiguration och felsökning"
+  },
+  "popup_014": {
+    "message": "Använd Linux i stället"
+  },
+  "popup_015": {
+    "message": "Använder du ChromeOS Linux i stället?"
+  },
+  "popup_016": {
+    "message": "Förhandsversion för Linux"
+  },
+  "popup_017": {
+    "message": "JSTorrent för ChromeOS Linux"
+  },
+  "popup_018": {
+    "message": "Om du redan använder den separata förhandsversionen för Linux startar du först {slot1} från appstartaren på din Chromebook."
+  },
+  "popup_019": {
+    "message": "Öppna Linux-biblioteket"
+  },
+  "popup_020": {
+    "message": "Konfiguration och återställning"
+  },
+  "popup_021": {
+    "message": "Android och ChromeOS Linux har separata torrentbibliotek, inställningar och nedladdningsplatser."
+  },
+  "popup_022": {
+    "message": "Integritet och återkoppling"
+  },
+  "popup_023": {
+    "message": "När statistik är aktiverad innehåller återkoppling och avinstallationsenkäter versionerna av ditt operativsystem, din webbläsare och ditt tillägg, den senast besökta tilläggssidan samt en resultatkod för anslutningen. Webbläsarens versionsnummer kan vara förkortat. Varken webbhistorik eller obehandlade felmeddelanden inkluderas."
+  },
+  "popup_024": {
+    "message": "Granska länken för återkoppling"
+  },
+  "popup_025": {
+    "message": "Öppna sidan för återkoppling"
+  },
+  "popup_026": {
+    "message": "Användningsstatistik"
+  },
+  "popup_027": {
+    "message": "Tillägget sparar en slumpmässig installationsidentifierare som kan återställas, antal dagar sedan första användningen, antal synliga sessioner och om det har anslutit. Om statistiken är aktiverad efter att du fortsätter kan dessa värden läggas till i avinstallationsenkätens URL. Torrentnamn, hashvärden, sökvägar, motparter, trackrar, inloggningsuppgifter, loggar och fel inkluderas aldrig."
+  },
+  "popup_028": {
+    "message": "{slot1} Inkludera pseudonym användningsstatistik"
+  },
+  "popup_029": {
+    "message": "Spara och fortsätt"
+  },
+  "popup_030": {
+    "message": "{slot1} Inkludera pseudonym användningsstatistik"
+  },
+  "popup_031": {
+    "message": "Återställ statistik och identifierare"
+  },
+  "popup_032": {
+    "message": "Avinstallationslänken lagras lokalt av Chrome. Om du öppnar den kan de inkluderade värdena hamna i webbhistoriken, webbplatsloggar och hänvisningsinformation, enkätformuläret samt sidans Cloudflare-analys."
+  },
+  "popup_033": {
+    "message": "Integritetspolicy"
+  },
+  "popup_dynamic_001": {
+    "message": "Länken för återkoppling är inte tillgänglig. Försök igen."
+  },
+  "popup_dynamic_002": {
+    "message": "Kontrollerar skrivbordsappens konfiguration…"
+  },
+  "popup_dynamic_003": {
+    "message": "Ansluter till skrivbordsappen."
+  },
+  "popup_dynamic_004": {
+    "message": "JSTorrent Desktop är inte tillgängligt."
+  },
+  "popup_dynamic_005": {
+    "message": "JSTorrent Desktop är redo"
+  },
+  "popup_dynamic_006": {
+    "message": "Öppna ditt bibliotek här. Nedladdningarna körs i skrivbordsappen."
+  },
+  "popup_dynamic_008": {
+    "message": "Skrivbordsappen behöver konfigureras"
+  },
+  "popup_dynamic_009": {
+    "message": "Installera JSTorrent Desktop och öppna det en gång för att slutföra konfigurationen."
+  },
+  "popup_dynamic_010": {
+    "message": "Öppnar JSTorrent…"
+  },
+  "popup_dynamic_011": {
+    "message": "Skickar en startbegäran till skrivbordsappen."
+  },
+  "popup_dynamic_012": {
+    "message": "Det gick inte att öppna JSTorrent."
+  },
+  "popup_dynamic_013": {
+    "message": "Start har begärts"
+  },
+  "popup_dynamic_014": {
+    "message": "Ditt skrivbordsbibliotek är öppet i webbläsaren."
+  },
+  "popup_dynamic_015": {
+    "message": "JSTorrent öppnades inte"
+  },
+  "popup_dynamic_016": {
+    "message": "Öppna JSTorrent Desktop direkt och försök igen."
+  },
+  "popup_dynamic_017": {
+    "message": "Öppnar gränssnittet för ChromeOS Linux…"
+  },
+  "popup_dynamic_018": {
+    "message": "Chrome kunde inte öppna förhandsversionen för Linux."
+  },
+  "popup_dynamic_019": {
+    "message": "Sidan har begärts, men Linux-anslutningen är inte bekräftad. Använd sidans anslutningskontroll och felsökning om Linux är avstängt eller otillgängligt."
+  },
+  "popup_dynamic_020": {
+    "message": "Starta JSTorrent för ChromeOS Linux från appstartaren på din Chromebook."
+  },
+  "popup_dynamic_021": {
+    "message": "Begär åtkomst till Android-tjänsten…"
+  },
+  "popup_dynamic_022": {
+    "message": "Åtkomst för Android-anslutningen beviljades inte. Ingen lokal tjänst kontaktades."
+  },
+  "popup_dynamic_023": {
+    "message": "Chrome kunde inte starta anslutningsförloppet för Android."
+  },
+  "popup_dynamic_024": {
+    "message": "Anslutningssidan har öppnats. Om Android-appen inte är redo, välj Öppna JSTorrent för Android och slutför konfigurationen där. Appstart och parkoppling är ännu inte bekräftade."
+  },
+  "popup_dynamic_025": {
+    "message": "Det gick inte att spara integritetsinställningarna."
+  },
+  "popup_dynamic_026": {
+    "message": "Integritetsinställningen har sparats."
+  },
+  "popup_dynamic_027": {
+    "message": "Integritetsinställningen har sparats."
+  },
+  "popup_dynamic_028": {
+    "message": "Vill du skapa en ny identifierare och rensa tilläggets användningsstatistik?"
+  },
+  "popup_dynamic_029": {
+    "message": "Statistiken och identifieraren har återställts."
+  },
+  "setup_001": {
+    "message": "JSTorrent på Chromebook: konfiguration och felsökning"
+  },
+  "setup_002": {
+    "message": "Konfiguration och felsökning på Chromebook"
+  },
+  "setup_003": {
+    "message": "Konfiguration eller anslutning av Android-appen"
+  },
+  "setup_004": {
+    "message": "En tjänst som inte svarar kan inte tala om för oss om Play är tillgängligt, om appen är installerad eller om din administratör begränsar åtkomsten. Välj det steg som du kan bekräfta nedan. Att öppna en butikslänk bekräftar inte att appen är installerad."
+  },
+  "setup_005": {
+    "message": "Play är inte aktiverat eller konfigurationen är inte klar"
+  },
+  "setup_006": {
+    "message": "Använd Linux i stället"
+  },
+  "setup_007": {
+    "message": "Öppna inställningarna i ChromeOS, leta upp Google Play och slutför konfigurationen om alternativet finns och är tillåtet. Om alternativet saknas eller hanteras av en administratör, fråga administratören. Kringgå inte gällande policy. {slot1} om det är tillåtet."
+  },
+  "setup_008": {
+    "message": "Play är tillgängligt, men jag behöver installera appen"
+  },
+  "setup_009": {
+    "message": "JSTorrents sida i Play"
+  },
+  "setup_010": {
+    "message": "Öppna {slot1} och kontrollera hur installationen faktiskt gick. Öppna JSTorrent från appstartaren efter installationen. Om Play ännu inte erbjuder någon uppdatering kan du använda Android-appen direkt och kontrollera igen senare."
+  },
+  "setup_011": {
+    "message": "Installationen misslyckades eller appen är inte tillgänglig"
+  },
+  "setup_012": {
+    "message": "Använd Linux i stället"
+  },
+  "setup_013": {
+    "message": "Läs felmeddelandet i Play. Det här tillägget kan inte avgöra orsaken. Åtgärda det problem med konto, lagring, kompatibilitet eller policy som butiken anger och försök sedan igen manuellt. Behåll dina befintliga appar och data när du löser installationsproblem. Om det fortfarande inte går att installera appen kan du välja {slot1}."
+  },
+  "setup_014": {
+    "message": "Den installerade appen öppnades inte"
+  },
+  "setup_015": {
+    "message": "Öppna JSTorrent för Android"
+  },
+  "setup_016": {
+    "message": "Öppna med"
+  },
+  "setup_017": {
+    "message": "Inställningar → Avancerat → Anslut Chrome-tillägg"
+  },
+  "setup_018": {
+    "message": "Öppna Chrome-biblioteket"
+  },
+  "setup_019": {
+    "message": "Anslut i Chrome"
+  },
+  "setup_020": {
+    "message": "Välj {slot1} och bekräfta eventuell dialogruta för {slot2} i ChromeOS. Om länken inte är tillgänglig öppnar du JSTorrent från appstartaren och väljer {slot3}. Tillåt Android-aviseringar om du blir tillfrågad och välj sedan {slot4}. Du kan också återvända till tillägget manuellt med {slot5}, även när webbplatsen är offline. Uppdatera Android-appen om konfigurationsalternativet saknas. Appen kan också användas direkt utan att styras av tillägget."
+  },
+  "setup_021": {
+    "message": "Webbläsaråtkomst eller parkoppling nekades"
+  },
+  "setup_022": {
+    "message": "Anslut i Chrome"
+  },
+  "setup_023": {
+    "message": "Tillåt Android-anslutning"
+  },
+  "setup_024": {
+    "message": "Försök ansluta igen"
+  },
+  "setup_025": {
+    "message": "Avbryt"
+  },
+  "setup_026": {
+    "message": "Använd {slot1} i popupfönstret eller {slot2} på anslutningssidan för att begära webbläsaråtkomst. Om Chrome frågar om åtkomst till det lokala nätverket, tillåt bara åtkomst om du vill ansluta. Öppna JSTorrent och godkänn begäran om parkoppling med det namngivna tillägget. Om begäran nekas eller löper ut måste du välja {slot3} manuellt. Med {slot4} stoppar du sidans försök utan att ändra ditt bibliotek. Efter ett avbrutet parkopplingsförsök kan begäran om godkännande i Android finnas kvar i upp till två minuter. Vänta tills den löper ut innan du försöker igen. Avbryt stänger inte en separat startdialog från operativsystemet och återkallar inte en befintlig parkoppling."
+  },
+  "setup_027": {
+    "message": "Sparad parkoppling, uppdatering eller anslutningsfel"
+  },
+  "setup_028": {
+    "message": "JSTorrent i Google Play"
+  },
+  "setup_029": {
+    "message": "Använd Linux i stället"
+  },
+  "setup_030": {
+    "message": "JSTorrent i Chrome Web Store"
+  },
+  "setup_031": {
+    "message": "Öppna samma Android-app och försök igen. Om Android-appen behöver uppdateras, kontrollera {slot1}. Om ingen uppdatering erbjuds kan du använda Android-appen direkt och kontrollera igen senare. Om ditt operativsystem inte stöds, använd en enhet som stöds eller välj {slot2} där det är möjligt. Om tillägget behöver uppdateras, kontrollera {slot3} och öppna sedan tillägget igen. Parkoppla på nytt endast genom uttryckligt godkännande i Android. Nya anslutningsförsök i webbläsaren startar inte appen automatiskt."
+  },
+  "setup_032": {
+    "message": "Nedladdningsmappen är inte tillgänglig"
+  },
+  "setup_033": {
+    "message": "Dela med Linux"
+  },
+  "setup_034": {
+    "message": "Återställ kopplingen till den ursprungliga mappen i Android-appens lagringsinställningar genom att använda Androids mappväljare och godkänna åtkomst. Alternativet {slot1} i ChromeOS ger inte Android åtkomst. Behåll orelaterade filer och befintliga nedladdningsmappar."
+  },
+  "setup_035": {
+    "message": "På anslutningssidan kan du frivilligt förhandsgranska supportinformation med steget som misslyckades, Android-backenden, känd behörighet samt webbläsar- och byggversioner. Granska informationen innan du kopierar den till supporten. Det är fortfarande okänt om Play är tillgängligt, om appen finns och vilka policyer som gäller. Inga loggar laddas upp automatiskt."
+  },
+  "setup_036": {
+    "message": "Använd Linux i stället"
+  },
+  "setup_037": {
+    "message": "Det här är ett uttryckligt byte till ett separat Linux-bibliotek med egna inställningar och nedladdningsmappar. Android-torrenter finns kvar i Android. Ett tomt Linux-bibliotek betyder inte att de har försvunnit. Slutför eller stoppa arbetet i Android innan du väljer samma mapp för nedladdat innehåll i Linux. Ingen automatisk migrering sker."
+  },
+  "setup_038": {
+    "message": "Om Linux saknas eller blockeras av en policy kanske det inte är tillgängligt på den här enheten. Om varken Android eller Linux är tillåtet och användbart stöds inte den här Chromebook-miljön. Fråga din administratör eller använd en annan enhet som stöds. Att öppna installationslänkar igen kan inte lösa den begränsningen."
+  },
+  "setup_039": {
+    "message": "ChromeOS Linux kör torrentmotorn i Rust och tillhandahåller hela JSTorrent-gränssnittet i Chrome. Det här tillägget sköter överlämningen, men kan inte själv starta en helt avstängd Linux-miljö."
+  },
+  "setup_040": {
+    "message": "Installera förhandsversionen"
+  },
+  "setup_041": {
+    "message": "Utvecklingsmiljö för Linux"
+  },
+  "setup_042": {
+    "message": "Aktivera {slot1} i inställningarna i ChromeOS endast om alternativet finns och är tillåtet."
+  },
+  "setup_043": {
+    "message": "det officiella installationsprogrammet med äkthetskontroll"
+  },
+  "setup_044": {
+    "message": "Kopiera installationskommando"
+  },
+  "setup_045": {
+    "message": "Kör {slot1} i Terminal med hjälp av ”{slot2}”. Det verifierar det signerade versionsmanifestet och paketets hashvärde och installerar sedan appen automatiskt."
+  },
+  "setup_046": {
+    "message": "JSTorrent för ChromeOS Linux"
+  },
+  "setup_047": {
+    "message": "Öppna {slot1} från appstartaren på din Chromebook. Det startar Linux och JSTorrent och återgår sedan till Chrome."
+  },
+  "setup_048": {
+    "message": "Om du har ett lokalt paket vars äkthet redan har verifierats, packa upp det i Linux-filer, öppna Terminal i den uppackade mappen och kör {slot1} i stället för kommandot från webbplatsen. En utvecklingskandidat är inte automatiskt en publicerad version."
+  },
+  "setup_049": {
+    "message": "Start vid daglig användning"
+  },
+  "setup_050": {
+    "message": "Använd appstartaren på din Chromebook om Linux kan vara avstängt. När den lokala backenden körs öppnar eller fokuserar tilläggets knapp för ChromeOS Linux dess gränssnitt. Aktiva torrenter stoppas inte när du stänger fliken."
+  },
+  "setup_051": {
+    "message": "Tillägget öppnar först en Linux-anslutningssida som fungerar offline. Sidans kontroll begär webbläsaråtkomst enbart till {slot1}, verifierar appen som svarar och öppnar sedan Linux-biblioteket. Att en flik skapas bekräftar inte i sig en anslutning. Välj Försök igen för att upprepa kontrollen utan att starta Linux. Välj Avbryt för att stoppa kontrollen."
+  },
+  "setup_052": {
+    "message": "Linux-sidan är inte tillgänglig"
+  },
+  "setup_053": {
+    "message": "Terminal"
+  },
+  "setup_054": {
+    "message": "penguin"
+  },
+  "setup_055": {
+    "message": "JSTorrent för ChromeOS Linux"
+  },
+  "setup_056": {
+    "message": "Linux-anslutning"
+  },
+  "setup_057": {
+    "message": "Öppna {slot1} från appstartaren på din Chromebook, välj {slot2} om alternativet finns och vänta på kommandoprompten i Linux. Öppna sedan {slot3} från appstartaren och försök igen med tilläggets {slot4}."
+  },
+  "setup_058": {
+    "message": "Aktuella versioner använder {slot1}, en lokal anslutning som ChromeOS vidarebefordrar till din Linux-app. Det undviker det fel vid registrering av Linux-värdnamn som har observerats på vissa system med ChromeOS 150. Samma Linux-bibliotek och nedladdningsmappar öppnas."
+  },
+  "setup_059": {
+    "message": "Om ett äldre bokmärke eller en installerad version öppnar {slot1}, uppdatera Linux-appen och tillägget tillsammans och starta sedan appen igen. Du kan behöva ge webbläsaråtkomst och ställa in utseendet på nytt för den nya adressen. Ditt Linux-bibliotek finns kvar."
+  },
+  "setup_060": {
+    "message": "En misslyckad kontroll kan inte avgöra om orsaken är starten av Linux, lokal vidarebefordran, webbläsarbehörighet eller appen. Om även Terminal misslyckas, åtgärda först felet som anges där. Behåll din Linux-miljö och dina filer. Att radera biblioteket löser inte anslutningsproblem."
+  },
+  "setup_061": {
+    "message": "Stäng av Linux"
+  },
+  "setup_062": {
+    "message": "Om Terminal öppnas men appen fortfarande inte går att nå, stäng Linux-apparna, använd {slot1} i Terminal, öppna Terminal igen och starta appen på nytt. Det här stoppar aktiva överföringar i Linux. Ditt bibliotek och dina nedladdade filer finns kvar på disken."
+  },
+  "setup_063": {
+    "message": "Filer och återställning"
+  },
+  "setup_064": {
+    "message": "Dela med Linux"
+  },
+  "setup_065": {
+    "message": "Nedladdningar sparas till en början i {slot1} i Linux. Om du vill använda en mapp på din Chromebook väljer du {slot2} i appen Filer innan du lägger till mappen i JSTorrent."
+  },
+  "setup_066": {
+    "message": "Kontrollera den installerade backenden"
+  },
+  "setup_067": {
+    "message": "Kopiera statuskommando"
+  },
+  "setup_068": {
+    "message": "Starta om backenden"
+  },
+  "setup_069": {
+    "message": "Kopiera omstartskommando"
+  },
+  "setup_070": {
+    "message": "Ta bort appfiler, behåll profil och nedladdningar"
+  },
+  "setup_071": {
+    "message": "Kopiera borttagningskommando"
+  },
+  "setup_072": {
+    "message": "Ta även bort Crostini-profilen"
+  },
+  "setup_073": {
+    "message": "Kopiera kommando för borttagning av app och profil"
+  },
+  "setup_dynamic_001": {
+    "message": "Kommandot har kopierats. Kör det i Linux-terminalen."
+  },
+  "setup_dynamic_002": {
+    "message": "Det gick inte att kopiera kommandot. Kontrollera webbläsarens åtkomst till urklipp och försök igen."
+  },
+  "worker_error_001": {
+    "message": "Skrivbordsappen svarade inte i tid. Välj Starta igen."
+  },
+  "worker_error_002": {
+    "message": "JSTorrent Desktop är inte tillgängligt. Installera det och öppna det en gång för att slutföra konfigurationen."
+  },
+  "worker_error_003": {
+    "message": "JSTorrent Desktop returnerade ett ogiltigt svar vid initiering."
+  },
+  "worker_error_004": {
+    "message": "Chrome kunde inte öppna JSTorrents Linux-sida."
+  }
+}

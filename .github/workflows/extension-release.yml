@@ -10,9 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Build a package, or verify Web Store authentication without changing the store
+        description: Build a package, stage its upload for listing edits, or check store authentication
         type: choice
-        options: [package, check]
+        options: [package, stage, check]
         default: package
   push:
     tags: ["extension-v*"]
@@ -77,8 +77,8 @@ jobs:
     uses: ./.github/workflows/compat-live.yml
 
   publish:
-    name: Submit to Chrome Web Store
-    if: github.repository == 'kzahel/jstorrent' && startsWith(github.ref, 'refs/tags/extension-v')
+    name: Upload or submit to Chrome Web Store
+    if: always() && github.repository == 'kzahel/jstorrent' && needs.package.result == 'success' && ((startsWith(github.ref, 'refs/tags/extension-v') && needs.compatibility.result == 'success') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'stage' && github.ref == 'refs/heads/main'))
     needs: [package, compatibility]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -112,11 +112,15 @@ jobs:
           access_token_scopes: https://www.googleapis.com/auth/chromewebstore
           create_credentials_file: false
           export_environment_variables: false
-      - name: Upload the verified ZIP and submit for automatic publication after review
+      - name: Upload the verified ZIP and submit only for tagged publication
         env:
           CWS_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
           CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
-        run: node clients/extension/scripts/publish-store.mjs publish store-candidate store-receipt.json
+          REQUESTED_MODE: ${{ inputs.mode }}
+        run: |
+          mode=publish
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$REQUESTED_MODE" = stage ]; then mode=stage; fi
+          node clients/extension/scripts/publish-store.mjs "$mode" store-candidate store-receipt.json
       - name: Keep the store receipt
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

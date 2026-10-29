@@ -77,6 +77,15 @@ test('the aggregate requires selected jobs and tools, with explicit unselected s
   assert.doesNotThrow(() => requireFastSuccess(docs));
   assert.throws(() => requireFastSuccess({ ...docs, tools: { result: 'failure' } }));
 });
+test('store text and publisher changes qualify catalogs and extension packages without engine builds', () => {
+  for (const path of ['distribution/store-listings/de.json', 'scripts/store-listings.py', 'scripts/test_store_listings.py']) {
+    const plan = planChecks([path], metadata);
+    assert.equal(plan.web, true);
+    assert.equal(plan.extension, true);
+    assert.equal(plan.rust, false);
+    assert.equal(plan.contract, false);
+  }
+});
 test('dependency and provenance changes select notice checks before packaging', () => {
   for (const path of ['Cargo.lock', 'Cargo.toml', 'crates/rstorrent-engine/Cargo.toml',
     'clients/desktop/src-tauri/Cargo.toml', 'clients/web/package.json', 'clients/web/package-lock.json',

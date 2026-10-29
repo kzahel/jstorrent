@@ -5,6 +5,7 @@ import test from "node:test";
 
 import { applyPresentation, presentationForPlatform } from "../popup/platform.js";
 import { extensionRoot } from "./validate.mjs";
+import { t, errorText } from "../src/localization.js";
 
 const popup = readFileSync(path.join(extensionRoot, "popup/popup.html"), "utf8");
 
@@ -56,7 +57,7 @@ test("ChromeOS copy uses only the exact published Android listing", () => {
 
 // Execute the actual popup entry point with browser/document boundaries mocked.
 // A tab with the popup URL must not be mistaken for the toolbar action.
-async function runPopup({ os = "mac", popupView = false, granted = true } = {}) {
+async function runPopup({ os = "mac", popupView = false, granted = true, translate = t } = {}) {
   const { runInNewContext } = await import("node:vm");
   const requests = [];
   const elements = new Map();
@@ -70,7 +71,8 @@ async function runPopup({ os = "mac", popupView = false, granted = true } = {}) 
   const view = {};
   const metrics = { disclosureVersion: 1, statisticsEnabled: false, createdAtMillis: String(Date.now()), sessions: 1, everConnected: false };
   const source = readFileSync(path.join(extensionRoot, "popup/popup.js"), "utf8");
-  runInNewContext(source.replace(/^import .*;\n/u, ""), {
+  runInNewContext(source.replace(/^import .*;\n/gmu, ""), {
+    t: translate, errorText, localizeDocument() {},
     applyPresentation, presentationForPlatform, window: view,
     document: { querySelector: element },
     chrome: {
@@ -110,6 +112,14 @@ test("ChromeOS and uncertain platform popup never auto-launch desktop", async ()
     const { requests } = await runPopup({ os, popupView: true });
     assert.equal(requests.filter(value => value.type === "desktopBootstrap").length, 0);
   }
+});
+
+test("localized desktop feedback preserves the metrics protocol operation", async () => {
+  const popup = await runPopup({ translate: (key, values) => `translated: ${t(key, values)}` });
+  await popup.launch();
+  const connected = popup.requests.filter(request => request.type === "productMetrics" && request.op === "connected");
+  assert.equal(connected.length, 1);
+  assert.equal(popup.requests.some(request => request.type === "productMetrics" && request.op.startsWith("translated:")), false);
 });
 
 test("denied Android permission never launches or contacts the app", async () => {

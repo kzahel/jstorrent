@@ -1,0 +1,533 @@
+{
+  "catalog_direction": {
+    "message": "ltr"
+  },
+  "catalog_locale": {
+    "message": "ro"
+  },
+  "connect_001": {
+    "message": "Conectare la JSTorrent pentru Linux"
+  },
+  "connect_002": {
+    "message": "JSTorrent · Linux pe ChromeOS"
+  },
+  "connect_003": {
+    "message": "Conectare la Linux"
+  },
+  "connect_004": {
+    "message": "Linux are propria bibliotecă, propriile setări și dosare pentru descărcări. Torentele Android rămân în Android."
+  },
+  "connect_005": {
+    "message": "Pentru a verifica serviciul Linux, se alege Conectează la Linux."
+  },
+  "connect_006": {
+    "message": "Conectează la Linux"
+  },
+  "connect_007": {
+    "message": "Dacă nu se poate stabili conexiunea cu Linux"
+  },
+  "connect_008": {
+    "message": "Terminal"
+  },
+  "connect_009": {
+    "message": "penguin"
+  },
+  "connect_010": {
+    "message": "Se deschide {slot1} din lansatorul Chromebook și se selectează {slot2}, dacă apare. Se așteaptă apariția promptului de comandă Linux."
+  },
+  "connect_011": {
+    "message": "JSTorrent pentru Linux pe ChromeOS"
+  },
+  "connect_012": {
+    "message": "Reîncearcă"
+  },
+  "connect_013": {
+    "message": "Se deschide {slot1} din lansator, apoi se revine aici și se selectează {slot2}."
+  },
+  "connect_014": {
+    "message": "Dacă extensia a fost actualizată recent, trebuie actualizată și aplicația Linux. Versiunile actuale folosesc o conexiune locală care evită erorile de înregistrare a numelui gazdei Linux. Se păstrează mediul Linux și fișierele descărcate."
+  },
+  "connect_015": {
+    "message": "O conexiune eșuată nu poate indica dacă Linux este activat, dacă pachetul este instalat sau dacă restricțiile dispozitivului permit utilizarea lui. Pentru remedierea unei erori de conectare, mediul Linux nu trebuie eliminat sau reinstalat."
+  },
+  "connect_016": {
+    "message": "Configurare și remedierea problemelor"
+  },
+  "connect_017": {
+    "message": "Folosește Android în schimb"
+  },
+  "connect_dynamic_001": {
+    "message": "Nu s-a acordat acces pentru conexiunea cu Linux. Nu a fost contactat niciun serviciu. Pentru a solicita accesul, se selectează Reîncearcă sau se consultă secțiunea de configurare și remediere a problemelor."
+  },
+  "connect_dynamic_002": {
+    "message": "Serviciul Linux nu a putut fi contactat. Se deschid Terminal și aplicația Linux, apoi se reîncearcă. Configurarea Linux, instalarea pachetului și restricțiile dispozitivului sunt necunoscute."
+  },
+  "connect_dynamic_003": {
+    "message": "Serviciul Linux nu a răspuns în decurs de 10 secunde. Se deschid Terminal și aplicația Linux, apoi se reîncearcă."
+  },
+  "connect_dynamic_004": {
+    "message": "Serviciul Linux a returnat o eroare. Se deschide aplicația Linux și se verifică starea acesteia, apoi se reîncearcă."
+  },
+  "connect_dynamic_005": {
+    "message": "Serviciul care răspunde nu este JSTorrent pentru Linux pe ChromeOS. Înainte de a reîncerca, se deschide aplicația Linux și se verifică starea acesteia."
+  },
+  "connect_dynamic_006": {
+    "message": "Aplicația Linux și extensia necesită actualizări compatibile. Se consultă secțiunea de configurare și remediere a problemelor; biblioteca Linux rămâne separată de cea Android."
+  },
+  "connect_dynamic_007": {
+    "message": "Serviciul Linux a returnat un răspuns nevalid. Înainte de a reîncerca, se verifică aplicația instalată."
+  },
+  "connect_dynamic_008": {
+    "message": "Conectarea a fost anulată. Când se dorește reluarea încercării, se selectează Reîncearcă."
+  },
+  "connect_dynamic_009": {
+    "message": "Anulează"
+  },
+  "connect_dynamic_010": {
+    "message": "Se verifică accesul pentru conexiunea cu Linux…"
+  },
+  "connect_dynamic_011": {
+    "message": "Se verifică serviciul Linux…"
+  },
+  "connect_dynamic_012": {
+    "message": "Serviciul Linux este pregătit. Se deschide biblioteca Linux…"
+  },
+  "connect_dynamic_013": {
+    "message": "Reîncearcă"
+  },
+  "connect_dynamic_014": {
+    "message": "Reîncearcă"
+  },
+  "extension_summary": {
+    "message": "Adaugă torente din Chrome în aplicația JSTorrent de pe desktop sau Chromebook."
+  },
+  "metrics_connected": {
+    "message": "Conexiune realizată"
+  },
+  "metrics_not_connected": {
+    "message": "Nicio conexiune realizată încă"
+  },
+  "metrics_summary": {
+    "message": "Zile de la prima utilizare: {days} · Sesiuni vizibile: {sessions} · {connection}"
+  },
+  "popup_001": {
+    "message": "Biblioteca de torente"
+  },
+  "popup_002": {
+    "message": "Aplicația desktop"
+  },
+  "popup_003": {
+    "message": "Se verifică configurarea aplicației desktop…"
+  },
+  "popup_004": {
+    "message": "Se stabilește conexiunea cu aplicația desktop."
+  },
+  "popup_005": {
+    "message": "Deschide biblioteca de torente"
+  },
+  "popup_006": {
+    "message": "Pe Chromebook"
+  },
+  "popup_007": {
+    "message": "Aplicația Android permite descărcarea torentelor, iar aceeași bibliotecă poate fi gestionată aici, în Chrome."
+  },
+  "popup_008": {
+    "message": "JSTorrent pentru Android"
+  },
+  "popup_009": {
+    "message": "Torentele și dosarele pentru descărcări rămân în aplicația Android. Pentru finalizarea configurării, se deschide aplicația Android, apoi se stabilește conexiunea cu biblioteca."
+  },
+  "popup_010": {
+    "message": "Deschide JSTorrent pentru Android"
+  },
+  "popup_011": {
+    "message": "Conectează în Chrome"
+  },
+  "popup_012": {
+    "message": "Instalează sau actualizează aplicația Android"
+  },
+  "popup_013": {
+    "message": "Configurare și remedierea problemelor"
+  },
+  "popup_014": {
+    "message": "Folosește Linux în schimb"
+  },
+  "popup_015": {
+    "message": "Folosiți în schimb Linux pe ChromeOS?"
+  },
+  "popup_016": {
+    "message": "Versiune preliminară pentru Linux"
+  },
+  "popup_017": {
+    "message": "JSTorrent pentru Linux pe ChromeOS"
+  },
+  "popup_018": {
+    "message": "Dacă se utilizează deja versiunea preliminară separată pentru Linux, mai întâi se pornește {slot1} din lansatorul Chromebook."
+  },
+  "popup_019": {
+    "message": "Deschide biblioteca Linux"
+  },
+  "popup_020": {
+    "message": "Configurare și recuperare"
+  },
+  "popup_021": {
+    "message": "Android și Linux pe ChromeOS păstrează separat bibliotecile de torente, setările și locațiile pentru descărcări."
+  },
+  "popup_022": {
+    "message": "Confidențialitate și feedback"
+  },
+  "popup_023": {
+    "message": "Când statisticile sunt activate, feedbackul și chestionarele de dezinstalare includ versiunile sistemului de operare, browserului și extensiei, ultima pagină a extensiei și un cod privind rezultatul conexiunii. Versiunea browserului poate fi mai puțin detaliată. Nu sunt incluse istoricul de navigare sau mesajele de eroare în formă brută."
+  },
+  "popup_024": {
+    "message": "Verifică linkul de feedback"
+  },
+  "popup_025": {
+    "message": "Deschide pagina de feedback"
+  },
+  "popup_026": {
+    "message": "Statistici de utilizare"
+  },
+  "popup_027": {
+    "message": "Extensia păstrează un identificator aleatoriu al instalării, care poate fi resetat, numărul de zile de la prima utilizare și numărul de sesiuni vizibile și reține dacă s-a conectat vreodată. Dacă statisticile sunt activate după continuare, aceste valori pot fi incluse în adresa URL a chestionarului de dezinstalare. Numele torentelor, hashurile, căile, participanții, trackerele, datele de autentificare, jurnalele și erorile nu sunt incluse niciodată."
+  },
+  "popup_028": {
+    "message": "{slot1} Include statistici de utilizare pseudonimizate"
+  },
+  "popup_029": {
+    "message": "Salvează și continuă"
+  },
+  "popup_030": {
+    "message": "{slot1} Include statistici de utilizare pseudonimizate"
+  },
+  "popup_031": {
+    "message": "Resetează statisticile și identificatorul"
+  },
+  "popup_032": {
+    "message": "Adresa URL de dezinstalare este stocată local de Chrome. Deschiderea ei poate expune valorile incluse în istoricul browserului, în jurnalele site-ului și în informațiile despre paginile de proveniență, în formularul chestionarului și în analizele Cloudflare ale paginii."
+  },
+  "popup_033": {
+    "message": "Politica de confidențialitate"
+  },
+  "popup_dynamic_001": {
+    "message": "Linkul de feedback nu este disponibil. Se poate încerca din nou."
+  },
+  "popup_dynamic_002": {
+    "message": "Se verifică configurarea aplicației desktop…"
+  },
+  "popup_dynamic_003": {
+    "message": "Se stabilește conexiunea cu aplicația desktop."
+  },
+  "popup_dynamic_004": {
+    "message": "JSTorrent Desktop nu este disponibil."
+  },
+  "popup_dynamic_005": {
+    "message": "JSTorrent Desktop este pregătit"
+  },
+  "popup_dynamic_006": {
+    "message": "Biblioteca poate fi deschisă aici. Descărcările se desfășoară în aplicația desktop."
+  },
+  "popup_dynamic_008": {
+    "message": "Este necesară configurarea aplicației desktop"
+  },
+  "popup_dynamic_009": {
+    "message": "Se instalează JSTorrent Desktop și se deschide o dată pentru a finaliza configurarea."
+  },
+  "popup_dynamic_010": {
+    "message": "Se deschide JSTorrent…"
+  },
+  "popup_dynamic_011": {
+    "message": "Se trimite o solicitare de lansare către aplicația desktop."
+  },
+  "popup_dynamic_012": {
+    "message": "JSTorrent nu a putut fi deschis."
+  },
+  "popup_dynamic_013": {
+    "message": "Lansare solicitată"
+  },
+  "popup_dynamic_014": {
+    "message": "Biblioteca din aplicația desktop este deschisă în browser."
+  },
+  "popup_dynamic_015": {
+    "message": "JSTorrent nu s-a deschis"
+  },
+  "popup_dynamic_016": {
+    "message": "Se deschide direct JSTorrent Desktop și se încearcă din nou."
+  },
+  "popup_dynamic_017": {
+    "message": "Se deschide interfața Linux pe ChromeOS…"
+  },
+  "popup_dynamic_018": {
+    "message": "Chrome nu a putut deschide versiunea preliminară pentru Linux."
+  },
+  "popup_dynamic_019": {
+    "message": "S-a solicitat deschiderea paginii; conexiunea cu Linux nu este confirmată. Dacă Linux este oprit sau indisponibil, se folosesc opțiunile paginii pentru verificarea conexiunii și remedierea problemelor."
+  },
+  "popup_dynamic_020": {
+    "message": "Se deschide JSTorrent pentru Linux pe ChromeOS din lansatorul Chromebook."
+  },
+  "popup_dynamic_021": {
+    "message": "Se solicită accesul la serviciul Android…"
+  },
+  "popup_dynamic_022": {
+    "message": "Nu s-a acordat acces pentru conexiunea cu Android. Nu a fost contactat niciun serviciu local."
+  },
+  "popup_dynamic_023": {
+    "message": "Chrome nu a putut iniția procesul de conectare la Android."
+  },
+  "popup_dynamic_024": {
+    "message": "Pagina de conectare a fost deschisă. Dacă aplicația Android nu este pregătită, se folosește opțiunea „Deschide JSTorrent pentru Android” și se finalizează configurarea acolo. Pornirea aplicației și asocierea nu sunt încă confirmate."
+  },
+  "popup_dynamic_025": {
+    "message": "Setările de confidențialitate nu au putut fi salvate."
+  },
+  "popup_dynamic_026": {
+    "message": "Preferința de confidențialitate a fost salvată."
+  },
+  "popup_dynamic_027": {
+    "message": "Preferința de confidențialitate a fost salvată."
+  },
+  "popup_dynamic_028": {
+    "message": "Se creează un identificator nou și se șterg statisticile de utilizare ale extensiei?"
+  },
+  "popup_dynamic_029": {
+    "message": "Statisticile și identificatorul au fost resetate."
+  },
+  "setup_001": {
+    "message": "JSTorrent pe Chromebook: configurare și remedierea problemelor"
+  },
+  "setup_002": {
+    "message": "Configurare și remedierea problemelor pe Chromebook"
+  },
+  "setup_003": {
+    "message": "Configurarea aplicației Android sau conectarea la aceasta"
+  },
+  "setup_004": {
+    "message": "Un serviciu care nu răspunde nu poate indica dacă Play este disponibil, dacă aplicația este instalată sau dacă administratorul îi restricționează utilizarea. Mai jos se alege etapa care poate fi confirmată. Deschiderea unui link către magazin nu confirmă instalarea."
+  },
+  "setup_005": {
+    "message": "Play nu este activat sau configurarea nu este finalizată"
+  },
+  "setup_006": {
+    "message": "Folosește Linux în schimb"
+  },
+  "setup_007": {
+    "message": "În setările ChromeOS, se caută Google Play și se finalizează configurarea, dacă opțiunea este disponibilă și permisă. Dacă opțiunea lipsește sau este gestionată de administrator, se solicită ajutorul acestuia; restricțiile nu trebuie ocolite. Unde este permis, se poate alege {slot1}."
+  },
+  "setup_008": {
+    "message": "Play este disponibil; aplicația trebuie instalată"
+  },
+  "setup_009": {
+    "message": "Pagina JSTorrent din Play"
+  },
+  "setup_010": {
+    "message": "Se deschide {slot1} și se verifică rezultatul efectiv al instalării. După instalare, se deschide JSTorrent din lansator. Dacă Play nu oferă încă o actualizare, se utilizează direct aplicația Android și se verifică din nou mai târziu."
+  },
+  "setup_011": {
+    "message": "Instalarea a eșuat sau aplicația nu este disponibilă"
+  },
+  "setup_012": {
+    "message": "Folosește Linux în schimb"
+  },
+  "setup_013": {
+    "message": "Se citește eroarea afișată de Play. Această extensie nu poate determina cauza ei. Se rezolvă problema de cont, spațiu de stocare, compatibilitate sau restricții indicată de magazin, apoi se reîncearcă manual. În timpul remedierii problemelor de instalare, se păstrează aplicațiile și datele existente. Dacă instalarea rămâne indisponibilă, se poate alege {slot1}."
+  },
+  "setup_014": {
+    "message": "Aplicația instalată nu s-a deschis"
+  },
+  "setup_015": {
+    "message": "Deschide JSTorrent pentru Android"
+  },
+  "setup_016": {
+    "message": "Deschide cu"
+  },
+  "setup_017": {
+    "message": "Setări → Avansat → Conectează extensia Chrome"
+  },
+  "setup_018": {
+    "message": "Deschide biblioteca din Chrome"
+  },
+  "setup_019": {
+    "message": "Conectează în Chrome"
+  },
+  "setup_020": {
+    "message": "Se alege {slot1} și se confirmă orice solicitare {slot2} afișată de ChromeOS. Dacă linkul nu este disponibil, se deschide JSTorrent din lansator și se alege {slot3}. Se permit notificările Android, dacă se solicită, apoi se alege {slot4}. Se poate reveni manual la extensie prin {slot5}, inclusiv când site-ul este offline. Dacă opțiunea de configurare lipsește, se actualizează aplicația Android. Aplicația poate fi folosită și direct, fără control prin extensie."
+  },
+  "setup_021": {
+    "message": "Accesul browserului sau asocierea a fost refuzată"
+  },
+  "setup_022": {
+    "message": "Conectează în Chrome"
+  },
+  "setup_023": {
+    "message": "Permite conexiunea cu Android"
+  },
+  "setup_024": {
+    "message": "Reîncearcă conectarea"
+  },
+  "setup_025": {
+    "message": "Anulează"
+  },
+  "setup_026": {
+    "message": "Pentru a solicita accesul browserului, se folosește {slot1} în fereastra extensiei sau {slot2} pe pagina de conectare. Dacă Chrome afișează o solicitare de acces la rețeaua locală, accesul se permite numai dacă se dorește conectarea. Se deschide JSTorrent și se aprobă solicitarea de asociere care indică numele extensiei. O solicitare refuzată sau expirată necesită selectarea manuală a opțiunii {slot3}; {slot4} oprește încercarea paginii fără a modifica biblioteca. După anularea unei încercări de asociere, solicitarea de aprobare din Android poate rămâne în așteptare până la două minute; se așteaptă expirarea ei înainte de a reîncerca. Anularea nu închide o solicitare separată de lansare afișată de sistemul de operare și nu revocă o asociere existentă."
+  },
+  "setup_027": {
+    "message": "Eroare la asocierea salvată, actualizare sau conectare"
+  },
+  "setup_028": {
+    "message": "JSTorrent în Google Play"
+  },
+  "setup_029": {
+    "message": "Folosește Linux în schimb"
+  },
+  "setup_030": {
+    "message": "JSTorrent în Chrome Web Store"
+  },
+  "setup_031": {
+    "message": "Se deschide aceeași aplicație Android și se reîncearcă. Dacă aplicația Android trebuie actualizată, se consultă {slot1}. Dacă nu este oferită nicio actualizare, se utilizează direct aplicația Android și se verifică din nou mai târziu. Dacă sistemul de operare nu este acceptat, se utilizează un dispozitiv compatibil sau se alege {slot2}, unde este disponibil. Dacă extensia trebuie actualizată, se consultă {slot3}, apoi se redeschide extensia. Reasocierea se face numai cu aprobare explicită în Android. Reîncercările din browser nu pornesc automat aplicația."
+  },
+  "setup_032": {
+    "message": "Dosarul pentru descărcări nu este disponibil"
+  },
+  "setup_033": {
+    "message": "Partajează cu Linux"
+  },
+  "setup_034": {
+    "message": "În setările de stocare Android, se repară asocierea cu dosarul inițial folosind selectorul de dosare Android și se aprobă accesul. Opțiunea {slot1} din ChromeOS nu acordă acces aplicației Android. Se păstrează fișierele fără legătură cu problema și dosarele pentru descărcări existente."
+  },
+  "setup_035": {
+    "message": "Pagina de conectare oferă opțional o previzualizare a informațiilor pentru asistență, cu etapa eșuată, serviciul Android, permisiunea cunoscută și versiunile browserului și ale compilării. Informațiile se verifică înainte de a fi copiate pentru asistență. Disponibilitatea Play, prezența aplicației și restricțiile rămân necunoscute; niciun jurnal nu este încărcat automat."
+  },
+  "setup_036": {
+    "message": "Folosește Linux în schimb"
+  },
+  "setup_037": {
+    "message": "Aceasta este o trecere explicită la o bibliotecă Linux separată, cu setări și dosare pentru descărcări proprii. Torentele Android rămân în Android; o bibliotecă Linux goală nu înseamnă că acestea s-au pierdut. Activitatea din Android trebuie finalizată sau oprită înainte de a alege același dosar de conținut pentru Linux. Nu are loc nicio migrare automată."
+  },
+  "setup_038": {
+    "message": "Dacă Linux lipsește sau este blocat prin restricții, este posibil să nu fie disponibil pe acest dispozitiv. Dacă nici Android, nici Linux nu sunt permise și utilizabile, acest mediu Chromebook nu este acceptat. Se solicită ajutorul administratorului sau se utilizează alt dispozitiv compatibil; accesarea repetată a linkurilor de instalare nu poate rezolva această restricție."
+  },
+  "setup_039": {
+    "message": "Linux pe ChromeOS rulează motorul de torente scris în Rust și furnizează interfața completă JSTorrent în Chrome. Această extensie asigură accesul la aplicație; nu poate porni singură un mediu Linux complet oprit."
+  },
+  "setup_040": {
+    "message": "Instalează versiunea preliminară"
+  },
+  "setup_041": {
+    "message": "Mediul de dezvoltare Linux"
+  },
+  "setup_042": {
+    "message": "În setările ChromeOS, se activează {slot1} numai dacă opțiunea este disponibilă și permisă."
+  },
+  "setup_043": {
+    "message": "programul de instalare oficial cu autenticitate verificată"
+  },
+  "setup_044": {
+    "message": "Copiază comanda de instalare"
+  },
+  "setup_045": {
+    "message": "Se rulează {slot1} în Terminal folosind {slot2}. Acesta verifică manifestul semnat al versiunii și hashul pachetului, apoi instalează automat aplicația."
+  },
+  "setup_046": {
+    "message": "JSTorrent pentru Linux pe ChromeOS"
+  },
+  "setup_047": {
+    "message": "Se deschide {slot1} din lansatorul Chromebook. Se pornește astfel mediul Linux, se lansează JSTorrent și se revine la Chrome."
+  },
+  "setup_048": {
+    "message": "Un pachet local a cărui autenticitate a fost deja verificată se extrage în spațiul de fișiere Linux. Se deschide Terminal în dosarul extras și se rulează {slot1} în locul comenzii de pe site. O versiune candidată de dezvoltare nu este automat o versiune publicată."
+  },
+  "setup_049": {
+    "message": "Lansarea de zi cu zi"
+  },
+  "setup_050": {
+    "message": "Se folosește lansatorul Chromebook când este posibil ca Linux să fie oprit. După pornirea serviciului local, butonul ChromeOS Linux al extensiei deschide interfața acestuia sau o aduce în prim-plan. Închiderea filei nu oprește torentele active."
+  },
+  "setup_051": {
+    "message": "Extensia deschide mai întâi o pagină offline de conectare la Linux. Verificarea de pe această pagină solicită accesul browserului doar la {slot1}, validează aplicația care răspunde, apoi deschide biblioteca Linux. Simpla creare a unei file nu confirmă conexiunea. Opțiunea „Reîncearcă” efectuează o nouă verificare fără a porni Linux; opțiunea „Anulează” oprește verificarea."
+  },
+  "setup_052": {
+    "message": "Pagina Linux nu este disponibilă"
+  },
+  "setup_053": {
+    "message": "Terminal"
+  },
+  "setup_054": {
+    "message": "penguin"
+  },
+  "setup_055": {
+    "message": "JSTorrent pentru Linux pe ChromeOS"
+  },
+  "setup_056": {
+    "message": "Conexiune cu Linux"
+  },
+  "setup_057": {
+    "message": "Se deschide {slot1} din lansatorul Chromebook, se selectează {slot2}, dacă este disponibil, și se așteaptă apariția promptului de comandă Linux. Apoi se deschide {slot3} din lansator și se reîncearcă prin opțiunea {slot4} a extensiei."
+  },
+  "setup_058": {
+    "message": "Versiunile actuale folosesc {slot1}, o conexiune locală redirecționată de ChromeOS către aplicația Linux. Aceasta evită eroarea de înregistrare a numelui gazdei Linux observată pe unele sisteme ChromeOS 150. Se deschid aceeași bibliotecă Linux și aceleași dosare pentru descărcări."
+  },
+  "setup_059": {
+    "message": "Dacă un marcaj mai vechi sau o versiune instalată deschide {slot1}, se actualizează împreună aplicația Linux și extensia, apoi se lansează din nou aplicația. Pentru noua adresă, este posibil să fie necesare din nou aprobarea în browser și configurarea preferințelor de aspect; biblioteca Linux rămâne neschimbată."
+  },
+  "setup_060": {
+    "message": "O verificare eșuată nu poate identifica dacă problema este pornirea Linux, redirecționarea locală, permisiunea browserului sau aplicația. Dacă nici Terminal nu funcționează, se rezolvă mai întâi eroarea indicată de acesta. Se păstrează mediul Linux și fișierele; ștergerea bibliotecii nu va remedia conexiunea."
+  },
+  "setup_061": {
+    "message": "Oprește Linux"
+  },
+  "setup_062": {
+    "message": "Dacă Terminal se deschide, dar aplicația rămâne inaccesibilă, se închid aplicațiile Linux, se folosește acțiunea {slot1} din Terminal, se redeschide Terminal și se lansează din nou aplicația. Această operațiune oprește transferurile Linux active; biblioteca și fișierele descărcate rămân pe disc."
+  },
+  "setup_063": {
+    "message": "Fișiere și recuperare"
+  },
+  "setup_064": {
+    "message": "Partajează cu Linux"
+  },
+  "setup_065": {
+    "message": "Inițial, descărcările folosesc dosarul Linux {slot1}. Pentru a folosi un dosar de pe Chromebook, se alege {slot2} în aplicația Fișiere înainte de a-l adăuga în JSTorrent."
+  },
+  "setup_066": {
+    "message": "Verifică serviciul instalat"
+  },
+  "setup_067": {
+    "message": "Copiază comanda de verificare a stării"
+  },
+  "setup_068": {
+    "message": "Repornește serviciul"
+  },
+  "setup_069": {
+    "message": "Copiază comanda de repornire"
+  },
+  "setup_070": {
+    "message": "Elimină fișierele aplicației, păstrează profilul și descărcările"
+  },
+  "setup_071": {
+    "message": "Copiază comanda de eliminare"
+  },
+  "setup_072": {
+    "message": "Elimină și profilul Crostini"
+  },
+  "setup_073": {
+    "message": "Copiază comanda de eliminare a aplicației și a profilului"
+  },
+  "setup_dynamic_001": {
+    "message": "Comanda a fost copiată. Se rulează în Terminal pe Linux."
+  },
+  "setup_dynamic_002": {
+    "message": "Comanda nu a putut fi copiată. Se verifică accesul browserului la clipboard și se încearcă din nou."
+  },
+  "worker_error_001": {
+    "message": "Aplicația desktop nu a răspuns la timp. Se încearcă din nou folosind opțiunea „Pornește”."
+  },
+  "worker_error_002": {
+    "message": "JSTorrent Desktop nu este disponibil. Se instalează și se deschide o dată pentru a finaliza configurarea."
+  },
+  "worker_error_003": {
+    "message": "JSTorrent Desktop a returnat un răspuns de inițializare nevalid."
+  },
+  "worker_error_004": {
+    "message": "Chrome nu a putut deschide pagina JSTorrent pentru Linux."
+  }
+}

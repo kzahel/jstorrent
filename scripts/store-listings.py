@@ -99,6 +99,8 @@ def generated(root=ROOT):
         values = catalog('extension', locale, root)
         # Chrome reserves $ for native substitutions; named DOM slots use braces.
         messages = {key: {'message': text.replace('$', '$$')} for key, text in values.items()}
+        messages['catalog_locale'] = {'message': locale}
+        messages['catalog_direction'] = {'message': 'ltr'}
         yield root / 'clients/extension/_locales' / row['chrome'] / 'messages.json', localization.json_text(messages)
 
 
@@ -115,6 +117,18 @@ def generate(root=ROOT, check=False):
     if actual - set(expected):
         raise ValueError('Unexpected generated Chrome locale; remove it explicitly')
     return len(expected) - 1
+
+
+def chrome_text(root=ROOT):
+    locales = {}
+    for locale, row in configuration(root)['locales'].items():
+        if 'chrome' not in row:
+            continue
+        locales[row['chrome']] = {'name': 'JSTorrent',
+                                 'shortDescription': catalog('extension', locale, root)['extension_summary'],
+                                 'description': catalog('store', locale, root)['chrome_full']}
+    return {'schemaVersion': 1, 'extensionId': configuration(root)['extensionId'],
+            'catalogHash': digest(locales), 'locales': locales}
 
 
 def remote_listings(transaction):
@@ -190,7 +204,7 @@ def apply_listings(google, desired, approved):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['check', 'generate', 'export', 'diff', 'apply'])
+    parser.add_argument('command', choices=['check', 'generate', 'chrome-text', 'export', 'diff', 'apply'])
     parser.add_argument('--root', type=Path, default=ROOT)
     parser.add_argument('--out', type=Path)
     parser.add_argument('--plan', type=Path)
@@ -203,6 +217,12 @@ def main(argv=None):
             desired = desired_play(args.root)
             count = generate(args.root, check=True)
             print(f'{len(desired)} reviewed Play listings and {count} Chrome locale catalogs pass')
+            return 0
+        if args.command == 'chrome-text':
+            if not args.out:
+                raise ValueError('chrome-text requires --out')
+            write(args.out, chrome_text(args.root))
+            print(f'Prepared reviewed Chrome dashboard text: {args.out}')
             return 0
         if not args.out:
             raise ValueError('--out is required for remote operations')

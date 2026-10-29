@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "locale": "vi",
+  "register": "Use natural Vietnamese, concise imperative labels and consistent friendly neutral bạn address where necessary. Preserve technical names and identifiers. Preserve privacy, deletion and device requirements exactly. Translate all marketing prose naturally; the brand JSTorrent never changes.",
+  "terms": {
+    "torrent": {
+      "sourceTerms": [
+        "torrent",
+        "torrents"
+      ],
+      "preferred": "torrent",
+      "meaning": "BitTorrent transfer; choose the natural local technical term, distinguishing downloading, seeding and paused transfers."
+    }
+  }
+}

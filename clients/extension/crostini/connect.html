@@ -3,29 +3,29 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>JSTorrent Linux connection</title>
+    <title data-i18n="connect_001">JSTorrent Linux connection</title>
     <link rel="stylesheet" href="setup.css" />
     <script type="module" src="connect.js"></script>
   </head>
   <body>
     <main>
       <img src="../icons/icon-128.png" width="96" height="96" alt="" />
-      <p class="eyebrow">JSTorrent · ChromeOS Linux</p>
-      <h1>Connect to Linux</h1>
-      <p>Linux has its own library, settings and download folders. Android torrents stay in Android.</p>
-      <section aria-label="Connection">
-        <p id="connection-status" role="status" aria-live="polite">Choose Connect to check the Linux service.</p>
-        <button id="connect" type="button">Connect Linux</button>
+      <p class="eyebrow" data-i18n="connect_002">JSTorrent · ChromeOS Linux</p>
+      <h1 id="linux-connection-title" data-i18n="connect_003">Connect to Linux</h1>
+      <p data-i18n="connect_004">Linux has its own library, settings and download folders. Android torrents stay in Android.</p>
+      <section aria-labelledby="linux-connection-title">
+        <p id="connection-status" role="status" aria-live="polite" data-i18n="connect_005">Choose Connect to check the Linux service.</p>
+        <button id="connect" type="button" data-i18n="connect_006">Connect Linux</button>
       </section>
       <section>
-        <h2>If Linux does not connect</h2>
+        <h2 data-i18n="connect_007">If Linux does not connect</h2>
         <ol>
-          <li>Open <strong>Terminal</strong> from the Chromebook Launcher and select <strong>penguin</strong> if shown. Wait for the Linux command prompt.</li>
-          <li>Open <strong>JSTorrent for ChromeOS Linux</strong> from the Launcher, then return here and select <strong>Retry</strong>.</li>
-          <li>If you recently updated the extension, update the Linux app too. Current versions use a local connection that avoids Linux hostname-registration failures. Keep your Linux environment and downloaded files.</li>
+          <li data-i18n="connect_010">Open <strong data-i18n="connect_008">Terminal</strong> from the Chromebook Launcher and select <strong data-i18n="connect_009">penguin</strong> if shown. Wait for the Linux command prompt.</li>
+          <li data-i18n="connect_013">Open <strong data-i18n="connect_011">JSTorrent for ChromeOS Linux</strong> from the Launcher, then return here and select <strong data-i18n="connect_012">Retry</strong>.</li>
+          <li data-i18n="connect_014">If you recently updated the extension, update the Linux app too. Current versions use a local connection that avoids Linux hostname-registration failures. Keep your Linux environment and downloaded files.</li>
         </ol>
-        <p>A failed connection cannot tell us whether Linux is enabled, the package is installed, or device policy permits it. Do not remove the Linux environment or reinstall it to fix a connection error.</p>
-        <p><a href="setup.html#linux-recovery">Setup and troubleshooting</a> · <a href="../companion/companion.html">Use Android instead</a></p>
+        <p data-i18n="connect_015">A failed connection cannot tell us whether Linux is enabled, the package is installed, or device policy permits it. Do not remove the Linux environment or reinstall it to fix a connection error.</p>
+        <p><a href="setup.html#linux-recovery" data-i18n="connect_016">Setup and troubleshooting</a> · <a href="../companion/companion.html" data-i18n="connect_017">Use Android instead</a></p>
       </section>
     </main>
   </body>

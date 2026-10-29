@@ -1,0 +1,533 @@
+{
+  "catalog_direction": {
+    "message": "ltr"
+  },
+  "catalog_locale": {
+    "message": "ko"
+  },
+  "connect_001": {
+    "message": "JSTorrent Linux 연결"
+  },
+  "connect_002": {
+    "message": "JSTorrent · ChromeOS Linux"
+  },
+  "connect_003": {
+    "message": "Linux에 연결"
+  },
+  "connect_004": {
+    "message": "Linux는 별도의 라이브러리, 설정, 다운로드 폴더를 사용합니다. Android 토렌트는 Android에 그대로 유지됩니다."
+  },
+  "connect_005": {
+    "message": "Linux 서비스를 확인하려면 ‘Linux 연결’을 선택하십시오."
+  },
+  "connect_006": {
+    "message": "Linux 연결"
+  },
+  "connect_007": {
+    "message": "Linux에 연결되지 않는 경우"
+  },
+  "connect_008": {
+    "message": "터미널"
+  },
+  "connect_009": {
+    "message": "penguin"
+  },
+  "connect_010": {
+    "message": "Chromebook 런처에서 {slot1}을 열고 {slot2}이 표시되면 선택하십시오. Linux 명령 프롬프트가 나타날 때까지 기다리십시오."
+  },
+  "connect_011": {
+    "message": "ChromeOS Linux용 JSTorrent"
+  },
+  "connect_012": {
+    "message": "다시 시도"
+  },
+  "connect_013": {
+    "message": "런처에서 {slot1}를 연 다음 여기로 돌아와 ‘{slot2}’를 선택하십시오."
+  },
+  "connect_014": {
+    "message": "최근에 확장 프로그램을 업데이트했다면 Linux 앱도 업데이트하십시오. 현재 버전은 Linux 호스트 이름 등록 오류를 피할 수 있는 로컬 연결을 사용합니다. Linux 환경과 다운로드한 파일을 보존하십시오."
+  },
+  "connect_015": {
+    "message": "연결에 실패해도 Linux가 사용 설정되어 있는지, 패키지가 설치되어 있는지, 기기 정책상 사용이 허용되는지는 알 수 없습니다. 연결 오류를 해결하려고 Linux 환경을 제거하거나 다시 설치하지 마십시오."
+  },
+  "connect_016": {
+    "message": "설정 및 문제 해결"
+  },
+  "connect_017": {
+    "message": "대신 Android 사용"
+  },
+  "connect_dynamic_001": {
+    "message": "Linux 연결 접근 권한이 부여되지 않았습니다. 어떤 서비스에도 접속하지 않았습니다. ‘다시 시도’를 선택하여 접근 권한을 요청하거나 설정 및 문제 해결 안내를 이용하십시오."
+  },
+  "connect_dynamic_002": {
+    "message": "Linux 서비스에 접속할 수 없습니다. 터미널과 Linux 앱을 연 다음 다시 시도하십시오. Linux 설정, 패키지 설치, 기기 정책 상태는 확인되지 않았습니다."
+  },
+  "connect_dynamic_003": {
+    "message": "Linux 서비스가 10초 이내에 응답하지 않았습니다. 터미널과 Linux 앱을 연 다음 다시 시도하십시오."
+  },
+  "connect_dynamic_004": {
+    "message": "Linux 서비스에서 오류가 반환되었습니다. Linux 앱을 열어 상태를 확인한 다음 다시 시도하십시오."
+  },
+  "connect_dynamic_005": {
+    "message": "응답한 서비스가 ChromeOS Linux용 JSTorrent가 아닙니다. Linux 앱을 열어 상태를 확인한 후 다시 시도하십시오."
+  },
+  "connect_dynamic_006": {
+    "message": "Linux 앱과 확장 프로그램을 서로 호환되는 버전으로 업데이트해야 합니다. 설정 및 문제 해결 안내를 확인하십시오. Linux 라이브러리는 Android와 별도로 유지됩니다."
+  },
+  "connect_dynamic_007": {
+    "message": "Linux 서비스가 잘못된 응답을 반환했습니다. 설치된 앱을 확인한 후 다시 시도하십시오."
+  },
+  "connect_dynamic_008": {
+    "message": "연결이 취소되었습니다. 준비되면 ‘다시 시도’를 선택하십시오."
+  },
+  "connect_dynamic_009": {
+    "message": "취소"
+  },
+  "connect_dynamic_010": {
+    "message": "Linux 연결 접근 권한을 확인하고 있습니다…"
+  },
+  "connect_dynamic_011": {
+    "message": "Linux 서비스를 확인하고 있습니다…"
+  },
+  "connect_dynamic_012": {
+    "message": "Linux 서비스가 준비되었습니다. Linux 라이브러리를 열고 있습니다…"
+  },
+  "connect_dynamic_013": {
+    "message": "다시 시도"
+  },
+  "connect_dynamic_014": {
+    "message": "다시 시도"
+  },
+  "extension_summary": {
+    "message": "Chrome에서 데스크톱 또는 Chromebook의 JSTorrent 앱으로 토렌트를 추가합니다."
+  },
+  "metrics_connected": {
+    "message": "연결됨"
+  },
+  "metrics_not_connected": {
+    "message": "아직 연결한 적 없음"
+  },
+  "metrics_summary": {
+    "message": "처음 사용한 후 경과한 일수: {days} · 화면이 표시된 세션 수: {sessions} · {connection}"
+  },
+  "popup_001": {
+    "message": "내 토렌트 라이브러리"
+  },
+  "popup_002": {
+    "message": "데스크톱 앱"
+  },
+  "popup_003": {
+    "message": "데스크톱 설정을 확인하고 있습니다…"
+  },
+  "popup_004": {
+    "message": "데스크톱 앱에 연결하고 있습니다."
+  },
+  "popup_005": {
+    "message": "토렌트 라이브러리 열기"
+  },
+  "popup_006": {
+    "message": "Chromebook에서 사용"
+  },
+  "popup_007": {
+    "message": "Android 앱으로 토렌트를 다운로드하고, 같은 라이브러리를 여기 Chrome에서 관리하십시오."
+  },
+  "popup_008": {
+    "message": "Android용 JSTorrent"
+  },
+  "popup_009": {
+    "message": "토렌트와 다운로드 폴더는 Android 앱에 그대로 유지됩니다. Android 앱을 열어 설정을 완료한 다음 라이브러리에 연결하십시오."
+  },
+  "popup_010": {
+    "message": "JSTorrent Android 열기"
+  },
+  "popup_011": {
+    "message": "Chrome에서 연결"
+  },
+  "popup_012": {
+    "message": "Android 앱 설치 또는 업데이트"
+  },
+  "popup_013": {
+    "message": "설정 및 문제 해결"
+  },
+  "popup_014": {
+    "message": "대신 Linux 사용"
+  },
+  "popup_015": {
+    "message": "대신 ChromeOS Linux를 사용하십니까?"
+  },
+  "popup_016": {
+    "message": "Linux 미리보기 버전"
+  },
+  "popup_017": {
+    "message": "ChromeOS Linux용 JSTorrent"
+  },
+  "popup_018": {
+    "message": "별도의 Linux 미리보기 버전을 이미 사용하고 있다면 먼저 Chromebook 런처에서 {slot1}를 실행하십시오."
+  },
+  "popup_019": {
+    "message": "Linux 라이브러리 열기"
+  },
+  "popup_020": {
+    "message": "설정 및 복구"
+  },
+  "popup_021": {
+    "message": "Android와 ChromeOS Linux는 토렌트 라이브러리, 설정, 다운로드 위치를 각각 별도로 유지합니다."
+  },
+  "popup_022": {
+    "message": "개인정보 보호 및 의견 보내기"
+  },
+  "popup_023": {
+    "message": "통계 기능을 켜면 의견 및 제거 설문에 OS·브라우저·확장 프로그램 버전, 마지막으로 연 확장 프로그램 페이지, 연결 결과 코드가 포함됩니다. 브라우저 버전은 일부 정보만 포함될 수 있습니다. 방문 기록이나 원본 오류 내용은 포함되지 않습니다."
+  },
+  "popup_024": {
+    "message": "의견 보내기 링크 검토"
+  },
+  "popup_025": {
+    "message": "의견 보내기 페이지 열기"
+  },
+  "popup_026": {
+    "message": "사용 통계"
+  },
+  "popup_027": {
+    "message": "확장 프로그램은 초기화할 수 있는 임의의 설치 식별자 하나, 처음 사용한 후 경과한 일수, 화면이 표시된 세션 수, 연결한 적이 있는지를 저장합니다. 계속 진행한 후 통계 기능이 켜져 있으면 이 값들이 제거 설문 URL에 포함될 수 있습니다. 토렌트 이름, 해시, 경로, 피어, 트래커, 인증 정보, 로그, 오류는 절대 포함되지 않습니다."
+  },
+  "popup_028": {
+    "message": "{slot1} 가명 처리된 사용 통계 포함"
+  },
+  "popup_029": {
+    "message": "저장 후 계속"
+  },
+  "popup_030": {
+    "message": "{slot1} 가명 처리된 사용 통계 포함"
+  },
+  "popup_031": {
+    "message": "통계 및 식별자 초기화"
+  },
+  "popup_032": {
+    "message": "제거 설문 URL은 Chrome이 기기에 저장합니다. 이 URL을 열면 포함된 값들이 브라우저 방문 기록, 웹사이트 로그와 리퍼러, 설문 양식, 해당 페이지의 Cloudflare 분석에 공개될 수 있습니다."
+  },
+  "popup_033": {
+    "message": "개인정보 처리방침"
+  },
+  "popup_dynamic_001": {
+    "message": "의견 보내기 링크를 사용할 수 없습니다. 다시 시도하십시오."
+  },
+  "popup_dynamic_002": {
+    "message": "데스크톱 설정을 확인하고 있습니다…"
+  },
+  "popup_dynamic_003": {
+    "message": "데스크톱 앱에 연결하고 있습니다."
+  },
+  "popup_dynamic_004": {
+    "message": "JSTorrent 데스크톱 앱을 사용할 수 없습니다."
+  },
+  "popup_dynamic_005": {
+    "message": "JSTorrent 데스크톱 앱 준비 완료"
+  },
+  "popup_dynamic_006": {
+    "message": "여기에서 라이브러리를 여십시오. 다운로드는 데스크톱 앱에서 진행됩니다."
+  },
+  "popup_dynamic_008": {
+    "message": "데스크톱 설정 필요"
+  },
+  "popup_dynamic_009": {
+    "message": "JSTorrent 데스크톱 앱을 설치하고 한 번 열어 설정을 완료하십시오."
+  },
+  "popup_dynamic_010": {
+    "message": "JSTorrent를 열고 있습니다…"
+  },
+  "popup_dynamic_011": {
+    "message": "데스크톱 앱에 실행 요청을 보내고 있습니다."
+  },
+  "popup_dynamic_012": {
+    "message": "JSTorrent를 열 수 없습니다."
+  },
+  "popup_dynamic_013": {
+    "message": "실행 요청됨"
+  },
+  "popup_dynamic_014": {
+    "message": "브라우저에 데스크톱 라이브러리가 열려 있습니다."
+  },
+  "popup_dynamic_015": {
+    "message": "JSTorrent가 열리지 않음"
+  },
+  "popup_dynamic_016": {
+    "message": "JSTorrent 데스크톱 앱을 직접 열고 다시 시도하십시오."
+  },
+  "popup_dynamic_017": {
+    "message": "ChromeOS Linux UI를 열고 있습니다…"
+  },
+  "popup_dynamic_018": {
+    "message": "Chrome에서 Linux 미리보기 버전을 열 수 없습니다."
+  },
+  "popup_dynamic_019": {
+    "message": "페이지 열기를 요청했으며 Linux 연결은 확인되지 않았습니다. Linux가 중지되어 있거나 사용할 수 없다면 해당 페이지의 연결 확인 기능과 문제 해결 안내를 이용하십시오."
+  },
+  "popup_dynamic_020": {
+    "message": "Chromebook 런처에서 ChromeOS Linux용 JSTorrent를 실행하십시오."
+  },
+  "popup_dynamic_021": {
+    "message": "Android 서비스 접근 권한을 요청하고 있습니다…"
+  },
+  "popup_dynamic_022": {
+    "message": "Android 연결 접근 권한이 부여되지 않았습니다. 어떤 로컬 서비스에도 접속하지 않았습니다."
+  },
+  "popup_dynamic_023": {
+    "message": "Chrome에서 Android 연결 절차를 시작할 수 없습니다."
+  },
+  "popup_dynamic_024": {
+    "message": "연결 페이지가 열렸습니다. Android가 준비되지 않았다면 ‘JSTorrent Android 열기’를 선택하고 앱에서 설정을 완료하십시오. 앱 실행과 페어링은 아직 확인되지 않았습니다."
+  },
+  "popup_dynamic_025": {
+    "message": "개인정보 보호 설정을 저장할 수 없습니다."
+  },
+  "popup_dynamic_026": {
+    "message": "개인정보 보호 설정이 저장되었습니다."
+  },
+  "popup_dynamic_027": {
+    "message": "개인정보 보호 설정이 저장되었습니다."
+  },
+  "popup_dynamic_028": {
+    "message": "새 식별자를 만들고 확장 프로그램 사용 통계를 지우시겠습니까?"
+  },
+  "popup_dynamic_029": {
+    "message": "통계와 식별자가 초기화되었습니다."
+  },
+  "setup_001": {
+    "message": "JSTorrent Chromebook 설정 및 문제 해결"
+  },
+  "setup_002": {
+    "message": "Chromebook 설정 및 문제 해결"
+  },
+  "setup_003": {
+    "message": "Android 설정 또는 연결"
+  },
+  "setup_004": {
+    "message": "서비스가 응답하지 않으면 Play를 사용할 수 있는지, 앱이 설치되어 있는지, 관리자가 사용을 제한하는지 알 수 없습니다. 아래에서 직접 확인할 수 있는 단계를 선택하십시오. 스토어 링크를 여는 것만으로는 설치 여부가 확인되지 않습니다."
+  },
+  "setup_005": {
+    "message": "Play가 사용 설정되지 않았거나 설정이 완료되지 않음"
+  },
+  "setup_006": {
+    "message": "대신 Linux 사용"
+  },
+  "setup_007": {
+    "message": "ChromeOS 설정을 열어 Google Play를 찾고, 설정 옵션이 제공되고 사용이 허용된 경우 설정을 완료하십시오. 옵션이 없거나 관리 대상이면 관리자에게 문의하고 정책을 우회하지 마십시오. 허용되는 경우에는 ‘{slot1}’을 선택하십시오."
+  },
+  "setup_008": {
+    "message": "Play 사용 가능, 앱 설치 필요"
+  },
+  "setup_009": {
+    "message": "Play의 JSTorrent 앱 페이지"
+  },
+  "setup_010": {
+    "message": "{slot1}를 열어 실제 설치 결과를 확인하십시오. 설치 후 런처에서 JSTorrent를 여십시오. Play에 아직 업데이트가 제공되지 않으면 Android 앱을 직접 사용하고 나중에 다시 확인하십시오."
+  },
+  "setup_011": {
+    "message": "설치 실패 또는 앱 사용 불가"
+  },
+  "setup_012": {
+    "message": "대신 Linux 사용"
+  },
+  "setup_013": {
+    "message": "Play에 표시된 오류를 읽으십시오. 이 확장 프로그램은 원인을 확인할 수 없습니다. 스토어에서 안내하는 계정, 저장 공간, 호환성 또는 정책 문제를 해결한 다음 직접 다시 시도하십시오. 설치 문제를 해결하는 동안 기존 앱과 데이터를 보존하십시오. 계속 설치할 수 없다면 ‘{slot1}’을 선택하십시오."
+  },
+  "setup_014": {
+    "message": "설치된 앱이 열리지 않음"
+  },
+  "setup_015": {
+    "message": "JSTorrent Android 열기"
+  },
+  "setup_016": {
+    "message": "연결 프로그램"
+  },
+  "setup_017": {
+    "message": "설정 → 고급 → Chrome 확장 프로그램 연결"
+  },
+  "setup_018": {
+    "message": "Chrome 라이브러리 열기"
+  },
+  "setup_019": {
+    "message": "Chrome에서 연결"
+  },
+  "setup_020": {
+    "message": "‘{slot1}’를 선택하고 ChromeOS의 ‘{slot2}’ 메시지가 표시되면 확인하십시오. 링크를 사용할 수 없다면 런처에서 JSTorrent를 열고 ‘{slot3}’을 선택하십시오. Android 알림 권한을 요청하면 허용한 다음 ‘{slot4}’를 선택하십시오. 웹사이트가 오프라인인 경우에도 ‘{slot5}’을 선택하여 직접 확장 프로그램으로 돌아올 수 있습니다. 설정 항목이 없으면 Android 앱을 업데이트하십시오. 확장 프로그램으로 제어하지 않고 앱을 직접 사용할 수도 있습니다."
+  },
+  "setup_021": {
+    "message": "브라우저 접근 또는 페어링이 거부됨"
+  },
+  "setup_022": {
+    "message": "Chrome에서 연결"
+  },
+  "setup_023": {
+    "message": "Android 연결 허용"
+  },
+  "setup_024": {
+    "message": "연결 다시 시도"
+  },
+  "setup_025": {
+    "message": "취소"
+  },
+  "setup_026": {
+    "message": "브라우저 접근 권한을 요청하려면 팝업에서 ‘{slot1}’을 선택하거나 연결 페이지에서 ‘{slot2}’을 선택하십시오. Chrome에 로컬 네트워크 접근 권한 요청이 표시되면 연결하려는 경우에만 허용하십시오. JSTorrent를 열고 확장 프로그램 이름이 표시된 페어링 요청을 승인하십시오. 요청이 거부되거나 만료되면 직접 ‘{slot3}’를 선택해야 합니다. ‘{slot4}’를 선택하면 라이브러리는 그대로 유지되고 페이지의 연결 시도만 중단됩니다. 페어링 시도를 취소해도 Android의 승인 요청은 최대 2분 동안 대기 상태로 남을 수 있으므로 만료된 후 다시 시도하십시오. 취소해도 별도의 OS 실행 메시지는 닫히지 않으며 기존 페어링도 해제되지 않습니다."
+  },
+  "setup_027": {
+    "message": "저장된 페어링, 업데이트 또는 연결 오류"
+  },
+  "setup_028": {
+    "message": "Google Play의 JSTorrent"
+  },
+  "setup_029": {
+    "message": "대신 Linux 사용"
+  },
+  "setup_030": {
+    "message": "Chrome 웹 스토어의 JSTorrent"
+  },
+  "setup_031": {
+    "message": "기존에 사용하던 Android 앱을 열고 다시 시도하십시오. Android 앱을 업데이트해야 하면 {slot1}를 확인하십시오. 업데이트가 제공되지 않으면 Android 앱을 직접 사용하고 나중에 다시 확인하십시오. OS가 지원되지 않으면 지원되는 기기를 사용하거나, 가능한 경우 ‘{slot2}’을 선택하십시오. 확장 프로그램을 업데이트해야 하면 {slot3}를 확인한 다음 확장 프로그램을 다시 여십시오. 다시 페어링할 때는 반드시 Android에서 명시적으로 승인하십시오. 브라우저에서 다시 시도해도 앱이 자동으로 실행되지는 않습니다."
+  },
+  "setup_032": {
+    "message": "다운로드 폴더 사용 불가"
+  },
+  "setup_033": {
+    "message": "Linux와 공유"
+  },
+  "setup_034": {
+    "message": "Android 저장소 설정에서 Android 폴더 선택기를 사용하여 원래 폴더의 연결을 복구하고 접근을 허용하십시오. ChromeOS의 ‘{slot1}’로는 Android에 접근 권한이 부여되지 않습니다. 관련 없는 파일과 기존 다운로드 폴더를 보존하십시오."
+  },
+  "setup_035": {
+    "message": "연결 페이지에서 지원 요청에 사용할 정보를 선택적으로 미리 볼 수 있습니다. 여기에는 실패한 단계, Android 백엔드, 확인된 권한, 브라우저·빌드 버전이 포함됩니다. 지원팀에 전달하기 위해 복사하기 전에 내용을 검토하십시오. Play 사용 가능 여부, 앱 설치 여부, 정책은 여전히 확인되지 않은 상태이며 로그는 자동으로 업로드되지 않습니다."
+  },
+  "setup_036": {
+    "message": "대신 Linux 사용"
+  },
+  "setup_037": {
+    "message": "별도의 라이브러리, 설정, 다운로드 폴더를 사용하는 Linux로 직접 전환하는 것입니다. Android 토렌트는 Android에 그대로 남습니다. Linux 라이브러리가 비어 있어도 Android 토렌트가 사라진 것은 아닙니다. Linux에서 같은 다운로드 폴더를 선택하기 전에 Android 작업을 완료하거나 중단하십시오. 자동으로 이전되지는 않습니다."
+  },
+  "setup_038": {
+    "message": "Linux 옵션이 없거나 정책으로 차단되어 있으면 이 기기에서 Linux를 사용할 수 없을 수 있습니다. Android와 Linux 모두 사용이 허용되지 않거나 사용할 수 없다면 이 Chromebook 환경은 지원되지 않습니다. 관리자에게 문의하거나 지원되는 다른 기기를 사용하십시오. 설치 링크를 반복해서 열어도 이 제한은 해결되지 않습니다."
+  },
+  "setup_039": {
+    "message": "ChromeOS Linux는 Rust 토렌트 엔진을 실행하고 Chrome에 JSTorrent의 전체 인터페이스를 제공합니다. 이 확장 프로그램은 연결을 이어 주지만, 완전히 중지된 Linux 환경을 자체적으로 시작할 수는 없습니다."
+  },
+  "setup_040": {
+    "message": "미리보기 버전 설치"
+  },
+  "setup_041": {
+    "message": "Linux 개발 환경"
+  },
+  "setup_042": {
+    "message": "ChromeOS 설정에서 {slot1} 옵션이 제공되고 사용이 허용된 경우에만 활성화하십시오."
+  },
+  "setup_043": {
+    "message": "진위를 검증하는 공식 설치 프로그램"
+  },
+  "setup_044": {
+    "message": "설치 명령 복사"
+  },
+  "setup_045": {
+    "message": "‘{slot2}’를 선택하여 복사한 명령으로 터미널에서 {slot1}을 실행하십시오. 서명된 릴리스 매니페스트와 패키지 해시를 검증한 다음 앱을 자동으로 설치합니다."
+  },
+  "setup_046": {
+    "message": "ChromeOS Linux용 JSTorrent"
+  },
+  "setup_047": {
+    "message": "Chromebook 런처에서 {slot1}를 여십시오. Linux를 시작하고 JSTorrent를 실행한 다음 Chrome으로 돌아옵니다."
+  },
+  "setup_048": {
+    "message": "이미 진위가 검증된 로컬 패키지가 있다면 Linux 파일에 압축을 풀고 해당 폴더에서 터미널을 연 다음 웹사이트 명령 대신 {slot1}를 실행하십시오. 개발 후보 버전이라고 해서 정식 배포된 릴리스인 것은 아닙니다."
+  },
+  "setup_049": {
+    "message": "평소 실행 방법"
+  },
+  "setup_050": {
+    "message": "Linux가 중지되어 있을 수 있다면 Chromebook 런처를 사용하십시오. 로컬 백엔드가 실행 중이면 이 확장 프로그램의 ChromeOS Linux 버튼으로 UI를 열거나 이미 열린 UI로 전환할 수 있습니다. 탭을 닫아도 진행 중인 토렌트는 중지되지 않습니다."
+  },
+  "setup_051": {
+    "message": "확장 프로그램은 먼저 오프라인 Linux 연결 페이지를 엽니다. 연결 확인 과정에서 브라우저의 {slot1} 접근 권한만 요청하고, 응답한 앱을 검증한 다음 Linux 라이브러리를 엽니다. 탭을 만드는 것만으로는 연결이 확인되지 않습니다. ‘다시 시도’는 Linux를 시작하지 않고 연결을 다시 확인하며, ‘취소’는 확인을 중단합니다."
+  },
+  "setup_052": {
+    "message": "Linux 페이지 사용 불가"
+  },
+  "setup_053": {
+    "message": "터미널"
+  },
+  "setup_054": {
+    "message": "penguin"
+  },
+  "setup_055": {
+    "message": "ChromeOS Linux용 JSTorrent"
+  },
+  "setup_056": {
+    "message": "Linux 연결"
+  },
+  "setup_057": {
+    "message": "Chromebook 런처에서 {slot1}을 열고 {slot2}이 표시되면 선택한 다음 Linux 명령 프롬프트가 나타날 때까지 기다리십시오. 그런 다음 런처에서 {slot3}를 열고 확장 프로그램의 ‘{slot4}’을 다시 시도하십시오."
+  },
+  "setup_058": {
+    "message": "현재 버전은 ChromeOS가 Linux 앱으로 전달하는 로컬 연결인 {slot1}을 사용합니다. 이를 통해 일부 ChromeOS 150 시스템에서 관찰된 Linux 호스트 이름 등록 오류를 피할 수 있습니다. 기존과 같은 Linux 라이브러리와 다운로드 폴더가 열립니다."
+  },
+  "setup_059": {
+    "message": "이전 북마크나 설치된 구버전에서 {slot1}가 열린다면 Linux 앱과 확장 프로그램을 함께 업데이트한 다음 앱을 다시 실행하십시오. 새 주소에서는 브라우저 승인과 화면 표시 설정을 다시 지정해야 할 수 있습니다. Linux 라이브러리는 그대로 유지됩니다."
+  },
+  "setup_060": {
+    "message": "확인에 실패해도 원인이 Linux 시작, 로컬 연결 전달, 브라우저 권한, 앱 중 무엇인지는 알 수 없습니다. 터미널에서도 문제가 발생하면 표시된 오류를 먼저 해결하십시오. Linux 환경과 파일을 보존하십시오. 라이브러리를 삭제해도 연결 문제는 해결되지 않습니다."
+  },
+  "setup_061": {
+    "message": "Linux 종료"
+  },
+  "setup_062": {
+    "message": "터미널은 열리지만 여전히 앱에 접속할 수 없다면 Linux 앱을 닫고 터미널의 ‘{slot1}’를 선택한 다음 터미널을 다시 열어 앱을 실행하십시오. 진행 중인 Linux 전송은 중단되지만 라이브러리와 다운로드한 파일은 디스크에 그대로 남습니다."
+  },
+  "setup_063": {
+    "message": "파일 및 복구"
+  },
+  "setup_064": {
+    "message": "Linux와 공유"
+  },
+  "setup_065": {
+    "message": "처음에는 Linux의 {slot1} 폴더에 다운로드합니다. Chromebook 폴더를 사용하려면 파일 앱에서 ‘{slot2}’를 선택한 다음 JSTorrent에 폴더를 추가하십시오."
+  },
+  "setup_066": {
+    "message": "설치된 백엔드 확인"
+  },
+  "setup_067": {
+    "message": "상태 확인 명령 복사"
+  },
+  "setup_068": {
+    "message": "백엔드 다시 시작"
+  },
+  "setup_069": {
+    "message": "다시 시작 명령 복사"
+  },
+  "setup_070": {
+    "message": "앱 파일 제거, 프로필과 다운로드한 파일 유지"
+  },
+  "setup_071": {
+    "message": "제거 명령 복사"
+  },
+  "setup_072": {
+    "message": "Crostini 프로필도 제거"
+  },
+  "setup_073": {
+    "message": "앱 및 프로필 제거 명령 복사"
+  },
+  "setup_dynamic_001": {
+    "message": "명령이 복사되었습니다. Linux 터미널에서 실행하십시오."
+  },
+  "setup_dynamic_002": {
+    "message": "명령을 복사할 수 없습니다. 브라우저의 클립보드 접근 권한을 확인하고 다시 시도하십시오."
+  },
+  "worker_error_001": {
+    "message": "데스크톱 앱이 제한 시간 내에 응답하지 않았습니다. ‘시작’을 다시 시도하십시오."
+  },
+  "worker_error_002": {
+    "message": "JSTorrent 데스크톱 앱을 사용할 수 없습니다. 앱을 설치하고 한 번 열어 설정을 완료하십시오."
+  },
+  "worker_error_003": {
+    "message": "JSTorrent 데스크톱 앱이 잘못된 초기 연결 응답을 반환했습니다."
+  },
+  "worker_error_004": {
+    "message": "Chrome에서 JSTorrent Linux 페이지를 열 수 없습니다."
+  }
+}

@@ -527,3 +527,17 @@ class NotesAndPolicyTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class LocalizedReleaseNotesTest(unittest.TestCase):
+    def test_localized_notes_preserve_verified_english_and_bound_every_language(self):
+        self.assertEqual(play.localized_release_notes('English', {'de-DE': 'Deutsch'}),
+                         [{'language': 'de-DE', 'text': 'Deutsch'}, {'language': 'en-US', 'text': 'English'}])
+        for invalid in [{'en-US': 'Different'}, {'de-DE': ''}, {'de-DE': 'x' * 501}, {'../en': 'Bad'}, {'de-DE': 42}, []]:
+            with self.assertRaises(ValueError):
+                play.localized_release_notes('English', invalid)
+
+    def test_publication_places_localized_notes_on_the_same_verified_release(self):
+        google = FakeGoogle(bundles=[{'versionCode': 33, 'sha256': DIGEST}])
+        play.publish(google, 'internal', 'completed', 33, '1.0.33', BUNDLE, DIGEST, 'English', translations={'de-DE': 'Deutsch'})
+        self.assertEqual(google.puts()[0]['releases'][0]['releaseNotes'],
+                         [{'language': 'de-DE', 'text': 'Deutsch'}, {'language': 'en-US', 'text': 'English'}])

@@ -74,7 +74,9 @@ class StoreTests(unittest.TestCase):
 
     def test_remote_or_local_drift_refuses_before_writing(self):
         approved = store.plan_changes(self.current, self.desired)
-        for remote, desired in [(dict(self.current, extra={'language': 'extra'}), self.desired),
+        changed = copy.deepcopy(self.current)
+        changed['de-DE']['video'] = 'https://youtu.be/new-console-edit'
+        for remote, desired in [(changed, self.desired),
                                 (self.current, {'de-DE': {'title': 'Different'}})]:
             api = FakePlay(remote)
             with self.assertRaises(ValueError):

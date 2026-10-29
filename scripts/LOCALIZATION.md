@@ -1,5 +1,14 @@
 # Shared translation workflow
 
+Production marketing descriptions use the `store` adapter; the extension
+manifest, popup and setup/recovery pages use `extension`. Both reuse the native
+named-placeholder format and independent review/provenance workflow below.
+`distribution/store-listings/locales.json` owns store-specific locale mappings
+without changing app language registration. Run
+`python3 scripts/store-listings.py generate` after reviewed imports, then
+`python3 scripts/store-listings.py check` to verify source freshness, limits,
+review identities and every generated Chrome message catalog.
+
 `scripts/localization.py` is the offline command front door for `android`,
 `web` (the shared React UI) and `desktop` (native tray/dialog/notification
 strings). Android retains its tested native-resource adapter. React keeps

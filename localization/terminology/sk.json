@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "locale": "sk",
+  "register": "Use natural Slovak, concise imperative action labels and consistent polite plural address where needed. Do not substitute Czech wording. Preserve privacy, deletion and device requirements exactly. Translate all marketing prose naturally; the brand JSTorrent never changes.",
+  "terms": {
+    "torrent": {
+      "sourceTerms": [
+        "torrent",
+        "torrents"
+      ],
+      "preferred": "torrent",
+      "meaning": "BitTorrent transfer; choose the natural local technical term, distinguishing downloading, seeding and paused transfers."
+    }
+  }
+}

@@ -89,6 +89,20 @@ def check_notes(notes):
     return notes
 
 
+def localized_release_notes(english, translations=None):
+    notes = {'en-US': check_notes(english)}
+    if translations is not None:
+        if not isinstance(translations, dict) or not 1 <= len(translations) <= 100:
+            raise ValueError('Localized release notes must be a bounded language-to-text object')
+        for language, text in translations.items():
+            if not re.fullmatch(r'[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*', language) or not isinstance(text, str):
+                raise ValueError('Invalid localized release note')
+            notes[language] = check_notes(text)
+        if notes['en-US'] != check_notes(english):
+            raise ValueError('Localized English release notes differ from the verified changelog')
+    return [{'language': language, 'text': text} for language, text in sorted(notes.items())]
+
+
 def check_fraction(fraction):
     if fraction is None or not 0 < fraction < 1:
         raise ValueError('A staged rollout fraction must be between 0 and 1, exclusive')
@@ -316,7 +330,7 @@ def completed_code(releases):
 
 # Play operations.
 
-def publish(google, track, status, version_code, version_name, bundle, digest, notes, fraction=None):
+def publish(google, track, status, version_code, version_name, bundle, digest, notes, fraction=None, translations=None):
     if track not in TRACKS or status not in STATUSES:
         raise ValueError('Unsupported track or release status')
     if status == 'inProgress':
@@ -326,7 +340,7 @@ def publish(google, track, status, version_code, version_name, bundle, digest, n
     elif fraction is not None:
         raise ValueError('A user fraction applies only to an inProgress release')
     if status != 'check':
-        notes = check_notes(notes)
+        notes = localized_release_notes(notes, translations)
     with edit(google) as transaction:
         current = track_releases(transaction, track)
         bundles = transaction.get('/bundles').get('bundles', [])
@@ -357,7 +371,7 @@ def publish(google, track, status, version_code, version_name, bundle, digest, n
         if version_code < latest or (version_code == latest and not own_draft):
             raise ValueError('Refusing to replace a newer or equal release')
         release = {'name': version_name, 'versionCodes': [str(version_code)], 'status': status,
-                   'releaseNotes': [{'language': 'en-US', 'text': notes}]}
+                   'releaseNotes': notes}
         if status == 'inProgress':
             release['userFraction'] = fraction
         transaction.put(f'/tracks/{track}', {'track': track, 'releases': [release]})
@@ -721,7 +735,8 @@ def command_publish(args):
                                     args.version_name, args.version_code)
     result = publish(Http(os.environ.get('PLAY_ACCESS_TOKEN')), args.track, args.status,
                      args.version_code, args.version_name, data, digest,
-                     args.notes_file.read_text(), args.fraction)
+                     args.notes_file.read_text(), args.fraction,
+                     json.loads(args.localized_notes_file.read_text()) if args.localized_notes_file else None)
     result.update(tag=args.tag, source=args.source, buildRunId=args.run_id)
     if result['status'] == 'submitted':
         payload = {'versionCode': args.version_code, 'versionName': args.version_name, 'tag': args.tag,
@@ -804,6 +819,8 @@ def main(argv=None):
             sub.add_argument('--fraction', type=fraction_argument)
             sub.add_argument('--plan', default='none')
             sub.add_argument('--notes-file', type=Path, required=True)
+            sub.add_argument('--localized-notes-file', type=Path,
+                             help='Optional language-to-text JSON; English must match the verified notes')
             sub.add_argument('--receipt', type=Path)
 
     roll = commands.add_parser('rollout', help='set, halt, resume or complete a production rollout')

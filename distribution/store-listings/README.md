@@ -13,6 +13,12 @@ Chrome locales match the nineteen shipping React locales. Extension summaries,
 popup and setup text live under `clients/extension/locales`, with review records
 under `localization/extension` and generated native Chrome `_locales` catalogs.
 
+The dated baseline JSON files preserve the maintainer-owned production listing
+text exported from the existing store accounts/public item before this campaign.
+They are historical evidence, not translation input or review approval for the
+replacement catalogs. The Play baseline came from Actions run 40848405954;
+the Chrome baseline came from its public version 1.1.8 listing.
+
 Historical `clients/android/play/listing` belongs to the retired Canary listing.
 It must never be used to publish production JSTorrent metadata.
 
@@ -21,6 +27,7 @@ It must never be used to publish production JSTorrent metadata.
 ```bash
 python3 scripts/store-listings.py generate
 python3 scripts/store-listings.py check
+python3 scripts/store-listings.py chrome-text --out .local/chrome-listing-text.json
 python3 -m unittest discover -s scripts -p test_store_listings.py
 ```
 
@@ -28,7 +35,8 @@ Remote operations require a short-lived `PLAY_ACCESS_TOKEN`. They are normally
 run by the **Store listings** Actions workflow, which shares `android-play`
 concurrency with all release and rollout edits. Its app-scoped keyless identity
 needs read-only app information and Manage store presence, with no release,
-financial, policy-declaration or administration permission.
+financial or administration permission. Google may bundle related declaration
+access with store presence; the publisher never calls declaration endpoints.
 
 1. `export --out baseline.json` reads all Play listing fields and discards the
    temporary edit. Preserve/export production text before changing it.

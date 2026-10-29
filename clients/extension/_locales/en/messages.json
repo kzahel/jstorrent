@@ -1,0 +1,533 @@
+{
+  "catalog_direction": {
+    "message": "ltr"
+  },
+  "catalog_locale": {
+    "message": "en"
+  },
+  "connect_001": {
+    "message": "JSTorrent Linux connection"
+  },
+  "connect_002": {
+    "message": "JSTorrent · ChromeOS Linux"
+  },
+  "connect_003": {
+    "message": "Connect to Linux"
+  },
+  "connect_004": {
+    "message": "Linux has its own library, settings and download folders. Android torrents stay in Android."
+  },
+  "connect_005": {
+    "message": "Choose Connect to check the Linux service."
+  },
+  "connect_006": {
+    "message": "Connect Linux"
+  },
+  "connect_007": {
+    "message": "If Linux does not connect"
+  },
+  "connect_008": {
+    "message": "Terminal"
+  },
+  "connect_009": {
+    "message": "penguin"
+  },
+  "connect_010": {
+    "message": "Open {slot1} from the Chromebook Launcher and select {slot2} if shown. Wait for the Linux command prompt."
+  },
+  "connect_011": {
+    "message": "JSTorrent for ChromeOS Linux"
+  },
+  "connect_012": {
+    "message": "Retry"
+  },
+  "connect_013": {
+    "message": "Open {slot1} from the Launcher, then return here and select {slot2}."
+  },
+  "connect_014": {
+    "message": "If you recently updated the extension, update the Linux app too. Current versions use a local connection that avoids Linux hostname-registration failures. Keep your Linux environment and downloaded files."
+  },
+  "connect_015": {
+    "message": "A failed connection cannot tell us whether Linux is enabled, the package is installed, or device policy permits it. Do not remove the Linux environment or reinstall it to fix a connection error."
+  },
+  "connect_016": {
+    "message": "Setup and troubleshooting"
+  },
+  "connect_017": {
+    "message": "Use Android instead"
+  },
+  "connect_dynamic_001": {
+    "message": "Linux connection access was not granted. No service was contacted. Select Retry to request access, or use setup and troubleshooting."
+  },
+  "connect_dynamic_002": {
+    "message": "The Linux service could not be reached. Open Terminal and the Linux app, then retry. Linux setup, package installation and device policy are unknown."
+  },
+  "connect_dynamic_003": {
+    "message": "The Linux service did not respond within 10 seconds. Open Terminal and the Linux app, then retry."
+  },
+  "connect_dynamic_004": {
+    "message": "The Linux service returned an error. Open the Linux app and check its status, then retry."
+  },
+  "connect_dynamic_005": {
+    "message": "The responding service is not JSTorrent for ChromeOS Linux. Open the Linux app and check its status before retrying."
+  },
+  "connect_dynamic_006": {
+    "message": "The Linux app and extension need compatible updates. Check setup and troubleshooting; your Linux library remains separate from Android."
+  },
+  "connect_dynamic_007": {
+    "message": "The Linux service returned an invalid response. Check the installed app before retrying."
+  },
+  "connect_dynamic_008": {
+    "message": "Connection canceled. Select Retry when you are ready."
+  },
+  "connect_dynamic_009": {
+    "message": "Cancel"
+  },
+  "connect_dynamic_010": {
+    "message": "Checking Linux connection access…"
+  },
+  "connect_dynamic_011": {
+    "message": "Checking the Linux service…"
+  },
+  "connect_dynamic_012": {
+    "message": "Linux service is ready. Opening your Linux library…"
+  },
+  "connect_dynamic_013": {
+    "message": "Retry"
+  },
+  "connect_dynamic_014": {
+    "message": "Retry"
+  },
+  "extension_summary": {
+    "message": "Add torrents from Chrome to the JSTorrent app on desktop or Chromebook."
+  },
+  "metrics_connected": {
+    "message": "Connected"
+  },
+  "metrics_not_connected": {
+    "message": "Not connected yet"
+  },
+  "metrics_summary": {
+    "message": "Days since first use: {days} · Visible sessions: {sessions} · {connection}"
+  },
+  "popup_001": {
+    "message": "Your torrent library"
+  },
+  "popup_002": {
+    "message": "Desktop app"
+  },
+  "popup_003": {
+    "message": "Checking desktop setup…"
+  },
+  "popup_004": {
+    "message": "Connecting to the desktop app."
+  },
+  "popup_005": {
+    "message": "Open torrent library"
+  },
+  "popup_006": {
+    "message": "On your Chromebook"
+  },
+  "popup_007": {
+    "message": "Use the Android app to download torrents, then manage the same library here in Chrome."
+  },
+  "popup_008": {
+    "message": "JSTorrent for Android"
+  },
+  "popup_009": {
+    "message": "Your torrents and download folders stay in the Android app. Open Android to finish setup, then connect to your library."
+  },
+  "popup_010": {
+    "message": "Open JSTorrent Android"
+  },
+  "popup_011": {
+    "message": "Connect in Chrome"
+  },
+  "popup_012": {
+    "message": "Get or update the Android app"
+  },
+  "popup_013": {
+    "message": "Setup and troubleshooting"
+  },
+  "popup_014": {
+    "message": "Use Linux instead"
+  },
+  "popup_015": {
+    "message": "Using ChromeOS Linux instead?"
+  },
+  "popup_016": {
+    "message": "Linux preview"
+  },
+  "popup_017": {
+    "message": "JSTorrent for ChromeOS Linux"
+  },
+  "popup_018": {
+    "message": "If you already use the separate Linux preview, start {slot1} from the Chromebook Launcher first."
+  },
+  "popup_019": {
+    "message": "Open Linux library"
+  },
+  "popup_020": {
+    "message": "Setup and recovery"
+  },
+  "popup_021": {
+    "message": "Android and ChromeOS Linux keep separate torrent libraries, settings, and download locations."
+  },
+  "popup_022": {
+    "message": "Privacy & feedback"
+  },
+  "popup_023": {
+    "message": "When statistics are enabled, feedback and uninstall surveys include your OS, browser and extension versions, the last extension page and a connection result code. The browser version may be reduced. No browsing history or raw errors are included."
+  },
+  "popup_024": {
+    "message": "Review feedback link"
+  },
+  "popup_025": {
+    "message": "Open feedback page"
+  },
+  "popup_026": {
+    "message": "Usage statistics"
+  },
+  "popup_027": {
+    "message": "The extension keeps one random resettable installation identifier, days since first use, visible sessions, and whether it has connected. If enabled after you continue, those values may be placed in the uninstall survey URL. Torrent names, hashes, paths, peers, trackers, credentials, logs, and errors are never included."
+  },
+  "popup_028": {
+    "message": "{slot1} Include pseudonymous usage statistics"
+  },
+  "popup_029": {
+    "message": "Save and continue"
+  },
+  "popup_030": {
+    "message": "{slot1} Include pseudonymous usage statistics"
+  },
+  "popup_031": {
+    "message": "Reset statistics and identifier"
+  },
+  "popup_032": {
+    "message": "The uninstall URL is stored locally by Chrome. Opening it can disclose included values to browser history, website logs and referrers, the survey form, and the page’s Cloudflare analytics."
+  },
+  "popup_033": {
+    "message": "Privacy policy"
+  },
+  "popup_dynamic_001": {
+    "message": "Feedback link unavailable. Try again."
+  },
+  "popup_dynamic_002": {
+    "message": "Checking desktop setup…"
+  },
+  "popup_dynamic_003": {
+    "message": "Connecting to the desktop app."
+  },
+  "popup_dynamic_004": {
+    "message": "JSTorrent Desktop is unavailable."
+  },
+  "popup_dynamic_005": {
+    "message": "JSTorrent Desktop is ready"
+  },
+  "popup_dynamic_006": {
+    "message": "Open your library here. Downloads run in the desktop app."
+  },
+  "popup_dynamic_008": {
+    "message": "Desktop setup needed"
+  },
+  "popup_dynamic_009": {
+    "message": "Install JSTorrent Desktop and open it once to finish setup."
+  },
+  "popup_dynamic_010": {
+    "message": "Opening JSTorrent…"
+  },
+  "popup_dynamic_011": {
+    "message": "Sending a launch request to the desktop app."
+  },
+  "popup_dynamic_012": {
+    "message": "JSTorrent could not be opened."
+  },
+  "popup_dynamic_013": {
+    "message": "Launch requested"
+  },
+  "popup_dynamic_014": {
+    "message": "Your desktop library is open in the browser."
+  },
+  "popup_dynamic_015": {
+    "message": "JSTorrent did not open"
+  },
+  "popup_dynamic_016": {
+    "message": "Open JSTorrent Desktop directly and try again."
+  },
+  "popup_dynamic_017": {
+    "message": "Opening the ChromeOS Linux UI…"
+  },
+  "popup_dynamic_018": {
+    "message": "Chrome could not open the Linux preview."
+  },
+  "popup_dynamic_019": {
+    "message": "Page requested; Linux connection is not confirmed. Use its connection check and troubleshooting if Linux is stopped or unavailable."
+  },
+  "popup_dynamic_020": {
+    "message": "Use JSTorrent for ChromeOS Linux from the Chromebook Launcher."
+  },
+  "popup_dynamic_021": {
+    "message": "Requesting access to the Android service…"
+  },
+  "popup_dynamic_022": {
+    "message": "Android connection access was not granted. No local service was contacted."
+  },
+  "popup_dynamic_023": {
+    "message": "Chrome could not start the Android flow."
+  },
+  "popup_dynamic_024": {
+    "message": "Connection page opened. If Android is not ready, use Open JSTorrent Android and finish setup there. App startup and pairing are not yet confirmed."
+  },
+  "popup_dynamic_025": {
+    "message": "Privacy settings could not be saved."
+  },
+  "popup_dynamic_026": {
+    "message": "Privacy preference saved."
+  },
+  "popup_dynamic_027": {
+    "message": "Privacy preference saved."
+  },
+  "popup_dynamic_028": {
+    "message": "Create a new identifier and clear extension usage statistics?"
+  },
+  "popup_dynamic_029": {
+    "message": "Statistics and identifier reset."
+  },
+  "setup_001": {
+    "message": "JSTorrent Chromebook setup and troubleshooting"
+  },
+  "setup_002": {
+    "message": "Chromebook setup and troubleshooting"
+  },
+  "setup_003": {
+    "message": "Android setup or connection"
+  },
+  "setup_004": {
+    "message": "A service that does not respond cannot tell us whether Play is available, the app is installed, or your administrator restricts it. Choose the stage you can confirm below. Opening a store link does not confirm installation."
+  },
+  "setup_005": {
+    "message": "Play is not enabled or setup is unfinished"
+  },
+  "setup_006": {
+    "message": "Use Linux instead"
+  },
+  "setup_007": {
+    "message": "Open ChromeOS Settings, find Google Play, and finish its setup if offered and permitted. If the option is missing or managed, ask your administrator; do not bypass policy. {slot1} where permitted."
+  },
+  "setup_008": {
+    "message": "Play is available; I need to install the app"
+  },
+  "setup_009": {
+    "message": "JSTorrent Play listing"
+  },
+  "setup_010": {
+    "message": "Open the {slot1} and check the actual installation result. Open JSTorrent from the Launcher after installation. If Play does not offer an update yet, use the Android app directly and check again later."
+  },
+  "setup_011": {
+    "message": "Installation failed, or the app is unavailable"
+  },
+  "setup_012": {
+    "message": "Use Linux instead"
+  },
+  "setup_013": {
+    "message": "Read the error shown by Play. This extension cannot determine its cause. Resolve the store's stated account, storage, compatibility or policy issue, then retry manually. Preserve your existing apps and data while resolving installation problems. If installation remains unavailable, {slot1}."
+  },
+  "setup_014": {
+    "message": "The installed app did not open"
+  },
+  "setup_015": {
+    "message": "Open JSTorrent Android"
+  },
+  "setup_016": {
+    "message": "Open with"
+  },
+  "setup_017": {
+    "message": "Settings → Advanced → Connect Chrome extension"
+  },
+  "setup_018": {
+    "message": "Open Chrome library"
+  },
+  "setup_019": {
+    "message": "Connect in Chrome"
+  },
+  "setup_020": {
+    "message": "Choose {slot1} and confirm any ChromeOS {slot2} prompt. If the link is unavailable, open JSTorrent from the Launcher and choose {slot3}. Allow Android notifications if asked, then choose {slot4}. You can also return to the extension manually with {slot5}, including when the website is offline. If setup is missing, update the Android app. The app can also be used directly without extension control."
+  },
+  "setup_021": {
+    "message": "Browser access or pairing was denied"
+  },
+  "setup_022": {
+    "message": "Connect in Chrome"
+  },
+  "setup_023": {
+    "message": "Allow Android connection"
+  },
+  "setup_024": {
+    "message": "Retry connection"
+  },
+  "setup_025": {
+    "message": "Cancel"
+  },
+  "setup_026": {
+    "message": "Use {slot1} in the popup, or {slot2} on the connection page, to request browser access. If Chrome shows a Local Network Access prompt, allow access only if you intend to connect. Open JSTorrent and approve its named extension pairing request. A rejected or expired request needs manual {slot3}; {slot4} stops the page's attempt without changing your library. A canceled pairing attempt can leave its Android approval request pending for up to two minutes; wait for expiry before retrying. Cancel does not dismiss a separate OS launch prompt or revoke an existing pairing."
+  },
+  "setup_027": {
+    "message": "Saved pairing, update or connection failure"
+  },
+  "setup_028": {
+    "message": "JSTorrent in Google Play"
+  },
+  "setup_029": {
+    "message": "Use Linux instead"
+  },
+  "setup_030": {
+    "message": "JSTorrent in Chrome Web Store"
+  },
+  "setup_031": {
+    "message": "Open the same Android app and retry. If the Android app needs updating, check {slot1}. If no update is offered, use the Android app directly and check again later. If your OS is unsupported, use a supported device or {slot2} where available. If the extension needs updating, check {slot3}, then reopen the extension. Re-pair only through explicit Android approval. Browser retries do not start the app automatically."
+  },
+  "setup_032": {
+    "message": "The download folder is unavailable"
+  },
+  "setup_033": {
+    "message": "Share with Linux"
+  },
+  "setup_034": {
+    "message": "In Android Storage settings, repair the original folder binding through the Android folder picker and approve access. ChromeOS {slot1} does not grant Android access. Preserve unrelated files and existing roots."
+  },
+  "setup_035": {
+    "message": "The connection page offers a voluntary support-context preview with the failed stage, Android backend, known permission and browser/build versions. Review it before copying to support. Play, app presence and policy remain unknown; no logs are uploaded automatically."
+  },
+  "setup_036": {
+    "message": "Use Linux instead"
+  },
+  "setup_037": {
+    "message": "This is an explicit switch to a separate Linux library, settings and download folders. Android torrents stay in Android; an empty Linux library does not mean they were lost. Finish or stop Android work before choosing the same payload folder for Linux. No automatic migration occurs."
+  },
+  "setup_038": {
+    "message": "If Linux is missing or blocked by policy, it may not be available on this device. If neither Android nor Linux is permitted and usable, this Chromebook environment is unsupported. Ask your administrator or use another supported device; repeating installation links cannot resolve that restriction."
+  },
+  "setup_039": {
+    "message": "ChromeOS Linux runs the Rust torrent engine and serves the complete JSTorrent interface to Chrome. This extension provides the handoff; it cannot wake a fully stopped Linux environment by itself."
+  },
+  "setup_040": {
+    "message": "Install the preview"
+  },
+  "setup_041": {
+    "message": "Linux development environment"
+  },
+  "setup_042": {
+    "message": "Enable {slot1} in ChromeOS Settings only where offered and permitted."
+  },
+  "setup_043": {
+    "message": "official authenticated installer"
+  },
+  "setup_044": {
+    "message": "Copy installer command"
+  },
+  "setup_045": {
+    "message": "Run the {slot1} in Terminal using {slot2}. It verifies the signed release manifest and package hash, then installs the app automatically."
+  },
+  "setup_046": {
+    "message": "JSTorrent for ChromeOS Linux"
+  },
+  "setup_047": {
+    "message": "Open {slot1} from the Chromebook Launcher. It wakes Linux, starts JSTorrent, and returns to Chrome."
+  },
+  "setup_048": {
+    "message": "For an already authenticated local package, extract it in Linux files, open Terminal in the extracted folder, and run {slot1} instead of the website command. A development candidate is not automatically a published release."
+  },
+  "setup_049": {
+    "message": "Everyday launch"
+  },
+  "setup_050": {
+    "message": "Use the Chromebook Launcher when Linux may be stopped. Once the local backend is running, this extension’s ChromeOS Linux button opens or focuses its UI. Closing the tab does not stop active torrents."
+  },
+  "setup_051": {
+    "message": "The extension first opens an offline Linux connection page. Its check requests browser access only to {slot1}, validates the responding app, then opens the Linux library. Creating a tab alone does not confirm a connection. Retry checks again without starting Linux; Cancel stops the check."
+  },
+  "setup_052": {
+    "message": "Linux page unavailable"
+  },
+  "setup_053": {
+    "message": "Terminal"
+  },
+  "setup_054": {
+    "message": "penguin"
+  },
+  "setup_055": {
+    "message": "JSTorrent for ChromeOS Linux"
+  },
+  "setup_056": {
+    "message": "Linux connection"
+  },
+  "setup_057": {
+    "message": "Open {slot1} from the Chromebook Launcher, select {slot2} if offered, and wait for the Linux command prompt. Then open {slot3} from the Launcher and retry the extension's {slot4}."
+  },
+  "setup_058": {
+    "message": "Current versions use {slot1}, a local connection forwarded by ChromeOS to your Linux app. This avoids the Linux hostname-registration failure observed on some ChromeOS 150 systems. It opens the same Linux library and download folders."
+  },
+  "setup_059": {
+    "message": "If an older bookmark or installed version opens {slot1}, update the Linux app and extension together, then launch the app again. Browser approval and appearance preferences may need to be set again for the new address; your Linux library stays in place."
+  },
+  "setup_060": {
+    "message": "A failed check cannot identify whether Linux startup, local forwarding, browser permission or the app is responsible. If Terminal also fails, resolve its stated error first. Keep your Linux environment and files; deleting your library will not repair connectivity."
+  },
+  "setup_061": {
+    "message": "Shut down Linux"
+  },
+  "setup_062": {
+    "message": "If Terminal opens but the app remains unreachable, close Linux apps, use Terminal's {slot1} action, reopen Terminal and launch the app again. This stops active Linux transfers; your library and downloaded files remain on disk."
+  },
+  "setup_063": {
+    "message": "Files and recovery"
+  },
+  "setup_064": {
+    "message": "Share with Linux"
+  },
+  "setup_065": {
+    "message": "Downloads initially use Linux {slot1}. To use a Chromebook folder, choose {slot2} in the Files app before adding it in JSTorrent."
+  },
+  "setup_066": {
+    "message": "Check the installed backend"
+  },
+  "setup_067": {
+    "message": "Copy status command"
+  },
+  "setup_068": {
+    "message": "Restart the backend"
+  },
+  "setup_069": {
+    "message": "Copy restart command"
+  },
+  "setup_070": {
+    "message": "Remove app files, keep profile and downloads"
+  },
+  "setup_071": {
+    "message": "Copy removal command"
+  },
+  "setup_072": {
+    "message": "Also remove the Crostini profile"
+  },
+  "setup_073": {
+    "message": "Copy removal and profile command"
+  },
+  "setup_dynamic_001": {
+    "message": "Command copied. Run it in Linux Terminal."
+  },
+  "setup_dynamic_002": {
+    "message": "The command could not be copied. Check browser clipboard access and try again."
+  },
+  "worker_error_001": {
+    "message": "Desktop did not respond in time. Try Start again."
+  },
+  "worker_error_002": {
+    "message": "JSTorrent Desktop is unavailable. Install it and open it once to finish setup."
+  },
+  "worker_error_003": {
+    "message": "JSTorrent Desktop returned an invalid bootstrap response."
+  },
+  "worker_error_004": {
+    "message": "Chrome could not open the JSTorrent Linux page."
+  }
+}

@@ -32,6 +32,10 @@ export const packagedFiles = Object.freeze([
   "src/service-worker.js",
   "src/product-metrics.js",
   "src/support-context.js",
+  "src/localization.js",
+  "src/messages-en.js",
+  ...Object.values(JSON.parse(readFileSync(path.join(extensionRoot, "../../distribution/store-listings/locales.json"), "utf8")).locales)
+    .filter((row) => row.chrome).map((row) => `_locales/${row.chrome}/messages.json`),
   ...companionPackagedFiles,
 ]);
 
@@ -81,6 +85,9 @@ export function validateSource(production = false) {
   const expectedExtensionId = production ? productionExtensionId : storeExtensionId;
   if (manifest.manifest_version !== 3 || manifest.name !== "JSTorrent") {
     fail("expected the reviewed JSTorrent Manifest V3 identity");
+  }
+  if (manifest.default_locale !== "en" || manifest.description !== "__MSG_extension_summary__") {
+    fail("manifest must use the reviewed native localization summary and English fallback");
   }
   const derivedExtensionId = extensionIdFromPublicKey(manifest.key);
   if (derivedExtensionId !== expectedExtensionId) {
@@ -182,7 +189,8 @@ export function validateSource(production = false) {
     fail("Crostini setup must use only its local clipboard module");
   }
   const setupScript = readFileSync(path.join(extensionRoot, "crostini/setup.js"), "utf8");
-  if (/\b(?:fetch|XMLHttpRequest|WebSocket|eval|import)\b/u.test(setupScript)) {
+  const localizedSetup = setupScript.replace('import { t, localizeDocument } from "../src/localization.js";', "");
+  if (/\b(?:fetch|XMLHttpRequest|WebSocket|eval|import)\b/u.test(localizedSetup)) {
     fail("Crostini setup clipboard module must remain offline");
   }
   const connection = readFileSync(path.join(extensionRoot, "crostini/connect.html"), "utf8");

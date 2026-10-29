@@ -122,6 +122,24 @@ Google still reviews and publishes; a green workflow means submitted, not
 delivered. Listing, privacy and permission justifications remain dashboard
 forms.
 
+For a localization release, manually run the same workflow with `mode=stage`
+first. It tests and uploads the candidate without submitting review or
+canceling another submission. Save and verify the reviewed long descriptions
+in the dashboard before tagging that prepared version for normal publication.
+`python3 scripts/store-listings.py chrome-text --out .local/chrome-text.json`
+produces the matching text. The supported Web Store v2 API has no listing-text
+endpoint. Production text and the separate Play metadata workflow are documented
+in [distribution/store-listings](../../distribution/store-listings/README.md).
+
+Popup and packaged setup/connection copy use native Chrome `_locales` catalogs
+in nineteen languages. Update their reviewed source catalogs through
+[`scripts/LOCALIZATION.md`](../../scripts/LOCALIZATION.md), then regenerate with
+`python3 scripts/store-listings.py generate`. After building the companion,
+`node clients/extension/scripts/qualify-localization.mjs` captures selected
+locales in disposable Chrome for Testing profiles; pass locale tags to select
+the complete cohort. It exercises each native default/fallback catalog without
+contacting an installed host. It does not claim OS locale-negotiation coverage.
+
 ### One-time setup
 
 Done 2026-10-15; values and evidence are in

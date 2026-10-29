@@ -1,3 +1,4 @@
+import { t, localizeDocument } from "../src/localization.js";
 const ORIGIN = "http://jstorrent.localhost:3030";
 const PERMISSION = "http://jstorrent.localhost/*";
 const MAX_HEALTH_BYTES = 4096;
@@ -40,14 +41,14 @@ export async function checkLinuxHealth(signal, request = fetch) {
 }
 
 const messages = {
-  permission_denied: "Linux connection access was not granted. No service was contacted. Select Retry to request access, or use setup and troubleshooting.",
-  unreachable: "The Linux service could not be reached. Open Terminal and the Linux app, then retry. Linux setup, package installation and device policy are unknown.",
-  timeout: "The Linux service did not respond within 10 seconds. Open Terminal and the Linux app, then retry.",
-  service_error: "The Linux service returned an error. Open the Linux app and check its status, then retry.",
-  wrong_service: "The responding service is not JSTorrent for ChromeOS Linux. Open the Linux app and check its status before retrying.",
-  incompatible: "The Linux app and extension need compatible updates. Check setup and troubleshooting; your Linux library remains separate from Android.",
-  invalid_response: "The Linux service returned an invalid response. Check the installed app before retrying.",
-  canceled: "Connection canceled. Select Retry when you are ready.",
+  permission_denied: t("connect_dynamic_001"),
+  unreachable: t("connect_dynamic_002"),
+  timeout: t("connect_dynamic_003"),
+  service_error: t("connect_dynamic_004"),
+  wrong_service: t("connect_dynamic_005"),
+  incompatible: t("connect_dynamic_006"),
+  invalid_response: t("connect_dynamic_007"),
+  canceled: t("connect_dynamic_008"),
 };
 
 export function startLinuxConnection({ chrome, status, button, navigate, page }) {
@@ -61,9 +62,9 @@ export function startLinuxConnection({ chrome, status, button, navigate, page })
     const owned = controller;
     let timedOut = false;
     let timeout;
-    button.textContent = "Cancel";
+    button.textContent = t("connect_dynamic_009");
     button.disabled = true;
-    status.textContent = "Checking Linux connection access…";
+    status.textContent = t("connect_dynamic_010");
     try {
       const permission = { origins: [PERMISSION] };
       // request() must run in the explicit button gesture, before any await.
@@ -71,13 +72,13 @@ export function startLinuxConnection({ chrome, status, button, navigate, page })
       if (!await grant) { report("permission_denied"); status.textContent = messages.permission_denied; return; }
       if (owned.signal.aborted || !active) return;
       button.disabled = false;
-      status.textContent = "Checking the Linux service…";
+      status.textContent = t("connect_dynamic_011");
       timeout = setTimeout(() => { timedOut = true; owned.abort(); }, TIMEOUT_MILLIS);
       const result = await checkLinuxHealth(owned.signal);
       report(result === "ready" ? "none" : result);
       if (owned.signal.aborted || !active) return;
       if (result === "ready") {
-        status.textContent = "Linux service is ready. Opening your Linux library…";
+        status.textContent = t("connect_dynamic_012");
         // An older installed build may have left a cacheable HTML shell.
         // Fresh explicit connection must fetch the current asset references.
         navigate(`${ORIGIN}/?connect=${crypto.randomUUID()}`);
@@ -87,7 +88,7 @@ export function startLinuxConnection({ chrome, status, button, navigate, page })
       if (active) status.textContent = messages[owned.signal.aborted ? timedOut ? "timeout" : "canceled" : "unreachable"];
     } finally {
       clearTimeout(timeout);
-      if (active) { button.textContent = "Retry"; button.disabled = false; }
+      if (active) { button.textContent = t("connect_dynamic_013"); button.disabled = false; }
     }
   }
   function connect(requestPermission) {
@@ -111,7 +112,7 @@ export function startLinuxConnection({ chrome, status, button, navigate, page })
       if (restoredGeneration !== generation) return;
       active = true;
       status.textContent = messages.canceled;
-      button.textContent = "Retry";
+      button.textContent = t("connect_dynamic_014");
       button.disabled = false;
     })();
   });
@@ -120,6 +121,7 @@ export function startLinuxConnection({ chrome, status, button, navigate, page })
 }
 
 if (typeof document !== "undefined") {
+  localizeDocument(document);
   startLinuxConnection({ chrome: globalThis.chrome,
     status: document.getElementById("connection-status"), button: document.getElementById("connect"),
     navigate: url => location.replace(url), page: window });

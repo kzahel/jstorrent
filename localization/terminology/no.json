@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "locale": "no",
+  "register": "Use natural Norwegian Bokmål, concise imperative action labels and consistent du/deg address. Do not use Nynorsk or Danish wording. Preserve privacy, deletion and device requirements exactly. Translate all marketing prose naturally; the brand JSTorrent never changes.",
+  "terms": {
+    "torrent": {
+      "sourceTerms": [
+        "torrent",
+        "torrents"
+      ],
+      "preferred": "torrent",
+      "meaning": "BitTorrent transfer; choose the natural local technical term, distinguishing downloading, seeding and paused transfers."
+    }
+  }
+}

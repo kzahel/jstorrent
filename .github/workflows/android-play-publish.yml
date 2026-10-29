@@ -123,12 +123,15 @@ jobs:
           NOTES: ${{ needs.verify.outputs.notes }}
         run: |
           printf '%s' "$NOTES" > "$RUNNER_TEMP/notes.txt"
+          localized_notes=()
+          notes_path="clients/android/play/release-notes/$TAG.json"
+          if [ -f "$notes_path" ]; then localized_notes=(--localized-notes-file "$notes_path"); fi
           if [ "$STATUS" != inProgress ]; then PLAN=none; fi
           python3 scripts/android-play.py publish --candidate "$RUNNER_TEMP/candidate" \
             --tag "$TAG" --source "$SOURCE" --run-id "$RUN" \
             --version-name "$VERSION_NAME" --version-code "$VERSION_CODE" \
             --track "$TRACK" --status "$STATUS" --fraction "$FRACTION" --plan "$PLAN" \
-            --notes-file "$RUNNER_TEMP/notes.txt" --receipt "$RUNNER_TEMP/publication.json"
+            --notes-file "$RUNNER_TEMP/notes.txt" "${localized_notes[@]}" --receipt "$RUNNER_TEMP/publication.json"
           { echo '```json'; cat "$RUNNER_TEMP/publication.json"; echo '```'
             echo 'Submission is API acceptance. Check Play Console for review and availability.'; } >> "$GITHUB_STEP_SUMMARY"
 
