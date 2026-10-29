@@ -29,6 +29,9 @@
     "it": {
       "direction": "ltr"
     },
+    "ja": {
+      "direction": "ltr"
+    },
     "nl": {
       "direction": "ltr"
     },
@@ -76,7 +79,8 @@
       "ro",
       "ru",
       "uk",
-      "tr"
+      "tr",
+      "ja"
     ],
     "desktop": [
       "en",
@@ -93,7 +97,8 @@
       "ro",
       "ru",
       "uk",
-      "tr"
+      "tr",
+      "ja"
     ],
     "ios": [
       "en"
@@ -113,7 +118,8 @@
       "ro",
       "ru",
       "uk",
-      "tr"
+      "tr",
+      "ja"
     ]
   },
   "testLocales": [

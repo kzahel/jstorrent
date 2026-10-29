@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "ダウンロード先フォルダーを選択",
+  "dialog.settings-save.body": "JSTorrentの「バックグラウンドで実行」の設定を保存できませんでした。以前の設定が引き続き適用されています。",
+  "dialog.settings-save.title": "JSTorrentの設定を保存できませんでした",
+  "dialog.shutdown.body": "JSTorrentの終了処理を完了できませんでした。データ処理は強制終了していません。診断ログを確認してから、もう一度お試しください。",
+  "dialog.shutdown.title": "JSTorrentを終了できませんでした",
+  "dialog.torrent-list-export.title": "トレント一覧をエクスポート",
+  "dialog.torrent-list-import.title": "トレント一覧をインポート",
+  "dialog.torrent-list.filter": "トレント一覧",
+  "notification.download-complete.body": "{name}のダウンロードが完了しました。",
+  "notification.download-complete.title": "ダウンロード完了",
+  "notification.needs-attention.body": "{name}への対応が必要です。詳細を確認するにはJSTorrentを開いてください。",
+  "notification.needs-attention.title": "対応が必要なダウンロード",
+  "notification.open": "JSTorrentを開く",
+  "notification.unnamed-torrent": "トレント",
+  "power.active-transfer-reason": "JSTorrentがコンテンツをダウンロードまたは検証しています",
+  "tray.check-updates": "更新を確認",
+  "tray.quit": "JSTorrentを終了",
+  "tray.run-in-background": "バックグラウンドで実行",
+  "tray.show": "JSTorrentを表示",
+  "tray.tooltip": "JSTorrent"
+}

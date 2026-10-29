@@ -47,6 +47,12 @@
         "other"
       ]
     },
+    "ja": {
+      "catalog": "clients/android/app/src/main/res/values-ja/strings.xml",
+      "quantities": [
+        "other"
+      ]
+    },
     "nl": {
       "catalog": "clients/android/app/src/main/res/values-nl/strings.xml",
       "quantities": [
