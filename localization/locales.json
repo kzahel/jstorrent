@@ -61,6 +61,9 @@
     },
     "zh-CN": {
       "direction": "ltr"
+    },
+    "zh-TW": {
+      "direction": "ltr"
     }
   },
   "previewLocales": {
@@ -88,7 +91,8 @@
       "tr",
       "ja",
       "ko",
-      "zh-CN"
+      "zh-CN",
+      "zh-TW"
     ],
     "desktop": [
       "en",
@@ -108,7 +112,8 @@
       "tr",
       "ja",
       "ko",
-      "zh-CN"
+      "zh-CN",
+      "zh-TW"
     ],
     "ios": [
       "en"
@@ -131,7 +136,8 @@
       "tr",
       "ja",
       "ko",
-      "zh-CN"
+      "zh-CN",
+      "zh-TW"
     ]
   },
   "testLocales": [

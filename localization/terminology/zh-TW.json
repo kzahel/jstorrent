@@ -1,0 +1,174 @@
+{
+  "glossaryReview": {
+    "reviewState": "agent-reviewed",
+    "reviewer": "gpt-6.1-sol/01a1844a-7477-7331-94be-5b36a46f10a7",
+    "translator": "gpt-6.1-sol/01a18449-2aff-7c32-859f-76c3791518b2"
+  },
+  "locale": "zh-TW",
+  "register": "Use Traditional Chinese with Taiwan software terminology such as 檔案 and 資料夾, concise labels and neutral instructions; never mix Simplified characters. Keep JSTorrent, protocol identifiers, user-provided names, paths and placeholder syntax unchanged. Distinguish removing a torrent from deleting downloaded files, and keep app data separate from downloaded content. Use natural grammatical inflections and consistent terminology across React, native desktop and Android.",
+  "schemaVersion": 1,
+  "terms": {
+    "archive": {
+      "meaning": "Retains a paused torrent in Archived; not deletion.",
+      "preferred": "封存（動作）；已封存（狀態）；封存中（進行中）",
+      "sourceTerms": [
+        "archive",
+        "archived",
+        "archiving"
+      ]
+    },
+    "checking": {
+      "meaning": "Hash verification in progress, distinct from checking for application updates.",
+      "preferred": "驗證中（雜湊驗證）；重新驗證（動作）；重新驗證中（進行中）；強制重新驗證（動作）；檢查更新（應用程式更新）",
+      "sourceTerms": [
+        "checking",
+        "recheck",
+        "rechecking",
+        "force recheck"
+      ]
+    },
+    "completed": {
+      "meaning": "All selected data is verified. A completed torrent may still seed. Notifications should use a natural target-language download completion sentence.",
+      "preferred": "已完成（狀態）；下載完成（通知標題）；「{name} 已完成下載。」（通知內文）",
+      "sourceTerms": [
+        "complete",
+        "completed"
+      ]
+    },
+    "delete_data": {
+      "meaning": "Deletes the torrent's downloaded files after explicit confirmation; preserve the consequence.",
+      "preferred": "刪除已下載的檔案（動作）；刪除檔案（精簡動作）；正在刪除檔案（進行中）",
+      "sourceTerms": [
+        "delete data",
+        "delete downloaded",
+        "delete files",
+        "deleting files"
+      ]
+    },
+    "done_button": {
+      "meaning": "A button dismissing or completing a dialog. Translate naturally in context; do not confuse the button with the transfer completion fact.",
+      "preferred": "完成（對話框按鈕）",
+      "sourceTerms": [
+        "Done"
+      ]
+    },
+    "download_folder": {
+      "meaning": "User-selected folder used to store downloads. Keep wording consistent across Android and the shared React UI.",
+      "preferred": "下載資料夾",
+      "sourceTerms": [
+        "download folder",
+        "download folders",
+        "download root",
+        "download directory"
+      ]
+    },
+    "magnet_link": {
+      "meaning": "A BitTorrent magnet URI.",
+      "preferred": "磁力連結",
+      "sourceTerms": [
+        "magnet link",
+        "magnet links"
+      ]
+    },
+    "paused": {
+      "meaning": "Torrent is retained and ordinary transfer work is stopped.",
+      "preferred": "已暫停（狀態）；暫停（動作）",
+      "sourceTerms": [
+        "paused",
+        "pause"
+      ]
+    },
+    "peer": {
+      "meaning": "Another BitTorrent participant.",
+      "preferred": "對等節點",
+      "sourceTerms": [
+        "peer",
+        "peers"
+      ]
+    },
+    "remove": {
+      "meaning": "Removing a torrent preserves downloaded data unless deletion is explicitly selected. Never conflate this with deleting files.",
+      "preferred": "移除（動作）；已移除（結果）；移除中（進行中）",
+      "sourceTerms": [
+        "remove",
+        "removes",
+        "removed",
+        "removing"
+      ]
+    },
+    "restore": {
+      "meaning": "For archived torrents, return them from Archived. Distinguish file repair, settings reset and backup restoration when context differs.",
+      "preferred": "取消封存（動作）；已取消封存（結果）；取消封存中（進行中）；還原預設值（設定）；還原備份（備份）；修復檔案（檔案修復）",
+      "sourceTerms": [
+        "restore",
+        "restored",
+        "restoring"
+      ]
+    },
+    "resume": {
+      "meaning": "Resume a retained paused transfer. Distinguish resuming existing work from starting a new operation.",
+      "preferred": "恢復傳輸（動作）；恢復傳輸中（進行中）",
+      "sourceTerms": [
+        "resume",
+        "resuming"
+      ]
+    },
+    "seeding": {
+      "meaning": "Uploading verified completed data, distinct from sharing a link. Distinguish the transfer state from the action.",
+      "preferred": "做種中（狀態）；做種（動作）",
+      "sourceTerms": [
+        "seeding",
+        "seed"
+      ]
+    },
+    "share_link": {
+      "meaning": "JSTorrent's share link, distinct from a magnet link.",
+      "preferred": "分享連結",
+      "sourceTerms": [
+        "share link",
+        "share links"
+      ]
+    },
+    "share_ratio": {
+      "meaning": "Uploaded divided by downloaded bytes, not a percentage.",
+      "preferred": "分享率（上傳量／下載量，非百分比）",
+      "sourceTerms": [
+        "share ratio"
+      ]
+    },
+    "torrent": {
+      "meaning": "A transfer may download, seed, be paused or fetch metadata; do not replace every occurrence with Download.",
+      "preferred": "種子任務（傳輸項目）；種子檔（.torrent 中繼資料檔）",
+      "sourceTerms": [
+        "torrent",
+        "torrents"
+      ]
+    },
+    "tracker": {
+      "meaning": "A service introducing peers, not a data server.",
+      "preferred": "追蹤伺服器",
+      "sourceTerms": [
+        "tracker",
+        "trackers"
+      ]
+    },
+    "verified": {
+      "meaning": "Distinguish verified data from the checking-in-progress state; inflect naturally.",
+      "preferred": "已驗證（結果）；未驗證（尚未驗證）；驗證中（進行中）",
+      "sourceTerms": [
+        "verified",
+        "unverified",
+        "verifying"
+      ]
+    },
+    "wifi_only": {
+      "meaning": "Preserve network-cost policy semantics. Do not promise all Wi-Fi is unmetered or free.",
+      "preferred": "僅限 Wi-Fi；計量付費網路；非計量付費網路（不表示免費）；「使用行動數據或計量付費 Wi-Fi 時暫停。」（設定說明）",
+      "sourceTerms": [
+        "Wi-Fi only",
+        "metered",
+        "unmetered"
+      ]
+    }
+  }
+}

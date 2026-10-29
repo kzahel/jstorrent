@@ -17,6 +17,7 @@ import catalog14 from "./tr.json";
 import catalog15 from "./ja.json";
 import catalog16 from "./ko.json";
 import catalog17 from "./zh-CN.json";
+import catalog18 from "./zh-TW.json";
 
 export const localeRegistry = {
   "sourceLocale": "en",
@@ -39,7 +40,8 @@ export const localeRegistry = {
     "tr",
     "ja",
     "ko",
-    "zh-CN"
+    "zh-CN",
+    "zh-TW"
   ],
   "previewLocales": [],
   "localeDefinitions": {
@@ -96,6 +98,9 @@ export const localeRegistry = {
     },
     "zh-CN": {
       "direction": "ltr"
+    },
+    "zh-TW": {
+      "direction": "ltr"
     }
   },
   "testLocales": [
@@ -132,6 +137,7 @@ const supportedCatalogs = {
   "ja": catalog15,
   "ko": catalog16,
   "zh-CN": catalog17,
+  "zh-TW": catalog18,
 };
 const previewCatalogs = import.meta.env.VITE_RSTORRENT_ENABLE_PREVIEW_LOCALES === "1" ? {
 

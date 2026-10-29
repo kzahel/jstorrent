@@ -128,6 +128,12 @@
       "quantities": [
         "other"
       ]
+    },
+    "zh-TW": {
+      "catalog": "clients/android/app/src/main/res/values-zh-rTW/strings.xml",
+      "quantities": [
+        "other"
+      ]
     }
   },
   "schemaVersion": 1

@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "選擇下載資料夾",
+  "dialog.settings-save.body": "JSTorrent 無法儲存「在背景執行」設定。先前的設定仍然有效。",
+  "dialog.settings-save.title": "JSTorrent 設定未儲存",
+  "dialog.shutdown.body": "JSTorrent 無法完成結束程序。為保護您的資料，程式並未強制關閉。請先查看診斷記錄，再試一次。",
+  "dialog.shutdown.title": "JSTorrent 無法結束",
+  "dialog.torrent-list-export.title": "匯出種子任務清單",
+  "dialog.torrent-list-import.title": "匯入種子任務清單",
+  "dialog.torrent-list.filter": "種子任務清單",
+  "notification.download-complete.body": "{name} 已完成下載。",
+  "notification.download-complete.title": "下載完成",
+  "notification.needs-attention.body": "{name} 需要處理。請開啟 JSTorrent 查看詳細資訊。",
+  "notification.needs-attention.title": "下載需要處理",
+  "notification.open": "開啟 JSTorrent",
+  "notification.unnamed-torrent": "種子任務",
+  "power.active-transfer-reason": "JSTorrent 正在下載或驗證內容",
+  "tray.check-updates": "檢查更新",
+  "tray.quit": "結束 JSTorrent",
+  "tray.run-in-background": "在背景執行",
+  "tray.show": "顯示 JSTorrent",
+  "tray.tooltip": "JSTorrent"
+}
