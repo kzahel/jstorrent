@@ -53,6 +53,12 @@
         "other"
       ]
     },
+    "ko": {
+      "catalog": "clients/android/app/src/main/res/values-ko/strings.xml",
+      "quantities": [
+        "other"
+      ]
+    },
     "nl": {
       "catalog": "clients/android/app/src/main/res/values-nl/strings.xml",
       "quantities": [

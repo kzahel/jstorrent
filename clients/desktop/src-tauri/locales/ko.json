@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "다운로드 폴더 선택",
+  "dialog.settings-save.body": "JSTorrent에서 “백그라운드에서 실행” 설정을 저장하지 못했습니다. 이전 설정이 계속 적용됩니다.",
+  "dialog.settings-save.title": "JSTorrent 설정 저장 실패",
+  "dialog.shutdown.body": "JSTorrent를 완전히 종료하지 못했습니다. 데이터 처리를 강제로 종료하지는 않았습니다. 다시 시도하기 전에 진단 로그를 확인하십시오.",
+  "dialog.shutdown.title": "JSTorrent 종료 실패",
+  "dialog.torrent-list-export.title": "토렌트 목록 내보내기",
+  "dialog.torrent-list-import.title": "토렌트 목록 가져오기",
+  "dialog.torrent-list.filter": "토렌트 목록",
+  "notification.download-complete.body": "{name} 다운로드가 완료되었습니다.",
+  "notification.download-complete.title": "다운로드 완료",
+  "notification.needs-attention.body": "{name}에 조치가 필요합니다. 자세한 내용은 JSTorrent를 열어 확인하십시오.",
+  "notification.needs-attention.title": "다운로드에 조치 필요",
+  "notification.open": "JSTorrent 열기",
+  "notification.unnamed-torrent": "토렌트",
+  "power.active-transfer-reason": "JSTorrent에서 콘텐츠를 다운로드하거나 검증하고 있습니다.",
+  "tray.check-updates": "업데이트 확인",
+  "tray.quit": "JSTorrent 종료",
+  "tray.run-in-background": "백그라운드에서 실행",
+  "tray.show": "JSTorrent 표시",
+  "tray.tooltip": "JSTorrent"
+}
