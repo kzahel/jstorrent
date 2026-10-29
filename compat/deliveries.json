@@ -193,10 +193,10 @@
       "commit": "f2c93a45715e3f7801f3e62fd1ebf938748a497b",
       "channel": "play-production",
       "channelBasis": "Released to internal testing on 2026-10-25, then the same bundle (SHA-256 d7916d95…c903e) was submitted to production as a 50% staged rollout through android-play-publish.yml run 40194717239.",
-      "status": "rolling-out",
+      "status": "published",
       "submitted": "2026-10-25",
       "firstPublic": "2026-10-25",
-      "firstPublicBasis": "Play Console shows production 1.0.33 Available on Google Play, staged rollout at 50%, updated October 25 at 14:02 Europe/Berlin; 1.0.32 remains the full-rollout release for other users.",
+      "firstPublicBasis": "Play Console shows production 1.0.33 Available on Google Play, staged rollout at 50%, updated October 25 at 14:02 Europe/Berlin; 1.0.32 remains the full-rollout release for other users. Read-only Play API and Console inspection on 2026-10-29 confirm code 33 completed, Available on Google Play, Full rollout across all 178 countries; Console shows full-rollout update October 27 at 21:44 Europe/Berlin.",
       "roles": ["host"]
     },
     {
@@ -217,9 +217,24 @@
       "tag": "extension-v1.1.7",
       "commit": "0f1285502e9c4aba8a07e23e37278d82bc02c463",
       "channel": "chrome-web-store",
-      "status": "submitted",
+      "status": "published",
       "submitted": "2026-10-27",
       "firstPublic": null,
+      "roles": [
+        "client"
+      ],
+      "firstPublicBasis": "Verified PUBLISHED by the authenticated store receipt for extension 1.1.8 on 2026-10-29. Exact first-public date remains unestablished; keep firstPublic null conservatively."
+    },
+    {
+      "surface": "extension",
+      "version": "1.1.8",
+      "tag": "extension-v1.1.8",
+      "commit": "7d1728352d928bd3436170c719bea67a87911bc1",
+      "channel": "chrome-web-store",
+      "status": "submitted",
+      "submitted": "2026-10-29",
+      "firstPublic": null,
+      "channelBasis": "Actions 40829159867 succeeded; authenticated store receipt reports PENDING_REVIEW with automatic publication after approval. The checksum-bound tested ZIP and source are retained in the GitHub release.",
       "roles": [
         "client"
       ]
