@@ -1,0 +1,22 @@
+{
+  "dialog.download-folder.title": "Vyberte složku pro stahování",
+  "dialog.settings-save.body": "JSTorrent nemohl uložit nastavení „Běh na pozadí“. Původní nastavení zůstává v platnosti.",
+  "dialog.settings-save.title": "Nastavení aplikace JSTorrent nebylo uloženo",
+  "dialog.shutdown.body": "Ukončování aplikace JSTorrent se nepodařilo dokončit. Práce s vašimi daty nebyla vynuceně ukončena. Před dalším pokusem zkontrolujte diagnostický protokol.",
+  "dialog.shutdown.title": "JSTorrent se nepodařilo ukončit",
+  "dialog.torrent-list-export.title": "Exportovat seznam torrentů",
+  "dialog.torrent-list-import.title": "Importovat seznam torrentů",
+  "dialog.torrent-list.filter": "Seznam torrentů",
+  "notification.download-complete.body": "Stahování torrentu {name} bylo dokončeno.",
+  "notification.download-complete.title": "Stahování dokončeno",
+  "notification.needs-attention.body": "Torrent {name} vyžaduje vaši pozornost. Podrobnosti najdete v aplikaci JSTorrent.",
+  "notification.needs-attention.title": "Stahování vyžaduje vaši pozornost",
+  "notification.open": "Otevřít JSTorrent",
+  "notification.unnamed-torrent": "Torrent",
+  "power.active-transfer-reason": "JSTorrent stahuje nebo kontroluje data",
+  "tray.check-updates": "Vyhledat aktualizace",
+  "tray.quit": "Ukončit JSTorrent",
+  "tray.run-in-background": "Běh na pozadí",
+  "tray.show": "Zobrazit JSTorrent",
+  "tray.tooltip": "JSTorrent"
+}

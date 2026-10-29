@@ -201,7 +201,7 @@ release qualification repeats after the test correction is committed.
 | nl | Reviewed | 1,797 / 20 / 662 reviewed | Release qualified |
 | sv | Reviewed | 1,797 / 20 / 662 reviewed | Release qualified |
 | da | Reviewed | 1,797 / 20 / 662 reviewed | Release qualified |
-| cs | Reviewed | Pending | Pending |
+| cs | Reviewed | 1,797 / 20 / 662 reviewed | Release qualified |
 | pl | Reviewed | Pending | Pending |
 | ro | Reviewed | Pending | Pending |
 | ru | Reviewed | Pending | Pending |
@@ -325,6 +325,28 @@ example relay. Runtime evidence is macOS/owned Android, with no deployed relay,
 Windows/Linux runtime or publication claim.
 
 ### Danish (`da`)
+
+All 2,479 resources are independently translated/reviewed with verified local
+Sol 6.1/high/normal/bypass sessions. Shared terminology has separate author and
+reviewer identities. All three platform lists advertise release support; the
+Android catalog is in `main`, and preview registration is removed. English and
+all previously shipping languages are retained.
+
+Validation: source/catalog/provenance checks and typecheck; 959 web and
+94 desktop unit cases; 7 production-browser cases with the profile's
+System probes, exact shipping picker, pseudo exclusion, persistence/focus,
+plural/destructive copy, narrow layout and Axe; native menu 17/17 and product
+29/29 across restart; native release compilation and workspace formatting.
+Android debug/release unit suites pass 225/225 cases, resource/Kotlin release
+packaging and both lint variants pass, and signed APK/AAB identity, ABI,
+16 KiB alignment and offline language packaging validate. Owned API 28/35
+matrices pass 9/11 cases and remove both AVDs. Branding and all ordinary/companion/
+remote frontend CSP checks pass. Android packaging reuses unchanged prequalified
+Rust/JNI inputs; remote frontend reuses unchanged Wasm with a nonconnecting
+example relay. Runtime evidence is macOS/owned Android, with no deployed relay,
+Windows/Linux runtime or publication claim.
+
+### Czech (`cs`)
 
 All 2,479 resources are independently translated/reviewed with verified local
 Sol 6.1/high/normal/bypass sessions. Shared terminology has separate author and
