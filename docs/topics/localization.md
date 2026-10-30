@@ -9,8 +9,9 @@ the authoritative availability list; iOS remains English-only.
 
 Production delivery is recorded in Tactical
 [389](../tactical/389-localized-product-release.md). Android 1.0.35 is public
-at one percent on the existing staged plan, with an actual Play-signed upgrade
-retaining the library and original language preference. Remote controller
+at 100% after explicitly authorized rollout completion on October 30, with
+an actual Play-signed upgrade retaining the library and original language
+preference. Remote controller
 0.3.5 and desktop 0.3.6 are public; Stable/Latest retain the same signed native
 bytes, and the canonical website serves the qualified 0.3.6 downloads and
 nineteen-language release notes. Extension 1.1.8 is public; Tactical 390 has

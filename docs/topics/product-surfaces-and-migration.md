@@ -7,8 +7,10 @@ It carries forward the existing extension 1.1.5+ host requirement for the same
 eight reviewed fields, preserves identities/signing/data and separates store
 submission from approval. The nineteen-locale source is qualified in 388.
 The extension and remote controller are public. Android 1.0.35 is available to
-one percent of production users across the existing 178 countries, following
-a verified Play-signed upgrade and the registered standard seven-day plan.
+100% of production users across the existing 178 countries. The maintainer
+explicitly authorizes completion on October 30; rollout workflow 41110914606
+and authenticated Play Console confirm 100% availability of the same verified
+Play-signed bundle, superseding its remaining standard seven-day steps.
 Desktop 0.3.6 is public on Stable and Latest from full-CI-qualified source
 5e3af4fd. All seventeen public assets per channel and all ten updater offers
 verify; unchanged-byte promotion 40872253650 and canonical website deployment

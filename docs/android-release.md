@@ -1,5 +1,16 @@
 # Android Release Runbook
 
+On October 30, 2026, the maintainer explicitly requests completion of Android
+1.0.35/code 35's production rollout. Fresh Play report
+[41110829463](https://github.com/kzahel/jstorrent/actions/runs/41110829463)
+passes the existing report-count vitals gate (rate data is stale).
+[Rollout 41110914606](https://github.com/kzahel/jstorrent/actions/runs/41110914606)
+completes the existing bundle from 1% to 100%, recorded by production deployment
+7446386562. Authenticated Play Console confirms **Available on Google Play**,
+**Rollout percentage 100%**, and availability in all 178 existing countries;
+code 33 is deactivated, with no retained bundles. This explicit completion
+supersedes the remaining standard-7d steps for this version only.
+
 Tactical [389](tactical/389-localized-product-release.md) records October 29's
 public 1.0.35/code 35 production rollout, starting at one percent across the
 existing 178 countries on the registered standard seven-day plan. The same

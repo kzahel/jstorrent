@@ -7,7 +7,8 @@
 
 - [389 — Localized product release](389-localized-product-release.md):
   complete; desktop 0.3.6 Stable/Latest, extension 1.1.8, remote 0.3.5 and website
-  public; Android 1.0.35 available at 1% on the unchanged standard staged plan.
+  public; Android 1.0.35 confirmed available at 100% on October 30 after explicit
+  maintainer authorization to complete its staged rollout.
 
 - [388 — Remaining localization campaign](388-remaining-localization-campaign.md):
   complete; 16/16 qualified, nineteen release-input locales across React, native

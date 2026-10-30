@@ -20,8 +20,10 @@ public on October 29, with exact independent client captures and successful
 live matrices. Remote 0.3.4 remains an unserved, withdrawn attempt. Android
 1.0.34 passed its tagged build, exact-source CI and internal Play upload, but
 its production candidacy is withdrawn in favor of 1.0.35's ZIP security repair.
-Android 1.0.35 is now publicly rolling out at one percent, firstPublic October
-29, after the same internal AAB passes physical Play-upgrade qualification.
+Android 1.0.35 first became public on October 29 after the same internal AAB
+passed physical Play-upgrade qualification. Explicitly authorized completion
+on October 30 reaches 100%, confirmed by workflow 41110914606 and Play Console.
+The firstPublic date and compatibility window remain October 29.
 Desktop 0.3.6 is public on both Stable and Latest at full-CI-qualified source
 5e3af4fd. Its exact host capture and 91 compatibility cases pass; promotion
 40872253650 preserves native/source bytes and rebinds authenticated updater

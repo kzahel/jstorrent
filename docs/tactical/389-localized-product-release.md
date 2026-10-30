@@ -1,12 +1,12 @@
 # 389 — Localized product release
 
-Status: **Complete (October 29, 2026), with Android on its standard staged rollout.** The maintainer explicitly requests a new
+Status: **Complete (October 29, 2026); Android rollout completed at 100% on October 30.** The maintainer explicitly requests a new
 release across desktop, extension, mobile, website and the other production
 surfaces after accepting the localized Pixel 9 development build.
 
 Current delivery: desktop 0.3.6 is public on Stable and Latest; extension
-1.1.8 and remote controller 0.3.5 are public; Android 1.0.35 is publicly rolling
-out at one percent on the registered standard seven-day plan. The canonical
+1.1.8 and remote controller 0.3.5 are public; Android 1.0.35 is available at
+100% after explicit maintainer authorization on October 30. The canonical
 website serves the qualified 0.3.6 downloads and nineteen-language release
 notes. The original desktop 0.3.5 private draft is preserved unchanged.
 The separate localized extension 1.1.9/store-description follow-up remains
@@ -369,8 +369,9 @@ guide no longer advertises its stale first-cutover version. Astro checks all 27
 files without diagnostics, and the production build plus 58 generated route
 policies pass. The actual website workflows also pass their test/build gates.
 
-Android remains available to one percent, with automatic standard-7d holds and
-increments; do not confuse this with 100% rollout or manually advance it.
+At the October 29 checkpoint, Android is available to one percent, with
+automatic standard-7d holds and increments. The October 30 authorization and
+completion below supersede that staged-rollout restriction.
 The official physical Play upgrade, retained Google signer, exact installed
 native libraries, five retained seeding torrents, all nineteen picker locales,
 French restart and restored System preference are recorded above. Extension
@@ -385,3 +386,31 @@ twenty-three entries and their required captures.
 Task-owned captures, downloads, logs, helper processes and the isolated release
 checkout are removed after their durable evidence is committed and pushed;
 other sessions, store dashboard state and localization locks are preserved.
+
+## Android rollout completion, October 30
+
+The maintainer explicitly requests Android production at 100% now, superseding
+this version's remaining standard-7d stages. The existing signed
+`android-v1.0.35`/code 35 bundle is retained, with SHA-256
+`edcf00fc29b6e80a44a601f6b9859bb37a01d822e1d190c222938a3bf1fc1fb7`.
+No build or new version is needed.
+
+Fresh read-only [report 41110829463](https://github.com/kzahel/jstorrent/actions/runs/41110829463)
+confirms code 35 at 1% and passes the existing report-count vitals gate. No
+crash or ANR counts are returned for the rollout observation period. Crash
+rate data ends October 21 and is stale; this is bounded gate evidence, not a
+claim of zero failures.
+
+[Rollout 41110914606](https://github.com/kzahel/jstorrent/actions/runs/41110914606)
+is dispatched with `tag=android-v1.0.35`, `action=complete` and its existing
+production environment is approved under the explicit maintainer instruction.
+It succeeds at 18:55 UTC, submitting one validated Play edit from
+`inProgress`/0.01 to `completed`, with production deployment 7446386562.
+The deployment preserves the source, bundle hash and original plan history.
+
+Authenticated Play Console independently confirms **Available on Google Play**,
+**Rollout percentage 100%**, **Rolled out to 100%**, and availability in **178 of
+178 countries / regions**. Its bundle table shows code 35 active, code 33
+deactivated and no retained bundles. The existing first-public date remains
+October 29. No unpublished changes are shown in Test and release. The rollout
+is complete; the scheduled advancer has no remaining stage for this version.
