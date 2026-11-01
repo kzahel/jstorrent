@@ -50,6 +50,8 @@ try {
     return route.fulfill({ status: 200, contentType: file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.png') ? 'image/png' : 'text/html', body });
   });
   const popup = await browser.newPage();
+  // Keep the host's native setup out of this disposable browser smoke.
+  await popup.addInitScript(() => { chrome.runtime.getPlatformInfo = async () => ({ os: 'cros' }); });
   await popup.goto(`chrome-extension://${id}/popup/popup.html`);
   const page = await browser.newPage();
   await page.goto('https://jstorrent.com/chrome-extension.html');
@@ -68,6 +70,37 @@ try {
   assert.equal(await page.getByRole('textbox', { name: 'Magnet link' }).inputValue(), magnet);
   assert.doesNotMatch(await page.locator('#status').innerText(), /Torrent Added|JSTorrent is not installed/);
   console.log('PASS legacy recovery preserves input without false installation or success claims');
+  for (const companion of browser.pages().filter(candidate => candidate.url().includes('/companion/companion.html'))) await companion.close();
+  await popup.evaluate(() => chrome.runtime.sendMessage({ type: 'productMetrics', op: 'support', failure: 'none' }));
+  const pending = await browser.newPage();
+  await pending.addInitScript(() => {
+    // Inject an unreachable Android service while retaining the actual worker,
+    // storage and report URL generation. Never contact an installed app.
+    chrome.permissions.contains = async () => true;
+    globalThis.fetch = async () => { throw new TypeError('controlled offline fixture'); };
+  });
+  await pending.goto(`chrome-extension://${id}/companion/companion.html`);
+  await pending.waitForFunction(async () => (await chrome.storage.session.get('supportContextV1')).supportContextV1?.failure === 'connecting');
+  assert.equal(await pending.locator('#companion-bootstrap').isVisible(), true);
+  assert.equal(await pending.locator('#app').evaluate(element => element.childElementCount), 0);
+  await pending.close();
+  const unfinished = await popup.evaluate(() => chrome.runtime.sendMessage({ type: 'productMetrics', op: 'feedback' }));
+  assert.equal(new URL(unfinished.state.url).searchParams.get('failure'), 'connecting');
+  console.log('PASS real worker retains unfinished Android connection after page closes');
+  const worker = browser.serviceWorkers()[0] ?? await browser.waitForEvent('serviceworker');
+  await worker.evaluate(() => {
+    const native = chrome.runtime.sendNativeMessage.bind(chrome.runtime);
+    // Exercise a real Chrome missing-host error without launching a native app.
+    chrome.runtime.sendNativeMessage = (_host, request, callback) => native('com.jstorrent.repro_missing_host', request, callback);
+  });
+  const desktop = await browser.newPage();
+  await desktop.addInitScript(() => { chrome.runtime.getPlatformInfo = async () => ({ os: 'win' }); });
+  await desktop.goto(`chrome-extension://${id}/popup/popup.html`);
+  await desktop.waitForFunction(async () => (await chrome.storage.session.get('supportContextV1')).supportContextV1?.failure === 'native_host_unavailable');
+  const missing = await desktop.evaluate(() => chrome.runtime.sendMessage({ type: 'productMetrics', op: 'feedback' }));
+  assert.equal(new URL(missing.state.url).searchParams.get('failure'), 'native_host_unavailable');
+  await desktop.close();
+  console.log('PASS real missing-native-host error survives Windows popup reporting');
   const report = await popup.evaluate(async () => {
     await chrome.runtime.sendMessage({ type: 'productMetrics', op: 'support', failure: 'permission_denied' });
     return chrome.runtime.sendMessage({ type: 'productMetrics', op: 'feedback' });

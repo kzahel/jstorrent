@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import vm from 'node:vm'
+import { SUPPORT_FAILURES } from '../clients/extension/src/support-context.js'
 
 const script = readFileSync(
   new URL('../website/public/product-context.js', import.meta.url),
@@ -105,6 +106,14 @@ test('extension support fields survive both forms without accepting arbitrary UR
   for (const kind of ['feedback', 'uninstall']) {
     assert.deepEqual(values('?' + new URLSearchParams(fields), kind), fields)
     assert.deepEqual(values('?entry=https://private.example/path&failure=private-error&surface=unknown&chrome=150/secret', kind), {})
+  }
+})
+
+test('both hosted forms retain every result the extension can report', () => {
+  for (const failure of SUPPORT_FAILURES) {
+    for (const kind of ['feedback', 'uninstall']) {
+      assert.deepEqual(values('?' + new URLSearchParams({ failure }), kind), { failure })
+    }
   }
 })
 

@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AndroidCompanionPairingFailed, AndroidCompanionUnavailable, AndroidCompanionUpdateRequired } from "./android-companion-client";
-const mock = vi.hoisted(() => ({ connect: vi.fn(), mount: vi.fn(), permission: vi.fn(), grant: vi.fn(), addListener: vi.fn(), removeListener: vi.fn() }));
+const mock = vi.hoisted(() => ({ connect: vi.fn(), mount: vi.fn(), permission: vi.fn(), grant: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), support: vi.fn() }));
 vi.mock("./android-companion-client", async (original) => ({
   ...await original<typeof import("./android-companion-client")>(), connectAndroidCompanion: mock.connect,
 }));
 vi.mock("./inspection/companion-bootstrap", () => ({ startCompanionInspection: mock.mount }));
 vi.mock("./localization/runtime", () => ({ message: (key: string) => key }));
+vi.mock("./extension-support", () => ({ extensionSupport: mock.support, onExtensionStatisticsChanged: () => () => {} }));
 import { startAndroidCompanion } from "./android-companion-main";
 
 const button = (id = "companion-cancel") => document.getElementById(id) as HTMLButtonElement;
@@ -30,6 +31,38 @@ describe("Android pre-connection recovery ownership", () => {
     window.dispatchEvent(new PageTransitionEvent("pagehide"));
     await vi.advanceTimersByTimeAsync(0);
     vi.useRealTimers(); vi.unstubAllGlobals();
+  });
+  it("records an unfinished attempt before permission and retains it on departure", async () => {
+    let permitted!: (value: boolean) => void;
+    mock.permission.mockReturnValue(new Promise(resolve => { permitted = resolve; }));
+    const task = startAndroidCompanion();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mock.support).toHaveBeenCalledWith("support", "connecting");
+    button("companion-preview").click();
+    expect(JSON.parse((document.getElementById("companion-context") as HTMLTextAreaElement).value).category).toBe("connecting");
+    window.dispatchEvent(new PageTransitionEvent("pagehide"));
+    permitted(true); await task;
+    expect(mock.connect).not.toHaveBeenCalled();
+    expect(mock.support.mock.calls.filter(([op]) => op === "support").map(([, category]) => category)).toEqual(["connecting", "connecting"]);
+  });
+  it("records success only after the library mounts and resets a retry to connecting", async () => {
+    const connection = connected();
+    let mounted!: (close: () => Promise<void>) => void;
+    mock.mount.mockReturnValue(new Promise(resolve => { mounted = resolve; }));
+    const task = startAndroidCompanion();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mock.support.mock.calls.filter(([op]) => op === "support").map(([, category]) => category)).toEqual(["connecting"]);
+    mounted(connection.unmount); await vi.advanceTimersByTimeAsync(0);
+    expect(mock.support).toHaveBeenCalledWith("support", "none");
+    connection.disconnect(); await task;
+    expect(mock.support.mock.calls.filter(([op]) => op === "support").map(([, category]) => category)).toEqual(["connecting", "none", "disconnected"]);
+    mock.connect.mockImplementation((_update, signal: AbortSignal) => new Promise((_, reject) => {
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    }));
+    button().click(); await vi.advanceTimersByTimeAsync(0);
+    expect(mock.support.mock.calls.filter(([op]) => op === "support").at(-1)).toEqual(["support", "connecting"]);
+    button().click(); await vi.advanceTimersByTimeAsync(0);
+    expect(mock.support.mock.calls.filter(([op]) => op === "support").at(-1)).toEqual(["support", "canceled"]);
   });
   it("denied optional permission contacts no service and makes no app/Play claim", async () => {
     mock.permission.mockResolvedValue(false);

@@ -1,7 +1,7 @@
 // Disposable browser-session observations. Never store URLs supplied by a page.
 export const SUPPORT_CONTEXT_KEY = "supportContextV1";
 export const SUPPORT_FAILURES = new Set([
-  "none", "permission_denied", "service_unreachable", "connection_failed",
+  "none", "connecting", "permission_denied", "service_unreachable", "connection_failed",
   "disconnected", "timeout", "canceled", "app_update_required",
   "extension_update_required", "pairing_rejected", "pairing_expired",
   "native_host_unavailable", "bootstrap_timeout", "authentication_failed",

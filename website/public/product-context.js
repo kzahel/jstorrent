@@ -44,7 +44,7 @@
   ]
   const uninstall = ['v', 'id', 'days', 'connected', 'downloads', 'added', 'sessions',
     'platform', 'surface', 'extv', 'chrome', 'entry', 'failure']
-  const failures = new Set(['none', 'permission_denied', 'service_unreachable', 'connection_failed',
+  const failures = new Set(['none', 'connecting', 'permission_denied', 'service_unreachable', 'connection_failed',
     'disconnected', 'timeout', 'canceled', 'app_update_required', 'extension_update_required',
     'pairing_rejected', 'pairing_expired', 'native_host_unavailable', 'bootstrap_timeout',
     'authentication_failed', 'invalid_version', 'unreachable', 'service_error', 'wrong_service',

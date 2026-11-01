@@ -1,5 +1,49 @@
 # Installation Product State And Feedback
 
+## Unfinished extension connections, 2026-11-01
+
+Android companion attempts record `connecting` before waiting for optional
+permission, service discovery, pairing or library mount. Only a completed
+mount records `none`; a page closed mid-attempt can retain `connecting`
+instead of an earlier success. This is a disposable last observation, not a
+per-tab history or evidence of an application crash. Retry starts a new
+observation; explicit cancellation and observed failures retain their codes.
+
+The desktop popup records setup/start progress and preserves the bounded
+`native_host_unavailable` and `bootstrap_timeout` results. Invalid native
+responses map to `invalid_response`; unknown codes and thrown errors remain
+`connection_failed`. Host messages and paths never enter report context.
+Hosted feedback and uninstall parsers accept the optional `connecting` code;
+older hosted pages may omit that code until updated. Older workers may
+refuse it without affecting the connection. Statistics opt-out and the
+existing identifier/counter gates are unchanged. No release is implied by
+these source changes.
+
+Validation passes web typechecking, 983 web tests (three existing skips),
+86 extension tests, 97 website tests, website check/build, localization,
+extension packaging/CSP checks and all 17 packaged onboarding cases. The
+report/handoff smoke additionally checks an unfinished Android attempt
+closed before discovery completes, a real Chrome missing-native-host error
+with Windows popup presentation, and statistics opt-out through the real
+extension worker. App/network boundaries are controlled fixtures; these
+smokes do not qualify Chrome 156 or installed Windows desktop behavior.
+
+```bash
+npm run typecheck --prefix clients/web
+npm test --prefix clients/web
+npm test --prefix clients/extension
+npm test --prefix website
+npm run check --prefix website
+npm run build --prefix website
+node scripts/check-localization.mjs
+npm run package --prefix clients/extension
+node scripts/verify-browser-report-handoff.mjs \
+  target/extension/jstorrent-beta-0.4.0.zip
+node scripts/verify-chromeos-onboarding.mjs \
+  target/extension/jstorrent-beta-0.4.0.zip
+git diff --check
+```
+
 ## Extension report context, 2026-10-27
 
 Tactical [386](../tactical/386-browser-handoff-and-report-context.md) adds

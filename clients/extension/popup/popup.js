@@ -37,6 +37,14 @@ function recordSupport(failure) {
   void metricsRequest("support", { failure }).catch(() => {});
 }
 
+function bootstrapSupportFailure(response) {
+  // Keep native setup failures distinct without reporting arbitrary codes,
+  // messages or paths supplied by the host.
+  const code = response?.error?.code;
+  if (code === "native_host_unavailable" || code === "bootstrap_timeout") return code;
+  return code === "invalid_native_response" ? "invalid_response" : "connection_failed";
+}
+
 document.querySelector("#feedback-preview").addEventListener("click", async () => {
   try {
     const response = await metricsRequest("feedback");
@@ -59,9 +67,12 @@ function request(op) {
 async function checkDesktop() {
   setStatus("checking", t("popup_dynamic_002"), t("popup_dynamic_003"));
   launchButton.disabled = true;
+  let failure = "connection_failed";
+  recordSupport("connecting");
   try {
     const response = await request("hello");
     if (!response?.ok || response.result?.kind !== "hello") {
+      failure = bootstrapSupportFailure(response);
       throw new Error(response?.error?.message || t("popup_dynamic_004"));
     }
     setStatus(
@@ -73,7 +84,7 @@ async function checkDesktop() {
     recordSupport("none");
     launchButton.disabled = false;
   } catch (error) {
-    recordSupport("connection_failed");
+    recordSupport(failure);
     setStatus(
       "error",
       t("popup_dynamic_008"),
@@ -87,9 +98,12 @@ async function checkDesktop() {
 launchButton.addEventListener("click", async () => {
   launchButton.disabled = true;
   setStatus("checking", t("popup_dynamic_010"), t("popup_dynamic_011"));
+  let failure = "connection_failed";
+  recordSupport("connecting");
   try {
     const response = await chrome.runtime.sendMessage({ type: "desktopBootstrap", op: "open" });
     if (!response?.ok || response.result?.kind !== "desktop_ui") {
+      failure = bootstrapSupportFailure(response);
       throw new Error(response?.error?.message || t("popup_dynamic_012"));
     }
     setStatus(
@@ -98,6 +112,7 @@ launchButton.addEventListener("click", async () => {
       t("popup_dynamic_014"),
     );
   } catch (error) {
+    recordSupport(failure);
     setStatus(
       "error",
       t("popup_dynamic_015"),

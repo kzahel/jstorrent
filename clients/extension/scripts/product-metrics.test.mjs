@@ -65,6 +65,18 @@ test("support context strips URL authority and opt-out clears session context an
   await assert.rejects(owner.observeSupport("chrome-extension://extension/popup/popup.html", "private raw error"), /failure/u);
 });
 
+test("an unfinished connection replaces earlier success in feedback and uninstall URLs", async () => {
+  const { owner, urls } = fixture();
+  const page = "chrome-extension://extension/companion/companion.html";
+  await owner.observeSupport(page, "none");
+  await owner.observeSupport(page, "connecting");
+  assert.equal(new URL(urls.at(-1)).searchParams.get("failure"), "connecting");
+  assert.equal(new URL((await owner.feedbackUrl()).url).searchParams.get("failure"), "connecting");
+  await owner.acknowledge(false);
+  assert.equal(new URL(urls.at(-1)).searchParams.has("failure"), false);
+  assert.equal(new URL((await owner.feedbackUrl()).url).searchParams.has("failure"), false);
+});
+
 test("serialized events saturate state and reset rotates only extension metrics", async () => {
   const { owner } = fixture();
   const initial = await owner.snapshot();

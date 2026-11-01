@@ -57,7 +57,7 @@ test("ChromeOS copy uses only the exact published Android listing", () => {
 
 // Execute the actual popup entry point with browser/document boundaries mocked.
 // A tab with the popup URL must not be mistaken for the toolbar action.
-async function runPopup({ os = "mac", popupView = false, granted = true, translate = t } = {}) {
+async function runPopup({ os = "mac", popupView = false, granted = true, translate = t, bootstrap } = {}) {
   const { runInNewContext } = await import("node:vm");
   const requests = [];
   const elements = new Map();
@@ -84,6 +84,7 @@ async function runPopup({ os = "mac", popupView = false, granted = true, transla
           requests.push(request);
           if (request.type === "androidBootstrap") return { ok: true, result: { kind: "android_ui", status: "opened" } };
           if (request.type === "productMetrics") return { ok: true, state: metrics };
+          if (bootstrap) return bootstrap(request);
           return { ok: true, result: { kind: request.op === "hello" ? "hello" : "desktop_ui", hostVersion: "test" } };
         },
       },
@@ -92,6 +93,22 @@ async function runPopup({ os = "mac", popupView = false, granted = true, transla
   await new Promise(resolve => setImmediate(resolve));
   return { requests, launch: () => element("#launch").click(), android: () => element("#connect-android").click(), androidStatus: () => element("#android-status").textContent,
     linux: () => element("#launch-linux").click(), linuxStatus: () => element("#linux-status").textContent };
+}
+
+for (const [code, expected] of [["native_host_unavailable", "native_host_unavailable"],
+  ["bootstrap_timeout", "bootstrap_timeout"], ["invalid_native_response", "invalid_response"],
+  ["/private/path token=secret", "connection_failed"], [undefined, "connection_failed"]]) {
+  test(`Windows setup reports bounded native failure ${String(code)}`, async () => {
+    const { requests } = await runPopup({ os: "win", bootstrap: () => ({ ok: false, error: { code, message: "Setup failed" } }) });
+    assert.deepEqual(requests.filter(value => value.op === "support").map(value => value.failure), ["connecting", expected]);
+    assert.equal(requests.some(value => value.type === "desktopBootstrap"), false);
+  });
+  test(`Windows explicit launch reports bounded native failure ${String(code)}`, async () => {
+    const { requests, launch } = await runPopup({ os: "win", bootstrap: request => request.type === "nativeBootstrap"
+      ? { ok: true, result: { kind: "hello" } } : { ok: false, error: { code, message: "Start failed" } } });
+    await launch();
+    assert.deepEqual(requests.filter(value => value.op === "support").map(value => value.failure), ["connecting", "none", "connecting", expected]);
+  });
 }
 
 for (const os of ["mac", "win", "linux"]) {

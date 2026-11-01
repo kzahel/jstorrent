@@ -41,7 +41,7 @@ export async function startAndroidCompanion(): Promise<void> {
   const app = element("app");
   const chrome = (globalThis as typeof globalThis & { chrome?: ChromeConnectionContext }).chrome;
   let stage: AndroidConnectionStage | "connected" = "discovery";
-  let category = "none";
+  let category = "connecting";
   let permission = "unknown";
   let version = "unknown";
   let appVersion = "unknown";
@@ -138,7 +138,10 @@ export async function startAndroidCompanion(): Promise<void> {
     };
     const canceled = () => { departed(); void closeClient(); };
     abort.signal.addEventListener("abort", canceled, { once: true });
-    category = "none";
+    // Persist the unfinished attempt before permission/discovery can wait or
+    // the page can close. Only a mounted library establishes success.
+    category = "connecting";
+    void recordSupport();
     stage = "discovery";
     context.hidden = true;
     element("companion-context-privacy").hidden = true;
@@ -181,6 +184,7 @@ export async function startAndroidCompanion(): Promise<void> {
       if (reportedVersion !== undefined) appVersion = reportedVersion;
       versionStatus = "compatible";
       stage = "connected";
+      category = "none";
       void recordSupport();
       connecting = false;
       bootstrap.hidden = true;
