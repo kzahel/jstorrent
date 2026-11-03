@@ -1,6 +1,7 @@
 # Tactical 381: Dependency Cleanup And Fresh Security Findings
 
-Status: In progress, 2026-10-24.
+Status: In progress, 2026-11-03. Local executor/audit repair qualified;
+hosted qualification pending.
 
 Topic: `beta-release-readiness`.
 
@@ -336,3 +337,73 @@ pass. An early matrix invocation was cancelled while waiting for the Cargo
 build lock, before scenarios ran; the completed run followed the explicit
 binary prebuild. Full hosted CI has not been rerun. No release is published
 by this repair.
+
+## November 3 desktop executor and audit repair
+
+Housekeeping finds no open PRs or active Dependabot alerts. Security updates
+remain enabled and routine version PRs remain disabled. Published main at
+`ef9d469a` passes full CI (all ten product/tool jobs), Fast CI, compatibility,
+the verification matrix and Desktop Latest. The pre-existing local commit
+`d967b299` has not been published or covered by those hosted runs.
+
+Daily advisory run 41639914406 fails with AttributeError before writing its
+failure artifact: cargo-audit's newly yanked async-executor 1.14.0 warning has
+`advisory: null`. Normalize null and missing advisory fields identically,
+retaining strict inventory rejection. Regression tests exercise both warning
+forms and verify that the actual CLI writes the bounded failed receipt.
+
+The [upstream 1.14.1 release](https://github.com/smol-rs/async-executor/releases/tag/v1.14.1)
+fixes a use-after-free when a waker fires during Executor destruction.
+Reviewed paths: upstream CHANGELOG.md, Cargo.toml, src/lib.rs and
+src/static_executors.rs in the v1.14.0...v1.14.1 comparison, plus
+[PR 164](https://github.com/smol-rs/async-executor/pull/164). The patch restores
+Arc-owned state in scheduling callbacks. Adopt the released patch without
+copying implementation or fixtures. The workspace lockfile changes only this
+package's version and checksum; no dependency edge or first-party runtime
+owner changes. The Linux desktop zbus graph includes it; the Android ARM64
+graph and standalone iOS probe do not.
+
+The pre-update OPAQUE context matches its approved fingerprint. All five
+reviewed backend identities, features, dependencies and dependents remain
+identical after the patch. Only Cargo.lock changes before the explicit
+evidence update; all manifests and remote-crypto source hashes are unchanged.
+Rebind the exception after that comparison and evidence update, preserving
+the original review date, exact finding and November 12 expiry.
+
+Fresh strict release-ready review passes at RustSec
+`6c5fedf8ff03c485ed674d8f941e0180f3f72d70`: exactly the existing exception,
+zero unexcepted vulnerabilities, no probe vulnerabilities/warnings, and the
+unchanged reviewed workspace warnings/backport. Independent npm audits of
+clients/web, website and services/link each report zero vulnerabilities.
+This is local dependency qualification; hosted repair qualification and
+release publication remain separate.
+
+Validation commands (toolchain commands source `scripts/dev-env.sh` first;
+`audit_dir` refers to the temporary report directory):
+
+```bash
+python3 -m unittest discover -s scripts -p test_distribution_review.py
+python3 -m unittest discover -s scripts -p test_glib_backport.py
+cargo fmt --all -- --check
+cargo clippy --workspace -- -D warnings
+cargo test --workspace
+npm run typecheck --prefix clients/web
+npm run test --prefix clients/web
+python3 scripts/prepare-release-notices.py --check
+python3 scripts/audit-cargo-dependencies.py --output "$audit_dir/cargo.json"
+npm audit --prefix clients/web --json
+npm audit --prefix website --json
+npm audit --prefix services/link --json
+python3 scripts/review-dependency-audit.py --cargo "$audit_dir/cargo.json" \
+  --npm "$audit_dir/web.json" --website-npm "$audit_dir/website.json" \
+  --output "$audit_dir/review.json" --require-release-ready
+git diff --check
+```
+
+The audit-review suite passes 49 tests and the GLib backport suite passes ten.
+Formatting, workspace Clippy, full workspace tests, web typechecking,
+983 web tests (three existing skips) and notice validation for 659 Rust/35
+npm packages across five desktop targets pass. The targeted Cargo-tree check
+confirms async-executor 1.14.1
+in the Linux desktop graph and no async-executor in the Android ARM64 graph.
+No native app, public swarm or release is launched for this repair.

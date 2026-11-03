@@ -164,3 +164,24 @@ it adds no compiled-code timing proof or new accepted finding.
 Rebind the existing exception to the explicitly reviewed lockfile, manifest
 and this evidence update. Preserve its original authorization date and
 November 12 expiry. Tactical 389 owns ZIP regression and host/platform checks.
+
+## November 3 desktop executor patch re-review
+
+The workspace lockfile moves only async-executor 1.14.0 to 1.14.1, including
+its registry checksum. The yanked version is retained only through zbus's
+desktop Linux integration; the standalone iOS probe does not contain it.
+Upstream's [1.14.1 release](https://github.com/smol-rs/async-executor/releases/tag/v1.14.1)
+and [PR 164](https://github.com/smol-rs/async-executor/pull/164) revert borrowed
+executor-state scheduling to fix a use-after-free when a waker fires during
+executor destruction. No upstream source or test fixtures are imported.
+
+The fresh pre-update audit context matches the approved fingerprint.
+Comparing all-target/all-feature contexts before and after the patch shows
+identical identities, enabled features, dependencies and dependents for all
+five reviewed bigint/OPAQUE/Dalek backends. Cargo.lock is the only changed
+context file before this evidence update; every workspace manifest and
+remote-crypto source hash is unchanged. The selected Ristretto Suite and
+earlier source trace still apply. This adds no compiled-code timing proof.
+
+Rebind the existing exception to this reviewed lockfile and evidence update,
+preserving its exact finding, original review date and November 12 expiry.

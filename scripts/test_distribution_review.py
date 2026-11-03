@@ -1,5 +1,5 @@
 import copy
-from datetime import date
+from datetime import date, datetime, timezone
 import importlib.util
 import json
 from pathlib import Path
@@ -84,9 +84,44 @@ class AdvisoryReviewTests(unittest.TestCase):
         changed['warnings'] = {}
         with self.assertRaisesRegex(ValueError, 'inventory changed'):
             audit.review(changed, self.npm, self.website_npm, self.policy, date(2026, 9, 12))
-        changed['warnings'] = {'yanked': [{'package': {'name': 'new', 'version': '1'}}]}
-        with self.assertRaisesRegex(ValueError, 'inventory changed'):
-            audit.review(changed, self.npm, self.website_npm, self.policy, date(2026, 9, 12))
+        for advisory in ({}, {'advisory': None}):
+            changed['warnings'] = {'yanked': [{**advisory,
+                'package': {'name': 'new', 'version': '1'}}]}
+            with self.subTest(advisory=advisory), self.assertRaisesRegex(ValueError, 'inventory changed'):
+                audit.review(changed, self.npm, self.website_npm, self.policy, date(2026, 9, 12))
+
+    def test_null_advisory_warning_writes_failure_receipt(self):
+        self.cargo['warnings']['yanked'] = [{'advisory': None,
+            'package': {'name': 'async-executor', 'version': '1.14.0'}}]
+        self.cargo['rstorrent_source_review'] = {'source': 'verified'}
+        self.cargo['database']['last-updated'] = '2026-11-03T00:00:00+00:00'
+        self.policy['review_expires'] = '2026-11-12'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'distribution').mkdir()
+            (root / 'distribution/dependency-review.json').write_text(json.dumps(self.policy))
+            for name, report in [('cargo', self.cargo), ('npm', self.npm),
+                                 ('website', self.website_npm)]:
+                (root / f'{name}.json').write_text(json.dumps(report))
+            output = root / 'review.json'
+            argv = ['review-dependency-audit.py', '--cargo', str(root / 'cargo.json'),
+                    '--npm', str(root / 'npm.json'), '--website-npm', str(root / 'website.json'),
+                    '--output', str(output)]
+            with patch('sys.argv', argv), patch.object(audit, 'ROOT', root), \
+                    patch.object(audit, 'datetime', wraps=audit.datetime) as clock, \
+                    patch.object(audit.glib_backport, 'audit_lock',
+                                 return_value=(b'lock', self.cargo['rstorrent_source_review'])), \
+                    patch.object(audit.glib_backport, 'verify', return_value={}), \
+                    patch.object(audit, 'review_ios_probe', return_value={}):
+                clock.now.return_value = datetime(2026, 11, 3, tzinfo=timezone.utc)
+                with self.assertRaisesRegex(SystemExit, 'inventory changed'):
+                    audit.main()
+            receipt = json.loads(output.read_text())
+        self.assertEqual(receipt['status'], 'failed')
+        self.assertEqual(receipt['reason'],
+                         'dependency warning inventory changed; review additions and removals')
+        self.assertIn({'kind': 'yanked', 'advisory': 'unknown',
+                       'package': 'async-executor', 'version': '1.14.0'}, receipt['cargo_warnings'])
 
     def test_conditional_rand_warning_requires_feature_proof_and_blocks_logger_activation(self):
         item = {'advisory': {'id': 'RUSTSEC-2026-0097'},

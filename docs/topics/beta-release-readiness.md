@@ -1,5 +1,20 @@
 # Beta Release Readiness
 
+The November 3 housekeeping check finds no open PRs or active Dependabot
+alerts. Published main at `ef9d469a` passes full CI, Fast CI, compatibility,
+the verification matrix and Desktop Latest. Today's daily advisory run
+[41639914406](https://github.com/kzahel/jstorrent/actions/runs/41639914406)
+instead crashes while reading the null advisory on newly yanked
+async-executor 1.14.0. The local repair selects upstream 1.14.1 and makes
+the reviewer reject such warnings with its existing bounded failure receipt.
+Regressions cover both null/missing advisory fields and the CLI receipt.
+Fresh strict review passes with the existing exact crypto-bigint exception,
+unchanged warning/backport inventory and November 12 expiry. The old crypto
+backends and source were re-reviewed before rebinding the changed lockfile
+and evidence fingerprint. Web, website and link-service npm audits are clean.
+Tactical [381](../tactical/381-dependency-cleanup-and-security.md#november-3-desktop-executor-and-audit-repair)
+records validation. Hosted qualification of this repair is still pending.
+
 The October 26 Desktop Latest and daily advisory failures share a yanked
 crypto-bigint 0.7.6 warning. Both Rust lockfiles now select 0.7.10 and its
 required ctutils 0.4.6, retaining the existing strict warning policy. The

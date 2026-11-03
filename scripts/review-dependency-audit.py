@@ -73,7 +73,7 @@ def review(cargo, npm, website_npm, policy, today, backports=(), root=ROOT):
     actual = set()
     for kind, entries in cargo.get('warnings', {}).items():
         for entry in entries:
-            actual.add((kind, entry.get('advisory', {}).get('id'),
+            actual.add((kind, (entry.get('advisory') or {}).get('id'),
                         entry['package']['name'], entry['package']['version']))
     if actual != expected:
         raise ValueError('dependency warning inventory changed; review additions and removals')
