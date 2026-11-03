@@ -1,7 +1,7 @@
 # Tactical 381: Dependency Cleanup And Fresh Security Findings
 
-Status: In progress, 2026-11-03. Local executor/audit repair qualified;
-hosted qualification pending.
+Status: Complete, 2026-11-03. Published executor/audit repair passes full CI,
+Fast CI and dependency review under the existing expiring exception.
 
 Topic: `beta-release-readiness`.
 
@@ -341,10 +341,9 @@ by this repair.
 ## November 3 desktop executor and audit repair
 
 Housekeeping finds no open PRs or active Dependabot alerts. Security updates
-remain enabled and routine version PRs remain disabled. Published main at
-`ef9d469a` passes full CI (all ten product/tool jobs), Fast CI, compatibility,
-the verification matrix and Desktop Latest. The pre-existing local commit
-`d967b299` has not been published or covered by those hosted runs.
+remain enabled and routine version PRs remain disabled. Before the repair,
+main at `ef9d469a` passed full CI (all ten product/tool jobs), Fast CI,
+compatibility, the verification matrix and Desktop Latest.
 
 Daily advisory run 41639914406 fails with AttributeError before writing its
 failure artifact: cargo-audit's newly yanked async-executor 1.14.0 warning has
@@ -375,8 +374,8 @@ Fresh strict release-ready review passes at RustSec
 zero unexcepted vulnerabilities, no probe vulnerabilities/warnings, and the
 unchanged reviewed workspace warnings/backport. Independent npm audits of
 clients/web, website and services/link each report zero vulnerabilities.
-This is local dependency qualification; hosted repair qualification and
-release publication remain separate.
+This local dependency qualification is separate from the hosted repair
+qualification below and from release publication.
 
 Validation commands (toolchain commands source `scripts/dev-env.sh` first;
 `audit_dir` refers to the temporary report directory):
@@ -404,6 +403,27 @@ The audit-review suite passes 49 tests and the GLib backport suite passes ten.
 Formatting, workspace Clippy, full workspace tests, web typechecking,
 983 web tests (three existing skips) and notice validation for 659 Rust/35
 npm packages across five desktop targets pass. The targeted Cargo-tree check
-confirms async-executor 1.14.1
-in the Linux desktop graph and no async-executor in the Android ARM64 graph.
-No native app, public swarm or release is launched for this repair.
+confirms async-executor 1.14.1 in the Linux desktop graph and no async-executor
+in the Android ARM64 graph. Local validation launches no native app, public
+swarm or release.
+
+Published repair `19db07c9` passes hosted dependency review
+[41655137674](https://github.com/kzahel/jstorrent/actions/runs/41655137674),
+including all 49 audit guards and strict review with exactly the existing
+exception. [Fast CI](https://github.com/kzahel/jstorrent/actions/runs/41655108982),
+the [website](https://github.com/kzahel/jstorrent/actions/runs/41655108467)
+and [remote-controller](https://github.com/kzahel/jstorrent/actions/runs/41655108732)
+workflows also pass. Full
+[CI](https://github.com/kzahel/jstorrent/actions/runs/41655109035/attempts/2)
+passes all ten product/tool jobs on the same source: Rust/loopback
+interoperability, web unit/build/browser end-to-end tests, extension, release
+tools, all four desktop targets, iOS and Android.
+
+Attempt 1's Android job fails before compilation during SDK Manager
+installation of the emulator: `Error on ZipFile unknown archive`. GitHub
+rejects a failed-job retry while the enclosing workflow is running. After
+the other nine jobs pass, one Android-only retry succeeds without a source
+or workflow change. It passes SDK installation, both ABI builds, JVM tests,
+lint/instrumentation compilation, packaged attribution and the owned API 35
+product SAF lifecycle. The final successful run retains the other nine
+jobs' results.
