@@ -324,6 +324,30 @@
       "roles": [
         "client"
       ]
+    },
+    {
+      "surface": "extension",
+      "version": "1.1.10",
+      "tag": "extension-v1.1.10",
+      "commit": "69c708606157d203cc743958ec6eaaf9e7a5ce5e",
+      "channel": "chrome-web-store",
+      "status": "submitted",
+      "submitted": "2026-11-08",
+      "firstPublic": null,
+      "channelBasis": "Tagged release workflow 42473497821 passes package checks and the live compatibility matrix, uploads ZIP SHA-256 15050d78e6e4e706ad0d120e5ddd88692865700448f805199bfd1c0d1cd67193 and receives PENDING_REVIEW. The store reports 1.1.9 as the published version at the submission checkpoint. Exact client capture retained.",
+      "roles": ["client"]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.36",
+      "tag": "android-v1.0.36",
+      "commit": "623ae711e691a8242edc521c5fac9d5b68b938bb",
+      "channel": "play-production",
+      "status": "withdrawn",
+      "submitted": "2026-11-08",
+      "firstPublic": null,
+      "channelBasis": "Tag build 42473509464 stopped at the delivery-ledger gate before signing because extension-v1.1.10 was pushed without a ledger entry first. No artifact was built or uploaded to Play. 1.0.37 supersedes it with the same app source (Tactical 392).",
+      "roles": ["host"]
     }
   ]
 }
