@@ -15,8 +15,8 @@ android {
         applicationId = "com.jstorrent.app"
         minSdk = 28
         targetSdk = 36
-        versionCode = 38
-        versionName = "1.0.38"
+        versionCode = 39
+        versionName = "1.0.39"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
