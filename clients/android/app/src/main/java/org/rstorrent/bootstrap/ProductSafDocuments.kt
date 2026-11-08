@@ -140,8 +140,11 @@ object ProductSafDocuments {
         request: SafStorageRequest,
     ) {
         require(hasGrant(context, treeUri)) { "persisted SAF grant is unavailable" }
-        require(request.role == SafDynamicFileRole.PART) {
-            "only the boundary part file may be deleted dynamically"
+        require(
+            request.role == SafDynamicFileRole.PART ||
+                request.role == SafDynamicFileRole.DOWNLOAD_MANIFEST,
+        ) {
+            "only the boundary part file or download manifest may be deleted dynamically"
         }
         require(request.path.isNotEmpty()) { "SAF request path is empty" }
         request.path.forEach(::requireValidComponent)
@@ -183,6 +186,7 @@ object ProductSafDocuments {
             tree = plan.tree,
             files = plan.files.map { it.components },
             directories = plan.directories.map { it.components },
+            downloadManifests = plan.downloadManifests,
             root = root,
             find = { parent, name -> findUniqueChild(context, parent, name) },
             kind = { document -> observeDocument(context, document).kind!! },
@@ -434,6 +438,7 @@ internal fun <T> deleteDataArtifacts(
     kind: (T) -> SafStorageObjectKind,
     isEmptyDirectory: (T) -> Boolean,
     delete: (T) -> Boolean,
+    downloadManifests: List<String> = emptyList(),
 ) {
     val partName = ".$torrentId.rstorrent-parts"
     val content = find(root, name)
@@ -475,6 +480,17 @@ internal fun <T> deleteDataArtifacts(
         } else {
             listOfNotNull(content)
         }
+    // PlaysVideo sidecars sit beside a single file or inside the content
+    // directory; they go first so that directory is empty when pruned.
+    val manifestParent = if (tree) content else root
+    val manifestFiles =
+        manifestParent?.let { parent ->
+            // Only a regular file is a sidecar; anything else at that name
+            // is left alone and never blocks removal of the payload.
+            downloadManifests.mapNotNull { manifest ->
+                find(parent, manifest)?.takeIf { kind(it) == SafStorageObjectKind.FILE }
+            }
+        }.orEmpty()
     val payloadDirectories =
         if (tree) {
             content?.let { contentRoot ->
@@ -489,6 +505,9 @@ internal fun <T> deleteDataArtifacts(
         } else {
             emptyList()
         }
+    for (document in manifestFiles) {
+        check(delete(document)) { "provider refused SAF download manifest deletion" }
+    }
     for (document in payloadFiles) {
         check(delete(document)) { "provider refused SAF content deletion" }
     }

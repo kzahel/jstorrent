@@ -48,7 +48,7 @@ below to **Retired** with the commit.
 
 | Format | Owner | Current | Floor | Notes |
 | --- | --- | --- | --- | --- |
-| Session catalog `session.db` | `crates/rstorrent-session/src/store*.rs` | 29 | 26 | Baseline 26 covers releases through desktop 0.3.1; Latest 0.3.2 ships 29; fixtures `tests/fixtures/catalog/v26.sqlite` and `v29.sqlite` |
+| Session catalog `session.db` | `crates/rstorrent-session/src/store*.rs` | 30 | 26 | Baseline 26 covers releases through desktop 0.3.1; Latest 0.3.2 ships 29; `main` writes 30 (Tactical 391). Fixtures `tests/fixtures/catalog/v26.sqlite` and `v29.sqlite`; the first release that ships 30 adds `v30.sqlite` |
 | Product state `product.db` | `crates/rstorrent-session/src/product_state.rs` | 4 | 2 | Baseline 2 covers releases through desktop 0.3.1; Latest 0.3.2 ships 4; fixtures `tests/fixtures/product/v2.sqlite` and `v4.sqlite` |
 | Speed history `metrics.db` | `crates/rstorrent-session/src/speed.rs` | 1 | 1 | No migrations; an unknown version runs without saved history and is not deleted |
 | Desktop shell `desktop-shell.json` | `clients/desktop/src-tauri/src/desktop_lifecycle.rs` | retired format | — | Imported once into `product.db`; never written since Tactical 358 |
@@ -64,8 +64,9 @@ below to **Retired** with the commit.
 | Step 26 → 27: seeding stop limits | `session.db` | Tactical 344 (`1c4391e7`) | migration step | Floor reaches 27 |
 | Step 27 → 28: network defaults marker | `session.db` | Tactical 358 | migration step | Floor reaches 28 |
 | Step 28 → 29: file-selection bitmaps and download safety | `session.db` | Tactical 373 | migration step | Floor reaches 29 |
+| Step 29 → 30: `write_download_manifests` setting, default on for existing profiles | `session.db` | Tactical 391 | migration step | Floor reaches 30 |
 | Sparse file-selection/High tables retained inert after bitmap conversion; schema <29 read-only recovery reader | `session.db` | Tactical 373 | legacy reader / retained migration inputs | Floor reaches 29; remove reader and old tables only through the floor-raise process |
-| Private 377 probe 29 → 30 (owned CI/VM fixtures only; never shipped) | `scripts/prepare-private-update-qualification.mjs` | Tactical 377 | synthetic forward-migration/crash test; populated fixtures write a bounded 8 MiB probe before a ten-second uncommitted pause | Retire or update before the next real schema bump; discard every private probe profile at task cleanup (all 377 execution profiles discarded on 2026-10-17) |
+| Private 377 probe 30 → 31 (owned CI/VM fixtures only; never shipped) | `scripts/prepare-private-update-qualification.mjs` | Tactical 377; moved above real schema 30 by Tactical 391 | synthetic forward-migration/crash test; populated fixtures write a bounded 8 MiB probe before a ten-second uncommitted pause | Retire or update before the next real schema bump; discard every private probe profile at task cleanup (all 377 execution profiles discarded on 2026-10-17) |
 | Pre-baseline refusal (schemas 1–25) | `session.db` | Tactical 345 (`75e95083`) | classification | Keep; it is the fail-closed answer for old incubation catalogs |
 | Reset report reading (`profile_reset_report`, startup announcement) | `session.db` | Tactical 179, reset removed by 345 | legacy reader | No new reports since 345; remove the reader (and later drop the table by a step) at the next floor raise |
 | Step 3 → 4: desktop update preference, attempt and handoff intake | `product.db` | Tactical 355 | migration step | Floor reaches 4 |

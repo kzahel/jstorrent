@@ -478,6 +478,7 @@ fn typed_persistence_round_trips_one_atomic_group() {
         dht_enabled: false,
         peer_exchange_enabled: false,
         tracker_https_server_authentication: HttpsServerAuthenticationPolicy::Disabled,
+        write_download_manifests: false,
     };
     assert!(replace_client_settings(&transaction, &configured).unwrap());
     assert!(!replace_client_settings(&transaction, &configured).unwrap());

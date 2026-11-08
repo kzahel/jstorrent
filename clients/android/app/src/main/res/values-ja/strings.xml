@@ -580,6 +580,7 @@
     <string name="settings_section_download_folders">"ダウンロード先フォルダー"</string>
     <string name="settings_section_peers">"ピア"</string>
     <string name="settings_section_permission">"権限"</string>
+    <string name="settings_section_playsvideo">"PlaysVideo"</string>
     <string name="settings_section_privacy">"プライバシー"</string>
     <string name="settings_section_queue">"キュー"</string>
     <string name="settings_section_reset">"リセット"</string>
@@ -594,6 +595,8 @@
     <string name="settings_storage_detail">"ダウンロード先フォルダー、トレント一覧"</string>
     <string name="settings_theme">"テーマ"</string>
     <string name="settings_title">"設定"</string>
+    <string name="settings_write_download_manifests">"PlaysVideo マニフェストファイルを書き込む"</string>
+    <string name="settings_write_download_manifests_detail">"各ダウンロードの横に小さな隠しファイル .jstorrent.json を保存し、PlaysVideo がほかのデバイスで続きから再生できるようにします。"</string>
     <string name="share_address_always">"常に含める"</string>
     <string name="share_address_ask">"毎回確認"</string>
     <string name="share_address_never">"含めない"</string>

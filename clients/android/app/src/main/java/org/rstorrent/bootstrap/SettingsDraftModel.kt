@@ -36,6 +36,7 @@ enum class ClientSettingsField {
     DHT_ENABLED,
     PEER_EXCHANGE_ENABLED,
     TRACKER_HTTPS_AUTHENTICATION,
+    WRITE_DOWNLOAD_MANIFESTS,
 }
 
 enum class TorrentSettingsField {
@@ -292,6 +293,7 @@ internal fun ClientSettings.fieldValues(): Map<ClientSettingsField, Any> =
         ClientSettingsField.DHT_ENABLED to dhtEnabled,
         ClientSettingsField.PEER_EXCHANGE_ENABLED to peerExchangeEnabled,
         ClientSettingsField.TRACKER_HTTPS_AUTHENTICATION to trackerHttpsServerAuthentication,
+        ClientSettingsField.WRITE_DOWNLOAD_MANIFESTS to writeDownloadManifests,
     )
 
 internal fun ClientSettingsPatch.fieldValues(): Map<ClientSettingsField, Any> =
@@ -319,6 +321,7 @@ internal fun ClientSettingsPatch.fieldValues(): Map<ClientSettingsField, Any> =
         trackerHttpsServerAuthentication?.let {
             put(ClientSettingsField.TRACKER_HTTPS_AUTHENTICATION, it)
         }
+        writeDownloadManifests?.let { put(ClientSettingsField.WRITE_DOWNLOAD_MANIFESTS, it) }
     }
 
 internal fun Map<ClientSettingsField, Any>.toClientSettingsPatch(): ClientSettingsPatch =
@@ -345,6 +348,7 @@ internal fun Map<ClientSettingsField, Any>.toClientSettingsPatch(): ClientSettin
         trackerHttpsServerAuthentication =
             get(ClientSettingsField.TRACKER_HTTPS_AUTHENTICATION)
                 as? HttpsServerAuthenticationPolicy,
+        writeDownloadManifests = get(ClientSettingsField.WRITE_DOWNLOAD_MANIFESTS) as? Boolean,
     )
 
 /** A torrent's own stop limits; an absent stop view means both follow the session. */
@@ -412,6 +416,8 @@ internal fun ProductState.presentedClientSettings(): ClientSettingsRuntimeView? 
                 trackerHttpsServerAuthentication =
                     values[ClientSettingsField.TRACKER_HTTPS_AUTHENTICATION]
                         as HttpsServerAuthenticationPolicy,
+                writeDownloadManifests =
+                    values[ClientSettingsField.WRITE_DOWNLOAD_MANIFESTS] as Boolean,
             ),
     )
 }

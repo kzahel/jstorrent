@@ -5565,6 +5565,24 @@
       "value": "Schreibdienst"
     }
   ],
+  "inspection.components.download.manifest.settings.help": [
+    {
+      "type": 0,
+      "value": "Speichert neben jedem Download eine kleine versteckte .jstorrent.json-Datei, damit PlaysVideo die Wiedergabe auf deinen anderen Geräten fortsetzen kann."
+    }
+  ],
+  "inspection.components.download.manifest.settings.title": [
+    {
+      "type": 0,
+      "value": "PlaysVideo"
+    }
+  ],
+  "inspection.components.download.manifest.settings.write": [
+    {
+      "type": 0,
+      "value": "PlaysVideo-Manifestdateien schreiben"
+    }
+  ],
   "inspection.components.download.settings.section.add.folder": [
     {
       "type": 0,

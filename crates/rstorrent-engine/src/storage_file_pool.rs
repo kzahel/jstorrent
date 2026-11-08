@@ -31,6 +31,10 @@ pub enum StorageFileRole {
     ContentRoot,
     Payload(usize),
     Part,
+    /// The `.<info hash>.jstorrent.json` sidecar other applications read
+    /// (Tactical 391). The platform opens it truncating; it carries no
+    /// payload and its failures never mark the storage root unhealthy.
+    DownloadManifest,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -502,7 +506,10 @@ impl PlatformStorageClient {
                 )),
             ),
             Ok(Ok(Err(error))) => {
-                self.record_root_failure(&target.root_id, &error);
+                // A best-effort sidecar failure must not change torrent state.
+                if target.role != StorageFileRole::DownloadManifest {
+                    self.record_root_failure(&target.root_id, &error);
+                }
                 Err(StorageFilePoolError::PlatformFailure(error))
             }
             Ok(Err(_)) => Err(StorageFilePoolError::PlatformUnavailable),
@@ -586,7 +593,9 @@ impl PlatformStorageClient {
                 )),
             ),
             Ok(Ok(Err(error))) => {
-                self.record_root_failure(&target.root_id, &error);
+                if target.role != StorageFileRole::DownloadManifest {
+                    self.record_root_failure(&target.root_id, &error);
+                }
                 Err(StorageFilePoolError::PlatformFailure(error))
             }
             Ok(Err(_)) => Err(StorageFilePoolError::PlatformUnavailable),
@@ -604,6 +613,7 @@ impl PlatformStorageClient {
         request: PlatformStorageRequest,
     ) -> Result<PlatformStorageResponse, StorageFilePoolError> {
         let root_id = request.root_id.clone();
+        let role = request.role;
         let (reply, response) = oneshot::channel();
         self.sender
             .send(PendingPlatformStorageRequest { request, reply })
@@ -614,7 +624,9 @@ impl PlatformStorageClient {
         match result {
             Ok(Ok(Ok(response))) => Ok(response),
             Ok(Ok(Err(error))) => {
-                self.record_root_failure(&root_id, &error);
+                if role != StorageFileRole::DownloadManifest {
+                    self.record_root_failure(&root_id, &error);
+                }
                 Err(StorageFilePoolError::PlatformFailure(error))
             }
             Ok(Err(_)) => Err(StorageFilePoolError::PlatformUnavailable),

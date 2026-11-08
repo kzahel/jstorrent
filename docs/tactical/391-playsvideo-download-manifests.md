@@ -1,6 +1,9 @@
 # Tactical 391: PlaysVideo Download Manifests
 
-Status: planned, 2026-11-08.
+Status: implemented, 2026-11-08. Slices 1–3 landed in one commit with
+deterministic Rust, web and localization evidence. Open: the Android build and
+API 35 SAF instrumentation run (blocked locally by an upstream Gradle
+distribution outage), and slice 4's physical cross-product check.
 
 Topics: `android-jstorrent-replacement`, `direct-filesystem-storage`,
 `android-saf-storage`, `download-roots`, `durable-data-migrations`.
@@ -81,9 +84,11 @@ reader in `~/code/playsvideo/app/src/folder-provider.ts` (`MANIFEST_PATTERN`,
     downloaded".
 - **`index`** is the metainfo file index, the same number the engine's BEP 53
   `so=` parser (`rstorrent-protocol/src/magnet.rs`) and file-priority
-  commands use. PlaysVideo appends it to the magnet as `so=<index>`. BEP 47
-  padding files are omitted from `files` and keep their place in the index
-  sequence.
+  commands use. PlaysVideo appends it to the magnet as `so=<index>`. For v1
+  torrents, BEP 47 padding files are omitted from `files` and keep their
+  place in the index sequence. Hybrid torrents use the engine's v2 file-tree
+  index space, which has no padding entries; it is the same space the
+  engine's `so=` and share exports use.
 - **`complete`** is true only for a wanted, non-padding file whose every
   piece is verified and durable, with no verification pending and the
   torrent not Checking, NeedsRepair or Error. This is the
@@ -94,8 +99,9 @@ reader in `~/code/playsvideo/app/src/folder-provider.ts` (`MANIFEST_PATTERN`,
   complete.
 - **`magnet`:** the base export from `SessionStore::export_base_magnet`. It
   is the verified retained source magnet, or a synthesized `xt`/`dn`/`tr`
-  one. It never carries the host's own address (`x.pe`), which is what the
-  share link adds. For **private torrents** the sidecar carries `xt` and `dn`
+  one. Every `x.pe`, `so` and `xl` parameter is stripped, as the share path
+  does, so no peer address (including another host's, from a share link the
+  user opened) reaches PlaysVideo's cloud sync. For **private torrents** the sidecar carries `xt` and `dn`
   only. Tracker URLs there often embed passkeys, and PlaysVideo syncs this
   field to a cloud account. This differs deliberately from legacy, which
   always included announce URLs.
@@ -321,6 +327,130 @@ Changed, each recorded above:
   patch key.
 - Slice 4 manual cross-product runs, recorded under Evidence.
 
+## Implementation notes
+
+What landed, and where it differs from the plan above:
+
+- **Owner.** `crates/rstorrent-session/src/download_manifest.rs` holds the
+  pure `build_manifest`, the path and platform writers, and
+  `DownloadManifestWriter`. A `DownloadManifestQueue` handle is shared with
+  each `StoreCheckpointSink`. `ApplicationService` publishes every storage-root
+  change to the writer; a root that becomes available (Android registers SAF
+  roots after open) re-runs reconciliation.
+- **Change detection.** Every `pieces_durable` batch marks the torrent dirty
+  instead of only batches that complete a file. Writes stay change-driven
+  because the per-torrent 2 s interval coalesces marks and the body
+  fingerprint suppresses identical writes. The cost is at most one plan per
+  torrent per 2 s while it downloads. A plan loads the resume record under
+  the session-store lock (the checkpoint sink already does this per batch)
+  and parses metainfo after releasing it. `storage_discovered` marks only
+  after the recheck generation is durable.
+- **No-op writes.** Before writing, both writers compare against the existing
+  sidecar and skip identical bytes. Startup reconciliation therefore does not
+  touch unchanged files or bump their mtime.
+- **Sticky rejections.** Pure v2, over-cap, reserved-name and unparsable
+  layouts are remembered per torrent, so their metainfo is not parsed again
+  until a removal forgets the torrent.
+- **Eligibility.** A torrent is written once storage was prepared in this
+  process, or once it holds any verified piece (startup reconciliation).
+  Torrents with a removal record or an unavailable root are skipped.
+- **Content path (review P1).** The sidecar waits until the payload path
+  exists: the single file, or `<root>/<name>/` for a tree. Payload storage is
+  lazy. Creating the content directory early would turn fresh storage into
+  existing storage and force a recheck on every restart until the first piece
+  landed, and a Keep data removal would leave a folder holding only the
+  sidecar. A missing payload path is a silent deferral with no bookkeeping.
+  The first durable piece follows the engine's first payload write and marks
+  the torrent again. SAF observes the content path before opening the sidecar
+  with create. A symlinked or wrong-kind content path is an error.
+- **SAF open mode.** The role opens `"rw"`, like payload. The Rust writer
+  truncates (`set_len`) immediately before writing, so a lost open response
+  or an aborted shutdown drain cannot leave an empty sidecar. This replaces
+  the plan's `"rwt"`.
+- **Retry.** A failed write is retried once after 30 s, then at the next mark.
+  A seeding torrent produces no marks and would otherwise stay stale until
+  restart. A storage root that appears, or whose location changes, clears all
+  fingerprints before reconciling.
+- **Removal robustness.** Only a regular file at a sidecar name is deleted.
+  A link or directory there is left alone and never fails Delete data, on
+  path, SAF and iOS alike.
+- **Cross-torrent names.** The collision check covers the torrent's own
+  payload only. A different, crafted torrent in the same root or content
+  directory whose payload is named `.<this hash>.jstorrent.json` would be
+  overwritten by this torrent's sidecar, and deleted by its Delete data. This
+  is a known limitation: it needs a deliberately crafted torrent, and it
+  damages only that torrent's data.
+- **Root health.** The storage file pool does not record
+  `DownloadManifest`-role failures as root failures, so a sidecar error can
+  never move torrents to awaiting storage.
+- **Removal fence.** `drive_removal` calls `quiesce` after pausing: it forgets
+  the torrent and waits for any in-flight write before deletion. A per-forget
+  epoch stops an overlapping write from restoring bookkeeping.
+  `PlatformRemovalPlan.download_manifests` (Android `SafRemovalPlan`, iOS
+  `IosRemovalPlan`) carries both the sidecar and `.tmp` names.
+- **iOS.** The role maps to `IosDynamicFileRole.DownloadManifest`. The Rust
+  writer truncates explicitly, so the Swift bridge's non-truncating open is
+  correct. `PlatformStorageBridge.removeData` deletes the sidecars before
+  pruning. Behavior evidence stays deferred with iOS storage.
+- **Mixed versions.** Capability `download_manifests` (ID 7) owns the
+  `write_download_manifests` patch key. Released strict clients (extension
+  1.1.4 and older) reject unknown `ClientSettings` fields, so the field is a
+  reviewed client exposure in `clients/web/src/api/release-compatibility.json`.
+  **The next host release needs an accepted break that names it.**
+- **Schema.** Step 29 → 30 adds the column with default 1, so upgraded
+  profiles are on. The private Tactical 377 qualification probe moved from
+  29 → 30 to 30 → 31.
+- **Copy.** Web shows a PlaysVideo section in Settings → Downloads; Android
+  shows a PlaysVideo section in Advanced. All 18 shipping non-English locales
+  for both platforms were translated through `scripts/localization.py` and
+  independently agent-reviewed. The review corrected help text that read as
+  resuming the *download* rather than playback.
+
 ## Evidence
 
-Pending.
+2026-11-08, macOS arm64:
+
+- `cargo test --workspace` passes (1783 tests in 73 binaries before the
+  review corrections). `cargo test -p rstorrent-session` passes after them.
+  It includes 12 builder, writer, queue and fake-broker tests in
+  `download_manifest::tests`, and 7 application tests in
+  `application::tests::download_manifests`:
+  - a real loopback peer download creates no sidecar while storage is
+    prepared but empty, then writes `complete: true` with `x.pe` and `so`
+    stripped from the magnet;
+  - a prepared multi-file torrent with no payload creates no content
+    directory and restarts without a recheck;
+  - startup reconciliation writes a pre-existing complete torrent; a forced
+    recheck after corruption flips it to `false`; a deleted sidecar is
+    recreated by a restart that is shut down immediately (drain);
+  - Delete data removes a multi-file sidecar and prunes the content
+    directory; Keep data leaves the sidecar; Delete data waits while a write
+    holds the gate;
+  - the setting off writes nothing; turning it on reconciles; turning it off
+    again leaves the file;
+  - private torrents export `xt` and `dn` only.
+- The SAF writer test runs against a fake platform broker. It covers
+  deferral without creating anything, the identical-bytes skip, truncating
+  to a shorter body, released pool handles, and a denied open that leaves
+  root health untouched.
+- Released-catalog fixtures v26 and v29 migrate to schema 30 with
+  `write_download_manifests` on. `node scripts/desktop-compatibility.mjs` and
+  the private-probe test pass.
+- `cargo clippy --workspace --all-targets -- -D warnings` and
+  `cargo fmt --all -- --check` are clean.
+- `npm run generate`, `npm run typecheck` and `npm run test` in `clients/web`
+  pass (986 tests, 3 skipped). These include released-host, old-client and
+  capability-gating tests and the new settings section tests.
+- `node scripts/check-localization.mjs` passes for every platform.
+- An independent review session (YA, Opus 5.5 high) returned REVISE with one
+  P1, two P2s and seven P3 findings. Each is corrected above, or recorded as
+  a limitation (cross-torrent names) or as documentation (hybrid index space).
+- Not run:
+  - The Android build, JVM tests and API 35 SAF lifecycle run.
+    `services.gradle.org` and GitHub release downloads returned 504 for the
+    Gradle 8.11.1 wrapper, and this machine has no Gradle cache. The Kotlin
+    changes and the new JVM tests still need that run.
+  - iOS. No simulator runtime or iOS platform is installed in Xcode, so the
+    Swift removal change is uncompiled.
+- Slice 4 physical cross-product evidence (desktop and Android → PlaysVideo
+  → other device) is pending.

@@ -287,6 +287,7 @@ class ProductStateReducerTest {
                 dhtEnabled = false,
                 peerExchangeEnabled = false,
                 trackerHttpsServerAuthentication = HttpsServerAuthenticationPolicy.DISABLED,
+                writeDownloadManifests = true,
             )
 
         val patch = clientSettingsPatch(
@@ -426,6 +427,95 @@ class ProductStateReducerTest {
             isEmptyDirectory = { false },
             delete = { false },
         )
+    }
+
+    @Test
+    fun safRemovalDeletesDownloadManifestsSoTheContentDirectoryIsPruned() {
+        val manifest = ".abababababababababababababababababababab.jstorrent.json"
+        val documents =
+            mutableMapOf(
+                "show" to SafStorageObjectKind.DIRECTORY,
+                "show/episode.mkv" to SafStorageObjectKind.FILE,
+                "show/$manifest" to SafStorageObjectKind.FILE,
+                "movie.mkv" to SafStorageObjectKind.FILE,
+                manifest to SafStorageObjectKind.FILE,
+            )
+        val find = { parent: String, name: String ->
+            listOf(parent, name).filter(String::isNotEmpty).joinToString("/")
+                .takeIf(documents::containsKey)
+        }
+        val deleted = mutableListOf<String>()
+        deleteDataArtifacts(
+            name = "show",
+            torrentId = "t1-owner",
+            tree = true,
+            files = listOf(listOf("episode.mkv")),
+            directories = listOf(emptyList()),
+            downloadManifests = listOf("$manifest.tmp", manifest),
+            root = "",
+            find = find,
+            kind = { documents.getValue(it) },
+            isEmptyDirectory = { directory ->
+                documents.keys.none { it.startsWith("$directory/") }
+            },
+            delete = { document ->
+                deleted += document
+                documents.remove(document) != null
+            },
+        )
+        assertEquals(listOf("show/$manifest", "show/episode.mkv", "show"), deleted)
+
+        deleted.clear()
+        deleteDataArtifacts(
+            name = "movie.mkv",
+            torrentId = "t1-other",
+            tree = false,
+            files = listOf(emptyList()),
+            directories = emptyList(),
+            downloadManifests = listOf("$manifest.tmp", manifest),
+            root = "",
+            find = find,
+            kind = { documents.getValue(it) },
+            isEmptyDirectory = { false },
+            delete = { document ->
+                deleted += document
+                documents.remove(document) != null
+            },
+        )
+        assertEquals(listOf(manifest, "movie.mkv"), deleted)
+        assertEquals(emptyMap<String, SafStorageObjectKind>(), documents)
+    }
+
+    @Test
+    fun safRemovalLeavesNonFileManifestNamesWithoutFailing() {
+        val manifest = ".abababababababababababababababababababab.jstorrent.json"
+        val documents =
+            mutableMapOf(
+                "movie.mkv" to SafStorageObjectKind.FILE,
+                manifest to SafStorageObjectKind.DIRECTORY,
+            )
+        val deleted = mutableListOf<String>()
+        deleteDataArtifacts(
+            name = "movie.mkv",
+            torrentId = "t1-owner",
+            tree = false,
+            files = listOf(emptyList()),
+            directories = emptyList(),
+            downloadManifests = listOf(manifest),
+            root = "",
+            find = { parent, name ->
+                listOf(parent, name).filter(String::isNotEmpty).joinToString("/")
+                    .takeIf(documents::containsKey)
+            },
+            kind = { documents.getValue(it) },
+            isEmptyDirectory = { false },
+            delete = { document ->
+                deleted += document
+                documents.remove(document) != null
+            },
+        )
+        assertEquals(listOf("movie.mkv"), deleted)
+        assertEquals(mapOf(manifest to SafStorageObjectKind.DIRECTORY), documents)
     }
 
     @Test
@@ -1297,6 +1387,7 @@ class ProductStateReducerTest {
                 dhtEnabled = true,
                 peerExchangeEnabled = true,
                 trackerHttpsServerAuthentication = HttpsServerAuthenticationPolicy.SYSTEM_TRUST,
+                writeDownloadManifests = true,
             ),
     ): ClientSettingsRuntimeView =
         ClientSettingsRuntimeView(

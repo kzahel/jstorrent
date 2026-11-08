@@ -526,6 +526,7 @@ describe("view-set reducer", () => {
       dht_enabled: true,
       peer_exchange_enabled: true,
       tracker_https_server_authentication: "system_trust" as const,
+      write_download_manifests: true,
     };
     state = reduceUpdateBatch(
       state,

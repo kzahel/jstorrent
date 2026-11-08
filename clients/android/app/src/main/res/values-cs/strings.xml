@@ -658,6 +658,7 @@
     <string name="settings_section_download_folders">"Složky pro stahování"</string>
     <string name="settings_section_peers">"Protějšky"</string>
     <string name="settings_section_permission">"Oprávnění"</string>
+    <string name="settings_section_playsvideo">"PlaysVideo"</string>
     <string name="settings_section_privacy">"Soukromí"</string>
     <string name="settings_section_queue">"Fronta"</string>
     <string name="settings_section_reset">"Obnovení nastavení"</string>
@@ -672,6 +673,8 @@
     <string name="settings_storage_detail">"Složky pro stahování, seznam torrentů"</string>
     <string name="settings_theme">"Motiv"</string>
     <string name="settings_title">"Nastavení"</string>
+    <string name="settings_write_download_manifests">"Zapisovat soubory manifestu PlaysVideo"</string>
+    <string name="settings_write_download_manifests_detail">"Ukládá vedle každého stahování malý skrytý soubor .jstorrent.json, aby PlaysVideo mohlo pokračovat v přehrávání na vašich dalších zařízeních."</string>
     <string name="share_address_always">"Vždy zahrnout"</string>
     <string name="share_address_ask">"Pokaždé se zeptat"</string>
     <string name="share_address_never">"Nikdy nezahrnovat"</string>

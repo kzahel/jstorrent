@@ -52,6 +52,7 @@ use crate::diagnostics::{
     DiagnosticCategory, DiagnosticDraft, DiagnosticField, DiagnosticSeverity, DiagnosticSubject,
     category,
 };
+use crate::download_manifest::{DownloadManifestQueue, DownloadManifestWriter};
 use crate::file_views::FileProgressModel;
 use crate::have::HaveState;
 use crate::incoming_seeding::{IncomingSeedingError, SeedReconcileOutcome};
@@ -85,7 +86,7 @@ fn parse_peer_metainfo(raw_info: &[u8]) -> Result<Metainfo, MetainfoError> {
     Metainfo::from_info_bytes_with_limits(raw_info, BEP9_METAINFO_LIMITS)
 }
 
-fn parse_resume_content(resume: &ResumeRecord) -> Result<TorrentContent, MetainfoError> {
+pub(crate) fn parse_resume_content(resume: &ResumeRecord) -> Result<TorrentContent, MetainfoError> {
     match (resume.info_hashes.v1_hash(), resume.info_hashes.v2_hash()) {
         (Some(_), None) => resume
             .raw_info
@@ -575,6 +576,9 @@ pub struct PlatformRemovalPlan {
     pub tree: bool,
     pub files: Vec<PlatformRemovalPath>,
     pub directories: Vec<PlatformRemovalPath>,
+    /// Exact PlaysVideo sidecar names to delete: beside a single file, or
+    /// inside the content directory of a tree, before pruning directories.
+    pub download_manifests: Vec<String>,
 }
 
 /// Result of stopping use of a platform storage root.
@@ -645,6 +649,7 @@ pub struct ApplicationService {
     maintenance_started: bool,
     maintenance_task: Option<JoinHandle<()>>,
     product_milestone_drain: Option<ProductMilestoneDrain>,
+    download_manifests: Option<DownloadManifestWriter>,
 }
 
 #[derive(Debug)]
@@ -1054,12 +1059,22 @@ impl ApplicationService {
             .product_state
             .clone()
             .map(|owner| ProductMilestoneDrain::start(store.clone(), owner, views.clone()));
+        let storage_roots = Arc::new(storage_roots);
+        // Startup reconciliation: the writer begins by re-examining every
+        // torrent, so downloads from before this feature get a sidecar.
+        let download_manifests = DownloadManifestWriter::start(
+            store.clone(),
+            storage_roots.clone(),
+            storage_file_pool.clone(),
+            views.clone(),
+            active_client_settings.write_download_manifests,
+        );
         let mut service = Self {
             host_updates: None,
             reset_config,
             reset_incomplete: false,
             store,
-            storage_roots: Arc::new(storage_roots),
+            storage_roots,
             network,
             network_prerequisite,
             effective_network_prerequisite: initial_network_prerequisite,
@@ -1097,6 +1112,7 @@ impl ApplicationService {
             maintenance_started: false,
             maintenance_task: None,
             product_milestone_drain,
+            download_manifests: Some(download_manifests),
         };
         service.views.record_diagnostic(
             DiagnosticSeverity::Info,
@@ -2188,6 +2204,7 @@ impl ApplicationService {
             | Command::SetFilePriorityRanges { torrent_id, .. }
             | Command::SetFileSafetyOverride { torrent_id, .. } => {
                 let torrent_id = torrent_id.to_ascii_lowercase();
+                self.mark_download_manifest(&torrent_id);
                 self.views.record_diagnostic(
                     DiagnosticSeverity::Info,
                     category::STORAGE_IO,
@@ -2241,6 +2258,7 @@ impl ApplicationService {
             }
             Command::DownloadFiles { torrent_id, .. } => {
                 let torrent_id = torrent_id.to_ascii_lowercase();
+                self.mark_download_manifest(&torrent_id);
                 self.views.record_diagnostic(
                     DiagnosticSeverity::Info,
                     category::LIFECYCLE_TORRENT,
@@ -2413,6 +2431,11 @@ impl ApplicationService {
                 let settings = self.store_mut()?.snapshot()?.client_settings;
                 self.storage_file_pool
                     .set_mark_internet_origin(settings.file_safety.mark_internet_origin);
+                if let Some(manifests) = &self.download_manifests {
+                    manifests
+                        .queue()
+                        .set_enabled(settings.write_download_manifests);
+                }
                 self.session_network_config.settings = settings.clone();
                 if let Some(session_network) = self.session_network.as_mut() {
                     session_network.submit_settings(settings)?;
@@ -2688,7 +2711,7 @@ impl ApplicationService {
 
         self.healthy_platform_roots = healthy;
         self.storage_file_pool.take_platform_root_failures();
-        self.storage_roots = Arc::new(available_storage_roots(
+        self.set_storage_roots(available_storage_roots(
             configured,
             &self.healthy_platform_roots,
         ));
@@ -2730,7 +2753,7 @@ impl ApplicationService {
             self.healthy_platform_roots.remove(root_id);
         }
         let configured = self.store_mut()?.storage_roots()?;
-        self.storage_roots = Arc::new(available_storage_roots(
+        self.set_storage_roots(available_storage_roots(
             configured,
             &self.healthy_platform_roots,
         ));
@@ -3465,8 +3488,27 @@ impl ApplicationService {
 
     fn reload_storage_roots(&mut self) -> Result<(), ApplicationError> {
         let roots = self.store_mut()?.storage_roots()?;
-        self.storage_roots = Arc::new(available_storage_roots(roots, &self.healthy_platform_roots));
+        self.set_storage_roots(available_storage_roots(roots, &self.healthy_platform_roots));
         Ok(())
+    }
+
+    fn set_storage_roots(&mut self, roots: BTreeMap<String, StorageRootLocation>) {
+        self.storage_roots = Arc::new(roots);
+        if let Some(manifests) = &self.download_manifests {
+            manifests.set_storage_roots(self.storage_roots.clone());
+        }
+    }
+
+    fn download_manifest_queue(&self) -> Option<DownloadManifestQueue> {
+        self.download_manifests
+            .as_ref()
+            .map(DownloadManifestWriter::queue)
+    }
+
+    fn mark_download_manifest(&self, torrent_id: &str) {
+        if let Some(manifests) = &self.download_manifests {
+            manifests.queue().mark(torrent_id);
+        }
     }
 
     fn configured_platform_root(&self, root_id: &str) -> Result<bool, ApplicationError> {
@@ -3800,6 +3842,9 @@ impl ApplicationService {
             tree: manifest.tree,
             files: manifest.files,
             directories: manifest.directories,
+            download_manifests: crate::download_manifest::manifest_artifact_names(
+                resume.info_hashes,
+            ),
         })
     }
 
@@ -3988,6 +4033,13 @@ impl ApplicationService {
             runtime.deactivate_peer_events();
         }
         self.torrent_runtimes.clear();
+        // Sidecar writes may need the platform storage broker.
+        if let Some(mut manifests) = self.download_manifests.take()
+            && let Err(error) = manifests.shutdown().await
+            && active_join_error.is_none()
+        {
+            active_join_error = Some(format!("download manifest writer: {error}"));
+        }
         if let Err(error) = self.storage_file_pool.shutdown().await
             && active_join_error.is_none()
         {
@@ -4106,6 +4158,10 @@ impl ApplicationService {
         if let Err(error) = self.pause(torrent_id).await {
             return self.fail_removal(&removal, &error.to_string());
         }
+        // No sidecar write may land after the deletion below.
+        if let Some(manifests) = &self.download_manifests {
+            manifests.quiesce(torrent_id).await;
+        }
         match removal.policy {
             RemovalDataPolicy::Keep => self.complete_removal(&removal),
             RemovalDataPolicy::DeleteData if removal.raw_info.is_none() => {
@@ -4119,17 +4175,21 @@ impl ApplicationService {
                             match self
                                 .load_resume_conservative(torrent_id)
                                 .and_then(|resume| {
-                                    parse_resume_content(&resume).map_err(|error| {
-                                        ApplicationError::Configuration(error.to_string())
-                                    })
+                                    parse_resume_content(&resume)
+                                        .map(|content| (resume.info_hashes, content))
+                                        .map_err(|error| {
+                                            ApplicationError::Configuration(error.to_string())
+                                        })
                                 }) {
-                                Ok(content) => direct_payload_manifest(&content)
-                                    .map(|manifest| (content.name().to_owned(), manifest)),
+                                Ok((info_hashes, content)) => direct_payload_manifest(&content)
+                                    .map(|manifest| {
+                                        (content.name().to_owned(), manifest, info_hashes)
+                                    }),
                                 Err(error) => {
                                     return self.fail_removal(&removal, &error.to_string());
                                 }
                             };
-                        let (content_name, manifest) = match deletion {
+                        let (content_name, manifest, info_hashes) = match deletion {
                             Ok(deletion) => deletion,
                             Err(error) => return self.fail_removal(&removal, &error.to_string()),
                         };
@@ -4140,6 +4200,7 @@ impl ApplicationService {
                                 &owned_torrent_id,
                                 &content_name,
                                 &manifest,
+                                info_hashes,
                             )
                         })
                         .await
@@ -4573,6 +4634,7 @@ impl ApplicationService {
                 torrent_id: torrent_id.to_owned(),
                 views: self.views.clone(),
                 recheck_generation: Mutex::new(None),
+                download_manifests: self.download_manifest_queue(),
                 product_milestone_wake: self
                     .product_milestone_drain
                     .as_ref()
@@ -4709,6 +4771,7 @@ impl ApplicationService {
                 torrent_id: torrent_id.to_owned(),
                 views: self.views.clone(),
                 recheck_generation: Mutex::new(None),
+                download_manifests: self.download_manifest_queue(),
                 product_milestone_wake: self
                     .product_milestone_drain
                     .as_ref()
@@ -4788,6 +4851,7 @@ impl ApplicationService {
             torrent_id: torrent_id.to_owned(),
             views: self.views.clone(),
             recheck_generation: Mutex::new(None),
+            download_manifests: self.download_manifest_queue(),
             product_milestone_wake: self
                 .product_milestone_drain
                 .as_ref()
@@ -5704,6 +5768,7 @@ fn delete_path_artifacts(
     torrent_id: &str,
     content_name: &str,
     manifest: &DirectPayloadManifest,
+    info_hashes: InfoHashes,
 ) -> Result<(), ApplicationError> {
     let torrent_id = torrent_id
         .parse::<TorrentId>()
@@ -5712,6 +5777,36 @@ fn delete_path_artifacts(
         .map_err(|error| ApplicationError::Configuration(error.to_string()))?;
     let prepared_payload = preflight_direct_payload(&paths.content, manifest)?;
     let prepared_part = preflight_direct_file(&paths.part)?;
+    // The PlaysVideo sidecar goes before the payload, so a multi-file
+    // content directory is empty when it is pruned.
+    let mut prepared_sidecars = Vec::new();
+    if !manifest.tree || prepared_payload.is_some() {
+        for path in crate::download_manifest::path_manifest_artifacts(
+            root,
+            content_name,
+            manifest.tree,
+            info_hashes,
+        ) {
+            // Only a regular file is a sidecar. A link or directory at that
+            // name is left alone and never blocks removal of the payload.
+            if std::fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.file_type().is_file())
+            {
+                prepared_sidecars.push(path);
+            }
+        }
+    }
+    for path in prepared_sidecars {
+        match std::fs::remove_file(path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(source) => {
+                return Err(ApplicationError::Io {
+                    operation: "remove download manifest",
+                    source,
+                });
+            }
+        }
+    }
     if let Some(payload) = prepared_payload {
         remove_preflighted_payload(payload)?;
     }
@@ -6276,6 +6371,7 @@ struct StoreCheckpointSink {
     torrent_id: String,
     views: ViewHub,
     recheck_generation: Mutex<Option<u64>>,
+    download_manifests: Option<DownloadManifestQueue>,
     product_milestone_wake: Option<Arc<Notify>>,
 }
 
@@ -6284,6 +6380,12 @@ impl StoreCheckpointSink {
         self.store
             .lock()
             .map_err(|_| "session store lock is poisoned".to_owned())
+    }
+
+    fn mark_manifest(&self) {
+        if let Some(manifests) = &self.download_manifests {
+            manifests.mark(&self.torrent_id);
+        }
     }
 
     fn refresh(&self) -> Result<(), String> {
@@ -6343,6 +6445,9 @@ impl DownloadCheckpointSink for StoreCheckpointSink {
             ResumedStorage::Created => "created",
             ResumedStorage::Existing => "existing",
         };
+        if let Some(manifests) = &self.download_manifests {
+            manifests.storage_prepared(&self.torrent_id);
+        }
         self.views
             .record_diagnostic(
                 DiagnosticSeverity::Info,
@@ -6374,6 +6479,11 @@ impl DownloadCheckpointSink for StoreCheckpointSink {
                 .map(|(_, generation)| generation)
                 .map_err(|error| error.to_string())
         })?;
+        // After the pending verification is durable, so a plan in between
+        // cannot present soon-to-be-rechecked content as complete.
+        if let Some(manifests) = &self.download_manifests {
+            manifests.storage_prepared(&self.torrent_id);
+        }
         *self
             .recheck_generation
             .lock()
@@ -6464,6 +6574,7 @@ impl DownloadCheckpointSink for StoreCheckpointSink {
             .recheck_generation
             .lock()
             .map_err(|_| "recheck generation lock is poisoned".to_owned())? = None;
+        self.mark_manifest();
         self.refresh()?;
         self.views
             .record_diagnostic(
@@ -6512,6 +6623,10 @@ impl DownloadCheckpointSink for StoreCheckpointSink {
         if let Some(wake) = &self.product_milestone_wake {
             wake.notify_one();
         }
+        // The writer's per-torrent interval and body fingerprint keep this
+        // change-driven: a sidecar is rewritten only when a file's
+        // completion flips.
+        self.mark_manifest();
         self.views
             .record_pieces_durable(&self.torrent_id, &view_indices, revision)
             .map_err(|error| error.to_string())?;
@@ -6541,6 +6656,7 @@ impl DownloadCheckpointSink for StoreCheckpointSink {
                 .map(|_| ())
                 .map_err(|error| error.to_string())
         })?;
+        self.mark_manifest();
         self.refresh()?;
         let piece_count = invalidated.len().to_string();
         self.views
@@ -7853,6 +7969,8 @@ mod torrent_list;
 
 #[cfg(test)]
 mod tests {
+    mod download_manifests;
+
     use std::collections::{BTreeMap, BTreeSet};
     use std::fs;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -7950,6 +8068,12 @@ mod tests {
             files,
             directories,
         }
+    }
+
+    fn test_info_hashes() -> rstorrent_protocol::identity::InfoHashes {
+        rstorrent_protocol::identity::InfoHashes::v1(rstorrent_protocol::identity::V1InfoHash::new(
+            [0xab; 20],
+        ))
     }
 
     fn file_cleanup_manifest() -> DirectPayloadManifest {
@@ -17789,8 +17913,14 @@ mod tests {
         fs::create_dir_all(paths.part.parent().expect("part parent")).expect("create part parent");
         fs::write(&paths.part, b"boundary").expect("write part");
 
-        delete_path_artifacts(&payload, torrent_id, "named.bin", &file_cleanup_manifest())
-            .expect("delete exact direct artifacts");
+        delete_path_artifacts(
+            &payload,
+            torrent_id,
+            "named.bin",
+            &file_cleanup_manifest(),
+            test_info_hashes(),
+        )
+        .expect("delete exact direct artifacts");
 
         assert!(!paths.content.exists());
         assert!(!paths.part.exists());
@@ -17813,6 +17943,7 @@ mod tests {
             torrent_id,
             "named",
             &tree_cleanup_manifest(&[&["season", "episode.bin"]]),
+            test_info_hashes(),
         )
         .expect("delete exact direct tree files");
 
@@ -17844,6 +17975,7 @@ mod tests {
             torrent_id,
             "named",
             &tree_cleanup_manifest(&[&["first.bin"], &["linked.bin"]]),
+            test_info_hashes(),
         )
         .expect_err("expected-path link must fail closed");
 

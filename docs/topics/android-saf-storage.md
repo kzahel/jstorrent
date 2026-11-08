@@ -308,7 +308,18 @@ operations:
 
 The broker receives a stable root ID, torrent/storage identity, trusted role,
 validated relative path components, access mode, and request generation. It
-does not receive piece payload. Raw SAF URIs and descriptor numbers remain
+does not receive piece payload.
+
+Every role opens in non-truncating `"rw"` mode. SAF has no rename, and
+`createDocument` renames on collision, so the `DownloadManifest` role
+(Tactical [`391`](../tactical/391-playsvideo-download-manifests.md)) is
+find-or-create. Rust then truncates with `set_len` and rewrites in place,
+immediately before writing. The writer first observes the payload path and
+defers until it exists, because opening with create would make the content
+directory. A failure on this role is reported as a diagnostic and never marks
+the root unhealthy. `deleteDynamic` accepts this role. SAF Delete data removes
+the regular files named in `SafRemovalPlan.downloadManifests` before pruning
+directories. Raw SAF URIs and descriptor numbers remain
 inside the platform adapter and UniFFI handoff rather than portable commands,
 SQLite torrent records, browser views, or remote transports.
 

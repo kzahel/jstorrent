@@ -6872,6 +6872,24 @@
       "value": "Час запису"
     }
   ],
+  "inspection.components.download.manifest.settings.help": [
+    {
+      "type": 0,
+      "value": "Зберігає поруч із кожним завантаженням невеликий прихований файл .jstorrent.json, щоб PlaysVideo міг продовжити відтворення на інших ваших пристроях."
+    }
+  ],
+  "inspection.components.download.manifest.settings.title": [
+    {
+      "type": 0,
+      "value": "PlaysVideo"
+    }
+  ],
+  "inspection.components.download.manifest.settings.write": [
+    {
+      "type": 0,
+      "value": "Записувати файли маніфесту PlaysVideo"
+    }
+  ],
   "inspection.components.download.settings.section.add.folder": [
     {
       "type": 0,

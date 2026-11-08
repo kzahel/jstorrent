@@ -134,7 +134,8 @@
                 "ipv6_enabled": true,
                 "dht_enabled": true,
                 "peer_exchange_enabled": true,
-                "tracker_https_server_authentication": "system_trust"
+                "tracker_https_server_authentication": "system_trust",
+                "write_download_manifests": true
               },
               "application_network": {
                 "requested_generation": "1",
@@ -466,7 +467,8 @@
                 "ipv6_enabled": true,
                 "dht_enabled": true,
                 "peer_exchange_enabled": true,
-                "tracker_https_server_authentication": "system_trust"
+                "tracker_https_server_authentication": "system_trust",
+                "write_download_manifests": true
               },
               "application_network": {
                 "requested_generation": "1",

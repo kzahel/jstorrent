@@ -518,6 +518,12 @@ metainfo files and that validated auxiliary state, then prunes only empty
 expected directories. It does not claim recursive ownership of the selected
 root or preserve the `managed data` product concept.
 
+A hidden `.<v1 info hash>.jstorrent.json` PlaysVideo sidecar (Tactical
+[`391`](../tactical/391-playsvideo-download-manifests.md)) sits beside a
+single-file payload, or inside a multi-file content directory, once the
+payload path exists. Delete data removes it exactly before pruning directories; Keep data
+leaves it. A metadata-only or pending-selection add still creates no artifact.
+
 ## JSTorrent Product Cheat Sheet
 
 JSTorrent is the first-party behavior and terminology reference for this

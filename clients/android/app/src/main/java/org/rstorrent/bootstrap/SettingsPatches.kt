@@ -33,6 +33,7 @@ internal fun clientSettingsPatch(
     dhtEnabled: Boolean? = null,
     peerExchangeEnabled: Boolean? = null,
     trackerHttpsServerAuthentication: HttpsServerAuthenticationPolicy? = null,
+    writeDownloadManifests: Boolean? = null,
 ): ClientSettingsPatch =
     ClientSettingsPatch(
         listener = listener,
@@ -54,6 +55,7 @@ internal fun clientSettingsPatch(
         dhtEnabled = dhtEnabled,
         peerExchangeEnabled = peerExchangeEnabled,
         trackerHttpsServerAuthentication = trackerHttpsServerAuthentication,
+        writeDownloadManifests = writeDownloadManifests,
     )
 
 internal fun ClientSettings.asPatch(): ClientSettingsPatch =
@@ -77,6 +79,7 @@ internal fun ClientSettings.asPatch(): ClientSettingsPatch =
         dhtEnabled = dhtEnabled,
         peerExchangeEnabled = peerExchangeEnabled,
         trackerHttpsServerAuthentication = trackerHttpsServerAuthentication,
+        writeDownloadManifests = writeDownloadManifests,
     )
 
 internal fun torrentSettingsPatch(

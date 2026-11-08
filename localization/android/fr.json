@@ -5281,6 +5281,16 @@
       "translationHash": "041e9d68f98f86cabeff7623f3847af4ccec9ef91d6e98db91e099a2460ced46",
       "translator": "gpt-6.1-sol/01a1838e-2d62-7281-af2b-1cfe8bf64190"
     },
+    "settings_section_playsvideo": {
+      "origin": "independently authored translation",
+      "reviewState": "agent-reviewed",
+      "reviewer": "claude-opus-5-5/a7ef19326f4391fa6",
+      "sourceHash": "a814e5a9126937545537568f6ca0f91cd7a2a7db71b3dd4a67cd4b337edb26de",
+      "terminologyHash": "de6de1bb8223dd27c015e4ba91159cd09d0bd8252877605459ad5ea2d9d789d6",
+      "terminologyReviewer": "claude-opus-5-5/a7ef19326f4391fa6",
+      "translationHash": "1c67521a962b3acbc7819ee536e4ff0603d53431b0d78d6111058bd2763931f0",
+      "translator": "claude-opus-5-5/ebd6af3b-7661-44db-a792-378c00cb4cf9"
+    },
     "settings_section_privacy": {
       "origin": "independently authored translation",
       "reviewState": "agent-reviewed",
@@ -5420,6 +5430,26 @@
       "terminologyReviewer": "gpt-6.1-sol/01a1838f-b733-7ca1-8a7c-c7fea929e9b3",
       "translationHash": "6a851bc8bcdbb79b1e1e96a04191d405b1715828dc9891b493eda031167a2cb8",
       "translator": "gpt-6.1-sol/01a1838e-2d62-7281-af2b-1cfe8bf64190"
+    },
+    "settings_write_download_manifests": {
+      "origin": "independently authored translation",
+      "reviewState": "agent-reviewed",
+      "reviewer": "claude-opus-5-5/a7ef19326f4391fa6",
+      "sourceHash": "e2732212bfdfb603c1f9a5c092fbb9570db4614f5fd1e99f51faa9fd54296ada",
+      "terminologyHash": "de6de1bb8223dd27c015e4ba91159cd09d0bd8252877605459ad5ea2d9d789d6",
+      "terminologyReviewer": "claude-opus-5-5/a7ef19326f4391fa6",
+      "translationHash": "1671605c8e76874de8513e749aa6d9edb10a3cab25925b1054aa785b498adef3",
+      "translator": "claude-opus-5-5/ebd6af3b-7661-44db-a792-378c00cb4cf9"
+    },
+    "settings_write_download_manifests_detail": {
+      "origin": "independently authored translation",
+      "reviewState": "agent-reviewed",
+      "reviewer": "claude-opus-5-5/a7ef19326f4391fa6",
+      "sourceHash": "c7286e6888c1b71d9df81861b252f8c8fbf213ecf5178302e1bc7088955605d5",
+      "terminologyHash": "2db7ac070f71767f334a87ae5f50cace1a7cfcb55464d6a44c0b0a6d9eb7d74d",
+      "terminologyReviewer": "claude-opus-5-5/a7ef19326f4391fa6",
+      "translationHash": "8a13de4d8dc8fd44c3951267ba9cf1f5b3d0f39cfa0ab0c1cdceaf1de1fa5e31",
+      "translator": "claude-opus-5-5/ebd6af3b-7661-44db-a792-378c00cb4cf9"
     },
     "share_address_always": {
       "origin": "independently authored translation",

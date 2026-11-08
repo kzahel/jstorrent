@@ -342,6 +342,7 @@ class SeedStopLimitsTest {
             dhtEnabled = true,
             peerExchangeEnabled = true,
             trackerHttpsServerAuthentication = HttpsServerAuthenticationPolicy.SYSTEM_TRUST,
+            writeDownloadManifests = true,
         )
 
     private fun torrent(

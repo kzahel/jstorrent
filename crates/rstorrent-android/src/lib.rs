@@ -798,6 +798,7 @@ impl AndroidApplicationClient {
                     u32::try_from(file_index).unwrap_or(u32::MAX),
                 ),
                 StorageFileRole::Part => (SafDynamicFileRole::Part, 0),
+                StorageFileRole::DownloadManifest => (SafDynamicFileRole::DownloadManifest, 0),
             };
             SafStorageRequest {
                 request_id: request.request_id,
@@ -1345,6 +1346,8 @@ pub enum SafDynamicFileRole {
     ContentRoot,
     Payload,
     Part,
+    /// The PlaysVideo sidecar; opened truncating for an in-place rewrite.
+    DownloadManifest,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
@@ -1475,6 +1478,9 @@ pub struct SafRemovalPlan {
     pub tree: bool,
     pub files: Vec<SafRemovalPath>,
     pub directories: Vec<SafRemovalPath>,
+    /// Exact PlaysVideo sidecar names: beside a single file, or inside the
+    /// content directory of a tree.
+    pub download_manifests: Vec<String>,
 }
 
 fn map_saf_removal_plan(plan: PlatformRemovalPlan) -> SafRemovalPlan {
@@ -1498,6 +1504,7 @@ fn map_saf_removal_plan(plan: PlatformRemovalPlan) -> SafRemovalPlan {
                 components: path.components,
             })
             .collect(),
+        download_manifests: plan.download_manifests,
     }
 }
 
@@ -2393,11 +2400,13 @@ mod tests {
             directories: vec![rstorrent_session::PlatformRemovalPath {
                 components: vec!["Season 01".to_owned()],
             }],
+            download_manifests: vec![".abab.jstorrent.json".to_owned()],
         });
 
         assert!(plan.tree);
         assert_eq!(plan.files[0].components, ["Season 01", "Episode 01.mkv"]);
         assert_eq!(plan.directories[0].components, ["Season 01"]);
+        assert_eq!(plan.download_manifests, [".abab.jstorrent.json"]);
     }
 
     static TEST_SEQUENCE: AtomicU64 = AtomicU64::new(0);

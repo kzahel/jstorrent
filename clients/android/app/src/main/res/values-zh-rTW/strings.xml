@@ -580,6 +580,7 @@
     <string name="settings_section_download_folders">"下載資料夾"</string>
     <string name="settings_section_peers">"對等節點"</string>
     <string name="settings_section_permission">"權限"</string>
+    <string name="settings_section_playsvideo">"PlaysVideo"</string>
     <string name="settings_section_privacy">"隱私權"</string>
     <string name="settings_section_queue">"佇列"</string>
     <string name="settings_section_reset">"重設"</string>
@@ -594,6 +595,8 @@
     <string name="settings_storage_detail">"下載資料夾、種子任務清單"</string>
     <string name="settings_theme">"主題"</string>
     <string name="settings_title">"設定"</string>
+    <string name="settings_write_download_manifests">"寫入 PlaysVideo 資訊清單檔案"</string>
+    <string name="settings_write_download_manifests_detail">"在每個下載項目旁儲存一個隱藏的小型 .jstorrent.json 檔案，讓 PlaysVideo 能在其他裝置上繼續播放。"</string>
     <string name="share_address_always">"一律包含"</string>
     <string name="share_address_ask">"每次詢問"</string>
     <string name="share_address_never">"一律不包含"</string>

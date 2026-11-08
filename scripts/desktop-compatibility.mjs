@@ -41,6 +41,7 @@ export function databaseCompatibility(root) {
       [27, item(session, 'migrate_26_to_27') + constant(session, 'SEED_STOP_SETTINGS_COLUMNS_27')],
       [28, item(session, 'migrate_27_to_28') + constant(session, 'NETWORK_DEFAULTS_COLUMN_28')],
       [29, item(session, 'migrate_28_to_29') + item(bitmap, 'migrate') + item(bitmap, 'write_mask') + constant(bitmap, 'TABLE_SQL') + item(safety, 'migrate') + constant(safety, 'SETTINGS_SQL') + item(safety, 'initialize_matches') + item(safety, 'read_policy')],
+      [30, item(session, 'migrate_29_to_30') + constant(session, 'DOWNLOAD_MANIFESTS_COLUMN_30')],
     ]),
     product: store(2, [
       [2, readFileSync(resolve(root, 'crates/rstorrent-session/tests/fixtures/product/v2.sqlite'))],

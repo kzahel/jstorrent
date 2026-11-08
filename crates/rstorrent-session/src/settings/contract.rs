@@ -517,6 +517,10 @@ pub struct ClientSettings {
     #[serde(default = "default_enabled")]
     pub peer_exchange_enabled: bool,
     pub tracker_https_server_authentication: HttpsServerAuthenticationPolicy,
+    /// Write the `.<info hash>.jstorrent.json` sidecar PlaysVideo reads
+    /// beside each download (Tactical 391).
+    #[serde(default = "default_enabled")]
+    pub write_download_manifests: bool,
 }
 
 impl Default for ClientSettings {
@@ -544,6 +548,7 @@ impl Default for ClientSettings {
             dht_enabled: true,
             peer_exchange_enabled: true,
             tracker_https_server_authentication: HttpsServerAuthenticationPolicy::SystemTrust,
+            write_download_manifests: true,
         }
     }
 }
@@ -756,6 +761,13 @@ pub struct ClientSettingsPatch {
     )]
     #[schemars(with = "HttpsServerAuthenticationPolicy")]
     pub tracker_https_server_authentication: Option<HttpsServerAuthenticationPolicy>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_optional_patch_value"
+    )]
+    #[schemars(with = "bool")]
+    pub write_download_manifests: Option<bool>,
 }
 
 impl ClientSettingsPatch {
@@ -779,6 +791,7 @@ impl ClientSettingsPatch {
             && self.dht_enabled.is_none()
             && self.peer_exchange_enabled.is_none()
             && self.tracker_https_server_authentication.is_none()
+            && self.write_download_manifests.is_none()
     }
 
     pub(crate) fn validate(self) -> Result<(), ClientSettingsError> {
@@ -830,6 +843,9 @@ impl ClientSettingsPatch {
             tracker_https_server_authentication: self
                 .tracker_https_server_authentication
                 .unwrap_or(current.tracker_https_server_authentication),
+            write_download_manifests: self
+                .write_download_manifests
+                .unwrap_or(current.write_download_manifests),
         };
         candidate.validate()?;
         Ok(candidate)
@@ -860,6 +876,7 @@ impl From<ClientSettings> for ClientSettingsPatch {
             dht_enabled: Some(settings.dht_enabled),
             peer_exchange_enabled: Some(settings.peer_exchange_enabled),
             tracker_https_server_authentication: Some(settings.tracker_https_server_authentication),
+            write_download_manifests: Some(settings.write_download_manifests),
         }
     }
 }

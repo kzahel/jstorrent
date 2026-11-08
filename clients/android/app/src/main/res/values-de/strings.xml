@@ -606,6 +606,7 @@
     <string name="settings_section_download_folders">"Downloadordner"</string>
     <string name="settings_section_peers">"Peers"</string>
     <string name="settings_section_permission">"Berechtigung"</string>
+    <string name="settings_section_playsvideo">"PlaysVideo"</string>
     <string name="settings_section_privacy">"Datenschutz"</string>
     <string name="settings_section_queue">"Warteschlange"</string>
     <string name="settings_section_reset">"Zurücksetzen"</string>
@@ -620,6 +621,8 @@
     <string name="settings_storage_detail">"Downloadordner, Torrent-Liste"</string>
     <string name="settings_theme">"Design"</string>
     <string name="settings_title">"Einstellungen"</string>
+    <string name="settings_write_download_manifests">"PlaysVideo-Manifestdateien schreiben"</string>
+    <string name="settings_write_download_manifests_detail">"Speichert neben jedem Download eine kleine versteckte .jstorrent.json-Datei, damit PlaysVideo die Wiedergabe auf deinen anderen Geräten fortsetzen kann."</string>
     <string name="share_address_always">"Immer hinzufügen"</string>
     <string name="share_address_ask">"Jedes Mal fragen"</string>
     <string name="share_address_never">"Nie hinzufügen"</string>

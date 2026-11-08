@@ -1722,6 +1722,44 @@ impl SessionStore {
         export_base_magnet_from(&self.connection, torrent_id)
     }
 
+    /// The magnet a PlaysVideo download manifest carries (Tactical 391): the
+    /// base export without peer hints. Private torrents carry only `xt` and
+    /// `dn`, because their tracker URLs often embed passkeys and PlaysVideo
+    /// syncs this field to a cloud account.
+    pub(crate) fn download_manifest_magnet(
+        &self,
+        torrent_id: &str,
+        private: bool,
+    ) -> Result<String, StoreError> {
+        if !private {
+            // A retained source magnet may carry another host's `x.pe`, or
+            // `so`/`xl` hints; PlaysVideo syncs this field, so none survive.
+            let base = self.export_base_magnet(torrent_id)?.0.magnet;
+            return Ok(replace_share_parameters(
+                &base,
+                MagnetShareParameters {
+                    exact_length: None,
+                    select_only: None,
+                    peer_hints: &[],
+                },
+            ));
+        }
+        let torrent_id = decode_torrent_id(torrent_id)
+            .ok_or_else(|| StoreError::DurableState("invalid torrent identity".to_owned()))?;
+        let raw_info = self
+            .connection
+            .query_row(
+                "SELECT raw_info FROM torrents WHERE torrent_id = ?1",
+                [torrent_id.as_bytes()],
+                |row| row.get::<_, Option<Vec<u8>>>(0),
+            )
+            .optional()?
+            .ok_or_else(|| StoreError::UnknownTorrent(torrent_id.to_string()))?;
+        let content_name = raw_info.as_deref().map(durable_content_name).transpose()?;
+        let info_hashes = read_info_hashes(&self.connection, &torrent_id)?;
+        Ok(synthesize_magnet_export(info_hashes, content_name.as_deref(), &[]).magnet)
+    }
+
     pub fn load_removal(&self, torrent_id: &str) -> Result<RemovalRecord, StoreError> {
         let torrent_id = decode_torrent_id(torrent_id)
             .ok_or_else(|| StoreError::DurableState("invalid torrent identity".to_owned()))?;
@@ -11981,6 +12019,7 @@ mod tests {
             dht_enabled: false,
             peer_exchange_enabled: false,
             tracker_https_server_authentication: HttpsServerAuthenticationPolicy::Disabled,
+            write_download_manifests: false,
         };
         let changed_response = store
             .handle_durable(&RequestEnvelope {

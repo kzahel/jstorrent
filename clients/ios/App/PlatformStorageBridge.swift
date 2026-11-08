@@ -66,13 +66,30 @@ final class PlatformStorageBridge: @unchecked Sendable {
             if let partKind = try Self.storageItemKind(at: part), partKind != .file {
                 throw StorageBridgeError.removalTargetHasWrongKind
             }
+            var manifestFiles: [URL] = []
             var payloadFiles: [URL] = []
             var payloadDirectories: [URL] = []
+            if !plan.tree {
+                for manifest in plan.downloadManifests {
+                    let target = try Self.storageTarget(root: root, components: [manifest])
+                    // Only a regular file is a sidecar; anything else is left alone.
+                    if try Self.storageItemKind(at: target) == .file {
+                        manifestFiles.append(target)
+                    }
+                }
+            }
             if let contentKind = try Self.storageItemKind(at: content) {
                 guard contentKind == (plan.tree ? .directory : .file) else {
                     throw StorageBridgeError.removalTargetHasWrongKind
                 }
                 if plan.tree {
+                    // PlaysVideo sidecars go first so the directory is pruned.
+                    for manifest in plan.downloadManifests {
+                        let target = try Self.storageTarget(root: content, components: [manifest])
+                        if try Self.storageItemKind(at: target) == .file {
+                            manifestFiles.append(target)
+                        }
+                    }
                     for path in plan.files {
                         if let target = try Self.resolveRemovalTarget(
                             root: content,
@@ -91,7 +108,7 @@ final class PlatformStorageBridge: @unchecked Sendable {
                     payloadFiles.append(content)
                 }
             }
-            for file in payloadFiles {
+            for file in manifestFiles + payloadFiles {
                 try removeExactFile(file)
             }
             if try Self.storageItemKind(at: part) != nil {

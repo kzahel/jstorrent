@@ -4045,6 +4045,12 @@ fn platform_storage_reference(
                 .collect(),
         },
         StorageFileRole::Part => vec![format!(".{}.rstorrent-parts", spec.storage_id)],
+        StorageFileRole::DownloadManifest => match spec.content_shape {
+            ContentShape::File => components,
+            ContentShape::Tree => std::iter::once(spec.content_name.clone())
+                .chain(components)
+                .collect(),
+        },
     };
     StorageFileReference::new(
         spec.pool.clone(),

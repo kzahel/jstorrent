@@ -17,6 +17,7 @@ mod catalog_recovery;
 mod control;
 mod dht_views;
 mod diagnostics;
+mod download_manifest;
 mod download_queue;
 mod durable_state;
 mod file_bitmap;

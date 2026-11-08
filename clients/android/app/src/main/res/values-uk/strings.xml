@@ -658,6 +658,7 @@
     <string name="settings_section_download_folders">"Теки завантажень"</string>
     <string name="settings_section_peers">"Піри"</string>
     <string name="settings_section_permission">"Дозвіл"</string>
+    <string name="settings_section_playsvideo">"PlaysVideo"</string>
     <string name="settings_section_privacy">"Приватність"</string>
     <string name="settings_section_queue">"Черга"</string>
     <string name="settings_section_reset">"Скидання"</string>
@@ -672,6 +673,8 @@
     <string name="settings_storage_detail">"Теки завантажень, список торентів"</string>
     <string name="settings_theme">"Тема"</string>
     <string name="settings_title">"Налаштування"</string>
+    <string name="settings_write_download_manifests">"Записувати файли маніфесту PlaysVideo"</string>
+    <string name="settings_write_download_manifests_detail">"Зберігає поруч із кожним завантаженням невеликий прихований файл .jstorrent.json, щоб PlaysVideo міг продовжити відтворення на інших ваших пристроях."</string>
     <string name="share_address_always">"Завжди додавати"</string>
     <string name="share_address_ask">"Запитувати щоразу"</string>
     <string name="share_address_never">"Ніколи не додавати"</string>

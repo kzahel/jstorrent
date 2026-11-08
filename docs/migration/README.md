@@ -20,6 +20,11 @@ changing compatibility behavior or investigating an upgrade-specific report.
   lifecycle ownership during import or failure recovery.
 - App and extension updates can arrive independently; old/new pairing and
   recovery remain relevant compatibility regressions.
+- Legacy `config:downloadManifest` (old Android `jstorrent_kv.db`, old desktop
+  config) is deliberately not imported. Legacy defaulted it off, so a stored
+  value mostly means "never revisited"; the current PlaysVideo manifest
+  setting is on by default for new and upgraded profiles
+  ([Tactical 391](../tactical/391-playsvideo-download-manifests.md)).
 
 Exact decisions live in the owners below. This index does not duplicate store
 status, artifact hashes, candidate gates or per-device receipts.

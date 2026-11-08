@@ -580,6 +580,7 @@
     <string name="settings_section_download_folders">"다운로드 폴더"</string>
     <string name="settings_section_peers">"피어"</string>
     <string name="settings_section_permission">"권한"</string>
+    <string name="settings_section_playsvideo">"PlaysVideo"</string>
     <string name="settings_section_privacy">"개인정보 보호"</string>
     <string name="settings_section_queue">"대기열"</string>
     <string name="settings_section_reset">"초기화"</string>
@@ -594,6 +595,8 @@
     <string name="settings_storage_detail">"다운로드 폴더, 토렌트 목록"</string>
     <string name="settings_theme">"테마"</string>
     <string name="settings_title">"설정"</string>
+    <string name="settings_write_download_manifests">"PlaysVideo 매니페스트 파일 쓰기"</string>
+    <string name="settings_write_download_manifests_detail">"각 다운로드 옆에 작은 숨김 파일 .jstorrent.json을 저장하여 PlaysVideo가 다른 기기에서 이어서 재생할 수 있도록 합니다."</string>
     <string name="share_address_always">"항상 포함"</string>
     <string name="share_address_ask">"매번 확인"</string>
     <string name="share_address_never">"포함하지 않음"</string>

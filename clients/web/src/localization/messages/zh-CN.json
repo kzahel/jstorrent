@@ -2399,6 +2399,18 @@
     "defaultMessage": "写入耗时",
     "description": "Product copy in inspection/components/DiskPanel.tsx"
   },
+  "inspection.components.download.manifest.settings.help": {
+    "defaultMessage": "在每个下载旁保存一个隐藏的小型 .jstorrent.json 文件，以便 PlaysVideo 在其他设备上继续播放。",
+    "description": "Explains the PlaysVideo manifest checkbox; keep .jstorrent.json and PlaysVideo unchanged"
+  },
+  "inspection.components.download.manifest.settings.title": {
+    "defaultMessage": "PlaysVideo",
+    "description": "Settings section title for integration with PlaysVideo, a separate video player app; keep the product name untranslated"
+  },
+  "inspection.components.download.manifest.settings.write": {
+    "defaultMessage": "写入 PlaysVideo 清单文件",
+    "description": "Checkbox label: save small hidden files beside downloads that the PlaysVideo app reads; keep PlaysVideo untranslated"
+  },
   "inspection.components.download.settings.section.add.folder": {
     "defaultMessage": "添加文件夹…",
     "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"

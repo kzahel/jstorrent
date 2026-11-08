@@ -88,9 +88,16 @@ describe("supportedPatch", () => {
 
   it("keeps keys the host advertises", () => {
     const patch = { seed_stop_ratio_percent: { type: "off" } } as const;
+    const everything = new Set(registry.map((capability) => capability.name));
+    expect(supportedPatch(patch, "client_settings", everything, registry)).toBe(patch);
     expect(
-      supportedPatch(patch, "client_settings", new Set(["seed_stop_limits"]), registry),
-    ).toBe(patch);
+      supportedPatch(
+        { write_download_manifests: false },
+        "client_settings",
+        new Set(["seed_stop_limits"]),
+        registry,
+      ),
+    ).toEqual({});
   });
 
   it("treats a host without a capability list as current", () => {

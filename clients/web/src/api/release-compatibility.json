@@ -69,6 +69,10 @@
     "TorrentFieldUpdate.oneOf[field=safety_summary]": {
       "kind": "field",
       "reason": "373 safety-aware All selection totals; release tolerant clients before hosts"
+    },
+    "ClientSettings.write_download_manifests": {
+      "kind": "field",
+      "reason": "391 PlaysVideo download manifests; strict clients (extension 1.1.4 and older) reject it, so a host release needs an accepted break naming it"
     }
   },
   "acceptedBreaks": {

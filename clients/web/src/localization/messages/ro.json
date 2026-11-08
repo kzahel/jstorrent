@@ -2399,6 +2399,18 @@
     "defaultMessage": "Durata scrierii",
     "description": "Product copy in inspection/components/DiskPanel.tsx"
   },
+  "inspection.components.download.manifest.settings.help": {
+    "defaultMessage": "Salvează lângă fiecare descărcare un mic fișier ascuns .jstorrent.json, astfel încât PlaysVideo să poată relua redarea pe celelalte dispozitive.",
+    "description": "Explains the PlaysVideo manifest checkbox; keep .jstorrent.json and PlaysVideo unchanged"
+  },
+  "inspection.components.download.manifest.settings.title": {
+    "defaultMessage": "PlaysVideo",
+    "description": "Settings section title for integration with PlaysVideo, a separate video player app; keep the product name untranslated"
+  },
+  "inspection.components.download.manifest.settings.write": {
+    "defaultMessage": "Scrie fișierele manifest PlaysVideo",
+    "description": "Checkbox label: save small hidden files beside downloads that the PlaysVideo app reads; keep PlaysVideo untranslated"
+  },
   "inspection.components.download.settings.section.add.folder": {
     "defaultMessage": "Adaugă dosar…",
     "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"

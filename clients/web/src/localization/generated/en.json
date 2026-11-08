@@ -5512,6 +5512,24 @@
       "value": "Write service"
     }
   ],
+  "inspection.components.download.manifest.settings.help": [
+    {
+      "type": 0,
+      "value": "Saves a small hidden .jstorrent.json file beside each download so PlaysVideo can resume it on your other devices."
+    }
+  ],
+  "inspection.components.download.manifest.settings.title": [
+    {
+      "type": 0,
+      "value": "PlaysVideo"
+    }
+  ],
+  "inspection.components.download.manifest.settings.write": [
+    {
+      "type": 0,
+      "value": "Write PlaysVideo manifest files"
+    }
+  ],
   "inspection.components.download.settings.section.add.folder": [
     {
       "type": 0,

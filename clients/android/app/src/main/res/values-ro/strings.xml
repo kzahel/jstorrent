@@ -632,6 +632,7 @@
     <string name="settings_section_download_folders">"Dosare pentru descărcări"</string>
     <string name="settings_section_peers">"Participanți"</string>
     <string name="settings_section_permission">"Permisiune"</string>
+    <string name="settings_section_playsvideo">"PlaysVideo"</string>
     <string name="settings_section_privacy">"Confidențialitate"</string>
     <string name="settings_section_queue">"Coadă"</string>
     <string name="settings_section_reset">"Resetare"</string>
@@ -646,6 +647,8 @@
     <string name="settings_storage_detail">"Dosare pentru descărcări, lista torentelor"</string>
     <string name="settings_theme">"Temă"</string>
     <string name="settings_title">"Setări"</string>
+    <string name="settings_write_download_manifests">"Scrie fișierele manifest PlaysVideo"</string>
+    <string name="settings_write_download_manifests_detail">"Salvează lângă fiecare descărcare un mic fișier ascuns .jstorrent.json, astfel încât PlaysVideo să poată relua redarea pe celelalte dispozitive."</string>
     <string name="share_address_always">"Include întotdeauna"</string>
     <string name="share_address_ask">"Întreabă de fiecare dată"</string>
     <string name="share_address_never">"Nu include niciodată"</string>

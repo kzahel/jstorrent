@@ -1,8 +1,9 @@
 # Implementation Tactical Docs
 
 - [391 — PlaysVideo download manifests](391-playsvideo-download-manifests.md):
-  planned; restore the legacy `.<infohash>.jstorrent.json` sidecar on path
-  and SAF roots, default on, so PlaysVideo can carry magnets across devices.
+  implemented; the engine writes the legacy `.<infohash>.jstorrent.json`
+  sidecar on path and SAF roots, default on, with web and Android toggles.
+  Android build/instrumentation and physical cross-device evidence remain.
 
 - [390 — Store listing localization](390-store-listing-localization.md):
   complete; 30 Play listings submitted and API-verified; extension 1.1.9 with

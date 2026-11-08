@@ -229,6 +229,30 @@ Delete-data behavior:
 This retains Tactical `188`'s cleanup safety while removing the misleading
 claim that payload is safe to delete because it is `managed`.
 
+### PlaysVideo download manifest
+
+Tactical [`391`](../tactical/391-playsvideo-download-manifests.md) adds one
+more engine-owned artifact: the legacy-compatible
+`.<v1 info hash>.jstorrent.json` sidecar PlaysVideo reads. It sits beside a
+single-file payload in the root, or inside a multi-file content directory.
+
+- It is written only once the payload path exists: the engine's first
+  payload write, or existing content. Storage stays lazy, so a metadata-only,
+  pending-selection or not-yet-started add creates nothing. It is then kept
+  current as file completion changes.
+  Path roots write `<name>.tmp`, fsync it and rename it over the sidecar;
+  links and special objects are replaced, never written through.
+- Writing is best effort and gated by the global `write_download_manifests`
+  setting (on by default). Failures are bounded diagnostics and never change
+  torrent state.
+- **Delete data** removes the exact sidecar and temporary names before
+  pruning directories, so a multi-file content directory is still removed.
+  **Keep data** leaves the sidecar with its last state. Only a regular file
+  at a sidecar name is deleted; a link or directory there never fails
+  removal.
+- Turning the setting off, removing with Keep data, or a torrent the host
+  does not know never triggers cleanup of existing sidecars.
+
 ## Platform Contract
 
 Path-backed storage opens and creates final files directly beneath the

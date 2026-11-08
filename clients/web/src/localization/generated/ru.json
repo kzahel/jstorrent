@@ -7084,6 +7084,24 @@
       "value": "Время записи"
     }
   ],
+  "inspection.components.download.manifest.settings.help": [
+    {
+      "type": 0,
+      "value": "Сохраняет рядом с каждой загрузкой небольшой скрытый файл .jstorrent.json, чтобы PlaysVideo мог продолжить воспроизведение на других ваших устройствах."
+    }
+  ],
+  "inspection.components.download.manifest.settings.title": [
+    {
+      "type": 0,
+      "value": "PlaysVideo"
+    }
+  ],
+  "inspection.components.download.manifest.settings.write": [
+    {
+      "type": 0,
+      "value": "Записывать файлы манифеста PlaysVideo"
+    }
+  ],
   "inspection.components.download.settings.section.add.folder": [
     {
       "type": 0,

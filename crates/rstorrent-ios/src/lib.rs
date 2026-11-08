@@ -97,6 +97,8 @@ pub enum IosDynamicFileRole {
     ContentRoot,
     Payload,
     Part,
+    /// The PlaysVideo sidecar; an opener truncates it for an in-place rewrite.
+    DownloadManifest,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
@@ -182,6 +184,9 @@ pub struct IosRemovalPlan {
     pub tree: bool,
     pub files: Vec<IosRemovalPath>,
     pub directories: Vec<IosRemovalPath>,
+    /// Exact PlaysVideo sidecar names: beside a single file, or inside the
+    /// content directory of a tree.
+    pub download_manifests: Vec<String>,
 }
 
 #[derive(Clone, Debug, uniffi::Record)]
@@ -769,6 +774,7 @@ fn map_request(request: rstorrent_engine::PlatformStorageRequest) -> IosStorageR
             u32::try_from(file_index).unwrap_or(u32::MAX),
         ),
         StorageFileRole::Part => (IosDynamicFileRole::Part, 0),
+        StorageFileRole::DownloadManifest => (IosDynamicFileRole::DownloadManifest, 0),
     };
     IosStorageRequest {
         request_id: request.request_id,
@@ -858,6 +864,7 @@ fn map_removal_plan(plan: PlatformRemovalPlan) -> IosRemovalPlan {
                 components: path.components,
             })
             .collect(),
+        download_manifests: plan.download_manifests,
     }
 }
 
@@ -923,11 +930,13 @@ mod tests {
             directories: vec![rstorrent_session::PlatformRemovalPath {
                 components: vec!["Season 01".to_owned()],
             }],
+            download_manifests: vec![".abab.jstorrent.json".to_owned()],
         });
 
         assert!(plan.tree);
         assert_eq!(plan.files[0].components, ["Season 01", "Episode 01.mkv"]);
         assert_eq!(plan.directories[0].components, ["Season 01"]);
+        assert_eq!(plan.download_manifests, [".abab.jstorrent.json"]);
     }
 
     #[test]
