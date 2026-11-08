@@ -5,6 +5,11 @@ Production releases of the existing JSTorrent Chrome Web Store item
 `scripts/release-extension.sh <version>`; see
 [`docs/topics/mixed-version-compatibility.md`](../../docs/topics/mixed-version-compatibility.md).
 
+## [1.1.10]
+
+- Explain more clearly when setup cannot find the JSTorrent app or the app
+  does not respond, to help with troubleshooting.
+
 ## [1.1.9]
 
 - Translate the extension popup, privacy controls and Chromebook setup/recovery

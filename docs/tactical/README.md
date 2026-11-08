@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [392 — PlaysVideo product release](392-playsvideo-product-release.md):
+  in progress; desktop 0.3.9, Android 1.0.36 and extension 1.1.10 with the
+  carried-forward eight-field acceptance and no new companion exposure.
+
 - [391 — PlaysVideo download manifests](391-playsvideo-download-manifests.md):
   implemented; the engine writes the legacy `.<infohash>.jstorrent.json`
   sidecar on path and SAF roots, always on with no user setting.

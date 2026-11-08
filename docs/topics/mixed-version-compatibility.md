@@ -1,5 +1,11 @@
 # Mixed-Version Compatibility
 
+Tactical [392](../tactical/392-playsvideo-product-release.md) carries the same
+eight-field acceptance forward to `desktop-v0.3.9` and `android-v1.0.36`.
+Tactical 391's PlaysVideo manifest setting was removed before release, so
+these hosts add no field, capability or enum; extension 1.1.5+ is still
+required and strict-client policy remains enabled.
+
 Tactical [390](../tactical/390-store-listing-localization.md) submits extension
 1.1.9 at exact source `3f00e522` through tagged workflow 40883865810, after its
 21-pair live matrix passes with the existing reviewed legacy expectations.
