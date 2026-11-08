@@ -1,0 +1,47 @@
+{
+  "api": {
+    "current": 1,
+    "minimum": 1
+  },
+  "encodings": [
+    "json"
+  ],
+  "deliveries": [
+    "poll",
+    "long_poll"
+  ],
+  "capabilities": [
+    "torrent_list",
+    "torrent_summary",
+    "torrent_preparation",
+    "torrent_peers",
+    "torrent_swarm",
+    "torrent_files",
+    "torrent_media",
+    "torrent_trackers",
+    "library_media",
+    "session_disk",
+    "session_dht",
+    "session_current_rates",
+    "session_speed_history",
+    "piece_activity",
+    "diagnostics",
+    "desktop_auto_updates",
+    "seed_stop_limits",
+    "magnet_export_options",
+    "client_identity",
+    "file_safety",
+    "file_selection_bitmaps"
+  ],
+  "limits": {
+    "max_view_sets_per_owner": 8,
+    "max_views_per_set": 16,
+    "max_view_id_bytes": 64,
+    "min_queue_bytes": 16384,
+    "default_queue_bytes": 262144,
+    "max_queue_bytes": 524288,
+    "max_snapshot_bytes": 16777216,
+    "max_wait_millis": 20000,
+    "lease_millis": "300000"
+  }
+}

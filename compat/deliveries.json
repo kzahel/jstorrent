@@ -360,6 +360,18 @@
       "firstPublic": null,
       "channelBasis": "Exact tagged code37 host candidate supersedes withdrawn 1.0.36 with the same app source and the PlaysVideo manifest writer. Signed construction and internal then staged production Play promotion remain pending; no public availability claimed.",
       "roles": ["host"]
+    },
+    {
+      "surface": "desktop",
+      "version": "0.3.10",
+      "tag": "desktop-v0.3.10",
+      "commit": "1a49f4ab4e334a289fc672028e96ae4030a6557c",
+      "channel": "stable",
+      "status": "submitted",
+      "submitted": "2026-11-08",
+      "firstPublic": null,
+      "channelBasis": "Public Latest 0.3.10 from workflow 42492203367 at this exact source, after full CI 42487644642. Stable promotion of the same native/source bytes is pending; no Stable availability claimed. Supersedes the private 0.3.9 draft, which stopped at the corresponding-source gate.",
+      "roles": ["host"]
     }
   ]
 }
