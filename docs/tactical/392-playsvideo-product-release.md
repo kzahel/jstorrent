@@ -1,6 +1,6 @@
 # 392 — PlaysVideo product release
 
-Status: **In progress (November 8, 2026).** The maintainer asked to "release
+Status: **Desktop and extension delivered; Android production awaiting maintainer environment approval (November 8, 2026).** The maintainer asked to "release
 everything" with the Tactical 391 PlaysVideo download manifests.
 
 ## Scope and stopping condition
@@ -83,4 +83,19 @@ availability are recorded separately from full public delivery.
   that it is the only new pair (replacing `0.9`) on both architectures. The
   reviewed pin is added; the 0.3.9 draft stays private and reserved, and the
   rebuilt source publishes as 0.3.10.
+- Full CI 42487644642 passes at `1a49f4ab`. Latest workflow 42492203367
+  publishes desktop Latest 0.3.10 at 15:50:58 UTC from that exact source
+  with 17 assets, including the completed AppImage source carrier. The
+  public checksum inventory, updater manifest (all eleven platform keys at
+  0.3.10) and an uncredentialed macOS arm64 DMG download verify.
+- Stable promotion 42497004134 publishes `desktop-v0.3.10` at 15:55:44 UTC.
+  Its checksum inventory matches Latest for every native and source asset;
+  only the URL-bound updater manifest differs, serving 0.3.10.
+- Website promotion 42497307551 and deployment 42497403399 serve the 0.3.10
+  downloads on jstorrent.com. The generated placeholder release note is
+  replaced with the changelog text.
+- Android production staged rollout (1%, `standard-7d`) is dispatched as
+  42491366778 at the maintainer's request without the optional physical
+  internal-track check; it waits on the `android-play-production`
+  environment approval.
 
