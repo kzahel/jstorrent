@@ -1,5 +1,11 @@
 # Android Changelog
 
+## [1.0.37]
+
+- Save a small hidden .jstorrent.json file beside each download so PlaysVideo can find and resume the video on your other devices.
+- Report Chromebook connection attempts more accurately in optional diagnostic feedback.
+- Chromebook browser control continues to require extension 1.1.5 or newer.
+
 ## [1.0.36]
 
 - Save a small hidden .jstorrent.json file beside each download so PlaysVideo can find and resume the video on your other devices.

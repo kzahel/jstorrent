@@ -1,7 +1,8 @@
 # Mixed-Version Compatibility
 
 Tactical [392](../tactical/392-playsvideo-product-release.md) carries the same
-eight-field acceptance forward to `desktop-v0.3.9` and `android-v1.0.36`.
+eight-field acceptance forward to `desktop-v0.3.9` and `android-v1.0.37` (1.0.36 was withdrawn before
+signing).
 Tactical 391's PlaysVideo manifest setting was removed before release, so
 these hosts add no field, capability or enum; extension 1.1.5+ is still
 required and strict-client policy remains enabled.
