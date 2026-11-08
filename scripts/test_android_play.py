@@ -176,6 +176,41 @@ class PublishTest(unittest.TestCase):
                     self.publish(google)
                 self.assertFalse(google.puts())
 
+    def test_supersede_replaces_only_an_older_staged_production_rollout(self):
+        for staged in ({'status': 'inProgress', 'versionCodes': ['32'], 'userFraction': 0.01},
+                       {'status': 'halted', 'versionCodes': ['32'], 'userFraction': 0.01}):
+            with self.subTest(staged=staged):
+                google = FakeGoogle(tracks={'production': [{'status': 'completed', 'versionCodes': ['31']}, staged]},
+                                    bundles=[{'versionCode': 33, 'sha256': DIGEST}])
+                result = play.publish(google, 'production', 'inProgress', 33, '1.0.33', BUNDLE, DIGEST,
+                                      '• Notes.', 0.01, supersede=True)
+                self.assertEqual((result['status'], result['previousVersionCode'],
+                                  result['supersededVersionCodes']), ('submitted', 31, [32]))
+                self.assertEqual(google.puts()[0]['releases'], [{
+                    'name': '1.0.33', 'versionCodes': ['33'], 'status': 'inProgress',
+                    'releaseNotes': [{'language': 'en-US', 'text': '• Notes.'}], 'userFraction': 0.01}])
+                self.assertIn(COMMIT, google.methods('POST'))
+
+    def test_supersede_still_refuses_drafts_newer_rollouts_and_other_tracks(self):
+        for releases in ([{'status': 'inProgress', 'versionCodes': ['34'], 'userFraction': 0.01}],
+                         [{'status': 'inProgress', 'versionCodes': ['32'], 'userFraction': 0.01},
+                          {'status': 'draft', 'versionCodes': ['31']}]):
+            with self.subTest(releases=releases):
+                google = FakeGoogle(tracks={'production': releases},
+                                    bundles=[{'versionCode': 33, 'sha256': DIGEST}])
+                with self.assertRaises(ValueError):
+                    play.publish(google, 'production', 'inProgress', 33, '1.0.33', BUNDLE, DIGEST,
+                                 '• Notes.', 0.01, supersede=True)
+                self.assertFalse(google.puts())
+                self.assertEqual(google.methods('DELETE'), [EDIT])
+        for track, status in (('internal', 'completed'), ('production', 'draft')):
+            with self.subTest(track=track, status=status):
+                google = FakeGoogle()
+                with self.assertRaisesRegex(ValueError, 'supersede'):
+                    play.publish(google, track, status, 33, '1.0.33', BUNDLE, DIGEST, '• Notes.',
+                                 supersede=True)
+                self.assertFalse(google.calls)
+
     def test_same_release_is_unchanged_and_own_draft_can_be_released(self):
         google = FakeGoogle(tracks={'internal': [{'status': 'completed', 'versionCodes': ['33']}]},
                             bundles=[{'versionCode': 33, 'sha256': DIGEST}])

@@ -330,9 +330,12 @@ def completed_code(releases):
 
 # Play operations.
 
-def publish(google, track, status, version_code, version_name, bundle, digest, notes, fraction=None, translations=None):
+def publish(google, track, status, version_code, version_name, bundle, digest, notes, fraction=None, translations=None,
+            supersede=False):
     if track not in TRACKS or status not in STATUSES:
         raise ValueError('Unsupported track or release status')
+    if supersede and (track != 'production' or status not in ('inProgress', 'completed')):
+        raise ValueError('Only a production release can supersede a staged rollout')
     if status == 'inProgress':
         if track != 'production':
             raise ValueError('Staged rollouts apply to production')
@@ -362,9 +365,15 @@ def publish(google, track, status, version_code, version_name, bundle, digest, n
                for release in same):
             return {'status': 'unchanged', 'track': track, 'versionCode': version_code}
         own_draft = [release for release in same if release.get('status') == 'draft']
-        if any(release.get('status') in ('inProgress', 'halted')
-               or (release.get('status') == 'draft' and release not in own_draft)
-               for release in current):
+        unfinished = [release for release in current
+                      if release.get('status') in ('inProgress', 'halted')
+                      or (release.get('status') == 'draft' and release not in own_draft)]
+        # An explicit supersede replaces only older staged rollouts; drafts,
+        # newer codes and changes in Google review still refuse.
+        superseded = [release for release in unfinished
+                      if supersede and release.get('status') in ('inProgress', 'halted')
+                      and codes(release) and max(codes(release)) < version_code]
+        if any(release not in superseded for release in unfinished):
             raise ValueError('The track has an unfinished rollout or another draft; '
                              'finish it with android-play-rollout or in Play Console first')
         latest = max([0] + [code for release in current for code in codes(release)])
@@ -379,6 +388,7 @@ def publish(google, track, status, version_code, version_name, bundle, digest, n
         return {'status': 'draft_saved' if status == 'draft' else 'submitted', 'track': track,
                 'versionCode': version_code, 'versionName': version_name, 'releaseStatus': status,
                 'userFraction': fraction, 'previousVersionCode': completed_code(current),
+                'supersededVersionCodes': sorted(code for release in superseded for code in codes(release)),
                 'sha256': digest, 'uploaded': uploaded, 'editId': transaction.id}
 
 
@@ -736,12 +746,14 @@ def command_publish(args):
     result = publish(Http(os.environ.get('PLAY_ACCESS_TOKEN')), args.track, args.status,
                      args.version_code, args.version_name, data, digest,
                      args.notes_file.read_text(), args.fraction,
-                     json.loads(args.localized_notes_file.read_text()) if args.localized_notes_file else None)
+                     json.loads(args.localized_notes_file.read_text()) if args.localized_notes_file else None,
+                     args.supersede)
     result.update(tag=args.tag, source=args.source, buildRunId=args.run_id)
     if result['status'] == 'submitted':
         payload = {'versionCode': args.version_code, 'versionName': args.version_name, 'tag': args.tag,
                    'source': args.source, 'sha256': digest, 'status': args.status,
                    'userFraction': args.fraction, 'previousVersionCode': result['previousVersionCode'],
+                   'supersededVersionCodes': result['supersededVersionCodes'],
                    'plan': args.plan if steps else None, 'steps': steps, 'action': 'publish'}
         environment = f'play-{args.track}'
         result['deployment'] = github_ledger().record(
@@ -818,6 +830,8 @@ def main(argv=None):
             sub.add_argument('--status', choices=STATUSES, required=True)
             sub.add_argument('--fraction', type=fraction_argument)
             sub.add_argument('--plan', default='none')
+            sub.add_argument('--supersede', action='store_true',
+                             help='replace older in-progress or halted production rollouts')
             sub.add_argument('--notes-file', type=Path, required=True)
             sub.add_argument('--localized-notes-file', type=Path,
                              help='Optional language-to-text JSON; English must match the verified notes')

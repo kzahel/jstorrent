@@ -89,7 +89,13 @@ Adopted: all of the above. Different here:
   before commit. Never retry an ambiguous commit, never fall back silently to
   draft, and never cancel an in-review change (`ERROR_IF_IN_REVIEW`).
 - Refuse downgrades and replacing an unrelated draft, in-progress or halted
-  release. Fractions only increase, except via halt.
+  release. Fractions only increase, except via halt. The one exception is an
+  explicit `supersede` production publication (added 2026-11-08). It replaces
+  in-progress or halted production rollouts whose version codes are all
+  older than the published one, so a fix can replace a bad staged rollout
+  without completing it. Drafts, newer codes and changes in Google review
+  (`ERROR_IF_IN_REVIEW`) still refuse. The receipt and deployment record
+  the superseded codes.
 - Play is the source of truth for current rollout state. If Play disagrees
   with the last recorded step (a manual Console change), automation takes no
   action and reports the mismatch.

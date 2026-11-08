@@ -224,6 +224,11 @@ group, and change Play through a single validated edit.
    Play already holds with the same SHA-256, so it always promotes the bundle
    that internal testers received. `completed` releases to everyone at once.
    The `android-play-production` environment requires maintainer approval.
+   An unfinished production rollout blocks publication. To replace an older
+   staged rollout with a fix without completing it, set `supersede=true`.
+   It never replaces a draft, a newer code or a change still in Google
+   review. Users who already received the superseded version keep it until
+   the new rollout reaches them.
 4. **Rollout.** **Android Play Rollout** sets a higher fraction, halts,
    resumes or completes. Halt runs in `android-play-halt` without approval.
    **Android Play Advance** runs daily: after the current step's dwell time it
