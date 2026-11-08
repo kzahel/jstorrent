@@ -372,6 +372,18 @@
       "firstPublic": null,
       "channelBasis": "Public Latest 0.3.10 from workflow 42492203367 at this exact source, after full CI 42487644642. Stable promotion of the same native/source bytes is pending; no Stable availability claimed. Supersedes the private 0.3.9 draft, which stopped at the corresponding-source gate.",
       "roles": ["host"]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.38",
+      "tag": "android-v1.0.38",
+      "commit": "8b39b15917a6471e4fa71165aa6568b7ac9a738e",
+      "channel": "play-production",
+      "status": "submitted",
+      "submitted": "2026-11-08",
+      "firstPublic": null,
+      "channelBasis": "Exact tagged code38 host candidate fixes the SAF completion race that quarantined completed torrents in 1.0.37 and lets Force recheck lift a recorded quarantine. Signed construction and internal then staged production Play promotion remain pending; no public availability claimed.",
+      "roles": ["host"]
     }
   ]
 }
