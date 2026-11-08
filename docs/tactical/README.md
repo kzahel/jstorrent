@@ -2,7 +2,7 @@
 
 - [391 — PlaysVideo download manifests](391-playsvideo-download-manifests.md):
   implemented; the engine writes the legacy `.<infohash>.jstorrent.json`
-  sidecar on path and SAF roots, default on, with web and Android toggles.
+  sidecar on path and SAF roots, always on with no user setting.
   Android build/instrumentation and physical cross-device evidence remain.
 
 - [390 — Store listing localization](390-store-listing-localization.md):

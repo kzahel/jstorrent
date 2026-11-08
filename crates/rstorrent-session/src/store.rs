@@ -12019,7 +12019,6 @@ mod tests {
             dht_enabled: false,
             peer_exchange_enabled: false,
             tracker_https_server_authentication: HttpsServerAuthenticationPolicy::Disabled,
-            write_download_manifests: false,
         };
         let changed_response = store
             .handle_durable(&RequestEnvelope {

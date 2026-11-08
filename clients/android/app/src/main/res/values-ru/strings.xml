@@ -658,7 +658,6 @@
     <string name="settings_section_download_folders">"Папки для загрузок"</string>
     <string name="settings_section_peers">"Пиры"</string>
     <string name="settings_section_permission">"Разрешение"</string>
-    <string name="settings_section_playsvideo">"PlaysVideo"</string>
     <string name="settings_section_privacy">"Приватность"</string>
     <string name="settings_section_queue">"Очередь"</string>
     <string name="settings_section_reset">"Сброс"</string>
@@ -673,8 +672,6 @@
     <string name="settings_storage_detail">"Папки для загрузок, список торрентов"</string>
     <string name="settings_theme">"Тема"</string>
     <string name="settings_title">"Настройки"</string>
-    <string name="settings_write_download_manifests">"Записывать файлы манифеста PlaysVideo"</string>
-    <string name="settings_write_download_manifests_detail">"Сохраняет рядом с каждой загрузкой небольшой скрытый файл .jstorrent.json, чтобы PlaysVideo мог продолжить воспроизведение на других ваших устройствах."</string>
     <string name="share_address_always">"Всегда добавлять"</string>
     <string name="share_address_ask">"Спрашивать каждый раз"</string>
     <string name="share_address_never">"Никогда не добавлять"</string>

@@ -5264,24 +5264,6 @@
       "value": "写入耗时"
     }
   ],
-  "inspection.components.download.manifest.settings.help": [
-    {
-      "type": 0,
-      "value": "在每个下载旁保存一个隐藏的小型 .jstorrent.json 文件，以便 PlaysVideo 在其他设备上继续播放。"
-    }
-  ],
-  "inspection.components.download.manifest.settings.title": [
-    {
-      "type": 0,
-      "value": "PlaysVideo"
-    }
-  ],
-  "inspection.components.download.manifest.settings.write": [
-    {
-      "type": 0,
-      "value": "写入 PlaysVideo 清单文件"
-    }
-  ],
   "inspection.components.download.settings.section.add.folder": [
     {
       "type": 0,

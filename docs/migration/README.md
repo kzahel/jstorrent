@@ -22,8 +22,8 @@ changing compatibility behavior or investigating an upgrade-specific report.
   recovery remain relevant compatibility regressions.
 - Legacy `config:downloadManifest` (old Android `jstorrent_kv.db`, old desktop
   config) is deliberately not imported. Legacy defaulted it off, so a stored
-  value mostly means "never revisited"; the current PlaysVideo manifest
-  setting is on by default for new and upgraded profiles
+  value mostly means "never revisited"; the current app always writes the
+  PlaysVideo manifest and has no setting for it
   ([Tactical 391](../tactical/391-playsvideo-download-manifests.md)).
 
 Exact decisions live in the owners below. This index does not duplicate store

@@ -2399,18 +2399,6 @@
     "defaultMessage": "Servicio de escritura",
     "description": "Product copy in inspection/components/DiskPanel.tsx"
   },
-  "inspection.components.download.manifest.settings.help": {
-    "defaultMessage": "Guarda un pequeño archivo oculto .jstorrent.json junto a cada descarga para que PlaysVideo pueda reanudar la reproducción en sus otros dispositivos.",
-    "description": "Explains the PlaysVideo manifest checkbox; keep .jstorrent.json and PlaysVideo unchanged"
-  },
-  "inspection.components.download.manifest.settings.title": {
-    "defaultMessage": "PlaysVideo",
-    "description": "Settings section title for integration with PlaysVideo, a separate video player app; keep the product name untranslated"
-  },
-  "inspection.components.download.manifest.settings.write": {
-    "defaultMessage": "Escribir archivos de manifiesto de PlaysVideo",
-    "description": "Checkbox label: save small hidden files beside downloads that the PlaysVideo app reads; keep PlaysVideo untranslated"
-  },
   "inspection.components.download.settings.section.add.folder": {
     "defaultMessage": "Añadir carpeta…",
     "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"

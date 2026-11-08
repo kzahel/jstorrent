@@ -287,7 +287,6 @@ class ProductStateReducerTest {
                 dhtEnabled = false,
                 peerExchangeEnabled = false,
                 trackerHttpsServerAuthentication = HttpsServerAuthenticationPolicy.DISABLED,
-                writeDownloadManifests = true,
             )
 
         val patch = clientSettingsPatch(
@@ -1387,7 +1386,6 @@ class ProductStateReducerTest {
                 dhtEnabled = true,
                 peerExchangeEnabled = true,
                 trackerHttpsServerAuthentication = HttpsServerAuthenticationPolicy.SYSTEM_TRUST,
-                writeDownloadManifests = true,
             ),
     ): ClientSettingsRuntimeView =
         ClientSettingsRuntimeView(

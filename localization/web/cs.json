@@ -5402,33 +5402,6 @@
       "translationHash": "b84e93c0960135e69f1df7c29b420db50ffbf232eab38bf67d325b6d6746c81f",
       "translator": "gpt-6.1-sol/01a184e8-b8a3-7002-b27f-926007606102"
     },
-    "inspection.components.download.manifest.settings.help": {
-      "origin": "independently authored translation",
-      "reviewState": "agent-reviewed",
-      "reviewer": "claude-opus-5-5/a7ef19326f4391fa6",
-      "sourceHash": "f2f944f22e125bafff5a670f9c852278439ed3e7830bcac633726beafeffee51",
-      "terminologyHash": "0b5764d89056aa59b71e58758240d807e966dcb59dd8dcb0ceb7ef8397ac46fc",
-      "translationHash": "b9ace174cbbffd945154f854b3407fbe003474f8c81d4a747a672b057dfba359",
-      "translator": "claude-opus-5-5/ebd6af3b-7661-44db-a792-378c00cb4cf9"
-    },
-    "inspection.components.download.manifest.settings.title": {
-      "origin": "independently authored translation",
-      "reviewState": "agent-reviewed",
-      "reviewer": "claude-opus-5-5/a7ef19326f4391fa6",
-      "sourceHash": "9c8343111eb0372d203e4357df900619899050e6fffd65f46dec06ed05086d27",
-      "terminologyHash": "4f6f1cbc35801558e0269a594535ab5ffa1f416e259f14ec6be03b270898926b",
-      "translationHash": "e5742605c96af477b0da973786282058a94c2c60af2fa21750fa7518089b22c7",
-      "translator": "claude-opus-5-5/ebd6af3b-7661-44db-a792-378c00cb4cf9"
-    },
-    "inspection.components.download.manifest.settings.write": {
-      "origin": "independently authored translation",
-      "reviewState": "agent-reviewed",
-      "reviewer": "claude-opus-5-5/a7ef19326f4391fa6",
-      "sourceHash": "867375c28fe72ad0a717f60b2e28fe4baa6144563b0462f70d87374cf23bd4ef",
-      "terminologyHash": "4f6f1cbc35801558e0269a594535ab5ffa1f416e259f14ec6be03b270898926b",
-      "translationHash": "48f2812eb4390cdb34f9d938f3de35b546daf4f69d6ab95702d84623d8943222",
-      "translator": "claude-opus-5-5/ebd6af3b-7661-44db-a792-378c00cb4cf9"
-    },
     "inspection.components.download.settings.section.add.folder": {
       "origin": "independently authored translation",
       "reviewState": "agent-reviewed",

@@ -5661,24 +5661,6 @@
       "value": "Servicio de escritura"
     }
   ],
-  "inspection.components.download.manifest.settings.help": [
-    {
-      "type": 0,
-      "value": "Guarda un pequeño archivo oculto .jstorrent.json junto a cada descarga para que PlaysVideo pueda reanudar la reproducción en sus otros dispositivos."
-    }
-  ],
-  "inspection.components.download.manifest.settings.title": [
-    {
-      "type": 0,
-      "value": "PlaysVideo"
-    }
-  ],
-  "inspection.components.download.manifest.settings.write": [
-    {
-      "type": 0,
-      "value": "Escribir archivos de manifiesto de PlaysVideo"
-    }
-  ],
   "inspection.components.download.settings.section.add.folder": [
     {
       "type": 0,

@@ -19,9 +19,6 @@ pub const MAGNET_EXPORT_OPTIONS: &str = "magnet_export_options";
 /// no gated surface: clients send the identity before the hello, and hosts
 /// without this capability ignore it.
 pub const CLIENT_IDENTITY: &str = "client_identity";
-/// The host writes PlaysVideo download manifests (Tactical 391) and accepts
-/// the setting that turns them off.
-pub const DOWNLOAD_MANIFESTS: &str = "download_manifests";
 
 /// One registered capability and the contract surface it owns.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -107,16 +104,6 @@ pub const HOST_CAPABILITIES: &[HostCapability] = &[
         commands: &[],
         command_fields: &[],
         client_settings_patch_keys: &[],
-        torrent_settings_patch_keys: &[],
-    },
-    HostCapability {
-        name: DOWNLOAD_MANIFESTS,
-        id: 7,
-        introduced: "2026-11-08",
-        lifecycle: HostCapabilityLifecycle::Transitional,
-        commands: &[],
-        command_fields: &[],
-        client_settings_patch_keys: &["write_download_manifests"],
         torrent_settings_patch_keys: &[],
     },
 ];

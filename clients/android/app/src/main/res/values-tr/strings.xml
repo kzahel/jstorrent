@@ -606,7 +606,6 @@
     <string name="settings_section_download_folders">"İndirme klasörleri"</string>
     <string name="settings_section_peers">"Eşler"</string>
     <string name="settings_section_permission">"İzin"</string>
-    <string name="settings_section_playsvideo">"PlaysVideo"</string>
     <string name="settings_section_privacy">"Gizlilik"</string>
     <string name="settings_section_queue">"Kuyruk"</string>
     <string name="settings_section_reset">"Sıfırlama"</string>
@@ -621,8 +620,6 @@
     <string name="settings_storage_detail">"İndirme klasörleri, torrent listesi"</string>
     <string name="settings_theme">"Tema"</string>
     <string name="settings_title">"Ayarlar"</string>
-    <string name="settings_write_download_manifests">"PlaysVideo manifest dosyalarını yaz"</string>
-    <string name="settings_write_download_manifests_detail">"PlaysVideo’nun diğer cihazlarınızda oynatmaya devam edebilmesi için her indirmenin yanına küçük, gizli bir .jstorrent.json dosyası kaydeder."</string>
     <string name="share_address_always">"Her zaman dahil et"</string>
     <string name="share_address_ask">"Her seferinde sor"</string>
     <string name="share_address_never">"Asla dahil etme"</string>

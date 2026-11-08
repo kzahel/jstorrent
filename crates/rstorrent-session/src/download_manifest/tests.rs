@@ -331,7 +331,6 @@ fn path_write_never_follows_links() {
 fn queue_coalesces_rate_limits_and_keeps_rejections_sticky() {
     let queue = DownloadManifestQueue::default();
     let start = Instant::now();
-    queue.state().enabled = true;
     queue.mark("a");
     queue.mark("a");
     let Next::Write {
@@ -381,18 +380,6 @@ fn queue_coalesces_rate_limits_and_keeps_rejections_sticky() {
     assert!(
         matches!(queue.next(start), Next::Write { .. }),
         "forget clears them"
-    );
-
-    queue.mark("off");
-    queue.set_enabled(false);
-    assert!(
-        matches!(queue.next(start), Next::Idle),
-        "off drops pending writes"
-    );
-    queue.set_enabled(true);
-    assert!(
-        matches!(queue.next(start), Next::ReconcileAll),
-        "on reconciles"
     );
 }
 

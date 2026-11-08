@@ -452,7 +452,6 @@ struct QueueShared {
 
 #[derive(Debug, Default)]
 struct QueueState {
-    enabled: bool,
     reconcile_all: bool,
     draining: bool,
     dirty: BTreeSet<String>,
@@ -515,22 +514,6 @@ impl DownloadManifestQueue {
         self.shared.wake.notify_one();
     }
 
-    /// Turning the setting on re-examines every torrent; off stops writes
-    /// and leaves existing sidecars.
-    pub(crate) fn set_enabled(&self, enabled: bool) {
-        let mut state = self.state();
-        if state.enabled == enabled {
-            return;
-        }
-        state.enabled = enabled;
-        if enabled {
-            state.reconcile_all = true;
-            state.written.clear();
-        }
-        drop(state);
-        self.shared.wake.notify_one();
-    }
-
     /// A removal is about to delete artifacts; drop pending work.
     pub(crate) fn forget(&self, torrent_id: &str) {
         let mut state = self.state();
@@ -546,11 +529,6 @@ impl DownloadManifestQueue {
     /// The next torrent that may be written now, or when one becomes due.
     fn next(&self, now: Instant) -> Next {
         let mut state = self.state();
-        if !state.enabled {
-            state.dirty.clear();
-            state.reconcile_all = false;
-            return Next::Idle;
-        }
         if state.reconcile_all {
             return Next::ReconcileAll;
         }
@@ -628,14 +606,9 @@ impl DownloadManifestWriter {
         roots: Arc<BTreeMap<String, StorageRootLocation>>,
         pool: StorageFilePool,
         views: ViewHub,
-        enabled: bool,
     ) -> Self {
         let queue = DownloadManifestQueue::default();
-        {
-            let mut state = queue.state();
-            state.enabled = enabled;
-            state.reconcile_all = true;
-        }
+        queue.state().reconcile_all = true;
         let roots = Arc::new(Mutex::new(roots));
         let gate = Arc::new(tokio::sync::Mutex::new(()));
         let cancellation = CancellationToken::new();

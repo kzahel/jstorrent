@@ -6956,24 +6956,6 @@
       "value": "Doba zápisu"
     }
   ],
-  "inspection.components.download.manifest.settings.help": [
-    {
-      "type": 0,
-      "value": "Ukládá vedle každého stahování malý skrytý soubor .jstorrent.json, aby PlaysVideo mohlo pokračovat v přehrávání na vašich dalších zařízeních."
-    }
-  ],
-  "inspection.components.download.manifest.settings.title": [
-    {
-      "type": 0,
-      "value": "PlaysVideo"
-    }
-  ],
-  "inspection.components.download.manifest.settings.write": [
-    {
-      "type": 0,
-      "value": "Zapisovat soubory manifestu PlaysVideo"
-    }
-  ],
   "inspection.components.download.settings.section.add.folder": [
     {
       "type": 0,

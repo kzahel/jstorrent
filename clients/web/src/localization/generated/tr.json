@@ -5500,24 +5500,6 @@
       "value": "Yazma süresi"
     }
   ],
-  "inspection.components.download.manifest.settings.help": [
-    {
-      "type": 0,
-      "value": "PlaysVideo’nun diğer cihazlarınızda oynatmaya devam edebilmesi için her indirmenin yanına küçük, gizli bir .jstorrent.json dosyası kaydeder."
-    }
-  ],
-  "inspection.components.download.manifest.settings.title": [
-    {
-      "type": 0,
-      "value": "PlaysVideo"
-    }
-  ],
-  "inspection.components.download.manifest.settings.write": [
-    {
-      "type": 0,
-      "value": "PlaysVideo manifest dosyalarını yaz"
-    }
-  ],
   "inspection.components.download.settings.section.add.folder": [
     {
       "type": 0,

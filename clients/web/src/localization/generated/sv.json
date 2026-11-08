@@ -5651,24 +5651,6 @@
       "value": "Skrivtid"
     }
   ],
-  "inspection.components.download.manifest.settings.help": [
-    {
-      "type": 0,
-      "value": "Sparar en liten dold .jstorrent.json-fil bredvid varje nedladdning så att PlaysVideo kan fortsätta uppspelningen på dina andra enheter."
-    }
-  ],
-  "inspection.components.download.manifest.settings.title": [
-    {
-      "type": 0,
-      "value": "PlaysVideo"
-    }
-  ],
-  "inspection.components.download.manifest.settings.write": [
-    {
-      "type": 0,
-      "value": "Skriv PlaysVideo-manifestfiler"
-    }
-  ],
   "inspection.components.download.settings.section.add.folder": [
     {
       "type": 0,

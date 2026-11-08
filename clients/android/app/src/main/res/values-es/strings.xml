@@ -632,7 +632,6 @@
     <string name="settings_section_download_folders">"Carpetas de descargas"</string>
     <string name="settings_section_peers">"Pares"</string>
     <string name="settings_section_permission">"Permiso"</string>
-    <string name="settings_section_playsvideo">"PlaysVideo"</string>
     <string name="settings_section_privacy">"Privacidad"</string>
     <string name="settings_section_queue">"Cola"</string>
     <string name="settings_section_reset">"Restablecer"</string>
@@ -647,8 +646,6 @@
     <string name="settings_storage_detail">"Carpetas de descargas, lista de torrents"</string>
     <string name="settings_theme">"Tema"</string>
     <string name="settings_title">"Ajustes"</string>
-    <string name="settings_write_download_manifests">"Escribir archivos de manifiesto de PlaysVideo"</string>
-    <string name="settings_write_download_manifests_detail">"Guarda un pequeño archivo oculto .jstorrent.json junto a cada descarga para que PlaysVideo pueda reanudar la reproducción en sus otros dispositivos."</string>
     <string name="share_address_always">"Incluir siempre"</string>
     <string name="share_address_ask">"Preguntar cada vez"</string>
     <string name="share_address_never">"No incluir nunca"</string>

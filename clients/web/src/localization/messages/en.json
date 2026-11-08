@@ -2040,18 +2040,6 @@
     "defaultMessage": "Choose which files to download before starting.",
     "description": "Explains the file selection setting"
   },
-  "inspection.components.download.manifest.settings.title": {
-    "defaultMessage": "PlaysVideo",
-    "description": "Settings section title for integration with PlaysVideo, a separate video player app; keep the product name untranslated"
-  },
-  "inspection.components.download.manifest.settings.write": {
-    "defaultMessage": "Write PlaysVideo manifest files",
-    "description": "Checkbox label: save small hidden files beside downloads that the PlaysVideo app reads; keep PlaysVideo untranslated"
-  },
-  "inspection.components.download.manifest.settings.help": {
-    "defaultMessage": "Saves a small hidden .jstorrent.json file beside each download so PlaysVideo can resume it on your other devices.",
-    "description": "Explains the PlaysVideo manifest checkbox; keep .jstorrent.json and PlaysVideo unchanged"
-  },
   "inspection.components.file.action.menu.items.save.file": {
     "defaultMessage": "Save file…",
     "description": "Product copy in inspection/components/FileActionMenuItems.tsx"

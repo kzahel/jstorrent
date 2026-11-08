@@ -1067,7 +1067,6 @@ impl ApplicationService {
             storage_roots.clone(),
             storage_file_pool.clone(),
             views.clone(),
-            active_client_settings.write_download_manifests,
         );
         let mut service = Self {
             host_updates: None,
@@ -2431,11 +2430,6 @@ impl ApplicationService {
                 let settings = self.store_mut()?.snapshot()?.client_settings;
                 self.storage_file_pool
                     .set_mark_internet_origin(settings.file_safety.mark_internet_origin);
-                if let Some(manifests) = &self.download_manifests {
-                    manifests
-                        .queue()
-                        .set_enabled(settings.write_download_manifests);
-                }
                 self.session_network_config.settings = settings.clone();
                 if let Some(session_network) = self.session_network.as_mut() {
                     session_network.submit_settings(settings)?;

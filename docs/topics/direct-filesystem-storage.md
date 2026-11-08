@@ -242,9 +242,8 @@ single-file payload in the root, or inside a multi-file content directory.
   current as file completion changes.
   Path roots write `<name>.tmp`, fsync it and rename it over the sidecar;
   links and special objects are replaced, never written through.
-- Writing is best effort and gated by the global `write_download_manifests`
-  setting (on by default). Failures are bounded diagnostics and never change
-  torrent state.
+- Writing is always on and best effort; there is no user setting. Failures
+  are bounded diagnostics and never change torrent state.
 - **Delete data** removes the exact sidecar and temporary names before
   pruning directories, so a multi-file content directory is still removed.
   **Keep data** leaves the sidecar with its last state. Only a regular file

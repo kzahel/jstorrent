@@ -6213,24 +6213,6 @@
       "value": "Durée d’écriture"
     }
   ],
-  "inspection.components.download.manifest.settings.help": [
-    {
-      "type": 0,
-      "value": "Enregistre un petit fichier caché .jstorrent.json à côté de chaque téléchargement pour que PlaysVideo puisse en reprendre la lecture sur vos autres appareils."
-    }
-  ],
-  "inspection.components.download.manifest.settings.title": [
-    {
-      "type": 0,
-      "value": "PlaysVideo"
-    }
-  ],
-  "inspection.components.download.manifest.settings.write": [
-    {
-      "type": 0,
-      "value": "Écrire les fichiers manifestes PlaysVideo"
-    }
-  ],
   "inspection.components.download.settings.section.add.folder": [
     {
       "type": 0,

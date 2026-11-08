@@ -2343,7 +2343,6 @@ class ProductNavigationTest {
                 peerExchangeEnabled = true,
                 trackerHttpsServerAuthentication =
                     HttpsServerAuthenticationPolicy.SYSTEM_TRUST,
-                writeDownloadManifests = true,
             )
         return ClientSettingsRuntimeView(
             configured = configured,

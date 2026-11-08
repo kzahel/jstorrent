@@ -26,12 +26,7 @@ pub(crate) type MigrationStep = fn(&Transaction<'_>) -> Result<(), StoreError>;
 
 /// `MIGRATION_STEPS[i]` migrates `BASELINE_SCHEMA_VERSION + i` to the next
 /// version. Append only; a step that has shipped is never edited.
-const MIGRATION_STEPS: &[MigrationStep] = &[
-    migrate_26_to_27,
-    migrate_27_to_28,
-    migrate_28_to_29,
-    migrate_29_to_30,
-];
+const MIGRATION_STEPS: &[MigrationStep] = &[migrate_26_to_27, migrate_27_to_28, migrate_28_to_29];
 
 const _: () = assert!(
     BASELINE_SCHEMA_VERSION + MIGRATION_STEPS.len() as i64 == SCHEMA_VERSION,
@@ -73,18 +68,6 @@ fn migrate_28_to_29(transaction: &Transaction<'_>) -> Result<(), StoreError> {
     crate::store::safety::migrate(transaction)
 }
 
-/// Schema 30 (Tactical 391): PlaysVideo download manifests, on by default
-/// for existing profiles too. The legacy `downloadManifest` preference is
-/// deliberately not imported.
-fn migrate_29_to_30(transaction: &Transaction<'_>) -> Result<(), StoreError> {
-    transaction.execute_batch(DOWNLOAD_MANIFESTS_COLUMN_30)?;
-    Ok(())
-}
-
-const DOWNLOAD_MANIFESTS_COLUMN_30: &str = "ALTER TABLE client_settings
-     ADD COLUMN write_download_manifests INTEGER NOT NULL DEFAULT 1
-     CHECK (write_download_manifests IN (0, 1));";
-
 const NETWORK_DEFAULTS_COLUMN_28: &str = "ALTER TABLE client_settings
      ADD COLUMN network_defaults_version INTEGER NOT NULL DEFAULT 0
      CHECK (network_defaults_version >= 0);";
@@ -112,9 +95,6 @@ pub(crate) fn upgrade_client_settings_for_test(transaction: &Transaction<'_>) {
     transaction
         .execute_batch(crate::store::safety::SETTINGS_SQL)
         .expect("schema 29 safety settings");
-    transaction
-        .execute_batch(DOWNLOAD_MANIFESTS_COLUMN_30)
-        .expect("schema 30 download manifest setting");
 }
 
 /// Brings a freshly created baseline catalog to the current version within
@@ -341,17 +321,6 @@ mod tests {
                 store.snapshot().expect("snapshot").torrents.len(),
                 original_rows["torrents"].len()
             );
-            // Schema 30 (Tactical 391): upgraded profiles write PlaysVideo
-            // manifests; the legacy preference is deliberately not imported.
-            if *version < 30 {
-                assert!(
-                    store
-                        .client_settings()
-                        .expect("settings")
-                        .write_download_manifests,
-                    "catalog {version} must migrate with download manifests on"
-                );
-            }
             // Pre-bitmap releases populate the legacy tables. Current releases
             // preserve their authoritative file_state rows in the comparison above.
             if *version < 29 {

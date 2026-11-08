@@ -606,7 +606,6 @@
     <string name="settings_section_download_folders">"Downloadmappen"</string>
     <string name="settings_section_peers">"Peers"</string>
     <string name="settings_section_permission">"Toestemming"</string>
-    <string name="settings_section_playsvideo">"PlaysVideo"</string>
     <string name="settings_section_privacy">"Privacy"</string>
     <string name="settings_section_queue">"Wachtrij"</string>
     <string name="settings_section_reset">"Resetten"</string>
@@ -621,8 +620,6 @@
     <string name="settings_storage_detail">"Downloadmappen, torrentlijst"</string>
     <string name="settings_theme">"Thema"</string>
     <string name="settings_title">"Instellingen"</string>
-    <string name="settings_write_download_manifests">"PlaysVideo-manifestbestanden schrijven"</string>
-    <string name="settings_write_download_manifests_detail">"Slaat naast elke download een klein verborgen .jstorrent.json-bestand op, zodat PlaysVideo het afspelen op je andere apparaten kan hervatten."</string>
     <string name="share_address_always">"Altijd opnemen"</string>
     <string name="share_address_ask">"Elke keer vragen"</string>
     <string name="share_address_never">"Nooit opnemen"</string>

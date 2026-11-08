@@ -5567,24 +5567,6 @@
       "value": "Skrivetid"
     }
   ],
-  "inspection.components.download.manifest.settings.help": [
-    {
-      "type": 0,
-      "value": "Gemmer en lille skjult .jstorrent.json-fil ved siden af hver download, så PlaysVideo kan genoptage afspilningen på dine andre enheder."
-    }
-  ],
-  "inspection.components.download.manifest.settings.title": [
-    {
-      "type": 0,
-      "value": "PlaysVideo"
-    }
-  ],
-  "inspection.components.download.manifest.settings.write": [
-    {
-      "type": 0,
-      "value": "Skriv PlaysVideo-manifestfiler"
-    }
-  ],
   "inspection.components.download.settings.section.add.folder": [
     {
       "type": 0,

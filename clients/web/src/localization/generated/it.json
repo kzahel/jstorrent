@@ -5679,24 +5679,6 @@
       "value": "Tempo di scrittura"
     }
   ],
-  "inspection.components.download.manifest.settings.help": [
-    {
-      "type": 0,
-      "value": "Salva un piccolo file nascosto .jstorrent.json accanto a ogni download, così PlaysVideo può riprenderne la riproduzione sugli altri dispositivi."
-    }
-  ],
-  "inspection.components.download.manifest.settings.title": [
-    {
-      "type": 0,
-      "value": "PlaysVideo"
-    }
-  ],
-  "inspection.components.download.manifest.settings.write": [
-    {
-      "type": 0,
-      "value": "Scrivere i file manifesto di PlaysVideo"
-    }
-  ],
   "inspection.components.download.settings.section.add.folder": [
     {
       "type": 0,

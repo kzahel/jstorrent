@@ -6321,24 +6321,6 @@
       "value": "Durata scrierii"
     }
   ],
-  "inspection.components.download.manifest.settings.help": [
-    {
-      "type": 0,
-      "value": "Salvează lângă fiecare descărcare un mic fișier ascuns .jstorrent.json, astfel încât PlaysVideo să poată relua redarea pe celelalte dispozitive."
-    }
-  ],
-  "inspection.components.download.manifest.settings.title": [
-    {
-      "type": 0,
-      "value": "PlaysVideo"
-    }
-  ],
-  "inspection.components.download.manifest.settings.write": [
-    {
-      "type": 0,
-      "value": "Scrie fișierele manifest PlaysVideo"
-    }
-  ],
   "inspection.components.download.settings.section.add.folder": [
     {
       "type": 0,

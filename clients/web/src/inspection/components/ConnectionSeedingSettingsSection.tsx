@@ -1406,8 +1406,6 @@ function validateDraft(
       seed_stop_time_seconds: sessionSeedStopLimit(
         seedStopTime.limit as NonNullable<SeedStopValidation["limit"]>,
       ),
-      // Not a draft field of this section; never part of its patch.
-      write_download_manifests: FILE_SAFETY_DEFAULTS.write_download_manifests,
     },
     preferredPortError: null,
     fixedPortError: null,

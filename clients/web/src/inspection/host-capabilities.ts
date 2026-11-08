@@ -10,7 +10,6 @@ import type { SessionSummary } from "./model";
 /** Host capability names, from the Rust registry. */
 export const SEED_STOP_LIMITS = "seed_stop_limits";
 export const MAGNET_EXPORT_OPTIONS = "magnet_export_options";
-export const DOWNLOAD_MANIFESTS = "download_manifests";
 
 /**
  * Whether the connected host has a capability. A host that reports no list

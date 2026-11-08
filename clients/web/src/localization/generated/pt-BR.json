@@ -5704,24 +5704,6 @@
       "value": "Execução da gravação"
     }
   ],
-  "inspection.components.download.manifest.settings.help": [
-    {
-      "type": 0,
-      "value": "Salva um pequeno arquivo oculto .jstorrent.json ao lado de cada download para que o PlaysVideo possa retomar a reprodução nos seus outros dispositivos."
-    }
-  ],
-  "inspection.components.download.manifest.settings.title": [
-    {
-      "type": 0,
-      "value": "PlaysVideo"
-    }
-  ],
-  "inspection.components.download.manifest.settings.write": [
-    {
-      "type": 0,
-      "value": "Gravar arquivos de manifesto do PlaysVideo"
-    }
-  ],
   "inspection.components.download.settings.section.add.folder": [
     {
       "type": 0,

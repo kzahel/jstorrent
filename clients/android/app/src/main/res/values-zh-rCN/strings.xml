@@ -580,7 +580,6 @@
     <string name="settings_section_download_folders">"下载文件夹"</string>
     <string name="settings_section_peers">"对等节点"</string>
     <string name="settings_section_permission">"权限"</string>
-    <string name="settings_section_playsvideo">"PlaysVideo"</string>
     <string name="settings_section_privacy">"隐私"</string>
     <string name="settings_section_queue">"队列"</string>
     <string name="settings_section_reset">"重置"</string>
@@ -595,8 +594,6 @@
     <string name="settings_storage_detail">"下载文件夹、种子任务列表"</string>
     <string name="settings_theme">"主题"</string>
     <string name="settings_title">"设置"</string>
-    <string name="settings_write_download_manifests">"写入 PlaysVideo 清单文件"</string>
-    <string name="settings_write_download_manifests_detail">"在每个下载旁保存一个隐藏的小型 .jstorrent.json 文件，以便 PlaysVideo 在其他设备上继续播放。"</string>
     <string name="share_address_always">"始终包含"</string>
     <string name="share_address_ask">"每次询问"</string>
     <string name="share_address_never">"从不包含"</string>

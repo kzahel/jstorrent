@@ -1953,11 +1953,6 @@
           "maximum": 50,
           "minimum": 0,
           "type": "integer"
-        },
-        "write_download_manifests": {
-          "default": true,
-          "description": "Write the `.<info hash>.jstorrent.json` sidecar PlaysVideo reads\nbeside each download (Tactical 391).",
-          "type": "boolean"
         }
       },
       "required": [
@@ -2118,9 +2113,6 @@
           "maximum": 50,
           "minimum": 0,
           "type": "integer"
-        },
-        "write_download_manifests": {
-          "type": "boolean"
         }
       },
       "type": "object"
@@ -7639,8 +7631,7 @@
             "upload_rate_limit": {
               "type": "unlimited"
             },
-            "upload_slots": 8,
-            "write_download_manifests": true
+            "upload_slots": 8
           }
         },
         "profile_id": {
@@ -10733,8 +10724,7 @@
                   "upload_rate_limit": {
                     "type": "unlimited"
                   },
-                  "upload_slots": 8,
-                  "write_download_manifests": true
+                  "upload_slots": 8
                 },
                 "dht_application": {
                   "type": "applied"

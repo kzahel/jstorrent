@@ -35,8 +35,8 @@ Scope:
   across restarts. Startup reconciliation writes sidecars for torrents
   downloaded before this feature.
 - Delete it exactly under **Delete data**; leave it under **Keep data**.
-- Add a global engine setting, **on by default**, with web and Android
-  toggles.
+- Always on. A user setting was planned and implemented, then dropped
+  before release (see Settings).
 
 Stopping condition: a torrent downloaded by JSTorrent Android and played in
 PlaysVideo on that phone appears in PlaysVideo on desktop with its magnet,
@@ -50,8 +50,7 @@ passes for a desktop download. Topics and the migration ledger are updated.
 - No sidecar for pure BitTorrent v2 torrents in this slice (see Contract).
 - No new remote or application API surface. No change to how the media
   Library is derived; it comes from metainfo and never reads the sidecar.
-- No cleanup of stale or legacy sidecars when the setting is off, when a
-  torrent is removed with Keep data, or for torrents the host does not know.
+- No cleanup of stale or legacy sidecars when a torrent is removed with Keep data, or for torrents the host does not know.
   This matches the no-automatic-cleanup rule in
   [`direct-filesystem-storage`](../topics/direct-filesystem-storage.md).
 - No import of the legacy `downloadManifest` preference (see Settings).
@@ -131,7 +130,6 @@ Add a `DownloadManifestWriter` owned by `ApplicationService`, modeled on
   - `pieces_durable`, only when the batch completes a file or the torrent.
   - `have_rechecked`, `pieces_invalidated`, file priority or selection
     changes, and `mark_complete`.
-  - The setting turning on.
   - Startup reconciliation: one pass over torrents with prepared storage
     after the store opens.
 - **Work:** for each dirty torrent:
@@ -196,6 +194,16 @@ Add a `DownloadManifestWriter` owned by `ApplicationService`, modeled on
 - **CancelPendingAdd:** nothing was written, so nothing is deleted.
 
 ### Settings
+
+**Superseded 2026-11-08, before any release:** the maintainer chose no
+setting; the writer is always on. A `ClientSettings` field is sent to every
+connected client, and released strict extensions (1.1.4 and older) reject
+unknown fields, so the toggle would have required an accepted compatibility
+break for each host release. Without it the host contract, capability set
+and `session.db` schema (29) are unchanged, and the toggle, schema step
+29 → 30, capability `download_manifests` and its 36 locale strings were
+removed. If a toggle is wanted later, add it once strict-client support ends
+(`strictClients.supported` false). The original plan follows.
 
 - Add `ClientSettings.write_download_manifests: bool`, default `true`, with a
   serde default and a `ClientSettingsPatch` field.
@@ -392,19 +400,11 @@ What landed, and where it differs from the plan above:
   writer truncates explicitly, so the Swift bridge's non-truncating open is
   correct. `PlatformStorageBridge.removeData` deletes the sidecars before
   pruning. Behavior evidence stays deferred with iOS storage.
-- **Mixed versions.** Capability `download_manifests` (ID 7) owns the
-  `write_download_manifests` patch key. Released strict clients (extension
-  1.1.4 and older) reject unknown `ClientSettings` fields, so the field is a
-  reviewed client exposure in `clients/web/src/api/release-compatibility.json`.
-  **The next host release needs an accepted break that names it.**
-- **Schema.** Step 29 → 30 adds the column with default 1, so upgraded
-  profiles are on. The private Tactical 377 qualification probe moved from
-  29 → 30 to 30 → 31.
-- **Copy.** Web shows a PlaysVideo section in Settings → Downloads; Android
-  shows a PlaysVideo section in Advanced. All 18 shipping non-English locales
-  for both platforms were translated through `scripts/localization.py` and
-  independently agent-reviewed. The review corrected help text that read as
-  resuming the *download* rather than playback.
+- **No setting (follow-up commit).** The first commit added the setting,
+  capability `download_manifests` (ID 7), schema step 29 → 30 and localized
+  web and Android toggles. All were removed before release (see Settings),
+  so the feature adds no host contract field, capability or schema step and
+  needs no compatibility break. The writer has no enabled state.
 
 ## Evidence
 
@@ -413,7 +413,8 @@ What landed, and where it differs from the plan above:
 - `cargo test --workspace` passes (1783 tests in 73 binaries before the
   review corrections). `cargo test -p rstorrent-session` passes after them.
   It includes 12 builder, writer, queue and fake-broker tests in
-  `download_manifest::tests`, and 7 application tests in
+  `download_manifest::tests`, and 7 application tests (6 after the setting's
+  removal) in
   `application::tests::download_manifests`:
   - a real loopback peer download creates no sidecar while storage is
     prepared but empty, then writes `complete: true` with `x.pe` and `so`
@@ -426,21 +427,17 @@ What landed, and where it differs from the plan above:
   - Delete data removes a multi-file sidecar and prunes the content
     directory; Keep data leaves the sidecar; Delete data waits while a write
     holds the gate;
-  - the setting off writes nothing; turning it on reconciles; turning it off
-    again leaves the file;
   - private torrents export `xt` and `dn` only.
 - The SAF writer test runs against a fake platform broker. It covers
   deferral without creating anything, the identical-bytes skip, truncating
   to a shorter body, released pool handles, and a denied open that leaves
   root health untouched.
-- Released-catalog fixtures v26 and v29 migrate to schema 30 with
-  `write_download_manifests` on. `node scripts/desktop-compatibility.mjs` and
-  the private-probe test pass.
 - `cargo clippy --workspace --all-targets -- -D warnings` and
   `cargo fmt --all -- --check` are clean.
 - `npm run generate`, `npm run typecheck` and `npm run test` in `clients/web`
   pass (986 tests, 3 skipped). These include released-host, old-client and
-  capability-gating tests and the new settings section tests.
+  capability-gating tests and the new settings section tests (since removed
+  with the setting).
 - `node scripts/check-localization.mjs` passes for every platform.
 - An independent review session (YA, Opus 5.5 high) returned REVISE with one
   P1, two P2s and seven P3 findings. Each is corrected above, or recorded as

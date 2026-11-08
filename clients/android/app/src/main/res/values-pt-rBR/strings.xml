@@ -632,7 +632,6 @@
     <string name="settings_section_download_folders">"Pastas de downloads"</string>
     <string name="settings_section_peers">"Pares"</string>
     <string name="settings_section_permission">"Permissão"</string>
-    <string name="settings_section_playsvideo">"PlaysVideo"</string>
     <string name="settings_section_privacy">"Privacidade"</string>
     <string name="settings_section_queue">"Fila"</string>
     <string name="settings_section_reset">"Redefinir"</string>
@@ -647,8 +646,6 @@
     <string name="settings_storage_detail">"Pastas de downloads, lista de torrents"</string>
     <string name="settings_theme">"Tema"</string>
     <string name="settings_title">"Configurações"</string>
-    <string name="settings_write_download_manifests">"Gravar arquivos de manifesto do PlaysVideo"</string>
-    <string name="settings_write_download_manifests_detail">"Salva um pequeno arquivo oculto .jstorrent.json ao lado de cada download para que o PlaysVideo possa retomar a reprodução nos seus outros dispositivos."</string>
     <string name="share_address_always">"Sempre incluir"</string>
     <string name="share_address_ask">"Perguntar sempre"</string>
     <string name="share_address_never">"Nunca incluir"</string>

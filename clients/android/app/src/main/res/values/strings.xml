@@ -544,12 +544,6 @@
     <string name="settings_section_background">Background</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_section_chrome">Chrome</string>
-    <!-- Settings section title for integration with PlaysVideo, a separate video player app; keep the product name untranslated -->
-    <string name="settings_section_playsvideo">PlaysVideo</string>
-    <!-- Switch title: save small hidden files beside downloads that the PlaysVideo app reads; keep PlaysVideo untranslated -->
-    <string name="settings_write_download_manifests">Write PlaysVideo manifest files</string>
-    <!-- Explains the PlaysVideo manifest switch; keep .jstorrent.json and PlaysVideo unchanged -->
-    <string name="settings_write_download_manifests_detail">Saves a small hidden .jstorrent.json file beside each download so PlaysVideo can resume it on your other devices.</string>
     <string name="settings_section_privacy">Privacy</string>
     <string name="settings_section_support">Support</string>
     <string name="settings_section_reset">Reset</string>

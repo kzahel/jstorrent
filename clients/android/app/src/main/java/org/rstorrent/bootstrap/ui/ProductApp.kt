@@ -1596,19 +1596,6 @@ private fun ProductNavHost(
                         enabled = service != null,
                     )
                 }
-                state.presentedClientSettings()?.let { settings ->
-                    SettingsSection(stringResource(R.string.settings_section_playsvideo))
-                    NotificationToggleSetting(
-                        title = stringResource(R.string.settings_write_download_manifests),
-                        detail = stringResource(R.string.settings_write_download_manifests_detail),
-                        checked = settings.configured.writeDownloadManifests,
-                        onChecked = { enabled ->
-                            onUpdateClientSettings(
-                                clientSettingsPatch(writeDownloadManifests = enabled),
-                            )
-                        },
-                    )
-                }
                 SettingsSection(stringResource(R.string.settings_section_privacy))
                 state.productSummary?.let { summary ->
                     ListItem(

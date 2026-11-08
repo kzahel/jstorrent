@@ -2399,18 +2399,6 @@
     "defaultMessage": "Doba zápisu",
     "description": "Product copy in inspection/components/DiskPanel.tsx"
   },
-  "inspection.components.download.manifest.settings.help": {
-    "defaultMessage": "Ukládá vedle každého stahování malý skrytý soubor .jstorrent.json, aby PlaysVideo mohlo pokračovat v přehrávání na vašich dalších zařízeních.",
-    "description": "Explains the PlaysVideo manifest checkbox; keep .jstorrent.json and PlaysVideo unchanged"
-  },
-  "inspection.components.download.manifest.settings.title": {
-    "defaultMessage": "PlaysVideo",
-    "description": "Settings section title for integration with PlaysVideo, a separate video player app; keep the product name untranslated"
-  },
-  "inspection.components.download.manifest.settings.write": {
-    "defaultMessage": "Zapisovat soubory manifestu PlaysVideo",
-    "description": "Checkbox label: save small hidden files beside downloads that the PlaysVideo app reads; keep PlaysVideo untranslated"
-  },
   "inspection.components.download.settings.section.add.folder": {
     "defaultMessage": "Přidat složku…",
     "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"

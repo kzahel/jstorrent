@@ -2399,18 +2399,6 @@
     "defaultMessage": "쓰기 처리 시간",
     "description": "Product copy in inspection/components/DiskPanel.tsx"
   },
-  "inspection.components.download.manifest.settings.help": {
-    "defaultMessage": "각 다운로드 옆에 작은 숨김 파일 .jstorrent.json을 저장하여 PlaysVideo가 다른 기기에서 이어서 재생할 수 있도록 합니다.",
-    "description": "Explains the PlaysVideo manifest checkbox; keep .jstorrent.json and PlaysVideo unchanged"
-  },
-  "inspection.components.download.manifest.settings.title": {
-    "defaultMessage": "PlaysVideo",
-    "description": "Settings section title for integration with PlaysVideo, a separate video player app; keep the product name untranslated"
-  },
-  "inspection.components.download.manifest.settings.write": {
-    "defaultMessage": "PlaysVideo 매니페스트 파일 쓰기",
-    "description": "Checkbox label: save small hidden files beside downloads that the PlaysVideo app reads; keep PlaysVideo untranslated"
-  },
   "inspection.components.download.settings.section.add.folder": {
     "defaultMessage": "폴더 추가…",
     "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"

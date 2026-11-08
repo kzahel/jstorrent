@@ -658,7 +658,6 @@
     <string name="settings_section_download_folders">"Foldery pobierania"</string>
     <string name="settings_section_peers">"Uczestnicy"</string>
     <string name="settings_section_permission">"Uprawnienie"</string>
-    <string name="settings_section_playsvideo">"PlaysVideo"</string>
     <string name="settings_section_privacy">"Prywatność"</string>
     <string name="settings_section_queue">"Kolejka"</string>
     <string name="settings_section_reset">"Resetowanie"</string>
@@ -673,8 +672,6 @@
     <string name="settings_storage_detail">"Foldery pobierania, lista torrentów"</string>
     <string name="settings_theme">"Motyw"</string>
     <string name="settings_title">"Ustawienia"</string>
-    <string name="settings_write_download_manifests">"Zapisuj pliki manifestu PlaysVideo"</string>
-    <string name="settings_write_download_manifests_detail">"Zapisuje obok każdego pobierania mały ukryty plik .jstorrent.json, aby PlaysVideo mogło wznowić odtwarzanie na innych urządzeniach."</string>
     <string name="share_address_always">"Zawsze dołączaj"</string>
     <string name="share_address_ask">"Pytaj za każdym razem"</string>
     <string name="share_address_never">"Nigdy nie dołączaj"</string>

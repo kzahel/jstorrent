@@ -1974,7 +1974,6 @@ class ProductEngineService : Service() {
                             dhtEnabled = true,
                             peerExchangeEnabled = true,
                             trackerHttpsServerAuthentication = policy,
-                            writeDownloadManifests = true,
                         ).asPatch(),
                     ),
                 )
@@ -2044,7 +2043,6 @@ class ProductEngineService : Service() {
                             peerExchangeEnabled = true,
                             trackerHttpsServerAuthentication =
                                 HttpsServerAuthenticationPolicy.SYSTEM_TRUST,
-                            writeDownloadManifests = true,
                         ).asPatch(),
                     ),
                 )

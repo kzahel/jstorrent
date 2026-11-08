@@ -186,7 +186,6 @@ pub(crate) fn read_client_settings(
         tracker_https_authentication,
         seed_stop_ratio_percent,
         seed_stop_time_seconds,
-        write_download_manifests,
     ) = connection.query_row(
         "SELECT listener_mode, listener_port, preferred_listen_port, port_mapping_mode,
                 peer_connection_limit, upload_slots, active_downloads,
@@ -195,8 +194,7 @@ pub(crate) fn read_client_settings(
                 upload_rate_limit, download_rate_limit, encryption, ipv6_enabled,
                 dht_enabled, peer_exchange_enabled,
                 tracker_https_server_authentication,
-                seed_stop_ratio_percent, seed_stop_time_seconds,
-                write_download_manifests
+                seed_stop_ratio_percent, seed_stop_time_seconds
          FROM client_settings WHERE singleton = 1",
         [],
         |row| {
@@ -221,7 +219,6 @@ pub(crate) fn read_client_settings(
                 row.get::<_, String>(17)?,
                 row.get::<_, Option<i64>>(18)?,
                 row.get::<_, Option<i64>>(19)?,
-                row.get::<_, bool>(20)?,
             ))
         },
     )?;
@@ -335,7 +332,6 @@ pub(crate) fn read_client_settings(
                 ));
             }
         },
-        write_download_manifests,
     };
     settings
         .validate()
@@ -376,8 +372,7 @@ pub(crate) fn replace_client_settings(
              download_rate_limit = ?13, encryption = ?14, ipv6_enabled = ?15,
              dht_enabled = ?16, peer_exchange_enabled = ?17,
              tracker_https_server_authentication = ?18,
-             seed_stop_ratio_percent = ?19, seed_stop_time_seconds = ?20,
-             write_download_manifests = ?21
+             seed_stop_ratio_percent = ?19, seed_stop_time_seconds = ?20
          WHERE singleton = 1",
         params![
             mode,
@@ -400,7 +395,6 @@ pub(crate) fn replace_client_settings(
             tracker_https_authentication,
             settings.seed_stop_ratio_percent.persisted(),
             settings.seed_stop_time_seconds.persisted(),
-            settings.write_download_manifests,
         ],
     )?;
     if changed != 1 {

@@ -23,7 +23,6 @@ import { AboutUpdatesSettingsSection } from "./AboutUpdatesSettingsSection";
 import { ConnectionSeedingSettingsSection } from "./ConnectionSeedingSettingsSection";
 import { FileSafetySettingsSection } from "./FileSafetySettingsSection";
 import { DownloadSettingsSection } from "./DownloadSettingsSection";
-import { DownloadManifestSettingsSection } from "./DownloadManifestSettingsSection";
 import { DataResetSettingsSection } from "./DataResetSettingsSection";
 import { Icon } from "./Icon";
 import { NotificationsSettingsSection } from "./NotificationsSettingsSection";
@@ -328,11 +327,6 @@ export function SettingsDialog({
                 onRemoveRoot={onRemoveRoot}
               />
               <FileSafetySettingsSection settings={clientSettings.configured.file_safety} manageable={clientSettingsManageable && !clientSettingsLoading} />
-              <DownloadManifestSettingsSection
-                enabled={clientSettings.configured.write_download_manifests}
-                manageable={clientSettingsManageable && !clientSettingsLoading}
-                onSave={onClientSettingsSave}
-              />
             </div>
             <div
               id="settings-panel-connection"
