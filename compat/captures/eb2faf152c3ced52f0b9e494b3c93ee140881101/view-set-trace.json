@@ -1,0 +1,586 @@
+{
+  "open": {
+    "view_set_id": "vs_000102030405060708090a0b0c0d0e0f",
+    "lease_millis": "300000",
+    "effective_queue_bytes": 262144,
+    "effective_views": [
+      {
+        "type": "torrent_list",
+        "view_id": "library",
+        "delivery": {
+          "min_interval_millis": 0
+        }
+      }
+    ],
+    "initial": {
+      "server_now_millis": "0",
+      "api_version": 1,
+      "view_set_id": "vs_000102030405060708090a0b0c0d0e0f",
+      "epoch": "10",
+      "base_cursor": "0",
+      "cursor": "1",
+      "durable_revision": "7",
+      "updates": [
+        {
+          "type": "snapshot",
+          "view_id": "library",
+          "snapshot": {
+            "type": "torrent_list",
+            "torrents": [
+              {
+                "torrent_id": "t1-000102030405060708090a0b0c0d0e0f",
+                "protocol_identities": {
+                  "v1": "000102030405060708090a0b0c0d0e0f10111213"
+                },
+                "display_name": "Fixture torrent",
+                "state": "downloading",
+                "operational_state": "downloading",
+                "download_queue_position": 1,
+                "transfer_limits": {
+                  "upload": {
+                    "type": "unlimited"
+                  },
+                  "download": {
+                    "type": "unlimited"
+                  }
+                },
+                "storage_state": "available",
+                "storage_root": "downloads",
+                "metadata_available": true,
+                "awaiting_file_selection": false,
+                "selectable_file_count": 0,
+                "selected_file_count": 0,
+                "selectable_file_bytes": "0",
+                "selected_file_bytes": "0",
+                "piece_count": 3,
+                "total_size_bytes": "49152",
+                "verified_piece_count": 0,
+                "requested_bytes": "16384",
+                "received_bytes": "16384",
+                "stored_bytes": "16384",
+                "active_peer_connections": 0,
+                "configured_tracker_count": 2,
+                "payload_download_rate_bytes": "0",
+                "required_payload_bytes": "49152",
+                "remaining_payload_bytes": "32768",
+                "eta_payload_download_rate_bytes": "4096",
+                "eta": {
+                  "state": "estimate",
+                  "seconds": "8"
+                },
+                "lifetime": {
+                  "uploaded_payload_bytes": "0",
+                  "downloaded_payload_bytes": "0",
+                  "active_seconds": "0",
+                  "finished_seconds": "0",
+                  "seeding_seconds": "0",
+                  "share_ratio_hundredths": "0"
+                },
+                "seeding": {
+                  "admission": "ineligible"
+                },
+                "progress": {
+                  "disposition": "active",
+                  "phase": "transfer",
+                  "reason": "transferring_pieces",
+                  "actions": []
+                },
+                "archived": false,
+                "delete_data_supported": true,
+                "force_recheck_available": true
+              }
+            ],
+            "storage": {
+              "roots": [],
+              "show_add_options": true,
+              "show_file_selection": true
+            },
+            "client_settings": {
+              "configured": {
+                "file_safety": {
+                  "enabled": true,
+                  "preset": "recommended",
+                  "custom_extensions": [],
+                  "mark_internet_origin": true
+                },
+                "listener": {
+                  "type": "disabled"
+                },
+                "preferred_listen_port": 6881,
+                "port_mapping": "disabled",
+                "peer_connection_limit": 200,
+                "upload_slots": 8,
+                "active_downloads": 3,
+                "active_seeds": {
+                  "type": "limited",
+                  "torrents": 5
+                },
+                "share_ratio_limit_percent": 200,
+                "finished_download_ratio_limit_percent": 700,
+                "finished_time_limit_seconds": 86400,
+                "seed_stop_ratio_percent": {
+                  "type": "off"
+                },
+                "seed_stop_time_seconds": {
+                  "type": "off"
+                },
+                "upload_rate_limit": {
+                  "type": "unlimited"
+                },
+                "download_rate_limit": {
+                  "type": "unlimited"
+                },
+                "encryption": "allow",
+                "ipv6_enabled": true,
+                "dht_enabled": true,
+                "peer_exchange_enabled": true,
+                "tracker_https_server_authentication": "system_trust"
+              },
+              "application_network": {
+                "requested_generation": "1",
+                "requested_prerequisite": "allowed",
+                "effective_generation": "1",
+                "effective_prerequisite": "allowed",
+                "state": "allowed"
+              },
+              "effective_listener": {
+                "listener": {
+                  "type": "disabled"
+                },
+                "preferred_listen_port": 6881
+              },
+              "effective_port_mapping": "disabled",
+              "effective_peer_connection_limit": 200,
+              "effective_upload_slots": 8,
+              "effective_active_downloads": 3,
+              "effective_active_seeds": {
+                "type": "limited",
+                "torrents": 5
+              },
+              "effective_upload_rate_limit": {
+                "type": "unlimited"
+              },
+              "effective_download_rate_limit": {
+                "type": "unlimited"
+              },
+              "active_download_count": 0,
+              "checking_count": 0,
+              "active_seed_count": 0,
+              "inactive_seed_count": 0,
+              "effective_encryption": "allow",
+              "effective_ipv6_enabled": true,
+              "effective_dht_enabled": true,
+              "effective_peer_exchange_enabled": true,
+              "effective_tracker_https_server_authentication": "system_trust",
+              "transport_application": {
+                "type": "applied"
+              },
+              "port_mapping_application": {
+                "type": "applied"
+              },
+              "peer_connections_application": {
+                "type": "applied"
+              },
+              "upload_slots_application": {
+                "type": "applied"
+              },
+              "bandwidth_application": {
+                "type": "applied"
+              },
+              "bandwidth": {
+                "upload": {
+                  "registered_torrents": 0,
+                  "active_waiters": 0,
+                  "queued_requested_bytes": "0",
+                  "granted_bytes": "0",
+                  "returned_bytes": "0",
+                  "cancelled_requests": "0",
+                  "throttle_wait_micros": "0",
+                  "throttle_wait_high_water_micros": "0",
+                  "current_burst_credit_bytes": "0"
+                },
+                "download": {
+                  "registered_torrents": 0,
+                  "active_waiters": 0,
+                  "queued_requested_bytes": "0",
+                  "granted_bytes": "0",
+                  "returned_bytes": "0",
+                  "cancelled_requests": "0",
+                  "throttle_wait_micros": "0",
+                  "throttle_wait_high_water_micros": "0",
+                  "current_burst_credit_bytes": "0"
+                }
+              },
+              "encryption_application": {
+                "type": "applied"
+              },
+              "ipv6_application": {
+                "type": "applied"
+              },
+              "dht_application": {
+                "type": "applied"
+              },
+              "peer_exchange_application": {
+                "type": "applied"
+              },
+              "tracker_https_authentication_application": {
+                "type": "applied"
+              },
+              "listener_status": {
+                "type": "disabled"
+              },
+              "session_udp_status": {
+                "type": "unavailable"
+              },
+              "port_mapping_status": {
+                "type": "disabled"
+              },
+              "udp_port_mapping_status": {
+                "type": "disabled"
+              },
+              "ipv6_pinhole_status": {
+                "type": "disabled"
+              },
+              "advertised_peer_endpoint": {
+                "type": "unavailable"
+              },
+              "transport_families": []
+            }
+          }
+        }
+      ]
+    }
+  },
+  "updates": [
+    {
+      "server_now_millis": "0",
+      "api_version": 1,
+      "view_set_id": "vs_000102030405060708090a0b0c0d0e0f",
+      "epoch": "10",
+      "base_cursor": "1",
+      "cursor": "2",
+      "durable_revision": "8",
+      "updates": [
+        {
+          "type": "patch",
+          "view_id": "library",
+          "patch": {
+            "type": "torrent_list",
+            "upsert": [
+              {
+                "torrent_id": "t1-000102030405060708090a0b0c0d0e0f",
+                "protocol_identities": {
+                  "v1": "000102030405060708090a0b0c0d0e0f10111213"
+                },
+                "display_name": "Fixture torrent",
+                "state": "downloading",
+                "operational_state": "downloading",
+                "download_queue_position": 1,
+                "transfer_limits": {
+                  "upload": {
+                    "type": "unlimited"
+                  },
+                  "download": {
+                    "type": "unlimited"
+                  }
+                },
+                "storage_state": "available",
+                "storage_root": "downloads",
+                "metadata_available": true,
+                "awaiting_file_selection": false,
+                "selectable_file_count": 0,
+                "selected_file_count": 0,
+                "selectable_file_bytes": "0",
+                "selected_file_bytes": "0",
+                "piece_count": 3,
+                "total_size_bytes": "49152",
+                "verified_piece_count": 1,
+                "requested_bytes": "16384",
+                "received_bytes": "16384",
+                "stored_bytes": "16384",
+                "active_peer_connections": 0,
+                "configured_tracker_count": 2,
+                "payload_download_rate_bytes": "0",
+                "required_payload_bytes": "49152",
+                "remaining_payload_bytes": "32768",
+                "eta_payload_download_rate_bytes": "4096",
+                "eta": {
+                  "state": "estimate",
+                  "seconds": "8"
+                },
+                "lifetime": {
+                  "uploaded_payload_bytes": "0",
+                  "downloaded_payload_bytes": "0",
+                  "active_seconds": "0",
+                  "finished_seconds": "0",
+                  "seeding_seconds": "0",
+                  "share_ratio_hundredths": "0"
+                },
+                "seeding": {
+                  "admission": "ineligible"
+                },
+                "progress": {
+                  "disposition": "active",
+                  "phase": "transfer",
+                  "reason": "transferring_pieces",
+                  "actions": []
+                },
+                "archived": false,
+                "delete_data_supported": true,
+                "force_recheck_available": true
+              }
+            ],
+            "updates": [],
+            "removed": []
+          }
+        }
+      ]
+    },
+    {
+      "server_now_millis": "0",
+      "api_version": 1,
+      "view_set_id": "vs_000102030405060708090a0b0c0d0e0f",
+      "epoch": "11",
+      "base_cursor": "2",
+      "cursor": "3",
+      "durable_revision": "9",
+      "updates": [
+        {
+          "type": "reset_required",
+          "reason": "queue_overflow"
+        },
+        {
+          "type": "snapshot",
+          "view_id": "library",
+          "snapshot": {
+            "type": "torrent_list",
+            "torrents": [
+              {
+                "torrent_id": "t1-000102030405060708090a0b0c0d0e0f",
+                "protocol_identities": {
+                  "v1": "000102030405060708090a0b0c0d0e0f10111213"
+                },
+                "display_name": "Fixture torrent",
+                "state": "complete",
+                "operational_state": "seeding",
+                "transfer_limits": {
+                  "upload": {
+                    "type": "unlimited"
+                  },
+                  "download": {
+                    "type": "unlimited"
+                  }
+                },
+                "storage_state": "available",
+                "storage_root": "downloads",
+                "metadata_available": true,
+                "awaiting_file_selection": false,
+                "selectable_file_count": 0,
+                "selected_file_count": 0,
+                "selectable_file_bytes": "0",
+                "selected_file_bytes": "0",
+                "piece_count": 3,
+                "total_size_bytes": "49152",
+                "verified_piece_count": 3,
+                "requested_bytes": "16384",
+                "received_bytes": "16384",
+                "stored_bytes": "16384",
+                "active_peer_connections": 0,
+                "configured_tracker_count": 2,
+                "payload_download_rate_bytes": "0",
+                "required_payload_bytes": "49152",
+                "remaining_payload_bytes": "0",
+                "eta_payload_download_rate_bytes": "0",
+                "eta": {
+                  "state": "unavailable"
+                },
+                "lifetime": {
+                  "uploaded_payload_bytes": "0",
+                  "downloaded_payload_bytes": "0",
+                  "active_seconds": "0",
+                  "finished_seconds": "0",
+                  "seeding_seconds": "0",
+                  "share_ratio_hundredths": "0"
+                },
+                "seeding": {
+                  "admission": "active",
+                  "goal": {
+                    "status": "unmet",
+                    "share_ratio_met": false,
+                    "finished_download_ratio_met": false,
+                    "finished_time_met": false
+                  }
+                },
+                "progress": {
+                  "disposition": "inactive",
+                  "phase": "complete",
+                  "reason": "complete",
+                  "actions": []
+                },
+                "archived": false,
+                "delete_data_supported": true,
+                "force_recheck_available": true
+              }
+            ],
+            "storage": {
+              "roots": [],
+              "show_add_options": true,
+              "show_file_selection": true
+            },
+            "client_settings": {
+              "configured": {
+                "file_safety": {
+                  "enabled": true,
+                  "preset": "recommended",
+                  "custom_extensions": [],
+                  "mark_internet_origin": true
+                },
+                "listener": {
+                  "type": "disabled"
+                },
+                "preferred_listen_port": 6881,
+                "port_mapping": "disabled",
+                "peer_connection_limit": 200,
+                "upload_slots": 8,
+                "active_downloads": 3,
+                "active_seeds": {
+                  "type": "limited",
+                  "torrents": 5
+                },
+                "share_ratio_limit_percent": 200,
+                "finished_download_ratio_limit_percent": 700,
+                "finished_time_limit_seconds": 86400,
+                "seed_stop_ratio_percent": {
+                  "type": "off"
+                },
+                "seed_stop_time_seconds": {
+                  "type": "off"
+                },
+                "upload_rate_limit": {
+                  "type": "unlimited"
+                },
+                "download_rate_limit": {
+                  "type": "unlimited"
+                },
+                "encryption": "allow",
+                "ipv6_enabled": true,
+                "dht_enabled": true,
+                "peer_exchange_enabled": true,
+                "tracker_https_server_authentication": "system_trust"
+              },
+              "application_network": {
+                "requested_generation": "1",
+                "requested_prerequisite": "allowed",
+                "effective_generation": "1",
+                "effective_prerequisite": "allowed",
+                "state": "allowed"
+              },
+              "effective_listener": {
+                "listener": {
+                  "type": "disabled"
+                },
+                "preferred_listen_port": 6881
+              },
+              "effective_port_mapping": "disabled",
+              "effective_peer_connection_limit": 200,
+              "effective_upload_slots": 8,
+              "effective_active_downloads": 3,
+              "effective_active_seeds": {
+                "type": "limited",
+                "torrents": 5
+              },
+              "effective_upload_rate_limit": {
+                "type": "unlimited"
+              },
+              "effective_download_rate_limit": {
+                "type": "unlimited"
+              },
+              "active_download_count": 0,
+              "checking_count": 0,
+              "active_seed_count": 0,
+              "inactive_seed_count": 0,
+              "effective_encryption": "allow",
+              "effective_ipv6_enabled": true,
+              "effective_dht_enabled": true,
+              "effective_peer_exchange_enabled": true,
+              "effective_tracker_https_server_authentication": "system_trust",
+              "transport_application": {
+                "type": "applied"
+              },
+              "port_mapping_application": {
+                "type": "applied"
+              },
+              "peer_connections_application": {
+                "type": "applied"
+              },
+              "upload_slots_application": {
+                "type": "applied"
+              },
+              "bandwidth_application": {
+                "type": "applied"
+              },
+              "bandwidth": {
+                "upload": {
+                  "registered_torrents": 0,
+                  "active_waiters": 0,
+                  "queued_requested_bytes": "0",
+                  "granted_bytes": "0",
+                  "returned_bytes": "0",
+                  "cancelled_requests": "0",
+                  "throttle_wait_micros": "0",
+                  "throttle_wait_high_water_micros": "0",
+                  "current_burst_credit_bytes": "0"
+                },
+                "download": {
+                  "registered_torrents": 0,
+                  "active_waiters": 0,
+                  "queued_requested_bytes": "0",
+                  "granted_bytes": "0",
+                  "returned_bytes": "0",
+                  "cancelled_requests": "0",
+                  "throttle_wait_micros": "0",
+                  "throttle_wait_high_water_micros": "0",
+                  "current_burst_credit_bytes": "0"
+                }
+              },
+              "encryption_application": {
+                "type": "applied"
+              },
+              "ipv6_application": {
+                "type": "applied"
+              },
+              "dht_application": {
+                "type": "applied"
+              },
+              "peer_exchange_application": {
+                "type": "applied"
+              },
+              "tracker_https_authentication_application": {
+                "type": "applied"
+              },
+              "listener_status": {
+                "type": "disabled"
+              },
+              "session_udp_status": {
+                "type": "unavailable"
+              },
+              "port_mapping_status": {
+                "type": "disabled"
+              },
+              "udp_port_mapping_status": {
+                "type": "disabled"
+              },
+              "ipv6_pinhole_status": {
+                "type": "disabled"
+              },
+              "advertised_peer_endpoint": {
+                "type": "unavailable"
+              },
+              "transport_families": []
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

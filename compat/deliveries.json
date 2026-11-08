@@ -384,6 +384,18 @@
       "firstPublic": null,
       "channelBasis": "Tag build 42518265455 stopped at the released-companion compatibility gate before signing because android-v1.0.38 had no acceptedBreaks entry for the eight already-shipping field additions. No artifact was built or uploaded to Play. 1.0.39 supersedes it with the same app source (Tactical 391).",
       "roles": ["host"]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.39",
+      "tag": "android-v1.0.39",
+      "commit": "eb2faf152c3ced52f0b9e494b3c93ee140881101",
+      "channel": "play-production",
+      "status": "submitted",
+      "submitted": "2026-11-08",
+      "firstPublic": null,
+      "channelBasis": "Exact tagged code39 host candidate supersedes withdrawn 1.0.38 with the same app source: the SAF completion race fix and Force recheck repair for quarantined torrents (Tactical 391). Signed construction and internal then staged production Play promotion remain pending; no public availability claimed.",
+      "roles": ["host"]
     }
   ]
 }
