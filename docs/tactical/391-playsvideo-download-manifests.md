@@ -501,3 +501,15 @@ remove and re-add is not a recovery there.
 Follow-up: Force recheck now lifts a recorded quarantine (see
 `application-control`). It is the in-app way to recover torrents quarantined
 by 1.0.37 after upgrading to a build with the race fix.
+
+## Release: Android 1.0.38 withdrawn, 1.0.39 ships the fix
+
+The maintainer requested an Android release with these fixes on 2026-11-08,
+using CI only, without device qualification. Tag build 42518265455 for
+`android-v1.0.38` stopped at the released-companion compatibility gate
+before signing. The tag had no `acceptedBreaks` entry for the eight
+already-shipping field additions. Nothing was built or uploaded, and the
+ledger records 1.0.38 as withdrawn. 1.0.39 carries the same app source with
+its own acceptance. This follows the 1.0.36 → 1.0.37 precedent (Tactical
+392) rather than moving a pushed tag. The same release fixed a flaky web
+access countdown test that had failed main CI after 1.0.37.

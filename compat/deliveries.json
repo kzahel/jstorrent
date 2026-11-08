@@ -379,10 +379,10 @@
       "tag": "android-v1.0.38",
       "commit": "8b39b15917a6471e4fa71165aa6568b7ac9a738e",
       "channel": "play-production",
-      "status": "submitted",
+      "status": "withdrawn",
       "submitted": "2026-11-08",
       "firstPublic": null,
-      "channelBasis": "Exact tagged code38 host candidate fixes the SAF completion race that quarantined completed torrents in 1.0.37 and lets Force recheck lift a recorded quarantine. Signed construction and internal then staged production Play promotion remain pending; no public availability claimed.",
+      "channelBasis": "Tag build 42518265455 stopped at the released-companion compatibility gate before signing because android-v1.0.38 had no acceptedBreaks entry for the eight already-shipping field additions. No artifact was built or uploaded to Play. 1.0.39 supersedes it with the same app source (Tactical 391).",
       "roles": ["host"]
     }
   ]
