@@ -298,6 +298,31 @@
           "bytes": 273272
         }
       ]
+    },
+    "libsoup3@3.4.4-5ubuntu0.10": {
+      "sourcePackage": "libsoup3",
+      "sourceVersion": "3.4.4-5ubuntu0.10",
+      "authentication": "Primary HTTPS and exact descriptor identity; original OpenPGP retained, not independently verified",
+      "files": [
+        {
+          "filename": "libsoup3_3.4.4-5ubuntu0.10.dsc",
+          "url": "https://security.ubuntu.com/ubuntu/pool/main/libs/libsoup3/libsoup3_3.4.4-5ubuntu0.10.dsc",
+          "sha256": "693ba0b4a812ffd64bb9df2fd783445521ec952cbcdd8b810a26c7ce16748de3",
+          "bytes": 3227
+        },
+        {
+          "filename": "libsoup3_3.4.4.orig.tar.xz",
+          "url": "https://security.ubuntu.com/ubuntu/pool/main/libs/libsoup3/libsoup3_3.4.4.orig.tar.xz",
+          "sha256": "291c67725f36ed90ea43efff25064b69c5a2d1981488477c05c481a3b4b0c5aa",
+          "bytes": 1536268
+        },
+        {
+          "filename": "libsoup3_3.4.4-5ubuntu0.10.debian.tar.xz",
+          "url": "https://security.ubuntu.com/ubuntu/pool/main/libs/libsoup3/libsoup3_3.4.4-5ubuntu0.10.debian.tar.xz",
+          "sha256": "50663b2f377762b2efab7ebcb2440ac979553b03cb27169b5a835a57f80f48b7",
+          "bytes": 80048
+        }
+      ]
     }
   },
   "additionalRuntimes": {

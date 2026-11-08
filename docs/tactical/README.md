@@ -1,7 +1,7 @@
 # Implementation Tactical Docs
 
 - [392 — PlaysVideo product release](392-playsvideo-product-release.md):
-  in progress; desktop 0.3.9, Android 1.0.37 and extension 1.1.10 with the
+  in progress; desktop 0.3.10, Android 1.0.37 and extension 1.1.10 with the
   carried-forward eight-field acceptance and no new companion exposure.
 
 - [391 — PlaysVideo download manifests](391-playsvideo-download-manifests.md):

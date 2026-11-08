@@ -4,11 +4,12 @@ Notable desktop changes are recorded here. JSTorrent follows
 three-component versions, and desktop release tags use
 `desktop-v<version>`.
 
-## [0.3.9] - 2026-11-08
+## [0.3.10] - 2026-11-08
 
 - Save a small hidden `.jstorrent.json` file beside each download so PlaysVideo
   can find and resume the video on your other devices.
 - Update the async runtime to fix a rare shutdown crash.
+- Update the bundled Linux HTTP library (libsoup) with upstream security fixes.
 - Browser control continues to require JSTorrent extension 1.1.5 or newer.
 
 ## [0.3.6] - 2026-10-29

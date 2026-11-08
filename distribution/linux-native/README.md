@@ -122,3 +122,15 @@ Debian copyright and complete Ubuntu patch series remain intact. Supplying
 these unchanged upstream sources permits the existing source/relink workflow;
 it imports no third-party code into first-party application code. It does not
 change or re-sign any already collected native executable.
+
+The November 8 carrier additionally supplies Ubuntu libsoup3
+`3.4.4-5ubuntu0.10`, the only new source/version pair across both exact
+desktop 0.3.9 draft AppImages compared with public Latest 0.3.8 (it replaces
+`3.4.4-5ubuntu0.9`). The signed descriptor and both referenced archives are
+checked by size and SHA-256 over primary `security.ubuntu.com` HTTPS; the
+OpenPGP signature is preserved without independent key verification. The
+original LGPL-2.0+ terms, Debian copyright and complete Ubuntu patch series,
+including the November 2026 WebSocket and data-URI security fixes, remain
+intact. Supplying these unchanged upstream sources permits the existing
+source/relink workflow and imports no third-party code into first-party
+application code.
