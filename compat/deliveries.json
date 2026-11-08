@@ -348,6 +348,18 @@
       "firstPublic": null,
       "channelBasis": "Tag build 42473509464 stopped at the delivery-ledger gate before signing because extension-v1.1.10 was pushed without a ledger entry first. No artifact was built or uploaded to Play. 1.0.37 supersedes it with the same app source (Tactical 392).",
       "roles": ["host"]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.37",
+      "tag": "android-v1.0.37",
+      "commit": "f97d06c9eb78abae0f1610d3369d120f007bcaa0",
+      "channel": "play-production",
+      "status": "submitted",
+      "submitted": "2026-11-08",
+      "firstPublic": null,
+      "channelBasis": "Exact tagged code37 host candidate supersedes withdrawn 1.0.36 with the same app source and the PlaysVideo manifest writer. Signed construction and internal then staged production Play promotion remain pending; no public availability claimed.",
+      "roles": ["host"]
     }
   ]
 }
