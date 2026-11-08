@@ -16179,6 +16179,87 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn force_recheck_recovers_a_completed_torrent_from_a_storage_quarantine() {
+        let root = test_root("quarantine-force-recheck");
+        let configuration = config(&root);
+        let payload = (0..32_768)
+            .map(|offset| ((offset * 17 + offset / 7) & 0xff) as u8)
+            .collect::<Vec<_>>();
+        let raw_info = single_file_info("quarantined.bin", &payload, 16_384);
+        let info_hash: [u8; 20] = Sha1::digest(&raw_info).into();
+        let torrent_id = super::encode_info_hash(info_hash);
+        let mut store = SessionStore::open(
+            configuration
+                .durable_profile_root()
+                .expect("durable profile root"),
+            &configuration.profile_id,
+            &configuration.storage_roots,
+        )
+        .expect("open setup store");
+        let torrent_id = add_store_torrent(&mut store, "add-quarantined", &torrent_id);
+        store
+            .record_metadata(&torrent_id, &raw_info)
+            .expect("record metadata");
+        store
+            .record_pieces(&torrent_id, &[0, 1])
+            .expect("record complete have");
+        store.mark_complete(&torrent_id).expect("mark complete");
+        store
+            .mark_needs_repair(
+                &torrent_id,
+                "access seed verified content root: storage file acquisition was invalidated",
+            )
+            .expect("record field quarantine");
+        drop(store);
+        let output = root.join("payload/quarantined.bin");
+        fs::create_dir_all(output.parent().expect("payload parent")).expect("create payload root");
+        fs::write(&output, &payload).expect("write intact payload");
+
+        let mut service = ApplicationService::open(configuration)
+            .await
+            .expect("open application");
+        let snapshot = service
+            .store_mut()
+            .expect("store")
+            .snapshot()
+            .expect("snapshot");
+        assert_eq!(snapshot.torrents[0].state, TorrentState::NeedsRepair);
+        assert!(snapshot.torrents[0].force_recheck_available);
+
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "recheck-quarantined".to_owned(),
+                expected_revision: None,
+                command: Command::ForceRecheck {
+                    torrent_id: torrent_id.clone(),
+                },
+            })
+            .await
+            .expect("force recheck quarantined torrent");
+        wait_for_torrent_state(
+            &mut service,
+            &torrent_id,
+            TorrentState::Complete,
+            "quarantine-recheck",
+        )
+        .await;
+        let resume = service
+            .store_mut()
+            .expect("store")
+            .load_resume(&torrent_id)
+            .expect("rechecked state");
+        assert_eq!(resume.quarantine_reason, None);
+        assert!(!resume.verification.is_pending());
+        assert_eq!(resume.have.expect("rechecked have").pieces(), &[true, true]);
+        assert_eq!(fs::read(&output).expect("read payload"), payload);
+
+        service.shutdown().await.expect("shutdown");
+        drop(service);
+        fs::remove_dir_all(root).expect("remove test root");
+    }
+
+    #[tokio::test]
     async fn restarted_pending_recheck_repairs_a_corrupt_piece_from_the_saved_peer_hint() {
         let root = test_root("pending-recheck-repair");
         let configuration = config(&root);

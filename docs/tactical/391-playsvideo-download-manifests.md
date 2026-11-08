@@ -492,3 +492,12 @@ same key, and storage invalidation after earlier key invalidations. A
 classifier test covers the seed-open mapping. `cargo fmt`, `cargo clippy
 --workspace -D warnings` and `cargo test --workspace` pass. The quarantine
 already recorded on the device is not healed by this change.
+
+On the device, removing the torrent with its data kept and adding it again
+reproduced the same quarantine with the same detail when its recheck
+completed. On 1.0.37 the race fires on every completion of a SAF torrent, so
+remove and re-add is not a recovery there.
+
+Follow-up: Force recheck now lifts a recorded quarantine (see
+`application-control`). It is the in-app way to recover torrents quarantined
+by 1.0.37 after upgrading to a build with the race fix.

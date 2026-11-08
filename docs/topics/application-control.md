@@ -421,6 +421,16 @@ The torrent application view now also projects whether current durable managed
 content can accept Force recheck. Clients use that semantic value only
 to derive exact-selection availability; dispatch and durable request handling
 remain authoritative if state races after activation.
+Force recheck is also the repair path for a recorded quarantine (*Needs
+repair*). The request clears `quarantine_reason`, because quarantine outranks
+Checking and the checker would otherwise never run. The check then
+re-verifies every piece, and storage that is still malformed is quarantined
+again. Quarantine derived from malformed have or metadata evidence is not
+cleared by a recheck, so Force recheck stays unavailable for it. Resume and
+file selection remain blocked while quarantined. Tactical
+[`391`](../tactical/391-playsvideo-download-manifests.md) records the field
+incident behind this rule: a transient storage race quarantined completed
+torrents and left no way out except remove and re-add.
 
 Authorization is transport context, not a user-supplied command field. A
 future remote transport must authenticate a principal, attach verified

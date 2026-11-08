@@ -4162,7 +4162,8 @@ fn force_recheck(
             "SELECT raw_info IS NOT NULL, verification_requested,
                     verification_completed,
                     EXISTS(SELECT 1 FROM removal_jobs r
-                           WHERE r.torrent_id = torrents.torrent_id)
+                           WHERE r.torrent_id = torrents.torrent_id),
+                    quarantine_reason IS NOT NULL
              FROM torrents WHERE torrent_id = ?1",
             [torrent_id.as_bytes()],
             |row| {
@@ -4171,6 +4172,7 @@ fn force_recheck(
                     row.get::<_, i64>(1)?,
                     row.get::<_, i64>(2)?,
                     row.get::<_, bool>(3)?,
+                    row.get::<_, bool>(4)?,
                 ))
             },
         )
@@ -4206,7 +4208,10 @@ fn force_recheck(
     } else {
         row.1
     };
-    if requested == row.1 {
+    // Quarantine outranks Checking, so a recheck of quarantined storage must
+    // lift it for the checker to run. The check re-verifies every piece and
+    // quarantines again if the storage is still malformed.
+    if requested == row.1 && !row.4 {
         return Ok(current_revision);
     }
     let revision = next_revision(transaction, current_revision)?;
@@ -4215,7 +4220,7 @@ fn force_recheck(
     transaction
         .execute(
             "UPDATE torrents
-             SET error = NULL, updated_revision = ?2,
+             SET error = NULL, quarantine_reason = NULL, updated_revision = ?2,
                  verification_requested = ?3
              WHERE torrent_id = ?1",
             params![torrent_id.as_bytes(), revision_sql, requested,],
@@ -6087,7 +6092,13 @@ fn read_snapshot(connection: &Connection, profile_id: &str) -> Result<ServiceSna
                 None => None,
             },
             delete_data_supported: true,
-            force_recheck_available: row.2.is_some() && row.8.is_none() && row.13.is_none(),
+            // A recorded quarantine is lifted by Force recheck, which then
+            // verifies every byte again; malformed have or metadata evidence
+            // cannot be rechecked away.
+            force_recheck_available: row.2.is_some()
+                && row.8.is_none()
+                && !malformed_have
+                && evidence_error.is_none(),
             error: row.9.or(row.13).or(evidence_error).or(row.6),
         });
     }
@@ -11694,6 +11705,85 @@ mod tests {
         );
         drop(reopened);
         fs::remove_dir_all(root).expect("remove test profile");
+    }
+
+    #[test]
+    fn force_recheck_lifts_a_recorded_storage_quarantine() {
+        let root = test_root("force-recheck-quarantine");
+        let mut store = SessionStore::open(&root, "default", &[configured_root(&root)])
+            .expect("open session store");
+        let mut raw_info = b"d6:lengthi8e4:name10:quarantine12:piece lengthi4e6:pieces40:".to_vec();
+        raw_info.extend_from_slice(&[b'a'; 20]);
+        raw_info.extend_from_slice(&[b'b'; 20]);
+        raw_info.push(b'e');
+        let torrent_id: [u8; 20] = Sha1::digest(&raw_info).into();
+        let torrent_id = crate::control::encode_info_hash(torrent_id);
+        store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "add-quarantine".to_owned(),
+                expected_revision: None,
+                command: Command::AddMagnet {
+                    magnet: format!("magnet:?xt=urn:btih:{torrent_id}"),
+                    storage_root: "downloads".to_owned(),
+                    start_content: true,
+                    await_file_selection: false,
+                    skip_files: Vec::new(),
+                },
+            })
+            .expect("add source");
+        let torrent_id = only_torrent_id(&store);
+        store
+            .record_metadata(&torrent_id, &raw_info)
+            .expect("record metadata");
+        store.record_piece(&torrent_id, 0).expect("record piece 0");
+        store.record_piece(&torrent_id, 1).expect("record piece 1");
+        store
+            .mark_needs_repair(
+                &torrent_id,
+                "access seed verified content root: storage file acquisition was invalidated",
+            )
+            .expect("quarantine");
+        let quarantined = &store.snapshot().expect("quarantined snapshot").torrents[0];
+        assert_eq!(quarantined.state, TorrentState::NeedsRepair);
+        assert!(quarantined.force_recheck_available);
+
+        let recheck = |request_id: &str| RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: request_id.to_owned(),
+            expected_revision: None,
+            command: Command::ForceRecheck {
+                torrent_id: torrent_id.clone(),
+            },
+        };
+        store
+            .handle_durable(&recheck("recheck-quarantined"))
+            .expect("recheck quarantined torrent");
+        let checking = store.load_resume(&torrent_id).expect("checking state");
+        assert_eq!(checking.state, TorrentState::Checking);
+        assert_eq!(checking.quarantine_reason, None);
+        let generation = checking.verification.requested();
+
+        // A quarantine recorded while the check is pending is lifted too,
+        // without starting a second generation.
+        store
+            .mark_needs_repair(&torrent_id, "content root has an unexpected type")
+            .expect("quarantine during check");
+        assert_eq!(
+            store.load_resume(&torrent_id).expect("requarantined").state,
+            TorrentState::NeedsRepair
+        );
+        store
+            .handle_durable(&recheck("recheck-pending-quarantined"))
+            .expect("recheck pending quarantined torrent");
+        let checking = store.load_resume(&torrent_id).expect("checking again");
+        assert_eq!(checking.state, TorrentState::Checking);
+        assert_eq!(checking.verification.requested(), generation);
+        assert!(
+            store.snapshot().expect("snapshot").torrents[0]
+                .error
+                .is_none()
+        );
     }
 
     #[test]
