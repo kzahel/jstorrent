@@ -2,11 +2,13 @@
 
 - [392 — PlaysVideo product release](392-playsvideo-product-release.md):
   desktop 0.3.10 public on Stable and Latest; extension 1.1.10 in Chrome
-  review; Android 1.0.37 submitted to production at 1% (standard-7d).
+  review; Android 1.0.39 submitted to production at 1% (standard-7d),
+  superseding 1.0.37's rollout (Tactical 391).
 
 - [391 — PlaysVideo download manifests](391-playsvideo-download-manifests.md):
   implemented; the engine writes the legacy `.<infohash>.jstorrent.json`
-  sidecar on path and SAF roots, always on with no user setting.
+  sidecar on path and SAF roots, always on with no user setting. A SAF
+  completion race that quarantined torrents in 1.0.37 is fixed in 1.0.39.
   Android build/instrumentation and physical cross-device evidence remain.
 
 - [390 — Store listing localization](390-store-listing-localization.md):

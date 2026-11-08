@@ -513,3 +513,15 @@ ledger records 1.0.38 as withdrawn. 1.0.39 carries the same app source with
 its own acceptance. This follows the 1.0.36 → 1.0.37 precedent (Tactical
 392) rather than moving a pushed tag. The same release fixed a flaky web
 access countdown test that had failed main CI after 1.0.37.
+
+Production publication of 1.0.39 first failed because 1.0.37 was still on its
+unfinished 1% rollout, and the tooling refused to replace it (Tactical 382).
+At the maintainer's direction, Android Play Publish gained an explicit
+`supersede` input. Internal run 42522440539 and production run 42523962873
+(1%, standard-7d, deployment 7641914512) promote code 39, SHA-256
+`64015eda58521f0525915158005dcdadbedff6a05fc74dc4600693124b828e1c`.
+Previous completed code: 35. Superseded staged code: 37. The commit kept
+`ERROR_IF_IN_REVIEW` and succeeded, so 1.0.37 was not in review when it was
+replaced. Play reports the edit submitted. Google review and availability,
+and device recovery of the quarantined Pixel 9 torrent through Force
+recheck, are not yet confirmed.

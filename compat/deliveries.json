@@ -358,7 +358,7 @@
       "status": "submitted",
       "submitted": "2026-11-08",
       "firstPublic": null,
-      "channelBasis": "Tag build 42476812128 signs code 37 at this exact source, superseding withdrawn 1.0.36 with the same app source. Internal publication 42483458332 and production staged rollout 42491366778 (1%, standard-7d) promote the same AAB, SHA-256 9574d39e8acd782d13ef1e713dbfc7708796d07eb0bc9fcba99678743b22f148. Play reports the production edit submitted; Google review and first public availability are not yet confirmed.",
+      "channelBasis": "Tag build 42476812128 signs code 37 at this exact source, superseding withdrawn 1.0.36 with the same app source. Internal publication 42483458332 and production staged rollout 42491366778 (1%, standard-7d) promote the same AAB, SHA-256 9574d39e8acd782d13ef1e713dbfc7708796d07eb0bc9fcba99678743b22f148. Play reports the production edit submitted; Google review and first public availability are not yet confirmed. On 2026-11-08 production rollout 42523962873 superseded this 1% rollout with 1.0.39 before it advanced; devices that received it remain supported.",
       "roles": ["host"]
     },
     {
@@ -394,7 +394,7 @@
       "status": "submitted",
       "submitted": "2026-11-08",
       "firstPublic": null,
-      "channelBasis": "Exact tagged code39 host candidate supersedes withdrawn 1.0.38 with the same app source: the SAF completion race fix and Force recheck repair for quarantined torrents (Tactical 391). Signed construction and internal then staged production Play promotion remain pending; no public availability claimed.",
+      "channelBasis": "Tag build 42518622528 signs code 39 at this exact source, superseding withdrawn 1.0.38 with the same app source: the SAF completion race fix and Force recheck repair for quarantined torrents (Tactical 391). Internal publication 42522440539 and production staged rollout 42523962873 (1%, standard-7d, supersede) promote the same AAB, SHA-256 64015eda58521f0525915158005dcdadbedff6a05fc74dc4600693124b828e1c, replacing 1.0.37's unfinished 1% rollout. Play reports the production edit submitted; Google review and first public availability are not yet confirmed.",
       "roles": ["host"]
     }
   ]
