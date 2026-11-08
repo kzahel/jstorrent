@@ -1,5 +1,11 @@
 # Android Changelog
 
+## [1.0.38]
+
+- Fix completed downloads in a chosen folder sometimes stopping with "Needs repair" instead of seeding.
+- Force recheck now repairs a torrent that is marked "Needs repair".
+- Chromebook browser control continues to require extension 1.1.5 or newer.
+
 ## [1.0.37]
 
 - Save a small hidden .jstorrent.json file beside each download so PlaysVideo can find and resume the video on your other devices.
