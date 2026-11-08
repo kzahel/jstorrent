@@ -2,7 +2,7 @@
 
 - [392 — PlaysVideo product release](392-playsvideo-product-release.md):
   desktop 0.3.10 public on Stable and Latest; extension 1.1.10 in Chrome
-  review; Android 1.0.37 staged production awaiting environment approval.
+  review; Android 1.0.37 submitted to production at 1% (standard-7d).
 
 - [391 — PlaysVideo download manifests](391-playsvideo-download-manifests.md):
   implemented; the engine writes the legacy `.<infohash>.jstorrent.json`

@@ -1,6 +1,6 @@
 # 392 — PlaysVideo product release
 
-Status: **Desktop and extension delivered; Android production awaiting maintainer environment approval (November 8, 2026).** The maintainer asked to "release
+Status: **Delivered to stores (November 8, 2026).** Desktop 0.3.10 is public; extension 1.1.10 and Android 1.0.37 (1% staged) await Google review. The maintainer asked to "release
 everything" with the Tactical 391 PlaysVideo download manifests.
 
 ## Scope and stopping condition
@@ -98,4 +98,8 @@ availability are recorded separately from full public delivery.
   42491366778 at the maintainer's request without the optional physical
   internal-track check; it waits on the `android-play-production`
   environment approval.
+- At the maintainer's direction the environment approval was given through
+  the API with the maintainer's credentials. Production run 42491366778
+  submits code 37 to production as `inProgress` at 1% with `standard-7d`;
+  Play reports the edit submitted. The daily advancer owns later steps.
 
