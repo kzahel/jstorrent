@@ -53,10 +53,12 @@ describe("WebAccessSettingsSection", () => {
           current: false,
         },
       ]),
-      createPairingTicket: vi.fn().mockResolvedValue({
+      // Expiry is stamped when the ticket is issued, not when the test
+      // started, so slow setup cannot shift the countdown.
+      createPairingTicket: vi.fn().mockImplementation(async () => ({
         code: "0427",
-        expires_at: now + 600,
-      }),
+        expires_at: Math.floor(Date.now() / 1_000) + 600,
+      })),
     } as unknown as WebAuthClient;
     render(
       <WebAccessSettingsSection client={client} onSignedOut={vi.fn()} />,
@@ -68,6 +70,6 @@ describe("WebAccessSettingsSection", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("Pairing code 0 4 2 7")).toHaveTextContent("0427"),
     );
-    expect(screen.getByText(/Expires in (?:10:00|9:59)/)).toBeVisible();
+    expect(screen.getByText(/Expires in (?:10:00|9:5\d)/)).toBeVisible();
   });
 });
