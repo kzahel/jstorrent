@@ -946,9 +946,33 @@ struct PoolEntry {
 struct PoolState {
     entries: HashMap<StorageFileKey, PoolEntry>,
     key_locks: HashMap<StorageFileKey, Weak<AsyncMutex<()>>>,
+    /// Fences every acquisition and observation for one storage identity.
     storage_versions: HashMap<String, u64>,
+    /// Fences acquisitions of one key without disturbing sibling keys of the
+    /// same storage. Entries for a storage are dropped when its storage
+    /// version advances, because that bump already fences them.
+    key_versions: HashMap<StorageFileKey, u64>,
     clock: u64,
     closed: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct AcquisitionVersions {
+    storage: u64,
+    key: u64,
+}
+
+impl PoolState {
+    fn acquisition_versions(&self, key: &StorageFileKey) -> AcquisitionVersions {
+        AcquisitionVersions {
+            storage: self
+                .storage_versions
+                .get(&key.storage_id)
+                .copied()
+                .unwrap_or_default(),
+            key: self.key_versions.get(key).copied().unwrap_or_default(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1056,7 +1080,7 @@ impl StorageFilePool {
         };
         drop(removed);
 
-        let storage_version = self.storage_version(&reference.key.storage_id)?;
+        let versions = self.acquisition_versions(&reference.key)?;
 
         let permit = self.acquire_permit().await?;
         let acquired = match self
@@ -1102,13 +1126,7 @@ impl StorageFilePool {
             if state.closed {
                 return Err(StorageFilePoolError::Closed);
             }
-            if state
-                .storage_versions
-                .get(&reference.key.storage_id)
-                .copied()
-                .unwrap_or_default()
-                != storage_version
-            {
+            if state.acquisition_versions(&reference.key) != versions {
                 return Err(StorageFilePoolError::Invalidated);
             }
             state.clock = state.clock.wrapping_add(1);
@@ -1222,6 +1240,9 @@ impl StorageFilePool {
                 .entry(storage_id.to_owned())
                 .or_default();
             *version = version.wrapping_add(1);
+            state
+                .key_versions
+                .retain(|key, _| key.storage_id != storage_id);
             let keys = state
                 .entries
                 .keys()
@@ -1235,13 +1256,14 @@ impl StorageFilePool {
         drop(removed);
     }
 
+    /// Drops the cached handle for one key and fences acquisitions of that
+    /// key already in flight. Other keys of the same storage, and
+    /// observations, are unaffected: a sidecar or part-file rewrite must not
+    /// fail a concurrent payload open of the same torrent.
     pub fn invalidate_key(&self, key: &StorageFileKey) {
         let removed = {
             let mut state = self.state_guard();
-            let version = state
-                .storage_versions
-                .entry(key.storage_id.clone())
-                .or_default();
+            let version = state.key_versions.entry(key.clone()).or_default();
             *version = version.wrapping_add(1);
             state.entries.remove(key)
         };
@@ -1254,6 +1276,7 @@ impl StorageFilePool {
             for version in state.storage_versions.values_mut() {
                 *version = version.wrapping_add(1);
             }
+            state.key_versions.clear();
             state
                 .entries
                 .drain()
@@ -1272,6 +1295,22 @@ impl StorageFilePool {
             .storage_versions
             .entry(storage_id.to_owned())
             .or_default())
+    }
+
+    fn acquisition_versions(
+        &self,
+        key: &StorageFileKey,
+    ) -> Result<AcquisitionVersions, StorageFilePoolError> {
+        let mut state = self.state_guard();
+        if state.closed {
+            return Err(StorageFilePoolError::Closed);
+        }
+        // Materialize the storage entry so `invalidate_all` advances it.
+        state
+            .storage_versions
+            .entry(key.storage_id.clone())
+            .or_default();
+        Ok(state.acquisition_versions(key))
     }
 
     pub async fn shutdown(&self) -> Result<(), StorageFilePoolError> {
@@ -2180,6 +2219,130 @@ mod tests {
             Err(super::StorageFilePoolError::Invalidated)
         ));
         pool.shutdown().await.expect("shutdown");
+    }
+
+    fn platform_reference(
+        pool: &StorageFilePool,
+        role: StorageFileRole,
+        path: &str,
+    ) -> StorageFileReference {
+        StorageFileReference::new(
+            pool.clone(),
+            StorageFileKey {
+                storage_id: "torrent".to_owned(),
+                storage_generation: 1,
+                role,
+            },
+            StorageFileLocator::Platform(super::PlatformStorageTarget {
+                root_id: "root".to_owned(),
+                storage_id: "torrent".to_owned(),
+                storage_generation: 1,
+                role,
+                path: vec![path.to_owned()],
+            }),
+        )
+    }
+
+    #[tokio::test]
+    async fn key_invalidation_spares_sibling_work_of_the_same_storage() {
+        // A download-manifest rewrite invalidates its own key while seed
+        // admission observes the content root and opens a payload file of
+        // the same torrent. Neither sibling may be invalidated.
+        let (client, broker) = platform_storage_channel();
+        let pool = StorageFilePool::new(4, Some(client)).expect("pool");
+        let content_root = platform_reference(&pool, StorageFileRole::ContentRoot, "movie.mkv");
+        let payload = platform_reference(&pool, StorageFileRole::Payload(0), "movie.mkv");
+        let manifest = platform_reference(
+            &pool,
+            StorageFileRole::DownloadManifest,
+            ".hash.jstorrent.json",
+        );
+
+        let observation = tokio::spawn(async move { content_root.observe().await });
+        let observe_request = broker.next_request().await.expect("observation request");
+        let open = tokio::spawn(async move { payload.open(StorageFileAccess::ReadExisting).await });
+        let open_request = broker.next_request().await.expect("open request");
+
+        pool.invalidate_key(manifest.key());
+
+        assert!(
+            broker.complete_observation(
+                observe_request.request_id,
+                StorageObservation::present(StorageObjectKind::File, Some(4), None)
+                    .expect("file observation"),
+            )
+        );
+        let path = temp_root("key-invalidation-sibling");
+        std::fs::write(&path, b"data").expect("platform file");
+        let file = OpenOptions::new()
+            .read(true)
+            .open(&path)
+            .expect("open file");
+        assert!(broker.complete_file(open_request.request_id, file));
+
+        assert!(observation.await.expect("observation task").is_ok());
+        assert!(open.await.expect("open task").is_ok());
+        assert_eq!(pool.snapshot().cached_entries, 1);
+        pool.shutdown().await.expect("shutdown");
+        broker.cancel_all();
+        std::fs::remove_file(path).expect("cleanup");
+    }
+
+    #[tokio::test]
+    async fn key_invalidation_fences_its_own_in_flight_open() {
+        let (client, broker) = platform_storage_channel();
+        let pool = StorageFilePool::new(2, Some(client)).expect("pool");
+        let manifest = platform_reference(
+            &pool,
+            StorageFileRole::DownloadManifest,
+            ".hash.jstorrent.json",
+        );
+        let key = manifest.key().clone();
+        let open =
+            tokio::spawn(async move { manifest.open(StorageFileAccess::ReadWriteCreate).await });
+        let request = broker.next_request().await.expect("request");
+        pool.invalidate_key(&key);
+        let path = temp_root("key-invalidation-own");
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .expect("platform file");
+        assert!(broker.complete_file(request.request_id, file));
+        assert!(matches!(
+            open.await.expect("open task"),
+            Err(super::StorageFilePoolError::Invalidated)
+        ));
+        assert_eq!(pool.snapshot().cached_entries, 0);
+        pool.shutdown().await.expect("shutdown");
+        std::fs::remove_file(path).expect("cleanup");
+    }
+
+    #[tokio::test]
+    async fn storage_invalidation_still_fences_a_key_with_prior_key_invalidations() {
+        let (client, broker) = platform_storage_channel();
+        let pool = StorageFilePool::new(2, Some(client)).expect("pool");
+        let part = platform_reference(&pool, StorageFileRole::Part, "part");
+        pool.invalidate_key(part.key());
+        let open = tokio::spawn(async move { part.open(StorageFileAccess::ReadWriteCreate).await });
+        let request = broker.next_request().await.expect("request");
+        // Dropping the key's version must not let the stale open through.
+        pool.invalidate_storage("torrent");
+        let path = temp_root("key-then-storage-invalidation");
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .expect("platform file");
+        assert!(broker.complete_file(request.request_id, file));
+        assert!(matches!(
+            open.await.expect("open task"),
+            Err(super::StorageFilePoolError::Invalidated)
+        ));
+        pool.shutdown().await.expect("shutdown");
+        std::fs::remove_file(path).expect("cleanup");
     }
 
     #[tokio::test]

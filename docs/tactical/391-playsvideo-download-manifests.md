@@ -451,3 +451,44 @@ What landed, and where it differs from the plan above:
     Swift removal change is uncompiled.
 - Slice 4 physical cross-product evidence (desktop and Android → PlaysVideo
   → other device) is pending.
+
+## Field incident: completion race quarantined a SAF torrent (1.0.37)
+
+On a Pixel 9 updated from Play to Android 1.0.37, a single-file torrent in a
+SAF root finished its recheck and then entered *Needs repair* with
+`access seed verified content root: storage file acquisition was
+invalidated`. The same completion logged `download_manifest_failed`, and
+the sidecar on disk still said `"complete":false` from the write made
+during the check. The payload was intact.
+
+Cause: `StorageFilePool::invalidate_key` advanced the storage-wide version
+for the key's `storage_id`, which is the torrent id. The SAF writer
+invalidates its sidecar key three or four times per write. Completion marks
+the sidecar for rewrite and runs seed admission at the same moment. Seed
+admission begins with `invalidate_storage(torrent id)`, which failed the
+in-flight sidecar write. The writer's next `invalidate_key` then failed seed
+admission's content-root observation. `classify_seed_open_error` treated a
+pool `Invalidated` as malformed storage, and `mark_needs_repair` quarantined
+the torrent. Quarantine blocks both Force recheck and Resume, so the only
+recovery in 1.0.37 is to remove the torrent with its data kept and add it
+again. Path roots are unaffected, because the path writer never touches the
+pool.
+
+Fix:
+
+- `invalidate_key` now advances a per-key version and fences only
+  acquisitions of that key. Other keys of the same storage and observations
+  are no longer fenced. `invalidate_storage` and `invalidate_all` still fence
+  everything and drop that storage's key versions, so the map stays bounded.
+  This also stops part-file deletion and `StorageFileReference::delete` from
+  failing sibling opens.
+- Seed admission maps a pool `Invalidated` on open to `AwaitingStorage`, as
+  validation already did, so a lost race never quarantines.
+
+Evidence: new pool tests cover a sidecar invalidation during a sibling
+content-root observation and payload open of the same storage (it fails
+under the old storage-wide bump), self-fencing of an in-flight open of the
+same key, and storage invalidation after earlier key invalidations. A
+classifier test covers the seed-open mapping. `cargo fmt`, `cargo clippy
+--workspace -D warnings` and `cargo test --workspace` pass. The quarantine
+already recorded on the device is not healed by this change.

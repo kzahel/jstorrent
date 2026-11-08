@@ -11,8 +11,9 @@ use rstorrent_engine::{
     IncomingPeerError, IncomingPeerHandle, PlatformStorageFailureKind, PlatformStorageSpec,
     ResumeAdmissionOutcome, ResumeValidationIntent, ResumeValidationRejectReason, SeedContent,
     SeedContentError, SeedRegistration, SeedRegistrationToken, SelectiveStorageError,
-    StorageFilePool, TorrentArtifactIdentity, TorrentPeerHandle, decide_resume_admission,
-    validate_direct_completed_content_with_path, validate_direct_completed_content_with_platform,
+    StorageFilePool, StorageFilePoolError, TorrentArtifactIdentity, TorrentPeerHandle,
+    decide_resume_admission, validate_direct_completed_content_with_path,
+    validate_direct_completed_content_with_platform,
 };
 use rstorrent_protocol::content::{TorrentContent, TorrentContentProjection};
 use rstorrent_protocol::metainfo::{DURABLE_METAINFO_LIMITS, Metainfo, MetainfoError};
@@ -435,13 +436,16 @@ fn classify_validation_error(error: SelectiveStorageError) -> SeedReconcileOutco
     }
 }
 
+/// An invalidated acquisition means storage changed underneath the open, not
+/// that it is malformed; like the validation path, it never quarantines.
 fn classify_seed_open_error(error: SeedContentError) -> SeedReconcileOutcome {
     let awaiting = matches!(
         &error,
         SeedContentError::Storage { source, .. }
-            if source
-                .platform_failure_kind()
-                .is_some_and(storage_failure_is_awaiting)
+            if matches!(source, StorageFilePoolError::Invalidated)
+                || source
+                    .platform_failure_kind()
+                    .is_some_and(storage_failure_is_awaiting)
     ) || matches!(error, SeedContentError::Io { .. });
     let detail = error.to_string();
     if awaiting {
@@ -523,8 +527,29 @@ impl From<IncomingPeerError> for IncomingSeedingError {
 mod tests {
     use std::path::PathBuf;
 
-    use super::storage_root_eligibility_reason;
+    use rstorrent_engine::{SeedContentError, StorageFilePoolError};
+
+    use super::{SeedReconcileOutcome, classify_seed_open_error, storage_root_eligibility_reason};
     use crate::store::StorageRootLocation;
+
+    #[test]
+    fn invalidated_seed_open_awaits_storage_instead_of_quarantining() {
+        let outcome = classify_seed_open_error(SeedContentError::Storage {
+            artifact: "verified content root".to_owned(),
+            source: StorageFilePoolError::Invalidated,
+        });
+        assert!(
+            matches!(outcome, SeedReconcileOutcome::AwaitingStorage(_)),
+            "{outcome:?}"
+        );
+        let outcome = classify_seed_open_error(SeedContentError::UnexpectedArtifact(
+            "verified content root".to_owned(),
+        ));
+        assert!(
+            matches!(outcome, SeedReconcileOutcome::NeedsRepair(_)),
+            "{outcome:?}"
+        );
+    }
 
     #[test]
     fn seed_storage_eligibility_accepts_both_configured_backend_kinds() {
