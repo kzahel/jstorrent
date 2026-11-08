@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [391 — PlaysVideo download manifests](391-playsvideo-download-manifests.md):
+  planned; restore the legacy `.<infohash>.jstorrent.json` sidecar on path
+  and SAF roots, default on, so PlaysVideo can carry magnets across devices.
+
 - [390 — Store listing localization](390-store-listing-localization.md):
   complete; 30 Play listings submitted and API-verified; extension 1.1.9 with
   nineteen native locales and reload-verified descriptions submitted through
