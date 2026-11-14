@@ -11,7 +11,7 @@
     "test": "node --test src/lib/share-link.test.mjs ../scripts/production-website-release.test.mjs ../scripts/hosted-context.test.mjs ../scripts/website-security.test.mjs ../scripts/promote-website-release.test.mjs ../scripts/commit-website-promotion.test.mjs ../scripts/chrome-extension-handoff.test.mjs"
   },
   "dependencies": {
-    "astro": "7.3.6",
+    "astro": "7.4.7",
     "@astrojs/react": "6.0.6",
     "@astrojs/rss": "4.0.19",
     "@astrojs/sitemap": "3.7.4",
