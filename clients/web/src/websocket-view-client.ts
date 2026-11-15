@@ -46,6 +46,8 @@ const APPLICATION_CONNECTION_REJECTED_CLOSE_CODE = 4_008;
 
 export interface ApplicationWebSocket {
   readonly readyState: number;
+  /** Terminal verification evidence supplied by an authenticated adapter. */
+  readonly connectionError?: Error | undefined;
   binaryType: BinaryType;
   onopen: ((event: Event) => void) | null;
   onmessage: ((event: MessageEvent<unknown>) => void) | null;
@@ -118,6 +120,7 @@ export class WebSocketApplicationViewClient
   private connected = false;
   private closing = false;
   private closed = false;
+  private terminalError: Error | undefined;
   private reconnectAttempt = 0;
   private reconnectNotBefore = 0;
   private nextCallId = 1;
@@ -397,6 +400,9 @@ export class WebSocketApplicationViewClient
     viewSetId: string,
     signal?: AbortSignal,
   ): Promise<void> {
+    // Terminal verification has already retired this connection's authority.
+    // Cleanup must not create another socket just to release its view set.
+    if (this.terminalError !== undefined) return;
     const result = await this.call(
       { type: "close_view_set", view_set_id: viewSetId },
       signal,
@@ -510,6 +516,7 @@ export class WebSocketApplicationViewClient
 
   private async ensureConnected(signal?: AbortSignal): Promise<void> {
     this.ensureOpen();
+    if (this.terminalError !== undefined) throw this.terminalError;
     if (this.connected && this.socket?.readyState === SOCKET_OPEN) return;
     if (this.connection !== undefined) return abortable(this.connection, signal);
     const connection = (async () => {
@@ -605,7 +612,7 @@ export class WebSocketApplicationViewClient
         this.route(frame);
       };
       socket.onerror = () => {
-        failHandshake(new Error("application WebSocket connection failed"));
+        failHandshake(socket.connectionError ?? new Error("application WebSocket connection failed"));
       };
       socket.onclose = () => {
         signal?.removeEventListener("abort", abort);
@@ -615,10 +622,11 @@ export class WebSocketApplicationViewClient
         this.connected = false;
         if (wasConnected) this.options.onConnectionState?.(false);
         this.recordReconnectDelay();
-        const failure = new ApplicationViewError(
+        const failure = socket.connectionError ?? new ApplicationViewError(
           "connection_closed",
           "application WebSocket connection closed",
         );
+        if (socket.connectionError !== undefined) this.terminalError = failure;
         this.rejectPending(failure);
         for (const stream of this.streams.values()) stream.fail(failure);
         failHandshake(failure);
@@ -743,6 +751,10 @@ export class WebSocketApplicationViewClient
   }
 
   private protocolFailure(error: Error): void {
+    if (error instanceof ContractError || (
+      error instanceof ApplicationViewError &&
+      (error.code === "authentication_failed" || error.code === "invalid_version")
+    )) this.terminalError = error;
     this.rejectPending(error);
     for (const stream of this.streams.values()) stream.fail(error);
     this.socket?.close(

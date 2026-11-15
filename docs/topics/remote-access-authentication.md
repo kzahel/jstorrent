@@ -2,6 +2,26 @@
 
 Topic: `remote-access-authentication`
 
+Tactical [393](../tactical/393-remote-browser-recovery.md) repairs hosted
+browser recovery after phone suspension. Ordinary socket failures reconnect
+through the existing view owner without reloading the document. Network
+errors, unanswered handshakes and unproven closes retain the browser key and
+authorization; released hosts do not provide an authenticated pre-resume
+revocation rejection, so a close cannot justify deleting them. Explicit owner
+sign-out still clears local authorization, and the host continues to enforce
+revocation and the existing seven-day idle / thirty-day absolute limits.
+Identity, proof and record failures stop retries without clearing host trust.
+Open remote transports own a visible 45-second incoming-record deadline and
+one coalesced two-second foreground check using the existing read-only
+inspection call. Closing the transport removes its timers/listeners and
+releases pending work immediately. Cold saved-login failures can retry on
+visibility, focus, online and visible thirty-second probes; editing the login
+form cancels that recovery. Desktop/phone-width Chromium tests preserve the
+document, draft and IndexedDB authorization through outage and freeze/stall
+recovery. This is browser evidence, not physical-phone qualification or a
+deployment of the updated controller. No cache, service worker or offline UI
+is added.
+
 Tactical [381](../tactical/381-dependency-cleanup-and-security.md) upgrades the
 native/Wasm P-256 dependency from 0.13.2 to 0.14.0. Public keys retain the
 65-byte uncompressed SEC1 encoding, signatures retain the 64-byte `r || s`

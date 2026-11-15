@@ -18,6 +18,11 @@
   hosted launch APIs; restore native `jstorrent:` intake, adopt owned legacy
   associations and replace web handoffs. No product changes yet.
 
+- [393 — Remote browser recovery](393-remote-browser-recovery.md):
+  implemented; retain browser authorization, reconnect in place and detect
+  foreground/silent connection failures without routine document reloads;
+  desktop/phone-width Chromium recovery passes. Not deployed.
+
 - [392 — PlaysVideo product release](392-playsvideo-product-release.md):
   desktop 0.3.10 public on Stable and Latest; extension 1.1.10 in Chrome
   review; Android 1.0.39 submitted to production at 1% (standard-7d),

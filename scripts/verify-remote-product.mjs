@@ -169,33 +169,35 @@ try {
   await expectProduct(restartedPage);
   await assertNoPasswordPrompt(restartedPage);
 
-  const automaticReload = restartedPage.waitForEvent("domcontentloaded", {
-    timeout: 20_000,
-  });
+  const documentStarted = await restartedPage.evaluate(() => performance.timeOrigin);
   await stopChild(relayProcess.child);
   relayProcess = undefined;
+  await restartedPage.locator('[data-connection="reconnecting"]').waitFor();
   relayProcess = await startRelay(relayPort, clientOrigin);
-  await automaticReload;
+  await restartedPage.locator('[data-connection="connected"]').waitFor();
   await expectProduct(restartedPage);
   await assertNoPasswordPrompt(restartedPage);
 
-  const rollbackReload = restartedPage.waitForEvent("domcontentloaded", {
-    timeout: 20_000,
-  });
+  if (await restartedPage.evaluate(() => performance.timeOrigin) !== documentStarted) {
+    throw new Error("relay recovery reloaded the document");
+  }
   await stopChild(headlessProcess.child);
+  await restartedPage.locator('[data-connection="reconnecting"]').waitFor();
   await rm(installed.current);
   await symlink(installed.rollbackTarget, installed.current);
   headlessCommand = installed.rollbackHeadless;
   headlessProcess = startManaged(headlessCommand, ["--config", configPath]);
   await waitForPath(join(profileRoot, "remote-admin-v1.sock"), headlessProcess);
-  await rollbackReload;
+  await restartedPage.locator('[data-connection="connected"]').waitFor();
   await expectProduct(restartedPage);
   await assertNoPasswordPrompt(restartedPage);
 
   remoteCommand(headlessCommand, ["revoke", originalClient.client_id]);
   await restartedPage.reload();
   await expectPasswordPrompt(restartedPage);
-  await expectText(restartedPage, "authorization is no longer valid");
+  // Released hosts close invalid resumes without authenticated rejection
+  // evidence. Preserve the credential while allowing deliberate password login.
+  await expectText(restartedPage, "remote host is unavailable or authentication was rejected");
   const revokedAudit = remoteStatus(headlessCommand);
   if (currentClients(revokedAudit).length !== 0) {
     throw new Error("revoked browser remained authorized");

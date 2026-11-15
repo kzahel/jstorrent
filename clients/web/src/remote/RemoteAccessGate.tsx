@@ -3,6 +3,7 @@ import { message as localizedMessage, useProductLocale } from "../localization/r
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { ApplicationViewClient } from "../api/client";
+import { ApplicationViewError } from "../api/errors";
 import {
   RemoteApplicationWebSocket,
   type RemoteAuthentication,
@@ -16,15 +17,14 @@ import {
 } from "../remote-client-store";
 import { WebSocketApplicationViewClient } from "../websocket-view-client";
 import { clientIdentity } from "../client-identity";
+import { abortableDelay } from "../view-connection";
 import { createRemoteSecurityClient } from "../remote-security-client";
 import type { DesktopRemoteAccess } from "../inspection/remote-access/types";
 import styles from "./RemoteAccessGate.module.css";
 
 const LAST_USERNAME_KEY = "rstorrent.remote.last-username.v1";
-const TERMINAL_FAILURE_KEY = "rstorrent.remote.terminal-failure.v1";
 const RESUME_CONNECTION_ATTEMPTS = 5;
 const RESUME_RETRY_BASE_MILLIS = 100;
-const TERMINAL_RECONNECT_DELAY_MILLIS = 250;
 
 type Phase = "loading" | "sign_in" | "connecting" | "identity_changed";
 
@@ -54,31 +54,28 @@ export function RemoteAccessGate({
   const [browserLabel, setBrowserLabel] = useState(defaultBrowserLabel);
   const [message, setMessage] = useState<string | null>(null);
   const mounted = useRef(true);
+  const resumeInProgress = useRef(false);
+  const resumeDelay = useRef<AbortController | undefined>(undefined);
+  const resumeRetry = useRef<(() => void) | undefined>(undefined);
+  const resumeRetryTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     mounted.current = true;
-    const terminal = sessionStorage.getItem(TERMINAL_FAILURE_KEY);
-    sessionStorage.removeItem(TERMINAL_FAILURE_KEY);
     const remembered = localStorage.getItem(LAST_USERNAME_KEY) ?? "";
     setUsername(remembered);
-    if (terminal === "host_identity_changed") {
-      setMessage(
-        "This route now presents a different authenticated host identity. " +
-          "JSTorrent will not send your password until you explicitly clear the old trust record.",
-      );
-      setPhase("identity_changed");
-      return () => {
-        mounted.current = false;
-      };
-    }
-    if (terminal === "resume_rejected") {
-      setMessage(
-        localizedMessage("remote.remote.access.gate.this.browser.authorization.is.no.longer.valid"),
-      );
-    }
+    const wake = () => {
+      if (document.visibilityState === "visible") resumeRetry.current?.();
+    };
+    window.addEventListener("online", wake);
+    window.addEventListener("focus", wake);
+    document.addEventListener("visibilitychange", wake);
     void attemptRememberedResume(remembered);
     return () => {
       mounted.current = false;
+      stopResumeRecovery();
+      window.removeEventListener("online", wake);
+      window.removeEventListener("focus", wake);
+      document.removeEventListener("visibilitychange", wake);
     };
   }, []);
 
@@ -87,13 +84,22 @@ export function RemoteAccessGate({
       setPhase("sign_in");
       return;
     }
+    if (!mounted.current || resumeInProgress.current) return;
+    stopResumeRecovery();
+    resumeInProgress.current = true;
+    const cancellation = new AbortController();
+    resumeDelay.current = cancellation;
+    setPhase("loading");
+    setMessage(null);
     try {
       const stored = await store.load(remembered);
+      if (!mounted.current || cancellation.signal.aborted) return;
       if (stored?.authorization === undefined || stored.key === undefined) {
         if (mounted.current) setPhase("sign_in");
         return;
       }
       for (let attempt = 0; attempt < RESUME_CONNECTION_ATTEMPTS; attempt += 1) {
+        if (!mounted.current || cancellation.signal.aborted) return;
         try {
           await connect(remembered, {
             type: "resume",
@@ -104,21 +110,43 @@ export function RemoteAccessGate({
         } catch (error) {
           if (!(error instanceof ResumeConnectionUnavailable)) throw error;
           if (attempt + 1 === RESUME_CONNECTION_ATTEMPTS) {
-            await handleInitialFailure(remembered, "connection_failed");
+            await handleInitialFailure("connection_failed");
+            // Keep the password form usable, but a restored network/tab can
+            // still recover a saved login without a new navigation.
+            resumeRetry.current = () => void attemptRememberedResume(remembered);
+            if (document.visibilityState === "visible") {
+              resumeRetryTimer.current = window.setTimeout(
+                () => {
+                  resumeRetryTimer.current = undefined;
+                  if (document.visibilityState === "visible") resumeRetry.current?.();
+                }, 30_000,
+              );
+            }
             return;
           }
-          await delay(RESUME_RETRY_BASE_MILLIS * 2 ** attempt);
+          await abortableDelay(RESUME_RETRY_BASE_MILLIS * 2 ** attempt, cancellation.signal);
         }
       }
     } catch (error) {
       if (!mounted.current) return;
       setMessage(errorMessage(error));
       setPhase("sign_in");
+    } finally {
+      resumeInProgress.current = false;
     }
+  }
+
+  function stopResumeRecovery(): void {
+    resumeRetry.current = undefined;
+    window.clearTimeout(resumeRetryTimer.current);
+    resumeRetryTimer.current = undefined;
+    resumeDelay.current?.abort();
+    resumeDelay.current = undefined;
   }
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    stopResumeRecovery();
     setMessage(null);
     setPhase("connecting");
     let encodedPassphrase = new TextEncoder().encode(passphrase);
@@ -163,13 +191,13 @@ export function RemoteAccessGate({
     initialAuthentication: RemoteAuthentication,
   ): Promise<void> {
     let authentication = initialAuthentication;
-    let enteredProduct = false;
     let observedFailure: RemoteConnectionFailure | undefined;
     let activeTransport: RemoteApplicationWebSocket | undefined;
     const applicationClient = new WebSocketApplicationViewClient(
       window.location.origin,
       null,
       () => {
+        observedFailure = undefined;
         activeTransport = new RemoteApplicationWebSocket({
           relayUrl,
           username: selectedUsername,
@@ -199,9 +227,6 @@ export function RemoteAccessGate({
           },
           onFailure: (failure) => {
             observedFailure = failure;
-            if (enteredProduct) {
-              void handleTerminalFailure(selectedUsername, failure);
-            }
           },
         });
         return activeTransport;
@@ -219,7 +244,6 @@ export function RemoteAccessGate({
     });
     try {
       await onConnected(applicationClient, remoteAccess);
-      enteredProduct = true;
     } catch (error) {
       await applicationClient.close();
       if (initialAuthentication.type === "password") {
@@ -232,7 +256,7 @@ export function RemoteAccessGate({
         ) {
           throw new ResumeConnectionUnavailable();
         }
-        await handleInitialFailure(selectedUsername, observedFailure);
+        await handleInitialFailure(observedFailure, error);
         return;
       }
       throw error;
@@ -240,14 +264,13 @@ export function RemoteAccessGate({
   }
 
   async function handleInitialFailure(
-    selectedUsername: string,
     failure: RemoteConnectionFailure,
+    error?: unknown,
   ): Promise<void> {
-    if (failure === "resume_rejected") {
-      await store.clearAuthorization(selectedUsername);
+    if (failure === "verification_failed") {
       if (!mounted.current) return;
       setMessage(
-        localizedMessage("remote.remote.access.gate.this.browser.authorization.is.no.longer.valid"),
+        `${localizedMessage("shell.remote.start-failed")}: ${errorMessage(error)}`,
       );
       setPhase("sign_in");
       return;
@@ -267,24 +290,6 @@ export function RemoteAccessGate({
         "Check the route and password, then try again.",
     );
     setPhase("sign_in");
-  }
-
-  async function handleTerminalFailure(
-    selectedUsername: string,
-    failure: RemoteConnectionFailure,
-  ): Promise<void> {
-    if (failure === "resume_rejected") {
-      await store.clearAuthorization(selectedUsername);
-    }
-    sessionStorage.setItem(TERMINAL_FAILURE_KEY, failure);
-    if (failure === "connection_failed") {
-      window.setTimeout(
-        () => window.location.reload(),
-        TERMINAL_RECONNECT_DELAY_MILLIS,
-      );
-    } else {
-      window.location.reload();
-    }
   }
 
   async function clearChangedIdentity(): Promise<void> {
@@ -339,7 +344,10 @@ export function RemoteAccessGate({
                 maxLength={32}
                 pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
                 value={username}
-                onChange={(event) => setUsername(event.currentTarget.value)}
+                onChange={(event) => {
+                  stopResumeRecovery();
+                  setUsername(event.currentTarget.value);
+                }}
               />
             </label>
             <label>{localizedMessage("remote.remote.access.gate.password")}<input
@@ -347,7 +355,10 @@ export function RemoteAccessGate({
                 type="password"
                 autoComplete="current-password"
                 value={passphrase}
-                onChange={(event) => setPassphrase(event.currentTarget.value)}
+                onChange={(event) => {
+                  stopResumeRecovery();
+                  setPassphrase(event.currentTarget.value);
+                }}
               />
             </label>
             <fieldset>
@@ -394,10 +405,6 @@ export function RemoteAccessGate({
 
 class ResumeConnectionUnavailable extends Error {}
 
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
-}
-
 function defaultBrowserLabel(): string {
   const platform =
     (navigator as Navigator & { userAgentData?: { platform?: string } })
@@ -435,5 +442,8 @@ function currentClientIdentifier(
 }
 
 function errorMessage(error: unknown): string {
+  if (error instanceof ApplicationViewError && error.code === "authentication_failed") {
+    return localizedMessage("remote.remote.access.gate.this.browser.authorization.is.no.longer.valid");
+  }
   return error instanceof Error ? error.message : "Remote access failed";
 }

@@ -1,4 +1,5 @@
 import { remoteCryptoOperationEntropy } from "./remote-crypto-entropy";
+import { ContractError } from "./api/errors";
 import type {
   ApplicationWebSocket,
   ApplicationWebSocketFactory,
@@ -9,6 +10,9 @@ const SOCKET_OPEN = 1;
 const SOCKET_CLOSING = 2;
 const SOCKET_CLOSED = 3;
 const HANDSHAKE_TIMEOUT_MILLIS = 20_000;
+const HEALTH_INTERVAL_MILLIS = 10_000;
+const STALE_CONNECTION_MILLIS = 45_000;
+const HEALTH_PROBE_TIMEOUT_MILLIS = 2_000;
 const REMOTE_FAILURE_CLOSE_CODE = 4_008;
 const CLIENT_SELECT_MAGIC = bytes("RSC1");
 const PAIRED_CONTROL = bytes("RSP1");
@@ -35,7 +39,7 @@ const DIRECT_FILE_SIGNALING_TIMEOUT_MILLIS = 15_000;
 export type RemoteConnectionFailure =
   | "connection_failed"
   | "host_identity_changed"
-  | "resume_rejected";
+  | "verification_failed";
 
 export type RemoteControlOperation =
   | { readonly type: "inspect" }
@@ -311,6 +315,7 @@ interface PendingDirectFile {
 }
 
 class HostIdentityChanged extends Error {}
+class RemoteTransportError extends Error {}
 
 /** ApplicationWebSocket-compatible encrypted product relay transport. */
 export class RemoteApplicationWebSocket implements ApplicationWebSocket {
@@ -332,6 +337,12 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
   private ready: AuthenticationReady | undefined;
   private readonly timer: ReturnType<typeof setTimeout>;
   private failed = false;
+  public connectionError: Error | undefined;
+  private lastReceivedAt = Date.now();
+  private lastHealthCheckAt = 0;
+  private healthInterval: ReturnType<typeof setInterval> | undefined;
+  private healthProbeTimer: ReturnType<typeof setTimeout> | undefined;
+  private removeWakeListeners: (() => void) | undefined;
   private nextControlId = 1;
   private readonly pendingControls = new Map<number, PendingRemoteControl>();
   private pendingDirectFile: PendingDirectFile | undefined;
@@ -351,35 +362,31 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
     this.socket.binaryType = "arraybuffer";
     this.socket.onopen = () => {
       try {
-        this.socket.send(exactBuffer(encodeClientSelect(options.username)));
+        this.sendToRelay(exactBuffer(encodeClientSelect(options.username)));
       } catch (error) {
-        this.fail(error);
+        this.fail(error, "connection_failed");
       }
     };
     this.socket.onmessage = (event) => {
+      if (this.state >= SOCKET_CLOSING || this.failed) return;
+      this.lastReceivedAt = Date.now();
       void this.receive(event.data).catch((error: unknown) => this.fail(error));
     };
-    this.socket.onerror = () => this.fail(new Error("relay transport failed"));
+    this.socket.onerror = () => this.fail(new Error("relay transport failed"), "connection_failed");
     this.socket.onclose = (event) => {
       if (
         (this.state === SOCKET_CONNECTING || this.state === SOCKET_OPEN) &&
         !this.failed
       ) {
-        const resumeRejected =
-          this.state === SOCKET_CONNECTING &&
-          this.options.authentication.type === "resume" &&
-          this.phase !== "pair" &&
-          this.phase !== "greeting";
         this.failed = true;
-        this.options.onFailure?.(
-          resumeRejected ? "resume_rejected" : "connection_failed",
-        );
+        // A close is not authenticated evidence of revocation or expiry.
+        this.options.onFailure?.("connection_failed");
         if (this.state === SOCKET_CONNECTING) this.onerror?.(new Event("error"));
       }
       this.closed(event);
     };
     this.timer = setTimeout(
-      () => this.fail(new Error("remote authentication timed out")),
+      () => this.fail(new Error("remote authentication timed out"), "connection_failed"),
       HANDSHAKE_TIMEOUT_MILLIS,
     );
   }
@@ -396,7 +403,7 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
       throw new Error("remote torrent byte attachments are unsupported");
     }
     rejectUnsupportedApplicationBreadth(data);
-    this.socket.send(exactBuffer(this.session.seal(new TextEncoder().encode(data))));
+    this.sendToRelay(exactBuffer(this.session.seal(new TextEncoder().encode(data))));
   }
 
   /** Direct peers must terminate with their authenticated parent circuit. */
@@ -413,6 +420,7 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
   public close(code = 1_000, reason = ""): void {
     if (this.state === SOCKET_CLOSED || this.state === SOCKET_CLOSING) return;
     this.state = SOCKET_CLOSING;
+    this.stopHealthChecks();
     this.notifyCircuitClosed();
     clearTimeout(this.timer);
     this.eraseHandshakeSecrets();
@@ -420,12 +428,15 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
     this.rejectPendingDirectFile(new Error("remote application connection closed"));
     if (this.session !== undefined) {
       try {
-        this.socket.send(exactBuffer(this.session.seal_close()));
+        this.sendToRelay(exactBuffer(this.session.seal_close()));
       } catch {
         // The authenticated record channel may already be terminal.
       }
     }
     this.socket.close(code, reason);
+    // Browser WebSocket close can wait on an unresponsive network. Release
+    // application waiters now, rather than waiting for its closing handshake.
+    this.closed({ code, reason } as CloseEvent);
   }
 
   public remoteControl(
@@ -449,7 +460,7 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
       }, REMOTE_CONTROL_TIMEOUT_MILLIS);
       this.pendingControls.set(requestId, { resolve, reject, timer });
       try {
-        this.socket.send(exactBuffer(this.session!.seal(plaintext)));
+        this.sendToRelay(exactBuffer(this.session!.seal(plaintext)));
       } catch (error) {
         clearTimeout(timer);
         this.pendingControls.delete(requestId);
@@ -498,7 +509,7 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
       }, DIRECT_FILE_SIGNALING_TIMEOUT_MILLIS);
       this.pendingDirectFile = { requestId: request.request_id, resolve, reject, timer };
       try {
-        this.socket.send(exactBuffer(this.session!.seal(plaintext)));
+        this.sendToRelay(exactBuffer(this.session!.seal(plaintext)));
       } catch (error) {
         clearTimeout(timer);
         this.pendingDirectFile = undefined;
@@ -554,7 +565,7 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
         this.passphrase,
         this.operationEntropy(),
       );
-      this.socket.send(exactBuffer(framed(LOGIN_REQUEST, this.login.request())));
+      this.sendToRelay(exactBuffer(framed(LOGIN_REQUEST, this.login.request())));
       this.phase = "login_response";
       return;
     }
@@ -572,7 +583,7 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
       authorization.protocolFloor,
       this.operationEntropy(),
     );
-    this.socket.send(
+    this.sendToRelay(
       exactBuffer(
         framed(
           RESUME_REQUEST,
@@ -607,7 +618,7 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
     this.passphrase.fill(0);
     this.expectedHostPin.fill(0);
     this.session = session;
-    this.socket.send(
+    this.sendToRelay(
       exactBuffer(framed(LOGIN_FINALIZATION, session.take_finalization())),
     );
     this.phase = "password_ready";
@@ -616,7 +627,7 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
   private async acceptPasswordReady(record: Uint8Array): Promise<void> {
     const session = required(this.session, "record state");
     const opened = session.open(record);
-    if (opened.isClose) throw new Error("authenticated host closed");
+    if (opened.isClose) throw new RemoteTransportError("authenticated host closed");
     const ready = decodeJsonRecord<AuthenticationReady>(
       opened.plaintext,
       AUTHENTICATED_READY,
@@ -660,6 +671,10 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
         transcript,
       );
       transcript.fill(0);
+      if (this.state !== SOCKET_CONNECTING || this.failed) {
+        signature.fill(0);
+        return;
+      }
       choice = {
         choice: "private",
         client_id: encodeId(credential.clientId),
@@ -673,7 +688,7 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
       signature.fill(0);
     }
     const plaintext = encodeJsonRecord(AUTHORIZATION_CHOICE, choice);
-    this.socket.send(exactBuffer(session.seal(plaintext)));
+    this.sendToRelay(exactBuffer(session.seal(plaintext)));
     this.phase = "password_outcome";
   }
 
@@ -690,10 +705,14 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
       signatureInput,
     );
     signatureInput.fill(0);
+    if (this.state !== SOCKET_CONNECTING || this.failed) {
+      signature.fill(0);
+      return;
+    }
     const session = proof.complete(signature);
     signature.fill(0);
     this.session = session;
-    this.socket.send(
+    this.sendToRelay(
       exactBuffer(framed(RESUME_FINALIZATION, session.take_finalization())),
     );
     this.phase = "resume_outcome";
@@ -702,7 +721,7 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
   private async acceptAuthenticationOutcome(record: Uint8Array): Promise<void> {
     const session = required(this.session, "record state");
     const opened = session.open(record);
-    if (opened.isClose) throw new Error("authenticated host closed");
+    if (opened.isClose) throw new RemoteTransportError("authenticated host closed");
     const outcome = decodeJsonRecord<AuthenticationSucceeded>(
       opened.plaintext,
       AUTHENTICATION_SUCCEEDED,
@@ -761,9 +780,11 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
       });
     }
     clearTimeout(this.timer);
+    if (this.state !== SOCKET_CONNECTING || this.failed) return;
     this.eraseHandshakeSecrets();
     this.state = SOCKET_OPEN;
     this.phase = "application";
+    this.startHealthChecks();
     this.onopen?.(new Event("open"));
   }
 
@@ -792,28 +813,102 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
     this.onmessage?.(new MessageEvent("message", { data: text }));
   }
 
-  private fail(error: unknown): void {
-    if (this.failed || this.state === SOCKET_CLOSED) return;
+  private fail(error: unknown, failure?: RemoteConnectionFailure): void {
+    if (this.failed || this.state >= SOCKET_CLOSING) return;
     this.failed = true;
-    this.options.onFailure?.(
-      error instanceof HostIdentityChanged
-        ? "host_identity_changed"
-        : this.options.authentication.type === "resume" &&
-            this.phase !== "pair" &&
-            this.phase !== "greeting"
-          ? "resume_rejected"
-          : "connection_failed",
+    const reason = failure ?? (
+      error instanceof RemoteTransportError ? "connection_failed" :
+      error instanceof HostIdentityChanged ? "host_identity_changed" :
+      "verification_failed"
     );
+    if (reason !== "connection_failed") {
+      this.connectionError = new ContractError(errorMessage(error));
+    }
+    this.options.onFailure?.(reason);
     this.onerror?.(new Event("error"));
     this.close(REMOTE_FAILURE_CLOSE_CODE, "remote connection failed");
   }
 
   private closed(event: CloseEvent): void {
+    if (this.state === SOCKET_CLOSED) return;
     clearTimeout(this.timer);
+    this.stopHealthChecks();
     this.eraseHandshakeSecrets();
+    this.rejectPendingControls(new Error("remote application connection closed"));
+    this.rejectPendingDirectFile(new Error("remote application connection closed"));
     this.state = SOCKET_CLOSED;
     this.notifyCircuitClosed();
     this.onclose?.(event);
+  }
+
+  private startHealthChecks(): void {
+    // The transport only detects failure. ViewController owns every retry.
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    const visible = () => document.visibilityState === "visible";
+    const wake = () => {
+      if (visible()) this.checkConnection();
+    };
+    window.addEventListener("online", wake);
+    window.addEventListener("focus", wake);
+    window.addEventListener("pageshow", wake);
+    document.addEventListener("visibilitychange", wake);
+    this.removeWakeListeners = () => {
+      window.removeEventListener("online", wake);
+      window.removeEventListener("focus", wake);
+      window.removeEventListener("pageshow", wake);
+      document.removeEventListener("visibilitychange", wake);
+    };
+    this.healthInterval = setInterval(() => {
+      if (visible() && Date.now() - this.lastReceivedAt >= STALE_CONNECTION_MILLIS) {
+        this.fail(new Error("remote application connection stalled"), "connection_failed");
+      }
+    }, HEALTH_INTERVAL_MILLIS);
+  }
+
+  private checkConnection(): void {
+    if (
+      this.state !== SOCKET_OPEN || this.healthProbeTimer !== undefined ||
+      Date.now() - this.lastReceivedAt < 1_000 ||
+      Date.now() - this.lastHealthCheckAt < HEALTH_PROBE_TIMEOUT_MILLIS ||
+      this.pendingControls.size >= MAX_PENDING_REMOTE_CONTROLS
+    ) return;
+    this.lastHealthCheckAt = Date.now();
+    // There is no encrypted ping in the released remote protocol. Inspect is
+    // an existing bounded read, supported by every released remote host.
+    const timer = setTimeout(() => {
+      this.healthProbeTimer = undefined;
+      if (document.visibilityState === "visible") {
+        this.fail(new Error("remote foreground check timed out"), "connection_failed");
+      }
+    }, HEALTH_PROBE_TIMEOUT_MILLIS);
+    this.healthProbeTimer = timer;
+    void this.remoteControl({ type: "inspect" }).catch(() => {
+      if (this.healthProbeTimer === timer && document.visibilityState === "visible") {
+        this.fail(new Error("remote foreground check failed"), "connection_failed");
+      }
+    }).finally(() => {
+      clearTimeout(timer);
+      if (this.healthProbeTimer === timer) this.healthProbeTimer = undefined;
+    });
+  }
+
+  private stopHealthChecks(): void {
+    clearInterval(this.healthInterval);
+    clearTimeout(this.healthProbeTimer);
+    this.healthInterval = undefined;
+    this.healthProbeTimer = undefined;
+    this.removeWakeListeners?.();
+    this.removeWakeListeners = undefined;
+  }
+
+  private sendToRelay(data: ArrayBuffer): void {
+    try {
+      this.socket.send(data);
+    } catch {
+      const error = new RemoteTransportError("relay send failed");
+      this.fail(error, "connection_failed");
+      throw error;
+    }
   }
 
   private operationEntropy(): Uint8Array {

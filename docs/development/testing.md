@@ -113,6 +113,14 @@ and iOS READMEs own their native commands.
 
 ## Remote control and platform checks
 
+`node scripts/verify-remote-recovery.mjs` exercises the actual gate, IndexedDB,
+remote transport, view owners and React UI in separate test Chromium at
+desktop and phone widths. Its scripted relay/crypto boundary permits bounded
+outage, renderer freeze and silent-socket faults, verifying recovery without
+document navigation or loss of a form draft, plus changed-host refusal. It
+does not establish native cryptographic interoperability or physical-phone
+behavior; use the real-host runner below for that protocol boundary.
+
 [`scripts/verify-remote-product.mjs`](../../scripts/verify-remote-product.mjs)
 drives local HTTPS/WSS login, resume, revocation, relay restart and host-change
 refusal using release React/Wasm and real host binaries. It needs OpenSSL,
