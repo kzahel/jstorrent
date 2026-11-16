@@ -1232,7 +1232,7 @@ completed the smallest persistence and restart slice:
   BLOBs, versioned have BLOBs, and bounded request receipts.
 - Bundled `rusqlite 0.41.1` uses `libsqlite3-sys 0.39.1` and SQLite `3.54.1`
   (Tactical 395, CVE-2026-119375 remediation). No schema or migration step
-  changes; the explicit no-progress callback type adapts Clear app data backup
+  changes; the explicit no-progress callback type adapts catalog migration backup
   to the new rusqlite API.
   WAL, foreign keys, `synchronous=FULL`, and the busy timeout are set and
   checked at open. Both initial Android Rust targets cross-compiled this

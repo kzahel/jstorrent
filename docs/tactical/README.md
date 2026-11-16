@@ -1,8 +1,8 @@
 # Implementation Tactical Docs
 
 - [395 — Release dependency maintenance](395-release-dependency-maintenance.md):
-  locally validated; patched dependencies, retired compatibility fallbacks,
-  scoped crypto review evidence and bounded native download retries; CI pending.
+  implemented and qualified locally and in hosted CI; patched dependencies,
+  retired compatibility fallbacks, scoped crypto evidence and download retries.
 
 - [394 — Legacy desktop handler takeover](394-legacy-desktop-handler-takeover.md):
   proposed; audit obsolete Windows helpers, browser magnet registrations and

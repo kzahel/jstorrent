@@ -1,6 +1,6 @@
 # 395 — Release dependency maintenance
 
-Status: local implementation and validation complete; hosted CI pending.
+Status: implemented; local and hosted runtime qualification passed.
 Maintainer authorized 2026-11-16.
 
 ## Scope and decisions
@@ -91,3 +91,31 @@ start date and an orphaned Download all waiting message after fallback removal.
 The follow-up updates the fixture and removes that retired message from all
 source catalogs, translation-review ledgers and generated catalogs. Localization
 validation and the full backport guard suite join the recorded local checks.
+
+## Upstream crypto follow-up
+
+The November 16 crates.io registry check confirms stable opaque-ke 4.0.1 and
+voprf 0.5.0 still select elliptic-curve 0.13. Newly published opaque-ke
+5.0.0-pre.0 and voprf 0.6.0-pre.2 move to elliptic-curve 0.14.3, removing the
+old bigint path. This supersedes the older historical statement that no
+published prerelease can remove it. The current exception rationale explicitly
+refers to stable releases. Do not adopt an authentication prerelease as part of
+this maintenance pass: persisted records, old/new login and native/Wasm
+compatibility require their own qualification before that migration.
+Primary manifests: [OPAQUE](https://raw.githubusercontent.com/facebook/opaque-ke/main/Cargo.toml)
+and [VOPRF](https://raw.githubusercontent.com/facebook/voprf/main/Cargo.toml).
+The reviewed current crypto source/graph and context fingerprint are unchanged.
+
+## Hosted qualification
+
+Full [CI 43853541688](https://github.com/kzahel/jstorrent/actions/runs/43853541688)
+qualifies runtime source at ae661c03: Rust/loopback and application lifecycle
+checks, web/browser/contract tests, extension packaging, both Linux packages,
+macOS and Windows packages, Android dual ABI/lint/JVM/owned SAF runtime, and
+iOS simulator tests/device archive. Both previously failing Linux source-build
+legs pass. [Fast CI](https://github.com/kzahel/jstorrent/actions/runs/43853541687)
+and the maintenance [advisory review](https://github.com/kzahel/jstorrent/actions/runs/43850991983)
+also pass. The subsequent records-only clarification changes no runtime source
+or dependency resolution; fresh strict Cargo/npm review and distribution guards
+pass locally, and its automatic CI rerun is tracked independently by GitHub.
+No Latest or Stable release is published by this maintenance pass.
