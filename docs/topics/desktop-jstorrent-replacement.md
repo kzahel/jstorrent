@@ -1,5 +1,16 @@
 # Desktop JSTorrent Replacement
 
+Tactical [394](../tactical/394-legacy-desktop-handler-takeover.md) records a
+2026-11-15 source/public-route audit and proposed follow-up. The original
+System Bridge's Windows ProgIDs/capabilities and browser magnet registrations
+are separate from the native-host fence; current hosted add/launch pages
+still call unsupported extension APIs, and the successor lacks the old
+`jstorrent:` scheme. Existing v0.2.1 import/host evidence does not qualify
+takeover of all these paths. The plan restores native intake, adopts verified
+JSTorrent-owned associations and replaces obsolete web handoffs while
+preserving user choices and data. No implementation, installed Windows
+diagnosis or publication is claimed by this audit.
+
 Tactical [336](../tactical/336-production-desktop-extension-control.md) fixes
 the beta-only native start/attach guard retained by desktop 0.3.0 and 0.3.1.
 An unpacked production-ID 1.1.4 extension controls an isolated real macOS 0.3.1

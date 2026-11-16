@@ -4,6 +4,11 @@
   locally validated; patched dependencies, retired compatibility fallbacks,
   scoped crypto review evidence and bounded native download retries; CI pending.
 
+- [394 — Legacy desktop handler takeover](394-legacy-desktop-handler-takeover.md):
+  proposed; audit obsolete Windows helpers, browser magnet registrations and
+  hosted launch APIs; restore native `jstorrent:` intake, adopt owned legacy
+  associations and replace web handoffs. No product changes yet.
+
 - [392 — PlaysVideo product release](392-playsvideo-product-release.md):
   desktop 0.3.10 public on Stable and Latest; extension 1.1.10 in Chrome
   review; Android 1.0.39 submitted to production at 1% (standard-7d),
