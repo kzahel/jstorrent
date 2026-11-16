@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [397 — Desktop maintenance release](397-desktop-maintenance-release.md):
+  preparing signed Latest/Stable delivery of storage recovery and security
+  updates; native `jstorrent:` takeover remains proposed under Tactical 394.
+
 - [396 — ChromeOS magnet Play release](396-chromeos-magnet-play-release.md):
   1.0.40 production rollout completed to 100% on maintainer direction after
   signed/source qualification and a real Pixel Play upgrade; availability unconfirmed.

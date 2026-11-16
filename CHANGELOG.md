@@ -4,6 +4,14 @@ Notable desktop changes are recorded here. JSTorrent follows
 three-component versions, and desktop release tags use
 `desktop-v<version>`.
 
+## [0.3.11] - 2026-11-16
+
+- Let Force recheck repair torrents placed in a recorded storage quarantine.
+- Prevent unrelated storage-file invalidations from interrupting completion.
+- Update SQLite, network and system dependencies with upstream security fixes.
+- Retire compatibility fallbacks whose supported upgrade window has ended.
+- Browser control continues to require JSTorrent extension 1.1.5 or newer.
+
 ## [0.3.10] - 2026-11-08
 
 - Save a small hidden `.jstorrent.json` file beside each download so PlaysVideo
