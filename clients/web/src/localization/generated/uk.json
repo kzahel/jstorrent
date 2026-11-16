@@ -9050,12 +9050,6 @@
       "value": "Завантажити"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "Ви зможете почати завантаження, коли завантажиться список файлів. Новіша версія JSTorrent може почати без очікування."
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

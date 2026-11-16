@@ -8273,12 +8273,6 @@
       "value": "Télécharger"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "Vous pourrez télécharger une fois la liste des fichiers chargée. Une version plus récente de JSTorrent permet de démarrer sans attendre."
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

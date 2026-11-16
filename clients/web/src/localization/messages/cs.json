@@ -3467,10 +3467,6 @@
     "defaultMessage": "Stáhnout",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
   },
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": {
-    "defaultMessage": "Stahování můžete zahájit po načtení seznamu souborů. Novější verze JSTorrent umožňuje zahájit stahování bez čekání.",
-    "description": "Pending add on a host too old to download all files before the file list loads"
-  },
   "inspection.components.pending.file.selection.dialog.download.folder": {
     "defaultMessage": "Složka pro stahování:",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"

@@ -105,7 +105,7 @@ class BackportTests(unittest.TestCase):
 
     def test_audit_cannot_clear_a_local_package_without_source_proof(self):
         proof = glib_backport.verify(self.root)
-        policy = {'review_expires': '2026-10-12', 'warnings': [], 'release_blockers': [],
+        policy = {'reviewed_at': '2026-09-12', 'review_expires': '2026-10-12', 'warnings': [], 'release_blockers': [],
                   'backports': [{k: proof[k] for k in
                                 ('package', 'version', 'advisory', 'source_manifest_sha256')}]}
         cargo = {'vulnerabilities': {'count': 0}, 'warnings': {},

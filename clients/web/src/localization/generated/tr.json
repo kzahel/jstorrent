@@ -7442,12 +7442,6 @@
       "value": "İndir"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "Dosya listesi yüklendiğinde indirmeye başlayabilirsiniz. Daha yeni bir JSTorrent sürümü beklemeden başlayabilir."
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

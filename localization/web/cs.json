@@ -7805,15 +7805,6 @@
       "translationHash": "ffeb7224afcdf441d1e5f70cb423774c3ae9eea8090d43bd21d8b8222cbb2d1c",
       "translator": "gpt-6.1-sol/01a184eb-adf1-7a41-9f25-7d29ea6c22f8"
     },
-    "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": {
-      "origin": "independently authored translation",
-      "reviewState": "agent-reviewed",
-      "reviewer": "gpt-6.1-sol/01a184ed-e71d-7641-b539-b3a6f3af6fb4",
-      "sourceHash": "d2394227d3ed328e72d85f42da65d2b8d8ef27ad62445bfab4670e97ab1ab14a",
-      "terminologyHash": "4f6f1cbc35801558e0269a594535ab5ffa1f416e259f14ec6be03b270898926b",
-      "translationHash": "ff8734328e08013450abf9eb6e472c782c4dc06512bcccccc9497c215a94bced",
-      "translator": "gpt-6.1-sol/01a184eb-adf1-7a41-9f25-7d29ea6c22f8"
-    },
     "inspection.components.pending.file.selection.dialog.download.folder": {
       "origin": "independently authored translation",
       "reviewState": "agent-reviewed",

@@ -8381,12 +8381,6 @@
       "value": "Descarcă"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "Descărcarea poate începe după încărcarea listei de fișiere. O versiune mai nouă de JSTorrent poate începe fără a aștepta."
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

@@ -7509,12 +7509,6 @@
       "value": "Download"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "Du kan downloade, når fillisten er indlæst. En nyere version af JSTorrent kan starte uden at vente."
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

@@ -7503,12 +7503,6 @@
       "value": "Herunterladen"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "Du kannst herunterladen, sobald die Dateiliste geladen ist. Eine neuere JSTorrent-Version kann ohne Warten starten."
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

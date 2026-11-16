@@ -7642,12 +7642,6 @@
       "value": "Baixar"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "Você pode baixar quando a lista de arquivos for carregada. Uma versão mais recente do JSTorrent permite iniciar sem esperar."
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

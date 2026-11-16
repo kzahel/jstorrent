@@ -7713,12 +7713,6 @@
       "value": "Descargar"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "Podrá descargar cuando se cargue la lista de archivos. Una versión más reciente de JSTorrent puede iniciar la descarga sin esperar."
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

@@ -9122,12 +9122,6 @@
       "value": "Stáhnout"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "Stahování můžete zahájit po načtení seznamu souborů. Novější verze JSTorrent umožňuje zahájit stahování bez čekání."
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

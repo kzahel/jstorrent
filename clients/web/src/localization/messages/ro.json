@@ -3467,10 +3467,6 @@
     "defaultMessage": "Descarcă",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
   },
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": {
-    "defaultMessage": "Descărcarea poate începe după încărcarea listei de fișiere. O versiune mai nouă de JSTorrent poate începe fără a aștepta.",
-    "description": "Pending add on a host too old to download all files before the file list loads"
-  },
   "inspection.components.pending.file.selection.dialog.download.folder": {
     "defaultMessage": "Dosar pentru descărcări:",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"

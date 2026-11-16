@@ -7012,12 +7012,6 @@
       "value": "ダウンロード"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "ファイル一覧の読み込み後にダウンロードできます。新しいバージョンのJSTorrentでは、待たずに開始できます。"
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

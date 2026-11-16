@@ -3467,10 +3467,6 @@
     "defaultMessage": "ダウンロード",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
   },
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": {
-    "defaultMessage": "ファイル一覧の読み込み後にダウンロードできます。新しいバージョンのJSTorrentでは、待たずに開始できます。",
-    "description": "Pending add on a host too old to download all files before the file list loads"
-  },
   "inspection.components.pending.file.selection.dialog.download.folder": {
     "defaultMessage": "ダウンロード先フォルダー:",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"

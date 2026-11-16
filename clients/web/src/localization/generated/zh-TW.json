@@ -7052,12 +7052,6 @@
       "value": "下載"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "檔案清單載入後即可下載。較新版本的 JSTorrent 可直接開始下載，無須等待。"
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

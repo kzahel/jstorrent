@@ -85,3 +85,9 @@ delivery. A detached integration checkout based on current upstream main
 preserves its website/probe security fixes; the reviewed Astro 7.4.12 update
 supersedes upstream 7.4.7. Validate this exact integrated source before push.
 Publishing Latest or Stable is outside the authorized maintenance pass.
+
+The first hosted run exposed a backport-test policy fixture missing its review
+start date and an orphaned Download all waiting message after fallback removal.
+The follow-up updates the fixture and removes that retired message from all
+source catalogs, translation-review ledgers and generated catalogs. Localization
+validation and the full backport guard suite join the recorded local checks.

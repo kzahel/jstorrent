@@ -7593,12 +7593,6 @@
       "value": "Ladda ned"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "Du kan ladda ned när fillistan har lästs in. En nyare version av JSTorrent kan starta utan att vänta."
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

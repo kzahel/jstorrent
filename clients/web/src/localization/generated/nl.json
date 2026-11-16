@@ -7501,12 +7501,6 @@
       "value": "Downloaden"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "Je kunt downloaden zodra de bestandslijst is geladen. Een nieuwere versie van JSTorrent kan zonder wachten starten."
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

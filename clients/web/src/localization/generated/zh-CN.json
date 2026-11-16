@@ -7108,12 +7108,6 @@
       "value": "下载"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "文件列表加载完成后即可下载。较新版本的 JSTorrent 无需等待即可开始下载。"
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

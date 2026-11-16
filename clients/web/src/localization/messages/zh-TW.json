@@ -3467,10 +3467,6 @@
     "defaultMessage": "下載",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
   },
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": {
-    "defaultMessage": "檔案清單載入後即可下載。較新版本的 JSTorrent 可直接開始下載，無須等待。",
-    "description": "Pending add on a host too old to download all files before the file list loads"
-  },
   "inspection.components.pending.file.selection.dialog.download.folder": {
     "defaultMessage": "下載資料夾：",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"

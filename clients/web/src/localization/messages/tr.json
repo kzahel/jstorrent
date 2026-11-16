@@ -3467,10 +3467,6 @@
     "defaultMessage": "İndir",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
   },
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": {
-    "defaultMessage": "Dosya listesi yüklendiğinde indirmeye başlayabilirsiniz. Daha yeni bir JSTorrent sürümü beklemeden başlayabilir.",
-    "description": "Pending add on a host too old to download all files before the file list loads"
-  },
   "inspection.components.pending.file.selection.dialog.download.folder": {
     "defaultMessage": "İndirme klasörü:",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"

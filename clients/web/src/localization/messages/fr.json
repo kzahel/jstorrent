@@ -3467,10 +3467,6 @@
     "defaultMessage": "Télécharger",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
   },
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": {
-    "defaultMessage": "Vous pourrez télécharger une fois la liste des fichiers chargée. Une version plus récente de JSTorrent permet de démarrer sans attendre.",
-    "description": "Pending add on a host too old to download all files before the file list loads"
-  },
   "inspection.components.pending.file.selection.dialog.download.folder": {
     "defaultMessage": "Dossier de téléchargement :",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"

@@ -9054,12 +9054,6 @@
       "value": "Pobierz"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "Pobieranie można rozpocząć po wczytaniu listy plików. Nowsza wersja JSTorrent pozwala rozpocząć bez czekania."
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

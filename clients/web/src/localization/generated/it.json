@@ -7739,12 +7739,6 @@
       "value": "Scaricare"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "È possibile avviare il download dopo il caricamento dell’elenco dei file. Una versione più recente di JSTorrent consente di avviarlo senza attendere."
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,

@@ -9274,12 +9274,6 @@
       "value": "Скачать"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.download.after.file.list.loads": [
-    {
-      "type": 0,
-      "value": "Вы сможете начать загрузку, когда появится список файлов. В более новой версии JSTorrent можно начать сразу."
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.download.folder": [
     {
       "type": 0,
