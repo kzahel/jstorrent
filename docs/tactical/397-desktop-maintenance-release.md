@@ -44,12 +44,22 @@ specific failed gate without bypassing it.
 - Captured host and client roles from exact source `11e10680` using its own
   generated schema, runtime defaults and bundled client decoder. Delivery
   entries remain pending actual publication.
-- Exact-main CI 43941905640 is still running. This local documentation and
-  capture work is held off main until the selector pins its source, avoiding
-  cancellation of that full run.
+- Exact-main [CI 43941905640](https://github.com/kzahel/jstorrent/actions/runs/43941905640)
+  passes every required job. Preparation was held off main until the selector
+  pinned that exact source, avoiding cancellation of the full run.
 
 The 0.3.10 ledger still said submitted despite its completed Stable promotion.
 Reconciled its published/first-public fields against the exact public release
 (17 assets, published 2026-11-08T15:55:44Z), tag source `1a49f4ab`, successful
 promotion 42497004134 and Tactical 392's original delivery evidence. No package
 or historical capture is changed.
+
+## Signed release in progress
+
+[Latest run 43949305235](https://github.com/kzahel/jstorrent/actions/runs/43949305235)
+selects `desktop-latest-v0.3.11` from exact `11e10680`. Its selector refreshes
+and accepts CI 43941905640, all published desktop inventories and reserved
+drafts, and records the exact source/version/tag. Signed source checks and
+original-root identity qualification are running; no publication is claimed.
+The [release receipt](evidence/397-desktop-release-receipt.json) tracks this
+source through later package verification and promotion.

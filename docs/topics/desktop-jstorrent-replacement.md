@@ -1,5 +1,11 @@
 # Desktop JSTorrent Replacement
 
+Tactical [397](../tactical/397-desktop-maintenance-release.md) is preparing
+signed desktop 0.3.11 from qualified upstream source `11e10680`: storage
+recovery and dependency/compatibility maintenance. Exact-source full CI
+passes and Latest signing is running. Stable publication and installed
+qualification remain pending; Tactical 394's protocol takeover stays proposed.
+
 Tactical [394](../tactical/394-legacy-desktop-handler-takeover.md) records a
 2026-11-15 source/public-route audit and proposed follow-up. The original
 System Bridge's Windows ProgIDs/capabilities and browser magnet registrations

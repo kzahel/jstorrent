@@ -1,0 +1,25 @@
+{
+  "schema": "jstorrent-desktop-release/v1",
+  "version": "0.3.11",
+  "sourceSha": "11e106804316fc48618ec650ac71f088b4fbb945",
+  "sourceCi": {
+    "runId": 43941905640,
+    "conclusion": "success",
+    "url": "https://github.com/kzahel/jstorrent/actions/runs/43941905640"
+  },
+  "latest": {
+    "tag": "desktop-latest-v0.3.11",
+    "runId": 43949305235,
+    "status": "in_progress",
+    "selectorSourceVerified": true
+  },
+  "previousStableReconciliation": {
+    "tag": "desktop-v0.3.10",
+    "sourceSha": "1a49f4ab4e334a289fc672028e96ae4030a6557c",
+    "publishedAt": "2026-11-08T15:55:44Z",
+    "assetCount": 17,
+    "promotionRunId": 42497004134,
+    "promotionConclusion": "success",
+    "observedDate": "2026-11-16"
+  }
+}
