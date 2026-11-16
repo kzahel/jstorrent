@@ -1,8 +1,8 @@
 # Implementation Tactical Docs
 
 - [396 — ChromeOS magnet Play release](396-chromeos-magnet-play-release.md):
-  preparing Android 1.0.40 with the browser magnet-intake fix, exact-source
-  qualification, internal Play upgrade and standard staged production rollout.
+  1.0.40 submitted to production at 1% on standard-7d after signed/source
+  qualification and a real Pixel Play upgrade; Google availability unconfirmed.
 
 - [395 — Release dependency maintenance](395-release-dependency-maintenance.md):
   implemented and qualified locally and in hosted CI; patched dependencies,

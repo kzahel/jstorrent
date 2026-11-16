@@ -1,0 +1,86 @@
+{
+  "release": "android-v1.0.40",
+  "source": "23f39803644d35b2c48b41e3b64df97e2ad48bde",
+  "build": {
+    "bundle": "jstorrent-android-1.0.40.aab",
+    "bundleSha256": "3fd4311ecb8b7de16d09da314c4c9442225498a89b0574bdbed681003b77d1bb",
+    "package": "com.jstorrent.app",
+    "runId": "43921414100",
+    "schema": 1,
+    "source": "23f39803644d35b2c48b41e3b64df97e2ad48bde",
+    "tag": "android-v1.0.40",
+    "versionCode": 40,
+    "versionName": "1.0.40"
+  },
+  "sourceCi": {
+    "runId": 43921854455,
+    "attempt": 2,
+    "commit": "b0137e78dcbc4e0e0dcf095b06b651119cc59815",
+    "result": "success",
+    "retryReason": "iOS hosted runner was not acquired; all non-iOS jobs passed first attempt, and the iOS-only retry passed."
+  },
+  "dependencyReview": {
+    "runId": 43921756320,
+    "releaseReady": true,
+    "newExceptions": false
+  },
+  "liveCompatibility": {
+    "runId": 43921414158,
+    "result": "success"
+  },
+  "internal": {
+    "buildRunId": "43921414100",
+    "deployment": 7833954584,
+    "editId": "08304521911965966429",
+    "previousVersionCode": 39,
+    "releaseStatus": "completed",
+    "sha256": "3fd4311ecb8b7de16d09da314c4c9442225498a89b0574bdbed681003b77d1bb",
+    "source": "23f39803644d35b2c48b41e3b64df97e2ad48bde",
+    "status": "submitted",
+    "supersededVersionCodes": [],
+    "tag": "android-v1.0.40",
+    "track": "internal",
+    "uploaded": true,
+    "userFraction": null,
+    "versionCode": 40,
+    "versionName": "1.0.40"
+  },
+  "managedUpgrade": {
+    "device": "Chromebook Pixel",
+    "fromVersion": "1.0.35",
+    "toVersion": "1.0.40",
+    "installer": "com.android.vending",
+    "uidPreserved": true,
+    "firstInstallTimePreserved": true,
+    "originalDownloadFolderAvailable": true,
+    "originalEmptyLibraryPreserved": true,
+    "coldBrowserMagnetConfirmation": "pass",
+    "warmBrowserMagnetConfirmation": "pass",
+    "sameProcessOnWarmDelivery": true,
+    "jstorrentExtensionDisabledDuringTest": true,
+    "extensionOriginalStateRestored": true,
+    "testIntakesCancelledWithoutAddingTorrents": true,
+    "populatedLibraryMigration": "not exercised; the existing library was empty",
+    "temporaryArtifactsRemoved": true
+  },
+  "production": {
+    "buildRunId": "43921414100",
+    "deployment": 7834147160,
+    "editId": "09489605297035728105",
+    "previousVersionCode": 39,
+    "releaseStatus": "inProgress",
+    "sha256": "3fd4311ecb8b7de16d09da314c4c9442225498a89b0574bdbed681003b77d1bb",
+    "source": "23f39803644d35b2c48b41e3b64df97e2ad48bde",
+    "status": "submitted",
+    "supersededVersionCodes": [],
+    "tag": "android-v1.0.40",
+    "track": "production",
+    "uploaded": false,
+    "userFraction": 0.01,
+    "versionCode": 40,
+    "versionName": "1.0.40"
+  },
+  "rolloutPlan": "standard-7d",
+  "productionDeploymentRecordedAt": "2026-11-16T19:27:35Z",
+  "publicAvailability": "unconfirmed; the API receipt establishes submission, not Google review or serving status"
+}

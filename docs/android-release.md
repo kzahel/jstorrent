@@ -1,5 +1,17 @@
 # Android Release Runbook
 
+Android 1.0.40/code 40 is submitted to production on November 16, 2026, at
+1% on the existing standard seven-day plan. It fixes Chromebook browser
+magnet intake and includes the qualified dependency maintenance. Signed
+construction, exact-source full CI, compatibility and fresh dependency review
+pass. An actual Pixel Play update from 1.0.35 preserves app identity and the
+original folder; cold and warm browser magnet confirmations pass with the
+extension disabled. [Production publication 43939120370](https://github.com/kzahel/jstorrent/actions/runs/43939120370)
+promotes the same internally tested AAB without re-uploading it; deployment
+7834147160 records API acceptance. Google review/public availability are
+unconfirmed. [Tactical 396](tactical/396-chromeos-magnet-play-release.md) owns
+the exact receipts and bounded installed evidence.
+
 On October 30, 2026, the maintainer explicitly requests completion of Android
 1.0.35/code 35's production rollout. Fresh Play report
 [41110829463](https://github.com/kzahel/jstorrent/actions/runs/41110829463)

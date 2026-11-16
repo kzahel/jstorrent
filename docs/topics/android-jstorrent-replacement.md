@@ -1,5 +1,12 @@
 # Android JSTorrent Replacement Readiness
 
+Android 1.0.40 is submitted to production at 1% on the standard seven-day plan.
+[Tactical 396](../tactical/396-chromeos-magnet-play-release.md) records signed
+construction, full CI and the real Pixel Play 1.0.35-to-1.0.40 upgrade, with
+retained identity/folder and passing cold/warm browser magnet confirmations.
+The same internal AAB is promoted; Google review/public availability remain
+unconfirmed.
+
 ## ChromeOS browser magnet handoff: 2026-11-16
 
 Physical Chromebook Pixel testing reproduced silent magnet loss in Play-installed
@@ -48,10 +55,11 @@ Validation:
   proved addition and duplicate feedback only; their seed did not expose magnet
   metadata, so they are not completion evidence.
 
-The fixed candidate uses a separate development identity. The Play app and its
-existing data were preserved; this does not claim a store-delivered fix. Test
-apps, owned folder/payloads, server, seed, tabs and temporary files are removed
-after validation, and the extension's original enabled state is restored.
+Initial fix qualification used a separate development identity and preserved
+the Play app and its data. Test apps, owned folder/payloads, server, seed, tabs
+and temporary files were removed, and the extension's original enabled state
+was restored. Tactical 396 records the subsequent managed Play delivery and
+production submission separately.
 
 ## Earlier release and feature checkpoints
 

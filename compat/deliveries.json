@@ -406,7 +406,7 @@
       "status": "submitted",
       "submitted": "2026-11-16",
       "firstPublic": null,
-      "channelBasis": "Tagged signed Android Release requested for the ChromeOS browser magnet-intake fix and qualified dependency maintenance. Compatibility capture records this exact host source. Signed construction, exact-source CI, internal Play upgrade and production submission are pending (Tactical 396); no store availability is claimed.",
+      "channelBasis": "Tag build 43921414100 signs code 40 at this exact source for the ChromeOS browser magnet-intake fix and qualified dependency maintenance. Full CI 43921854455 passes on its compatibility-only capture descendant after an iOS runner-capacity retry. Internal publication 43937828544 and production publication 43939120370 promote the same AAB, SHA-256 3fd4311ecb8b7de16d09da314c4c9442225498a89b0574bdbed681003b77d1bb. An actual Chromebook Pixel Play upgrade from 1.0.35 to 1.0.40 preserves identity and the original folder; cold and warm browser magnet confirmations pass with the extension disabled. Production deployment 7834147160 records API acceptance at 1% on standard-7d. Google review and first public availability are not yet confirmed (Tactical 396).",
       "roles": [
         "host"
       ]
