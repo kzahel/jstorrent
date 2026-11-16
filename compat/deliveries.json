@@ -396,6 +396,20 @@
       "firstPublic": null,
       "channelBasis": "Tag build 42518622528 signs code 39 at this exact source, superseding withdrawn 1.0.38 with the same app source: the SAF completion race fix and Force recheck repair for quarantined torrents (Tactical 391). Internal publication 42522440539 and production staged rollout 42523962873 (1%, standard-7d, supersede) promote the same AAB, SHA-256 64015eda58521f0525915158005dcdadbedff6a05fc74dc4600693124b828e1c, replacing 1.0.37's unfinished 1% rollout. Play reports the production edit submitted; Google review and first public availability are not yet confirmed.",
       "roles": ["host"]
+    },
+    {
+      "surface": "android",
+      "version": "1.0.40",
+      "tag": "android-v1.0.40",
+      "commit": "23f39803644d35b2c48b41e3b64df97e2ad48bde",
+      "channel": "play-production",
+      "status": "submitted",
+      "submitted": "2026-11-16",
+      "firstPublic": null,
+      "channelBasis": "Tagged signed Android Release requested for the ChromeOS browser magnet-intake fix and qualified dependency maintenance. Compatibility capture records this exact host source. Signed construction, exact-source CI, internal Play upgrade and production submission are pending (Tactical 396); no store availability is claimed.",
+      "roles": [
+        "host"
+      ]
     }
   ]
 }
