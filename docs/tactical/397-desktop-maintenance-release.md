@@ -116,3 +116,27 @@ database facts and all eleven native selectors verify. Database facts match
 the unchanged source registry and preserve forward compatibility from signed
 Stable 0.3.10. Complete source upload, final private-draft verification and
 public Latest/Stable/website delivery remain pending.
+
+## Latest public
+
+The complete seventeen-asset private draft passes the maintained final gate.
+Latest 0.3.11 publishes at 2026-11-16T22:35:36Z from exact `11e10680`.
+Every cached full asset matches the public immutable size/digest inventory;
+all six retained-root updater signatures, signed database facts, eleven
+selectors and unauthenticated first-1024-byte probes of all seventeen public
+downloads pass. The qualified Mac archive hashes match the public capsule.
+The delivery is registered with both host and client captures. Stable and
+canonical website promotion remain pending.
+
+The first dual-role desktop delivery exposed an omitted test-policy surface:
+its exact captured decoder accepts all raw frames and unknown optional fields,
+but the absent desktop `tolerantSince` entry defaulted it to strict. Record
+0.3.11 as the first qualified tolerant desktop client capture. This changes
+release-test classification only; no decoder, exposure, support window,
+application source or signed package changes. The initial targeted run passed
+58/59 checks and failed only the contradictory strict-rejection expectation.
+
+With that qualified test-policy entry, all 92 targeted released-host/client,
+window and contract checks and seven release-policy tests pass. The enforced
+Stable companion guard passes. Web typecheck and the full web suite also run
+for the policy-file update before the delivery commit and Stable dispatch.

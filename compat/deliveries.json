@@ -411,6 +411,21 @@
       "roles": [
         "host"
       ]
+    },
+    {
+      "surface": "desktop",
+      "version": "0.3.11",
+      "tag": "desktop-v0.3.11",
+      "commit": "11e106804316fc48618ec650ac71f088b4fbb945",
+      "channel": "stable",
+      "status": "submitted",
+      "submitted": "2026-11-16",
+      "firstPublic": null,
+      "channelBasis": "Public Latest 0.3.11 at 2026-11-16T22:35:36Z from exact qualified source 11e10680. Full source CI 43941905640 and all five signed legs/source checks in 43949305235 pass; its collector withheld publication for updated Ubuntu sources. Review 90f40905 and maintained local final-draft gates complete the same native/source capsule. All seventeen public assets and unauthenticated range probes verify. Stable promotion remains pending.",
+      "roles": [
+        "host",
+        "client"
+      ]
     }
   ]
 }

@@ -1,5 +1,15 @@
 # Mixed-Version Compatibility
 
+Tactical [397](../tactical/397-desktop-maintenance-release.md) records the
+first desktop delivery captured as both host and bundled client. Its exact
+0.3.11 decoder accepts all current raw host frames and unknown optional
+fields. Add desktop 0.3.11 to `strictClients.tolerantSince` as the earliest
+qualified desktop client capture; do not infer or reclassify earlier uncaptured
+desktop clients. The previous missing surface entry conservatively defaulted
+the new capture to strict, so only the test expecting unknown-field rejection
+failed. No decoder, application contract, exposure or support-window rule
+changes; the real captured-decoder assertion continues to verify tolerance.
+
 Tactical [392](../tactical/392-playsvideo-product-release.md) carries the same
 eight-field acceptance forward to `desktop-v0.3.10` and `android-v1.0.37` (1.0.36 was withdrawn before
 signing).
