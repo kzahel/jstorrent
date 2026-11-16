@@ -1,5 +1,10 @@
 # Android Changelog
 
+## [1.0.40]
+
+- Fix Chromebook magnet links opening JSTorrent without adding the torrent, including first-time folder setup and links clicked while the app is already open.
+- Security updates to database and networking components.
+
 ## [1.0.39]
 
 - Fix completed downloads in a chosen folder sometimes stopping with "Needs repair" instead of seeding.
