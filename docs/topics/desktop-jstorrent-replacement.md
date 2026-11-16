@@ -7,18 +7,21 @@ source checks and a populated Mac launch/Quit/reopen pass. The source gate's
 four updated Ubuntu pairs are reviewed and supplied through the maintained
 same-source completion procedure. All seventeen public assets, original-root
 signatures, signed database facts, ten live offers and canonical website
-links verify. Native `jstorrent:` takeover remains proposed in Tactical 394.
+links verify. This release excludes the native `jstorrent:` takeover now
+implemented under Tactical 394.
 
-Tactical [394](../tactical/394-legacy-desktop-handler-takeover.md) records a
-2026-11-15 source/public-route audit and proposed follow-up. The original
-System Bridge's Windows ProgIDs/capabilities and browser magnet registrations
-are separate from the native-host fence; current hosted add/launch pages
-still call unsupported extension APIs, and the successor lacks the old
-`jstorrent:` scheme. Existing v0.2.1 import/host evidence does not qualify
-takeover of all these paths. The plan restores native intake, adopts verified
-JSTorrent-owned associations and replaces obsolete web handoffs while
-preserving user choices and data. No implementation, installed Windows
-diagnosis or publication is claimed by this audit.
+Tactical [394](../tactical/394-legacy-desktop-handler-takeover.md) now records
+rex's actual Windows failure: effective `.torrent`/magnet selections still
+invoked the original System Bridge helper, whose log confirms the obsolete
+browser fallback and timeout. A narrowly checked, reversible repair points
+those selected legacy classes at the installed current executable; user
+choices, native-host refusal fence, profiles and user data are untouched.
+Source restores bounded `jstorrent://launch` intake, installer ownership
+adoption and website native escape/manual recovery, removing unsupported
+website messaging and new browser-handler registration. No fix is published.
+The installed 0.3.10 custom-protocol target remains broken until a corrected
+binary is installed. Synthetic hook tests do not qualify every historical
+installer cohort; platform/release evidence gaps remain explicit in 394.
 
 Tactical [336](../tactical/336-production-desktop-extension-control.md) fixes
 the beta-only native start/attach guard retained by desktop 0.3.0 and 0.3.1.

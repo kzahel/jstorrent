@@ -1,8 +1,34 @@
 # Legacy URLs
 
-These files were copied verbatim from `jstorrent.github.io` (the old jstorrent.com site)
-to keep them working for ~60k legacy Chrome App users. Remove once the legacy app
-migration is complete.
+Historical destinations remain available for installed browser handlers and shared
+links. Tactical 394 replaces add/launch/setup diagnostics with one bounded native
+adapter. No page registers new browser magnet handlers or probes the old extension.
+Retain these destinations while installed registrations can reference them; removal
+requires an explicit compatibility decision, not merely a 30-day elapsed window.
+
+`/add/`, `/launch`, `/magnet/`, setup/test and historical diagnostic URLs render
+`LegacyLaunch.astro`. Their `.html` aliases forward search and fragment together to
+the corresponding route. Inputs never enter server logs through a fragment, and
+must never be added to analytics or diagnostic receipts. Query-form legacy links
+can reach the HTTP server as before; the page does not forward their tokens.
+
+The adapter accepts the share parser's historical fragment formats plus query
+`magnet` / `magnet_uri`, with a 64 KiB envelope and 16 KiB UTF-8 magnet limit.
+Ambiguous magnet envelopes, malformed encoding, invalid magnets and oversize
+inputs cannot produce a magnet launch URL. It decodes each envelope once, preserves
+magnet parameter encoding, and uses an explicit
+`jstorrent://launch?magnet=<encoded magnet>` escape from retained browser handlers.
+Opening is an attempt, not proof of installation, receipt or torrent addition.
+Local paths and tokens provide no authority: use the native file picker.
+
+Copy/manual Add and download recovery remain available for independently updated
+or missing desktop versions. Publish desktop support before depending on the new
+protocol in hosted pages. No publication is performed by this change.
+
+A user-initiated cleanup attempts only the exact current-origin `/add/#magnet_uri=%s`
+and `/share/#magnet_uri=%s` templates through `unregisterProtocolHandler` where
+supported. It cannot clear another profile, origin or old HTTP registration;
+browser Settings is the fallback. No Preferences file is edited.
 
 ## Source repo
 
@@ -12,9 +38,9 @@ the historical `jstorrent.github.io` repository (GitHub Pages, formerly CNAME: j
 
 | Path | Purpose | Referenced by |
 |------|---------|---------------|
-| `/magnet/` | Magnet protocol handler setup & test | Legacy app options.js, help.html (`jstorrent.com/magnet/`) |
-| `/add/` | Protocol handler destination (`#magnet_uri=`) | `magnet/index.js` registers handler pointing here |
-| `/share/` | Share page; also an alternate protocol handler destination. Rebuilt; see below | `magnet/setup.js` registers handler pointing here; product share links |
+| `/magnet/` | Native launch / association repair guidance | Legacy app options.js, help.html (`jstorrent.com/magnet/`) |
+| `/add/` | Retained handler destination with native protocol escape | Previously registered by `magnet/index.js` |
+| `/share/` | Share page; also an alternate protocol handler destination. Rebuilt; see below | Previously registered by `magnet/setup.js`; product share links |
 | `/bug/` | Bug report page | Legacy app |
 | `/stream/` | Stream page | Legacy app |
 | `/uninstall/` | Uninstall feedback page | Legacy app (also `/uninstall.html` for new app) |
@@ -69,9 +95,12 @@ and the `jstwn`/`testRegistered` special cases were removed with the old page.
 |------|---------|
 | `/images/` | Logos, icons, magnet link icon, URL bar screenshot |
 | `/css/main.css` | Legacy site stylesheet |
-| `/js/index.js`, `/js/smooth.pack.js` | Legacy site JS |
+| `/js/smooth.pack.js` | Retained legacy asset |
 | `/favicon.ico` | Legacy favicon |
-| `/jstorrent.install.js` | Chrome Web Store inline install script |
+
+Removed executable assets: `/js/index.js`, `/jstorrent.install.js`,
+`/add/index.js`, and the magnet registration/probe scripts. Their retained HTML
+destinations use the adapter; shared images and `/magnet/index.css` remain.
 
 ## Not copied
 

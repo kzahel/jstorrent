@@ -4910,6 +4910,7 @@ dependencies = [
  "rstorrent-media",
  "rstorrent-native-host",
  "rstorrent-platform",
+ "rstorrent-protocol",
  "rstorrent-remote-host",
  "rstorrent-remote-relay",
  "rstorrent-session",

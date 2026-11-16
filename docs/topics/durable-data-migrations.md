@@ -60,6 +60,7 @@ below to **Retired** with the commit.
 
 | Item | Format | Added | Kind | Retire when |
 | --- | --- | --- | --- | --- |
+| Windows `JSTorrent.Magnet` / `JSTorrent.Torrent` class adoption | System Bridge Inno / TypeScript Tauri OS registrations | Tactical 394 | Installer-scoped ownership reader; keep selected ProgIDs as aliases, never rewrite UserChoice or invoke the inherited uninstaller | Keep aliases while any supported Windows selection may name them; retire only after a documented succession floor and installed association evidence. Old Inno binaries/metadata remain inert until separately inventoried retirement |
 | Android `product_appearance.language_tag` → platform app locale | Android UI prefs → LocaleManager | Tactical 383; matching follow-up in 388 | One-time OS-upgrade handoff; existing platform override wins; transfer the original tag after matching a supported catalog, removing only the old field after success | API 28–32 writers and supported OS-upgrade paths that can leave this field are explicitly retired, with evidence that supported stores no longer contain it |
 | Step 26 → 27: seeding stop limits | `session.db` | Tactical 344 (`1c4391e7`) | migration step | Floor reaches 27 |
 | Step 27 → 28: network defaults marker | `session.db` | Tactical 358 | migration step | Floor reaches 28 |

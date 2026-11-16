@@ -1,0 +1,52 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+---
+<BaseLayout title="Open in JSTorrent" description="Open a torrent in the JSTorrent desktop app.">
+  <meta slot="head" name="robots" content="noindex" />
+  <main class="section"><div class="container">
+    <h1>Open in JSTorrent</h1>
+    <p id="launch-message">Open the desktop app, then use Add to choose a torrent file or paste a magnet link.</p>
+    <p><a id="launch-open" class="btn btn-primary" href="jstorrent://launch">Open JSTorrent desktop</a></p>
+    <div id="launch-input" hidden>
+      <label for="launch-magnet">Magnet link</label>
+      <textarea id="launch-magnet" readonly rows="4" style="width:100%"></textarea>
+      <button id="launch-copy" type="button" class="btn btn-secondary">Copy magnet link</button>
+      <p id="launch-copy-status" role="status"></p>
+    </div>
+    <p>Opening requires a desktop version that supports jstorrent: links. If it does not open,
+      start JSTorrent from the Start menu or Applications and paste the magnet into Add.
+      For a local torrent file, choose it with Add; old website tokens cannot open local files.</p>
+    <p>If magnet links keep returning to a website, remove the saved jstorrent.com magnet handler
+      in your browser's protocol handler settings. In Chrome, open Settings → Privacy and security →
+      Site settings → Additional permissions → Protocol handlers. In Edge, search Settings for
+      “protocol handlers”. Windows Default Apps controls the separate native association.</p>
+    <button id="launch-cleanup" type="button" class="btn btn-secondary">Remove this site's old web handlers</button>
+    <p id="launch-cleanup-status" role="status"></p>
+    <p><a href="/#download">Download or update JSTorrent</a> · <a href="/share/">Share links</a></p>
+  </div></main>
+</BaseLayout>
+<script>
+  import { parseLegacyLaunch, unregisterLegacyHandlers } from '../lib/legacy-launch.js'
+  const open = document.querySelector<HTMLAnchorElement>('#launch-open')!
+  const input = document.querySelector<HTMLTextAreaElement>('#launch-magnet')!
+  const message = document.querySelector('#launch-message')!
+  function render() {
+    const result = parseLegacyLaunch(location.search, location.hash)
+    open.href = result.launchUrl
+    input.value = result.magnet ?? ''
+    document.querySelector<HTMLElement>('#launch-input')!.hidden = !result.magnet
+    message.textContent = result.magnet
+      ? 'Review this magnet in the native Add dialog. The link stays here if the app does not open.'
+      : 'Open JSTorrent, then use Add to choose a torrent file or paste a magnet. This page could not find a complete magnet link.'
+  }
+  render()
+  window.addEventListener('hashchange', render)
+  document.querySelector('#launch-copy')!.addEventListener('click', async () => {
+    const status = document.querySelector('#launch-copy-status')!
+    try { await navigator.clipboard.writeText(input.value); status.textContent = 'Magnet link copied.' }
+    catch { input.focus(); input.select(); status.textContent = 'Select and copy the magnet link above.' }
+  })
+  document.querySelector('#launch-cleanup')!.addEventListener('click', () => {
+    document.querySelector('#launch-cleanup-status')!.textContent = unregisterLegacyHandlers(navigator, location.origin)
+  })
+</script>

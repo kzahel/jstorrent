@@ -3,7 +3,7 @@
 - [397 — Desktop maintenance release](397-desktop-maintenance-release.md):
   0.3.11 public on Stable/Latest with signed source/runtime qualification,
   complete sources, ten verified updater offers and canonical website links;
-  native `jstorrent:` takeover remains proposed under Tactical 394.
+  native `jstorrent:` takeover is tracked separately under Tactical 394.
 
 - [396 — ChromeOS magnet Play release](396-chromeos-magnet-play-release.md):
   1.0.40 production rollout completed to 100% on maintainer direction after
@@ -14,9 +14,9 @@
   retired compatibility fallbacks, scoped crypto evidence and download retries.
 
 - [394 — Legacy desktop handler takeover](394-legacy-desktop-handler-takeover.md):
-  proposed; audit obsolete Windows helpers, browser magnet registrations and
-  hosted launch APIs; restore native `jstorrent:` intake, adopt owned legacy
-  associations and replace web handoffs. No product changes yet.
+  implemented locally; rex's selected legacy classes repaired reversibly,
+  native `jstorrent:` and batched launch intake tested, owned installer aliases
+  and website recovery added. Publication and historical cohort gates remain.
 
 - [393 — Remote browser recovery](393-remote-browser-recovery.md):
   implemented; retain browser authorization, reconnect in place and detect

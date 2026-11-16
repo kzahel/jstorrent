@@ -15,6 +15,7 @@ test("debug isolation permits the guarded qualification and upgrade overrides ac
   assert.doesNotThrow(() => validateCandidate(data));
 });
 for (const [name, mutate] of [
+  ["missing legacy launch scheme", (d) => { d.desktop.plugins["deep-link"].desktop.schemes = ["magnet"]; }],
   ["beta desktop identity", (d) => { d.desktop.identifier = "com.jstorrent.rstorrent"; }],
   ["beta updater route", (d) => { d.desktop.plugins.updater.endpoints = ["https://updates.graehlarts.com/rstorrent/tauri/{{target}}/{{arch}}/{{current_version}}"]; }],
   ["swapped updater key", (d) => { d.desktop.plugins.updater.pubkey = "another key"; }],

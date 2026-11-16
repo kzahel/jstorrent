@@ -31,6 +31,7 @@
     }
   },
   "plugins": {
+    "deep-link": { "desktop": { "schemes": ["magnet", "jstorrent"] } },
     "updater": {
       "endpoints": [
         "https://updates.jstorrent.com/tauri/{{target}}/{{arch}}/{{current_version}}"

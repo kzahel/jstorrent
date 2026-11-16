@@ -346,7 +346,7 @@ export function validateDesktopReleaseConfiguration({
     ".deep_link().on_open_url(",
     ".deep_link()\n                    .register_all()",
     "RunEvent::Opened { urls }",
-    'url.scheme().eq_ignore_ascii_case("magnet")',
+    'matches!(url.scheme(), "magnet" | "jstorrent")',
     "handle_external_activation_values(handle, urls.iter().map(url::Url::as_str));",
   ]) {
     if (!desktopSource.includes(requiredSource)) {

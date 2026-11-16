@@ -58,7 +58,8 @@ import { CHROME_WEB_STORE_URL, GOOGLE_PLAY_URL } from '../lib/store-links'
             </div>
 
             <div class="btn-group share-actions">
-              <a id="share-open" class="btn btn-primary btn-large">Open in JSTorrent</a>
+              <a id="share-open" class="btn btn-primary btn-large">Open in torrent app</a>
+              <a id="share-desktop" class="btn btn-secondary btn-large">Open JSTorrent desktop</a>
               <button id="share-copy" type="button" class="btn btn-secondary btn-large">
                 Copy magnet link
               </button>
@@ -78,7 +79,8 @@ import { CHROME_WEB_STORE_URL, GOOGLE_PLAY_URL } from '../lib/store-links'
             </div>
             <p class="text-muted share-hint">
               Opening hands the magnet link to the torrent app installed on this device. If
-              nothing happens, get JSTorrent below and open this page again.
+              nothing happens, get JSTorrent below and open this page again. If a saved browser
+              handler returns you here, use Open JSTorrent desktop or copy the magnet into Add.
             </p>
 
             <label class="share-label" for="share-magnet">Magnet link</label>
@@ -191,6 +193,7 @@ import { CHROME_WEB_STORE_URL, GOOGLE_PLAY_URL } from '../lib/store-links'
       ready.hidden = true
       invalid.hidden = false
       open.removeAttribute('href')
+      element<HTMLAnchorElement>('share-desktop').removeAttribute('href')
       magnetInput.value = ''
       eyebrow.textContent = 'Shared torrent'
       title.textContent = 'This share link is incomplete'
@@ -247,6 +250,10 @@ import { CHROME_WEB_STORE_URL, GOOGLE_PLAY_URL } from '../lib/store-links'
     )
 
     open.href = share.magnet
+    const desktop = element<HTMLAnchorElement>('share-desktop')
+    desktop.href = new TextEncoder().encode(share.magnet).length <= 16 * 1024
+      ? 'jstorrent://launch?magnet=' + encodeURIComponent(share.magnet)
+      : 'jstorrent://launch'
     magnetInput.value = share.magnet
     invalid.hidden = true
     ready.hidden = false

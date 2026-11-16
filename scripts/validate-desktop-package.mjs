@@ -36,7 +36,7 @@ export function validateMacInfo(info, product = "RSTorrent") {
     candidate.CFBundleURLSchemes?.includes("magnet"),
   );
   if (!urlType) fail("macOS bundle does not register magnet");
-  exactArray(urlType.CFBundleURLSchemes, ["magnet"], "macOS URL schemes");
+  exactArray(urlType.CFBundleURLSchemes, product === "JSTorrent" ? ["magnet", "jstorrent"] : ["magnet"], "macOS URL schemes");
   if (urlType.CFBundleURLName !== `${IDENTIFIER} magnet`) {
     fail(`unexpected macOS URL type name ${urlType.CFBundleURLName}`);
   }
@@ -115,7 +115,7 @@ export function validateLinuxDesktop(contents, product = "RSTorrent") {
     .get("MimeType")
     ?.split(";")
     .filter(Boolean);
-  for (const required of [TORRENT_MIME, MAGNET_MIME]) {
+  for (const required of [TORRENT_MIME, MAGNET_MIME, ...(product === "JSTorrent" ? ["x-scheme-handler/jstorrent"] : [])]) {
     if (!mimes?.includes(required)) fail(`Linux handler is missing ${required}`);
   }
   const exec = entries.get("Exec") ?? "";
@@ -148,6 +148,9 @@ export function validateWindowsAssociations(registry, product = "RSTorrent") {
   }
   if (registry.magnetCommand !== expectedCommand) {
     fail(`unexpected Windows magnet command ${registry.magnetCommand}`);
+  }
+  if (product === "JSTorrent" && (registry.jstorrentUrlProtocol !== "" || registry.jstorrentCommand !== expectedCommand)) {
+    fail("Windows jstorrent launch protocol is missing or has the wrong command");
   }
 }
 

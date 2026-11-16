@@ -97,6 +97,7 @@ impl DesktopActivationState {
         for value in values {
             match classify_external_activation(value.as_ref()) {
                 ClassifiedActivation::Ignored => {}
+                ClassifiedActivation::OpenWindow => admission.recognized = true,
                 ClassifiedActivation::Rejected => {
                     admission.recognized = true;
                     admission.changed = true;
@@ -208,12 +209,13 @@ impl DesktopActivationState {
 pub(crate) fn recognized_external_activation(value: &str) -> bool {
     matches!(
         classify_external_activation(value),
-        ClassifiedActivation::Accepted(_)
+        ClassifiedActivation::Accepted(_) | ClassifiedActivation::OpenWindow
     )
 }
 
 enum ClassifiedActivation {
     Ignored,
+    OpenWindow,
     Rejected,
     Accepted(ExternalActivationSource),
 }
@@ -221,6 +223,7 @@ enum ClassifiedActivation {
 fn classify_external_activation(value: &str) -> ClassifiedActivation {
     if value.len() > MAX_ACTIVATION_REPRESENTATION_BYTES {
         return if starts_with_ascii_case_insensitive(value, "magnet:")
+            || starts_with_ascii_case_insensitive(value, "jstorrent:")
             || ends_with_torrent_extension(value)
         {
             ClassifiedActivation::Rejected
@@ -234,6 +237,9 @@ fn classify_external_activation(value: &str) -> ClassifiedActivation {
         } else {
             ClassifiedActivation::Rejected
         };
+    }
+    if starts_with_ascii_case_insensitive(value, "jstorrent:") {
+        return classify_jstorrent_launch(value);
     }
     if value.starts_with('-') {
         return ClassifiedActivation::Ignored;
@@ -262,6 +268,65 @@ fn classify_external_activation(value: &str) -> ClassifiedActivation {
     } else {
         ClassifiedActivation::Ignored
     }
+}
+
+// This envelope grants only foreground/magnet intake, never local-file authority.
+fn classify_jstorrent_launch(value: &str) -> ClassifiedActivation {
+    let Ok(url) = Url::parse(value) else {
+        return ClassifiedActivation::Rejected;
+    };
+    let action = value.split('?').next().unwrap_or(value);
+    if !(action.eq_ignore_ascii_case("jstorrent://launch")
+        || action.eq_ignore_ascii_case("jstorrent://launch/"))
+        || url.host_str() != Some("launch")
+        || !matches!(url.path(), "" | "/")
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.port().is_some()
+        || url.fragment().is_some()
+        || value
+            .bytes()
+            .any(|byte| byte.is_ascii_control() || byte == b' ')
+    {
+        return ClassifiedActivation::Rejected;
+    }
+    let Some(query) = url.query() else {
+        return ClassifiedActivation::OpenWindow;
+    };
+    let Some(encoded) = query.strip_prefix("magnet=") else {
+        return ClassifiedActivation::Rejected;
+    };
+    if encoded.contains('&') {
+        return ClassifiedActivation::Rejected;
+    }
+    let Some(magnet) = decode_launch_value(encoded) else {
+        return ClassifiedActivation::Rejected;
+    };
+    if magnet.len() > MAX_MAGNET_BYTES
+        || !starts_with_ascii_case_insensitive(&magnet, "magnet:?")
+        || magnet.bytes().any(|byte| byte.is_ascii_control())
+        || rstorrent_protocol::magnet::Magnet::parse(&magnet).is_err()
+    {
+        return ClassifiedActivation::Rejected;
+    }
+    ClassifiedActivation::Accepted(ExternalActivationSource::Magnet(magnet))
+}
+
+fn decode_launch_value(value: &str) -> Option<String> {
+    let mut decoded = Vec::with_capacity(value.len());
+    let mut bytes = value.bytes();
+    while let Some(byte) = bytes.next() {
+        decoded.push(match byte {
+            b'%' => {
+                let high = char::from(bytes.next()?).to_digit(16)?;
+                let low = char::from(bytes.next()?).to_digit(16)?;
+                (high * 16 + low) as u8
+            }
+            b'+' => b' ',
+            other => other,
+        });
+    }
+    String::from_utf8(decoded).ok()
 }
 
 fn starts_with_ascii_case_insensitive(value: &str, prefix: &str) -> bool {
@@ -380,7 +445,6 @@ mod tests {
         for value in [
             "https://example.invalid/file.torrent",
             "file://server/share/file.torrent",
-            "jstorrent:?magnet=x",
             "example.torrent.exe",
             "--open=example.torrent",
             "-example.torrent",
@@ -389,6 +453,66 @@ mod tests {
             assert!(matches!(
                 classify_external_activation(value),
                 super::ClassifiedActivation::Ignored
+            ));
+        }
+    }
+
+    #[test]
+    fn legacy_launch_is_bounded_magnet_only_and_decodes_once() {
+        let magnet = "magnet:?xt=urn:btih:000102030405060708090a0b0c0d0e0f10111213&tr=https%3A%2F%2Fexample.invalid%2Fa%3Fx%3D1%26y%3D2&dn=space+☃";
+        let envelope = format!(
+            "jstorrent://launch?{}",
+            url::form_urlencoded::Serializer::new(String::new())
+                .append_pair("magnet", magnet)
+                .finish()
+        );
+        let mut state = DesktopActivationState::default();
+        state.admit_strings([envelope.as_str(), magnet]);
+        assert_eq!(state.pull_snapshot().pending.len(), 1);
+        assert_eq!(
+            state.pending.front().unwrap().source,
+            ExternalActivationSource::Magnet(magnet.to_owned())
+        );
+        for value in ["jstorrent://launch", "jstorrent://launch/"] {
+            let mut state = DesktopActivationState::default();
+            let admission = state.admit_strings([value]);
+            assert!(admission.recognized);
+            assert!(!admission.changed);
+            assert!(!state.has_pending());
+        }
+        for value in [
+            "jstorrent:?magnet=x",
+            "jstorrent://other",
+            "jstorrent://launch/path",
+            "jstorrent://launch/path/..",
+            "jstorrent://user@launch",
+            "jstorrent://launch:80",
+            "jstorrent://launch#x",
+            "jstorrent://launch?magnet=file%3A%2F%2F%2Fsecret.torrent",
+            "jstorrent://launch?torrentPath=C%3A%5Csecret.torrent",
+            "jstorrent://launch?token=old",
+            "jstorrent://launch?magnet=magnet%253A%253Fx",
+            "jstorrent://launch?magnet=magnet%3A%3Fx&magnet=magnet%3A%3Fy",
+            "jstorrent://launch?magnet=magnet%3A%3F%ZZ",
+            "jstorrent://launch?magnet=magnet%3A%3F%FF",
+            "jstorrent://launch?magnet=magnet%3A%3F%00",
+        ] {
+            assert!(
+                matches!(
+                    classify_external_activation(value),
+                    super::ClassifiedActivation::Rejected
+                ),
+                "{value}"
+            );
+        }
+        for limit in [MAX_MAGNET_BYTES, MAX_ACTIVATION_REPRESENTATION_BYTES] {
+            let oversized = format!(
+                "jstorrent://launch?magnet=magnet%3A%3F{}",
+                "x".repeat(limit)
+            );
+            assert!(matches!(
+                classify_external_activation(&oversized),
+                super::ClassifiedActivation::Rejected
             ));
         }
     }

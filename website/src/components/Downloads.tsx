@@ -1,44 +1,11 @@
 import { useState, useEffect } from 'react'
 import type { DesktopDownloadLinks } from '../lib/production-release'
 import {
-  CHROME_EXTENSION_ID as EXTENSION_ID,
   CHROME_WEB_STORE_URL as WEBSTORE_URL,
   GOOGLE_PLAY_URL as PLAY_STORE_URL,
 } from '../lib/store-links'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const chromeApi = (globalThis as any).chrome as any
-function parseVersion(tag: string): number[] {
-  return tag
-    .replace(/^v/, '')
-    .split('.')
-    .map((n) => parseInt(n, 10) || 0)
-}
-
-function compareVersions(a: string, b: string): number {
-  const pa = parseVersion(a)
-  const pb = parseVersion(b)
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const diff = (pa[i] ?? 0) - (pb[i] ?? 0)
-    if (diff !== 0) return diff
-  }
-  return 0
-}
-
 type Platform = 'windows' | 'mac' | 'linux'
-
-interface StatusResponse {
-  ok: true
-  installed: true
-  extensionVersion: string
-  platform: 'desktop' | 'chromeos'
-  nativeHostConnected: boolean
-  nativeHostVersion?: string
-  desktopVersion?: string
-  hasEverConnected: boolean
-  lastConnectedTime?: number
-  installId: string
-}
 
 function detectPlatform(): Platform {
   const ua = navigator.userAgent.toLowerCase()
@@ -91,8 +58,6 @@ function AppleIcon() {
 }
 
 export default function Downloads({ productionRelease }: DownloadsProps) {
-  const [extensionInstalled, setExtensionInstalled] = useState<boolean | null>(null)
-  const [status, setStatus] = useState<StatusResponse | null>(null)
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>('windows')
   const [isArm64, setIsArm64] = useState(false)
   const tauri = productionRelease
@@ -100,33 +65,6 @@ export default function Downloads({ productionRelease }: DownloadsProps) {
   useEffect(() => {
     setSelectedPlatform(detectPlatform())
     setIsArm64(detectArm64())
-  }, [])
-
-  useEffect(() => {
-    const checkExtension = () => {
-      try {
-        if (chromeApi && chromeApi.runtime) {
-          chromeApi.runtime.sendMessage(
-            EXTENSION_ID,
-            { type: 'status' },
-            (response: StatusResponse | undefined) => {
-              if (chromeApi.runtime.lastError || !response) {
-                setExtensionInstalled(false)
-                setStatus(null)
-              } else {
-                setExtensionInstalled(true)
-                setStatus(response)
-              }
-            },
-          )
-        } else {
-          setExtensionInstalled(false)
-        }
-      } catch {
-        setExtensionInstalled(false)
-      }
-    }
-    checkExtension()
   }, [])
 
   // Direct fragments can precede this client-only island. Its insertion also
@@ -145,22 +83,6 @@ export default function Downloads({ productionRelease }: DownloadsProps) {
     }
   }, [])
 
-  const handleLaunch = async () => {
-    try {
-      if (chromeApi && chromeApi.runtime) {
-        chromeApi.runtime.sendMessage(
-          EXTENSION_ID,
-          { type: 'launch-ping' },
-          (response: unknown) => {
-            console.log('Extension response:', response)
-          },
-        )
-      }
-    } catch (e) {
-      console.error('Failed to message extension:', e)
-    }
-  }
-
   return (
     <section id="download" className="section section-alt">
       <div className="container">
@@ -172,19 +94,6 @@ export default function Downloads({ productionRelease }: DownloadsProps) {
           <p>
             JSTorrent for Windows, Mac, and Linux. Use the desktop app on its own without a browser.
           </p>
-          {status?.desktopVersion && (
-            <div
-              className={`status-row ${compareVersions(status.desktopVersion, tauri.tag) >= 0 ? 'success' : ''}`}
-            >
-              <span
-                className={`status-indicator ${compareVersions(status.desktopVersion, tauri.tag) >= 0 ? 'success' : ''}`}
-              />
-              <span>Installed v{status.desktopVersion}</span>
-              {compareVersions(tauri.tag, status.desktopVersion) > 0 && (
-                <span className="text-muted">({tauri.tag} available)</span>
-              )}
-            </div>
-          )}
           <noscript>
             <p>Other platforms: <a href={tauri.macosArmUrl}>Apple Silicon Mac</a>,{' '}
               <a href={tauri.macosIntelUrl}>Intel Mac</a>,{' '}
@@ -292,35 +201,11 @@ export default function Downloads({ productionRelease }: DownloadsProps) {
         {/* Extension */}
         <div className="download-subsection">
           <h3>Chrome Extension</h3>
-          {extensionInstalled === true ? (
-            <>
-              <div className="status-row success">
-                <span className="status-indicator success" />
-                <span>Installed</span>
-                {status && <span className="text-muted">v{status.extensionVersion}</span>}
-              </div>
-              <button className="btn btn-primary btn-large" onClick={handleLaunch}>
-                Launch JSTorrent
-              </button>
-            </>
-          ) : extensionInstalled === false ? (
-            <>
-              <p>
-                Connect your browser to JSTorrent with magnet links, torrent files, and right-click
-                actions. The desktop or Android app can also run on its own.
-              </p>
-              <a
-                href={WEBSTORE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-primary"
-              >
-                <ChromeIcon /> Install from Chrome Web Store
-              </a>
-            </>
-          ) : (
-            <p className="text-muted">Checking...</p>
-          )}
+          <p>Connect your browser to JSTorrent with magnet links, torrent files, and right-click
+            actions. The desktop or Android app can also run on its own.</p>
+          <a href={WEBSTORE_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+            <ChromeIcon /> Install from Chrome Web Store
+          </a>
         </div>
       </div>
     </section>

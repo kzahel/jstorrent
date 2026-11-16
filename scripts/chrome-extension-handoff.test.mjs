@@ -107,25 +107,9 @@ test("handoff document contains only local assets and no analytics", async () =>
   assert.doesNotMatch(html, /cloudflare|analytics|googletag|<iframe|\son\w+=/i);
 });
 
-test("legacy extension acknowledgements remain supported without inventing torrent completion", async () => {
-  const { runInNewContext } = await import("node:vm");
-  const source = await readFile(new URL("../website/public/add/index.js", import.meta.url), "utf8");
-  for (const response of [{ ok: true }, { handled: true }, undefined, { error: "refused" }]) {
-    const notices = [];
-    const elements = new Map();
-    const element = id => {
-      if (!elements.has(id)) elements.set(id, { style: {}, addEventListener() {}, insertBefore(node) { notices.push(node.innerText); } });
-      return elements.get(id);
-    };
-    const context = {
-      chrome: { runtime: { sendMessage: (_id, _message, callback) => callback(response) } },
-      document: { addEventListener() {}, getElementById: element, createElement: () => ({}) },
-      window: {}, console: { log() {}, error() {} }, history: { length: 0 },
-      parsed: { magnet_uri: "magnet:?xt=urn:btih:" + "a".repeat(40) },
-    };
-    runInNewContext(source + "\naddViaExtension();", context);
-    if (response?.ok === true || response?.handled === true) assert(notices.some(x => x.startsWith("Sent to JSTorrent")));
-    else assert.equal(element("install-div").style.display, "block");
-    assert(!notices.includes("Torrent Added"));
-  }
+test("legacy launch pages use the bounded native adapter without extension messaging", async () => {
+  const source = await readFile(new URL("../website/src/components/LegacyLaunch.astro", import.meta.url), "utf8");
+  assert.match(source, /parseLegacyLaunch/);
+  assert.match(source, /jstorrent:\/\/launch/);
+  assert.doesNotMatch(source, /sendMessage|launch-ping|Torrent Added/);
 });

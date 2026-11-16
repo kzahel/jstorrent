@@ -2524,11 +2524,27 @@ fn emit_external_intake_signal(app: &AppHandle, generation: u64) {
     }
 }
 
-#[cfg(not(target_os = "linux"))]
-fn is_magnet_argument(value: &str) -> bool {
-    value
-        .get(.."magnet:".len())
-        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("magnet:"))
+#[cfg(target_os = "windows")]
+fn plugin_delivers_single_url(arguments: &[String], desktop: Option<&serde_json::Value>) -> bool {
+    // deep-link 2.4.9 forwards only an executable plus exactly one URL.
+    // Filtering URL arguments from a larger batch would silently drop them.
+    let [_, argument] = arguments else {
+        return false;
+    };
+    let Ok(url) = url::Url::parse(argument) else {
+        return false;
+    };
+    let contains_scheme = |protocol: &serde_json::Value| {
+        protocol["schemes"].as_array().is_some_and(|schemes| {
+            schemes
+                .iter()
+                .any(|scheme| scheme.as_str() == Some(url.scheme()))
+        })
+    };
+    desktop.is_some_and(|desktop| match desktop.as_array() {
+        Some(protocols) => protocols.iter().any(contains_scheme),
+        None => contains_scheme(desktop),
+    })
 }
 
 fn remote_validation_parameters() -> Result<Option<(String, Vec<u8>)>, String> {
@@ -2606,11 +2622,24 @@ async fn open_configured_desktop_remote_runtime(
 #[cfg(not(target_os = "linux"))]
 fn single_instance_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
     tauri_plugin_single_instance::init(|app, arguments, _cwd| {
+        #[cfg(target_os = "windows")]
+        let delivered = plugin_delivers_single_url(
+            &arguments,
+            app.config()
+                .plugins
+                .0
+                .get("deep-link")
+                .and_then(|plugin| plugin.get("desktop")),
+        );
+        #[cfg(not(target_os = "windows"))]
+        let delivered = false;
         handle_external_activation_values(
             app,
-            arguments
-                .iter()
-                .filter(|argument| !is_magnet_argument(argument)),
+            if delivered {
+                &arguments[..0]
+            } else {
+                &arguments[..]
+            },
         );
         if !desktop_control::background_launch(arguments.iter().map(String::as_str)) {
             // Platform activation callbacks can arrive on a non-main thread.
@@ -2909,7 +2938,7 @@ pub fn run() {
                     handle_external_activation_values(
                         &external_handle,
                         urls.iter()
-                            .filter(|url| url.scheme().eq_ignore_ascii_case("magnet"))
+                            .filter(|url| matches!(url.scheme(), "magnet" | "jstorrent"))
                             .map(url::Url::as_str),
                     );
                 });
@@ -3139,6 +3168,41 @@ mod tests {
             config.download_resource_limits,
             DownloadResourceLimits::DESKTOP
         );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn only_plugin_delivered_single_urls_bypass_the_instance_callback() {
+        let desktop = serde_json::json!({"schemes": ["magnet", "jstorrent"]});
+        let arguments = |values: &[&str]| {
+            values
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect::<Vec<_>>()
+        };
+        for scheme in ["magnet:?xt=test", "jstorrent://launch"] {
+            assert!(super::plugin_delivers_single_url(
+                &arguments(&["app", scheme]),
+                Some(&desktop)
+            ));
+            assert!(!super::plugin_delivers_single_url(
+                &arguments(&["app", scheme, scheme]),
+                Some(&desktop)
+            ));
+            assert!(!super::plugin_delivers_single_url(
+                &arguments(&["app", scheme]),
+                None
+            ));
+        }
+        let preview = serde_json::json!({"schemes": ["magnet"]});
+        assert!(!super::plugin_delivers_single_url(
+            &arguments(&["app", "jstorrent://launch"]),
+            Some(&preview)
+        ));
+        assert!(!super::plugin_delivers_single_url(
+            &arguments(&["app", "example.torrent"]),
+            Some(&desktop)
+        ));
     }
 
     #[cfg(any(target_os = "macos", target_os = "windows"))]

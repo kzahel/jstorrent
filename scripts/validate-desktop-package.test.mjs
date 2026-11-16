@@ -120,11 +120,14 @@ test("rejects an unquoted Windows executable", () => {
 test("production Windows and Linux metadata reject an incubation selector", () => {
   const executable = 'C:\\Users\\Test User\\AppData\\Local\\JSTorrent\\jstorrent-client.exe';
   const registry = {executable, torrentProgId:'com.jstorrent.desktop.torrent',
-    torrentCommand:`"${executable}" "%1"`,magnetCommand:`"${executable}" "%1"`,magnetUrlProtocol:''};
+    torrentCommand:`"${executable}" "%1"`,magnetCommand:`"${executable}" "%1"`,magnetUrlProtocol:'',
+    jstorrentCommand:`"${executable}" "%1"`,jstorrentUrlProtocol:''};
   assert.doesNotThrow(()=>validateWindowsAssociations(registry,'JSTorrent'));
   assert.throws(()=>validateWindowsAssociations(registry,'RSTorrent'),/torrent file class/u);
-  const entry='[Desktop Entry]\nName=JSTorrent\nExec=jstorrent-client %U\nTerminal=false\nType=Application\nMimeType=application/x-bittorrent;x-scheme-handler/magnet;\n';
+  assert.throws(()=>validateWindowsAssociations({...registry,jstorrentCommand:undefined},'JSTorrent'),/jstorrent launch protocol/u);
+  const entry='[Desktop Entry]\nName=JSTorrent\nExec=jstorrent-client %U\nTerminal=false\nType=Application\nMimeType=application/x-bittorrent;x-scheme-handler/magnet;x-scheme-handler/jstorrent;\n';
   assert.doesNotThrow(()=>validateLinuxDesktop(entry,'JSTorrent'));
+  assert.throws(()=>validateLinuxDesktop(entry.replace('x-scheme-handler/jstorrent;',''),'JSTorrent'),/missing x-scheme-handler\/jstorrent/u);
   assert.throws(()=>validateLinuxDesktop(entry,'RSTorrent'),/handler name/u);
   assert.throws(()=>validateLinuxDesktop(entry,'OtherApp'),/unknown package product/u);
   assert.throws(()=>validateMacInfo({CFBundleIdentifier:'com.jstorrent.rstorrent'},'JSTorrent'),/bundle identifier/u);
@@ -142,6 +145,6 @@ Name=JSTorrent
 Exec=rstorrent-desktop %U
 Type=Application
 Terminal=false
-MimeType=application/x-bittorrent;x-scheme-handler/magnet;
+MimeType=application/x-bittorrent;x-scheme-handler/magnet;x-scheme-handler/jstorrent;
 `, "JSTorrent"), /unexpected Linux installed executable/u);
 });

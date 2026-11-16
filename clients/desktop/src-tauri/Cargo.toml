@@ -27,6 +27,7 @@ serde_json = { workspace = true }
 json-patch = "=3.0.1"
 
 [dependencies]
+rstorrent-protocol = { path = "../../../crates/rstorrent-protocol" }
 rstorrent-session = { path = "../../../crates/rstorrent-session" }
 rstorrent-media = { path = "../../../crates/rstorrent-media" }
 rstorrent-gateway = { path = "../../../crates/rstorrent-gateway" }

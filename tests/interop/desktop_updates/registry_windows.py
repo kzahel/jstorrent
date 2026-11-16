@@ -11,11 +11,22 @@ class Registry:
         self.api = winreg
         self.saved = []
         self.parents = []
+        self.registered = []
+        for view in (winreg.KEY_WOW64_32KEY, winreg.KEY_WOW64_64KEY):
+            for name in ("JSTorrent", "JSTorrentDesktop"):
+                try:
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\RegisteredApplications", 0, winreg.KEY_READ | view) as key:
+                        data = winreg.QueryValueEx(key, name)
+                except FileNotFoundError:
+                    data = None
+                self.registered.append((view, name, data))
         keys = [r"Software\jstorrent", r"Software\RSTorrent",
+                r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{A1B2C3D4-E5F6-7890-1234-567890ABCDEF}_is1",
                 r"Software\Microsoft\Windows\CurrentVersion\Uninstall\JSTorrent",
                 r"Software\Microsoft\Windows\CurrentVersion\Uninstall\RSTorrent"]
         keys += ["Software\\Classes\\" + name for name in (
-            "magnet", "jstorrent", ".torrent", "torrent", "torrentfile", "JSTorrent.torrent", "RSTorrent.torrent",
+            "magnet", "jstorrent", ".torrent", "torrent", "torrentfile", "JSTorrent.torrent", "JSTorrent.Magnet", "RSTorrent.torrent",
+            "com.jstorrent.desktop.magnet",
             "com.jstorrent.desktop.torrent", "com.jstorrent.rstorrent.torrent", r"Applications\JSTorrent.exe", r"Applications\jstorrent-desktop.exe",
             r"Applications\rstorrent-desktop.exe", r"Applications\jstorrent-client.exe")]
         for browser in WIN_BROWSERS:
@@ -82,6 +93,15 @@ class Registry:
             self.write(path + "\\" + name, view, child)
 
     def restore(self):
+        for view, name, data in self.registered:
+            with self.api.CreateKeyEx(self.api.HKEY_CURRENT_USER, r"Software\RegisteredApplications", 0, self.api.KEY_WRITE | view) as key:
+                if data is None:
+                    try:
+                        self.api.DeleteValue(key, name)
+                    except FileNotFoundError:
+                        pass
+                else:
+                    self.api.SetValueEx(key, name, 0, data[1], data[0])
         # The 32/64 views share some HKCU keys; restore both before comparing.
         for path, view, state in self.saved:
             self.delete(path, view)

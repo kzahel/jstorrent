@@ -36,7 +36,7 @@ export function validateCandidate({ trust, desktop, extension, certificate, grad
   assert.deepEqual(desktop.plugins.updater.endpoints, [trust.desktop.endpoint], "wrong updater route");
   assert.equal(desktop.plugins.updater.pubkey, trust.desktop.publicKey, "wrong updater trust root");
   assert(newer(desktop.version, trust.desktop.baselineVersion), "desktop version does not replace the legacy baseline");
-  assert.deepEqual(desktop.plugins["deep-link"].desktop.schemes, ["magnet"]);
+  assert.deepEqual(desktop.plugins["deep-link"].desktop.schemes, ["magnet", "jstorrent"]);
   const file = desktop.bundle.fileAssociations[0];
   assert.equal(file.name, trust.desktop.fileClass);
   assert.equal(file.exportedType.identifier, trust.desktop.fileClass);
