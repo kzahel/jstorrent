@@ -1,9 +1,9 @@
 # 396 — ChromeOS magnet Play release
 
-Status: complete for submission. Android 1.0.40/code 40 was accepted into
-production at 1% on 2026-11-16, using the standard seven-day plan. Google
-review and first public availability remain unconfirmed. Maintainer authorized
-commit and Play publication on 2026-11-16.
+Status: production rollout completed to 100% on explicit maintainer direction,
+2026-11-16, after the initial 1% submission. Google review and first public
+availability remain unconfirmed. Maintainer authorized commit, Play publication
+and subsequent full rollout on 2026-11-16.
 
 ## Scope and invariants
 
@@ -23,6 +23,9 @@ upgrade and browser handoff on the explicitly selected Chromebook Pixel, then
 promote that same bundle to production under the standard seven-day plan,
 starting at one percent. Existing authorization covers the production
 environment approval; no protection rule is changed.
+
+Subsequent explicit direction to make this release 100% supersedes the remaining
+standard-plan steps for 1.0.40 only. Future releases retain the normal policy.
 
 ## Validation and stopping condition
 
@@ -89,3 +92,9 @@ platform or store stage cannot complete.
   source, build, CI, bundle digest, both track submissions and managed-device
   evidence. The original working checkout and its unpublished web recovery
   work are preserved; delivery uses an isolated upstream-based checkout.
+- [Rollout completion 43941424635](https://github.com/kzahel/jstorrent/actions/runs/43941424635)
+  follows the maintainer's explicit request for 100%. Play accepts the change
+  from `inProgress` / 0.01 to `completed` / no staged fraction. Deployment
+  7834404802 records it at 19:38:55 UTC. Source, version code, bundle and
+  signing identity are unchanged; Google review/public availability are
+  still not inferred from API acceptance.

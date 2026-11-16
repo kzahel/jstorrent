@@ -82,5 +82,26 @@
   },
   "rolloutPlan": "standard-7d",
   "productionDeploymentRecordedAt": "2026-11-16T19:27:35Z",
-  "publicAvailability": "unconfirmed; the API receipt establishes submission, not Google review or serving status"
+  "publicAvailability": "unconfirmed; the API receipt establishes submission, not Google review or serving status",
+  "rolloutCompletion": {
+    "workflowRunId": 43941424635,
+    "deploymentRecordedAt": "2026-11-16T19:38:55Z",
+    "authorization": "Maintainer explicitly requested immediate completion to 100%; remaining standard-plan steps are superseded for 1.0.40 only.",
+    "receipt": {
+      "action": "complete",
+      "after": {
+        "status": "completed",
+        "userFraction": null
+      },
+      "before": {
+        "status": "inProgress",
+        "userFraction": 0.01
+      },
+      "deployment": 7834404802,
+      "editId": "17006775582069927317",
+      "status": "submitted",
+      "tag": "android-v1.0.40",
+      "versionCode": 40
+    }
+  }
 }

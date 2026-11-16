@@ -1,7 +1,10 @@
 # Android Release Runbook
 
-Android 1.0.40/code 40 is submitted to production on November 16, 2026, at
-1% on the existing standard seven-day plan. It fixes Chromebook browser
+Android 1.0.40/code 40's production rollout is completed to 100% on explicit
+maintainer direction, November 16, 2026, after its initial 1% submission.
+[Rollout 43941424635](https://github.com/kzahel/jstorrent/actions/runs/43941424635)
+records Play acceptance as completed, deployment 7834404802. This supersedes
+the remaining standard-plan steps for 1.0.40 only. It fixes Chromebook browser
 magnet intake and includes the qualified dependency maintenance. Signed
 construction, exact-source full CI, compatibility and fresh dependency review
 pass. An actual Pixel Play update from 1.0.35 preserves app identity and the

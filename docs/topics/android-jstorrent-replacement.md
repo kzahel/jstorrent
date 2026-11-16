@@ -1,6 +1,7 @@
 # Android JSTorrent Replacement Readiness
 
-Android 1.0.40 is submitted to production at 1% on the standard seven-day plan.
+Android 1.0.40's production rollout is completed to 100% on explicit maintainer
+direction, after its initial 1% submission.
 [Tactical 396](../tactical/396-chromeos-magnet-play-release.md) records signed
 construction, full CI and the real Pixel Play 1.0.35-to-1.0.40 upgrade, with
 retained identity/folder and passing cold/warm browser magnet confirmations.
