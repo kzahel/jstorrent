@@ -1,6 +1,7 @@
 # 397 — Desktop maintenance release
 
-Status: preparing the next signed Desktop Latest and Stable release.
+Status: signed native builds and Mac runtime qualified; completing the
+private 0.3.11 corresponding-source offer before Latest/Stable publication.
 Maintainer authorized desktop publication on 2026-11-16.
 
 ## Scope and source
@@ -63,3 +64,55 @@ drafts, and records the exact source/version/tag. Signed source checks and
 original-root identity qualification are running; no publication is claimed.
 The [release receipt](evidence/397-desktop-release-receipt.json) tracks this
 source through later package verification and promotion.
+
+## Qualified native capsule and source-gate recovery
+
+All five signed jobs and release source checks in run 43949305235 pass.
+Independent Intel and Apple-silicon app checks pass original updater-key,
+code-signature, Gatekeeper, staple, thin-architecture, identity and version
+verification. Both packaged Info.plist files register only `magnet`.
+
+The exact Apple-silicon package passes actual native cold launch, normal Quit
+and reopen on an owned macOS 26.6.2 guest. The copied released catalog v29 and
+product v4 fixtures retain seven torrent identities, product identity, schema
+integrity and statistics opt-out. The reviewed native window shows six
+unarchived and one archived item. All torrents are paused with DHT/PEX off;
+no payload-download, DMG drag-and-drop or Windows/Linux installed-runtime
+claim is made. Six inherited scopes restore and hash-verify; owned staging,
+capture and keep-awake process are removed, the test app is unregistered,
+the guest shuts down through its normal menu and its claim is released.
+
+The original collector stops before publication at the corresponding-source
+gate, first reporting GStreamer Base Plugins `1.24.2-1ubuntu0.7`. The full
+85-pair x86_64 / 84-pair ARM64 comparison also identifies libsoup3
+`3.4.4-5ubuntu0.11`, PCRE2 `10.42-4ubuntu2.2` and SQLite
+`3.45.1-1ubuntu2.9`. Fourteen primary Ubuntu descriptor/referenced files
+(20,522,446 bytes) verify by identity, size and SHA-256. Review reads the
+original COPYING/LICENCE notices and Debian copyright/changelog, including
+the PCRE2 format-1.0 Debian diff. All original component terms and patches
+travel unchanged in the existing source/relink offer; no upstream code is
+added to the application. The native source README records reuse terms.
+Both complete source-pair comparisons now have no unreviewed identities.
+Thirteen source-packager tests pass. The complete source carrier assembles
+with 781 vendored Cargo packages and empty-Cargo-home offline metadata for
+both Linux targets. Its index binds source `11e10680`, all 85 current native
+source pairs and input-pin hash `b22a679c`. The 1,401,047,218-byte carrier
+has SHA-256 `fe0e04b8b0b19fcf8d86f895e73e2cfac6c1a1b07620f19f4a787f94b2abdfbc`.
+
+Private draft 447628662 contains the original fifteen core assets and initial
+checksum inventory. All sixteen downloads match GitHub sizes/digests, and all
+six native updater signatures verify against the retained root. Follow the
+same-source completion procedure documented in Tactical 389: keep application
+source `11e10680`, every native payload/signature and authenticated updater
+facts unchanged; add the complete source carrier, update its checksum and
+release notes, and repeat the maintained complete-draft gates. Record this
+local recovery separately from the failed collector. A different application
+source would require a new numeric version. Stable and website remain pending.
+
+All five original CI leg records independently match run 43949305235,
+attempt 1, version 0.3.11 and source `11e10680`; their asset sizes/digests
+match every native item in the retained private draft. Retained-root signed
+database facts and all eleven native selectors verify. Database facts match
+the unchanged source registry and preserve forward compatibility from signed
+Stable 0.3.10. Complete source upload, final private-draft verification and
+public Latest/Stable/website delivery remain pending.

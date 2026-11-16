@@ -140,3 +140,21 @@ including the November 2026 WebSocket and data-URI security fixes, remain
 intact. Supplying these unchanged upstream sources permits the existing
 source/relink workflow and imports no third-party code into first-party
 application code.
+
+The November 16 desktop 0.3.11 carrier adds exact Ubuntu GStreamer Base
+Plugins `1.24.2-1ubuntu0.7`, libsoup3 `3.4.4-5ubuntu0.11`, PCRE2
+`10.42-4ubuntu2.2` and SQLite `3.45.1-1ubuntu2.9`. These are the four
+unreviewed pairs found across both signed AppImages after subtracting the
+prior carrier and existing reviewed additions. All fourteen descriptor and
+referenced files are checked by size and SHA-256 against primary Ubuntu
+HTTPS sources. Original OpenPGP material is retained; independent key
+verification is not claimed.
+
+Review consulted the upstream COPYING/LICENCE notices and Ubuntu
+`debian/changelog` and `debian/copyright`, including PCRE2's source-format-1.0
+Debian diff. GStreamer and libsoup retain their LGPL terms, PCRE2 its BSD
+terms and SQLite its public-domain dedication, with all per-file terms,
+build-tool licenses and Ubuntu patches preserved. These unmodified materials
+supply the existing corresponding-source/relink offer; no upstream code is
+imported into first-party source. Tactical 397 records the unchanged native
+capsule, source-input review and final publication checks.

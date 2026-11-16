@@ -323,6 +323,118 @@
           "bytes": 80048
         }
       ]
+    },
+    "gst-plugins-base1.0@1.24.2-1ubuntu0.7": {
+      "sourcePackage": "gst-plugins-base1.0",
+      "sourceVersion": "1.24.2-1ubuntu0.7",
+      "authentication": "Primary HTTPS and exact descriptor identity; original OpenPGP retained, not independently verified",
+      "files": [
+        {
+          "filename": "gst-plugins-base1.0_1.24.2-1ubuntu0.7.dsc",
+          "url": "https://archive.ubuntu.com/ubuntu/pool/main/g/gst-plugins-base1.0/gst-plugins-base1.0_1.24.2-1ubuntu0.7.dsc",
+          "bytes": 4150,
+          "sha256": "fd76f4f773826868490fda76c5ba8374a25b41092896355bb254d41051d0e8c7"
+        },
+        {
+          "filename": "gst-plugins-base1.0_1.24.2.orig.tar.xz",
+          "url": "https://archive.ubuntu.com/ubuntu/pool/main/g/gst-plugins-base1.0/gst-plugins-base1.0_1.24.2.orig.tar.xz",
+          "bytes": 2421032,
+          "sha256": "282f1cc8065c9b62eb6a0a20fb9e8328f8e5296df2458b7236daa729c41ae769"
+        },
+        {
+          "filename": "gst-plugins-base1.0_1.24.2.orig.tar.xz.asc",
+          "url": "https://archive.ubuntu.com/ubuntu/pool/main/g/gst-plugins-base1.0/gst-plugins-base1.0_1.24.2.orig.tar.xz.asc",
+          "bytes": 833,
+          "sha256": "b8e22b9ecab549c22cee596f88f29da9112d56665fe42b12490fa33b2e4aa8d0"
+        },
+        {
+          "filename": "gst-plugins-base1.0_1.24.2-1ubuntu0.7.debian.tar.xz",
+          "url": "https://archive.ubuntu.com/ubuntu/pool/main/g/gst-plugins-base1.0/gst-plugins-base1.0_1.24.2-1ubuntu0.7.debian.tar.xz",
+          "bytes": 64136,
+          "sha256": "149d7c97badd7dfeccb0186fe4b593c00dfc2885c8b33048728abdce8642c5b2"
+        }
+      ]
+    },
+    "libsoup3@3.4.4-5ubuntu0.11": {
+      "sourcePackage": "libsoup3",
+      "sourceVersion": "3.4.4-5ubuntu0.11",
+      "authentication": "Primary HTTPS and exact descriptor identity; original OpenPGP retained, not independently verified",
+      "files": [
+        {
+          "filename": "libsoup3_3.4.4-5ubuntu0.11.dsc",
+          "url": "https://archive.ubuntu.com/ubuntu/pool/main/libs/libsoup3/libsoup3_3.4.4-5ubuntu0.11.dsc",
+          "sha256": "cf8bcfb01c0c8cc8fc69080886a480ec0334b7b52e9c295b51d5c1e198dd5468",
+          "bytes": 3227
+        },
+        {
+          "filename": "libsoup3_3.4.4.orig.tar.xz",
+          "url": "https://archive.ubuntu.com/ubuntu/pool/main/libs/libsoup3/libsoup3_3.4.4.orig.tar.xz",
+          "sha256": "291c67725f36ed90ea43efff25064b69c5a2d1981488477c05c481a3b4b0c5aa",
+          "bytes": 1536268
+        },
+        {
+          "filename": "libsoup3_3.4.4-5ubuntu0.11.debian.tar.xz",
+          "url": "https://archive.ubuntu.com/ubuntu/pool/main/libs/libsoup3/libsoup3_3.4.4-5ubuntu0.11.debian.tar.xz",
+          "sha256": "9e3dd71eb12e34e19cc72a59b3c466c29a8da3f987278ee6d9de9af002b0f664",
+          "bytes": 81012
+        }
+      ]
+    },
+    "pcre2@10.42-4ubuntu2.2": {
+      "sourcePackage": "pcre2",
+      "sourceVersion": "10.42-4ubuntu2.2",
+      "authentication": "Primary HTTPS and exact descriptor identity; original OpenPGP retained, not independently verified",
+      "files": [
+        {
+          "filename": "pcre2_10.42-4ubuntu2.2.dsc",
+          "url": "https://archive.ubuntu.com/ubuntu/pool/main/p/pcre2/pcre2_10.42-4ubuntu2.2.dsc",
+          "sha256": "cea847918ed4fed0230215255f3aaf97676b9751f6da0ea78515731f8589ea60",
+          "bytes": 2317
+        },
+        {
+          "filename": "pcre2_10.42.orig.tar.gz",
+          "url": "https://archive.ubuntu.com/ubuntu/pool/main/p/pcre2/pcre2_10.42.orig.tar.gz",
+          "sha256": "c33b418e3b936ee3153de2c61cc638e7e4fe3156022a5c77d0711bcbb9d64f1f",
+          "bytes": 2397194
+        },
+        {
+          "filename": "pcre2_10.42-4ubuntu2.2.diff.gz",
+          "url": "https://archive.ubuntu.com/ubuntu/pool/main/p/pcre2/pcre2_10.42-4ubuntu2.2.diff.gz",
+          "sha256": "45fcc50b0a7ad9e479d572ca02e3b7847718f9c4f79d6f89e115cc37cbf6fea5",
+          "bytes": 16312
+        }
+      ]
+    },
+    "sqlite3@3.45.1-1ubuntu2.9": {
+      "sourcePackage": "sqlite3",
+      "sourceVersion": "3.45.1-1ubuntu2.9",
+      "authentication": "Primary HTTPS and exact descriptor identity; original OpenPGP retained, not independently verified",
+      "files": [
+        {
+          "filename": "sqlite3_3.45.1-1ubuntu2.9.dsc",
+          "url": "https://archive.ubuntu.com/ubuntu/pool/main/s/sqlite3/sqlite3_3.45.1-1ubuntu2.9.dsc",
+          "sha256": "26aa983a2fcf981df7ff7e1042b78b7e09f7dbc66a40bccd5eed2a112828a35d",
+          "bytes": 2601
+        },
+        {
+          "filename": "sqlite3_3.45.1.orig-www.tar.xz",
+          "url": "https://archive.ubuntu.com/ubuntu/pool/main/s/sqlite3/sqlite3_3.45.1.orig-www.tar.xz",
+          "sha256": "79b60798195a024d447e661e5bbc1eb40af50387ebf840e6f581190cc02064b6",
+          "bytes": 5693812
+        },
+        {
+          "filename": "sqlite3_3.45.1.orig.tar.xz",
+          "url": "https://archive.ubuntu.com/ubuntu/pool/main/s/sqlite3/sqlite3_3.45.1.orig.tar.xz",
+          "sha256": "e32e817f7b4166a301f60b14a711871bfab7d35c1d7e29b585dfc479ae150aa4",
+          "bytes": 8257884
+        },
+        {
+          "filename": "sqlite3_3.45.1-1ubuntu2.9.debian.tar.xz",
+          "url": "https://archive.ubuntu.com/ubuntu/pool/main/s/sqlite3/sqlite3_3.45.1-1ubuntu2.9.debian.tar.xz",
+          "sha256": "0d5c2b03160a06abba18bc6e41117ee76141aeca3542b6ffbd8dfd2b19dadf4b",
+          "bytes": 41668
+        }
+      ]
     }
   },
   "additionalRuntimes": {

@@ -10,8 +10,18 @@
   "latest": {
     "tag": "desktop-latest-v0.3.11",
     "runId": 43949305235,
-    "status": "in_progress",
-    "selectorSourceVerified": true
+    "status": "private",
+    "selectorSourceVerified": true,
+    "sourceChecksConclusion": "success",
+    "originalWorkflowConclusion": "failure",
+    "nativeBuildsConclusion": "success",
+    "collectorFailure": {
+      "step": "Bind corresponding AppImage sources before public publication",
+      "firstUnreviewedPair": [
+        "gst-plugins-base1.0",
+        "1.24.2-1ubuntu0.7"
+      ]
+    }
   },
   "previousStableReconciliation": {
     "tag": "desktop-v0.3.10",
@@ -21,5 +31,474 @@
     "promotionRunId": 42497004134,
     "promotionConclusion": "success",
     "observedDate": "2026-11-16"
+  },
+  "dependencyReview": {
+    "reviewed_at": "2026-11-16",
+    "database_revision": "02e2517f457a359fc6d3440ea4560c8ea188fee8",
+    "unexcepted_cargo_vulnerabilities": 0,
+    "npm_vulnerabilities": 0,
+    "website_npm_vulnerabilities": 0,
+    "release_blockers": [],
+    "release_ready": true,
+    "artifactId": 14265928796,
+    "artifactName": "desktop-dependency-review-43949305235-1",
+    "cargoVulnerabilities": 1,
+    "reviewedVulnerabilityExceptions": [
+      {
+        "advisory": "RUSTSEC-2026-0387",
+        "package": "crypto-bigint",
+        "version": "0.5.5",
+        "reviewed_at": "2026-11-16",
+        "expires": "2026-12-16",
+        "context_sha256": "98ed1a5f1b6c8a6feac1aee3e4ae34cb02b5de723ba5b03cf3c34ce517bf05e2"
+      }
+    ]
+  },
+  "preparationOnlyCi": {
+    "runId": 43949566808,
+    "sourceSha": "16c8dc05d4ca13bb4b2037ad479b3389db9cf29e",
+    "disposition": "Cancelled duplicate native CI for release notes, documentation and compatibility capture changes after full release-source CI passed; signed release checks continue against unchanged 11e10680."
+  },
+  "macPackageVerification": [
+    {
+      "lane": "macos-x86_64",
+      "version": "0.3.11",
+      "sourceSha": "11e106804316fc48618ec650ac71f088b4fbb945",
+      "runId": 43949305235,
+      "attempt": 1,
+      "asset": "JSTorrent_x64.app.tar.gz",
+      "sha256": "515385574ca0e7641a29e1f673bffadda15a57941581ff4984ac1a5f2e874489",
+      "updaterSignatureVerified": true,
+      "codeSignatureVerified": true,
+      "gatekeeperAccepted": true,
+      "stapleValidated": true,
+      "bundleIdentifier": "com.jstorrent.desktop",
+      "binaryArchitecture": "x86_64",
+      "urlSchemes": [
+        "magnet"
+      ]
+    },
+    {
+      "lane": "macos-aarch64",
+      "version": "0.3.11",
+      "sourceSha": "11e106804316fc48618ec650ac71f088b4fbb945",
+      "runId": 43949305235,
+      "attempt": 1,
+      "asset": "JSTorrent_aarch64.app.tar.gz",
+      "sha256": "ce4051c14efa1751345dc3bfe84bd7255436f69090f11dc04000bbc0321c087a",
+      "updaterSignatureVerified": true,
+      "codeSignatureVerified": true,
+      "gatekeeperAccepted": true,
+      "stapleValidated": true,
+      "bundleIdentifier": "com.jstorrent.desktop",
+      "binaryArchitecture": "arm64",
+      "urlSchemes": [
+        "magnet"
+      ]
+    }
+  ],
+  "macNativeSmoke": {
+    "platform": "macos-arm64",
+    "osVersion": "26.6.2",
+    "version": "0.3.11",
+    "assetSha256": "ce4051c14efa1751345dc3bfe84bd7255436f69090f11dc04000bbc0321c087a",
+    "coldLaunchAuthenticated": true,
+    "initialNativeQuitConfirmed": true,
+    "reopenAuthenticated": true,
+    "singleProcess": true,
+    "catalogTorrentsPreserved": 7,
+    "productSchema": 4,
+    "catalogSchema": 29,
+    "databaseIntegrity": "ok",
+    "productIdentityPreserved": true,
+    "torrentIdentitiesPreserved": true,
+    "statisticsOptOutPreserved": true,
+    "nativeWindowReviewed": true,
+    "visibleCatalog": {
+      "unarchived": 6,
+      "archived": 1
+    },
+    "scope": "Exact signed packaged app on an owned guest with a copied released populated fixture, all torrents paused and DHT/PEX disabled. No DMG drag-and-drop, Windows installed runtime, Linux installed runtime or payload-download result is claimed.",
+    "cleanupStatus": "passed",
+    "secondNativeQuitConfirmed": true,
+    "preservedScopesRestored": 6,
+    "scopedHashesRestored": true,
+    "ownedStagingRemoved": true,
+    "captureRemoved": true,
+    "temporaryAppUnregistered": true,
+    "keepAwakeStopped": true,
+    "initialPower": "suspended",
+    "finalPower": "off",
+    "nativeUserShutdown": true,
+    "claimReleased": true
+  },
+  "sourceOfferRecovery": {
+    "draftId": 447628662,
+    "applicationSourceSha": "11e106804316fc48618ec650ac71f088b4fbb945",
+    "method": "Maintained same-source local completion as documented in Tactical 389; original native assets, signatures and authenticated updater facts remain unchanged.",
+    "status": "source_carrier_assembled",
+    "sourceInputPinsSha256": "b22a679c0a399338a72b3c0d08f22e3165c1b85144db37327c3cc275382cf6b1",
+    "reviewedNewSourcePairs": [
+      {
+        "sourcePackage": "gst-plugins-base1.0",
+        "sourceVersion": "1.24.2-1ubuntu0.7",
+        "descriptorSha256": "fd76f4f773826868490fda76c5ba8374a25b41092896355bb254d41051d0e8c7",
+        "files": 4,
+        "bytes": 2490151
+      },
+      {
+        "sourcePackage": "libsoup3",
+        "sourceVersion": "3.4.4-5ubuntu0.11",
+        "descriptorSha256": "cf8bcfb01c0c8cc8fc69080886a480ec0334b7b52e9c295b51d5c1e198dd5468",
+        "files": 3,
+        "bytes": 1620507
+      },
+      {
+        "sourcePackage": "pcre2",
+        "sourceVersion": "10.42-4ubuntu2.2",
+        "descriptorSha256": "cea847918ed4fed0230215255f3aaf97676b9751f6da0ea78515731f8589ea60",
+        "files": 3,
+        "bytes": 2415823
+      },
+      {
+        "sourcePackage": "sqlite3",
+        "sourceVersion": "3.45.1-1ubuntu2.9",
+        "descriptorSha256": "26aa983a2fcf981df7ff7e1042b78b7e09f7dbc66a40bccd5eed2a112828a35d",
+        "files": 4,
+        "bytes": 13995965
+      }
+    ],
+    "sourcePairReview": {
+      "amd64": {
+        "sourcePairCount": 85,
+        "additionalPairs": [
+          [
+            "brotli",
+            "1.1.0-2ubuntu0.1"
+          ],
+          [
+            "glib2.0",
+            "2.80.0-6ubuntu3.10"
+          ],
+          [
+            "gst-plugins-base1.0",
+            "1.24.2-1ubuntu0.7"
+          ],
+          [
+            "libsoup3",
+            "3.4.4-5ubuntu0.11"
+          ],
+          [
+            "libxml2",
+            "2.9.14+dfsg-1.3ubuntu3.10"
+          ],
+          [
+            "pcre2",
+            "10.42-4ubuntu2.2"
+          ],
+          [
+            "sqlite3",
+            "3.45.1-1ubuntu2.9"
+          ],
+          [
+            "systemd",
+            "255.4-1ubuntu8.18"
+          ],
+          [
+            "xz-utils",
+            "5.6.1+really5.4.5-1ubuntu0.4"
+          ]
+        ],
+        "unreviewedPairs": []
+      },
+      "aarch64": {
+        "sourcePairCount": 84,
+        "additionalPairs": [
+          [
+            "brotli",
+            "1.1.0-2ubuntu0.1"
+          ],
+          [
+            "glib2.0",
+            "2.80.0-6ubuntu3.10"
+          ],
+          [
+            "gst-plugins-base1.0",
+            "1.24.2-1ubuntu0.7"
+          ],
+          [
+            "libsoup3",
+            "3.4.4-5ubuntu0.11"
+          ],
+          [
+            "libxml2",
+            "2.9.14+dfsg-1.3ubuntu3.10"
+          ],
+          [
+            "pcre2",
+            "10.42-4ubuntu2.2"
+          ],
+          [
+            "sqlite3",
+            "3.45.1-1ubuntu2.9"
+          ],
+          [
+            "systemd",
+            "255.4-1ubuntu8.18"
+          ],
+          [
+            "xz-utils",
+            "5.6.1+really5.4.5-1ubuntu0.4"
+          ]
+        ],
+        "unreviewedPairs": []
+      }
+    },
+    "sourcePackagerTestsPassed": 13,
+    "originalCoreAssets": [
+      {
+        "name": "JSTorrent_0.3.11_aarch64.AppImage",
+        "size": 101132808,
+        "digest": "sha256:7f9bb31f3a191ac6d3f88db994ea2c91fa8a7cb2e08664132b0f79cacc22ab01"
+      },
+      {
+        "name": "JSTorrent_0.3.11_aarch64.AppImage.sig",
+        "size": 424,
+        "digest": "sha256:365b43ba1577e2905f5f47bcd2238eb774723b598748217516c777ae1f23f2ea"
+      },
+      {
+        "name": "JSTorrent_0.3.11_aarch64.dmg",
+        "size": 20885521,
+        "digest": "sha256:c098cc69fdf45d487baee9e979d3747edba71502a3af58cdae879ce3748dd654"
+      },
+      {
+        "name": "JSTorrent_0.3.11_amd64.AppImage",
+        "size": 102914552,
+        "digest": "sha256:296bd822673384ebaa7defc715f688ac69d989cb9e60d3b66e72adaae1d66da4"
+      },
+      {
+        "name": "JSTorrent_0.3.11_amd64.AppImage.sig",
+        "size": 424,
+        "digest": "sha256:62d55dbf64efd40f622def419ea0fa8c600302139dea1ce3905fa51dab80bc54"
+      },
+      {
+        "name": "JSTorrent_0.3.11_x64-setup.exe",
+        "size": 16158376,
+        "digest": "sha256:fc7fc76709bf6d166ea28778c880cf965d4f0cfbfa9986169b79c2686af377fc"
+      },
+      {
+        "name": "JSTorrent_0.3.11_x64-setup.exe.sig",
+        "size": 420,
+        "digest": "sha256:ecbc55b1235c4868a406f78d1c472761ad2752f205200703c299f2758cc455f8"
+      },
+      {
+        "name": "JSTorrent_0.3.11_x64.dmg",
+        "size": 22618220,
+        "digest": "sha256:f8433f9195a487ae6626a38bee722a3f766457ff4c5ea58907bee4f184e60a05"
+      },
+      {
+        "name": "JSTorrent_0.3.11_x64_en-US.msi",
+        "size": 22679552,
+        "digest": "sha256:9c82ac02ec5033c343d0644bd03e1c4c1068e329fdc6cf4f6b50fa267f3a017d"
+      },
+      {
+        "name": "JSTorrent_0.3.11_x64_en-US.msi.sig",
+        "size": 420,
+        "digest": "sha256:4543c5e74676168a524cd7fa2ab341300ff7d0ddfa080ad8554867f93a7b384b"
+      },
+      {
+        "name": "JSTorrent_aarch64.app.tar.gz",
+        "size": 21543191,
+        "digest": "sha256:ce4051c14efa1751345dc3bfe84bd7255436f69090f11dc04000bbc0321c087a"
+      },
+      {
+        "name": "JSTorrent_aarch64.app.tar.gz.sig",
+        "size": 408,
+        "digest": "sha256:f0809a80706d246c1ef9958d53accb34649fa9edaedc9355ea9f3f528aac5a6d"
+      },
+      {
+        "name": "JSTorrent_x64.app.tar.gz",
+        "size": 23055936,
+        "digest": "sha256:515385574ca0e7641a29e1f673bffadda15a57941581ff4984ac1a5f2e874489"
+      },
+      {
+        "name": "JSTorrent_x64.app.tar.gz.sig",
+        "size": 408,
+        "digest": "sha256:1e56a4e3854af5b4ee5cee77dd0eb4d361e64b53ca4848a80ef08cff932ae9d6"
+      },
+      {
+        "name": "latest.json",
+        "size": 16749,
+        "digest": "sha256:0a7ede4fd298a115e6fa685c9e782d650736e83f0050d9785a3a4d14b4925d09"
+      }
+    ],
+    "originalChecksumDigest": "sha256:b4832b11a36780dee1315d9e40f76c40e367be9197509b8c12599b32e289477a",
+    "cargoPackages": 781,
+    "offlineMetadataTargets": [
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu"
+    ],
+    "nativeSourcePairCount": 85,
+    "sourceArchive": {
+      "name": "JSTorrent_0.3.11_AppImage-sources-final.tar.gz",
+      "bytes": 1401047218,
+      "sha256": "fe0e04b8b0b19fcf8d86f895e73e2cfac6c1a1b07620f19f4a787f94b2abdfbc"
+    },
+    "signedDatabaseFacts": {
+      "version": "0.3.11",
+      "identifier": "com.jstorrent.desktop",
+      "authenticatedFactsVerified": true,
+      "platformCount": 11,
+      "databases": {
+        "schemaVersion": 1,
+        "stores": {
+          "session": {
+            "floor": 26,
+            "target": 29,
+            "lineage": {
+              "26": "4c15f8d8f5871f24bb12632bd0b642dcd568ac42001cc9cc888104c8cbf6c1ff",
+              "27": "2d2edc458762d0042d49e87c6c9fd3d5ed63c456b30195972911f4f6188f0863",
+              "28": "23f5e93b7fce16abbe8f94e018d38e716e612aa4ba15832232be3d708196e2d8",
+              "29": "1c6b958f9c8e459087399b32721fabea3b69d0c77f0cd7b1bb3ea9f4bae34b32"
+            }
+          },
+          "product": {
+            "floor": 2,
+            "target": 4,
+            "lineage": {
+              "2": "42f0f45dcd6bfa168bdfcbba0226211fe280ffc2adac73a247f4c731bdb15196",
+              "3": "5b34cfa9719cc3e5dfa8aed50d54bc15005f4e5cc9f488f59fcba6f02d731fd4",
+              "4": "83ac2475b1521639e74b166e7fc1c1cf4d39673810713d87d499cb9bdcd2d96a"
+            }
+          },
+          "metrics": {
+            "floor": 1,
+            "target": 1,
+            "lineage": {
+              "1": "8a1cf951bce44a1dab25fee9a34805974af366bbb7fe07c6ad71bb1af13b9652"
+            }
+          }
+        }
+      },
+      "previousStable": "0.3.10",
+      "forwardCompatibility": true
+    },
+    "originalLegProvenance": [
+      {
+        "lane": "macos-x86_64",
+        "sourceSha": "11e106804316fc48618ec650ac71f088b4fbb945",
+        "runId": 43949305235,
+        "attempt": 1,
+        "version": "0.3.11",
+        "assets": [
+          {
+            "name": "JSTorrent_0.3.11_x64.dmg",
+            "size": 22618220,
+            "sha256": "f8433f9195a487ae6626a38bee722a3f766457ff4c5ea58907bee4f184e60a05"
+          },
+          {
+            "name": "JSTorrent_x64.app.tar.gz",
+            "size": 23055936,
+            "sha256": "515385574ca0e7641a29e1f673bffadda15a57941581ff4984ac1a5f2e874489"
+          },
+          {
+            "name": "JSTorrent_x64.app.tar.gz.sig",
+            "size": 408,
+            "sha256": "1e56a4e3854af5b4ee5cee77dd0eb4d361e64b53ca4848a80ef08cff932ae9d6"
+          }
+        ]
+      },
+      {
+        "lane": "macos-aarch64",
+        "sourceSha": "11e106804316fc48618ec650ac71f088b4fbb945",
+        "runId": 43949305235,
+        "attempt": 1,
+        "version": "0.3.11",
+        "assets": [
+          {
+            "name": "JSTorrent_0.3.11_aarch64.dmg",
+            "size": 20885521,
+            "sha256": "c098cc69fdf45d487baee9e979d3747edba71502a3af58cdae879ce3748dd654"
+          },
+          {
+            "name": "JSTorrent_aarch64.app.tar.gz",
+            "size": 21543191,
+            "sha256": "ce4051c14efa1751345dc3bfe84bd7255436f69090f11dc04000bbc0321c087a"
+          },
+          {
+            "name": "JSTorrent_aarch64.app.tar.gz.sig",
+            "size": 408,
+            "sha256": "f0809a80706d246c1ef9958d53accb34649fa9edaedc9355ea9f3f528aac5a6d"
+          }
+        ]
+      },
+      {
+        "lane": "linux-aarch64",
+        "sourceSha": "11e106804316fc48618ec650ac71f088b4fbb945",
+        "runId": 43949305235,
+        "attempt": 1,
+        "version": "0.3.11",
+        "assets": [
+          {
+            "name": "JSTorrent_0.3.11_aarch64.AppImage",
+            "size": 101132808,
+            "sha256": "7f9bb31f3a191ac6d3f88db994ea2c91fa8a7cb2e08664132b0f79cacc22ab01"
+          },
+          {
+            "name": "JSTorrent_0.3.11_aarch64.AppImage.sig",
+            "size": 424,
+            "sha256": "365b43ba1577e2905f5f47bcd2238eb774723b598748217516c777ae1f23f2ea"
+          }
+        ]
+      },
+      {
+        "lane": "linux-x86_64",
+        "sourceSha": "11e106804316fc48618ec650ac71f088b4fbb945",
+        "runId": 43949305235,
+        "attempt": 1,
+        "version": "0.3.11",
+        "assets": [
+          {
+            "name": "JSTorrent_0.3.11_amd64.AppImage",
+            "size": 102914552,
+            "sha256": "296bd822673384ebaa7defc715f688ac69d989cb9e60d3b66e72adaae1d66da4"
+          },
+          {
+            "name": "JSTorrent_0.3.11_amd64.AppImage.sig",
+            "size": 424,
+            "sha256": "62d55dbf64efd40f622def419ea0fa8c600302139dea1ce3905fa51dab80bc54"
+          }
+        ]
+      },
+      {
+        "lane": "windows-x86_64",
+        "sourceSha": "11e106804316fc48618ec650ac71f088b4fbb945",
+        "runId": 43949305235,
+        "attempt": 1,
+        "version": "0.3.11",
+        "assets": [
+          {
+            "name": "JSTorrent_0.3.11_x64-setup.exe",
+            "size": 16158376,
+            "sha256": "fc7fc76709bf6d166ea28778c880cf965d4f0cfbfa9986169b79c2686af377fc"
+          },
+          {
+            "name": "JSTorrent_0.3.11_x64-setup.exe.sig",
+            "size": 420,
+            "sha256": "ecbc55b1235c4868a406f78d1c472761ad2752f205200703c299f2758cc455f8"
+          },
+          {
+            "name": "JSTorrent_0.3.11_x64_en-US.msi",
+            "size": 22679552,
+            "sha256": "9c82ac02ec5033c343d0644bd03e1c4c1068e329fdc6cf4f6b50fa267f3a017d"
+          },
+          {
+            "name": "JSTorrent_0.3.11_x64_en-US.msi.sig",
+            "size": 420,
+            "sha256": "4543c5e74676168a524cd7fa2ab341300ff7d0ddfa080ad8554867f93a7b384b"
+          }
+        ]
+      }
+    ]
   }
 }
