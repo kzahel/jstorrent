@@ -8,6 +8,56 @@ import org.junit.Test
 
 class ExternalTorrentIntakeTest {
     @Test
+    fun chromeOsBrowserViewUsesTheSameBoundedSourceValidation() {
+        val action = "org.chromium.arc.intent.action.VIEW"
+        val magnet = "magnet:?xt=urn:btih:${"d".repeat(40)}"
+        val accepted = classify(action = action, data = magnet, scheme = "magnet")
+        assertTrue(accepted is ExternalIntentClassification.Magnet)
+        assertEquals(magnet, (accepted as ExternalIntentClassification.Magnet).source.reveal())
+        assertTrue(
+            classify(
+                action = action,
+                data = "content://fixture/item.torrent",
+                scheme = "content",
+                readGrant = true,
+            ) is ExternalIntentClassification.Content,
+        )
+
+        listOf(
+            classify(action = action, data = magnet, scheme = "magnet", selector = true),
+            classify(action = action, data = magnet, scheme = "magnet", clipData = true),
+            classify(action = action, data = magnet, scheme = "magnet", packageOverride = "fixture.target"),
+        ).forEach {
+            assertEquals(
+                ExternalIntentClassification.Rejected(ExternalIntentRejection.NESTED_OR_OVERRIDDEN),
+                it,
+            )
+        }
+        assertEquals(
+            ExternalIntentClassification.Rejected(ExternalIntentRejection.SOURCE_TOO_LARGE),
+            classify(
+                action = action,
+                data = "magnet:?" + "x".repeat(MAX_EXTERNAL_SOURCE_BYTES),
+                scheme = "magnet",
+            ),
+        )
+        assertEquals(
+            ExternalIntentClassification.Rejected(ExternalIntentRejection.MISSING_READ_GRANT),
+            classify(action = action, data = "content://fixture/item.torrent", scheme = "content"),
+        )
+        assertEquals(
+            ExternalIntentClassification.Rejected(ExternalIntentRejection.UNSUPPORTED_SCHEME),
+            classify(action = action, data = "https://fixture/item.torrent", scheme = "https"),
+        )
+        listOf(null, "android.intent.action.SEND", "org.chromium.arc.intent.action.SEND", "$action.extra").forEach {
+            assertEquals(
+                ExternalIntentClassification.NotExternalView,
+                classify(action = it, data = magnet, scheme = "magnet"),
+            )
+        }
+    }
+
+    @Test
     fun classifierAcceptsOnlyBoundedViewSources() {
         val magnet = "magnet:?xt=urn:btih:${"a".repeat(40)}"
         assertTrue(classify(data = magnet, scheme = "MAGNET") is ExternalIntentClassification.Magnet)

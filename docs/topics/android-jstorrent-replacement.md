@@ -1,5 +1,60 @@
 # Android JSTorrent Replacement Readiness
 
+## ChromeOS browser magnet handoff: 2026-11-16
+
+Physical Chromebook Pixel testing reproduced silent magnet loss in Play-installed
+1.0.35/code 35 (`com.android.vending` installer), with the JSTorrent extension
+disabled. Both a cold browser click and a second link with the app open launched
+the Play app but left its library empty. A standard Android VIEW control opened
+the expected Add torrent confirmation with the existing download folder.
+
+Chrome's external-protocol picker discovers the app through its normal VIEW
+filter, then explicitly launches its activity with
+`org.chromium.arc.intent.action.VIEW`. Both `MainActivity.consumeExternalView`
+and `ExternalIntentClassifier` required `android.intent.action.VIEW`, so the
+activity opened normally while its magnet data bypassed intake. Existing
+lifecycle tests exercised only the standard Android action.
+
+One exact-action predicate now recognizes both forms at the activity and
+classifier boundaries, including companion-link detection so those links keep
+their existing route. The bounded source, URI scheme, selector, ClipData,
+package-override and content read-grant checks remain in place. No manifest,
+engine, application contract or durable-data change is needed.
+
+Reference consulted: Chromium's
+[`arc_external_protocol_dialog.cc`, `CreateIntentInfo` and `HandleUrlInArc`](https://chromium.googlesource.com/chromium/src/+/4d54f0a8e47abbf6d5d401c7d09a43ec2994d130/chrome/browser/chromeos/arc/arc_external_protocol_dialog.cc).
+Its explicit ARC action matches the device's ActivityTaskManager and
+ArcIntentLauncher records. Adopted only that action alias; no source or fixtures
+were copied. The previous Android `LinkHandlerActivity` in the sibling
+TypeScript repository was also inspected for historical handoff context.
+
+Validation:
+
+- The new classifier regression failed against the original implementation.
+- From the repository root, after `source scripts/dev-env.sh`:
+  `./clients/android/gradlew -p clients/android lintDebug testDebugUnitTest assembleDebug assembleDebugAndroidTest`
+  passes, including all 228 JVM tests.
+- On the explicitly selected Pixel, the built development app and test APK ran
+  `am instrument -w -r -e class org.rstorrent.bootstrap.ExternalActivityLifecycleTest,org.rstorrent.bootstrap.ExternalIntentResolutionTest org.rstorrent.bootstrap.test/androidx.test.runner.AndroidJUnitRunner`
+  through Machine Control's target-native ADB connection: all four tests pass.
+  Both actions survive cold/warm delivery and recreation without replay;
+  exported entry points and manifest resolution still pass.
+- Real browser anchor clicks, with the extension disabled, reached the new
+  development app's folder prompt, retained the original link across native
+  folder selection, added a second torrent while warm, and reported
+  `Torrent already present.` on a repeated link. A tracker-free, explicitly
+  addressed local libtorrent seed then supplied a 32,768-byte download whose
+  independently read SHA-256 matched the source. The first two private fixtures
+  proved addition and duplicate feedback only; their seed did not expose magnet
+  metadata, so they are not completion evidence.
+
+The fixed candidate uses a separate development identity. The Play app and its
+existing data were preserved; this does not claim a store-delivered fix. Test
+apps, owned folder/payloads, server, seed, tabs and temporary files are removed
+after validation, and the extension's original enabled state is restored.
+
+## Earlier release and feature checkpoints
+
 Tactical [380](../tactical/380-product-release.md) prepares Android 1.0.32
 and repairs companion HTTP header compatibility: accept both released
 X-JSTorrent-Installation and legacy X-RSTorrent-Installation in hello, folder

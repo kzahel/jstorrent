@@ -7,6 +7,12 @@ internal const val MAX_EXTERNAL_SOURCE_BYTES = 16 * 1024
 internal const val MAX_EXTERNAL_DISPLAY_LABEL_BYTES = 256
 internal const val BITTORRENT_MIME_TYPE = "application/x-bittorrent"
 internal const val EXTERNAL_VIEW_ACTION = "android.intent.action.VIEW"
+// Chrome's external-protocol picker resolves the ordinary VIEW filter, then
+// explicitly launches the selected Android activity with this ARC action.
+internal const val CHROMEOS_VIEW_ACTION = "org.chromium.arc.intent.action.VIEW"
+
+internal fun isExternalViewAction(action: String?): Boolean =
+    action == EXTERNAL_VIEW_ACTION || action == CHROMEOS_VIEW_ACTION
 
 enum class ExternalIntakeKind {
     MAGNET,
@@ -59,7 +65,7 @@ internal sealed interface ExternalIntentClassification {
 
 internal object ExternalIntentClassifier {
     fun classify(input: ExternalIntentInput): ExternalIntentClassification {
-        if (input.action != EXTERNAL_VIEW_ACTION) {
+        if (!isExternalViewAction(input.action)) {
             return ExternalIntentClassification.NotExternalView
         }
         if (input.hasSelector || input.hasClipData || input.packageOverride != null) {

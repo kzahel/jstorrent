@@ -9,8 +9,8 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.ServiceTestRule
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -28,6 +28,15 @@ class ExternalActivityLifecycleTest {
 
     @Test
     fun coldWarmAndRecreatedActivityConsumeEachDeliveryOnce() {
+        assertColdWarmAndRecreatedActivityConsumeEachDeliveryOnce(Intent.ACTION_VIEW)
+    }
+
+    @Test
+    fun chromeOsBrowserColdWarmAndRecreatedActivityConsumeEachDeliveryOnce() {
+        assertColdWarmAndRecreatedActivityConsumeEachDeliveryOnce(CHROMEOS_VIEW_ACTION)
+    }
+
+    private fun assertColdWarmAndRecreatedActivityConsumeEachDeliveryOnce(action: String) {
         val first = magnet('1')
         val second = magnet('2')
         val application = context.applicationContext as Application
@@ -36,7 +45,7 @@ class ExternalActivityLifecycleTest {
         var activity: MainActivity? = null
         try {
             context.startActivity(
-                externalView(first).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                externalView(first, action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             )
             activity = monitor.awaitResumed()
             val service = bindProductService()
@@ -50,7 +59,7 @@ class ExternalActivityLifecycleTest {
             assertEquals(1, service.state.value.externalIntakeDepth)
 
             context.startActivity(
-                externalView(second).addFlags(
+                externalView(second, action).addFlags(
                     Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP,
                 ),
             )
@@ -96,9 +105,9 @@ class ExternalActivityLifecycleTest {
         }
     }
 
-    private fun externalView(source: String): Intent =
+    private fun externalView(source: String, viewAction: String): Intent =
         Intent(context, MainActivity::class.java).apply {
-            action = Intent.ACTION_VIEW
+            action = viewAction
             data = Uri.parse(source)
         }
 

@@ -683,7 +683,7 @@ class MainActivity : ComponentActivity() {
     private fun validRootId(value: String): Boolean = value.isNotBlank() && value.length <= 128
 
     private fun consumeExternalView(command: Intent): Intent? {
-        if (command.action != Intent.ACTION_VIEW || isChromeOsCompanionLaunch(command)) {
+        if (!isExternalViewAction(command.action) || isChromeOsCompanionLaunch(command)) {
             return null
         }
         val input =
@@ -1500,7 +1500,7 @@ class MainActivity : ComponentActivity() {
 
     private fun isChromeOsCompanionLaunch(command: Intent): Boolean {
         val uri = command.data ?: return false
-        return command.action == Intent.ACTION_VIEW &&
+        return isExternalViewAction(command.action) &&
             ProductChromeExtensionSetup.acceptsLaunch(
                 uri.scheme, uri.host, uri.path, uri.query, uri.fragment, uri.port, uri.userInfo,
             )
