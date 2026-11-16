@@ -1230,7 +1230,10 @@ completed the smallest persistence and restart slice:
 - `rstorrent-session` owns `session.db`, schema versioning, configured
   path-root identities, the torrent catalog, sparse selection rows, raw info
   BLOBs, versioned have BLOBs, and bounded request receipts.
-- Bundled `rusqlite 0.40.1` uses `libsqlite3-sys 0.38.1` and SQLite `3.53.2`.
+- Bundled `rusqlite 0.41.1` uses `libsqlite3-sys 0.39.1` and SQLite `3.54.1`
+  (Tactical 395, CVE-2026-119375 remediation). No schema or migration step
+  changes; the explicit no-progress callback type adapts Clear app data backup
+  to the new rusqlite API.
   WAL, foreign keys, `synchronous=FULL`, and the busy timeout are set and
   checked at open. Both initial Android Rust targets cross-compiled this
   bundled implementation.

@@ -36,8 +36,6 @@ export interface PendingFileSelectionDialogProps {
   ) => Promise<void>;
   /** Selects all files subject to safety settings, without waiting for metadata. */
   readonly onDownloadAll: (disableFuture: boolean) => Promise<void>;
-  /** The host can download all files only once the file list loads. */
-  readonly waitForFileList?: boolean;
   readonly supportsFileSelectionBitmaps?: boolean;
   readonly onCancel: () => Promise<void>;
 }
@@ -60,7 +58,6 @@ function PendingFileSelectionDraft({
   onPage,
   onConfirm,
   onDownloadAll,
-  waitForFileList = false,
   supportsFileSelectionBitmaps = true,
   onCancel,
 }: PendingFileSelectionDialogProps) {
@@ -250,9 +247,7 @@ function PendingFileSelectionDraft({
           <div className={styles.metadataWait} role="status">
             <strong>{localizedMessage("inspection.components.pending.file.selection.dialog.loading.file.list")}</strong>
             <span>
-              {waitForFileList
-                ? localizedMessage("inspection.components.pending.file.selection.dialog.download.after.file.list.loads")
-                : localizedMessage("inspection.components.pending.file.selection.dialog.you.can.download.all.files.without.waiting")}
+              {localizedMessage("inspection.components.pending.file.selection.dialog.you.can.download.all.files.without.waiting")}
             </span>
           </div>
         ) : (
@@ -317,7 +312,7 @@ function PendingFileSelectionDraft({
           <button
             className={styles.confirm}
             type="button"
-            disabled={busy || (waitForFileList && !metadataReady)}
+            disabled={busy}
             aria-busy={pending === "confirm"}
             onClick={() => void confirm()}
           >

@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "reviewed_at": "2026-11-16",
+  "database_revision": "02e2517f457a359fc6d3440ea4560c8ea188fee8",
+  "cargo_vulnerabilities": 1,
+  "unexcepted_cargo_vulnerabilities": 0,
+  "reviewed_vulnerability_exceptions": [
+    {
+      "advisory": "RUSTSEC-2026-0387",
+      "package": "crypto-bigint",
+      "version": "0.5.5",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "0dc92fb57ca44df6db8059111ab3af99a63d5d0f8375d9972e319a379c6bab76",
+      "reviewed_at": "2026-11-16",
+      "expires": "2026-12-16",
+      "reason": "Maintainer-authorized temporary exception after the bounded source trace found no path from the selected OPAQUE Ristretto password/TripleDh flow into the affected bigint arithmetic. Dalek performs curve/scalar operations; the borrowed elliptic-curve XMD helper expands SHA-512 bytes without bigint calls. This is source-level reachability evidence, not a compiled-code constant-time proof. No published OPAQUE/VOPRF upgrade removes this dependency. Remove the exception when the dependency/finding is removed; re-review changed source, features or graph before renewing, and prefer upstream dependency removal or a reviewed patch.",
+      "evidence": "docs/tactical/evidence/381-opaque-bigint-reachability.md",
+      "context_sha256": "98ed1a5f1b6c8a6feac1aee3e4ae34cb02b5de723ba5b03cf3c34ce517bf05e2"
+    }
+  ],
+  "npm_vulnerabilities": 0,
+  "website_npm_vulnerabilities": 0,
+  "reviewed_warnings": [
+    [
+      "unmaintained",
+      "RUSTSEC-2024-0370",
+      "proc-macro-error",
+      "1.0.4"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0057",
+      "fxhash",
+      "0.2.1"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0075",
+      "unic-char-range",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0080",
+      "unic-common",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0081",
+      "unic-char-property",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0098",
+      "unic-ucd-version",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2025-0100",
+      "unic-ucd-ident",
+      "0.9.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2026-0370",
+      "zvariant",
+      "5.15.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2026-0371",
+      "zbus_names",
+      "4.3.4"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2026-0372",
+      "zvariant_derive",
+      "5.15.0"
+    ],
+    [
+      "unmaintained",
+      "RUSTSEC-2026-0374",
+      "basic-toml",
+      "0.1.10"
+    ],
+    [
+      "unsound",
+      "RUSTSEC-2024-0429",
+      "glib",
+      "0.18.5"
+    ],
+    [
+      "unsound",
+      "RUSTSEC-2026-0097",
+      "rand",
+      "0.7.3"
+    ]
+  ],
+  "reviewed_features": {
+    "rand@0.7.3": [
+      "alloc",
+      "default",
+      "getrandom",
+      "getrandom_package",
+      "libc",
+      "rand_pcg",
+      "small_rng",
+      "std"
+    ]
+  },
+  "source_verified_backports": [
+    {
+      "package": "glib",
+      "version": "0.18.5",
+      "advisory": "RUSTSEC-2024-0429",
+      "license": "MIT",
+      "upstream_archive": "https://static.crates.io/crates/glib/glib-0.18.5.crate",
+      "upstream_archive_sha256": "233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5",
+      "upstream_revision": "42b9caf98e03ded086362d9653ca58fe94dc8658",
+      "patch": "distribution/patches/glib-0.18.5-variant-iterator.patch",
+      "patch_sha256": "8eb6674027f126bdfac118d8644308d390c511e1cf88cf2857794c93a72a2e6f",
+      "patched_file_sha256": "a0f5ee8acb8faa089bcdfbc9a57372609fce7654026ccef7d9a224d05a654ccc",
+      "source_manifest_sha256": "b4c7d59e738c7999884177232c056720ddeb15b1e83568594cc60ba4b7e7fa0b",
+      "status": "source-verified-backport"
+    }
+  ],
+  "release_blockers": [],
+  "release_ready": true,
+  "ios_probe": {
+    "lockfile": "experiments/ios-storage-probe/Cargo.lock",
+    "lock_sha256": "0d534945d1ca7bd702459ee648335c90ae859d756e70513c3d0281e17bd934d4",
+    "database_revision": "02e2517f457a359fc6d3440ea4560c8ea188fee8",
+    "cargo_vulnerabilities": 0,
+    "warnings": []
+  },
+  "lockfiles": {
+    "Cargo.lock": "cfe0fc93de316c8688e019e4728a2e1e777a7215d9d20c5ed78aa90106a42ef6",
+    "clients/web/package-lock.json": "b4ba2a9d49ea965b4e3645343c816c5c15cbdb46685208058653ed423513e674",
+    "website/package-lock.json": "bf77d5dda787580c87c67f4fc5269c07fc793eeaf93eae153168f467e172c0ef",
+    "experiments/ios-storage-probe/Cargo.lock": "0d534945d1ca7bd702459ee648335c90ae859d756e70513c3d0281e17bd934d4"
+  }
+}

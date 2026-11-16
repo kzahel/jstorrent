@@ -116,22 +116,28 @@ version-only PRs. Keep `open-pull-requests-limit: 0` on every configured entry;
 its required schedule does not enable version PRs with that limit. GitHub
 alerts, automatic security updates and the daily advisory workflow remain on.
 
-`distribution/dependency-review.json` currently permits one exact, expiring
-vulnerability exception for crypto-bigint 0.5.5 / RUSTSEC-2026-0387. It is
-bound to the source-level Ristretto reachability investigation, Rust lockfile,
-workspace manifests, remote-crypto sources and resolved backend
-features/dependents. The collector fingerprints those inputs; review verifies
-the fingerprint and current file bytes. Any Rust dependency/manifest change
-requires a new explicit assessment before updating `context_sha256`; do not
-automatically regenerate that approval value. Expiry is November 12, at most
-30 days from review and never beyond the warning-review deadline. All raw
-findings remain in the audit report, and successful review receipts retain
-the vulnerability count and full reviewed exception. New findings still fail;
-when this finding disappears, remove its stale exception. npm and the iOS
-probe have no vulnerability exceptions. Removal of the unused upstream
-arithmetic dependency or a reviewed patch remains the preferred remediation.
-The release source check audits the committed inputs before stamping the
-generated package identity; stamping first would invalidate this fingerprint.
+`distribution/dependency-review.json` permits one exact, expiring vulnerability
+exception for crypto-bigint 0.5.5 / RUSTSEC-2026-0387. The source-level
+Ristretto reachability investigation, remote-crypto sources/manifest and
+resolved backend dependency closure (identities, registry checksums, features,
+edges and immediate backend consumers) bind its approval. Collection and
+review independently resolve the current locked all-feature graph. Changes to
+those inputs require explicit reassessment before updating `context_sha256`;
+never automatically regenerate that approval. Unrelated lockfile entries do
+not invalidate it. The current exception expires December 16, 2026; each
+vulnerability exception remains limited to 30 days and cannot outlive the
+warning review.
+
+Warning reviews may last up to 90 days (currently through February 14, 2027).
+Every audit still requires a current advisory database, the exact warning
+inventory, verified GLib backport source and disabled rand logging feature.
+New findings or changed review evidence fail immediately. Renewing warning
+review does not renew a vulnerability exception. All raw findings remain in
+the audit report, and successful receipts retain the vulnerability count and
+full reviewed exception. Remove a stale exception when its finding disappears.
+npm and the iOS probe have no vulnerability exceptions. Upstream removal of
+the unused arithmetic dependency or a reviewed patch remains preferred.
+The release source check audits committed inputs before package stamping.
 
 ## Website and remote controller
 

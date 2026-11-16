@@ -9,31 +9,20 @@ import { CLIENT_CAPTURES, COMPAT_TODAY, HOST_CAPTURES, KNOWN_BREAKS } from "./ca
 // Run with COMPAT_TODAY=YYYY-MM-DD to preview a later date.
 // docs/tactical/370-version-handshake-and-compatibility-reports.md
 describe(`support window on ${COMPAT_TODAY}`, () => {
-  const supported = new Set(
-    [...HOST_CAPTURES, ...CLIENT_CAPTURES].map((capture) => capture.commit),
-  );
+  const hosts = new Set(HOST_CAPTURES.map((capture) => capture.commit));
+  const clients = new Set(CLIENT_CAPTURES.map((capture) => capture.commit));
+  const supported = new Set([...hosts, ...clients]);
 
   it("has no known break whose releases all left the window", () => {
     const stale = KNOWN_BREAKS.filter((entry) => {
-      const commits =
-        entry.check === "live"
-          ? [entry.host, entry.client].filter((commit) => commit !== "current")
-          : (entry.captures ?? []);
-      return commits.length > 0 && !commits.some((commit) => commit !== undefined && supported.has(commit));
+      if (entry.check === "live") {
+        return (entry.host !== "current" && !hosts.has(entry.host ?? "")) ||
+          (entry.client !== "current" && !clients.has(entry.client ?? ""));
+      }
+      const commits = entry.captures ?? [];
+      return commits.length > 0 && !commits.some((commit) => supported.has(commit));
     }).map((entry) => `${entry.check}: ${entry.deliveries ?? ""}`);
     expect(stale, "remove these from compat/known-breaks.json").toEqual([]);
-  });
-
-  it("keeps the Download all fallback only while a host without it is supported", () => {
-    // LiveApplication's predatesDownloadAll serves desktop 0.3.0 and Android
-    // 1.0.28, recognized by batches without server_now_millis.
-    const hostsWithoutServerClock = HOST_CAPTURES.filter(
-      (capture) => !("server_now_millis" in capture.trace.open.initial),
-    );
-    expect(
-      hostsWithoutServerClock.length,
-      "remove predatesDownloadAll from LiveApplication and its tests",
-    ).toBeGreaterThan(0);
   });
 
   it("lifts the strict-client release hold once no strict client is supported", () => {

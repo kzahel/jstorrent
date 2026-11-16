@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [395 — Release dependency maintenance](395-release-dependency-maintenance.md):
+  locally validated; patched dependencies, retired compatibility fallbacks,
+  scoped crypto review evidence and bounded native download retries; CI pending.
+
 - [392 — PlaysVideo product release](392-playsvideo-product-release.md):
   desktop 0.3.10 public on Stable and Latest; extension 1.1.10 in Chrome
   review; Android 1.0.39 submitted to production at 1% (standard-7d),

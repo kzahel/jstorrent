@@ -12,6 +12,8 @@ from pathlib import Path
 import platform
 import shutil
 import subprocess
+import time
+import urllib.error
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,17 +35,29 @@ def obtain(item, directory, download):
     path = directory / item['name']
     if not path.exists() and download:
         temporary = path.with_suffix(path.suffix + '.partial')
-        try:
-            with urllib.request.urlopen(item['url'], timeout=60) as response, temporary.open('xb') as stream:
-                total = 0
-                while chunk := response.read(65536):
-                    total += len(chunk)
-                    if total > item['bytes']:
-                        raise ValueError('native source exceeds pinned size')
-                    stream.write(chunk)
-            temporary.replace(path)
-        finally:
-            temporary.unlink(missing_ok=True)
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(item['url'], timeout=60) as response, temporary.open('xb') as stream:
+                    total = 0
+                    while chunk := response.read(65536):
+                        total += len(chunk)
+                        if total > item['bytes']:
+                            raise ValueError('native source exceeds pinned size')
+                        stream.write(chunk)
+                if total != item['bytes'] or sha(temporary) != item['sha256']:
+                    raise ValueError('native source does not match reviewed pin: ' + item['name'])
+                temporary.replace(path)
+                break
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
+                # Retry only transient transport/status failures. A bad pin or
+                # permanent HTTP failure requires inspection, not another URL.
+                if (attempt == 2 or isinstance(error, urllib.error.HTTPError)
+                        and error.code not in {429, 500, 502, 503, 504}):
+                    raise
+                print(f"Transient native download failure; retry {attempt + 1}/2", flush=True)
+                time.sleep(2 ** attempt)
+            finally:
+                temporary.unlink(missing_ok=True)
     if not path.is_file() or path.stat().st_size != item['bytes'] or sha(path) != item['sha256']:
         raise ValueError('native source does not match reviewed pin: ' + item['name'])
     return path

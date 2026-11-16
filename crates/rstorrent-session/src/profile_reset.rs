@@ -164,7 +164,7 @@ pub(crate) fn write_pre_migration_copy(
     let destination = profile_root.join(PRE_MIGRATION_FILENAME);
     remove_fixed_file_if_present(&temporary, PRE_MIGRATION_TEMPORARY_FILENAME)?;
     connection
-        .backup(MAIN_DB, &temporary, None)
+        .backup(MAIN_DB, &temporary, None::<fn(rusqlite::backup::Progress)>)
         .map_err(profile_sqlite_error)?;
     // Windows FlushFileBuffers requires write access.
     fs::OpenOptions::new()

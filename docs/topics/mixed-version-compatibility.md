@@ -318,6 +318,15 @@ never deleted.
 
 ## Current Release Hold
 
+As of November 16, 2026, all strict client deliveries have retired under the
+existing successor-plus-30-day window. Tactical 395 sets
+`strictClients.supported` to false and removes obsolete known breaks and the
+pre-0.3.1 Download all fallback, including its file-list wait UI. Live known
+break retirement checks host and client roles independently: one commit can
+remain a supported host after its client delivery retires. Current supported
+pairs still run the contract/request/live matrix. No compatibility window is
+shortened or deadline extended. The release hold described below is historical.
+
 As of 2026-10-17, `main` carries thirteen reviewed client exposures (see
 `reviewedClientExposure` in `clients/web/src/api/release-compatibility.json`). Extensions 1.1.3 and 1.1.4
 (built from `5fa018ff`, published) validate strictly. A torrent list

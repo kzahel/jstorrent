@@ -2,6 +2,8 @@
 from datetime import date
 import hashlib
 import json
+import subprocess
+import tomllib
 from pathlib import Path
 
 
@@ -23,30 +25,52 @@ def collect_context(metadata, root):
     root = Path(root).resolve()
     packages = {p['id']: p for p in metadata['packages']}
     nodes = metadata['resolve']['nodes']
-    paths = {'Cargo.toml', 'Cargo.lock', EVIDENCE}
-    paths.update(Path(packages[p]['manifest_path']).resolve().relative_to(root).as_posix()
-                 for p in metadata['workspace_members'])
+    locked = {(p['name'], p['version'], p.get('source')): p.get('checksum')
+              for p in tomllib.loads((root / 'Cargo.lock').read_text()).get('package', [])}
+    # The review concerns this crypto implementation and resolved dependency
+    # closure, not unrelated lockfile entries or workspace package versions.
+    paths = {EVIDENCE, (Path(CRYPTO_SOURCE).parent / 'Cargo.toml').as_posix()}
     paths.update(p.relative_to(root).as_posix() for p in (root / CRYPTO_SOURCE).rglob('*.rs'))
 
     def identity(package_id):
         p = packages[package_id]
         return f"{p['name']}@{p['version']}#{p.get('source') or 'workspace'}"
 
-    backends = []
-    for node in nodes:
-        p = packages[node['id']]
-        if (p['name'], p['version']) not in BACKENDS:
-            continue
-        backends.append({
-            'package': identity(node['id']),
+    by_id = {node['id']: node for node in nodes}
+    backends = {node['id'] for node in nodes
+                if (packages[node['id']]['name'], packages[node['id']]['version']) in BACKENDS}
+    selected = set(backends)
+    pending = list(backends)
+    while pending:
+        for dependency in by_id[pending.pop()]['dependencies']:
+            if dependency not in selected:
+                selected.add(dependency)
+                pending.append(dependency)
+    graph = []
+    for package_id in selected:
+        node, package = by_id[package_id], packages[package_id]
+        entry = {
+            'package': identity(package_id),
+            'checksum': locked.get((package['name'], package['version'], package.get('source'))),
             'features': sorted(node['features']),
             'dependencies': sorted(identity(d) for d in node['dependencies']),
-            'dependents': sorted(identity(n['id']) for n in nodes if node['id'] in n['dependencies']),
-        })
+        }
+        if package_id in backends:
+            entry['dependents'] = sorted(identity(n['id']) for n in nodes
+                                         if package_id in n['dependencies'])
+        graph.append(entry)
     return {
+        'schema': 2,
         'files': {p: hashlib.sha256((root / p).read_bytes()).hexdigest() for p in sorted(paths)},
-        'backends': sorted(backends, key=lambda b: b['package']),
+        'crypto_graph': sorted(graph, key=lambda b: b['package']),
     }
+
+
+def current_context(root):
+    metadata = json.loads(subprocess.check_output(
+        ['cargo', 'metadata', '--locked', '--all-features', '--format-version', '1'],
+        cwd=root, timeout=120))
+    return collect_context(metadata, root)
 
 
 def review(cargo, policy, today, root):
@@ -79,6 +103,8 @@ def review(cargo, policy, today, root):
     if fingerprint(context) != exception['context_sha256']:
         raise ValueError('Cargo vulnerability exception source or feature context changed')
     root = Path(root).resolve()
+    if fingerprint(current_context(root)) != exception['context_sha256']:
+        raise ValueError('Cargo vulnerability exception source or feature context changed')
     for path, digest in context['files'].items():
         file = root / path
         if (file.is_symlink() or not file.resolve().is_relative_to(root) or

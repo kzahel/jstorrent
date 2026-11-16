@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "reviewed_at": "2026-10-24",
-  "review_expires": "2026-11-12",
+  "reviewed_at": "2026-11-16",
+  "review_expires": "2027-02-14",
   "vulnerability_exceptions": [
     {
       "advisory": "RUSTSEC-2026-0387",
@@ -9,11 +9,11 @@
       "version": "0.5.5",
       "source": "registry+https://github.com/rust-lang/crates.io-index",
       "checksum": "0dc92fb57ca44df6db8059111ab3af99a63d5d0f8375d9972e319a379c6bab76",
-      "reviewed_at": "2026-10-24",
-      "expires": "2026-11-12",
+      "reviewed_at": "2026-11-16",
+      "expires": "2026-12-16",
       "reason": "Maintainer-authorized temporary exception after the bounded source trace found no path from the selected OPAQUE Ristretto password/TripleDh flow into the affected bigint arithmetic. Dalek performs curve/scalar operations; the borrowed elliptic-curve XMD helper expands SHA-512 bytes without bigint calls. This is source-level reachability evidence, not a compiled-code constant-time proof. No published OPAQUE/VOPRF upgrade removes this dependency. Remove the exception when the dependency/finding is removed; re-review changed source, features or graph before renewing, and prefer upstream dependency removal or a reviewed patch.",
       "evidence": "docs/tactical/evidence/381-opaque-bigint-reachability.md",
-      "context_sha256": "f52e8a444fb130351b558c6e191e8803cb3119d75229cef200407fb59beb388c"
+      "context_sha256": "98ed1a5f1b6c8a6feac1aee3e4ae34cb02b5de723ba5b03cf3c34ce517bf05e2"
     }
   ],
   "warnings": [
@@ -22,35 +22,35 @@
       "advisory": "RUSTSEC-2026-0370",
       "package": "zvariant",
       "version": "5.15.0",
-      "reason": "Standalone crate moved into zbus 6 wire module. Existing zbus 5.19/notify-rust/keepawake and Tauri Linux integration still require this API. Advisory discloses maintenance reorganization, no vulnerability. Migrate the dependent integrations before the unchanged November 12 review expiry."
+      "reason": "Standalone crate moved into zbus 6 wire module. Existing zbus 5.19/notify-rust/keepawake and Tauri Linux integration still require this API. Advisory discloses maintenance reorganization, no vulnerability. Migrate the dependent integrations at the next warning review."
     },
     {
       "kind": "unmaintained",
       "advisory": "RUSTSEC-2026-0371",
       "package": "zbus_names",
       "version": "4.3.4",
-      "reason": "Standalone name types moved into zbus 6 names module. Retained through the existing zbus 5.19 desktop integration; no vulnerability is disclosed. Same bounded framework-migration deferral and unchanged review expiry as zvariant."
+      "reason": "Standalone name types moved into zbus 6 names module. Retained through the existing zbus 5.19 desktop integration; no vulnerability is disclosed. Same bounded framework-migration deferral and warning-review deadline as zvariant."
     },
     {
       "kind": "unmaintained",
       "advisory": "RUSTSEC-2026-0372",
       "package": "zvariant_derive",
       "version": "5.15.0",
-      "reason": "Macros moved into zbus 6. Current zbus 5.19 desktop integration retains this procedural macro; no vulnerability is disclosed. Same bounded framework-migration deferral and unchanged review expiry as zvariant."
+      "reason": "Macros moved into zbus 6. Current zbus 5.19 desktop integration retains this procedural macro; no vulnerability is disclosed. Same bounded framework-migration deferral and warning-review deadline as zvariant."
     },
     {
       "kind": "unmaintained",
       "advisory": "RUSTSEC-2025-0057",
       "package": "fxhash",
       "version": "0.2.1",
-      "reason": "Tauri's selectors/kuchikiki/tauri-utils graph retains this hash helper. Advisory reports lack of maintenance, not a disclosed vulnerability; replacing the qualified framework is deferred. Reviewed with all-target reverse dependency graph, under the unchanged review expiry."
+      "reason": "Tauri's selectors/kuchikiki/tauri-utils graph retains this hash helper. Advisory reports lack of maintenance, not a disclosed vulnerability; replacing the qualified framework is deferred. Reviewed with all-target reverse dependency graph, under the warning-review deadline."
     },
     {
       "kind": "unsound",
       "advisory": "RUSTSEC-2026-0097",
       "package": "rand",
       "version": "0.7.3",
-      "reason": "Only phf_generator 0.8/phf_codegen via selectors build-dependencies. The all-target resolved features omit log, required by this custom-logger/thread-RNG reentrancy advisory. Re-review if that graph changes. Existing expiry is retained."
+      "reason": "Only phf_generator 0.8/phf_codegen via selectors build-dependencies. The all-target resolved features omit log, required by this custom-logger/thread-RNG reentrancy advisory. Re-review if that graph changes. The log feature guard is verified on every audit."
     },
     {
       "kind": "unmaintained",
@@ -99,7 +99,7 @@
       "advisory": "RUSTSEC-2026-0374",
       "package": "basic-toml",
       "version": "0.1.10",
-      "reason": "Archived parser retained by askama_derive 0.14 through UniFFI 0.31 binding-generation tooling; absent from the default all-target runtime graph. Advisory reports maintenance status, no disclosed vulnerability. Keep the qualified UniFFI toolchain for this release and review its migration before the unchanged November 12 expiry."
+      "reason": "Archived parser retained by askama_derive 0.14 through UniFFI 0.31 binding-generation tooling; absent from the default all-target runtime graph. Advisory reports maintenance status, no disclosed vulnerability. Keep the qualified UniFFI toolchain for this release and review its migration at the next warning review."
     }
   ],
   "release_blockers": [],

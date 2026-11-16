@@ -69,7 +69,7 @@ class AdvisoryReviewTests(unittest.TestCase):
                                                'package': {'name': 'example', 'version': '1.0'}}]}}
         self.npm = {'metadata': {'vulnerabilities': {'total': 0}}}
         self.website_npm = {'metadata': {'vulnerabilities': {'total': 0}}}
-        self.policy = {'review_expires': '2026-10-12',
+        self.policy = {'reviewed_at': '2026-09-12', 'review_expires': '2026-10-12',
                        'warnings': [{'kind': 'unsound', 'advisory': 'RUSTSEC-test',
                                      'package': 'example', 'version': '1.0'}],
                        'release_blockers': ['unresolved unsound implementation']}
@@ -78,6 +78,15 @@ class AdvisoryReviewTests(unittest.TestCase):
         result = audit.review(self.cargo, self.npm, self.website_npm, self.policy, date(2026, 9, 12))
         self.assertFalse(result['release_ready'])
         self.assertEqual(len(result['reviewed_warnings']), 1)
+
+    def test_warning_review_can_last_90_days_but_never_forever_or_start_in_future(self):
+        self.policy.update(reviewed_at='2026-09-12', review_expires='2026-12-11')
+        self.cargo['database']['last-updated'] = '2026-12-11T00:00:00+00:00'
+        audit.review(self.cargo, self.npm, self.website_npm, self.policy, date(2026, 12, 11))
+        for reviewed, expires in [('2026-09-12', '2026-12-12'), ('2026-12-12', '2027-01-01')]:
+            self.policy.update(reviewed_at=reviewed, review_expires=expires)
+            with self.assertRaisesRegex(ValueError, 'warning review has expired'):
+                audit.review(self.cargo, self.npm, self.website_npm, self.policy, date(2026, 12, 11))
 
     def test_new_and_removed_warnings_require_review(self):
         changed = copy.deepcopy(self.cargo)
@@ -270,10 +279,12 @@ class VulnerabilityExceptionTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.helper = audit.dependency_exceptions
         for name in ('Cargo.toml', 'Cargo.lock', self.helper.EVIDENCE,
-                     self.helper.CRYPTO_SOURCE + '/opaque.rs'):
+                     self.helper.CRYPTO_SOURCE + '/opaque.rs',
+                     (Path(self.helper.CRYPTO_SOURCE).parent / 'Cargo.toml').as_posix()):
             p = self.root / name
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text('reviewed bytes\n')
+        (self.root / 'Cargo.lock').write_text('version = 4\n')
         packages = [{'id': f'{name}-{version}', 'name': name, 'version': version,
                      'source': self.helper.REGISTRY}
                     for name, version in sorted(self.helper.BACKENDS)]
@@ -283,13 +294,17 @@ class VulnerabilityExceptionTests(unittest.TestCase):
                          'resolve': {'nodes': [
                              {'id': p['id'], 'features': ['ristretto255'], 'dependencies': []}
                              for p in packages]}}
+        current = patch.object(self.helper, 'current_context',
+                               side_effect=lambda root: self.helper.collect_context(self.metadata, root))
+        current.start()
+        self.addCleanup(current.stop)
         context = self.helper.collect_context(self.metadata, self.root)
         self.exception = dict(zip(('advisory', 'package', 'version', 'source', 'checksum'),
                                   self.helper.IDENTITY))
         self.exception.update(reviewed_at='2026-10-24', expires='2026-11-12',
                               evidence=self.helper.EVIDENCE, reason='Reviewed unreachable arithmetic',
                               context_sha256=self.helper.fingerprint(context))
-        self.policy = {'review_expires': '2026-11-12', 'warnings': [], 'release_blockers': [],
+        self.policy = {'reviewed_at': '2026-10-24', 'review_expires': '2026-11-12', 'warnings': [], 'release_blockers': [],
                        'vulnerability_exceptions': [self.exception]}
         self.cargo = {'vulnerabilities': {'count': 1, 'list': [{
             'advisory': {'id': self.exception['advisory']},
@@ -398,6 +413,55 @@ class VulnerabilityExceptionTests(unittest.TestCase):
             self.cargo['rstorrent_vulnerability_context'] = self.helper.collect_context(metadata, self.root)
             with self.subTest(change=change), self.assertRaisesRegex(ValueError, 'context changed'):
                 self.review()
+
+    def test_unrelated_lock_and_manifest_changes_preserve_crypto_review(self):
+        (self.root / 'Cargo.lock').write_text('version = 4\n[[package]]\nname = "quinn-proto"\nversion = "0.11.19"\n')
+        (self.root / 'Cargo.toml').write_text('unrelated workspace version change')
+        self.review()
+        self.assertEqual(self.helper.collect_context(self.metadata, self.root),
+                         self.cargo['rstorrent_vulnerability_context'])
+
+    def test_crypto_dependency_checksum_and_features_invalidate_review(self):
+        package = self.metadata['packages'][0]
+        (self.root / 'Cargo.lock').write_text(
+            f'[[package]]\nname = "{package["name"]}"\nversion = "{package["version"]}"\n'
+            f'source = "{package["source"]}"\nchecksum = "changed"\n')
+        self.cargo['rstorrent_vulnerability_context'] = self.helper.collect_context(self.metadata, self.root)
+        with self.assertRaisesRegex(ValueError, 'context changed'):
+            self.review()
+
+    def test_old_report_cannot_mask_changed_resolved_features_or_checksums(self):
+        package = self.metadata['packages'][0]
+        node = self.metadata['resolve']['nodes'][0]
+        node['features'].append('new-crypto-feature')
+        with self.assertRaisesRegex(ValueError, 'context changed'):
+            self.review()
+        node['features'].pop()
+        (self.root / 'Cargo.lock').write_text(
+            f'version = 4\n[[package]]\nname = "{package["name"]}"\n'
+            f'version = "{package["version"]}"\nsource = "{package["source"]}"\nchecksum = "changed"\n')
+        with self.assertRaisesRegex(ValueError, 'context changed'):
+            self.review()
+
+    def test_transitive_crypto_dependencies_and_new_backend_consumers_invalidate_review(self):
+        dependency = {'id': 'crypto-helper', 'name': 'crypto-helper', 'version': '1.0.0',
+                      'source': self.helper.REGISTRY}
+        self.metadata['packages'].append(dependency)
+        self.metadata['resolve']['nodes'].append(
+            {'id': dependency['id'], 'features': [], 'dependencies': []})
+        backend = self.metadata['resolve']['nodes'][0]
+        backend['dependencies'].append(dependency['id'])
+        context = self.helper.collect_context(self.metadata, self.root)
+        self.cargo['rstorrent_vulnerability_context'] = context
+        self.exception['context_sha256'] = self.helper.fingerprint(context)
+        self.review()
+        self.metadata['resolve']['nodes'][-1]['features'].append('changed')
+        with self.assertRaisesRegex(ValueError, 'context changed'):
+            self.review()
+        self.metadata['resolve']['nodes'][-1]['features'].clear()
+        self.metadata['resolve']['nodes'][-2]['dependencies'].append(backend['id'])
+        with self.assertRaisesRegex(ValueError, 'context changed'):
+            self.review()
 
     def test_context_is_portable_and_order_independent(self):
         metadata = copy.deepcopy(self.metadata)

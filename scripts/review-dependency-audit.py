@@ -66,7 +66,8 @@ def review(cargo, npm, website_npm, policy, today, backports=(), root=ROOT):
     updated = datetime.fromisoformat(database['last-updated']).date()
     if not 0 <= (today - updated).days <= 30:
         raise ValueError('advisory database must be at most 30 days old')
-    if today > date.fromisoformat(policy['review_expires']):
+    reviewed, expires = (date.fromisoformat(policy[k]) for k in ('reviewed_at', 'review_expires'))
+    if not reviewed <= today <= expires or not 0 <= (expires - reviewed).days <= 90:
         raise ValueError('dependency warning review has expired')
     expected = {(r['kind'], r['advisory'], r['package'], r['version'])
                 for r in policy['warnings']}

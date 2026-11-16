@@ -120,9 +120,6 @@ export function TorrentAddProvider({
   const revealTorrent = useInspectionStore((state) => state.revealTorrent);
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
   const supportsFileSelectionBitmaps = useInspectionStore(state => hostSupports(state.session, "file_selection_bitmaps"));
-  const hostLacksDownloadAll = useInspectionStore(
-    (state) => state.session.hostLacksDownloadAll === true,
-  );
   const pendingSelectionTorrent = useInspectionStore((state) =>
     Object.values(state.torrents)
       .filter((torrent) => torrent.awaitingFileSelection === true)
@@ -688,7 +685,6 @@ export function TorrentAddProvider({
               disableFuture,
             });
           }}
-          waitForFileList={hostLacksDownloadAll}
           onDownloadAll={async (disableFuture) => {
             await execute({
               type: "download_all_pending_add",

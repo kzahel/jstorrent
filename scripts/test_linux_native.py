@@ -1,9 +1,13 @@
 """Regression checks for library-chain refusal and malformed ELF inputs."""
+import hashlib
 import importlib.util
+import io
 from pathlib import Path
 import struct
 import tempfile
 import unittest
+from unittest.mock import patch
+import urllib.error
 
 import linux_native
 
@@ -70,6 +74,66 @@ class NativeChainTests(unittest.TestCase):
         spec.loader.exec_module(module)
         with self.assertRaisesRegex(ValueError, 'lacks custom source-build provenance'):
             module.inspect(self.root, require_notices=False, require_mit_native=True)
+
+
+
+
+class NativeDownloadTests(unittest.TestCase):
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location('build_native', Path(__file__).with_name('build-linux-native.py'))
+        self.builder = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.builder)
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.data = b'reviewed source'
+        self.item = {'name': 'source.tar.gz', 'url': 'https://example.test/source',
+                     'bytes': len(self.data), 'sha256': hashlib.sha256(self.data).hexdigest()}
+
+    def failure(self, status):
+        return urllib.error.HTTPError(self.item['url'], status, 'failure', {}, None)
+
+    def test_transient_http_failure_retries_then_verifies_and_caches(self):
+        with patch.object(self.builder.urllib.request, 'urlopen',
+                          side_effect=[self.failure(503), io.BytesIO(self.data)]) as request, \
+                patch.object(self.builder.time, 'sleep') as sleep:
+            path = self.builder.obtain(self.item, self.root, True)
+            self.assertEqual(path.read_bytes(), self.data)
+            self.builder.obtain(self.item, self.root, True)
+            self.assertEqual(request.call_count, 2)
+            sleep.assert_called_once_with(1)
+        self.assertFalse(list(self.root.glob('*.partial')))
+
+    def test_transient_failures_are_bounded_and_permanent_failures_not_retried(self):
+        for status, attempts in [(503, 3), (404, 1)]:
+            with self.subTest(status=status), \
+                    patch.object(self.builder.urllib.request, 'urlopen', side_effect=self.failure(status)) as request, \
+                    patch.object(self.builder.time, 'sleep'):
+                with self.assertRaises(urllib.error.HTTPError):
+                    self.builder.obtain(self.item, self.root, True)
+                self.assertEqual(request.call_count, attempts)
+                self.assertEqual(list(self.root.iterdir()), [])
+
+    def test_bad_size_or_hash_is_never_cached_or_retried(self):
+        for data in [b'short', b'x' * len(self.data), self.data + b'extra']:
+            with self.subTest(data=data), \
+                    patch.object(self.builder.urllib.request, 'urlopen', return_value=io.BytesIO(data)) as request:
+                with self.assertRaises(ValueError):
+                    self.builder.obtain(self.item, self.root, True)
+                request.assert_called_once()
+                self.assertEqual(list(self.root.iterdir()), [])
+
+    def test_partial_transport_failure_is_deleted_before_retry(self):
+        class BrokenStream(io.BytesIO):
+            def read(self, size):
+                if self.tell():
+                    raise ConnectionResetError('disconnected')
+                return super().read(size)
+        with patch.object(self.builder.urllib.request, 'urlopen',
+                          side_effect=[BrokenStream(b'partial'), io.BytesIO(self.data)]), \
+                patch.object(self.builder.time, 'sleep'):
+            self.assertEqual(self.builder.obtain(self.item, self.root, True).read_bytes(), self.data)
+        self.assertFalse(list(self.root.glob('*.partial')))
 
 
 if __name__ == '__main__':

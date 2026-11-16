@@ -1,7 +1,7 @@
 {
   "$comment": "Read by contract-compatibility.test.ts and scripts/check-release-compatibility.mjs. See docs/topics/mixed-version-compatibility.md.",
   "strictClients": {
-    "supported": true,
+    "supported": false,
     "description": "JSTorrent extension 1.1.4 and older, which validate host data strictly,",
     "tolerantSince": {
       "extension": "1.1.5",

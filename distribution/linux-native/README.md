@@ -1,5 +1,11 @@
 # Linux AppImage native library builds
 
+The source downloader retries transient HTTP 429/500/502/503/504 and transport
+failures at most three attempts, with 1- and 2-second backoff. Permanent HTTP
+errors and size/hash mismatches fail immediately. Every retry removes its
+partial file; only verified source bytes enter the cache. Source pins and
+native provenance requirements remain mandatory.
+
 First-party JSTorrent remains MIT. This recipe removes two reviewed GPL-only
 runtime library chains from Linux AppImages while retaining the GTK3 tray and
 WebKit UI. This is bounded packaging work, not a new Linux compatibility promise

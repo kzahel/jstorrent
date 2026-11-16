@@ -1,5 +1,16 @@
 # Beta Release Readiness
 
+Tactical [395](../tactical/395-release-dependency-maintenance.md) repairs the
+November 16 advisory/compatibility release blockers. Bundled SQLite moves to
+3.54.1 with rusqlite 0.41.1; Quinn proto/UDP and rustix receive security
+patches. The exact OPAQUE bigint exception is reassessed through December 16;
+warning review lasts up to 90 days, through February 14. Crypto approval now
+binds its source and resolved dependency closure rather than unrelated lock
+entries. Retired strict clients and Download all fallback are removed under
+the existing support-window rules. Pinned Linux source downloads retry
+transient failures without relaxing size/hash verification. The tactical owns
+validation and hosted status; older checkpoints below are historical.
+
 The November 3 housekeeping check finds no open PRs or active Dependabot
 alerts. Before the repair, main at `ef9d469a` passed full CI, Fast CI,
 compatibility, the verification matrix and Desktop Latest. The daily advisory run

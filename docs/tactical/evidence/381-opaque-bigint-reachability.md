@@ -185,3 +185,29 @@ earlier source trace still apply. This adds no compiled-code timing proof.
 
 Rebind the existing exception to this reviewed lockfile and evidence update,
 preserving its exact finding, original review date and November 12 expiry.
+
+
+## November 16 renewal and scoped evidence
+
+The maintainer authorized this remediation pass, including renewal after
+assessment. Quinn proto/UDP, rustix and bundled SQLite updates do not alter
+any of the 64 package names in the selected crypto dependency closure:
+comparison with the pre-update committed lockfile finds no package, checksum
+or dependency-edge changes in that closure. The remote-crypto Rust sources
+and manifest are unchanged. All-feature metadata still selects opaque-ke
+4.0.1 `ristretto255`, voprf 0.5.0 `danger`, `ristretto255` and
+`ristretto255-ciphersuite`, and Dalek 4.1.3 `rand_core` and `zeroize`.
+The old bigint reverse tree remains exclusively elliptic-curve 0.13.8 via
+OPAQUE/VOPRF. The selected Suite and the source trace above therefore retain
+the same reachability conclusion and limitations.
+
+Renew the exact crypto-bigint 0.5.5 finding through December 16, 2026.
+Context schema 2 binds this investigation, remote-crypto source/manifest,
+the resolved backend dependency closure (registry checksums, identities,
+features and edges), and immediate backend consumers. Both collection and
+review resolve current locked all-feature metadata; old reports cannot mask
+changed relevant inputs. Unrelated lock entries and workspace manifests no
+longer invalidate this approval. Any relevant change still requires explicit
+reassessment; the collector never writes approval hashes. This does not
+except SQLite, Quinn, rustix or a second finding, and does not prove compiled
+constant-time behavior. Tactical 395 records validation separately.
