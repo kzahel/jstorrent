@@ -47,3 +47,9 @@ specific failed gate without bypassing it.
 - Exact-main CI 43941905640 is still running. This local documentation and
   capture work is held off main until the selector pins its source, avoiding
   cancellation of that full run.
+
+The 0.3.10 ledger still said submitted despite its completed Stable promotion.
+Reconciled its published/first-public fields against the exact public release
+(17 assets, published 2026-11-08T15:55:44Z), tag source `1a49f4ab`, successful
+promotion 42497004134 and Tactical 392's original delivery evidence. No package
+or historical capture is changed.
