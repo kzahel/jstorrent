@@ -1,7 +1,7 @@
 # 397 — Desktop maintenance release
 
-Status: signed native builds and Mac runtime qualified; completing the
-private 0.3.11 corresponding-source offer before Latest/Stable publication.
+Status: complete. Desktop 0.3.11 is public on Stable and Latest, with
+verified live updater offers and canonical website downloads.
 Maintainer authorized desktop publication on 2026-11-16.
 
 ## Scope and source
@@ -140,3 +140,30 @@ With that qualified test-policy entry, all 92 targeted released-host/client,
 window and contract checks and seven release-policy tests pass. The enforced
 Stable companion guard passes. Web typecheck and the full web suite also run
 for the policy-file update before the delivery commit and Stable dispatch.
+
+## Stable and website delivery complete
+
+[Stable promotion 43972741202](https://github.com/kzahel/jstorrent/actions/runs/43972741202)
+passes and publishes `desktop-v0.3.11` at 2026-11-16T22:45:15Z from exact
+`11e10680`. All fifteen native/source assets match Latest byte for byte;
+only the URL-bound updater metadata and checksum inventory change. Both
+channels pass all seventeen public range probes, full cached-size/hash
+comparison against immutable uploaded digests, six retained-root payload
+signatures, signed database facts and eleven native selectors. All ten live
+channel/target offers from 0.3.10 to 0.3.11 match their signed manifests.
+
+Website promotion 43973243041 and deployment 43973441121 pass at promotion
+commit `514b90d6`. The live canonical page advertises 0.3.11 and all five
+native download links plus adjacent corresponding sources. MSI is verified
+as a public release asset; the existing website advertises NSIS for Windows.
+The initial updater probe observed cached 0.3.10/no offer; its refresh and
+all ten corrected offers were verified before completion.
+
+The final delivery ledger records Stable's actual first-public date and both
+host/client roles. Web typecheck and all 986 full-suite tests pass (three
+existing skips), alongside 92 targeted compatibility and seven policy checks.
+Source/migration/user data and installed signing roots are retained. Native
+`jstorrent://` takeover remains proposed in Tactical 394 and is not included.
+Owned guest files/capture/keep-awake process are removed, preserved scopes
+restore exactly, and its off/released state is recorded. Temporary controller
+release staging is removed after the final evidence commit and push.

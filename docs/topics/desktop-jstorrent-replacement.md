@@ -1,12 +1,13 @@
 # Desktop JSTorrent Replacement
 
-Tactical [397](../tactical/397-desktop-maintenance-release.md) is preparing
-signed desktop 0.3.11 from qualified upstream source `11e10680`: storage
-recovery and dependency/compatibility maintenance. Exact-source full CI
-passes, all five signed builds and a populated Mac launch/Quit/reopen pass.
-The private release is completing four updated Ubuntu source offers after its
-collector source gate; Stable publication remains pending. Tactical 394's
-protocol takeover stays proposed.
+Tactical [397](../tactical/397-desktop-maintenance-release.md) publishes
+desktop 0.3.11 on Stable and Latest from qualified source `11e10680`: storage
+recovery and dependency/compatibility maintenance. All five signed builds,
+source checks and a populated Mac launch/Quit/reopen pass. The source gate's
+four updated Ubuntu pairs are reviewed and supplied through the maintained
+same-source completion procedure. All seventeen public assets, original-root
+signatures, signed database facts, ten live offers and canonical website
+links verify. Native `jstorrent:` takeover remains proposed in Tactical 394.
 
 Tactical [394](../tactical/394-legacy-desktop-handler-takeover.md) records a
 2026-11-15 source/public-route audit and proposed follow-up. The original

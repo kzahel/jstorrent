@@ -418,14 +418,15 @@
       "tag": "desktop-v0.3.11",
       "commit": "11e106804316fc48618ec650ac71f088b4fbb945",
       "channel": "stable",
-      "status": "submitted",
+      "status": "published",
       "submitted": "2026-11-16",
-      "firstPublic": null,
-      "channelBasis": "Public Latest 0.3.11 at 2026-11-16T22:35:36Z from exact qualified source 11e10680. Full source CI 43941905640 and all five signed legs/source checks in 43949305235 pass; its collector withheld publication for updated Ubuntu sources. Review 90f40905 and maintained local final-draft gates complete the same native/source capsule. All seventeen public assets and unauthenticated range probes verify. Stable promotion remains pending.",
+      "firstPublic": "2026-11-16",
+      "channelBasis": "Stable promotion 43972741202 copies the qualified public Latest 0.3.11 capsule from exact source 11e10680 without rebuilding. Fifteen native/source assets retain identical hashes; only URL-bound updater metadata and checksums change. Full source CI 43941905640 and all five signed legs/source checks in 43949305235 pass; source review 90f40905 and maintained local final-draft gates resolve its withheld corresponding-source offer.",
       "roles": [
         "host",
         "client"
-      ]
+      ],
+      "firstPublicBasis": "Public Stable desktop-v0.3.11 published at 2026-11-16T22:45:15Z. Unauthenticated release/tag APIs, all seventeen public first-1024-byte probes, complete cached sizes/hashes against uploaded immutable digests, six retained-root signatures and signed database facts verify on both channels. All ten target/channel offers from 0.3.10 to 0.3.11 verify. Website promotion 43973243041 and deployment 43973441121 serve the five advertised native downloads and source link."
     }
   ]
 }

@@ -1,7 +1,9 @@
 # Mixed-Version Compatibility
 
 Tactical [397](../tactical/397-desktop-maintenance-release.md) records the
-first desktop delivery captured as both host and bundled client. Its exact
+first desktop delivery captured as both host and bundled client. Stable and
+Latest 0.3.11 are public at exact source `11e10680`; both roles, actual
+first-public date, original-root signed facts and ten live offers are recorded. Its exact
 0.3.11 decoder accepts all current raw host frames and unknown optional
 fields. Add desktop 0.3.11 to `strictClients.tolerantSince` as the earliest
 qualified desktop client capture; do not infer or reclassify earlier uncaptured

@@ -703,6 +703,328 @@
     "targetedWebCompatibilityTestsPassed": 92,
     "releasePolicyTestsPassed": 7,
     "enforcedStableGuard": "pass",
-    "runtimeDecoderChanged": false
-  }
+    "runtimeDecoderChanged": false,
+    "webTypecheck": "pass",
+    "webTestsPassed": 986,
+    "webTestsSkipped": 3
+  },
+  "stable": {
+    "runId": 43972741202,
+    "sourceLatestTag": "desktop-latest-v0.3.11",
+    "tag": "desktop-v0.3.11",
+    "status": "published",
+    "publishAuthorized": true,
+    "conclusion": "success",
+    "publishedAt": "2026-11-16T22:45:15Z",
+    "publicVerification": {
+      "tag": "desktop-v0.3.11",
+      "sourceSha": "11e106804316fc48618ec650ac71f088b4fbb945",
+      "publishedAt": "2026-11-16T22:45:15Z",
+      "assetCount": 17,
+      "assets": [
+        {
+          "name": "JSTorrent_0.3.11_aarch64.AppImage",
+          "size": 101132808,
+          "digest": "sha256:7f9bb31f3a191ac6d3f88db994ea2c91fa8a7cb2e08664132b0f79cacc22ab01"
+        },
+        {
+          "name": "JSTorrent_0.3.11_aarch64.AppImage.sig",
+          "size": 424,
+          "digest": "sha256:365b43ba1577e2905f5f47bcd2238eb774723b598748217516c777ae1f23f2ea"
+        },
+        {
+          "name": "JSTorrent_0.3.11_aarch64.dmg",
+          "size": 20885521,
+          "digest": "sha256:c098cc69fdf45d487baee9e979d3747edba71502a3af58cdae879ce3748dd654"
+        },
+        {
+          "name": "JSTorrent_0.3.11_amd64.AppImage",
+          "size": 102914552,
+          "digest": "sha256:296bd822673384ebaa7defc715f688ac69d989cb9e60d3b66e72adaae1d66da4"
+        },
+        {
+          "name": "JSTorrent_0.3.11_amd64.AppImage.sig",
+          "size": 424,
+          "digest": "sha256:62d55dbf64efd40f622def419ea0fa8c600302139dea1ce3905fa51dab80bc54"
+        },
+        {
+          "name": "JSTorrent_0.3.11_AppImage-sources-final.tar.gz",
+          "size": 1401047218,
+          "digest": "sha256:fe0e04b8b0b19fcf8d86f895e73e2cfac6c1a1b07620f19f4a787f94b2abdfbc"
+        },
+        {
+          "name": "JSTorrent_0.3.11_x64_en-US.msi",
+          "size": 22679552,
+          "digest": "sha256:9c82ac02ec5033c343d0644bd03e1c4c1068e329fdc6cf4f6b50fa267f3a017d"
+        },
+        {
+          "name": "JSTorrent_0.3.11_x64_en-US.msi.sig",
+          "size": 420,
+          "digest": "sha256:4543c5e74676168a524cd7fa2ab341300ff7d0ddfa080ad8554867f93a7b384b"
+        },
+        {
+          "name": "JSTorrent_0.3.11_x64-setup.exe",
+          "size": 16158376,
+          "digest": "sha256:fc7fc76709bf6d166ea28778c880cf965d4f0cfbfa9986169b79c2686af377fc"
+        },
+        {
+          "name": "JSTorrent_0.3.11_x64-setup.exe.sig",
+          "size": 420,
+          "digest": "sha256:ecbc55b1235c4868a406f78d1c472761ad2752f205200703c299f2758cc455f8"
+        },
+        {
+          "name": "JSTorrent_0.3.11_x64.dmg",
+          "size": 22618220,
+          "digest": "sha256:f8433f9195a487ae6626a38bee722a3f766457ff4c5ea58907bee4f184e60a05"
+        },
+        {
+          "name": "JSTorrent_aarch64.app.tar.gz",
+          "size": 21543191,
+          "digest": "sha256:ce4051c14efa1751345dc3bfe84bd7255436f69090f11dc04000bbc0321c087a"
+        },
+        {
+          "name": "JSTorrent_aarch64.app.tar.gz.sig",
+          "size": 408,
+          "digest": "sha256:f0809a80706d246c1ef9958d53accb34649fa9edaedc9355ea9f3f528aac5a6d"
+        },
+        {
+          "name": "JSTorrent_x64.app.tar.gz",
+          "size": 23055936,
+          "digest": "sha256:515385574ca0e7641a29e1f673bffadda15a57941581ff4984ac1a5f2e874489"
+        },
+        {
+          "name": "JSTorrent_x64.app.tar.gz.sig",
+          "size": 408,
+          "digest": "sha256:1e56a4e3854af5b4ee5cee77dd0eb4d361e64b53ca4848a80ef08cff932ae9d6"
+        },
+        {
+          "name": "latest.json",
+          "size": 16572,
+          "digest": "sha256:2518a061bb702f07842b5ac0302323e64aba771f1859ef5d1ce00d3cdcc1c893"
+        },
+        {
+          "name": "SHA256SUMS",
+          "size": 955,
+          "digest": "sha256:8afb0dd7884a0dec5bf05863a53956fac1ebbc0839e17bf9df59e82dae370b95"
+        }
+      ],
+      "verificationMethod": "Unauthenticated public release/tag API; every cached full asset hash/size matched to uploaded immutable GitHub digests; six retained-root signatures and signed database facts; unauthenticated first-1024-byte probes of all 17 public downloads.",
+      "payloadSignaturesVerified": 6,
+      "updaterPublicKeyId": "415D3DF4B3D0CFB8",
+      "authenticatedDatabaseFactsVerified": true,
+      "updaterPlatformCount": 11,
+      "publicProbes": [
+        {
+          "name": "JSTorrent_0.3.11_aarch64.AppImage",
+          "status": 206,
+          "bytesCompared": 1024
+        },
+        {
+          "name": "JSTorrent_0.3.11_aarch64.AppImage.sig",
+          "status": 206,
+          "bytesCompared": 424
+        },
+        {
+          "name": "JSTorrent_0.3.11_aarch64.dmg",
+          "status": 206,
+          "bytesCompared": 1024
+        },
+        {
+          "name": "JSTorrent_0.3.11_amd64.AppImage",
+          "status": 206,
+          "bytesCompared": 1024
+        },
+        {
+          "name": "JSTorrent_0.3.11_amd64.AppImage.sig",
+          "status": 206,
+          "bytesCompared": 424
+        },
+        {
+          "name": "JSTorrent_0.3.11_AppImage-sources-final.tar.gz",
+          "status": 206,
+          "bytesCompared": 1024
+        },
+        {
+          "name": "JSTorrent_0.3.11_x64_en-US.msi",
+          "status": 206,
+          "bytesCompared": 1024
+        },
+        {
+          "name": "JSTorrent_0.3.11_x64_en-US.msi.sig",
+          "status": 206,
+          "bytesCompared": 420
+        },
+        {
+          "name": "JSTorrent_0.3.11_x64-setup.exe",
+          "status": 206,
+          "bytesCompared": 1024
+        },
+        {
+          "name": "JSTorrent_0.3.11_x64-setup.exe.sig",
+          "status": 206,
+          "bytesCompared": 420
+        },
+        {
+          "name": "JSTorrent_0.3.11_x64.dmg",
+          "status": 206,
+          "bytesCompared": 1024
+        },
+        {
+          "name": "JSTorrent_aarch64.app.tar.gz",
+          "status": 206,
+          "bytesCompared": 1024
+        },
+        {
+          "name": "JSTorrent_aarch64.app.tar.gz.sig",
+          "status": 206,
+          "bytesCompared": 408
+        },
+        {
+          "name": "JSTorrent_x64.app.tar.gz",
+          "status": 206,
+          "bytesCompared": 1024
+        },
+        {
+          "name": "JSTorrent_x64.app.tar.gz.sig",
+          "status": 206,
+          "bytesCompared": 408
+        },
+        {
+          "name": "latest.json",
+          "status": 206,
+          "bytesCompared": 1024
+        },
+        {
+          "name": "SHA256SUMS",
+          "status": 206,
+          "bytesCompared": 955
+        }
+      ]
+    },
+    "unchangedNativeAndSourceAssetCount": 15
+  },
+  "liveUpdaterOffers": [
+    {
+      "channel": "stable",
+      "target": "darwin",
+      "arch": "aarch64",
+      "version": "0.3.11",
+      "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.11/JSTorrent_aarch64.app.tar.gz",
+      "signatureMatches": true,
+      "authenticatedFactsMatch": true,
+      "status": 200
+    },
+    {
+      "channel": "stable",
+      "target": "darwin",
+      "arch": "x86_64",
+      "version": "0.3.11",
+      "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.11/JSTorrent_x64.app.tar.gz",
+      "signatureMatches": true,
+      "authenticatedFactsMatch": true,
+      "status": 200
+    },
+    {
+      "channel": "stable",
+      "target": "windows",
+      "arch": "x86_64",
+      "version": "0.3.11",
+      "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.11/JSTorrent_0.3.11_x64-setup.exe",
+      "signatureMatches": true,
+      "authenticatedFactsMatch": true,
+      "status": 200
+    },
+    {
+      "channel": "stable",
+      "target": "linux",
+      "arch": "aarch64",
+      "version": "0.3.11",
+      "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.11/JSTorrent_0.3.11_aarch64.AppImage",
+      "signatureMatches": true,
+      "authenticatedFactsMatch": true,
+      "status": 200
+    },
+    {
+      "channel": "stable",
+      "target": "linux",
+      "arch": "x86_64",
+      "version": "0.3.11",
+      "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.11/JSTorrent_0.3.11_amd64.AppImage",
+      "signatureMatches": true,
+      "authenticatedFactsMatch": true,
+      "status": 200
+    },
+    {
+      "channel": "latest",
+      "target": "darwin",
+      "arch": "aarch64",
+      "version": "0.3.11",
+      "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-latest-v0.3.11/JSTorrent_aarch64.app.tar.gz",
+      "signatureMatches": true,
+      "authenticatedFactsMatch": true,
+      "status": 200
+    },
+    {
+      "channel": "latest",
+      "target": "darwin",
+      "arch": "x86_64",
+      "version": "0.3.11",
+      "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-latest-v0.3.11/JSTorrent_x64.app.tar.gz",
+      "signatureMatches": true,
+      "authenticatedFactsMatch": true,
+      "status": 200
+    },
+    {
+      "channel": "latest",
+      "target": "windows",
+      "arch": "x86_64",
+      "version": "0.3.11",
+      "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-latest-v0.3.11/JSTorrent_0.3.11_x64-setup.exe",
+      "signatureMatches": true,
+      "authenticatedFactsMatch": true,
+      "status": 200
+    },
+    {
+      "channel": "latest",
+      "target": "linux",
+      "arch": "aarch64",
+      "version": "0.3.11",
+      "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-latest-v0.3.11/JSTorrent_0.3.11_aarch64.AppImage",
+      "signatureMatches": true,
+      "authenticatedFactsMatch": true,
+      "status": 200
+    },
+    {
+      "channel": "latest",
+      "target": "linux",
+      "arch": "x86_64",
+      "version": "0.3.11",
+      "url": "https://github.com/kzahel/jstorrent/releases/download/desktop-latest-v0.3.11/JSTorrent_0.3.11_amd64.AppImage",
+      "signatureMatches": true,
+      "authenticatedFactsMatch": true,
+      "status": 200
+    }
+  ],
+  "website": {
+    "url": "https://jstorrent.com/",
+    "version": "0.3.11",
+    "downloadNames": [
+      "JSTorrent_0.3.11_x64-setup.exe",
+      "JSTorrent_0.3.11_aarch64.dmg",
+      "JSTorrent_0.3.11_x64.dmg",
+      "JSTorrent_0.3.11_amd64.AppImage",
+      "JSTorrent_0.3.11_aarch64.AppImage",
+      "JSTorrent_0.3.11_AppImage-sources-final.tar.gz"
+    ],
+    "advertisedNativeDownloadCount": 5,
+    "sourceDownloadPresent": true,
+    "allAdvertisedLinksPresent": true,
+    "msiAvailability": "Verified as a public GitHub release asset; not advertised by the existing website download component.",
+    "promotionRunId": 43973243041,
+    "deploymentRunId": 43973441121,
+    "promotionCommit": "514b90d638f3eb473c192ab60b96a62c78e1b107",
+    "promotionConclusion": "success",
+    "deploymentConclusion": "success"
+  },
+  "status": "complete"
 }
