@@ -33,3 +33,17 @@ verify the public updater and promote canonical website downloads. Record
 exact run IDs and evidence, then remove owned temporary assets and release
 claims. Stop only when Stable and website delivery verify, or report a
 specific failed gate without bypassing it.
+
+## Preparation evidence
+
+- Verified the complete exact public/draft inventory with write-capability
+  discovery; interrupted 0.3.9 stays reserved and 0.3.11 is next.
+- Thirty release-input, version-train, selector, promotion and ledger tests
+  pass. Database compatibility, enforced Stable companion compatibility and
+  the existing delivery ledger pass.
+- Captured host and client roles from exact source `11e10680` using its own
+  generated schema, runtime defaults and bundled client decoder. Delivery
+  entries remain pending actual publication.
+- Exact-main CI 43941905640 is still running. This local documentation and
+  capture work is held off main until the selector pins its source, avoiding
+  cancellation of that full run.
