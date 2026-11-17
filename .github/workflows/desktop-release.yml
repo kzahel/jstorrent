@@ -608,12 +608,16 @@ jobs:
             $torrentCommand = Get-Item "Registry::HKEY_CURRENT_USER\Software\Classes\$fileClass\shell\open\command"
             $magnet = Get-Item 'Registry::HKEY_CURRENT_USER\Software\Classes\magnet'
             $magnetCommand = Get-Item 'Registry::HKEY_CURRENT_USER\Software\Classes\magnet\shell\open\command'
+            $jstorrent = if ($env:PACKAGE_PRODUCT -eq 'JSTorrent') { Get-Item 'Registry::HKEY_CURRENT_USER\Software\Classes\jstorrent' }
+            $jstorrentCommand = if ($env:PACKAGE_PRODUCT -eq 'JSTorrent') { Get-Item 'Registry::HKEY_CURRENT_USER\Software\Classes\jstorrent\shell\open\command' }
             @{
               executable = $executable
               torrentProgId = $torrentExtension.GetValue('')
               torrentCommand = $torrentCommand.GetValue('')
               magnetUrlProtocol = $magnet.GetValue('URL Protocol')
               magnetCommand = $magnetCommand.GetValue('')
+              jstorrentUrlProtocol = if ($jstorrent) { $jstorrent.GetValue('URL Protocol') } else { $null }
+              jstorrentCommand = if ($jstorrentCommand) { $jstorrentCommand.GetValue('') } else { $null }
             } | ConvertTo-Json | Set-Content -LiteralPath "$env:RUNNER_TEMP\rstorrent-registry.json"
             python scripts/inspect-distribution.py --root $installDirectory --output artifacts/distribution/windows.json
             if ($LASTEXITCODE -ne 0) {

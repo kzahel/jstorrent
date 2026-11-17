@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [398 — Desktop handler release](398-desktop-handler-release.md):
+  preparing Windows VM qualification and a signed desktop release including
+  native legacy launch intake, owned installer aliases and website recovery.
+
 - [397 — Desktop maintenance release](397-desktop-maintenance-release.md):
   0.3.11 public on Stable/Latest with signed source/runtime qualification,
   complete sources, ten verified updater offers and canonical website links;
