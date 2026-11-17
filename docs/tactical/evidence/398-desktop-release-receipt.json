@@ -2,7 +2,7 @@
   "schema": "jstorrent-desktop-release/v1",
   "version": "0.3.12",
   "sourceSha": "2feb7d1a74e3b7353408a8a9ece67eff7770b704",
-  "status": "latest_public_stable_pending",
+  "status": "complete",
   "preflight": {
     "sourceSha": "747153335a1a0c5c7020793f14b9886c2029bcf6",
     "candidateVersion": "0.3.60012",
@@ -81,7 +81,11 @@
       "pageErrors": 0
     },
     "postLatestCompatibilityTests": 74,
-    "postLatestPolicyLedgerTests": 14
+    "postLatestPolicyLedgerTests": 14,
+    "postStablePolicyLedgerTests": 14,
+    "postStableCompatibilityTests": 74,
+    "stableCompatibilityGuard": "passed",
+    "deliveryLedger": "33 deliveries; all required captures present"
   },
   "publicationAuthorized": "Maintainer requested Windows VM verification followed by desktop release including the handler changes on 2026-11-17.",
   "sourceCi": {
@@ -354,5 +358,261 @@
     "ownedStagingRemoved": true,
     "ownedTaskRemoved": true,
     "publicInstallerHashBound": true
+  },
+  "stable": {
+    "tag": "desktop-v0.3.12",
+    "runId": 44071103732,
+    "conclusion": "success",
+    "url": "https://github.com/kzahel/jstorrent/actions/runs/44071103732",
+    "publishedAt": "2026-11-17T11:10:54Z",
+    "unchangedNativeSourceAssets": 15,
+    "publicVerification": {
+      "tag": "desktop-v0.3.12",
+      "sourceSha": "2feb7d1a74e3b7353408a8a9ece67eff7770b704",
+      "releaseId": 448516892,
+      "publishedAt": "2026-11-17T11:10:54Z",
+      "assetCount": 17,
+      "assets": [
+        {
+          "name": "JSTorrent_0.3.12_aarch64.AppImage",
+          "size": 101116424,
+          "digest": "sha256:1117cbdc410c5996c05cdb1203d6baead5de9d01ecc49ae64783f326f641dc41"
+        },
+        {
+          "name": "JSTorrent_0.3.12_aarch64.AppImage.sig",
+          "size": 424,
+          "digest": "sha256:51485f523c3c6e7a712ff6c336e9cbe6e8f93ee8096f42b3824020e46c6ba644"
+        },
+        {
+          "name": "JSTorrent_0.3.12_aarch64.dmg",
+          "size": 20899866,
+          "digest": "sha256:04e5993f868a86a8fb43ccae26f65fcd9ad9601bce1e894132860d33f3225b74"
+        },
+        {
+          "name": "JSTorrent_0.3.12_amd64.AppImage",
+          "size": 102914552,
+          "digest": "sha256:a22d8a9b411390967bce0ae649cd5d5c7cba5f0bce224d3832446a41a50f8143"
+        },
+        {
+          "name": "JSTorrent_0.3.12_amd64.AppImage.sig",
+          "size": 424,
+          "digest": "sha256:2dd22d49af09deac4e277fe90a51ce7edcf648636a39b20d30a709ccaf25e2ad"
+        },
+        {
+          "name": "JSTorrent_0.3.12_AppImage-sources-final.tar.gz",
+          "size": 1401263967,
+          "digest": "sha256:8542c2ddc8c41fb09448d8799bafd834281e1ad253cfbc3fb4b8a02993508808"
+        },
+        {
+          "name": "JSTorrent_0.3.12_x64-setup.exe",
+          "size": 16162016,
+          "digest": "sha256:6a65b343982615a6eb40d5b74f61b72aeff5c4354534f9055634fc9e2685dafe"
+        },
+        {
+          "name": "JSTorrent_0.3.12_x64-setup.exe.sig",
+          "size": 420,
+          "digest": "sha256:bb687066d0d9be5824e2c336fc8d16ae6e25219904b9551abee4df01bac32a94"
+        },
+        {
+          "name": "JSTorrent_0.3.12_x64.dmg",
+          "size": 22669452,
+          "digest": "sha256:0e214d6ebb502e4736188a6290808b5f8ed83cae6ea629f06e2a97aa1c51ac20"
+        },
+        {
+          "name": "JSTorrent_0.3.12_x64_en-US.msi",
+          "size": 22691840,
+          "digest": "sha256:8a1e5384943ba2fce17c441fccc1b7a3999dbe1a78055343249e5d1c3f38b04e"
+        },
+        {
+          "name": "JSTorrent_0.3.12_x64_en-US.msi.sig",
+          "size": 420,
+          "digest": "sha256:9454f9d2257e1fac5dae3cf4fe088b8afd8ce42cb9238e01063ca7d4c0404fc1"
+        },
+        {
+          "name": "JSTorrent_aarch64.app.tar.gz",
+          "size": 21547209,
+          "digest": "sha256:6070dee7e2902a73510564f3360531e0bf106c5739959c50344e6c41331b2769"
+        },
+        {
+          "name": "JSTorrent_aarch64.app.tar.gz.sig",
+          "size": 408,
+          "digest": "sha256:826e892cb8d427f12f06a90f7e7408c7d91f6ace13807492fde2df48a9e11017"
+        },
+        {
+          "name": "JSTorrent_x64.app.tar.gz",
+          "size": 23109613,
+          "digest": "sha256:7b4773c6d04ef326b853036e38084adcbd5be70329172ca6ac2aa28e7399bfa3"
+        },
+        {
+          "name": "JSTorrent_x64.app.tar.gz.sig",
+          "size": 408,
+          "digest": "sha256:b2f15241573866e2bcba0d5fce3624ca9aabf6de3649a019a144fd86601630e7"
+        },
+        {
+          "name": "latest.json",
+          "size": 16572,
+          "digest": "sha256:8737df35658489a7e0d8b431bdfac6945da9121face7ce13a521e3b608564581"
+        },
+        {
+          "name": "SHA256SUMS",
+          "size": 955,
+          "digest": "sha256:8fa05651b03f7053a0c564fdff8d400c755bf701984a5a6c48758cef76212af0"
+        }
+      ],
+      "fullHashesVerified": true,
+      "payloadSignaturesVerified": 6,
+      "originalRoot": true,
+      "signedDatabaseFactsVerified": true,
+      "selectorsVerified": 11,
+      "unauthenticatedPrefixProbes": 17
+    }
+  },
+  "liveUpdater": {
+    "offers": 10,
+    "currentVersionChecks": 10,
+    "results": [
+      {
+        "channel": "latest",
+        "target": "darwin",
+        "arch": "aarch64",
+        "from": "0.3.11",
+        "to": "0.3.12",
+        "offerVerified": true,
+        "currentVersionNoUpdate": true
+      },
+      {
+        "channel": "latest",
+        "target": "darwin",
+        "arch": "x86_64",
+        "from": "0.3.11",
+        "to": "0.3.12",
+        "offerVerified": true,
+        "currentVersionNoUpdate": true
+      },
+      {
+        "channel": "latest",
+        "target": "windows",
+        "arch": "x86_64",
+        "from": "0.3.11",
+        "to": "0.3.12",
+        "offerVerified": true,
+        "currentVersionNoUpdate": true
+      },
+      {
+        "channel": "latest",
+        "target": "linux",
+        "arch": "x86_64",
+        "from": "0.3.11",
+        "to": "0.3.12",
+        "offerVerified": true,
+        "currentVersionNoUpdate": true
+      },
+      {
+        "channel": "latest",
+        "target": "linux",
+        "arch": "aarch64",
+        "from": "0.3.11",
+        "to": "0.3.12",
+        "offerVerified": true,
+        "currentVersionNoUpdate": true
+      },
+      {
+        "channel": "stable",
+        "target": "darwin",
+        "arch": "aarch64",
+        "from": "0.3.11",
+        "to": "0.3.12",
+        "offerVerified": true,
+        "currentVersionNoUpdate": true
+      },
+      {
+        "channel": "stable",
+        "target": "darwin",
+        "arch": "x86_64",
+        "from": "0.3.11",
+        "to": "0.3.12",
+        "offerVerified": true,
+        "currentVersionNoUpdate": true
+      },
+      {
+        "channel": "stable",
+        "target": "windows",
+        "arch": "x86_64",
+        "from": "0.3.11",
+        "to": "0.3.12",
+        "offerVerified": true,
+        "currentVersionNoUpdate": true
+      },
+      {
+        "channel": "stable",
+        "target": "linux",
+        "arch": "x86_64",
+        "from": "0.3.11",
+        "to": "0.3.12",
+        "offerVerified": true,
+        "currentVersionNoUpdate": true
+      },
+      {
+        "channel": "stable",
+        "target": "linux",
+        "arch": "aarch64",
+        "from": "0.3.11",
+        "to": "0.3.12",
+        "offerVerified": true,
+        "currentVersionNoUpdate": true
+      }
+    ]
+  },
+  "website": {
+    "url": "https://jstorrent.com/",
+    "version": "0.3.12",
+    "sourceProvenance": {
+      "sourceRepository": "kzahel/jstorrent",
+      "sourceSha": "43faf7b586c843458d83a2df525fd3ac0873fd55",
+      "desktopVersion": "0.3.12"
+    },
+    "downloadNames": [
+      "JSTorrent_0.3.12_x64-setup.exe",
+      "JSTorrent_0.3.12_aarch64.dmg",
+      "JSTorrent_0.3.12_x64.dmg",
+      "JSTorrent_0.3.12_amd64.AppImage",
+      "JSTorrent_0.3.12_aarch64.AppImage",
+      "JSTorrent_0.3.12_AppImage-sources-final.tar.gz"
+    ],
+    "advertisedNativeDownloadCount": 5,
+    "sourceDownloadPresent": true,
+    "allAdvertisedLinksPresent": true,
+    "inventoryMatchesPublicDigests": true,
+    "nativeAdapterPages": [
+      "/add/",
+      "/launch/",
+      "/magnet/",
+      "/magnet/setup/",
+      "/magnet/test/",
+      "/launch-test/",
+      "/testmagnet/"
+    ],
+    "nativeEscapeManualCopyCleanupPresent": true,
+    "sharePagePresent": true,
+    "historicalForwarders": [
+      "/launch",
+      "/magnet/setup",
+      "/magnet/test",
+      "/launch-test",
+      "/testmagnet"
+    ],
+    "forwarderSearchFragmentAndCspVerified": true,
+    "promotionRunId": 44071941066,
+    "promotionConclusion": "success",
+    "deploymentRunId": 44072211181,
+    "deploymentConclusion": "success",
+    "promotionCommit": "43faf7b586c843458d83a2df525fd3ac0873fd55"
+  },
+  "cleanup": {
+    "ownedInvestigationArtifactsRemoved": true,
+    "windowsFixtureAndStagingRestoredAndRemoved": true,
+    "windowsClaimReleased": true,
+    "windowsReturnedToInitialOffState": true,
+    "managedMachineControlJournalRetained": true
   }
 }

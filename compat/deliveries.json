@@ -471,9 +471,9 @@
     {
       "surface": "desktop",
       "version": "0.3.12",
-      "tag": "desktop-latest-v0.3.12",
+      "tag": "desktop-v0.3.12",
       "commit": "2feb7d1a74e3b7353408a8a9ece67eff7770b704",
-      "channel": "latest",
+      "channel": "stable",
       "status": "published",
       "submitted": "2026-11-17",
       "firstPublic": "2026-11-17",
@@ -481,8 +481,8 @@
         "host",
         "client"
       ],
-      "channelBasis": "Latest run 44052595535 attempt 2 passes all five signed native lanes and release source checks at exact source 2feb7d1a. A pinned-source HTTP 502 leaves its collector failed; maintained same-source local completion preserves all native assets and signed metadata, completes the source carrier and passes complete-draft gates. The exact public NSIS passes owned Windows VM qualification before Stable promotion.",
-      "firstPublicBasis": "Public Latest desktop-latest-v0.3.12 published at 2026-11-17T11:04:56Z. All seventeen complete cached sizes/hashes match public immutable digests; six retained-root signatures, signed database facts, eleven selectors and seventeen unauthenticated first-1024-byte probes verify. The public NSIS hash equals the installed Windows acceptance artifact."
+      "channelBasis": "Stable promotion 44071103732 copies the qualified public Latest 0.3.12 capsule from exact source 2feb7d1a without rebuilding. Fifteen native/source assets retain identical hashes; only URL-bound authenticated updater metadata and checksums change. Full source CI 44045370118 and all five signed attempt-2 lanes/source checks in 44052595535 pass. The collector HTTP 502 remains a failed workflow; maintained same-source local completion passes complete-source and final-draft gates. The exact public NSIS passes owned Windows VM qualification, including preserved torrent identities/privacy and complete restoration.",
+      "firstPublicBasis": "Public Latest desktop-latest-v0.3.12 first published at 2026-11-17T11:04:56Z; Stable desktop-v0.3.12 published at 2026-11-17T11:10:54Z. All seventeen full cached asset sizes/hashes match each channel's public immutable digests; six retained-root signatures, signed database facts, eleven selectors and seventeen unauthenticated prefix probes verify per channel. All ten updater offers and ten current-version no-update responses pass. Website promotion 44071941066 and deployment 44072211181 serve the five native downloads, complete source link, native recovery adapters and exact public source provenance."
     }
   ]
 }

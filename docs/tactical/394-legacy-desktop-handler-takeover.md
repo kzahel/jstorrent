@@ -1,9 +1,12 @@
 # 394 — Take over legacy desktop launch handlers
 
-Status: implemented locally on rex, 2026-11-16; installed legacy file/magnet
-class targets repaired with rollback evidence. Native protocol and website
-source fixes are not published. Qualification and remaining release/cohort
-gaps are recorded below; the original source audit follows as background.
+Status: source fixes published in desktop 0.3.12, 2026-11-17. Tactical
+[398](398-desktop-handler-release.md) records Stable/Latest and canonical
+website delivery plus the exact signed Windows VM's native launch,
+registration, reinstall/uninstall, data/privacy and restoration evidence.
+This qualifies the bounded synthetic legacy cohort, not every historical
+installer in the matrix below. Rex's original selected-class repair retains
+its rollback evidence; the original source audit follows as background.
 
 ## Rex diagnosis and local repair (2026-11-16)
 

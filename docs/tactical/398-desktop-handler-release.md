@@ -1,11 +1,13 @@
 # 398 — Desktop handler release
 
-Status: Latest 0.3.12 public; Stable promotion pending, 2026-11-17. Maintainer authorizes Windows VM verification
-followed by desktop publication including Tactical 394's handler fixes.
+Status: complete, 2026-11-17. Desktop 0.3.12 is public on Stable and Latest
+with canonical website delivery. The exact signed Windows artifact passes
+owned-VM qualification and full restoration. Broader historical installer
+cohorts remain explicitly unqualified.
 
 ## Scope and invariants
 
-Qualify current main `747153335a1a0c5c7020793f14b9886c2029bcf6` in an owned
+Qualify handler source `747153335a1a0c5c7020793f14b9886c2029bcf6` in an owned
 Machine Control Windows VM before public release. Exercise native
 `jstorrent://launch` and magnet intake, cold and warm delivery, bare launch,
 duplicate/batched input, invalid/local-path refusal and the shipped installer
@@ -243,3 +245,62 @@ signed database facts and eleven selectors verify. All seventeen public
 unauthenticated prefix probes match. The public NSIS digest equals the exact
 VM-tested installer. The delivery ledger records its actual first-public
 date and both exact host/client captures; Stable and website remain pending.
+
+## Stable and canonical website complete
+
+Stable promotion [44071103732](https://github.com/kzahel/jstorrent/actions/runs/44071103732)
+succeeds and publishes `desktop-v0.3.12` at 2026-11-17T11:10:54Z, retaining
+exact source `2feb7d1a`. All fifteen native/source assets match Latest byte
+for byte; only URL-bound authenticated metadata and checksums change. Both
+channels independently pass all seventeen complete cached asset hashes/sizes,
+six original-root signatures, signed database facts, eleven selectors and
+seventeen public prefix probes. All ten target/channel offers from 0.3.11
+return 0.3.12; all ten current-version requests return HTTP 204.
+
+Website promotion [44071941066](https://github.com/kzahel/jstorrent/actions/runs/44071941066)
+verifies public Stable bytes/signatures and commits `43faf7b5`. Deployment
+[44072211181](https://github.com/kzahel/jstorrent/actions/runs/44072211181)
+passes website tests, checking, build, assembly and deployment. The live
+canonical site reports that exact commit and desktop 0.3.12. Its five native
+downloads and source link match the public inventory. Seven native adapters
+provide explicit protocol escape, manual Copy and scoped cleanup; the share
+page is present. Five historical forwarding pages preserve search/fragment
+and their inline scripts match live CSP hashes. Their forwarding HTML is
+distinct from the canonical trailing-slash adapter page. Python's HTTP client
+initially receives 403; standard curl successfully verifies the live site.
+
+The ledger now records Stable delivery while preserving the November 17
+first-public date from Latest. Both host and client captures remain bound to
+exact `2feb7d1a`; no application contract, database migration, capability or
+compatibility-window change is introduced. Android and the hosted controller
+are outside this desktop publication.
+
+## Validation record
+
+Local commands include `cargo fmt --all -- --check`,
+`cargo test -p rstorrent-desktop --lib` (95 passed), and
+`npm run typecheck --prefix clients/web`. The release selector/input/ledger
+suite passes 30 tests, packaging/handoff 46, website 101 and the updated
+Windows package validator nine. Supported Node 24 builds the website and
+passes assembled security policy. Separate headless Chrome for Testing
+checks nine routes, query alias, three hostile inputs, manual recovery,
+scoped handler cleanup and shared-link escaping, with no page errors and
+process cleanup. Full Rust/web/mobile and platform checks are supplied by
+green exact-source push CI 44045370118, not claimed as local full-workspace
+execution. The signed attempt-2 native lanes and release source checks all
+pass; both original failed publication attempts remain recorded accurately.
+
+After recording public Latest, these exact checks pass:
+
+```bash
+node --test scripts/compat-ledger.test.mjs scripts/compat-window.test.mjs scripts/check-release-compatibility.test.mjs
+npm run test --prefix clients/web -- src/api/contract-compatibility.test.ts src/released-hosts.test.ts
+node scripts/compat-ledger.mjs --release desktop-v0.3.12
+```
+
+The first command passes 14 tests and the second 74, both before and after
+recording Stable. The delivery ledger validates all 33 entries and captures;
+the enforced Stable guard reports no output a supported client rejects.
+Final results and all public asset digests are in [the receipt](evidence/398-desktop-release-receipt.json).
+Installed VM assertions, source-carrier integrity/offline metadata and
+maintained complete-draft validators establish their separate properties.

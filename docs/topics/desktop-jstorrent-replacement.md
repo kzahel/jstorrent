@@ -1,5 +1,19 @@
 # Desktop JSTorrent Replacement
 
+Tactical [398](../tactical/398-desktop-handler-release.md) publishes desktop
+0.3.12 on Stable and Latest from exact source `2feb7d1a`, including Tactical
+394's native `jstorrent://launch`, owned legacy aliases and website recovery.
+The exact signed x64 installer passes cold/warm/bare/background OS launch,
+legacy class dispatch, duplicates/batches and local-path refusal on an owned
+Windows 11 ARM64 VM. Four graceful Quit cycles and fourteen visible main-window
+observations pass. Actual reinstall/uninstall preserve foreign targets and
+all seven fixture identities, schemas and statistics opt-out; original state
+is hash-verified, staging removed, guest off and claim released. Broader
+historical installer cohorts remain open. All public assets/signatures,
+signed database facts, updater offers and canonical website links verify.
+The collector's pinned-source HTTP 502 remains a failed workflow; maintained
+same-source completion preserves the native capsule and passes final gates.
+
 Tactical [397](../tactical/397-desktop-maintenance-release.md) publishes
 desktop 0.3.11 on Stable and Latest from qualified source `11e10680`: storage
 recovery and dependency/compatibility maintenance. All five signed builds,
@@ -18,10 +32,10 @@ those selected legacy classes at the installed current executable; user
 choices, native-host refusal fence, profiles and user data are untouched.
 Source restores bounded `jstorrent://launch` intake, installer ownership
 adoption and website native escape/manual recovery, removing unsupported
-website messaging and new browser-handler registration. No fix is published.
-The installed 0.3.10 custom-protocol target remains broken until a corrected
-binary is installed. Synthetic hook tests do not qualify every historical
-installer cohort; platform/release evidence gaps remain explicit in 394.
+website messaging and new browser-handler registration. These source fixes
+are now published through Tactical 398. Older 0.3.10 custom-protocol targets
+remain broken until the corrected 0.3.12 binary is installed. Synthetic hook
+tests do not qualify every historical installer cohort; platform/release evidence gaps remain explicit in 394.
 
 Tactical [336](../tactical/336-production-desktop-extension-control.md) fixes
 the beta-only native start/attach guard retained by desktop 0.3.0 and 0.3.1.

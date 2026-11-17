@@ -1,5 +1,16 @@
 # Mixed-Version Compatibility
 
+Tactical [398](../tactical/398-desktop-handler-release.md) delivers desktop
+0.3.12 on Stable and Latest at exact source `2feb7d1a`, captured as both host
+and bundled client. The ledger preserves its first public delivery on
+November 17 through unchanged-native Stable promotion. Both channels verify
+original-root signed database facts and all ten updater offers; current
+0.3.12 requests return no update. Native launch/installer and website recovery
+add no application contract, capability, schema migration, accepted exposure
+or support-window exception. The existing extension 1.1.5+ requirement and
+earlier desktop tolerance classification remain. Missing/older desktop
+installs retain manual recovery on the independent website.
+
 Tactical [397](../tactical/397-desktop-maintenance-release.md) records the
 first desktop delivery captured as both host and bundled client. Stable and
 Latest 0.3.11 are public at exact source `11e10680`; both roles, actual

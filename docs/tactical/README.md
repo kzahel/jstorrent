@@ -1,8 +1,9 @@
 # Implementation Tactical Docs
 
 - [398 — Desktop handler release](398-desktop-handler-release.md):
-  preparing Windows VM qualification and a signed desktop release including
-  native legacy launch intake, owned installer aliases and website recovery.
+  0.3.12 public on Stable/Latest and canonical website after exact signed
+  Windows VM native-launch/installer qualification, preserved data/privacy,
+  full restoration, complete sources and public updater/signature checks.
 
 - [397 — Desktop maintenance release](397-desktop-maintenance-release.md):
   0.3.11 public on Stable/Latest with signed source/runtime qualification,
@@ -18,9 +19,9 @@
   retired compatibility fallbacks, scoped crypto evidence and download retries.
 
 - [394 — Legacy desktop handler takeover](394-legacy-desktop-handler-takeover.md):
-  implemented locally; rex's selected legacy classes repaired reversibly,
-  native `jstorrent:` and batched launch intake tested, owned installer aliases
-  and website recovery added. Publication and historical cohort gates remain.
+  source fixes published in desktop 0.3.12 under Tactical 398; rex's selected
+  legacy classes repaired reversibly, owned aliases and native/website recovery
+  qualified in the signed Windows VM. Broader historical cohort gates remain.
 
 - [393 — Remote browser recovery](393-remote-browser-recovery.md):
   implemented; retain browser authorization, reconnect in place and detect
