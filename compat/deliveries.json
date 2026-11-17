@@ -474,13 +474,15 @@
       "tag": "desktop-latest-v0.3.12",
       "commit": "2feb7d1a74e3b7353408a8a9ece67eff7770b704",
       "channel": "latest",
-      "status": "submitted",
+      "status": "published",
       "submitted": "2026-11-17",
-      "firstPublic": null,
+      "firstPublic": "2026-11-17",
       "roles": [
         "host",
         "client"
-      ]
+      ],
+      "channelBasis": "Latest run 44052595535 attempt 2 passes all five signed native lanes and release source checks at exact source 2feb7d1a. A pinned-source HTTP 502 leaves its collector failed; maintained same-source local completion preserves all native assets and signed metadata, completes the source carrier and passes complete-draft gates. The exact public NSIS passes owned Windows VM qualification before Stable promotion.",
+      "firstPublicBasis": "Public Latest desktop-latest-v0.3.12 published at 2026-11-17T11:04:56Z. All seventeen complete cached sizes/hashes match public immutable digests; six retained-root signatures, signed database facts, eleven selectors and seventeen unauthenticated first-1024-byte probes verify. The public NSIS hash equals the installed Windows acceptance artifact."
     }
   ]
 }

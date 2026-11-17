@@ -1,6 +1,6 @@
 # 398 — Desktop handler release
 
-Status: preparing, 2026-11-17. Maintainer authorizes Windows VM verification
+Status: Latest 0.3.12 public; Stable promotion pending, 2026-11-17. Maintainer authorizes Windows VM verification
 followed by desktop publication including Tactical 394's handler fixes.
 
 ## Scope and invariants
@@ -164,3 +164,82 @@ checks and all five signed lanes remain in progress.
 The exact-source host/client captures are generated, and the ledger records
 submission with no first-public date. No public delivery or Stable promotion
 is claimed before the maintained publication and installed-artifact gates.
+
+## Native-source transport recovery
+
+Publication attempt 1's Linux ARM64 lane stops while fetching pinned native
+source archives: the existing two bounded transport retries also receive
+HTTP 502. No pin/hash mismatch or application-test failure is reported.
+The x86_64 Linux lane obtains and verifies the same source pins successfully.
+The remaining signed lanes are allowed to finish their independent checks and
+save successful caches; the incomplete capsule cannot publish.
+
+Recovery re-runs the shared release-source job and all five dependent native
+lanes plus the collector, keeping exact source `2feb7d1a`, selected version
+0.3.12 and the independent successful signing-root probe. GitHub documents
+that a [specific-job rerun also reruns its dependent jobs](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs).
+Re-running only the failed architecture would violate the collector's
+same-attempt inventory. The original failed attempt and diagnostic material
+remain recorded; no input pin, validation gate or public package is changed.
+
+## Same-source collector completion
+
+Attempt 2 passes release source checks and all five signed native lanes. Its
+collector uploads the unchanged core capsule to private draft 448474713, then
+stops at an HTTP 502 while fetching an already pinned native source archive.
+No source/pin mismatch is reported and no public release is created. Follow
+the maintained same-source completion procedure in Tacticals 389 and 397:
+verify all five original attempt-2 legs, preserve every native asset and the
+original authenticated updater manifest, complete corresponding sources with
+unchanged reviewed pins, and repeat the complete private-draft gates locally.
+The failed workflow remains a failure; recovery has its own evidence.
+
+All fourteen native assets independently match the private draft's immutable
+digests. Six retained-root signatures, original signed database facts and all
+eleven selectors verify. The exact Windows installer and installed executable
+have valid Kyle Graehl Authenticode signatures; actual registrations and the
+updated production capture/validator pass in the claimed VM. Its new native
+window probe initially overcounts auxiliary Win32 windows. A native capture
+shows the expected Add dialog; the probe is corrected to require the owned,
+titled, captioned main window with positive bounds. Full runtime acceptance
+and source-offer completion remain in progress.
+
+## Exact Windows acceptance and restoration
+
+The exact attempt-2 0.3.12 NSIS has SHA-256 `6a65b343982615a6eb40d5b74f61b72aeff5c4354534f9055634fc9e2685dafe`. Its installed native API reports version 0.3.12, build ID `2feb7d1a` (full source SHA), target `x86_64-pc-windows-msvc` and x86_64 architecture. Windows 11 ARM64 executes the x64 package under emulation; this is not physical x64 hardware qualification.
+
+Cold/warm OS `jstorrent:` delivery, bare launch, explicit owned legacy file
+and magnet class dispatch, Unicode torrent path, duplicates, two distinct
+items, background-owner activation and local-path refusal all pass. Four
+ordinary application-shutdown cycles terminate owned processes. Fourteen
+native observations each find one visible, unminimized main window owned by
+the exact installed executable, foregrounded. Intake assertions separately
+require the expected Add dialog; bare launch has no pending intake.
+The auxiliary windows are the 16x16 singleton and Tao event-loop targets;
+counting every visible Win32 handle was a harness error. No pending Add is
+confirmed and no payload/public swarm runs.
+
+The final installer also passes actual reinstall preserving foreign generic
+file/magnet fallbacks and actual conditional uninstall preserving foreign
+legacy targets and advertisement. All seven fixture identities, schema
+versions and statistics opt-out survive. All 56 registry scopes, both
+advertisements and four file scopes restore; file hashes match. The task
+and marked staging are removed, no app process remains, normal shutdown
+returns the initially stopped guest to Off, and its claim is released.
+
+The maintained source packager completes with unchanged reviewed pins, 781
+locked Cargo packages and empty-Cargo-home offline metadata for both Linux
+targets. Its 1,401,263,967-byte carrier has SHA-256
+`8542c2ddc8c41fb09448d8799bafd834281e1ad253cfbc3fb4b8a02993508808`.
+The private draft remains unpublished while that source asset uploads.
+
+## Latest public
+
+The unchanged seventeen-asset private draft passes both maintained complete
+production-draft and release validators. Latest 0.3.12 publishes at
+2026-11-17T11:04:56Z from exact `2feb7d1a`. All complete cached bytes match
+the public immutable size/digest inventory; six retained-root signatures,
+signed database facts and eleven selectors verify. All seventeen public
+unauthenticated prefix probes match. The public NSIS digest equals the exact
+VM-tested installer. The delivery ledger records its actual first-public
+date and both exact host/client captures; Stable and website remain pending.
