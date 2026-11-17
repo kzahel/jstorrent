@@ -34,7 +34,9 @@
       "status": "published",
       "submitted": "2026-10-10",
       "firstPublic": "2026-10-10",
-      "roles": ["host"]
+      "roles": [
+        "host"
+      ]
     },
     {
       "surface": "android",
@@ -45,7 +47,9 @@
       "status": "published",
       "submitted": "2026-10-10",
       "firstPublic": "2026-10-10",
-      "roles": ["host"]
+      "roles": [
+        "host"
+      ]
     },
     {
       "surface": "extension",
@@ -56,7 +60,9 @@
       "status": "published",
       "submitted": "2026-10-10",
       "firstPublic": "2026-10-11",
-      "roles": ["client"]
+      "roles": [
+        "client"
+      ]
     },
     {
       "surface": "android",
@@ -67,7 +73,9 @@
       "status": "submitted",
       "submitted": "2026-10-12",
       "firstPublic": null,
-      "roles": ["host"]
+      "roles": [
+        "host"
+      ]
     },
     {
       "surface": "desktop",
@@ -78,7 +86,9 @@
       "status": "published",
       "submitted": "2026-10-13",
       "firstPublic": "2026-10-13",
-      "roles": ["host"]
+      "roles": [
+        "host"
+      ]
     },
     {
       "surface": "android",
@@ -89,7 +99,9 @@
       "status": "published",
       "submitted": "2026-10-13",
       "firstPublic": "2026-10-13",
-      "roles": ["host"]
+      "roles": [
+        "host"
+      ]
     },
     {
       "surface": "extension",
@@ -100,7 +112,9 @@
       "submitted": "2026-10-13",
       "firstPublic": "2026-10-15",
       "firstPublicBasis": "Latest possible date: the store API reported it published on 2026-10-15; the actual date is unknown.",
-      "roles": ["client"]
+      "roles": [
+        "client"
+      ]
     },
     {
       "surface": "android",
@@ -112,7 +126,9 @@
       "submitted": "2026-10-13",
       "firstPublic": "2026-10-13",
       "firstPublicBasis": "Play Console inspection on 2026-10-20 confirms production 31 active, with last publication on 2026-10-13.",
-      "roles": ["host"]
+      "roles": [
+        "host"
+      ]
     },
     {
       "surface": "extension",
@@ -124,7 +140,9 @@
       "submitted": "2026-10-15",
       "firstPublic": "2026-10-15",
       "firstPublicBasis": "Maintainer report that the store update went live on 2026-10-15.",
-      "roles": ["client"]
+      "roles": [
+        "client"
+      ]
     },
     {
       "surface": "remote",
@@ -134,7 +152,9 @@
       "status": "published",
       "submitted": "2026-10-16",
       "firstPublic": "2026-10-16",
-      "roles": ["client"]
+      "roles": [
+        "client"
+      ]
     },
     {
       "surface": "remote",
@@ -145,7 +165,9 @@
       "status": "published",
       "submitted": "2026-10-16",
       "firstPublic": "2026-10-16",
-      "roles": ["client"]
+      "roles": [
+        "client"
+      ]
     },
     {
       "surface": "extension",
@@ -157,7 +179,9 @@
       "submitted": "2026-10-20",
       "firstPublic": "2026-10-21",
       "firstPublicBasis": "Latest possible date: public store listing verified on 2026-10-21 shows 1.1.6, updated 2026-10-20; the exact first-public time is unconfirmed.",
-      "roles": ["client"]
+      "roles": [
+        "client"
+      ]
     },
     {
       "surface": "remote",
@@ -192,12 +216,14 @@
       "tag": "android-v1.0.33",
       "commit": "f2c93a45715e3f7801f3e62fd1ebf938748a497b",
       "channel": "play-production",
-      "channelBasis": "Released to internal testing on 2026-10-25, then the same bundle (SHA-256 d7916d95…c903e) was submitted to production as a 50% staged rollout through android-play-publish.yml run 40194717239.",
+      "channelBasis": "Released to internal testing on 2026-10-25, then the same bundle (SHA-256 d7916d95\u2026c903e) was submitted to production as a 50% staged rollout through android-play-publish.yml run 40194717239.",
       "status": "published",
       "submitted": "2026-10-25",
       "firstPublic": "2026-10-25",
       "firstPublicBasis": "Play Console shows production 1.0.33 Available on Google Play, staged rollout at 50%, updated October 25 at 14:02 Europe/Berlin; 1.0.32 remains the full-rollout release for other users. Read-only Play API and Console inspection on 2026-10-29 confirm code 33 completed, Available on Google Play, Full rollout across all 178 countries; Console shows full-rollout update October 27 at 21:44 Europe/Berlin.",
-      "roles": ["host"]
+      "roles": [
+        "host"
+      ]
     },
     {
       "surface": "desktop",
@@ -209,7 +235,9 @@
       "submitted": "2026-10-22",
       "firstPublic": "2026-10-22",
       "firstPublicBasis": "Public Stable desktop-v0.3.4 published at 2026-10-22T17:32:04Z. All 17 unauthenticated public downloads, original updater signatures, signed database facts and all five Stable updater selectors independently verified on 2026-10-22.",
-      "roles": ["host"]
+      "roles": [
+        "host"
+      ]
     },
     {
       "surface": "extension",
@@ -335,7 +363,9 @@
       "submitted": "2026-11-08",
       "firstPublic": null,
       "channelBasis": "Tagged release workflow 42473497821 passes package checks and the live compatibility matrix, uploads ZIP SHA-256 15050d78e6e4e706ad0d120e5ddd88692865700448f805199bfd1c0d1cd67193 and receives PENDING_REVIEW. The store reports 1.1.9 as the published version at the submission checkpoint. Exact client capture retained.",
-      "roles": ["client"]
+      "roles": [
+        "client"
+      ]
     },
     {
       "surface": "android",
@@ -347,7 +377,9 @@
       "submitted": "2026-11-08",
       "firstPublic": null,
       "channelBasis": "Tag build 42473509464 stopped at the delivery-ledger gate before signing because extension-v1.1.10 was pushed without a ledger entry first. No artifact was built or uploaded to Play. 1.0.37 supersedes it with the same app source (Tactical 392).",
-      "roles": ["host"]
+      "roles": [
+        "host"
+      ]
     },
     {
       "surface": "android",
@@ -359,7 +391,9 @@
       "submitted": "2026-11-08",
       "firstPublic": null,
       "channelBasis": "Tag build 42476812128 signs code 37 at this exact source, superseding withdrawn 1.0.36 with the same app source. Internal publication 42483458332 and production staged rollout 42491366778 (1%, standard-7d) promote the same AAB, SHA-256 9574d39e8acd782d13ef1e713dbfc7708796d07eb0bc9fcba99678743b22f148. Play reports the production edit submitted; Google review and first public availability are not yet confirmed. On 2026-11-08 production rollout 42523962873 superseded this 1% rollout with 1.0.39 before it advanced; devices that received it remain supported.",
-      "roles": ["host"]
+      "roles": [
+        "host"
+      ]
     },
     {
       "surface": "desktop",
@@ -372,7 +406,9 @@
       "firstPublic": "2026-11-08",
       "channelBasis": "Stable promotion 42497004134 succeeded from public Latest 0.3.10 at this exact source, without rebuilding the native/source assets. Full source CI 42487644642 and signed Latest build 42492203367 passed. Supersedes the private 0.3.9 draft, which stopped at the corresponding-source gate.",
       "firstPublicBasis": "Public Stable desktop-v0.3.10 was published at 2026-11-08T15:55:44Z. Reconciled on November 16 against the exact public release API (17 assets, not a draft or prerelease), immutable tag source and successful Stable promotion 42497004134; Tactical 392 records the original inventory and delivery verification.",
-      "roles": ["host"]
+      "roles": [
+        "host"
+      ]
     },
     {
       "surface": "android",
@@ -384,7 +420,9 @@
       "submitted": "2026-11-08",
       "firstPublic": null,
       "channelBasis": "Tag build 42518265455 stopped at the released-companion compatibility gate before signing because android-v1.0.38 had no acceptedBreaks entry for the eight already-shipping field additions. No artifact was built or uploaded to Play. 1.0.39 supersedes it with the same app source (Tactical 391).",
-      "roles": ["host"]
+      "roles": [
+        "host"
+      ]
     },
     {
       "surface": "android",
@@ -396,7 +434,9 @@
       "submitted": "2026-11-08",
       "firstPublic": null,
       "channelBasis": "Tag build 42518622528 signs code 39 at this exact source, superseding withdrawn 1.0.38 with the same app source: the SAF completion race fix and Force recheck repair for quarantined torrents (Tactical 391). Internal publication 42522440539 and production staged rollout 42523962873 (1%, standard-7d, supersede) promote the same AAB, SHA-256 64015eda58521f0525915158005dcdadbedff6a05fc74dc4600693124b828e1c, replacing 1.0.37's unfinished 1% rollout. Play reports the production edit submitted; Google review and first public availability are not yet confirmed.",
-      "roles": ["host"]
+      "roles": [
+        "host"
+      ]
     },
     {
       "surface": "android",
@@ -427,6 +467,20 @@
         "client"
       ],
       "firstPublicBasis": "Public Stable desktop-v0.3.11 published at 2026-11-16T22:45:15Z. Unauthenticated release/tag APIs, all seventeen public first-1024-byte probes, complete cached sizes/hashes against uploaded immutable digests, six retained-root signatures and signed database facts verify on both channels. All ten target/channel offers from 0.3.10 to 0.3.11 verify. Website promotion 43973243041 and deployment 43973441121 serve the five advertised native downloads and source link."
+    },
+    {
+      "surface": "desktop",
+      "version": "0.3.12",
+      "tag": "desktop-latest-v0.3.12",
+      "commit": "2feb7d1a74e3b7353408a8a9ece67eff7770b704",
+      "channel": "latest",
+      "status": "submitted",
+      "submitted": "2026-11-17",
+      "firstPublic": null,
+      "roles": [
+        "host",
+        "client"
+      ]
     }
   ]
 }

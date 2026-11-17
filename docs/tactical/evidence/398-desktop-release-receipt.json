@@ -1,0 +1,99 @@
+{
+  "schema": "jstorrent-desktop-release/v1",
+  "version": "0.3.12",
+  "sourceSha": "2feb7d1a74e3b7353408a8a9ece67eff7770b704",
+  "status": "signed_latest_in_progress",
+  "preflight": {
+    "sourceSha": "747153335a1a0c5c7020793f14b9886c2029bcf6",
+    "candidateVersion": "0.3.60012",
+    "candidateRunId": 44038393213,
+    "candidateConclusion": "failure",
+    "failedGate": "Verify installed Windows activation registry",
+    "cause": "The registry capture omitted jstorrentUrlProtocol and jstorrentCommand required by the updated validator. Actual signed installed registrations are correct.",
+    "workflowCorrectionCommit": "2feb7d1a74e3b7353408a8a9ece67eff7770b704",
+    "retainedUpdaterRootVerified": true,
+    "diagnosticInstaller": {
+      "sha256": "618d52b8d7d6781aaaa61a4194318a8ae887a5c5316a8f399792b01bb448d785",
+      "authenticode": "Valid",
+      "installedExeSha256": "156d1bbebafa9ca08db5bf4924ecd7fbd9d72315ec7fea7e4990891833ba3fb0"
+    },
+    "ownedWindowsVm": {
+      "platform": "Windows 11 ARM64; signed x86_64 application under Windows emulation",
+      "initialPower": "off",
+      "nativeChecks": {
+        "cold": true,
+        "warm": true,
+        "unicodeFile": true,
+        "duplicates": true,
+        "backgroundBareLaunch": true,
+        "backgroundMagnet": true,
+        "pathRefused": true,
+        "installedSchemeTargetVerified": true,
+        "osColdLaunch": true,
+        "osBareLaunch": true,
+        "legacyClassDispatch": true,
+        "distinctBatch": true,
+        "gracefulQuits": 4
+      },
+      "ownedLegacyAliasesAdopted": true,
+      "quotedUnicodeInstallPath": true,
+      "currentCapabilitiesAdvertised": true,
+      "obsoleteAdvertisementRetired": true,
+      "updatedWorkflowCapturePassesValidator": true,
+      "actualReinstallPreservesForeignFallbacks": true,
+      "actualUninstallPreservesForeignTargets": true,
+      "ownedAliasConditionalRemoval": true,
+      "fixture": {
+        "torrents": 7,
+        "catalogVersion": 29,
+        "productVersion": 4,
+        "identitiesPreserved": true,
+        "statisticsOptOutPreserved": true
+      },
+      "preservation": {
+        "registryScopes": 56,
+        "registrationAdvertisements": 2,
+        "profileShortcutFileScopes": 4
+      },
+      "finalRestoration": {
+        "restored": true,
+        "registryScopes": 56,
+        "fileScopes": 4,
+        "fileHashesMatch": true
+      },
+      "historicalInstallerCohortsQualified": false,
+      "finalPower": "off",
+      "claimReleased": true,
+      "ownedStagingRemoved": true
+    }
+  },
+  "localValidation": {
+    "desktopTests": 95,
+    "releaseToolTests": 30,
+    "packagingHandoffTests": 46,
+    "websiteTests": 101,
+    "compatibilityTests": 70,
+    "workflowLint": "passed",
+    "updatedPackageGuardTests": 9,
+    "legacyRouteBrowserChecks": {
+      "routes": 9,
+      "hostileInputs": 3,
+      "pageErrors": 0
+    }
+  },
+  "publicationAuthorized": "Maintainer requested Windows VM verification followed by desktop release including the handler changes on 2026-11-17.",
+  "sourceCi": {
+    "runId": 44045370118,
+    "conclusion": "success",
+    "url": "https://github.com/kzahel/jstorrent/actions/runs/44045370118"
+  },
+  "latest": {
+    "tag": "desktop-latest-v0.3.12",
+    "runId": 44052595535,
+    "status": "in_progress",
+    "selectorSourceVerified": true,
+    "sourceSha": "2feb7d1a74e3b7353408a8a9ece67eff7770b704",
+    "selectedVersion": "0.3.12",
+    "sourceCiRunId": 44045370118
+  }
+}

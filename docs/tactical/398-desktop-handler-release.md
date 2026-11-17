@@ -131,3 +131,36 @@ Four ordinary application-shutdown cycles terminate their owned processes.
 This prepublication product evidence does not qualify the failed pipeline;
 the final public Windows bytes require their own installed checkpoint before
 Stable promotion. Real historical Inno installer cohorts remain separate.
+
+The same installed NSIS also passes actual silent reinstall with foreign
+generic magnet metadata/command and `.torrent` fallback intact, then actual
+uninstall with a foreign legacy class target and advertisement retained.
+The owned legacy alias is removed conditionally. All seven torrent identities,
+catalog/product versions and statistics opt-out survive launch, reinstall
+and uninstall unchanged.
+
+The workflow correction is committed and pushed as `2feb7d1a`. Exact-source
+full CI [44045370118](https://github.com/kzahel/jstorrent/actions/runs/44045370118)
+is running; host/client captures for that source are generated. Actionlint
+and all nine package-validator tests pass. The private candidate failure
+remains recorded and is not relabeled as a successful pipeline.
+
+Before waiting on the new source's release gates, the first VM phase restores
+all 56 registry scopes and both advertisements, hash-verifies all four
+preserved file scopes, removes its task and staging, shuts down normally and
+releases its claim. No JSTorrent process remains. The final public Windows
+checkpoint will acquire the guest again with a fresh claim.
+
+## Signed publication in progress
+
+Exact-source CI 44045370118 passes every required job. Official Latest
+[44052595535](https://github.com/kzahel/jstorrent/actions/runs/44052595535)
+refreshes and accepts that exact main-push result, independently verifies the
+public/draft inventory and selects `desktop-latest-v0.3.12` from `2feb7d1a`.
+Interrupted drafts 0.3.5 and 0.3.9 remain reserved. The original signing-root
+proof and release-input guard pass; stricter publication source/dependency
+checks and all five signed lanes remain in progress.
+
+The exact-source host/client captures are generated, and the ledger records
+submission with no first-public date. No public delivery or Stable promotion
+is claimed before the maintained publication and installed-artifact gates.
