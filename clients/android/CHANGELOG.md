@@ -1,5 +1,11 @@
 # Android Changelog
 
+## [1.0.41]
+
+- Fix crashes when Android refuses a background service start or ends its allowed background time.
+- Fix a crash when some devices look up localized resources during display changes.
+- Fix a crash when a Back gesture overlaps closing a detail screen.
+
 ## [1.0.40]
 
 - Fix Chromebook magnet links opening JSTorrent without adding the torrent, including first-time folder setup and links clicked while the app is already open.

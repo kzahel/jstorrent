@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [401 — Android stability release](401-android-stability-release.md):
+  authorized Android 1.0.41 release at 100% production.
+
 - [400 — Android crash follow-up](400-android-crash-follow-up.md):
   shutdown timeout, reentrant resource lookup, and predictive back.
 
