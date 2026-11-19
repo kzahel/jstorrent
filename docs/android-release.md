@@ -1,5 +1,14 @@
 # Android Release Runbook
 
+Android 1.0.41/code 41 fixes foreground-service startup and quota timeout
+crashes, reentrant locale resource lookup, and predictive Back navigation.
+On November 19, 2026, Play accepted the 100% production release using the
+same signed bundle upgraded through internal testing on the Chromebook
+Pixel. [Tactical 401](tactical/401-android-stability-release.md) records
+signed construction, CI, the in-place upgrade, and production deployment
+7927469122. Play Console lists the full rollout in review with automatic
+publication enabled.
+
 Android 1.0.40/code 40's production rollout is completed to 100% on explicit
 maintainer direction, November 16, 2026, after its initial 1% submission.
 [Rollout 43941424635](https://github.com/kzahel/jstorrent/actions/runs/43941424635)

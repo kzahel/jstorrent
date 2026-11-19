@@ -1,0 +1,92 @@
+{
+  "release": "android-v1.0.41",
+  "source": "f51154fb1bb3b8572043c4b41159359338a8db89",
+  "build": {
+    "bundle": "jstorrent-android-1.0.41.aab",
+    "bundleSha256": "95bf37e0c03223fa3a903ddfded002728673d1eade108f39dae7e284041c5914",
+    "package": "com.jstorrent.app",
+    "runId": "44615634237",
+    "schema": 1,
+    "source": "f51154fb1bb3b8572043c4b41159359338a8db89",
+    "tag": "android-v1.0.41",
+    "versionCode": 41,
+    "versionName": "1.0.41"
+  },
+  "sourceCi": {
+    "runId": 44615855018,
+    "attempt": 1,
+    "commit": "535cf67df94fd438f8206ea91f12164319f25079",
+    "result": "success"
+  },
+  "liveCompatibility": {
+    "runId": 44615634189,
+    "result": "success"
+  },
+  "dependencyReview": {
+    "runId": 44615919241,
+    "databaseRevision": "074ea9a7ed619f511b5b7374c7a97e98d1e98be4",
+    "releaseReady": true,
+    "newExceptions": false
+  },
+  "playAccessCheck": {
+    "runId": 44627203768,
+    "track": "internal",
+    "status": "access_verified"
+  },
+  "internal": {
+    "buildRunId": "44615634237",
+    "deployment": 7927407062,
+    "previousVersionCode": 40,
+    "releaseStatus": "completed",
+    "sha256": "95bf37e0c03223fa3a903ddfded002728673d1eade108f39dae7e284041c5914",
+    "source": "f51154fb1bb3b8572043c4b41159359338a8db89",
+    "status": "submitted",
+    "supersededVersionCodes": [],
+    "tag": "android-v1.0.41",
+    "track": "internal",
+    "uploaded": true,
+    "userFraction": null,
+    "versionCode": 41,
+    "versionName": "1.0.41",
+    "workflowRunId": 44627408603,
+    "deploymentRecordedAt": "2026-11-19T22:20:10Z"
+  },
+  "managedUpgrade": {
+    "device": "Chromebook Pixel",
+    "fromVersion": "1.0.40",
+    "toVersion": "1.0.41",
+    "installer": "com.android.vending",
+    "certificateSha256": "b2b421781fc40c632656d17c72c012a40f623d358e29837adad41cd5d835acd5",
+    "uidPreserved": true,
+    "firstInstallTimePreserved": true,
+    "launchAndReady": "pass",
+    "configuredDownloadFolderVisibleBeforeAndAfter": "pass",
+    "externalViewConfirmations": 2,
+    "testIntakesCancelledWithoutAddingTorrents": true,
+    "temporaryArtifactsRemoved": true
+  },
+  "production": {
+    "buildRunId": "44615634237",
+    "deployment": 7927469122,
+    "previousVersionCode": 40,
+    "releaseStatus": "completed",
+    "sha256": "95bf37e0c03223fa3a903ddfded002728673d1eade108f39dae7e284041c5914",
+    "source": "f51154fb1bb3b8572043c4b41159359338a8db89",
+    "status": "submitted",
+    "supersededVersionCodes": [],
+    "tag": "android-v1.0.41",
+    "track": "production",
+    "uploaded": false,
+    "userFraction": null,
+    "versionCode": 41,
+    "versionName": "1.0.41",
+    "workflowRunId": 44627928607,
+    "deploymentRecordedAt": "2026-11-19T22:23:07Z"
+  },
+  "publicAvailability": {
+    "status": "in_review",
+    "managedPublishing": "off",
+    "productionCountriesOrRegions": 178,
+    "productionChange": "Start full rollout"
+  }
+}

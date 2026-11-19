@@ -493,7 +493,7 @@
       "status": "submitted",
       "submitted": "2026-11-19",
       "firstPublic": null,
-      "channelBasis": "Signed Android Release requested for the crash fixes in Tacticals 399 and 400. This entry records exact tagged host source for CI. Signed construction, internal Play upgrade and 100% production submission are pending (Tactical 401).",
+      "channelBasis": "Signed build 44615634237 and full CI 44615855018 qualify the crash fixes in Tacticals 399 and 400. Internal workflow 44627408603 uploads the AAB, SHA-256 95bf37e0c03223fa3a903ddfded002728673d1eade108f39dae7e284041c5914, and Play upgrades an existing Chromebook Pixel install from 1.0.40 to 1.0.41. Production workflow 44627928607 promotes that bundle to 100%, recorded by deployment 7927469122. Play accepted the production edit (Tactical 401).",
       "roles": ["host"]
     }
   ]

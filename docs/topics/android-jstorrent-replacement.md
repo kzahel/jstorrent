@@ -1,5 +1,12 @@
 # Android JSTorrent Replacement Readiness
 
+Play accepted Android 1.0.41 for 100% production on November 19, 2026,
+with the crash fixes below. Internal Play upgraded an existing Chromebook
+Pixel install from 1.0.40 to 1.0.41 and verified signing identity, startup
+and magnet confirmation with configured storage.
+[Tactical 401](../tactical/401-android-stability-release.md) records the
+test evidence and deployment.
+
 Android 1.0.40's production rollout is completed to 100% on explicit maintainer
 direction, after its initial 1% submission.
 [Tactical 396](../tactical/396-chromeos-magnet-play-release.md) records signed
