@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [400 — Android crash follow-up](400-android-crash-follow-up.md):
+  shutdown timeout, reentrant resource lookup, and predictive back.
+
 - [399 — Android foreground-service startup crashes](399-android-foreground-service-start.md):
   production crash triage and startup lifecycle hardening.
 

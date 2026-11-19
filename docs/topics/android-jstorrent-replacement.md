@@ -20,6 +20,13 @@ platform denial at the resumed activity and initial service promotion, and
 serializes foreground transitions. The exact Android 17 and ChromeOS
 customer triggers remain unverified.
 
+The [shutdown, locale and navigation follow-up](../tactical/400-android-crash-follow-up.md)
+reproduces all three additional signatures on API 35. The service releases
+foreground status immediately when its dataSync quota expires, then joins
+engine and storage cleanup. Reentrant resource lookup uses base resources
+until configuration-context creation completes. Navigation Compose 2.8.5
+supplies the upstream predictive-back fix.
+
 ## ChromeOS browser magnet handoff: 2026-11-16
 
 Physical Chromebook Pixel testing reproduced silent magnet loss in Play-installed

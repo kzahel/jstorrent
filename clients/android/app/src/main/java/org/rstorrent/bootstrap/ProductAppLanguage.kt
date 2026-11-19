@@ -169,18 +169,28 @@ internal object ProductAppLanguage {
     private class LocaleContext(base: Context) : ContextWrapper(base) {
         private var lastConfiguration: Configuration? = null
         private var lastResources: Resources? = null
+        private var baseResourcesDuringProjection: Resources? = null
 
         @Synchronized
         override fun getResources(): Resources {
-            val configuration = Configuration(baseContext.resources.configuration)
-            // Android still owns the override on API 33+. Project it onto a
-            // packaged catalog without replacing the platform's saved tag.
-            configuration.setLocales(LocaleList.forLanguageTags(resolvedTag(baseContext)))
-            if (configuration != lastConfiguration) {
-                lastResources = baseContext.createConfigurationContext(configuration).resources
-                lastConfiguration = configuration
+            // Display metrics on some devices ask this wrapper for resources
+            // while Android is creating the configuration context below.
+            baseResourcesDuringProjection?.let { return it }
+            val baseResources = baseContext.resources
+            baseResourcesDuringProjection = baseResources
+            try {
+                val configuration = Configuration(baseResources.configuration)
+                // Android owns the stored override on API 33+. Project it
+                // onto a packaged catalog without replacing the platform tag.
+                configuration.setLocales(LocaleList.forLanguageTags(resolvedTag(baseContext)))
+                if (configuration != lastConfiguration) {
+                    lastResources = baseContext.createConfigurationContext(configuration).resources
+                    lastConfiguration = configuration
+                }
+                return requireNotNull(lastResources)
+            } finally {
+                baseResourcesDuringProjection = null
             }
-            return requireNotNull(lastResources)
         }
     }
 }

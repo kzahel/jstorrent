@@ -152,6 +152,7 @@ class ProductEngineService : Service() {
     private val firstStartCommand = CompletableDeferred<Boolean>()
     private val foreground = AtomicBoolean(false)
     private val foregroundOwnership = Any()
+    @Volatile private var dataSyncQuotaTimedOut = false
     private val backgroundAdmitted = AtomicBoolean(false)
     private val recoveryNetworkGateClosed = AtomicBoolean(false)
     private val productQuotaRestartEvidenceArmed = AtomicBoolean(false)
@@ -460,25 +461,16 @@ class ProductEngineService : Service() {
         startId: Int,
     ): Int {
         val rejection = startupRejection
+        if (dataSyncQuotaTimedOut) {
+            // Joined shutdown still owns this service generation and its start ID.
+            latestStartId.set(startId)
+            Log.w(TAG, "product_quota_restart blocked=true phase=shutdown")
+            acknowledgeFencedStart(intent)
+            if (shutdownComplete.isCompleted && !stopSelfResult(startId)) stopSelf()
+            return START_NOT_STICKY
+        }
         if (rejection != null) {
-            if (
-                rejection == StartupRejection.QUOTA_EXHAUSTED && intent != null &&
-                intent.action != ACTION_BACKGROUND_ADMITTED &&
-                intent.action != ACTION_BACKGROUND_REVOKED && intent.action != ACTION_STOP
-            ) {
-                // A startForegroundService accepted by Android must be acknowledged
-                // even when the persisted fence prohibits running the engine.
-                val notifications = AndroidNotificationCoordinator(this, mutableState)
-                notifications.initialize(0)
-                val promoted =
-                    startInitialForeground(
-                        notifications,
-                        R.string.notification_finishing_shutdown,
-                        "quota_acknowledgement",
-                    )
-                if (promoted) stopForeground(STOP_FOREGROUND_REMOVE)
-                Log.i(TAG, "product_quota_restart acknowledgement_complete promoted=$promoted")
-            }
+            if (rejection == StartupRejection.QUOTA_EXHAUSTED) acknowledgeFencedStart(intent)
             if (!stopSelfResult(startId)) stopSelf()
             return START_NOT_STICKY
         }
@@ -521,6 +513,28 @@ class ProductEngineService : Service() {
         } else {
             START_NOT_STICKY
         }
+    }
+
+    private fun acknowledgeFencedStart(intent: Intent?) {
+        if (
+            intent == null || intent.action == ACTION_BACKGROUND_ADMITTED ||
+            intent.action == ACTION_BACKGROUND_REVOKED || intent.action == ACTION_STOP
+        ) {
+            return
+        }
+        // A startForegroundService accepted by Android must be acknowledged
+        // even when the quota fence prohibits running the engine.
+        val notifications =
+            if (::notificationCoordinator.isInitialized) notificationCoordinator
+            else AndroidNotificationCoordinator(this, mutableState).also { it.initialize(0) }
+        val promoted =
+            startInitialForeground(
+                notifications,
+                R.string.notification_finishing_shutdown,
+                "quota_acknowledgement",
+            )
+        if (promoted) stopForeground(STOP_FOREGROUND_REMOVE)
+        Log.i(TAG, "product_quota_restart acknowledgement_complete promoted=$promoted")
     }
 
     /**
@@ -764,6 +778,12 @@ class ProductEngineService : Service() {
         fgsType: Int,
     ) {
         Log.w(TAG, "product_service_timeout type=data_sync")
+        // Meet Android's foreground deadline before joining storage/engine
+        // tasks. The started service still owns the joined shutdown.
+        synchronized(foregroundOwnership) {
+            dataSyncQuotaTimedOut = true
+            demoteForeground()
+        }
         if (!ProductDataSyncQuotaFence.markExhausted(this)) {
             Log.e(TAG, "product_quota_fence persist_failed=true")
         }
@@ -5482,6 +5502,7 @@ class ProductEngineService : Service() {
     private fun promoteForeground(snapshot: ProductLifecycleCoordinatorSnapshot): Boolean {
         return runCatching {
             synchronized(foregroundOwnership) {
+                if (dataSyncQuotaTimedOut) return false
                 if (foreground.get()) return true
                 startForeground(
                     AndroidNotificationContract.ONGOING_NOTIFICATION_ID,

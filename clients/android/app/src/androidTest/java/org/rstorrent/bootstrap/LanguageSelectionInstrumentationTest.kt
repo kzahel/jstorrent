@@ -4,6 +4,7 @@ import android.app.LocaleManager
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Build
@@ -16,6 +17,7 @@ import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -25,6 +27,29 @@ import org.junit.runner.RunWith
 class LanguageSelectionInstrumentationTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val targetLocale = InstrumentationRegistry.getArguments().getString("locale") ?: "de"
+
+    @Test
+    fun displayMetricsCanReenterResourcesDuringConfigurationContextCreation() {
+        val baseResources = context.resources
+        lateinit var localized: Context
+        var creations = 0
+        var reentrantResources: Resources? = null
+        val displayContext =
+            object : ContextWrapper(context) {
+                override fun createConfigurationContext(overrideConfiguration: Configuration): Context {
+                    creations++
+                    // Mirror the OEM display-metrics callback into the outer context.
+                    reentrantResources = localized.resources
+                    return super.createConfigurationContext(overrideConfiguration)
+                }
+            }
+        localized = ProductAppLanguage.wrap(displayContext)
+
+        val projected = localized.resources
+        assertSame(baseResources, reentrantResources)
+        assertSame(projected, localized.resources)
+        assertEquals(1, creations)
+    }
 
     @Test
     fun overrideAndSystemResetReachApplicationAndNotificationResources() {
