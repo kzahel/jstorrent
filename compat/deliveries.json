@@ -483,6 +483,18 @@
       ],
       "channelBasis": "Stable promotion 44071103732 copies the qualified public Latest 0.3.12 capsule from exact source 2feb7d1a without rebuilding. Fifteen native/source assets retain identical hashes; only URL-bound authenticated updater metadata and checksums change. Full source CI 44045370118 and all five signed attempt-2 lanes/source checks in 44052595535 pass. The collector HTTP 502 remains a failed workflow; maintained same-source local completion passes complete-source and final-draft gates. The exact public NSIS passes owned Windows VM qualification, including preserved torrent identities/privacy and complete restoration.",
       "firstPublicBasis": "Public Latest desktop-latest-v0.3.12 first published at 2026-11-17T11:04:56Z; Stable desktop-v0.3.12 published at 2026-11-17T11:10:54Z. All seventeen full cached asset sizes/hashes match each channel's public immutable digests; six retained-root signatures, signed database facts, eleven selectors and seventeen unauthenticated prefix probes verify per channel. All ten updater offers and ten current-version no-update responses pass. Website promotion 44071941066 and deployment 44072211181 serve the five native downloads, complete source link, native recovery adapters and exact public source provenance."
+    },
+    {
+      "surface": "android",
+      "version": "1.0.41",
+      "tag": "android-v1.0.41",
+      "commit": "f51154fb1bb3b8572043c4b41159359338a8db89",
+      "channel": "play-production",
+      "status": "submitted",
+      "submitted": "2026-11-19",
+      "firstPublic": null,
+      "channelBasis": "Signed Android Release requested for the crash fixes in Tacticals 399 and 400. This entry records exact tagged host source for CI. Signed construction, internal Play upgrade and 100% production submission are pending (Tactical 401).",
+      "roles": ["host"]
     }
   ]
 }
