@@ -150,11 +150,14 @@ class ProductEngineService : Service() {
     private val latestStartId = AtomicInteger(0)
     @Volatile private var startCommandReceived = false
     private val firstStartCommand = CompletableDeferred<Boolean>()
-    private val foreground = AtomicBoolean(true)
+    private val foreground = AtomicBoolean(false)
+    private val foregroundOwnership = Any()
     private val backgroundAdmitted = AtomicBoolean(false)
     private val recoveryNetworkGateClosed = AtomicBoolean(false)
     private val productQuotaRestartEvidenceArmed = AtomicBoolean(false)
-    private var quotaExhaustedStartRejected = false
+    private enum class StartupRejection { QUOTA_EXHAUSTED, FOREGROUND_DENIED }
+
+    private var startupRejection: StartupRejection? = null
     private val shutdownComplete = CompletableDeferred<Unit>()
     private val clientReady = CompletableDeferred<Unit>()
     private val presentationReady = CompletableDeferred<Unit>()
@@ -291,18 +294,25 @@ class ProductEngineService : Service() {
             }
         }
         if (ProductDataSyncQuotaFence.isExhausted(this) && !dataResetActive.get()) {
-            quotaExhaustedStartRejected = true
+            startupRejection = StartupRejection.QUOTA_EXHAUSTED
             Log.w(TAG, "product_quota_restart blocked=true")
             return
         }
         notificationCoordinator = AndroidNotificationCoordinator(this, mutableState)
         notificationCoordinator.initialize(interactionLeases.size)
-        startForeground(
-            AndroidNotificationContract.ONGOING_NOTIFICATION_ID,
-            notificationCoordinator.ongoingNotification(
-                getString(R.string.notification_opening_profile),
-            ),
-        )
+        if (
+            !startInitialForeground(
+                notificationCoordinator,
+                R.string.notification_opening_profile,
+                "service_create",
+            )
+        ) {
+            // Android rejected the promotion before we created any engine owners.
+            startupRejection = StartupRejection.FOREGROUND_DENIED
+            stopSelf()
+            return
+        }
+        foreground.set(true)
         lifecyclePreferenceStore = ProductLifecyclePreferenceStore(this)
         lifecyclePreferences = lifecyclePreferenceStore.read()
         val initialNotificationEligibility =
@@ -434,9 +444,11 @@ class ProductEngineService : Service() {
                         catalogRecovery = catalogRecovery,
                     )
                 }
-                notificationCoordinator.updateOngoingNotification(
-                    getString(R.string.notification_needs_attention),
-                )
+                updateWhileForeground {
+                    notificationCoordinator.updateOngoingNotification(
+                        getString(R.string.notification_needs_attention),
+                    )
+                }
                 lifecycleCoordinator.terminal(ProductLifetimeStopReason.INITIALIZATION_FAILED)
             }
         }
@@ -447,13 +459,30 @@ class ProductEngineService : Service() {
         flags: Int,
         startId: Int,
     ): Int {
-        if (quotaExhaustedStartRejected) {
+        val rejection = startupRejection
+        if (rejection != null) {
+            if (
+                rejection == StartupRejection.QUOTA_EXHAUSTED && intent != null &&
+                intent.action != ACTION_BACKGROUND_ADMITTED &&
+                intent.action != ACTION_BACKGROUND_REVOKED && intent.action != ACTION_STOP
+            ) {
+                // A startForegroundService accepted by Android must be acknowledged
+                // even when the persisted fence prohibits running the engine.
+                val notifications = AndroidNotificationCoordinator(this, mutableState)
+                notifications.initialize(0)
+                val promoted =
+                    startInitialForeground(
+                        notifications,
+                        R.string.notification_finishing_shutdown,
+                        "quota_acknowledgement",
+                    )
+                if (promoted) stopForeground(STOP_FOREGROUND_REMOVE)
+                Log.i(TAG, "product_quota_restart acknowledgement_complete promoted=$promoted")
+            }
             if (!stopSelfResult(startId)) stopSelf()
             return START_NOT_STICKY
         }
         latestStartId.set(startId)
-        startCommandReceived = true
-        if (!firstStartCommand.isCompleted) firstStartCommand.complete(intent == null)
         if (
             intent?.action != ACTION_BACKGROUND_ADMITTED &&
                 intent?.action != ACTION_BACKGROUND_REVOKED &&
@@ -462,6 +491,8 @@ class ProductEngineService : Service() {
             requestStop("foreground_start_acknowledgement_failed", startId)
             return START_NOT_STICKY
         }
+        startCommandReceived = true
+        firstStartCommand.complete(intent == null)
         if (intent?.action == ACTION_STOP) {
             lifecycleCoordinator.terminal(ProductLifetimeStopReason.EXPLICIT_STOP)
             requestStop("notification_stop", startId)
@@ -705,10 +736,10 @@ class ProductEngineService : Service() {
         }
 
     override fun onBind(intent: Intent?): IBinder? =
-        if (quotaExhaustedStartRejected) null else binder
+        if (startupRejection != null) null else binder
 
     override fun onDestroy() {
-        if (quotaExhaustedStartRejected) {
+        if (startupRejection != null) {
             scope.cancel()
             super.onDestroy()
             return
@@ -5449,17 +5480,19 @@ class ProductEngineService : Service() {
     }
 
     private fun promoteForeground(snapshot: ProductLifecycleCoordinatorSnapshot): Boolean {
-        if (foreground.get()) return true
         return runCatching {
-            startForeground(
-                AndroidNotificationContract.ONGOING_NOTIFICATION_ID,
-                notificationCoordinator.ongoingNotification(
-                    lifecycleNotificationText(snapshot),
-                ),
-            )
-            foreground.set(true)
-            mutableState.update { it.copy(lifecycle = it.lifecycle.copy(foreground = true)) }
-            Log.i(TAG, "product_foreground active=true")
+            synchronized(foregroundOwnership) {
+                if (foreground.get()) return true
+                startForeground(
+                    AndroidNotificationContract.ONGOING_NOTIFICATION_ID,
+                    notificationCoordinator.ongoingNotification(
+                        lifecycleNotificationText(snapshot),
+                    ),
+                )
+                foreground.set(true)
+                mutableState.update { it.copy(lifecycle = it.lifecycle.copy(foreground = true)) }
+                Log.i(TAG, "product_foreground active=true")
+            }
             true
         }.getOrElse { error ->
             Log.e(TAG, "foreground promotion failed", error)
@@ -5472,6 +5505,18 @@ class ProductEngineService : Service() {
         }
     }
 
+    private fun startInitialForeground(
+        notifications: AndroidNotificationCoordinator,
+        detail: Int,
+        stage: String,
+    ): Boolean =
+        tryProductForegroundStart(stage) {
+            startForeground(
+                AndroidNotificationContract.ONGOING_NOTIFICATION_ID,
+                notifications.ongoingNotification(getString(detail)),
+            )
+        }
+
     private fun acknowledgeForegroundServiceStart(): Boolean {
         val snapshot = lifecycleCoordinator.snapshot() ?: return true
         if (!promoteForeground(snapshot)) return false
@@ -5482,11 +5527,21 @@ class ProductEngineService : Service() {
     }
 
     private fun demoteForeground() {
-        if (!foreground.compareAndSet(true, false)) return
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        mutableState.update { it.copy(lifecycle = it.lifecycle.copy(foreground = false)) }
-        Log.i(TAG, "product_foreground active=false")
+        synchronized(foregroundOwnership) {
+            if (!foreground.get()) return
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            foreground.set(false)
+            mutableState.update { it.copy(lifecycle = it.lifecycle.copy(foreground = false)) }
+            Log.i(TAG, "product_foreground active=false")
+        }
     }
+
+    private inline fun updateWhileForeground(update: () -> Unit): Boolean =
+        synchronized(foregroundOwnership) {
+            if (!foreground.get()) return false
+            update()
+            true
+        }
 
     private fun updateStickyAdmission(admitted: Boolean) {
         if (!backgroundAdmitted.compareAndSet(!admitted, admitted)) return
@@ -5558,7 +5613,7 @@ class ProductEngineService : Service() {
             launch {
                 ProductAppLanguage.revisions.collect {
                     notificationCoordinator.onLocaleChanged()
-                    if (foreground.get()) {
+                    updateWhileForeground {
                         notificationCoordinator.updateOngoingNotification(productOngoingNotificationContent(state.value))
                     }
                 }
@@ -5585,9 +5640,9 @@ class ProductEngineService : Service() {
                     throttle.delayMillis(content, SystemClock.elapsedRealtime())
                         ?: return@collectLatest
                 if (wait > 0L) delay(wait)
-                if (!foreground.get()) return@collectLatest
-                notificationCoordinator.updateOngoingNotification(content)
-                throttle.posted(content, SystemClock.elapsedRealtime())
+                if (updateWhileForeground { notificationCoordinator.updateOngoingNotification(content) }) {
+                    throttle.posted(content, SystemClock.elapsedRealtime())
+                }
             }
         }
     }
@@ -5674,7 +5729,7 @@ class ProductEngineService : Service() {
             companionPairingJob?.cancel()
             companionRootJob?.cancel()
             companionRootRemovalJob?.cancel()
-            if (foreground.get()) {
+            updateWhileForeground {
                 notificationCoordinator.updateOngoingNotification(
                     getString(R.string.notification_finishing_shutdown),
                 )
@@ -5709,8 +5764,7 @@ class ProductEngineService : Service() {
             )
         } finally {
             releasePowerLock()
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            foreground.set(false)
+            demoteForeground()
             backgroundAdmitted.set(false)
             shutdownComplete.complete(Unit)
         }

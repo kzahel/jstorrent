@@ -8,6 +8,18 @@ retained identity/folder and passing cold/warm browser magnet confirmations.
 The same internal AAB is promoted; Google review/public availability remain
 unconfirmed.
 
+## Foreground-service startup crashes: 2026-11-19
+
+Play Vitals for 1.0.40 shows rejected activity starts and rejected service
+promotions on Android 17, plus a foreground-start acknowledgement timeout
+on ChromeOS. [Tactical 399](../tactical/399-android-foreground-service-start.md)
+reproduces the timeout signature on Android 15 by starting the signed APK
+with the persisted dataSync quota fence set. The source fix acknowledges an
+accepted fenced start before stopping without opening the engine. It handles
+platform denial at the resumed activity and initial service promotion, and
+serializes foreground transitions. The exact Android 17 and ChromeOS
+customer triggers remain unverified.
+
 ## ChromeOS browser magnet handoff: 2026-11-16
 
 Physical Chromebook Pixel testing reproduced silent magnet loss in Play-installed

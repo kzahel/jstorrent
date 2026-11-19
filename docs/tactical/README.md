@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [399 — Android foreground-service startup crashes](399-android-foreground-service-start.md):
+  production crash triage and startup lifecycle hardening.
+
 - [398 — Desktop handler release](398-desktop-handler-release.md):
   0.3.12 public on Stable/Latest and canonical website after exact signed
   Windows VM native-launch/installer qualification, preserved data/privacy,

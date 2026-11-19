@@ -22,7 +22,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.viewModels
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.io.File
@@ -61,6 +66,9 @@ class MainActivity : ComponentActivity() {
     private var serviceStopWatch: Job? = null
     private var productMode = false
     private var productStartRequested = false
+    private var pendingProductServiceAction: String? = null
+    private val pendingExternalIntakes = ArrayDeque<Intent>()
+    private val productStartFailed = mutableStateOf(false)
     private var pendingProductMagnet: String? = null
     private var pendingProductTorrentUri: String? = null
     private var pendingProductTorrentUris: ArrayList<String>? = null
@@ -258,6 +266,9 @@ class MainActivity : ComponentActivity() {
                     service.cancelCompanionRootRequest(it)
                 }
                 productService.value = service
+                if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    deliverPendingProductStarts()
+                }
                 serviceStopWatch?.cancel()
                 serviceStopWatch =
                     lifecycleScope.launch {
@@ -398,6 +409,14 @@ class MainActivity : ComponentActivity() {
                 serviceStopWatch = null
                 productService.value = null
             }
+
+            override fun onNullBinding(name: ComponentName) {
+                if (!productBound) return
+                unbindService(this)
+                productBound = false
+                productStartRequested = false
+                productStartFailed.value = true
+            }
         }
 
     /**
@@ -438,8 +457,8 @@ class MainActivity : ComponentActivity() {
         unbindService(productConnection)
         productBound = false
         productService.value = null
-        startProductService()
-        bindProductService()
+        productStartRequested = false
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) startProductService()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -542,14 +561,11 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         ProductInteractionRegistry.setActivityVisible(this, true)
         ProductAppLanguage.onActivityStarted()
-        if (productMode) {
-            if (!productStartRequested) startProductService()
-            bindProductService()
-        }
     }
 
     override fun onResume() {
         super.onResume()
+        if (productMode) startProductService()
         notificationsGranted.value = notificationPermissionGranted()
         if (pendingNotificationSettingsReturn) {
             pendingNotificationSettingsReturn = false
@@ -721,10 +737,10 @@ class MainActivity : ComponentActivity() {
         if (catalogRecovery.active) {
             // Recovery mode does not open the catalog for an added torrent.
             android.util.Log.i("RSTorrentProduct", "external_intake_skipped catalog_recovery=true")
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
+        } else if (pendingExternalIntakes.size < MAX_EXTERNAL_INTAKE_DESCRIPTORS) {
+            pendingExternalIntakes.addLast(serviceIntent)
         } else {
-            startService(serviceIntent)
+            Toast.makeText(this, R.string.intake_queue_full, Toast.LENGTH_LONG).show()
         }
 
         val sanitized =
@@ -777,6 +793,23 @@ class MainActivity : ComponentActivity() {
                             onCopyDetails = { copyCatalogRecoveryDetails(recovery.details) },
                             onReportProblem = ::openRecoveryFeedback,
                             onClose = ::finish,
+                        )
+                    }
+                } else if (productStartFailed.value && productService.value == null) {
+                    RstorrentTheme(mode = themeMode.value, dynamicColor = dynamicColor.value) {
+                        AlertDialog(
+                            onDismissRequest = ::finish,
+                            text = { Text(stringResource(R.string.error_operation_failed)) },
+                            confirmButton = {
+                                TextButton(onClick = ::startProductService) {
+                                    Text(stringResource(R.string.action_retry))
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = ::finish) {
+                                    Text(stringResource(R.string.action_close))
+                                }
+                            },
                         )
                     }
                 } else {
@@ -1071,13 +1104,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-        startProductService(
-            if (isChromeOsCompanionLaunch(command)) {
-                ProductEngineService.ACTION_ENABLE_CHROMEOS_COMPANION
-            } else {
-                null
-            },
-        )
+        if (isChromeOsCompanionLaunch(command)) {
+            pendingProductServiceAction = ProductEngineService.ACTION_ENABLE_CHROMEOS_COMPANION
+        }
         command.getStringExtra(EXTRA_COMPANION_ROOT_REQUEST)?.let { requestId ->
             command.removeExtra(EXTRA_COMPANION_ROOT_REQUEST)
             pendingProductCompanionRootRequestId = requestId
@@ -1092,9 +1121,7 @@ class MainActivity : ComponentActivity() {
             command.removeExtra(EXTRA_PRODUCT_SELECT_SAF)
             launchProductTreePicker()
         }
-        if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
-            bindProductService()
-        }
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) startProductService()
     }
 
     private fun recordProductForegroundIfPending(service: ProductEngineService) {
@@ -1113,6 +1140,9 @@ class MainActivity : ComponentActivity() {
         if (productMode) {
             productMode = false
             productStartRequested = false
+            pendingProductServiceAction = null
+            pendingExternalIntakes.clear()
+            productStartFailed.value = false
             if (productBound) {
                 unbindService(productConnection)
                 productBound = false
@@ -1158,18 +1188,41 @@ class MainActivity : ComponentActivity() {
         finishIfRequested(command)
     }
 
-    private fun startProductService(action: String? = null) {
+    private fun startProductService() {
         // Recovery mode does not retry the catalog behind the screen.
         if (catalogRecovery.active) return
-        val serviceIntent =
-            Intent(this, ProductEngineService::class.java)
-                .setAction(action)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
+        if (!productStartRequested && !requestProductServiceStart(Intent(this, ProductEngineService::class.java))) {
+            return
         }
-        productStartRequested = true
+        productStartFailed.value = false
+        bindProductService()
+        if (productService.value != null) deliverPendingProductStarts()
+    }
+
+    private fun deliverPendingProductStarts() {
+        // A platform-accepted request can still be refused in service creation.
+        // Keep link inputs until the product service has actually bound.
+        while (pendingExternalIntakes.isNotEmpty()) {
+            if (!requestProductServiceStart(pendingExternalIntakes.first())) return
+            pendingExternalIntakes.removeFirst()
+        }
+        pendingProductServiceAction?.let { action ->
+            val intent = Intent(this, ProductEngineService::class.java).setAction(action)
+            if (!requestProductServiceStart(intent)) return
+            pendingProductServiceAction = null
+        }
+    }
+
+    private fun requestProductServiceStart(intent: Intent): Boolean {
+        if (tryProductForegroundStart("activity") { startForegroundService(intent) }) {
+            productStartRequested = true
+            return true
+        }
+        productStartFailed.value = true
+        if (productService.value != null) {
+            Toast.makeText(this, R.string.error_operation_failed, Toast.LENGTH_LONG).show()
+        }
+        return false
     }
 
     private fun launchProductTreePicker(repairRootId: String? = null) {
