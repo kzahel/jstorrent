@@ -71,7 +71,7 @@ import type {
 } from "../desktop-power/types";
 import type { DesktopRemoteAccess, RemoteCompletedFileSaveRequest } from "../remote-access/types";
 import type { LocalVideoPlayback } from "../video-playback";
-import { HOST_CAPTURES } from "../../compat/captures";
+import { hostCapture } from "../../compat/captures";
 import { decodeOpenViewSetResponse } from "../../validation";
 import { App } from "./App";
 import { RemoveTorrentDialog } from "./RemoveTorrentDialog";
@@ -137,10 +137,9 @@ afterEach(async () => {
   );
 });
 
-// desktop 0.3.1 and Android 1.0.30, captured from their release commit.
-const released031 = HOST_CAPTURES.find(
-  (capture) => capture.commit === "5fa018ff589f8058f6ed3910f5cea5fcd06410ab",
-)!;
+// Keep testing the older-host UI against this fixed desktop 0.3.1 / Android
+// 1.0.30 capture after it leaves the rolling compatibility matrix.
+const released031 = hostCapture("5fa018ff589f8058f6ed3910f5cea5fcd06410ab");
 const released031Hello = released031.hello;
 const released031Trace = released031.trace;
 
@@ -2175,6 +2174,7 @@ describe("inspection application", () => {
       screen.queryByRole("grid", { name: "Active storage pieces" }),
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Disk" }));
+    await act(() => vi.dynamicImportSettled());
     expect(
       await screen.findByText("Receive → write → verify → checkpoint"),
     ).toBeVisible();

@@ -73,10 +73,12 @@ test("the checked-in policy is well formed", () => {
   assert.equal(typeof checkedIn.acceptedBreaks, "object");
   for (const reason of Object.values(checkedIn.acceptedBreaks)) assert.equal(typeof reason, "string");
   const latest = checkedIn.acceptedLatestDesktopFields;
-  assert.equal(latest.minimumExtension, checkedIn.strictClients.tolerantSince.extension);
-  assert.ok(latest.reason.trim());
-  assert.equal(new Set(latest.fields).size, latest.fields.length);
-  for (const field of latest.fields) assert.equal(checkedIn.reviewedClientExposure[field]?.kind, "field");
+  if (latest !== undefined) {
+    assert.equal(latest.minimumExtension, checkedIn.strictClients.tolerantSince.extension);
+    assert.ok(latest.reason.trim());
+    assert.equal(new Set(latest.fields).size, latest.fields.length);
+    for (const field of latest.fields) assert.equal(checkedIn.reviewedClientExposure[field]?.kind, "field");
+  }
   for (const exposure of Object.values(checkedIn.reviewedClientExposure)) {
     assert.ok(["field", "value"].includes(exposure.kind));
     assert.equal(typeof exposure.reason, "string");

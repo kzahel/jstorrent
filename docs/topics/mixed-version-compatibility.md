@@ -341,6 +341,12 @@ never deleted.
 
 ## Current Release Hold
 
+On November 21, 2026, desktop 0.3.1 followed Android 1.0.30 out of the
+rolling support window. The remaining contracts produce none of the thirteen
+previously reviewed exposures, so the active exposure list and its Latest
+desktop field exception were retired. The UI regression tests still use the
+fixed 0.3.1 / 1.0.30 capture to check degraded support.
+
 As of November 16, 2026, all strict client deliveries have retired under the
 existing successor-plus-30-day window. Tactical 395 sets
 `strictClients.supported` to false and removes obsolete known breaks and the
@@ -350,9 +356,8 @@ remain a supported host after its client delivery retires. Current supported
 pairs still run the contract/request/live matrix. No compatibility window is
 shortened or deadline extended. The release hold described below is historical.
 
-As of 2026-10-17, `main` carries thirteen reviewed client exposures (see
-`reviewedClientExposure` in `clients/web/src/api/release-compatibility.json`). Extensions 1.1.3 and 1.1.4
-(built from `5fa018ff`, published) validate strictly. A torrent list
+On October 17, 2026, `main` carried thirteen reviewed client exposures.
+Extensions 1.1.3 and 1.1.4 (built from `5fa018ff`) validate strictly. A torrent list
 snapshot from a host built from current `main` includes the new
 `ClientSettings.seed_stop_*` fields, so the companion fails on its first
 library view and asks for a reload. **Stable desktop and Android publication
