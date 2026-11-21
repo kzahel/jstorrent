@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import tempfile
 import unittest
+from urllib.parse import parse_qs, urlsplit
 
 spec = importlib.util.spec_from_file_location('android_play', Path(__file__).with_name('android-play.py'))
 play = importlib.util.module_from_spec(spec)
@@ -85,12 +86,25 @@ def reporting_row(code, rate_metric, rate, users):
 
 
 class FakeReporting:
-    def __init__(self, rows, end=(2026, 11, 2)):
+    def __init__(self, rows, end=(2026, 11, 2), issues=()):
         self.rows = rows
         self.end = end
+        self.issues = issues
         self.queries = []
+        self.searches = []
 
     def call(self, method, url, body=None):
+        if 'errorIssues:search' in url:
+            self.searches.append(parse_qs(urlsplit(url).query))
+            if self.issues is None:
+                raise RuntimeError('GET errorIssues:search: HTTP 403 PERMISSION_DENIED')
+            # The search for one version returns its clusters; the history
+            # search across versions returns each cluster's earliest version.
+            versioned = 'versionCode' in self.searches[-1]['filter'][0]
+            return {'errorIssues': [
+                {key: value for key, value in issue.items() if versioned or key != 'distinctUsers'}
+                | ({} if versioned else {'firstAppVersion': {'versionCode': str(issue['first'])}})
+                for issue in self.issues]}
         if method == 'GET':
             year, month, day = self.end
             return {'freshnessInfo': {'freshnesses': [
@@ -120,6 +134,12 @@ def vitals_rows(new_crash=0.002, new_anr=0.001, users=500, old_crash=0.002, old_
                       reporting_row(32, 'userPerceivedCrashRate', old_crash, 5000)],
             'anr': [reporting_row(33, 'userPerceivedAnrRate', new_anr, users),
                     reporting_row(32, 'userPerceivedAnrRate', old_anr, 5000)]}
+
+
+def issue(name, first, users, kind='CRASH', cause='java.lang.IllegalStateException', location='a.b.C.d'):
+    return {'name': f'apps/com.jstorrent.app/{name}', 'type': kind, 'cause': cause, 'location': location,
+            'distinctUsers': str(users), 'errorReportCount': str(users * 3), 'first': first,
+            'lastErrorReportTime': '2026-11-02T15:00:00Z', 'issueUri': f'https://play.google.com/console/{name}'}
 
 
 PRODUCTION_32 = {'status': 'completed', 'versionCodes': ['32'], 'name': '1.0.32'}
@@ -368,11 +388,64 @@ class AdvanceTest(unittest.TestCase):
         for releases, outcome in (([PRODUCTION_32], 'idle'),
                                   ([{'status': 'halted', 'versionCodes': ['33'], 'userFraction': 0.05}], 'halted')):
             google = FakeGoogle(tracks={'production': releases})
-            self.assertEqual(play.advance(google, ledger(), None, self.policy, NOW, True)['outcome'], outcome)
+            result = play.advance(google, ledger(), FakeReporting(vitals_rows()), self.policy, NOW, True)
+            self.assertEqual(result['outcome'], outcome)
             self.assertFalse(google.puts())
         result, google, _ = self.run_advance(NOW - timedelta(hours=25), steps=None, plan=None)
         self.assertEqual(result['outcome'], 'manual')
         self.assertFalse(google.puts())
+
+    def test_idle_run_monitors_the_full_release(self):
+        google = FakeGoogle(tracks={'production': [{'status': 'completed', 'versionCodes': ['33']}]})
+        log = ledger([deployment(NOW - timedelta(days=9), status='completed', userFraction=None)])
+        reporting = FakeReporting(report_rows(new_crash=9, old_crash=1),
+                                  issues=[issue('old', 31, 6), issue('fresh', 33, 2, cause='SIGSEGV\n::error::x')])
+        result = play.advance(google, log, reporting, self.policy, NOW, True)
+        monitor = result['monitor']
+        self.assertEqual((result['outcome'], monitor['versionCode'], monitor['previousVersionCode'], monitor['days']),
+                         ('idle', 33, 32, 7))
+        # Counts are reported as Play gives them. Nine against the previous
+        # version's one would halt a rollout; a full release has no such gate.
+        self.assertEqual(monitor['vitals'], {'source': 'reports', 'stats': {
+            'crash': {'33': 9.0, '32': 1.0}, 'anr': {'33': 0.0, '32': 1.0}}})
+        self.assertEqual([(c['type'], c['users'], c['reports'], c['firstVersionCode'], c['new'])
+                          for c in monitor['issues']['clusters']],
+                         [('crash', 6, 18, 31, False), ('crash', 2, 6, 33, True)])
+        self.assertFalse(google.puts())
+        self.assertEqual(len(log.github.deployments), 1)
+        warnings = [play.annotation(cluster) for cluster in play.new_clusters(result)]
+        self.assertEqual(warnings, ['::warning title=New Play crash cluster::crash: SIGSEGV%0A::error::x at a.b.C.d '
+                                    '(2 users, 6 reports)'])
+
+    def test_cluster_search_asks_for_one_version_then_its_history(self):
+        reporting = FakeReporting({}, issues=[issue('a', 33, 4, kind='APPLICATION_NOT_RESPONDING')])
+        found = play.crash_clusters(reporting, 33, datetime(2026, 11, 2, 18, 40, tzinfo=timezone.utc))
+        self.assertEqual((found['days'], found['clusters'][0]['type'], found['clusters'][0]['new']), (7, 'anr', True))
+        recent, history = reporting.searches
+        self.assertEqual(recent['filter'], ['versionCode = 33 AND (errorIssueType = CRASH OR errorIssueType = ANR)'])
+        self.assertEqual(history['filter'], ['(errorIssueType = CRASH OR errorIssueType = ANR)'])
+        self.assertEqual((recent['pageSize'], history['pageSize'], recent['orderBy']),
+                         (['20'], ['1000'], ['distinctUsers desc']))
+        for search, start in ((recent, '26'), (history, '5')):
+            self.assertEqual((search['interval.startTime.day'], search['interval.startTime.hours'],
+                              search['interval.endTime.day'], search['interval.endTime.hours']),
+                             ([start], ['18'], ['2'], ['18']))
+        # No clusters for the version: nothing to look up.
+        quiet = FakeReporting({})
+        self.assertEqual(play.crash_clusters(quiet, 33, NOW), {'days': 7, 'clusters': []})
+        self.assertEqual(len(quiet.searches), 1)
+
+    def test_unreadable_clusters_never_block_a_step(self):
+        result, google, _ = self.run_advance(NOW - timedelta(hours=25), rows=None)
+        self.assertEqual((result['outcome'], result['issues']), ('set', {'days': 7, 'clusters': []}))
+        google = FakeGoogle(tracks={'production': [
+            {'status': 'inProgress', 'versionCodes': ['33'], 'userFraction': 0.01}, PRODUCTION_32]})
+        denied = FakeReporting(vitals_rows(), issues=None)
+        result = play.advance(google, ledger([deployment(NOW - timedelta(hours=25))]), denied, self.policy, NOW, True)
+        self.assertEqual(result['outcome'], 'set')
+        self.assertIn('PERMISSION_DENIED', result['issues']['error'])
+        self.assertEqual(play.new_clusters(result), [])
+        self.assertEqual(google.puts()[0]['releases'][0]['userFraction'], 0.05)
 
     def test_without_any_published_rates_report_counts_decide(self):
         gate = self.policy['gate']

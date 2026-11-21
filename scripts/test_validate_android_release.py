@@ -52,6 +52,33 @@ class ArtifactTests(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 validator.check_elf(elf, 'fixture')
 
+    @staticmethod
+    def native_image(identity=None, symbols=False):
+        """ELF64 with one note segment and one section header."""
+        note = b'' if identity is None else struct.pack('<III', 4, len(identity), 3) + b'GNU\0' + identity
+        elf = bytearray(64 + 56 + 64) + note
+        elf[:6] = b'\x7fELF\x02\x01'
+        struct.pack_into('<QQ', elf, 32, 64, 120)           # program and section header offsets
+        struct.pack_into('<HHHH', elf, 54, 56, 1, 64, 1)    # one of each
+        struct.pack_into('<I', elf, 64, 4)                  # PT_NOTE
+        struct.pack_into('<Q', elf, 72, 184)
+        struct.pack_into('<Q', elf, 96, len(note))
+        struct.pack_into('<I', elf, 124, 2 if symbols else 1)
+        return elf
+
+    def test_native_symbols_must_belong_to_the_shipped_library(self):
+        identity = bytes(range(20))
+        library = self.native_image(identity)
+        self.assertEqual(validator.build_id(library), identity.hex())
+        self.assertIsNone(validator.build_id(self.native_image()))
+        validator.check_native_symbols(library, self.native_image(identity, symbols=True), 'fixture')
+        for candidate, symbols in ((self.native_image(), self.native_image(symbols=True)),
+                                   (library, None),
+                                   (library, self.native_image(bytes(20), symbols=True)),
+                                   (library, self.native_image(identity))):
+            with self.assertRaises(AssertionError):
+                validator.check_native_symbols(candidate, symbols, 'fixture')
+
     def test_resolved_application_labels(self):
         manifest = self.manifest.replace('<application ', '<application android:label="@string/app_name" ')
         badging = "application-label:'JSTorrent'\napplication-label-de:'JSTorrent'\n"

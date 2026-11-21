@@ -19,7 +19,7 @@ import re
 import subprocess
 import sys
 from urllib.error import HTTPError
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
@@ -44,6 +44,10 @@ CI_WORKFLOW = '.github/workflows/ci.yml'
 TAG = re.compile(r'android-v((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))\Z')
 MAX_NOTES = 500
 REPORTING_ZONE = 'America/Los_Angeles'
+MONITOR_DAYS = 7
+ISSUE_HISTORY_DAYS = 28
+ISSUE_LIMIT = 20
+ISSUE_HISTORY_PAGES = 5
 EPSILON = 1e-9
 
 
@@ -628,13 +632,111 @@ def vitals(reporting, gate, version_code, previous_code, since, fraction):
     return verdict
 
 
+# Crash clusters and the monitor of a full release. Both only describe; the
+# rollout gate above stays the one place that decides.
+
+ISSUE_TYPES = {'CRASH': 'crash', 'APPLICATION_NOT_RESPONDING': 'anr'}
+ISSUE_FILTER = '(errorIssueType = CRASH OR errorIssueType = ANR)'
+
+
+def search_issues(reporting, start, end, version_code=None, limit=None):
+    """Crash and ANR clusters with reports in [start, end), most affected users first.
+
+    Play wants an hour-aligned UTC interval. Without a limit, read every
+    page up to ISSUE_HISTORY_PAGES.
+    """
+    query = {'filter': ISSUE_FILTER if version_code is None else f'versionCode = {version_code} AND {ISSUE_FILTER}',
+             'orderBy': 'distinctUsers desc', 'pageSize': limit or 1000}
+    for name, value in (('startTime', start), ('endTime', end)):
+        value = value.astimezone(timezone.utc)
+        query.update({f'interval.{name}.year': value.year, f'interval.{name}.month': value.month,
+                      f'interval.{name}.day': value.day, f'interval.{name}.hours': value.hour})
+    issues = []
+    for _ in range(1 if limit else ISSUE_HISTORY_PAGES):
+        page = reporting.call('GET', f'{REPORTING}/errorIssues:search?{urlencode(query)}')
+        issues.extend(page.get('errorIssues', []))
+        if not page.get('nextPageToken'):
+            break
+        query['pageToken'] = page['nextPageToken']
+    return issues[:limit] if limit else issues
+
+
+def whole(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def crash_clusters(reporting, version_code, now):
+    """The version's largest crash and ANR clusters over the last MONITOR_DAYS.
+
+    `firstVersionCode` is the earliest version reporting the cluster within
+    ISSUE_HISTORY_DAYS; a cluster is `new` when that is this version. A
+    failed read is returned, not raised: clusters explain a gate decision
+    and must never block one.
+    """
+    end = now.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    try:
+        current = search_issues(reporting, end - timedelta(days=MONITOR_DAYS), end, version_code, ISSUE_LIMIT)
+        history = {issue.get('name'): issue for issue in
+                   search_issues(reporting, end - timedelta(days=ISSUE_HISTORY_DAYS), end)} if current else {}
+    except (RuntimeError, OSError) as error:
+        return {'error': str(error)[:300]}
+    clusters = []
+    for issue in current:
+        first = whole(history.get(issue.get('name'), {}).get('firstAppVersion', {}).get('versionCode'))
+        clusters.append({
+            'type': ISSUE_TYPES.get(issue.get('type'), issue.get('type')),
+            'cause': str(issue.get('cause', ''))[:200], 'location': str(issue.get('location', ''))[:300],
+            'users': whole(issue.get('distinctUsers')), 'reports': whole(issue.get('errorReportCount')),
+            'lastReport': issue.get('lastErrorReportTime'), 'uri': issue.get('issueUri'),
+            'firstVersionCode': first, 'new': first == version_code})
+    return {'days': MONITOR_DAYS, 'clusters': clusters}
+
+
+def monitor(reporting, ledger, gate, version_code, now):
+    """Crash and ANR numbers and clusters for the fully released version."""
+    _, payload = ledger.latest(version_code)
+    previous = (payload or {}).get('previousVersionCode')
+    verdict = vitals(reporting, gate, version_code, previous, now - timedelta(days=MONITOR_DAYS), 1.0)
+    # A full release has no rollout share to scale the previous version's
+    # reports by, so keep Play's numbers and drop that comparison. Published
+    # rates are still held against Play's thresholds.
+    numbers = {'source': verdict['source'], 'stats': verdict['stats']}
+    if verdict['source'] == 'rates' or not verdict['stats']:
+        numbers['reasons'] = verdict['reasons']
+    return {'versionCode': version_code, 'previousVersionCode': previous, 'days': MONITOR_DAYS,
+            'vitals': numbers, 'issues': crash_clusters(reporting, version_code, now)}
+
+
+def new_clusters(result):
+    """Clusters first reported by the version this run looked at."""
+    issues = (result.get('monitor') or result).get('issues') or {}
+    return [cluster for cluster in issues.get('clusters', []) if cluster['new']]
+
+
+def annotation(cluster):
+    """A workflow warning for one cluster. Play supplies the text, so it is
+    kept on one line and cannot start a workflow command of its own."""
+    text = (f"{cluster['type']}: {cluster['cause']} at {cluster['location']} "
+            f"({cluster['users']} users, {cluster['reports']} reports)")
+    text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+    return f'::warning title=New Play crash cluster::{text}'
+
+
 def advance(google, ledger, reporting, policy, now, act):
     """Take at most one step along the pinned plan of the current rollout."""
     with edit(google) as transaction:
         current = track_releases(transaction, 'production')
     staged = [release for release in current if release.get('status') in ('inProgress', 'halted')]
     if not staged:
-        return {'outcome': 'idle', 'releases': summarize(current)}
+        # Nothing to advance, but the release everyone runs still needs watching.
+        result = {'outcome': 'idle', 'releases': summarize(current)}
+        released = completed_code(current)
+        if released is not None:
+            result['monitor'] = monitor(reporting, ledger, policy['gate'], released, now)
+        return result
     release = staged[0]
     version_code = codes(release)[0]
     if release['status'] == 'halted':
@@ -660,9 +762,11 @@ def advance(google, ledger, reporting, policy, now, act):
         # A recent snapshot shows what the gate will see; it decides nothing.
         snapshot = vitals(reporting, policy['gate'], version_code, previous, now - timedelta(days=21),
                           fraction)
-        return {'outcome': 'waiting', **base, 'vitals': snapshot}
+        return {'outcome': 'waiting', **base, 'vitals': snapshot,
+                'issues': crash_clusters(reporting, version_code, now)}
     gate = vitals(reporting, policy['gate'], version_code, previous, since, fraction)
     base['vitals'] = gate
+    base['issues'] = crash_clusters(reporting, version_code, now)
     if gate['decision'] == 'hold':
         return {'outcome': 'hold', **base}
     action = 'halt' if gate['decision'] == 'halt' else 'complete' if following >= 1.0 else 'set'
@@ -788,6 +892,8 @@ def command_advance(args):
                      datetime.now(timezone.utc), args.mode == 'act')
     result['mode'] = args.mode
     emit(result, args.receipt)
+    for cluster in new_clusters(result):
+        print(annotation(cluster))
     if result['outcome'] == 'mismatch':
         return 2
     if result['outcome'] in ('halt', 'would_halt'):

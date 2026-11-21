@@ -144,6 +144,19 @@ the platform verifier. A missing rule fails only at runtime in release, so
 exercise a minified release build when bindings or reflective dependencies
 change.
 
+Native crash frames need two things from the build. The bundle embeds a
+symbol table for each ABI (`debugSymbolLevel = "SYMBOL_TABLE"`), which gives
+Play function names but not files or lines. The Rust library is linked with
+a GNU build ID (`crates/rstorrent-android/build.rs`), because Cargo does not
+add one and without it a stripped library is paired with its symbols by file
+name alone. Release validation fails if a packaged Rust library has no build
+ID or the bundle's symbol file is missing, empty or from another build. For
+a tombstone from logcat or a user, extract that version's `.sym` files from
+the released AAB under
+`BUNDLE-METADATA/com.android.tools.build.debugsymbols/` and run `ndk-stack`.
+Releases through 1.0.41 have the symbol table but no build ID. Whether Play
+shows readable Rust frames is unqualified until a native crash is observed.
+
 ## Build Without A Tag
 
 Use Actions → Android Release → Run workflow, or:
@@ -265,6 +278,17 @@ group, and change Play through a single validated edit.
    `android-play-rollout` environment sets `ANDROID_PLAY_ADVANCE_MODE=act`
    (enabled 2026-10-25); otherwise it reports what it would do. A waiting run
    also reports a 21-day vitals snapshot.
+
+   The same daily run watches a release after it reaches everyone. With no
+   rollout in progress it reports `idle` with a `monitor` section for the
+   completed production version: seven days of crash and ANR numbers and its
+   20 largest crash and ANR clusters (type, cause, location, users, reports,
+   Console link). A cluster is marked `new` when this version is the earliest
+   one reporting it in the last 28 days, and each new cluster adds a warning
+   to the run. Rollout runs carry the same cluster list beside the gate's
+   numbers. Clusters and the monitor only describe: they change nothing in
+   Play, never fail the run, and a cluster read that fails is recorded in
+   place of the list. Nothing is sent anywhere else; read the run summary.
 
 Every served change is a GitHub deployment (task `play-release`) in the
 `play-internal` or `play-production` environment, with the tag, version code,

@@ -4,6 +4,8 @@ name: Android Play Advance
 # started, after its dwell time and a vitals check. It halts on a vitals
 # regression and never starts a rollout. The environment variable
 # ANDROID_PLAY_ADVANCE_MODE=act enables changes; otherwise it only reports.
+# With no rollout in progress it reports crash and ANR numbers and clusters
+# for the fully released version, read-only.
 
 on:
   schedule:

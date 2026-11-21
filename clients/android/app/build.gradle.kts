@@ -49,6 +49,11 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Function names for native crash frames in Play. Stated here so a
+            // plugin default cannot drop the bundle's symbol files unnoticed.
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
         }
     }
 

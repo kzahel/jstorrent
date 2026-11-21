@@ -79,6 +79,46 @@ def check_elf(data, name):
     assert loads, f'{name}: missing load segments'
 
 
+SYMBOLS = 'BUNDLE-METADATA/com.android.tools.build.debugsymbols/{abi}/librstorrent_android.so.sym'
+
+
+def build_id(data):
+    """The GNU build ID of an ELF64 image as hex, or None."""
+    offset = struct.unpack_from('<Q', data, 32)[0]
+    size, count = struct.unpack_from('<HH', data, 54)
+    for index in range(count):
+        header = offset + index * size
+        if struct.unpack_from('<I', data, header)[0] != 4:  # PT_NOTE
+            continue
+        note, length = struct.unpack_from('<QQ', data, header + 8)[0], struct.unpack_from('<Q', data, header + 32)[0]
+        end = min(note + length, len(data))
+        while note + 12 <= end:
+            name_size, value_size, kind = struct.unpack_from('<III', data, note)
+            name = note + 12
+            value = name + (name_size + 3 & ~3)
+            if kind == 3 and bytes(data[name:name + name_size]) == b'GNU\0':  # NT_GNU_BUILD_ID
+                return bytes(data[value:value + value_size]).hex() or None
+            note = value + (value_size + 3 & ~3)
+    return None
+
+
+def has_symbol_table(data):
+    offset = struct.unpack_from('<Q', data, 40)[0]
+    size, count = struct.unpack_from('<HH', data, 58)
+    return any(struct.unpack_from('<I', data, offset + index * size + 4)[0] == 2  # SHT_SYMTAB
+               for index in range(count))
+
+
+def check_native_symbols(library, symbols, name):
+    """Play can name the frames of a native crash only from a symbol file
+    that belongs to exactly this library."""
+    identity = build_id(library)
+    assert identity, f'{name}: Rust library has no GNU build ID'
+    assert symbols is not None, f'{name}: bundle carries no native symbol file'
+    assert build_id(symbols) == identity, f'{name}: symbol file is for a different build'
+    assert has_symbol_table(symbols), f'{name}: symbol file has no symbol table'
+
+
 def check_language_packaging(config):
     dimensions = config.get('optimizations', {}).get('splitsConfig', {}).get('splitDimension', [])
     languages = [item for item in dimensions if item.get('value') == 'LANGUAGE']
@@ -129,7 +169,13 @@ def main():
                 check_elf(data, name)
             native.append(libs)
     assert native[0] == native[1], 'APK and AAB native libraries differ'
-    print(f'Validated {version} ({code}): signed APK/AAB, JSTorrent manifest, both ABIs, 16 KiB ELF/ZIP alignment')
+    with zipfile.ZipFile(aab) as z:
+        names = set(z.namelist())
+        for abi in ('arm64-v8a', 'x86_64'):
+            path = SYMBOLS.format(abi=abi)
+            check_native_symbols(native[1][f'{abi}/librstorrent_android.so'],
+                                 z.read(path) if path in names else None, abi)
+    print(f'Validated {version} ({code}): signed APK/AAB, JSTorrent manifest, both ABIs, 16 KiB ELF/ZIP alignment, matching native symbols')
 
 
 if __name__ == '__main__':
