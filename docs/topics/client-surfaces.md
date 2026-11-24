@@ -6,6 +6,8 @@ The popup reports readiness from desktop control attachment. A stopped or
 older helper can still Start. The popup and companion guide users through
 first launch, relaunch after a move, and a legacy startup block. Setup and
 legacy recovery in the companion resume on an explicit, attach-only Retry.
+Opening the library from the popup also asks an existing recovery tab to
+attach again once Desktop accepts the connection.
 The existing native messaging v1 error codes and support categories remain
 compatible with released clients and hosts.
 

@@ -374,8 +374,10 @@ test("desktop clicks coalesce, reuse a tab and never return credentials", async 
   assert.equal(tabs.size, 1);
   assert.match([...tabs.values()][0].url, /backend=desktop$/u);
   assert.ok(replies.every((reply) => !JSON.stringify(reply).includes("secret")));
+  assert.deepEqual(attachRequests, []);
   await sendInternal({ type: "desktopBootstrap", op: "open" });
   assert.equal(tabs.size, 1);
+  assert.deepEqual(attachRequests, [{ type: "desktopBootstrapReady" }]);
 });
 
 test("foreign content sender cannot bootstrap or start desktop", () => {

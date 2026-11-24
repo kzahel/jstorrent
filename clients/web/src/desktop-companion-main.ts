@@ -1,7 +1,7 @@
 import { ApplicationViewError } from "./api/client";
 import { message } from "./localization/runtime";
 import { extensionSupport } from "./extension-support";
-import { connectDesktopCompanion, desktopBootstrapFailure, desktopRuntime, DesktopCompanionUnavailable } from "./desktop-companion-client";
+import { connectDesktopCompanion, desktopBootstrapFailure, desktopRuntime, DesktopCompanionUnavailable, observeDesktopBootstrapReady } from "./desktop-companion-client";
 import { startCompanionInspection } from "./inspection/companion-bootstrap";
 
 export async function startDesktopCompanion(): Promise<void> {
@@ -142,6 +142,7 @@ export async function startDesktopCompanion(): Promise<void> {
     void closeConnection?.();
     app.hidden = true;
     if (!event.persisted) {
+      stopObservingReady();
       window.removeEventListener("pagehide", pagehide);
       window.removeEventListener("pageshow", pageshow);
     }
@@ -160,6 +161,15 @@ export async function startDesktopCompanion(): Promise<void> {
       await connect();
     })();
   };
+  const stopObservingReady = observeDesktopBootstrapReady(() => {
+    if (!pageActive || !retryOnly) return;
+    const generation = pageGeneration;
+    // Join any cleanup still running for the failed connection before retrying.
+    void (async () => {
+      await connectionTask;
+      if (pageActive && generation === pageGeneration && retryOnly) void connect();
+    })();
+  });
   window.addEventListener("pagehide", pagehide);
   window.addEventListener("pageshow", pageshow);
   await connect();

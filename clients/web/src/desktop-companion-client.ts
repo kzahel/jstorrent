@@ -17,8 +17,14 @@ interface BootstrapResponse {
   result?: unknown;
   error?: { code?: string; message?: string; reason?: string };
 }
+type RuntimeMessageListener = (message: unknown, sender: { id?: string }) => void;
 interface ChromeRuntime {
+  id?: string;
   sendMessage(message: unknown): Promise<BootstrapResponse>;
+  onMessage?: {
+    addListener(listener: RuntimeMessageListener): void;
+    removeListener(listener: RuntimeMessageListener): void;
+  };
 }
 
 export class DesktopCompanionUnavailable extends Error {
@@ -27,10 +33,25 @@ export class DesktopCompanionUnavailable extends Error {
   }
 }
 
+function chromeRuntime(): ChromeRuntime | undefined {
+  return (globalThis as unknown as { chrome?: { runtime?: ChromeRuntime } }).chrome?.runtime;
+}
+
 export function desktopRuntime(): ChromeRuntime {
-  const runtime = (globalThis as unknown as { chrome?: { runtime?: ChromeRuntime } }).chrome?.runtime;
+  const runtime = chromeRuntime();
   if (!runtime) throw new Error(message("desktop.companion.extension-only"));
   return runtime;
+}
+
+export function observeDesktopBootstrapReady(ready: () => void): () => void {
+  const runtime = chromeRuntime();
+  const messages = runtime?.onMessage;
+  if (!runtime?.id || !messages) return () => {};
+  const listener: RuntimeMessageListener = (event, sender) => {
+    if (sender.id === runtime.id && (event as { type?: unknown } | null)?.type === "desktopBootstrapReady") ready();
+  };
+  messages.addListener(listener);
+  return () => messages.removeListener(listener);
 }
 
 export function validateDesktopReady(value: unknown): Ready {

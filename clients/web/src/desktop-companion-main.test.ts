@@ -13,14 +13,23 @@ vi.mock("./localization/runtime", () => ({ message: (key: string) => key }));
 import { startDesktopCompanion } from "./desktop-companion-main";
 import { DesktopCompanionUnavailable } from "./desktop-companion-client";
 
+type RuntimeListener = (message: unknown, sender: { id: string }) => void;
+
 describe("desktop companion connection ownership", () => {
+  let listeners: Set<RuntimeListener>;
   beforeEach(() => {
     vi.useFakeTimers();
     vi.resetAllMocks();
+    listeners = new Set();
+    vi.stubGlobal("chrome", { runtime: { id: "test-extension", onMessage: {
+      addListener: (listener: RuntimeListener) => listeners.add(listener),
+      removeListener: (listener: RuntimeListener) => listeners.delete(listener),
+    } } });
     document.body.innerHTML = '<section id="companion-bootstrap"><h1></h1><p id="companion-status"></p><button id="companion-cancel"></button></section><div id="companion-identity"></div><div id="app" hidden></div>';
   });
   afterEach(() => {
     window.dispatchEvent(new Event("pagehide"));
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
   it("retries attach without sending a start request", async () => {
@@ -159,6 +168,21 @@ describe("desktop companion connection ownership", () => {
     expect(button.textContent).toBe("desktop.companion.start");
     expect(mock.send).not.toHaveBeenCalled();
   });
+  it.each(["setup", "legacy"] as const)("reattaches a tab awaiting %s after the popup opens Desktop", async (repair) => {
+    mock.connect.mockRejectedValueOnce(new DesktopCompanionUnavailable("recovery copy", repair));
+    mock.connect.mockRejectedValue(new Error("stopped"));
+    await startDesktopCompanion();
+    const signal = { type: "desktopBootstrapReady" };
+    for (const listener of listeners) listener(signal, { id: "foreign-extension" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mock.connect).toHaveBeenCalledOnce();
+    for (const listener of listeners) listener(signal, { id: "test-extension" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mock.connect).toHaveBeenCalledTimes(2);
+    expect(mock.send).not.toHaveBeenCalled();
+    window.dispatchEvent(new Event("pagehide"));
+    expect(listeners.size).toBe(0);
+  });
   it("offers both product links for a mismatch, then hides stale guidance while retrying", async () => {
     mock.connect.mockRejectedValueOnce(new ApplicationViewError("invalid_version", "mismatch"));
     mock.connect.mockImplementation((signal: AbortSignal) => new Promise((_, reject) => {
@@ -192,6 +216,10 @@ describe("desktop companion connection ownership", () => {
     expect(document.getElementById("app")!.hidden).toBe(false);
     expect(mock.mount).toHaveBeenCalledWith(expect.anything(), false,
       { connection: "desktop-companion", hostVersion: "0.3.1" });
+    for (const listener of listeners) listener({ type: "desktopBootstrapReady" }, { id: "test-extension" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mock.connect).toHaveBeenCalledOnce();
+    expect(unmount).not.toHaveBeenCalled();
     disconnect();
     await running;
     expect(unmount).toHaveBeenCalledOnce();

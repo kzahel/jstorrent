@@ -37,8 +37,10 @@ async function withExtension(archive, exercise) {
         const envelope = { id: request.id, protocolVersion: 1 };
         if (request.op === "hello") {
           callback({ ...envelope, ok: true, result: { kind: "hello" } });
+        } else if (fixture.mode === "recovery" && request.op === "start_control") {
+          callback({ ...envelope, ok: true, result: { kind: "ready" } });
         } else {
-          const reason = { legacy: "legacy_running", moved: "desktop_missing", stopped: "stopped" }[fixture.mode];
+          const reason = { legacy: "legacy_running", moved: "desktop_missing", stopped: "stopped", recovery: "stopped" }[fixture.mode];
           callback({ ...envelope, ok: false, error: { code: "control_unavailable", reason } });
         }
       };
@@ -116,6 +118,12 @@ await withExtension(after, async (browser, mode, operations) => {
   assert(await companion.getByRole("button", { name: "Retry connection" }).isVisible());
   await companion.locator("#companion-bootstrap").screenshot({ path: path.join(captures, "08-legacy-companion-after.png"), animations: "disabled" });
   assert.deepEqual(await operations(), ["attach_control", "attach_control"]);
+
+  await mode("recovery");
+  const opened = await win.evaluate(() => chrome.runtime.sendMessage({ type: "desktopBootstrap", op: "open" }));
+  assert.deepEqual(opened, { ok: true, result: { kind: "desktop_ui" } });
+  await companion.getByRole("button", { name: "Start", exact: true }).waitFor();
+  assert.deepEqual((await operations()).slice(0, 2), ["start_control", "attach_control"]);
 });
 
-console.log("PASS packaged Windows/macOS setup copy, passive Retry, and legacy recovery captures");
+console.log("PASS packaged Windows/macOS setup copy, passive Retry, and recovery in an existing companion tab");

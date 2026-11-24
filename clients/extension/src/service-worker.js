@@ -100,7 +100,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const reply = desktopReply(await sendNativeOperation("start_control"), "desktop_ui");
       if (!reply.ok) return reply;
       // The page obtains its own ephemeral credential through attach-only bootstrap.
-      await focusOrOpenExtensionTab(DESKTOP_TAB_KEY, `${ANDROID_PAGE}?backend=desktop`);
+      if (await focusOrOpenExtensionTab(DESKTOP_TAB_KEY, `${ANDROID_PAGE}?backend=desktop`) === "focused") {
+        // An existing page can be waiting for setup or legacy recovery.
+        void chrome.runtime.sendMessage({ type: "desktopBootstrapReady" }).catch(() => {});
+      }
       return reply;
     })().catch(() => ({ ok: false, error: { code: "connection_failed" } }))
       .finally(() => { desktopOpen = undefined; });
