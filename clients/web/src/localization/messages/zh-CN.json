@@ -123,6 +123,10 @@
     "defaultMessage": "在 Chrome 应用商店中打开 JSTorrent",
     "description": "Open the existing production extension listing to check available updates"
   },
+  "desktop.companion.app-missing": {
+    "defaultMessage": "桌面应用可能已被移动。",
+    "description": "Recovery when the native helper exists but its saved desktop launch target is absent"
+  },
   "desktop.companion.connecting": {
     "defaultMessage": "正在连接 JSTorrent 桌面版…",
     "description": "Desktop extension connection"
@@ -143,6 +147,10 @@
     "defaultMessage": "JSTorrent 桌面版与此扩展程序的版本需要兼容。请检查桌面应用和扩展程序的更新，然后重试。等待更新期间，可以直接使用桌面应用。",
     "description": "Desktop mismatch does not identify which component is outdated; native use remains available"
   },
+  "desktop.companion.legacy-retry": {
+    "defaultMessage": "退出旧版 JSTorrent 桌面应用并关闭其扩展程序页面，然后重试。",
+    "description": "Recovery when the migration guard sees an older JSTorrent process or cannot confirm it stopped"
+  },
   "desktop.companion.native-folder": {
     "defaultMessage": "请打开桌面窗口，选择下载文件夹或修复对该文件夹的访问。",
     "description": "Desktop extension connection"
@@ -159,13 +167,17 @@
     "defaultMessage": "重试连接",
     "description": "Attach again after a desktop version or authentication failure without launching it"
   },
-  "desktop.companion.setup-required": {
-    "defaultMessage": "此扩展程序无法使用 JSTorrent 桌面版。请安装或更新桌面应用，然后打开一次以完成设置。",
-    "description": "A missing native host does not establish whether the app is absent, old or needs registration"
+  "desktop.companion.setup-retry": {
+    "defaultMessage": "如果 JSTorrent 已打开，请先退出。打开已安装的应用，然后重试。",
+    "description": "Recovery when the desktop extension cannot find the native helper or its launch configuration"
   },
   "desktop.companion.start": {
     "defaultMessage": "启动",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.start-trouble": {
+    "defaultMessage": "无法连接到 JSTorrent 桌面版。请直接打开应用，或选择“启动”重试。",
+    "description": "Recoverable desktop bootstrap error without a more specific recovery path"
   },
   "desktop.companion.stopped": {
     "defaultMessage": "桌面版已停止。选择“启动”以打开。",
@@ -178,6 +190,10 @@
   "desktop.companion.unavailable": {
     "defaultMessage": "桌面版不可用。",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.unknown-state": {
+    "defaultMessage": "如果 JSTorrent 已关闭，请选择“启动”打开该应用。",
+    "description": "Recoverable passive attachment failure from a desktop helper that does not distinguish reasons"
   },
   "external-link.open-failed": {
     "defaultMessage": "无法打开链接。请重试。",

@@ -46,12 +46,14 @@ export async function startDesktopCompanion(): Promise<void> {
   identity.hidden = false;
   start.textContent = message("desktop.companion.start");
   function showFailure(error: unknown): void {
+    const repair = error instanceof DesktopCompanionUnavailable ? error.recovery : undefined;
     void extensionSupport("support", error instanceof ApplicationViewError ? error.code :
-      error instanceof DesktopCompanionUnavailable ? "native_host_unavailable" : "connection_failed");
+      repair === "setup" ? "native_host_unavailable" : "connection_failed");
     const mismatch = error instanceof ApplicationViewError && error.code === "invalid_version";
-    recovery.hidden = !mismatch && !(error instanceof DesktopCompanionUnavailable);
+    recovery.hidden = !mismatch && repair !== "setup";
     extensionUpdateRow.hidden = !mismatch;
-    retryOnly = error instanceof ApplicationViewError && ["authentication_failed", "invalid_version"].includes(error.code);
+    openNative.hidden = repair !== undefined;
+    retryOnly = repair !== undefined || mismatch || (error instanceof ApplicationViewError && error.code === "authentication_failed");
     start.textContent = retryOnly ? message("desktop.companion.retry") : message("desktop.companion.start");
     status.textContent = error instanceof ApplicationViewError && error.code === "invalid_version"
       ? message("desktop.companion.incompatible")
@@ -70,7 +72,7 @@ export async function startDesktopCompanion(): Promise<void> {
         return;
       }
       const response = await desktopRuntime().sendMessage({ type: "nativeBootstrap", op: "start_control" });
-      if (!response.ok) throw desktopBootstrapFailure(response);
+      if (!response.ok) throw desktopBootstrapFailure(response, true);
       if (!pageActive) return;
       attempt = 0;
       void connect();
@@ -103,6 +105,7 @@ export async function startDesktopCompanion(): Promise<void> {
       });
       if (abort.signal.aborted) return;
       retryOnly = false;
+      openNative.hidden = false;
       start.textContent = message("desktop.companion.start");
       bootstrap.hidden = true;
       app.hidden = false;

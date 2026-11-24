@@ -98,6 +98,33 @@
   "connect_dynamic_014": {
     "message": "Reintentar"
   },
+  "desktop_download": {
+    "message": "Descargar JSTorrent"
+  },
+  "desktop_legacy_detail": {
+    "message": "Salga de cualquier versión anterior de la aplicación de escritorio JSTorrent y cierre las páginas de su extensión. Después, vuelva a intentarlo."
+  },
+  "desktop_legacy_title": {
+    "message": "Cerrar la versión anterior de JSTorrent"
+  },
+  "desktop_missing": {
+    "message": "Aplicación de escritorio movida o no encontrada"
+  },
+  "desktop_open_app": {
+    "message": "Salga de JSTorrent si está abierto. Abra la versión instalada y vuelva a intentarlo."
+  },
+  "desktop_open_macos": {
+    "message": "Salga de JSTorrent si está abierto. Ábralo desde Aplicaciones y seleccione «Reintentar»."
+  },
+  "desktop_open_windows": {
+    "message": "Salga de JSTorrent si está abierto. Ábralo desde el menú Inicio de Windows y seleccione «Reintentar»."
+  },
+  "desktop_start": {
+    "message": "Iniciar JSTorrent"
+  },
+  "desktop_stopped": {
+    "message": "JSTorrent está cerrado"
+  },
   "extension_summary": {
     "message": "Añadir torrents desde Chrome a la aplicación JSTorrent en un equipo de escritorio o Chromebook."
   },

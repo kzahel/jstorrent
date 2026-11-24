@@ -450,6 +450,12 @@
       "value": "Chrome Web Mağazası'nda JSTorrent sayfasını aç"
     }
   ],
+  "desktop.companion.app-missing": [
+    {
+      "type": 0,
+      "value": "Masaüstü uygulaması taşınmış olabilir."
+    }
+  ],
   "desktop.companion.connecting": [
     {
       "type": 0,
@@ -480,6 +486,12 @@
       "value": "JSTorrent Desktop ile bu uzantının sürümleri uyumlu olmalıdır. Masaüstü uygulaması ve uzantı için güncellemeleri denetleyip yeniden deneyin. Güncellemeler gelene kadar masaüstü uygulamasını doğrudan kullanabilirsiniz."
     }
   ],
+  "desktop.companion.legacy-retry": [
+    {
+      "type": 0,
+      "value": "Açık olan eski JSTorrent masaüstü uygulamasından çıkın ve uzantısına ait sayfaları kapatın. Sonra tekrar deneyin."
+    }
+  ],
   "desktop.companion.native-folder": [
     {
       "type": 0,
@@ -504,16 +516,22 @@
       "value": "Bağlantıyı yeniden dene"
     }
   ],
-  "desktop.companion.setup-required": [
+  "desktop.companion.setup-retry": [
     {
       "type": 0,
-      "value": "Bu uzantı JSTorrent Desktop uygulamasına erişemiyor. Masaüstü uygulamasını yükleyin veya güncelleyin, ardından kurulumu tamamlamak için bir kez açın."
+      "value": "JSTorrent açıksa uygulamadan çıkın. Yüklü sürümü açıp tekrar deneyin."
     }
   ],
   "desktop.companion.start": [
     {
       "type": 0,
       "value": "Başlat"
+    }
+  ],
+  "desktop.companion.start-trouble": [
+    {
+      "type": 0,
+      "value": "JSTorrent Desktop uygulamasına bağlanılamadı. Uygulamayı doğrudan açın veya tekrar denemek için “Başlat”ı seçin."
     }
   ],
   "desktop.companion.stopped": [
@@ -532,6 +550,12 @@
     {
       "type": 0,
       "value": "Masaüstü uygulaması kullanılamıyor."
+    }
+  ],
+  "desktop.companion.unknown-state": [
+    {
+      "type": 0,
+      "value": "JSTorrent kapalıysa uygulamayı açmak için “Başlat”ı seçin."
     }
   ],
   "external-link.open-failed": [

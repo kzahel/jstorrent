@@ -123,6 +123,10 @@
     "defaultMessage": "ChromeウェブストアでJSTorrentを開く",
     "description": "Open the existing production extension listing to check available updates"
   },
+  "desktop.companion.app-missing": {
+    "defaultMessage": "デスクトップアプリが移動された可能性があります。",
+    "description": "Recovery when the native helper exists but its saved desktop launch target is absent"
+  },
   "desktop.companion.connecting": {
     "defaultMessage": "JSTorrent Desktopに接続中…",
     "description": "Desktop extension connection"
@@ -143,6 +147,10 @@
     "defaultMessage": "JSTorrent Desktopとこの拡張機能には、互換性のあるバージョンが必要です。デスクトップアプリと拡張機能の更新を確認し、再試行してください。更新が提供されるまでは、デスクトップアプリを直接利用できます。",
     "description": "Desktop mismatch does not identify which component is outdated; native use remains available"
   },
+  "desktop.companion.legacy-retry": {
+    "defaultMessage": "以前のバージョンのJSTorrentデスクトップアプリが開いている場合は終了し、その拡張機能のページも閉じてください。その後、もう一度お試しください。",
+    "description": "Recovery when the migration guard sees an older JSTorrent process or cannot confirm it stopped"
+  },
   "desktop.companion.native-folder": {
     "defaultMessage": "ダウンロード先フォルダーを選択するか、利用できる状態に戻すには、デスクトップアプリのウィンドウを開いてください。",
     "description": "Desktop extension connection"
@@ -159,13 +167,17 @@
     "defaultMessage": "接続を再試行",
     "description": "Attach again after a desktop version or authentication failure without launching it"
   },
-  "desktop.companion.setup-required": {
-    "defaultMessage": "この拡張機能からJSTorrent Desktopを利用できません。デスクトップアプリをインストールまたは更新し、一度起動して設定を完了してください。",
-    "description": "A missing native host does not establish whether the app is absent, old or needs registration"
+  "desktop.companion.setup-retry": {
+    "defaultMessage": "JSTorrentが開いている場合は終了してください。インストール済みのアプリを開き、もう一度お試しください。",
+    "description": "Recovery when the desktop extension cannot find the native helper or its launch configuration"
   },
   "desktop.companion.start": {
     "defaultMessage": "起動",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.start-trouble": {
+    "defaultMessage": "JSTorrent Desktopに接続できませんでした。アプリを直接開くか、「起動」を選択してもう一度お試しください。",
+    "description": "Recoverable desktop bootstrap error without a more specific recovery path"
   },
   "desktop.companion.stopped": {
     "defaultMessage": "デスクトップアプリは停止しています。「起動」を選択して開いてください。",
@@ -178,6 +190,10 @@
   "desktop.companion.unavailable": {
     "defaultMessage": "デスクトップアプリを利用できません。",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.unknown-state": {
+    "defaultMessage": "JSTorrentが終了している場合は、「起動」を選択して開いてください。",
+    "description": "Recoverable passive attachment failure from a desktop helper that does not distinguish reasons"
   },
   "external-link.open-failed": {
     "defaultMessage": "リンクを開けませんでした。もう一度お試しください。",

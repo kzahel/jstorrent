@@ -704,6 +704,12 @@
       "value": "Otevřít JSTorrent v Internetovém obchodě Chrome"
     }
   ],
+  "desktop.companion.app-missing": [
+    {
+      "type": 0,
+      "value": "Desktopová aplikace mohla být přesunuta."
+    }
+  ],
   "desktop.companion.connecting": [
     {
       "type": 0,
@@ -734,6 +740,12 @@
       "value": "JSTorrent Desktop a toto rozšíření vyžadují kompatibilní verze. Vyhledejte aktualizace desktopové aplikace a rozšíření a pak to zkuste znovu. Než budou aktualizace dostupné, můžete používat přímo desktopovou aplikaci."
     }
   ],
+  "desktop.companion.legacy-retry": [
+    {
+      "type": 0,
+      "value": "Ukončete případnou starší verzi desktopové aplikace JSTorrent a zavřete stránky jejího rozšíření. Potom to zkuste znovu."
+    }
+  ],
   "desktop.companion.native-folder": [
     {
       "type": 0,
@@ -758,16 +770,22 @@
       "value": "Zkusit připojení znovu"
     }
   ],
-  "desktop.companion.setup-required": [
+  "desktop.companion.setup-retry": [
     {
       "type": 0,
-      "value": "JSTorrent Desktop není pro toto rozšíření dostupný. Nainstalujte nebo aktualizujte desktopovou aplikaci a pak ji jednou otevřete, aby se dokončilo nastavení."
+      "value": "Pokud je JSTorrent otevřený, ukončete ho. Otevřete nainstalovanou verzi a zkuste to znovu."
     }
   ],
   "desktop.companion.start": [
     {
       "type": 0,
       "value": "Spustit"
+    }
+  ],
+  "desktop.companion.start-trouble": [
+    {
+      "type": 0,
+      "value": "K aplikaci JSTorrent Desktop se nepodařilo připojit. Otevřete aplikaci přímo nebo to zkuste znovu tlačítkem „Spustit“."
     }
   ],
   "desktop.companion.stopped": [
@@ -786,6 +804,12 @@
     {
       "type": 0,
       "value": "Desktopová aplikace je nedostupná."
+    }
+  ],
+  "desktop.companion.unknown-state": [
+    {
+      "type": 0,
+      "value": "Pokud je JSTorrent zavřený, otevřete ho tlačítkem „Spustit“."
     }
   ],
   "external-link.open-failed": [

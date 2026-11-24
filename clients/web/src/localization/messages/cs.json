@@ -123,6 +123,10 @@
     "defaultMessage": "Otevřít JSTorrent v Internetovém obchodě Chrome",
     "description": "Open the existing production extension listing to check available updates"
   },
+  "desktop.companion.app-missing": {
+    "defaultMessage": "Desktopová aplikace mohla být přesunuta.",
+    "description": "Recovery when the native helper exists but its saved desktop launch target is absent"
+  },
   "desktop.companion.connecting": {
     "defaultMessage": "Připojování k JSTorrent Desktop…",
     "description": "Desktop extension connection"
@@ -143,6 +147,10 @@
     "defaultMessage": "JSTorrent Desktop a toto rozšíření vyžadují kompatibilní verze. Vyhledejte aktualizace desktopové aplikace a rozšíření a pak to zkuste znovu. Než budou aktualizace dostupné, můžete používat přímo desktopovou aplikaci.",
     "description": "Desktop mismatch does not identify which component is outdated; native use remains available"
   },
+  "desktop.companion.legacy-retry": {
+    "defaultMessage": "Ukončete případnou starší verzi desktopové aplikace JSTorrent a zavřete stránky jejího rozšíření. Potom to zkuste znovu.",
+    "description": "Recovery when the migration guard sees an older JSTorrent process or cannot confirm it stopped"
+  },
   "desktop.companion.native-folder": {
     "defaultMessage": "Otevřete okno desktopové aplikace a vyberte složku pro stahování nebo opravte přístup k ní.",
     "description": "Desktop extension connection"
@@ -159,13 +167,17 @@
     "defaultMessage": "Zkusit připojení znovu",
     "description": "Attach again after a desktop version or authentication failure without launching it"
   },
-  "desktop.companion.setup-required": {
-    "defaultMessage": "JSTorrent Desktop není pro toto rozšíření dostupný. Nainstalujte nebo aktualizujte desktopovou aplikaci a pak ji jednou otevřete, aby se dokončilo nastavení.",
-    "description": "A missing native host does not establish whether the app is absent, old or needs registration"
+  "desktop.companion.setup-retry": {
+    "defaultMessage": "Pokud je JSTorrent otevřený, ukončete ho. Otevřete nainstalovanou verzi a zkuste to znovu.",
+    "description": "Recovery when the desktop extension cannot find the native helper or its launch configuration"
   },
   "desktop.companion.start": {
     "defaultMessage": "Spustit",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.start-trouble": {
+    "defaultMessage": "K aplikaci JSTorrent Desktop se nepodařilo připojit. Otevřete aplikaci přímo nebo to zkuste znovu tlačítkem „Spustit“.",
+    "description": "Recoverable desktop bootstrap error without a more specific recovery path"
   },
   "desktop.companion.stopped": {
     "defaultMessage": "Desktopová aplikace je zastavená. Otevřete ji tlačítkem Spustit.",
@@ -178,6 +190,10 @@
   "desktop.companion.unavailable": {
     "defaultMessage": "Desktopová aplikace je nedostupná.",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.unknown-state": {
+    "defaultMessage": "Pokud je JSTorrent zavřený, otevřete ho tlačítkem „Spustit“.",
+    "description": "Recoverable passive attachment failure from a desktop helper that does not distinguish reasons"
   },
   "external-link.open-failed": {
     "defaultMessage": "Odkaz se nepodařilo otevřít. Zkuste to prosím znovu.",

@@ -98,6 +98,33 @@
   "connect_dynamic_014": {
     "message": "Réessayer"
   },
+  "desktop_download": {
+    "message": "Télécharger JSTorrent"
+  },
+  "desktop_legacy_detail": {
+    "message": "Quittez toute ancienne version de l’application de bureau JSTorrent et fermez les pages de son extension. Réessayez ensuite."
+  },
+  "desktop_legacy_title": {
+    "message": "Fermer l’ancienne version de JSTorrent"
+  },
+  "desktop_missing": {
+    "message": "Application déplacée ou introuvable"
+  },
+  "desktop_open_app": {
+    "message": "Quittez JSTorrent s’il est ouvert. Ouvrez la version installée, puis réessayez."
+  },
+  "desktop_open_macos": {
+    "message": "Quittez JSTorrent s’il est ouvert. Ouvrez-le depuis Applications, puis sélectionnez « Réessayer »."
+  },
+  "desktop_open_windows": {
+    "message": "Quittez JSTorrent s’il est ouvert. Ouvrez-le depuis le menu Démarrer de Windows, puis sélectionnez « Réessayer »."
+  },
+  "desktop_start": {
+    "message": "Démarrer JSTorrent"
+  },
+  "desktop_stopped": {
+    "message": "JSTorrent est fermé"
+  },
   "extension_summary": {
     "message": "Ajouter des torrents depuis Chrome à l’application JSTorrent sur ordinateur ou Chromebook."
   },

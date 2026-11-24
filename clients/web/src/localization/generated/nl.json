@@ -458,6 +458,12 @@
       "value": "JSTorrent openen in de Chrome Web Store"
     }
   ],
+  "desktop.companion.app-missing": [
+    {
+      "type": 0,
+      "value": "De desktopapp is mogelijk verplaatst."
+    }
+  ],
   "desktop.companion.connecting": [
     {
       "type": 0,
@@ -488,6 +494,12 @@
       "value": "JSTorrent Desktop en deze extensie hebben compatibele versies nodig. Controleer op updates voor de desktopapp en de extensie en probeer het opnieuw. Je kunt de desktopapp rechtstreeks gebruiken terwijl je op updates wacht."
     }
   ],
+  "desktop.companion.legacy-retry": [
+    {
+      "type": 0,
+      "value": "Sluit een eventuele oudere versie van de JSTorrent-desktopapp af en sluit de bijbehorende extensiepagina’s. Probeer het daarna opnieuw."
+    }
+  ],
   "desktop.companion.native-folder": [
     {
       "type": 0,
@@ -512,16 +524,22 @@
       "value": "Opnieuw verbinden"
     }
   ],
-  "desktop.companion.setup-required": [
+  "desktop.companion.setup-retry": [
     {
       "type": 0,
-      "value": "JSTorrent Desktop is niet beschikbaar voor deze extensie. Installeer de desktopapp of werk deze bij en open de app één keer om de installatie af te ronden."
+      "value": "Sluit JSTorrent af als het open is. Open de geïnstalleerde versie en probeer het opnieuw."
     }
   ],
   "desktop.companion.start": [
     {
       "type": 0,
       "value": "Starten"
+    }
+  ],
+  "desktop.companion.start-trouble": [
+    {
+      "type": 0,
+      "value": "Verbinding met JSTorrent Desktop mislukt. Open de app rechtstreeks of kies ‘Starten’ om het opnieuw te proberen."
     }
   ],
   "desktop.companion.stopped": [
@@ -540,6 +558,12 @@
     {
       "type": 0,
       "value": "De desktopapp is niet beschikbaar."
+    }
+  ],
+  "desktop.companion.unknown-state": [
+    {
+      "type": 0,
+      "value": "Als JSTorrent gesloten is, kies je ‘Starten’ om het te openen."
     }
   ],
   "external-link.open-failed": [

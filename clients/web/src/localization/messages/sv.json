@@ -123,6 +123,10 @@
     "defaultMessage": "Öppna JSTorrent i Chrome Web Store",
     "description": "Open the existing production extension listing to check available updates"
   },
+  "desktop.companion.app-missing": {
+    "defaultMessage": "Skrivbordsappen kan ha flyttats.",
+    "description": "Recovery when the native helper exists but its saved desktop launch target is absent"
+  },
   "desktop.companion.connecting": {
     "defaultMessage": "Ansluter till JSTorrent Desktop…",
     "description": "Desktop extension connection"
@@ -143,6 +147,10 @@
     "defaultMessage": "JSTorrent Desktop och det här tillägget behöver kompatibla versioner. Sök efter uppdateringar för skrivbordsappen och tillägget och försök sedan igen. Du kan använda skrivbordsappen direkt medan du väntar på uppdateringar.",
     "description": "Desktop mismatch does not identify which component is outdated; native use remains available"
   },
+  "desktop.companion.legacy-retry": {
+    "defaultMessage": "Avsluta en eventuell äldre version av skrivbordsappen JSTorrent och stäng sidorna för dess tillägg. Försök sedan igen.",
+    "description": "Recovery when the migration guard sees an older JSTorrent process or cannot confirm it stopped"
+  },
   "desktop.companion.native-folder": {
     "defaultMessage": "Öppna skrivbordsappens fönster för att välja en nedladdningsmapp eller återställa åtkomsten till den.",
     "description": "Desktop extension connection"
@@ -159,13 +167,17 @@
     "defaultMessage": "Försök ansluta igen",
     "description": "Attach again after a desktop version or authentication failure without launching it"
   },
-  "desktop.companion.setup-required": {
-    "defaultMessage": "JSTorrent Desktop är inte tillgängligt för det här tillägget. Installera eller uppdatera skrivbordsappen och öppna den sedan en gång för att slutföra konfigurationen.",
-    "description": "A missing native host does not establish whether the app is absent, old or needs registration"
+  "desktop.companion.setup-retry": {
+    "defaultMessage": "Avsluta JSTorrent om det är öppet. Öppna den installerade versionen och försök igen.",
+    "description": "Recovery when the desktop extension cannot find the native helper or its launch configuration"
   },
   "desktop.companion.start": {
     "defaultMessage": "Starta",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.start-trouble": {
+    "defaultMessage": "Det gick inte att ansluta till JSTorrent Desktop. Öppna appen direkt eller välj ”Starta” för att försöka igen.",
+    "description": "Recoverable desktop bootstrap error without a more specific recovery path"
   },
   "desktop.companion.stopped": {
     "defaultMessage": "Skrivbordsappen är stoppad. Välj Starta för att öppna den.",
@@ -178,6 +190,10 @@
   "desktop.companion.unavailable": {
     "defaultMessage": "Skrivbordsappen är inte tillgänglig.",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.unknown-state": {
+    "defaultMessage": "Om JSTorrent är stängt väljer du ”Starta” för att öppna det.",
+    "description": "Recoverable passive attachment failure from a desktop helper that does not distinguish reasons"
   },
   "external-link.open-failed": {
     "defaultMessage": "Det gick inte att öppna länken. Försök igen.",

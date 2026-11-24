@@ -390,6 +390,22 @@ test("automatic attachment forwards only attach intent", async () => {
   assert.equal(tabs.size, 0);
 });
 
+test("popup status attaches without exposing the protected reply or opening a tab", async () => {
+  nativeResponse = request => ({ id: request.id, protocolVersion: 1, ok: true, result: { kind: "ready", credential: "secret", endpoint: "http://127.0.0.1:1234" } });
+  assert.deepEqual(await sendInternal({ type: "desktopBootstrap", op: "status" }), { ok: true, result: { kind: "attached" } });
+  assert.equal(nativeRequest.request.op, "attach_control");
+  assert.equal(tabs.size, 0);
+});
+
+test("a blocked explicit start leaves recovery in the popup", async () => {
+  nativeResponse = request => ({ id: request.id, protocolVersion: 1, ok: false, error: { code: "control_unavailable", reason: "legacy_running", message: "private diagnostic" } });
+  assert.deepEqual(await sendInternal({ type: "desktopBootstrap", op: "open" }), {
+    ok: false, error: { code: "control_unavailable", reason: "legacy_running" },
+  });
+  assert.equal(nativeRequest.request.op, "start_control");
+  assert.equal(tabs.size, 0);
+});
+
 
 test("desktop recovers its own page without a remembered tab or URL permission", async () => {
   tabs.set(77, { id: 77, windowId: 5, url: chrome.runtime.getURL("companion/companion.html?backend=desktop") });

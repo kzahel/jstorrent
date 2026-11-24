@@ -561,6 +561,12 @@
       "value": "Deschide JSTorrent în Chrome Web Store"
     }
   ],
+  "desktop.companion.app-missing": [
+    {
+      "type": 0,
+      "value": "Este posibil ca aplicația desktop să fi fost mutată."
+    }
+  ],
   "desktop.companion.connecting": [
     {
       "type": 0,
@@ -591,6 +597,12 @@
       "value": "JSTorrent Desktop și această extensie necesită versiuni compatibile. Verificați dacă există actualizări pentru aplicația desktop și extensie, apoi reîncercați. Până când actualizările sunt disponibile, puteți folosi direct aplicația desktop."
     }
   ],
+  "desktop.companion.legacy-retry": [
+    {
+      "type": 0,
+      "value": "Ieșiți din orice versiune mai veche a aplicației desktop JSTorrent și închideți paginile extensiei acesteia. Apoi încercați din nou."
+    }
+  ],
   "desktop.companion.native-folder": [
     {
       "type": 0,
@@ -615,16 +627,22 @@
       "value": "Reîncearcă conectarea"
     }
   ],
-  "desktop.companion.setup-required": [
+  "desktop.companion.setup-retry": [
     {
       "type": 0,
-      "value": "JSTorrent Desktop nu este disponibil pentru această extensie. Instalați sau actualizați aplicația desktop, apoi deschideți-o o dată pentru a finaliza configurarea."
+      "value": "Ieșiți din JSTorrent dacă este deschis. Deschideți versiunea instalată și încercați din nou."
     }
   ],
   "desktop.companion.start": [
     {
       "type": 0,
       "value": "Pornește"
+    }
+  ],
+  "desktop.companion.start-trouble": [
+    {
+      "type": 0,
+      "value": "Conectarea la JSTorrent Desktop nu a reușit. Deschideți aplicația direct sau selectați „Pornește” pentru a încerca din nou."
     }
   ],
   "desktop.companion.stopped": [
@@ -643,6 +661,12 @@
     {
       "type": 0,
       "value": "Aplicația desktop este indisponibilă."
+    }
+  ],
+  "desktop.companion.unknown-state": [
+    {
+      "type": 0,
+      "value": "Dacă JSTorrent este închis, selectați „Pornește” pentru a-l deschide."
     }
   ],
   "external-link.open-failed": [

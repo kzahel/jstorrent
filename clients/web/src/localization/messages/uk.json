@@ -123,6 +123,10 @@
     "defaultMessage": "Відкрити JSTorrent у Вебмагазині Chrome",
     "description": "Open the existing production extension listing to check available updates"
   },
+  "desktop.companion.app-missing": {
+    "defaultMessage": "Можливо, настільний застосунок було переміщено.",
+    "description": "Recovery when the native helper exists but its saved desktop launch target is absent"
+  },
   "desktop.companion.connecting": {
     "defaultMessage": "Підключення до JSTorrent Desktop…",
     "description": "Desktop extension connection"
@@ -143,6 +147,10 @@
     "defaultMessage": "Версії JSTorrent Desktop і цього розширення мають бути сумісними. Перевірте наявність оновлень настільного застосунку й розширення, а потім повторіть спробу. Доки оновлення не з’являться, можна користуватися настільним застосунком безпосередньо.",
     "description": "Desktop mismatch does not identify which component is outdated; native use remains available"
   },
+  "desktop.companion.legacy-retry": {
+    "defaultMessage": "Завершіть роботу старішої версії настільного застосунку JSTorrent і закрийте сторінки її розширення, якщо вони відкриті. Потім спробуйте ще раз.",
+    "description": "Recovery when the migration guard sees an older JSTorrent process or cannot confirm it stopped"
+  },
   "desktop.companion.native-folder": {
     "defaultMessage": "Відкрийте вікно настільного застосунку, щоб вибрати теку завантажень або відновити доступ до неї.",
     "description": "Desktop extension connection"
@@ -159,13 +167,17 @@
     "defaultMessage": "Повторити підключення",
     "description": "Attach again after a desktop version or authentication failure without launching it"
   },
-  "desktop.companion.setup-required": {
-    "defaultMessage": "JSTorrent Desktop недоступний цьому розширенню. Установіть або оновіть настільний застосунок і відкрийте його один раз, щоб завершити налаштування.",
-    "description": "A missing native host does not establish whether the app is absent, old or needs registration"
+  "desktop.companion.setup-retry": {
+    "defaultMessage": "Завершіть роботу JSTorrent, якщо його відкрито. Відкрийте встановлену версію й спробуйте ще раз.",
+    "description": "Recovery when the desktop extension cannot find the native helper or its launch configuration"
   },
   "desktop.companion.start": {
     "defaultMessage": "Запустити",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.start-trouble": {
+    "defaultMessage": "Не вдалося під’єднатися до JSTorrent Desktop. Відкрийте застосунок напряму або виберіть «Запустити», щоб спробувати ще раз.",
+    "description": "Recoverable desktop bootstrap error without a more specific recovery path"
   },
   "desktop.companion.stopped": {
     "defaultMessage": "Настільний застосунок зупинено. Виберіть «Запустити», щоб відкрити його.",
@@ -178,6 +190,10 @@
   "desktop.companion.unavailable": {
     "defaultMessage": "Настільний застосунок недоступний.",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.unknown-state": {
+    "defaultMessage": "Якщо JSTorrent закрито, виберіть «Запустити», щоб відкрити його.",
+    "description": "Recoverable passive attachment failure from a desktop helper that does not distinguish reasons"
   },
   "external-link.open-failed": {
     "defaultMessage": "Не вдалося відкрити посилання. Спробуйте ще раз.",

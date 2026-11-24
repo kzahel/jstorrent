@@ -36,6 +36,7 @@ h2 { margin: 18px 0 10px; font-size: 14px; font-weight: 650; }
 .status-dot.checking { animation: pulse 1.2s ease-in-out infinite; }
 .status-title { font-size: 13px; font-weight: 650; line-height: 1.4; }
 .status-detail { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+#status-detail:empty { display: none; }
 button, .button-link { display: block; width: 100%; margin-top: 12px; padding: 10px 14px; border: 1px solid transparent; border-radius: 6px; background: var(--accent); color: #fff; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; text-align: center; text-decoration: none; }
 button:hover:not(:disabled), .button-link:hover { background: var(--accent-hover); }
 button:disabled { cursor: default; opacity: 0.55; }

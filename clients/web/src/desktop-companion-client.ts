@@ -15,13 +15,17 @@ interface Ready {
 interface BootstrapResponse {
   ok: boolean;
   result?: unknown;
-  error?: { code?: string; message?: string };
+  error?: { code?: string; message?: string; reason?: string };
 }
 interface ChromeRuntime {
   sendMessage(message: unknown): Promise<BootstrapResponse>;
 }
 
-export class DesktopCompanionUnavailable extends Error {}
+export class DesktopCompanionUnavailable extends Error {
+  constructor(copy: string, readonly recovery: "setup" | "legacy" = "setup") {
+    super(copy);
+  }
+}
 
 export function desktopRuntime(): ChromeRuntime {
   const runtime = (globalThis as unknown as { chrome?: { runtime?: ChromeRuntime } }).chrome?.runtime;
@@ -42,14 +46,28 @@ export function validateDesktopReady(value: unknown): Ready {
   return ready as Ready;
 }
 
-export function desktopBootstrapFailure(response: BootstrapResponse): Error {
-  if (response.error?.code === "native_host_unavailable") {
-    return new DesktopCompanionUnavailable(message("desktop.companion.setup-required"));
+export function desktopBootstrapFailure(response: BootstrapResponse, starting = false): Error {
+  const code = response.error?.code;
+  const reason = code === "control_unavailable" ? response.error?.reason : undefined;
+  if (code === "native_host_unavailable" || reason === "setup_required") {
+    return new DesktopCompanionUnavailable(message("desktop.companion.setup-retry"));
   }
-  if (["unsupported_protocol", "unsupported_operation", "invalid_native_response"].includes(response.error?.code ?? "")) {
+  if (reason === "desktop_missing") {
+    return new DesktopCompanionUnavailable(
+      message("desktop.companion.app-missing") + " " + message("desktop.companion.setup-retry"),
+    );
+  }
+  if (reason === "legacy_running" || reason === "legacy_check_failed") {
+    return new DesktopCompanionUnavailable(message("desktop.companion.legacy-retry"), "legacy");
+  }
+  if (["unsupported_protocol", "unsupported_operation", "invalid_native_response"].includes(code ?? "")) {
     return new ApplicationViewError("invalid_version", message("desktop.companion.incompatible"));
   }
-  return new Error(response.error?.message ?? message("desktop.companion.stopped"));
+  if (reason === "stopped") return new Error(message("desktop.companion.stopped"));
+  if (!starting && code === "control_unavailable" && reason === undefined) {
+    return new Error(message("desktop.companion.unknown-state"));
+  }
+  return new Error(message("desktop.companion.start-trouble"));
 }
 
 export async function connectDesktopCompanion(signal: AbortSignal): Promise<{

@@ -281,6 +281,15 @@
       "translationHash": "952cd068f077b726ace3dc89a08e7ca57db5531ebf9b9db76b84e493436dd7bb",
       "translator": "claude-opus-5-5/3e948f86-3546-4e9a-91e0-19e6b0adadd2"
     },
+    "desktop.companion.app-missing": {
+      "origin": "independently authored translation",
+      "reviewState": "agent-reviewed",
+      "reviewer": "claude-opus-5-5/52574e19-2ecc-4d39-8126-4f8b7de99c73",
+      "sourceHash": "9e698460cd46d7a7043e3a0b2b6ee7b1998d57f404a2168f138907d76988099a",
+      "terminologyHash": "35236207eaa8ed0f8d4abe45b9c535fc08c45a98aa494c79e1dcda1a8f636d7f",
+      "translationHash": "f4cd566ed62cebfaae8993f4c9c0ea59dd01f4ebd867e14c8bc8eece767a0eef",
+      "translator": "gpt-6.2-sol/6b3465b9-2a01-4236-be8d-7ca9d241cbaf"
+    },
     "desktop.companion.connecting": {
       "origin": "independently authored translation",
       "reviewState": "agent-reviewed",
@@ -326,6 +335,15 @@
       "translationHash": "d42845b682fa4fc84b2cc9f884d9284fde1256740ab6ca981b67caeabc262073",
       "translator": "claude-opus-5-5/3e948f86-3546-4e9a-91e0-19e6b0adadd2"
     },
+    "desktop.companion.legacy-retry": {
+      "origin": "independently authored translation",
+      "reviewState": "agent-reviewed",
+      "reviewer": "claude-opus-5-5/52574e19-2ecc-4d39-8126-4f8b7de99c73",
+      "sourceHash": "923ad6679fdac16705573f135ce1c4ba45488e6b04fcf9cc30ffae3caf982a8f",
+      "terminologyHash": "35236207eaa8ed0f8d4abe45b9c535fc08c45a98aa494c79e1dcda1a8f636d7f",
+      "translationHash": "f705a7254175ee0aa2413f478134783c483c668f4cbdc6c436859e12a32690b8",
+      "translator": "gpt-6.2-sol/6b3465b9-2a01-4236-be8d-7ca9d241cbaf"
+    },
     "desktop.companion.native-folder": {
       "origin": "independently authored translation",
       "reviewState": "agent-reviewed",
@@ -362,14 +380,14 @@
       "translationHash": "33ad9980324b50f704ca37faac5e6b8cac1aa4d8a29f884e6715b8d7117a9c2d",
       "translator": "claude-opus-5-5/3e948f86-3546-4e9a-91e0-19e6b0adadd2"
     },
-    "desktop.companion.setup-required": {
+    "desktop.companion.setup-retry": {
       "origin": "independently authored translation",
       "reviewState": "agent-reviewed",
-      "reviewer": "claude-opus-5-5/88981f1f-35a2-4d8a-86de-67cfdb697522",
-      "sourceHash": "2b990a7b6253df4585c2332b77682fbd87ca8e409a0427cb8a58794372a44575",
+      "reviewer": "claude-opus-5-5/52574e19-2ecc-4d39-8126-4f8b7de99c73",
+      "sourceHash": "62105953e70d6874a0ee36d4450bb52c520e3892020bb8b7fc8bfd13d50f290b",
       "terminologyHash": "35236207eaa8ed0f8d4abe45b9c535fc08c45a98aa494c79e1dcda1a8f636d7f",
-      "translationHash": "3a97e5a11572b4c8ac5187b2b27cf4b46f0f051210fda211d97a2362a19e83f8",
-      "translator": "claude-opus-5-5/3e948f86-3546-4e9a-91e0-19e6b0adadd2"
+      "translationHash": "c8b8409cd8cf57dfe3393c81a320c3068924c5ea5311aa49e55ac0214899b252",
+      "translator": "gpt-6.2-sol/6b3465b9-2a01-4236-be8d-7ca9d241cbaf"
     },
     "desktop.companion.start": {
       "origin": "independently authored translation",
@@ -379,6 +397,15 @@
       "terminologyHash": "35236207eaa8ed0f8d4abe45b9c535fc08c45a98aa494c79e1dcda1a8f636d7f",
       "translationHash": "5d0bcc328a65cf55ac4dae3e6e450ffb1c9af3a9c688a23ef5f37dfe22847f7b",
       "translator": "claude-opus-5-5/3e948f86-3546-4e9a-91e0-19e6b0adadd2"
+    },
+    "desktop.companion.start-trouble": {
+      "origin": "independently authored translation",
+      "reviewState": "agent-reviewed",
+      "reviewer": "claude-opus-5-5/52574e19-2ecc-4d39-8126-4f8b7de99c73",
+      "sourceHash": "f1e4c877d3ea770239d097013ed51b5f961630b329b29836aae21dff43f8600c",
+      "terminologyHash": "35236207eaa8ed0f8d4abe45b9c535fc08c45a98aa494c79e1dcda1a8f636d7f",
+      "translationHash": "aa9492b5aeb243361b51a6fa035af2c8b93b2c815db3f1009a1b11328dd68009",
+      "translator": "gpt-6.2-sol/6b3465b9-2a01-4236-be8d-7ca9d241cbaf"
     },
     "desktop.companion.stopped": {
       "origin": "independently authored translation",
@@ -406,6 +433,15 @@
       "terminologyHash": "35236207eaa8ed0f8d4abe45b9c535fc08c45a98aa494c79e1dcda1a8f636d7f",
       "translationHash": "f48565e8255a1f2fb3f3d7fd3a9cfc5504dce80bdd0aa483baff09a325d2047e",
       "translator": "claude-opus-5-5/3e948f86-3546-4e9a-91e0-19e6b0adadd2"
+    },
+    "desktop.companion.unknown-state": {
+      "origin": "independently authored translation",
+      "reviewState": "agent-reviewed",
+      "reviewer": "claude-opus-5-5/52574e19-2ecc-4d39-8126-4f8b7de99c73",
+      "sourceHash": "ff98a4ad921a2d74e5fdc6e129b5c8f9c05c77ab4fcb1d0eeb06f74e31a57c70",
+      "terminologyHash": "35236207eaa8ed0f8d4abe45b9c535fc08c45a98aa494c79e1dcda1a8f636d7f",
+      "translationHash": "0223626e1b0cf1119fb4ce16be0993e369bc3ca20eb4dd7d0e9c318588a83f15",
+      "translator": "gpt-6.2-sol/6b3465b9-2a01-4236-be8d-7ca9d241cbaf"
     },
     "external-link.open-failed": {
       "origin": "independently authored translation",
@@ -16168,6 +16204,15 @@
     }
   },
   "retired": {
+    "desktop.companion.setup-required": {
+      "origin": "independently authored translation",
+      "reviewState": "agent-reviewed",
+      "reviewer": "claude-opus-5-5/88981f1f-35a2-4d8a-86de-67cfdb697522",
+      "sourceHash": "2b990a7b6253df4585c2332b77682fbd87ca8e409a0427cb8a58794372a44575",
+      "terminologyHash": "35236207eaa8ed0f8d4abe45b9c535fc08c45a98aa494c79e1dcda1a8f636d7f",
+      "translationHash": "3a97e5a11572b4c8ac5187b2b27cf4b46f0f051210fda211d97a2362a19e83f8",
+      "translator": "claude-opus-5-5/3e948f86-3546-4e9a-91e0-19e6b0adadd2"
+    },
     "inspection.components.remove.torrent.dialog.and": {
       "origin": "independently authored translation",
       "reviewState": "agent-reviewed",

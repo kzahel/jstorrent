@@ -688,6 +688,12 @@
       "value": "Відкрити JSTorrent у Вебмагазині Chrome"
     }
   ],
+  "desktop.companion.app-missing": [
+    {
+      "type": 0,
+      "value": "Можливо, настільний застосунок було переміщено."
+    }
+  ],
   "desktop.companion.connecting": [
     {
       "type": 0,
@@ -718,6 +724,12 @@
       "value": "Версії JSTorrent Desktop і цього розширення мають бути сумісними. Перевірте наявність оновлень настільного застосунку й розширення, а потім повторіть спробу. Доки оновлення не з’являться, можна користуватися настільним застосунком безпосередньо."
     }
   ],
+  "desktop.companion.legacy-retry": [
+    {
+      "type": 0,
+      "value": "Завершіть роботу старішої версії настільного застосунку JSTorrent і закрийте сторінки її розширення, якщо вони відкриті. Потім спробуйте ще раз."
+    }
+  ],
   "desktop.companion.native-folder": [
     {
       "type": 0,
@@ -742,16 +754,22 @@
       "value": "Повторити підключення"
     }
   ],
-  "desktop.companion.setup-required": [
+  "desktop.companion.setup-retry": [
     {
       "type": 0,
-      "value": "JSTorrent Desktop недоступний цьому розширенню. Установіть або оновіть настільний застосунок і відкрийте його один раз, щоб завершити налаштування."
+      "value": "Завершіть роботу JSTorrent, якщо його відкрито. Відкрийте встановлену версію й спробуйте ще раз."
     }
   ],
   "desktop.companion.start": [
     {
       "type": 0,
       "value": "Запустити"
+    }
+  ],
+  "desktop.companion.start-trouble": [
+    {
+      "type": 0,
+      "value": "Не вдалося під’єднатися до JSTorrent Desktop. Відкрийте застосунок напряму або виберіть «Запустити», щоб спробувати ще раз."
     }
   ],
   "desktop.companion.stopped": [
@@ -770,6 +788,12 @@
     {
       "type": 0,
       "value": "Настільний застосунок недоступний."
+    }
+  ],
+  "desktop.companion.unknown-state": [
+    {
+      "type": 0,
+      "value": "Якщо JSTorrent закрито, виберіть «Запустити», щоб відкрити його."
     }
   ],
   "external-link.open-failed": [

@@ -85,13 +85,13 @@ async function runPopup({ os = "mac", popupView = false, granted = true, transla
           if (request.type === "androidBootstrap") return { ok: true, result: { kind: "android_ui", status: "opened" } };
           if (request.type === "productMetrics") return { ok: true, state: metrics };
           if (bootstrap) return bootstrap(request);
-          return { ok: true, result: { kind: request.op === "hello" ? "hello" : "desktop_ui", hostVersion: "test" } };
+          return { ok: true, result: { kind: request.op === "status" ? "attached" : "desktop_ui" } };
         },
       },
     },
   });
   await new Promise(resolve => setImmediate(resolve));
-  return { requests, launch: () => element("#launch").click(), android: () => element("#connect-android").click(), androidStatus: () => element("#android-status").textContent,
+  return { requests, element, launch: () => element("#launch").click(), retry: () => element("#desktop-retry").click(), android: () => element("#connect-android").click(), androidStatus: () => element("#android-status").textContent,
     linux: () => element("#launch-linux").click(), linuxStatus: () => element("#linux-status").textContent };
 }
 
@@ -101,11 +101,11 @@ for (const [code, expected] of [["native_host_unavailable", "native_host_unavail
   test(`Windows setup reports bounded native failure ${String(code)}`, async () => {
     const { requests } = await runPopup({ os: "win", bootstrap: () => ({ ok: false, error: { code, message: "Setup failed" } }) });
     assert.deepEqual(requests.filter(value => value.op === "support").map(value => value.failure), ["connecting", expected]);
-    assert.equal(requests.some(value => value.type === "desktopBootstrap"), false);
+    assert.equal(requests.some(value => value.type === "desktopBootstrap" && value.op === "open"), false);
   });
   test(`Windows explicit launch reports bounded native failure ${String(code)}`, async () => {
-    const { requests, launch } = await runPopup({ os: "win", bootstrap: request => request.type === "nativeBootstrap"
-      ? { ok: true, result: { kind: "hello" } } : { ok: false, error: { code, message: "Start failed" } } });
+    const { requests, launch } = await runPopup({ os: "win", bootstrap: request => request.op === "status"
+      ? { ok: true, result: { kind: "attached" } } : { ok: false, error: { code, message: "Start failed" } } });
     await launch();
     assert.deepEqual(requests.filter(value => value.op === "support").map(value => value.failure), ["connecting", "none", "connecting", expected]);
   });
@@ -114,21 +114,68 @@ for (const [code, expected] of [["native_host_unavailable", "native_host_unavail
 for (const os of ["mac", "win", "linux"]) {
   test(`${os} toolbar popup is explicit launch intent`, async () => {
     const { requests } = await runPopup({ os, popupView: true });
-    assert.equal(requests.filter(value => value.type === "desktopBootstrap").length, 1);
+    assert.equal(requests.filter(value => value.type === "desktopBootstrap" && value.op === "open").length, 1);
   });
   test(`${os} restored popup tab only launches after its button is clicked`, async () => {
     const { requests, launch } = await runPopup({ os });
-    assert.equal(requests.filter(value => value.type === "desktopBootstrap").length, 0);
+    assert.equal(requests.filter(value => value.type === "desktopBootstrap" && value.op === "open").length, 0);
     await launch();
-    assert.equal(requests.filter(value => value.type === "desktopBootstrap").length, 1);
+    assert.equal(requests.filter(value => value.type === "desktopBootstrap" && value.op === "open").length, 1);
   });
 }
 
 test("ChromeOS and uncertain platform popup never auto-launch desktop", async () => {
   for (const os of ["cros", "future-os"]) {
     const { requests } = await runPopup({ os, popupView: true });
-    assert.equal(requests.filter(value => value.type === "desktopBootstrap").length, 0);
+    assert.equal(requests.filter(value => value.type === "desktopBootstrap" && value.op === "open").length, 0);
   }
+});
+
+for (const [os, location] of [["win", "Windows Start menu"], ["mac", "Applications"]]) {
+  test(`${os} missing host offers an OS-specific relaunch and passive Retry`, async () => {
+    let status = { ok: false, error: { code: "native_host_unavailable", message: "private chrome message" } };
+    const { element, retry, requests } = await runPopup({ os, popupView: true, bootstrap: () => status });
+    assert.match(element("#status-detail").textContent, new RegExp(location, "u"));
+    assert.doesNotMatch(element("#status-detail").textContent, /private/u);
+    assert.equal(element("#desktop-download").hidden, false);
+    assert.equal(element("#desktop-retry").hidden, false);
+    assert.equal(element("#launch").hidden, true);
+    status = { ok: false, error: { code: "control_unavailable", reason: "stopped" } };
+    await retry();
+    assert.equal(element("#status-title").textContent, "JSTorrent is closed");
+    assert.equal(element("#launch").textContent, "Start JSTorrent");
+    assert.deepEqual(requests.filter(request => request.type === "desktopBootstrap").map(request => request.op), ["status", "status"]);
+  });
+}
+
+test("legacy refusal is presented in the toolbar without launching Desktop", async () => {
+  const { element, requests } = await runPopup({ popupView: true, bootstrap: () => ({
+    ok: false, error: { code: "control_unavailable", reason: "legacy_running" },
+  }) });
+  assert.equal(element("#status-title").textContent, "Close older JSTorrent");
+  assert.equal(element("#desktop-retry").hidden, false);
+  assert.equal(element("#desktop-download").hidden, true);
+  assert.deepEqual(requests.filter(request => request.type === "desktopBootstrap").map(request => request.op), ["status"]);
+});
+
+test("an older helper keeps explicit Start without claiming readiness", async () => {
+  const { element, launch, requests } = await runPopup({ bootstrap: request => request.op === "status"
+    ? { ok: false, error: { code: "control_unavailable", message: "old message" } }
+    : { ok: true, result: { kind: "desktop_ui" } } });
+  assert.equal(element("#launch").textContent, "Start JSTorrent");
+  assert.doesNotMatch(element("#status-title").textContent, /ready|running/iu);
+  await launch();
+  assert.deepEqual(requests.filter(request => request.type === "desktopBootstrap").map(request => request.op), ["status", "open"]);
+});
+
+test("an older helper's ambiguous start error offers Retry without asking users to quit", async () => {
+  const { element, launch } = await runPopup({ bootstrap: () => ({
+    ok: false, error: { code: "control_unavailable", message: "Desktop did not become ready in time" },
+  }) });
+  await launch();
+  assert.equal(element("#status-title").textContent, "JSTorrent Desktop is unavailable.");
+  assert.equal(element("#status-detail").textContent, "");
+  assert.equal(element("#desktop-retry").hidden, false);
 });
 
 test("localized desktop feedback preserves the metrics protocol operation", async () => {

@@ -359,6 +359,12 @@
       "value": "Chrome 웹 스토어에서 JSTorrent 열기"
     }
   ],
+  "desktop.companion.app-missing": [
+    {
+      "type": 0,
+      "value": "데스크톱 앱이 이동되었을 수 있습니다."
+    }
+  ],
   "desktop.companion.connecting": [
     {
       "type": 0,
@@ -389,6 +395,12 @@
       "value": "JSTorrent Desktop과 이 확장 프로그램의 버전이 서로 호환되어야 합니다. 데스크톱 앱과 확장 프로그램의 업데이트를 확인한 후 다시 시도하십시오. 업데이트가 제공될 때까지 데스크톱 앱을 직접 사용할 수 있습니다."
     }
   ],
+  "desktop.companion.legacy-retry": [
+    {
+      "type": 0,
+      "value": "이전 버전의 JSTorrent 데스크톱 앱이 열려 있다면 종료하고 해당 확장 프로그램 페이지를 닫으십시오. 그런 다음 다시 시도하십시오."
+    }
+  ],
   "desktop.companion.native-folder": [
     {
       "type": 0,
@@ -413,16 +425,22 @@
       "value": "연결 재시도"
     }
   ],
-  "desktop.companion.setup-required": [
+  "desktop.companion.setup-retry": [
     {
       "type": 0,
-      "value": "이 확장 프로그램에서 JSTorrent Desktop을 사용할 수 없습니다. 데스크톱 앱을 설치하거나 업데이트한 후 한 번 실행하여 설정을 완료하십시오."
+      "value": "JSTorrent가 열려 있으면 종료하십시오. 설치된 앱을 열고 다시 시도하십시오."
     }
   ],
   "desktop.companion.start": [
     {
       "type": 0,
       "value": "시작"
+    }
+  ],
+  "desktop.companion.start-trouble": [
+    {
+      "type": 0,
+      "value": "JSTorrent Desktop에 연결할 수 없습니다. 앱을 직접 열거나 ‘시작’을 선택하여 다시 시도하십시오."
     }
   ],
   "desktop.companion.stopped": [
@@ -441,6 +459,12 @@
     {
       "type": 0,
       "value": "데스크톱 앱을 사용할 수 없습니다."
+    }
+  ],
+  "desktop.companion.unknown-state": [
+    {
+      "type": 0,
+      "value": "JSTorrent가 종료된 경우 ‘시작’을 선택하여 여십시오."
     }
   ],
   "external-link.open-failed": [

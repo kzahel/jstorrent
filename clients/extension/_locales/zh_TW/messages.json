@@ -98,6 +98,33 @@
   "connect_dynamic_014": {
     "message": "重試"
   },
+  "desktop_download": {
+    "message": "下載 JSTorrent"
+  },
+  "desktop_legacy_detail": {
+    "message": "結束舊版 JSTorrent 桌面應用程式並關閉其擴充功能頁面，然後再試一次。"
+  },
+  "desktop_legacy_title": {
+    "message": "關閉舊版 JSTorrent"
+  },
+  "desktop_missing": {
+    "message": "桌面應用程式已移動或找不到"
+  },
+  "desktop_open_app": {
+    "message": "如果 JSTorrent 已開啟，請先結束。開啟已安裝的應用程式，然後再試一次。"
+  },
+  "desktop_open_macos": {
+    "message": "如果 JSTorrent 已開啟，請先結束。從「應用程式」開啟該應用程式，然後選取「重試」。"
+  },
+  "desktop_open_windows": {
+    "message": "如果 JSTorrent 已開啟，請先結束。從 Windows 開始功能表開啟該應用程式，然後選取「重試」。"
+  },
+  "desktop_start": {
+    "message": "啟動 JSTorrent"
+  },
+  "desktop_stopped": {
+    "message": "JSTorrent 已關閉"
+  },
   "extension_summary": {
     "message": "從 Chrome 將種子任務加入電腦或 Chromebook 上的 JSTorrent 應用程式。"
   },

@@ -11,6 +11,7 @@ vi.mock("./desktop-companion-client", async (importOriginal) => ({
 vi.mock("./inspection/companion-bootstrap", () => ({ startCompanionInspection: mock.mount }));
 vi.mock("./localization/runtime", () => ({ message: (key: string) => key }));
 import { startDesktopCompanion } from "./desktop-companion-main";
+import { DesktopCompanionUnavailable } from "./desktop-companion-client";
 
 describe("desktop companion connection ownership", () => {
   beforeEach(() => {
@@ -142,6 +143,21 @@ describe("desktop companion connection ownership", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(mock.connect).toHaveBeenCalledTimes(2);
     expect(mock.send).toHaveBeenCalledExactlyOnceWith({ type: "nativeBootstrap", op: "start_control" });
+  });
+  it.each(["setup", "legacy"] as const)("keeps %s recovery attach-only until the user retries", async (repair) => {
+    mock.connect.mockRejectedValueOnce(new DesktopCompanionUnavailable("recovery copy", repair));
+    mock.connect.mockRejectedValue(new Error("stopped"));
+    await startDesktopCompanion();
+    const button = document.getElementById("companion-cancel") as HTMLButtonElement;
+    expect(button.textContent).toBe("desktop.companion.retry");
+    expect(document.getElementById("companion-status")!.textContent).toBe("recovery copy");
+    expect(document.querySelector("#companion-bootstrap a")!.parentElement!.hidden).toBe(repair === "legacy");
+    await vi.advanceTimersByTimeAsync(90_000);
+    expect(mock.connect).toHaveBeenCalledOnce();
+    button.click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(button.textContent).toBe("desktop.companion.start");
+    expect(mock.send).not.toHaveBeenCalled();
   });
   it("offers both product links for a mismatch, then hides stale guidance while retrying", async () => {
     mock.connect.mockRejectedValueOnce(new ApplicationViewError("invalid_version", "mismatch"));

@@ -98,6 +98,33 @@
   "connect_dynamic_014": {
     "message": "Reîncearcă"
   },
+  "desktop_download": {
+    "message": "Descarcă JSTorrent"
+  },
+  "desktop_legacy_detail": {
+    "message": "Ieșiți din orice versiune mai veche a aplicației desktop JSTorrent și închideți paginile extensiei acesteia. Apoi încercați din nou."
+  },
+  "desktop_legacy_title": {
+    "message": "Închideți versiunea mai veche de JSTorrent"
+  },
+  "desktop_missing": {
+    "message": "Aplicația desktop a fost mutată sau lipsește"
+  },
+  "desktop_open_app": {
+    "message": "Ieșiți din JSTorrent dacă este deschis. Deschideți versiunea instalată și încercați din nou."
+  },
+  "desktop_open_macos": {
+    "message": "Ieșiți din JSTorrent dacă este deschis. Deschideți-l din dosarul Aplicații, apoi selectați „Reîncearcă”."
+  },
+  "desktop_open_windows": {
+    "message": "Ieșiți din JSTorrent dacă este deschis. Deschideți-l din meniul Start din Windows, apoi selectați „Reîncearcă”."
+  },
+  "desktop_start": {
+    "message": "Pornește JSTorrent"
+  },
+  "desktop_stopped": {
+    "message": "JSTorrent este închis"
+  },
   "extension_summary": {
     "message": "Adaugă torente din Chrome în aplicația JSTorrent de pe desktop sau Chromebook."
   },

@@ -98,6 +98,33 @@
   "connect_dynamic_014": {
     "message": "重试"
   },
+  "desktop_download": {
+    "message": "下载 JSTorrent"
+  },
+  "desktop_legacy_detail": {
+    "message": "退出旧版 JSTorrent 桌面应用并关闭其扩展程序页面，然后重试。"
+  },
+  "desktop_legacy_title": {
+    "message": "关闭旧版 JSTorrent"
+  },
+  "desktop_missing": {
+    "message": "桌面应用已移动或未找到"
+  },
+  "desktop_open_app": {
+    "message": "如果 JSTorrent 已打开，请先退出。打开已安装的应用，然后重试。"
+  },
+  "desktop_open_macos": {
+    "message": "如果 JSTorrent 已打开，请先退出。从“应用程序”打开该应用，然后选择“重试”。"
+  },
+  "desktop_open_windows": {
+    "message": "如果 JSTorrent 已打开，请先退出。从 Windows 开始菜单打开该应用，然后选择“重试”。"
+  },
+  "desktop_start": {
+    "message": "启动 JSTorrent"
+  },
+  "desktop_stopped": {
+    "message": "JSTorrent 已关闭"
+  },
   "extension_summary": {
     "message": "将 Chrome 中的种子任务添加到桌面电脑或 Chromebook 上的 JSTorrent 应用。"
   },

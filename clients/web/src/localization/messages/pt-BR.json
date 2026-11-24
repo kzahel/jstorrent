@@ -123,6 +123,10 @@
     "defaultMessage": "Abrir JSTorrent na Chrome Web Store",
     "description": "Open the existing production extension listing to check available updates"
   },
+  "desktop.companion.app-missing": {
+    "defaultMessage": "O aplicativo para computador pode ter sido movido.",
+    "description": "Recovery when the native helper exists but its saved desktop launch target is absent"
+  },
   "desktop.companion.connecting": {
     "defaultMessage": "Conectando ao JSTorrent Desktop…",
     "description": "Desktop extension connection"
@@ -143,6 +147,10 @@
     "defaultMessage": "O JSTorrent Desktop e esta extensão precisam de versões compatíveis. Verifique se há atualizações do aplicativo para computador e da extensão e tente novamente. Você pode usar o aplicativo para computador diretamente enquanto aguarda as atualizações.",
     "description": "Desktop mismatch does not identify which component is outdated; native use remains available"
   },
+  "desktop.companion.legacy-retry": {
+    "defaultMessage": "Saia de qualquer versão antiga do JSTorrent para computador e feche as páginas da extensão correspondente. Em seguida, tente novamente.",
+    "description": "Recovery when the migration guard sees an older JSTorrent process or cannot confirm it stopped"
+  },
   "desktop.companion.native-folder": {
     "defaultMessage": "Abra a janela do aplicativo para computador para escolher uma pasta de downloads ou restaurar o acesso a ela.",
     "description": "Desktop extension connection"
@@ -159,13 +167,17 @@
     "defaultMessage": "Tentar conectar novamente",
     "description": "Attach again after a desktop version or authentication failure without launching it"
   },
-  "desktop.companion.setup-required": {
-    "defaultMessage": "O JSTorrent Desktop não está disponível para esta extensão. Instale ou atualize o aplicativo para computador e abra-o uma vez para concluir a configuração.",
-    "description": "A missing native host does not establish whether the app is absent, old or needs registration"
+  "desktop.companion.setup-retry": {
+    "defaultMessage": "Saia do JSTorrent se estiver aberto. Abra a versão instalada e tente novamente.",
+    "description": "Recovery when the desktop extension cannot find the native helper or its launch configuration"
   },
   "desktop.companion.start": {
     "defaultMessage": "Iniciar",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.start-trouble": {
+    "defaultMessage": "Não foi possível conectar ao JSTorrent Desktop. Abra o aplicativo diretamente ou selecione “Iniciar” para tentar novamente.",
+    "description": "Recoverable desktop bootstrap error without a more specific recovery path"
   },
   "desktop.companion.stopped": {
     "defaultMessage": "O aplicativo para computador está parado. Selecione Iniciar para abri-lo.",
@@ -178,6 +190,10 @@
   "desktop.companion.unavailable": {
     "defaultMessage": "O aplicativo para computador está indisponível.",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.unknown-state": {
+    "defaultMessage": "Se o JSTorrent estiver fechado, selecione “Iniciar” para abri-lo.",
+    "description": "Recoverable passive attachment failure from a desktop helper that does not distinguish reasons"
   },
   "external-link.open-failed": {
     "defaultMessage": "Não foi possível abrir o link. Tente novamente.",

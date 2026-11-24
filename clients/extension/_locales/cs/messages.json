@@ -98,6 +98,33 @@
   "connect_dynamic_014": {
     "message": "Zkusit znovu"
   },
+  "desktop_download": {
+    "message": "Stáhnout JSTorrent"
+  },
+  "desktop_legacy_detail": {
+    "message": "Ukončete případnou starší verzi desktopové aplikace JSTorrent a zavřete stránky jejího rozšíření. Potom to zkuste znovu."
+  },
+  "desktop_legacy_title": {
+    "message": "Zavřít starší verzi JSTorrentu"
+  },
+  "desktop_missing": {
+    "message": "Desktopová aplikace byla přesunuta nebo chybí"
+  },
+  "desktop_open_app": {
+    "message": "Pokud je JSTorrent otevřený, ukončete ho. Otevřete nainstalovanou verzi a zkuste to znovu."
+  },
+  "desktop_open_macos": {
+    "message": "Pokud je JSTorrent otevřený, ukončete ho. Otevřete ho ze složky Aplikace a vyberte „Zkusit znovu“."
+  },
+  "desktop_open_windows": {
+    "message": "Pokud je JSTorrent otevřený, ukončete ho. Otevřete ho z nabídky Start ve Windows a vyberte „Zkusit znovu“."
+  },
+  "desktop_start": {
+    "message": "Spustit JSTorrent"
+  },
+  "desktop_stopped": {
+    "message": "JSTorrent je zavřený"
+  },
   "extension_summary": {
     "message": "Přidávejte torrenty z Chromu do aplikace JSTorrent na počítači nebo Chromebooku."
   },

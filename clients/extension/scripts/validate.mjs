@@ -176,9 +176,10 @@ export function validateSource(production = false) {
     fail("popup script must remain a local external module");
   }
   const playStoreUrl = "https://play.google.com/store/apps/details?id=com.jstorrent.app";
+  const desktopDownloadUrl = "https://jstorrent.com/#download";
   const popupUrls = popup.match(/https?:\/\/[^"'\s<]+/gu) ?? [];
-  if (JSON.stringify(popupUrls) !== JSON.stringify([playStoreUrl])) {
-    fail("popup must link only to the exact published JSTorrent Android listing");
+  if (JSON.stringify(popupUrls) !== JSON.stringify([desktopDownloadUrl, playStoreUrl])) {
+    fail("popup must link only to the exact desktop downloads and published JSTorrent Android listing");
   }
   if (!popup.includes('id="desktop-surface" hidden') || !popup.includes('id="chromeos-surface" hidden')) {
     fail("popup surfaces must start hidden until the platform decision completes");

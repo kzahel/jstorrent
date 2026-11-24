@@ -351,6 +351,12 @@
       "value": "在 Chrome 線上應用程式商店開啟 JSTorrent"
     }
   ],
+  "desktop.companion.app-missing": [
+    {
+      "type": 0,
+      "value": "桌面應用程式可能已移動。"
+    }
+  ],
   "desktop.companion.connecting": [
     {
       "type": 0,
@@ -381,6 +387,12 @@
       "value": "JSTorrent 桌面版與此擴充功能需要相容的版本。請檢查桌面應用程式與擴充功能的更新，然後重試。等待更新期間，您可以直接使用桌面應用程式。"
     }
   ],
+  "desktop.companion.legacy-retry": [
+    {
+      "type": 0,
+      "value": "結束舊版 JSTorrent 桌面應用程式並關閉其擴充功能頁面，然後再試一次。"
+    }
+  ],
   "desktop.companion.native-folder": [
     {
       "type": 0,
@@ -405,16 +417,22 @@
       "value": "重試連線"
     }
   ],
-  "desktop.companion.setup-required": [
+  "desktop.companion.setup-retry": [
     {
       "type": 0,
-      "value": "此擴充功能無法使用 JSTorrent 桌面版。請安裝或更新桌面應用程式，然後開啟一次以完成設定。"
+      "value": "如果 JSTorrent 已開啟，請先結束。開啟已安裝的應用程式，然後再試一次。"
     }
   ],
   "desktop.companion.start": [
     {
       "type": 0,
       "value": "啟動"
+    }
+  ],
+  "desktop.companion.start-trouble": [
+    {
+      "type": 0,
+      "value": "無法連線至 JSTorrent 桌面版。請直接開啟應用程式，或選取「啟動」再試一次。"
     }
   ],
   "desktop.companion.stopped": [
@@ -433,6 +451,12 @@
     {
       "type": 0,
       "value": "桌面版無法使用。"
+    }
+  ],
+  "desktop.companion.unknown-state": [
+    {
+      "type": 0,
+      "value": "如果 JSTorrent 已關閉，請選取「啟動」以開啟應用程式。"
     }
   ],
   "external-link.open-failed": [

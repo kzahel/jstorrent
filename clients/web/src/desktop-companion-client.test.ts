@@ -14,7 +14,7 @@ describe("desktop bootstrap error disposition", () => {
     const { desktopBootstrapFailure, DesktopCompanionUnavailable } = await import("./desktop-companion-client");
     const failure = desktopBootstrapFailure({ ok: false, error: { code: "native_host_unavailable", message: "raw diagnostic" } });
     expect(failure).toBeInstanceOf(DesktopCompanionUnavailable);
-    expect(failure.message).toContain("Install or update the desktop app");
+    expect(failure.message).toContain("Open your installed copy");
     expect(failure.message).not.toContain("raw diagnostic");
   });
   it.each(["unsupported_protocol", "unsupported_operation", "invalid_native_response"])("keeps %s terminal", async (code) => {
@@ -26,5 +26,11 @@ describe("desktop bootstrap error disposition", () => {
   it.each(["native_host_unavailable", "bootstrap_timeout", "control_unavailable"])("keeps %s recoverable", async (code) => {
     const { desktopBootstrapFailure } = await import("./desktop-companion-client");
     expect(desktopBootstrapFailure({ ok: false, error: { code, message: "stopped" } })).not.toHaveProperty("code");
+  });
+  it.each([["desktop_missing", "setup"], ["legacy_running", "legacy"], ["legacy_check_failed", "legacy"]])("maps %s to %s recovery", async (reason, recovery) => {
+    const { desktopBootstrapFailure } = await import("./desktop-companion-client");
+    const failure = desktopBootstrapFailure({ ok: false, error: { code: "control_unavailable", reason, message: "private diagnostic" } });
+    expect(failure).toHaveProperty("recovery", recovery);
+    expect(failure.message).not.toContain("private diagnostic");
   });
 });

@@ -704,6 +704,12 @@
       "value": "Открыть JSTorrent в Интернет-магазине Chrome"
     }
   ],
+  "desktop.companion.app-missing": [
+    {
+      "type": 0,
+      "value": "Возможно, приложение для компьютера было перемещено."
+    }
+  ],
   "desktop.companion.connecting": [
     {
       "type": 0,
@@ -734,6 +740,12 @@
       "value": "Для JSTorrent Desktop и этого расширения нужны совместимые версии. Проверьте обновления настольного приложения и расширения, затем повторите попытку. Пока обновления недоступны, можно пользоваться настольным приложением напрямую."
     }
   ],
+  "desktop.companion.legacy-retry": [
+    {
+      "type": 0,
+      "value": "Завершите работу старой версии JSTorrent для компьютера и закройте страницы её расширения, если они открыты. Затем повторите попытку."
+    }
+  ],
   "desktop.companion.native-folder": [
     {
       "type": 0,
@@ -758,16 +770,22 @@
       "value": "Повторить подключение"
     }
   ],
-  "desktop.companion.setup-required": [
+  "desktop.companion.setup-retry": [
     {
       "type": 0,
-      "value": "JSTorrent Desktop недоступен этому расширению. Установите или обновите настольное приложение, затем откройте его один раз, чтобы завершить настройку."
+      "value": "Завершите работу JSTorrent, если он открыт. Откройте установленную версию и повторите попытку."
     }
   ],
   "desktop.companion.start": [
     {
       "type": 0,
       "value": "Запустить"
+    }
+  ],
+  "desktop.companion.start-trouble": [
+    {
+      "type": 0,
+      "value": "Не удалось подключиться к JSTorrent Desktop. Откройте приложение напрямую или выберите «Запустить», чтобы повторить попытку."
     }
   ],
   "desktop.companion.stopped": [
@@ -786,6 +804,12 @@
     {
       "type": 0,
       "value": "Настольное приложение недоступно."
+    }
+  ],
+  "desktop.companion.unknown-state": [
+    {
+      "type": 0,
+      "value": "Если JSTorrent закрыт, выберите «Запустить», чтобы открыть его."
     }
   ],
   "external-link.open-failed": [

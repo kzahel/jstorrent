@@ -343,6 +343,12 @@
       "value": "ChromeウェブストアでJSTorrentを開く"
     }
   ],
+  "desktop.companion.app-missing": [
+    {
+      "type": 0,
+      "value": "デスクトップアプリが移動された可能性があります。"
+    }
+  ],
   "desktop.companion.connecting": [
     {
       "type": 0,
@@ -373,6 +379,12 @@
       "value": "JSTorrent Desktopとこの拡張機能には、互換性のあるバージョンが必要です。デスクトップアプリと拡張機能の更新を確認し、再試行してください。更新が提供されるまでは、デスクトップアプリを直接利用できます。"
     }
   ],
+  "desktop.companion.legacy-retry": [
+    {
+      "type": 0,
+      "value": "以前のバージョンのJSTorrentデスクトップアプリが開いている場合は終了し、その拡張機能のページも閉じてください。その後、もう一度お試しください。"
+    }
+  ],
   "desktop.companion.native-folder": [
     {
       "type": 0,
@@ -397,16 +409,22 @@
       "value": "接続を再試行"
     }
   ],
-  "desktop.companion.setup-required": [
+  "desktop.companion.setup-retry": [
     {
       "type": 0,
-      "value": "この拡張機能からJSTorrent Desktopを利用できません。デスクトップアプリをインストールまたは更新し、一度起動して設定を完了してください。"
+      "value": "JSTorrentが開いている場合は終了してください。インストール済みのアプリを開き、もう一度お試しください。"
     }
   ],
   "desktop.companion.start": [
     {
       "type": 0,
       "value": "起動"
+    }
+  ],
+  "desktop.companion.start-trouble": [
+    {
+      "type": 0,
+      "value": "JSTorrent Desktopに接続できませんでした。アプリを直接開くか、「起動」を選択してもう一度お試しください。"
     }
   ],
   "desktop.companion.stopped": [
@@ -425,6 +443,12 @@
     {
       "type": 0,
       "value": "デスクトップアプリを利用できません。"
+    }
+  ],
+  "desktop.companion.unknown-state": [
+    {
+      "type": 0,
+      "value": "JSTorrentが終了している場合は、「起動」を選択して開いてください。"
     }
   ],
   "external-link.open-failed": [

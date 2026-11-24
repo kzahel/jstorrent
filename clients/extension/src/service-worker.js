@@ -54,6 +54,24 @@ function sendNativeOperation(op) {
   });
 }
 
+function desktopReply(response, kind) {
+  if (!response.ok) {
+    const { code, reason } = response.error ?? {};
+    if (code === "control_unavailable") {
+      const knownReasons = ["setup_required", "desktop_missing", "stopped", "legacy_running",
+        "legacy_check_failed", "refused", "start_busy", "start_failed", "start_timed_out"];
+      return { ok: false, error: { code, reason: reason === undefined || knownReasons.includes(reason) ? reason : "unavailable" } };
+    }
+    const knownCodes = ["native_host_unavailable", "bootstrap_timeout", "unsupported_protocol",
+      "unsupported_operation", "invalid_native_response"];
+    return { ok: false, error: { code: knownCodes.includes(code) ? code : "connection_failed" } };
+  }
+  if (response.result?.kind !== "ready") {
+    return { ok: false, error: { code: "invalid_native_response" } };
+  }
+  return { ok: true, result: { kind } };
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender?.id !== chrome.runtime.id ||
       (sender.url && !sender.url.startsWith(chrome.runtime.getURL("")))) return false;
@@ -70,13 +88,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendNativeOperation(message.op).then(sendResponse);
     return true;
   }
+  if (message?.type === "desktopBootstrap" && message.op === "status") {
+    sendNativeOperation("attach_control").then(
+      response => sendResponse(desktopReply(response, "attached")),
+      () => sendResponse({ ok: false, error: { code: "connection_failed" } }),
+    );
+    return true;
+  }
   if (message?.type === "desktopBootstrap" && message.op === "open") {
     desktopOpen ??= (async () => {
-      const response = await sendNativeOperation("start_control");
+      const reply = desktopReply(await sendNativeOperation("start_control"), "desktop_ui");
+      if (!reply.ok) return reply;
       // The page obtains its own ephemeral credential through attach-only bootstrap.
       await focusOrOpenExtensionTab(DESKTOP_TAB_KEY, `${ANDROID_PAGE}?backend=desktop`);
-      return { ok: response.ok, error: response.error, result: { kind: "desktop_ui" } };
-    })().finally(() => { desktopOpen = undefined; });
+      return reply;
+    })().catch(() => ({ ok: false, error: { code: "connection_failed" } }))
+      .finally(() => { desktopOpen = undefined; });
     desktopOpen.then(sendResponse);
     return true;
   }

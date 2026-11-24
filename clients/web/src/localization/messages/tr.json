@@ -123,6 +123,10 @@
     "defaultMessage": "Chrome Web Mağazası'nda JSTorrent sayfasını aç",
     "description": "Open the existing production extension listing to check available updates"
   },
+  "desktop.companion.app-missing": {
+    "defaultMessage": "Masaüstü uygulaması taşınmış olabilir.",
+    "description": "Recovery when the native helper exists but its saved desktop launch target is absent"
+  },
   "desktop.companion.connecting": {
     "defaultMessage": "JSTorrent Desktop bağlantısı kuruluyor…",
     "description": "Desktop extension connection"
@@ -143,6 +147,10 @@
     "defaultMessage": "JSTorrent Desktop ile bu uzantının sürümleri uyumlu olmalıdır. Masaüstü uygulaması ve uzantı için güncellemeleri denetleyip yeniden deneyin. Güncellemeler gelene kadar masaüstü uygulamasını doğrudan kullanabilirsiniz.",
     "description": "Desktop mismatch does not identify which component is outdated; native use remains available"
   },
+  "desktop.companion.legacy-retry": {
+    "defaultMessage": "Açık olan eski JSTorrent masaüstü uygulamasından çıkın ve uzantısına ait sayfaları kapatın. Sonra tekrar deneyin.",
+    "description": "Recovery when the migration guard sees an older JSTorrent process or cannot confirm it stopped"
+  },
   "desktop.companion.native-folder": {
     "defaultMessage": "İndirme klasörü seçmek veya onarmak için masaüstü uygulamasının penceresini açın.",
     "description": "Desktop extension connection"
@@ -159,13 +167,17 @@
     "defaultMessage": "Bağlantıyı yeniden dene",
     "description": "Attach again after a desktop version or authentication failure without launching it"
   },
-  "desktop.companion.setup-required": {
-    "defaultMessage": "Bu uzantı JSTorrent Desktop uygulamasına erişemiyor. Masaüstü uygulamasını yükleyin veya güncelleyin, ardından kurulumu tamamlamak için bir kez açın.",
-    "description": "A missing native host does not establish whether the app is absent, old or needs registration"
+  "desktop.companion.setup-retry": {
+    "defaultMessage": "JSTorrent açıksa uygulamadan çıkın. Yüklü sürümü açıp tekrar deneyin.",
+    "description": "Recovery when the desktop extension cannot find the native helper or its launch configuration"
   },
   "desktop.companion.start": {
     "defaultMessage": "Başlat",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.start-trouble": {
+    "defaultMessage": "JSTorrent Desktop uygulamasına bağlanılamadı. Uygulamayı doğrudan açın veya tekrar denemek için “Başlat”ı seçin.",
+    "description": "Recoverable desktop bootstrap error without a more specific recovery path"
   },
   "desktop.companion.stopped": {
     "defaultMessage": "Masaüstü uygulaması durduruldu. Açmak için Başlat seçeneğini seçin.",
@@ -178,6 +190,10 @@
   "desktop.companion.unavailable": {
     "defaultMessage": "Masaüstü uygulaması kullanılamıyor.",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.unknown-state": {
+    "defaultMessage": "JSTorrent kapalıysa uygulamayı açmak için “Başlat”ı seçin.",
+    "description": "Recoverable passive attachment failure from a desktop helper that does not distinguish reasons"
   },
   "external-link.open-failed": {
     "defaultMessage": "Bağlantı açılamadı. Lütfen yeniden deneyin.",

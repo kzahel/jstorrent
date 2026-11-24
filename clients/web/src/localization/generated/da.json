@@ -450,6 +450,12 @@
       "value": "Åbn JSTorrent i Chrome Web Store"
     }
   ],
+  "desktop.companion.app-missing": [
+    {
+      "type": 0,
+      "value": "Desktopappen er muligvis blevet flyttet."
+    }
+  ],
   "desktop.companion.connecting": [
     {
       "type": 0,
@@ -480,6 +486,12 @@
       "value": "JSTorrent Desktop og denne udvidelse skal have kompatible versioner. Søg efter opdateringer til desktopappen og udvidelsen, og prøv igen. Du kan bruge desktopappen direkte, mens du venter på opdateringerne."
     }
   ],
+  "desktop.companion.legacy-retry": [
+    {
+      "type": 0,
+      "value": "Afslut en eventuel ældre version af desktopappen JSTorrent, og luk siderne til den tilhørende udvidelse. Prøv derefter igen."
+    }
+  ],
   "desktop.companion.native-folder": [
     {
       "type": 0,
@@ -504,16 +516,22 @@
       "value": "Prøv at oprette forbindelse igen"
     }
   ],
-  "desktop.companion.setup-required": [
+  "desktop.companion.setup-retry": [
     {
       "type": 0,
-      "value": "JSTorrent Desktop er ikke tilgængelig for denne udvidelse. Installer eller opdater desktopappen, og åbn den derefter én gang for at fuldføre opsætningen."
+      "value": "Afslut JSTorrent, hvis det er åbent. Åbn den installerede version, og prøv igen."
     }
   ],
   "desktop.companion.start": [
     {
       "type": 0,
       "value": "Start"
+    }
+  ],
+  "desktop.companion.start-trouble": [
+    {
+      "type": 0,
+      "value": "Der kunne ikke oprettes forbindelse til JSTorrent Desktop. Åbn appen direkte, eller vælg »Start« for at prøve igen."
     }
   ],
   "desktop.companion.stopped": [
@@ -532,6 +550,12 @@
     {
       "type": 0,
       "value": "Desktopappen er utilgængelig."
+    }
+  ],
+  "desktop.companion.unknown-state": [
+    {
+      "type": 0,
+      "value": "Hvis JSTorrent er lukket, skal du vælge »Start« for at åbne det."
     }
   ],
   "external-link.open-failed": [

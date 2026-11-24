@@ -98,6 +98,33 @@
   "connect_dynamic_014": {
     "message": "Повторить"
   },
+  "desktop_download": {
+    "message": "Скачать JSTorrent"
+  },
+  "desktop_legacy_detail": {
+    "message": "Завершите работу старой версии JSTorrent для компьютера и закройте страницы её расширения, если они открыты. Затем повторите попытку."
+  },
+  "desktop_legacy_title": {
+    "message": "Закройте старую версию JSTorrent"
+  },
+  "desktop_missing": {
+    "message": "Приложение перемещено или не найдено"
+  },
+  "desktop_open_app": {
+    "message": "Завершите работу JSTorrent, если он открыт. Откройте установленную версию и повторите попытку."
+  },
+  "desktop_open_macos": {
+    "message": "Завершите работу JSTorrent, если он открыт. Откройте его из папки «Программы», затем выберите «Повторить»."
+  },
+  "desktop_open_windows": {
+    "message": "Завершите работу JSTorrent, если он открыт. Откройте его из меню «Пуск» Windows, затем выберите «Повторить»."
+  },
+  "desktop_start": {
+    "message": "Запустить JSTorrent"
+  },
+  "desktop_stopped": {
+    "message": "JSTorrent закрыт"
+  },
   "extension_summary": {
     "message": "Добавляйте торренты из Chrome в приложение JSTorrent на компьютере или Chromebook."
   },

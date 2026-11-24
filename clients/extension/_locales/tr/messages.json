@@ -98,6 +98,33 @@
   "connect_dynamic_014": {
     "message": "Yeniden dene"
   },
+  "desktop_download": {
+    "message": "JSTorrent’i indir"
+  },
+  "desktop_legacy_detail": {
+    "message": "Açık olan eski JSTorrent masaüstü uygulamasından çıkın ve uzantısına ait sayfaları kapatın. Sonra tekrar deneyin."
+  },
+  "desktop_legacy_title": {
+    "message": "Eski JSTorrent sürümünü kapatın"
+  },
+  "desktop_missing": {
+    "message": "Masaüstü uygulaması taşınmış veya bulunamadı"
+  },
+  "desktop_open_app": {
+    "message": "JSTorrent açıksa uygulamadan çıkın. Yüklü sürümü açıp tekrar deneyin."
+  },
+  "desktop_open_macos": {
+    "message": "JSTorrent açıksa uygulamadan çıkın. Uygulamalar klasöründen açın ve “Yeniden dene”yi seçin."
+  },
+  "desktop_open_windows": {
+    "message": "JSTorrent açıksa uygulamadan çıkın. Windows Başlat menüsünden açın ve “Yeniden dene”yi seçin."
+  },
+  "desktop_start": {
+    "message": "JSTorrent’i başlat"
+  },
+  "desktop_stopped": {
+    "message": "JSTorrent kapalı"
+  },
   "extension_summary": {
     "message": "Chrome’dan masaüstü veya Chromebook’taki JSTorrent uygulamasına torrent ekleyin."
   },

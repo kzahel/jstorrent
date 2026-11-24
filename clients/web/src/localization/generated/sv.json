@@ -458,6 +458,12 @@
       "value": "Öppna JSTorrent i Chrome Web Store"
     }
   ],
+  "desktop.companion.app-missing": [
+    {
+      "type": 0,
+      "value": "Skrivbordsappen kan ha flyttats."
+    }
+  ],
   "desktop.companion.connecting": [
     {
       "type": 0,
@@ -488,6 +494,12 @@
       "value": "JSTorrent Desktop och det här tillägget behöver kompatibla versioner. Sök efter uppdateringar för skrivbordsappen och tillägget och försök sedan igen. Du kan använda skrivbordsappen direkt medan du väntar på uppdateringar."
     }
   ],
+  "desktop.companion.legacy-retry": [
+    {
+      "type": 0,
+      "value": "Avsluta en eventuell äldre version av skrivbordsappen JSTorrent och stäng sidorna för dess tillägg. Försök sedan igen."
+    }
+  ],
   "desktop.companion.native-folder": [
     {
       "type": 0,
@@ -512,16 +524,22 @@
       "value": "Försök ansluta igen"
     }
   ],
-  "desktop.companion.setup-required": [
+  "desktop.companion.setup-retry": [
     {
       "type": 0,
-      "value": "JSTorrent Desktop är inte tillgängligt för det här tillägget. Installera eller uppdatera skrivbordsappen och öppna den sedan en gång för att slutföra konfigurationen."
+      "value": "Avsluta JSTorrent om det är öppet. Öppna den installerade versionen och försök igen."
     }
   ],
   "desktop.companion.start": [
     {
       "type": 0,
       "value": "Starta"
+    }
+  ],
+  "desktop.companion.start-trouble": [
+    {
+      "type": 0,
+      "value": "Det gick inte att ansluta till JSTorrent Desktop. Öppna appen direkt eller välj ”Starta” för att försöka igen."
     }
   ],
   "desktop.companion.stopped": [
@@ -540,6 +558,12 @@
     {
       "type": 0,
       "value": "Skrivbordsappen är inte tillgänglig."
+    }
+  ],
+  "desktop.companion.unknown-state": [
+    {
+      "type": 0,
+      "value": "Om JSTorrent är stängt väljer du ”Starta” för att öppna det."
     }
   ],
   "external-link.open-failed": [

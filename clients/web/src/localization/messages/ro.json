@@ -123,6 +123,10 @@
     "defaultMessage": "Deschide JSTorrent în Chrome Web Store",
     "description": "Open the existing production extension listing to check available updates"
   },
+  "desktop.companion.app-missing": {
+    "defaultMessage": "Este posibil ca aplicația desktop să fi fost mutată.",
+    "description": "Recovery when the native helper exists but its saved desktop launch target is absent"
+  },
   "desktop.companion.connecting": {
     "defaultMessage": "Se conectează la JSTorrent Desktop…",
     "description": "Desktop extension connection"
@@ -143,6 +147,10 @@
     "defaultMessage": "JSTorrent Desktop și această extensie necesită versiuni compatibile. Verificați dacă există actualizări pentru aplicația desktop și extensie, apoi reîncercați. Până când actualizările sunt disponibile, puteți folosi direct aplicația desktop.",
     "description": "Desktop mismatch does not identify which component is outdated; native use remains available"
   },
+  "desktop.companion.legacy-retry": {
+    "defaultMessage": "Ieșiți din orice versiune mai veche a aplicației desktop JSTorrent și închideți paginile extensiei acesteia. Apoi încercați din nou.",
+    "description": "Recovery when the migration guard sees an older JSTorrent process or cannot confirm it stopped"
+  },
   "desktop.companion.native-folder": {
     "defaultMessage": "Deschideți fereastra aplicației desktop pentru a alege un dosar pentru descărcări sau a remedia problemele acestuia.",
     "description": "Desktop extension connection"
@@ -159,13 +167,17 @@
     "defaultMessage": "Reîncearcă conectarea",
     "description": "Attach again after a desktop version or authentication failure without launching it"
   },
-  "desktop.companion.setup-required": {
-    "defaultMessage": "JSTorrent Desktop nu este disponibil pentru această extensie. Instalați sau actualizați aplicația desktop, apoi deschideți-o o dată pentru a finaliza configurarea.",
-    "description": "A missing native host does not establish whether the app is absent, old or needs registration"
+  "desktop.companion.setup-retry": {
+    "defaultMessage": "Ieșiți din JSTorrent dacă este deschis. Deschideți versiunea instalată și încercați din nou.",
+    "description": "Recovery when the desktop extension cannot find the native helper or its launch configuration"
   },
   "desktop.companion.start": {
     "defaultMessage": "Pornește",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.start-trouble": {
+    "defaultMessage": "Conectarea la JSTorrent Desktop nu a reușit. Deschideți aplicația direct sau selectați „Pornește” pentru a încerca din nou.",
+    "description": "Recoverable desktop bootstrap error without a more specific recovery path"
   },
   "desktop.companion.stopped": {
     "defaultMessage": "Aplicația desktop este oprită. Selectați Pornește pentru a o deschide.",
@@ -178,6 +190,10 @@
   "desktop.companion.unavailable": {
     "defaultMessage": "Aplicația desktop este indisponibilă.",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.unknown-state": {
+    "defaultMessage": "Dacă JSTorrent este închis, selectați „Pornește” pentru a-l deschide.",
+    "description": "Recoverable passive attachment failure from a desktop helper that does not distinguish reasons"
   },
   "external-link.open-failed": {
     "defaultMessage": "Linkul nu a putut fi deschis. Încercați din nou.",

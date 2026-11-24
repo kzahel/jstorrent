@@ -9,6 +9,8 @@ const statusDot = document.querySelector("#status-dot");
 const statusTitle = document.querySelector("#status-title");
 const statusDetail = document.querySelector("#status-detail");
 const launchButton = document.querySelector("#launch");
+const desktopRetry = document.querySelector("#desktop-retry");
+const desktopDownload = document.querySelector("#desktop-download");
 const linuxButton = document.querySelector("#launch-linux");
 const linuxHelpButton = document.querySelector("#linux-help");
 const linuxStatus = document.querySelector("#linux-status");
@@ -26,6 +28,7 @@ const metricsReset = document.querySelector("#metrics-reset");
 const metricsStatus = document.querySelector("#metrics-status");
 const privacyPolicy = document.querySelector("#privacy-policy");
 const privacyDetails = document.querySelector("#privacy-details");
+let desktopOs;
 
 function setStatus(kind, title, detail) {
   statusDot.className = `status-dot ${kind}`;
@@ -60,65 +63,99 @@ document.querySelector("#feedback-preview").addEventListener("click", async () =
   }
 });
 
-function request(op) {
-  return chrome.runtime.sendMessage({ type: "nativeBootstrap", op });
+function desktopRequest(op) {
+  return chrome.runtime.sendMessage({ type: "desktopBootstrap", op });
+}
+
+function desktopActions({ launch, retry = false, download = false } = {}) {
+  launchButton.hidden = !launch;
+  launchButton.disabled = !launch;
+  if (launch) launchButton.textContent = t(launch);
+  desktopRetry.hidden = !retry;
+  desktopDownload.hidden = !download;
+}
+
+function openDesktopInstructions() {
+  switch (desktopOs) {
+    case "win": return t("desktop_open_windows");
+    case "mac": return t("desktop_open_macos");
+    default: return t("desktop_open_app");
+  }
+}
+
+function showDesktopFailure(response, starting = false) {
+  const { code, reason } = response?.error ?? {};
+  recordSupport(bootstrapSupportFailure(response));
+  if (code === "native_host_unavailable" || reason === "setup_required") {
+    setStatus("error", t("popup_dynamic_008"), openDesktopInstructions());
+    desktopActions({ retry: true, download: true });
+    return;
+  }
+  if (reason === "desktop_missing") {
+    setStatus("error", t("desktop_missing"), openDesktopInstructions());
+    desktopActions({ retry: true, download: true });
+    return;
+  }
+  if (reason === "legacy_running" || reason === "legacy_check_failed") {
+    setStatus("error", t("desktop_legacy_title"), t("desktop_legacy_detail"));
+    desktopActions({ retry: true });
+    return;
+  }
+  if (code === "unsupported_protocol" || code === "unsupported_operation") {
+    setStatus("error", t("popup_dynamic_008"), openDesktopInstructions());
+    desktopActions({ retry: true, download: true });
+    return;
+  }
+  const mayBeStarting = code === "bootstrap_timeout" || reason === "start_busy" || reason === "start_timed_out" ||
+    (starting && code === "control_unavailable" && reason === undefined);
+  setStatus("error", t(starting && !mayBeStarting ? "popup_dynamic_015" : "popup_dynamic_004"),
+    mayBeStarting ? "" : openDesktopInstructions());
+  desktopActions({ retry: true });
 }
 
 async function checkDesktop() {
   setStatus("checking", t("popup_dynamic_002"), t("popup_dynamic_003"));
-  launchButton.disabled = true;
-  let failure = "connection_failed";
+  desktopActions();
   recordSupport("connecting");
   try {
-    const response = await request("hello");
-    if (!response?.ok || response.result?.kind !== "hello") {
-      failure = bootstrapSupportFailure(response);
-      throw new Error(response?.error?.message || t("popup_dynamic_004"));
+    const response = await desktopRequest("status");
+    if (response?.ok && response.result?.kind === "attached") {
+      setStatus("ready", t("popup_dynamic_005"), t("popup_dynamic_006"));
+      desktopActions({ launch: "popup_005" });
+      recordSupport("none");
+    } else if (response?.error?.code === "control_unavailable" &&
+      (response.error.reason === "stopped" || response.error.reason === undefined)) {
+      // Released helpers omit the reason. Keep Start available without claiming
+      // their current application state from an ambiguous error.
+      setStatus("idle", t(response.error.reason === "stopped" ? "desktop_stopped" : "popup_002"), t("popup_dynamic_006"));
+      desktopActions({ launch: "desktop_start" });
+      recordSupport("none");
+    } else {
+      showDesktopFailure(response);
     }
-    setStatus(
-      "ready",
-      t("popup_dynamic_005"),
-      t("popup_dynamic_006"),
-    );
-    void updateMetrics("connected");
-    recordSupport("none");
-    launchButton.disabled = false;
-  } catch (error) {
-    recordSupport(failure);
-    setStatus(
-      "error",
-      t("popup_dynamic_008"),
-      error instanceof Error
-        ? errorText(error.message)
-        : t("popup_dynamic_009"),
-    );
+  } catch {
+    showDesktopFailure();
   }
 }
+
+desktopRetry.addEventListener("click", checkDesktop);
 
 launchButton.addEventListener("click", async () => {
   launchButton.disabled = true;
   setStatus("checking", t("popup_dynamic_010"), t("popup_dynamic_011"));
-  let failure = "connection_failed";
   recordSupport("connecting");
   try {
-    const response = await chrome.runtime.sendMessage({ type: "desktopBootstrap", op: "open" });
+    const response = await desktopRequest("open");
     if (!response?.ok || response.result?.kind !== "desktop_ui") {
-      failure = bootstrapSupportFailure(response);
-      throw new Error(response?.error?.message || t("popup_dynamic_012"));
+      showDesktopFailure(response, true);
+      return;
     }
-    setStatus(
-      "ready",
-      t("popup_dynamic_013"),
-      t("popup_dynamic_014"),
-    );
-  } catch (error) {
-    recordSupport(failure);
-    setStatus(
-      "error",
-      t("popup_dynamic_015"),
-      error instanceof Error ? errorText(error.message) : t("popup_dynamic_016"),
-    );
-    launchButton.disabled = false;
+    setStatus("ready", t("popup_dynamic_005"), t("popup_dynamic_014"));
+    desktopActions({ launch: "popup_005" });
+    void updateMetrics("connected");
+    recordSupport("none");
+  } catch {
+    showDesktopFailure(undefined, true);
   }
 });
 
@@ -183,7 +220,8 @@ async function initializePresentation() {
   let presentation;
   try {
     const platform = await chrome.runtime.getPlatformInfo();
-    presentation = presentationForPlatform(platform?.os);
+    desktopOs = platform?.os;
+    presentation = presentationForPlatform(desktopOs);
   } catch {
     presentation = presentationForPlatform(undefined);
   }

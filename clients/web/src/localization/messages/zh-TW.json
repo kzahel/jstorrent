@@ -123,6 +123,10 @@
     "defaultMessage": "在 Chrome 線上應用程式商店開啟 JSTorrent",
     "description": "Open the existing production extension listing to check available updates"
   },
+  "desktop.companion.app-missing": {
+    "defaultMessage": "桌面應用程式可能已移動。",
+    "description": "Recovery when the native helper exists but its saved desktop launch target is absent"
+  },
   "desktop.companion.connecting": {
     "defaultMessage": "正在連線至 JSTorrent 桌面版…",
     "description": "Desktop extension connection"
@@ -143,6 +147,10 @@
     "defaultMessage": "JSTorrent 桌面版與此擴充功能需要相容的版本。請檢查桌面應用程式與擴充功能的更新，然後重試。等待更新期間，您可以直接使用桌面應用程式。",
     "description": "Desktop mismatch does not identify which component is outdated; native use remains available"
   },
+  "desktop.companion.legacy-retry": {
+    "defaultMessage": "結束舊版 JSTorrent 桌面應用程式並關閉其擴充功能頁面，然後再試一次。",
+    "description": "Recovery when the migration guard sees an older JSTorrent process or cannot confirm it stopped"
+  },
   "desktop.companion.native-folder": {
     "defaultMessage": "請開啟桌面版視窗，選擇下載資料夾或修復其存取權。",
     "description": "Desktop extension connection"
@@ -159,13 +167,17 @@
     "defaultMessage": "重試連線",
     "description": "Attach again after a desktop version or authentication failure without launching it"
   },
-  "desktop.companion.setup-required": {
-    "defaultMessage": "此擴充功能無法使用 JSTorrent 桌面版。請安裝或更新桌面應用程式，然後開啟一次以完成設定。",
-    "description": "A missing native host does not establish whether the app is absent, old or needs registration"
+  "desktop.companion.setup-retry": {
+    "defaultMessage": "如果 JSTorrent 已開啟，請先結束。開啟已安裝的應用程式，然後再試一次。",
+    "description": "Recovery when the desktop extension cannot find the native helper or its launch configuration"
   },
   "desktop.companion.start": {
     "defaultMessage": "啟動",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.start-trouble": {
+    "defaultMessage": "無法連線至 JSTorrent 桌面版。請直接開啟應用程式，或選取「啟動」再試一次。",
+    "description": "Recoverable desktop bootstrap error without a more specific recovery path"
   },
   "desktop.companion.stopped": {
     "defaultMessage": "桌面版已停止。請選取「啟動」以開啟。",
@@ -178,6 +190,10 @@
   "desktop.companion.unavailable": {
     "defaultMessage": "桌面版無法使用。",
     "description": "Desktop extension connection"
+  },
+  "desktop.companion.unknown-state": {
+    "defaultMessage": "如果 JSTorrent 已關閉，請選取「啟動」以開啟應用程式。",
+    "description": "Recoverable passive attachment failure from a desktop helper that does not distinguish reasons"
   },
   "external-link.open-failed": {
     "defaultMessage": "無法開啟連結。請再試一次。",

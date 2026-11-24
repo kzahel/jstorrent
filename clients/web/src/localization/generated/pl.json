@@ -688,6 +688,12 @@
       "value": "Otwórz JSTorrent w Chrome Web Store"
     }
   ],
+  "desktop.companion.app-missing": [
+    {
+      "type": 0,
+      "value": "Aplikacja komputerowa mogła zostać przeniesiona."
+    }
+  ],
   "desktop.companion.connecting": [
     {
       "type": 0,
@@ -718,6 +724,12 @@
       "value": "JSTorrent Desktop i to rozszerzenie wymagają zgodnych wersji. Należy sprawdzić dostępność aktualizacji aplikacji komputerowej i rozszerzenia, a następnie ponowić próbę. Do czasu udostępnienia aktualizacji można korzystać bezpośrednio z aplikacji komputerowej."
     }
   ],
+  "desktop.companion.legacy-retry": [
+    {
+      "type": 0,
+      "value": "Zakończ działanie starszej wersji aplikacji komputerowej JSTorrent i zamknij strony jej rozszerzenia, jeśli są otwarte. Następnie spróbuj ponownie."
+    }
+  ],
   "desktop.companion.native-folder": [
     {
       "type": 0,
@@ -742,16 +754,22 @@
       "value": "Ponów połączenie"
     }
   ],
-  "desktop.companion.setup-required": [
+  "desktop.companion.setup-retry": [
     {
       "type": 0,
-      "value": "JSTorrent Desktop jest niedostępny dla tego rozszerzenia. Należy zainstalować lub zaktualizować aplikację komputerową, a następnie uruchomić ją raz, aby dokończyć konfigurację."
+      "value": "Zakończ działanie aplikacji JSTorrent, jeśli jest otwarta. Otwórz zainstalowaną wersję i spróbuj ponownie."
     }
   ],
   "desktop.companion.start": [
     {
       "type": 0,
       "value": "Uruchom"
+    }
+  ],
+  "desktop.companion.start-trouble": [
+    {
+      "type": 0,
+      "value": "Nie udało się połączyć z JSTorrent Desktop. Otwórz aplikację bezpośrednio lub wybierz „Uruchom”, aby spróbować ponownie."
     }
   ],
   "desktop.companion.stopped": [
@@ -770,6 +788,12 @@
     {
       "type": 0,
       "value": "Aplikacja komputerowa jest niedostępna."
+    }
+  ],
+  "desktop.companion.unknown-state": [
+    {
+      "type": 0,
+      "value": "Jeśli JSTorrent jest zamknięty, wybierz „Uruchom”, aby go otworzyć."
     }
   ],
   "external-link.open-failed": [

@@ -98,6 +98,33 @@
   "connect_dynamic_014": {
     "message": "Prøv igen"
   },
+  "desktop_download": {
+    "message": "Download JSTorrent"
+  },
+  "desktop_legacy_detail": {
+    "message": "Afslut en eventuel ældre version af desktopappen JSTorrent, og luk siderne til den tilhørende udvidelse. Prøv derefter igen."
+  },
+  "desktop_legacy_title": {
+    "message": "Luk en ældre version af JSTorrent"
+  },
+  "desktop_missing": {
+    "message": "Desktopappen er flyttet eller mangler"
+  },
+  "desktop_open_app": {
+    "message": "Afslut JSTorrent, hvis det er åbent. Åbn den installerede version, og prøv igen."
+  },
+  "desktop_open_macos": {
+    "message": "Afslut JSTorrent, hvis det er åbent. Åbn det fra Programmer, og vælg »Prøv igen«."
+  },
+  "desktop_open_windows": {
+    "message": "Afslut JSTorrent, hvis det er åbent. Åbn det fra startmenuen i Windows, og vælg »Prøv igen«."
+  },
+  "desktop_start": {
+    "message": "Start JSTorrent"
+  },
+  "desktop_stopped": {
+    "message": "JSTorrent er lukket"
+  },
   "extension_summary": {
     "message": "Tilføj torrents fra Chrome til JSTorrent-appen på din computer eller Chromebook."
   },

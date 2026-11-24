@@ -1,5 +1,14 @@
 # Client Surfaces
 
+Tactical [402](../tactical/402-desktop-extension-setup-recovery.md) separates
+the browser’s passive desktop check, explicit Start, and active library.
+The popup reports readiness from desktop control attachment. A stopped or
+older helper can still Start. The popup and companion guide users through
+first launch, relaunch after a move, and a legacy startup block. Setup and
+legacy recovery in the companion resume on an explicit, attach-only Retry.
+The existing native messaging v1 error codes and support categories remain
+compatible with released clients and hosts.
+
 Tactical [386](../tactical/386-browser-handoff-and-report-context.md) repairs
 the website/extension handoff after Cloudflare's `.html` to extensionless
 redirect. Both exact URL spellings are accepted by the page, external-message
