@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [402 — Desktop extension setup and upgrade recovery](402-desktop-extension-setup-recovery.md):
+  Windows feedback reproduction, shared extension and Desktop recovery,
+  Windows installer ownership, and Windows/macOS installed qualification.
+
 - [401 — Android stability release](401-android-stability-release.md):
   authorized Android 1.0.41 release at 100% production.
 
