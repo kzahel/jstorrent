@@ -4,10 +4,11 @@ use std::path::Path;
 use rstorrent_session::{LegacyDesktopImportReport, SessionStore};
 
 pub fn ensure_legacy_quiet() -> Result<(), String> {
-    match rstorrent_native_host::legacy::old_process_is_running() {
-        Ok(false) => Ok(()),
-        Ok(true) => Err("Close JSTorrent desktop and legacy extension pages, then reopen the updated desktop app. Your legacy data has been preserved.".to_owned()),
-        Err(_) => Err("Could not verify that legacy JSTorrent has stopped. Your legacy data has been preserved; close legacy clients and retry.".to_owned()),
+    use rstorrent_native_host::legacy::{StartupBlock, ensure_quiet};
+    match ensure_quiet() {
+        Ok(()) => Ok(()),
+        Err(StartupBlock::Running) => Err("Close JSTorrent desktop and legacy extension pages, then reopen the updated desktop app. Your legacy data has been preserved.".to_owned()),
+        Err(StartupBlock::InventoryUnavailable) => Err("Could not verify that legacy JSTorrent has stopped. Your legacy data has been preserved; close legacy clients and retry.".to_owned()),
     }
 }
 

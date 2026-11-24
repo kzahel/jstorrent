@@ -83,8 +83,44 @@ impl LaunchConfig {
 pub trait DesktopLauncher {
     fn launch(&mut self) -> Result<(), String>;
 
-    fn control(&mut self, _start: bool) -> Result<control::ControlReady, String> {
-        Err("Desktop control is unavailable on this platform".to_owned())
+    fn control(&mut self, _start: bool) -> Result<control::ControlReady, ControlFailure> {
+        Err(ControlFailure::Unavailable)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlFailure {
+    Unavailable,
+    SetupRequired,
+    DesktopMissing,
+    Stopped,
+    LegacyRunning,
+    LegacyCheckFailed,
+    Refused,
+    StartBusy,
+    StartFailed,
+    StartTimedOut,
+}
+
+impl ControlFailure {
+    fn message(self) -> &'static str {
+        match self {
+            Self::Unavailable => "Desktop control is unavailable on this platform",
+            Self::SetupRequired => "JSTorrent launch configuration is unavailable",
+            Self::DesktopMissing => "Installed JSTorrent application was not found",
+            Self::Stopped => "Desktop is stopped. Select Start to open it.",
+            Self::LegacyRunning => {
+                "Close JSTorrent desktop and legacy extension pages, then try again."
+            }
+            Self::LegacyCheckFailed => {
+                "Could not verify that legacy JSTorrent has stopped. Close legacy clients and try again."
+            }
+            Self::Refused => "Desktop bootstrap was refused",
+            Self::StartBusy => "Desktop startup is busy or unavailable",
+            Self::StartFailed => "JSTorrent launch request could not be started",
+            Self::StartTimedOut => "Desktop did not become ready in time",
+        }
     }
 }
 
@@ -104,12 +140,49 @@ impl ConfiguredLauncher {
 }
 
 impl ConfiguredLauncher {
-    fn launch_with_intent(&mut self, background: bool) -> Result<(), String> {
+    fn launch_target(&self) -> Result<LaunchConfig, ControlFailure> {
         let config = LaunchConfig::read_from(&self.config_path)
-            .map_err(|_| "JSTorrent launch configuration is unavailable".to_owned())?;
-        if !config.path.exists() {
-            return Err("installed JSTorrent application was not found".to_owned());
+            .map_err(|_| ControlFailure::SetupRequired)?;
+        let target_exists = match config.kind {
+            LaunchKind::Executable => config.path.is_file(),
+            LaunchKind::MacApp => config.path.join("Contents/Info.plist").is_file(),
+        };
+        if !target_exists {
+            return Err(ControlFailure::DesktopMissing);
         }
+        Ok(config)
+    }
+
+    fn check_legacy(
+        &self,
+        ensure_quiet: impl FnOnce() -> Result<(), legacy::StartupBlock>,
+    ) -> Result<(), ControlFailure> {
+        let app_directory = self.config_path.parent().and_then(Path::parent);
+        if app_directory.and_then(Path::file_name) == Some(legacy::PRODUCTION_IDENTIFIER.as_ref()) {
+            return ensure_quiet().map_err(|block| match block {
+                legacy::StartupBlock::Running => ControlFailure::LegacyRunning,
+                legacy::StartupBlock::InventoryUnavailable => ControlFailure::LegacyCheckFailed,
+            });
+        }
+        Ok(())
+    }
+
+    fn read_control(path: &Path) -> Result<Option<control::ControlReady>, ControlFailure> {
+        match control::read_ready(path) {
+            Ok(ready) => Ok(Some(ready)),
+            Err(error) if control::is_stopped(&error) => Ok(None),
+            Err(error) => {
+                eprintln!(
+                    "RSTorrent bootstrap refused: kind={:?} os={:?}",
+                    error.kind(),
+                    error.raw_os_error()
+                );
+                Err(ControlFailure::Refused)
+            }
+        }
+    }
+
+    fn launch_with_intent(config: &LaunchConfig, background: bool) -> Result<(), ControlFailure> {
         let mut command = match config.kind {
             LaunchKind::Executable => Command::new(&config.path),
             LaunchKind::MacApp => {
@@ -145,66 +218,53 @@ impl ConfiguredLauncher {
             .stderr(Stdio::null())
             .spawn()
             .map(|_| ())
-            .map_err(|_| "JSTorrent launch request could not be started".to_owned())
+            .map_err(|_| ControlFailure::StartFailed)
     }
 }
 
 impl DesktopLauncher for ConfiguredLauncher {
     fn launch(&mut self) -> Result<(), String> {
-        self.launch_with_intent(false)
+        self.launch_target()
+            .and_then(|config| Self::launch_with_intent(&config, false))
+            .map_err(|failure| failure.message().to_owned())
     }
 
-    fn control(&mut self, start: bool) -> Result<control::ControlReady, String> {
+    fn control(&mut self, start: bool) -> Result<control::ControlReady, ControlFailure> {
         let directory = self
             .config_path
             .parent()
-            .ok_or("Desktop setup is unavailable")?;
+            .ok_or(ControlFailure::SetupRequired)?;
         let path = directory.join(control::SOCKET_NAME);
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        if let Some(ready) = Self::read_control(&path)? {
+            return Ok(ready);
+        }
+        let config = self.launch_target()?;
+        self.check_legacy(legacy::ensure_quiet)?;
+        if !start {
+            return Err(ControlFailure::Stopped);
+        }
         #[cfg(target_os = "macos")]
-        let _start_lock = if start {
-            Some(
-                control::lock_start(directory, deadline)
-                    .map_err(|_| "Desktop startup is busy or unavailable".to_owned())?,
-            )
-        } else {
-            None
+        let _start_lock = {
+            let lock =
+                control::lock_start(directory, deadline).map_err(|_| ControlFailure::StartBusy)?;
+            // A concurrent request may have started Desktop while we waited.
+            if let Some(ready) = Self::read_control(&path)? {
+                return Ok(ready);
+            }
+            lock
         };
-        match control::read_ready(&path) {
-            Ok(ready) => return Ok(ready),
-            Err(error) if !control::is_stopped(&error) => {
-                eprintln!(
-                    "RSTorrent bootstrap attach refused: kind={:?} os={:?}",
-                    error.kind(),
-                    error.raw_os_error()
-                );
-                return Err("Desktop bootstrap was refused".to_owned());
-            }
-            Err(_) if !start => {
-                return Err("Desktop is stopped. Select Start to open it.".to_owned());
-            }
-            Err(_) => {}
-        }
         if std::time::Instant::now() >= deadline {
-            return Err("Desktop startup did not become available in time".to_owned());
+            return Err(ControlFailure::StartTimedOut);
         }
-        self.launch_with_intent(true)?;
+        Self::launch_with_intent(&config, true)?;
         while std::time::Instant::now() < deadline {
-            match control::read_ready(&path) {
-                Ok(ready) => return Ok(ready),
-                Err(error) if control::is_stopped(&error) => {}
-                Err(error) => {
-                    eprintln!(
-                        "RSTorrent bootstrap startup refused: kind={:?} os={:?}",
-                        error.kind(),
-                        error.raw_os_error()
-                    );
-                    return Err("Desktop bootstrap was refused".to_owned());
-                }
+            if let Some(ready) = Self::read_control(&path)? {
+                return Ok(ready);
             }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
-        Err("Desktop did not become ready in time".to_owned())
+        Err(ControlFailure::StartTimedOut)
     }
 }
 
@@ -292,6 +352,8 @@ enum ResultBody {
 struct ErrorBody {
     code: &'static str,
     message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<ControlFailure>,
 }
 
 pub fn run<R, W, L>(
@@ -361,7 +423,17 @@ fn dispatch<L: DesktopLauncher>(
         "start_control" | "attach_control" if control::origin_allowed(caller_origin) => {
             match launcher.control(request.op == "start_control") {
                 Ok(ready) => Response::success(&request.id, ResultBody::Ready { ready }),
-                Err(message) => Response::error(&request.id, "control_unavailable", message),
+                Err(failure) => Response {
+                    id: request.id.clone(),
+                    ok: false,
+                    protocol_version: PROTOCOL_VERSION,
+                    result: None,
+                    error: Some(ErrorBody {
+                        code: "control_unavailable",
+                        message: failure.message().to_owned(),
+                        reason: Some(failure),
+                    }),
+                },
             }
         }
         "launch" => match launcher.launch() {
@@ -401,6 +473,7 @@ impl Response {
             error: Some(ErrorBody {
                 code,
                 message: message.into(),
+                reason: None,
             }),
         }
     }
@@ -468,15 +541,13 @@ mod tests {
         std::fs::set_permissions(directory.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
         let _lock = control::lock_start(directory.path(), std::time::Instant::now()).unwrap();
         let mut launcher = ConfiguredLauncher::for_host_executable(&directory.path().join("host"));
-        // No launch config exists: attempting any launch would return a setup
-        // error instead of the expected attach-only stopped result.
-        assert!(
-            launcher
-                .control(false)
-                .err()
-                .unwrap()
-                .contains("Desktop is stopped")
-        );
+        LaunchConfig::executable(PathBuf::from("/usr/bin/false"))
+            .write_to(&launcher.config_path)
+            .unwrap();
+        assert!(matches!(
+            launcher.control(false),
+            Err(ControlFailure::Stopped)
+        ));
     }
 
     use super::*;
@@ -521,7 +592,7 @@ mod tests {
             fn launch(&mut self) -> Result<(), String> {
                 panic!("control must not use ordinary window launch");
             }
-            fn control(&mut self, start: bool) -> Result<control::ControlReady, String> {
+            fn control(&mut self, start: bool) -> Result<control::ControlReady, ControlFailure> {
                 self.0.push(start);
                 Ok(control::ControlReady {
                     endpoint: "http://127.0.0.1:1234".to_owned(),
@@ -555,6 +626,81 @@ mod tests {
                 launcher.0.clear();
             }
         }
+    }
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn passive_attach_distinguishes_missing_setup_target_and_stopped_desktop() {
+        let directory = tempfile::tempdir().unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(directory.path(), fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let mut launcher = ConfiguredLauncher::for_host_executable(&directory.path().join("host"));
+        let request = framed(r#"{"id":"attach","protocolVersion":1,"op":"attach_control"}"#);
+        let attach = |launcher: &mut ConfiguredLauncher, reason| {
+            let reply = exchange(&request, Some(ORIGIN), launcher);
+            assert_eq!(reply["error"]["code"], "control_unavailable");
+            assert_eq!(reply["error"]["reason"], reason);
+            assert!(
+                reply["error"]["message"]
+                    .as_str()
+                    .is_some_and(|s| !s.is_empty())
+            );
+            assert!(!reply.to_string().contains("fixture-executable"));
+        };
+        attach(&mut launcher, "setup_required");
+        let executable = directory.path().join("fixture-executable");
+        LaunchConfig::executable(executable.clone())
+            .write_to(&launcher.config_path)
+            .unwrap();
+        attach(&mut launcher, "desktop_missing");
+        fs::write(executable, "A passive probe never executes this file.").unwrap();
+        attach(&mut launcher, "stopped");
+    }
+
+    #[test]
+    fn mac_bundle_target_requires_an_installed_bundle() {
+        let directory = tempfile::tempdir().unwrap();
+        let launcher = ConfiguredLauncher::for_host_executable(&directory.path().join("host"));
+        let app = directory.path().join("JSTorrent.app");
+        LaunchConfig::mac_app(app.clone())
+            .write_to(&launcher.config_path)
+            .unwrap();
+        fs::create_dir_all(app.join("Contents")).unwrap();
+        assert_eq!(
+            launcher.launch_target().unwrap_err(),
+            ControlFailure::DesktopMissing
+        );
+        fs::write(app.join("Contents/Info.plist"), "fixture").unwrap();
+        assert_eq!(
+            launcher.launch_target().unwrap(),
+            LaunchConfig::mac_app(app)
+        );
+    }
+
+    #[test]
+    fn legacy_inventory_is_conservative_and_scoped_to_production() {
+        let directory = tempfile::tempdir().unwrap();
+        let host_under = |identifier| directory.path().join(identifier).join("native-host/host");
+        let production =
+            ConfiguredLauncher::for_host_executable(&host_under(legacy::PRODUCTION_IDENTIFIER));
+        assert_eq!(production.check_legacy(|| Ok(())), Ok(()));
+        assert_eq!(
+            production.check_legacy(|| Err(legacy::StartupBlock::Running)),
+            Err(ControlFailure::LegacyRunning)
+        );
+        assert_eq!(
+            production.check_legacy(|| Err(legacy::StartupBlock::InventoryUnavailable)),
+            Err(ControlFailure::LegacyCheckFailed)
+        );
+        let preview =
+            ConfiguredLauncher::for_host_executable(&host_under("com.jstorrent.rstorrent"));
+        assert_eq!(
+            preview.check_legacy(|| panic!("preview does not fence legacy owners")),
+            Ok(())
+        );
     }
 
     #[test]

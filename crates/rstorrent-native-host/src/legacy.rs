@@ -75,10 +75,20 @@ pub fn run_refusal<R: Read, W: Write>(
     Ok(())
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StartupBlock {
+    Running,
+    InventoryUnavailable,
+}
+
 /// Detect already-open old hosts, including ones that have not written discovery.
-/// Called after managed launch routes have been replaced; never terminates them.
-pub fn old_process_is_running() -> io::Result<bool> {
-    process_inventory::old_process_is_running()
+/// Does not change the running processes or legacy data.
+pub fn ensure_quiet() -> Result<(), StartupBlock> {
+    match process_inventory::old_process_is_running() {
+        Ok(false) => Ok(()),
+        Ok(true) => Err(StartupBlock::Running),
+        Err(_) => Err(StartupBlock::InventoryUnavailable),
+    }
 }
 
 fn legacy_process_name(name: &str) -> bool {

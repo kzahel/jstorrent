@@ -92,6 +92,13 @@ fn product_origins_can_attach_without_launching_a_stopped_desktop() {
     let suffix = if cfg!(windows) { ".exe" } else { "" };
     let executable = owned.path().join(format!("host{suffix}"));
     copy_host(&executable);
+    rstorrent_native_host::LaunchConfig::executable(executable.clone())
+        .write_to(
+            &owned
+                .path()
+                .join(rstorrent_native_host::LAUNCH_CONFIG_FILENAME),
+        )
+        .unwrap();
     for origin in [
         rstorrent_native_host::control::PRODUCTION_ORIGIN,
         rstorrent_native_host::control::BETA_ORIGIN,
@@ -116,12 +123,13 @@ fn product_origins_can_attach_without_launching_a_stopped_desktop() {
         let frames = decode_frames(&output.stdout).unwrap();
         assert_eq!(frames.len(), 1);
         assert_eq!(frames[0]["error"]["code"], "control_unavailable");
+        assert_eq!(frames[0]["error"]["reason"], "stopped");
         assert_eq!(
             frames[0]["error"]["message"],
             "Desktop is stopped. Select Start to open it."
         );
-        // Passive attach neither consults a launch config nor creates files.
-        assert_eq!(std::fs::read_dir(owned.path()).unwrap().count(), 1);
+        // Passive attach checks the launch target without creating files.
+        assert_eq!(std::fs::read_dir(owned.path()).unwrap().count(), 2);
     }
 }
 
