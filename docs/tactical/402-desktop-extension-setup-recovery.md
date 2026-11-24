@@ -1,6 +1,8 @@
 # 402 — Desktop extension setup and upgrade recovery
 
-Status: in progress, November 24, 2026.
+Status: implemented locally, November 24, 2026. Live macOS verification
+and partial Windows candidate verification are recorded in the
+[report and screenshot gallery](../evidence/402-desktop-setup/README.md).
 
 Owners: `client-surfaces`, `desktop-jstorrent-replacement`,
 `product-state-and-feedback`.
@@ -106,3 +108,10 @@ installer, account setup or Desktop version.
 Stop after the changes and evidence land in reviewed commits. Package
 qualification is local or in the claimed guests. Production publication is
 outside this change.
+
+The Windows candidate built and installed cleanly with `/S`. The native
+helper and ownership fixtures passed on the guest. The Windows guest
+then lost its desktop resident and SSH. The report lists the remaining
+interactive candidate upgrade and first-launch checks. The macOS
+candidate verified missing registration, first launch, moved bundle,
+an active released legacy helper, and an explicit Start after it exited.
