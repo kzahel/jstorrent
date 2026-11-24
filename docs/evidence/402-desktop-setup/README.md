@@ -94,6 +94,34 @@ Production and Preview EXE uninstall remove native messaging registry
 entries that point at their own per-user manifests. Production also checks
 its retired host registrations in Chrome, Chromium, Brave, and Edge.
 
+## Windows EXE upgrades
+
+With the signed 0.2.1 EXE installed, the candidate shows **Already
+Installed** with **Uninstall before installing** and **Do not uninstall**.
+With **Do not uninstall** selected, the candidate installed alongside the
+older helper and daemon. Running the actual 0.2.1 helper blocked Desktop
+before it created a catalog. The popup
+showed **Close older JSTorrent** with the instructions above, and a
+companion tab on the same browser stayed on **Retry connection**.
+
+![Live Windows EXE maintenance page with Do not uninstall selected](12-windows-exe-choices-live.png)
+
+The native migration dialog said “Close JSTorrent desktop and legacy
+extension pages, then reopen the updated desktop app. Your legacy data
+has been preserved.”
+
+After the helper exited and the migration dialog was dismissed, **Start
+JSTorrent** launched Desktop. The candidate extension with the tab
+reattachment fix (`6802f01c`) recovered the existing companion tab
+without a reload or a second Retry. Desktop again imported the fixture
+torrent as paused and preserved the source rows and payload.
+
+**Uninstall before installing** opened the signed legacy EXE’s uninstaller.
+**Delete the application data** was unchecked and stayed unchecked. The
+old helper, daemon, and installation registration were removed before the
+candidate installed. **Finish** launched the candidate, and the same
+paused torrent, source rows, and payload were verified afterward.
+
 ## Verification
 
 The desktop builds were unsigned candidates from this change, with version
@@ -125,18 +153,28 @@ The released MSI prompt and released EXE keep-install path were
 reproduced in the baseline. The first candidate run lost its desktop
 resident and SSH before interactive checks could finish. The clean
 wizard, first launch, and browser checks above ran after the guest
-recovered. The candidate uninstaller removed its live registrations.
+recovered. The candidate uninstaller removed its owned Chrome key and
+all four owned legacy keys. A foreign Chromium registration and its
+manifest were preserved. The imported and source catalogs also survived
+uninstall.
 
-Windows checks still pending include both signed 0.2.1 EXE maintenance
-choices, a live legacy-blocked popup, `/P /R` and `/S /R`, a foreign
-registration in a live uninstall, and a standard account without
-administrator credentials. The 0.3.1 build is older than 0.3.12. An
-upgrade from 0.3.12 requires a higher-versioned candidate. The new
-MSI page is interactive, and unattended runs retain Tauri’s behavior.
+Both `/P /R` and `/S /R` launched the registered candidate in the
+interactive Windows session after clean installs. The new MSI page is
+interactive. The 0.3.1 candidate is older than the released 0.3.12.
+Upgrade evidence starts at signed 0.2.1, and unattended launch evidence
+covers clean installs. The administrator approval tests used the guest’s
+existing account and covered an unanswered prompt and a granted prompt.
 
 After the MSI upgrade, **Open torrent library** focused the existing
 companion tab while it still showed the earlier setup failure. **Retry
-connection** restored the authenticated view in that tab.
+connection** restored the authenticated view in that tab. The extension
+now requests an attach-only retry after a successful popup Start or Open
+focuses an existing recovery tab. The packaged Chromium check reproduced
+the original failure with the earlier archive and passed with the fix.
+
+After verification, the task’s installs, profiles, browser and staged
+files were removed. The Windows claim was released and the inherited
+guest stayed running.
 
 ### macOS 26.6.2, Apple silicon
 
@@ -166,7 +204,7 @@ and the 0.3.1 candidate.
 | Windows NSIS handler and ownership fixture with native Windows makensis | Passed. Checks all four owned legacy keys, a foreign legacy key, and both directions of Preview and production ownership |
 | Desktop release and candidate validators | Both passed, with 29 validator tests |
 | Extension | 93 tests passed, production packaging and bundled Chromium CSP check passed |
-| Shared web app and companion | Typecheck passed, 981 tests passed and 3 skipped |
+| Shared web app and companion | Typecheck passed, 983 tests passed and 3 skipped |
 | Localization and website | Localization checks passed, 101 website tests passed |
 | Formatting | `cargo fmt --all -- --check` passed |
 
@@ -181,6 +219,12 @@ uses bundled Chromium and a temporary profile. It injects native
 responses for closed, moved, and legacy-blocked states. Screenshots 01,
 03, and 05 use a real Chrome missing-host error. The runner checks the
 exact visible copy and asserts that Retry sends only `attach_control`.
+It also verifies that a popup Open first sends `start_control`, followed
+by `attach_control` from the existing companion tab.
+
+Screenshots 09–12 are window captures of the live Windows guest. They
+show the candidate’s Finish, MSI replacement, and EXE maintenance
+pages, plus the native Windows Installer confirmation.
 
 The baseline ZIP is in the `jstorrent-extension-1.1.10` artifact from
 [extension release run 42473497821](https://github.com/kzahel/jstorrent/actions/runs/42473497821)

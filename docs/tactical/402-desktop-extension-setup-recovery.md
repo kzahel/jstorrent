@@ -1,7 +1,7 @@
 # 402 — Desktop extension setup and upgrade recovery
 
-Status: implemented locally, November 24, 2026. Live macOS verification
-and Windows first-launch and MSI replacement results are recorded in the
+Status: implemented and guest-verified, November 24, 2026. The Windows
+and macOS results, tested versions, and limits are recorded in the
 [report and screenshot gallery](../evidence/402-desktop-setup/README.md).
 
 Owners: `client-surfaces`, `desktop-jstorrent-replacement`,
@@ -120,6 +120,15 @@ rows and payload. The macOS candidate verified missing registration,
 first launch, moved bundle, an active released legacy helper, and an
 explicit Start after it exited.
 
-The report still tracks the pending EXE and passive verification. Live
-MSI replacement also found a stale companion tab that needed a manual
-Retry after the recovered popup focused it.
+Both EXE maintenance choices were verified with signed 0.2.1. Keeping
+the old binaries exercised an actual legacy startup block, recovery
+from the popup, and reattachment of the same companion tab. Removing
+the old EXE first preserved the catalog and payload through replacement.
+Both `/P /R` and `/S /R` launched the candidate. Live uninstall removed
+the owned registrations and preserved a foreign Chromium manifest.
+
+Live MSI replacement exposed a stale companion tab that needed a manual
+Retry after the popup focused it. The fix requests an attach-only retry
+in the existing recovery page. Packaged Chromium reproduced the failure
+with the earlier archive, and the same live Windows tab reattached with
+the fix during the retained-helper EXE case.
