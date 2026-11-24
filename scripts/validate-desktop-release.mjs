@@ -326,8 +326,8 @@ export function validateDesktopReleaseConfiguration({
     fail("desktop native host registration and target-triple packaging are incomplete");
   }
   for (const exactUninstallEntry of [
-    "Software\\Google\\Chrome\\NativeMessagingHosts\\com.jstorrent.rstorrent.native",
-    "Software\\Chromium\\NativeMessagingHosts\\com.jstorrent.rstorrent.native",
+    '!insertmacro RemoveOwnedNativeHost "Google\\Chrome" "com.jstorrent.rstorrent.native" "com.jstorrent.rstorrent"',
+    '!insertmacro RemoveOwnedNativeHost "Chromium" "com.jstorrent.rstorrent.native" "com.jstorrent.rstorrent"',
     "$APPDATA\\com.jstorrent.rstorrent\\native-host",
   ]) {
     if (!nsisHooks.includes(exactUninstallEntry)) {

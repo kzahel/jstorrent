@@ -112,8 +112,8 @@ test("rejects native host package or registration drift", () => {
 
   const cleanupFixture = repositoryFixture();
   cleanupFixture.nsisHooks = cleanupFixture.nsisHooks.replace(
-    "Software\\Google\\Chrome\\NativeMessagingHosts\\com.jstorrent.rstorrent.native",
-    "Software\\Google\\Chrome\\NativeMessagingHosts\\com.example.wrong",
+    'RemoveOwnedNativeHost "Google\\Chrome" "com.jstorrent.rstorrent.native"',
+    'RemoveOwnedNativeHost "Google\\Chrome" "com.example.wrong"',
   );
   assert.throws(
     () => validateDesktopReleaseConfiguration(cleanupFixture),

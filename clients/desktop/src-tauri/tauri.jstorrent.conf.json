@@ -22,6 +22,7 @@
     "longDescription": "JSTorrent downloads and manages torrents on your desktop.",
     "windows": {
       "nsis": {
+        "template": "./nsis/jstorrent-installer.nsi",
         "installerHooks": "./nsis/jstorrent-hooks.nsh",
         "installerIcon": "icons/icon.ico",
         "uninstallerIcon": "icons/icon.ico",

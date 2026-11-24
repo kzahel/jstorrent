@@ -1,6 +1,13 @@
 ; Preserve the native page heading on the left, with brand artwork on
 ; the right. The pinned Tauri template includes this before MUI pages.
 !define MUI_HEADERIMAGE_RIGHT
+!include "${__FILEDIR__}/native-host-ownership.nsh"
+
+!macro JSTorrentMsiReplacementPage
+  !insertmacro MUI_HEADER_TEXT "Replace existing JSTorrent" "Windows Installer removal is required."
+  ${NSD_CreateLabel} 0 0 100% 94u "Setup found a Windows Installer (MSI) version of JSTorrent. That version must be removed before this setup can continue.$\r$\n$\r$\nYour torrent library and downloaded files stay on this computer. Windows may ask for administrator approval.$\r$\n$\r$\nSelect Next to open the uninstall prompt, or Cancel to keep the existing installation."
+  Pop $R1
+!macroend
 
 ; Tauri writes generic associations before POSTINSTALL. Keep other clients'
 ; unprotected fallback defaults too, independently of protected UserChoice.
@@ -47,7 +54,7 @@ Var JSTMissingMagnetMarker
 !macroend
 
 ; Keep the JSTorrent file class private to this bundle and quote both the
-; executable and the activated path. Tauri 2.11.5's generated APP_ASSOCIATE
+; executable and the activated path. The pinned Tauri generated APP_ASSOCIATE
 ; command quotes only %1, which breaks installations below a path containing
 ; spaces.
 
@@ -146,9 +153,11 @@ Var JSTMissingMagnetMarker
       DeleteRegValue SHCTX "Software\RegisteredApplications" "JSTorrentDesktop"
     ${EndIf}
   ${EndIf}
-  DeleteRegKey SHCTX \
-    "Software\Google\Chrome\NativeMessagingHosts\com.jstorrent.rstorrent.native"
-  DeleteRegKey SHCTX \
-    "Software\Chromium\NativeMessagingHosts\com.jstorrent.rstorrent.native"
+  !insertmacro RemoveOwnedNativeHost "Google\Chrome" "com.jstorrent.rstorrent.native" "com.jstorrent.desktop"
+  !insertmacro RemoveOwnedNativeHost "Chromium" "com.jstorrent.rstorrent.native" "com.jstorrent.desktop"
+  !insertmacro RemoveOwnedNativeHost "Google\Chrome" "com.jstorrent.native" "com.jstorrent.desktop"
+  !insertmacro RemoveOwnedNativeHost "Chromium" "com.jstorrent.native" "com.jstorrent.desktop"
+  !insertmacro RemoveOwnedNativeHost "BraveSoftware\Brave-Browser" "com.jstorrent.native" "com.jstorrent.desktop"
+  !insertmacro RemoveOwnedNativeHost "Microsoft\Edge" "com.jstorrent.native" "com.jstorrent.desktop"
   RMDir /r "$APPDATA\com.jstorrent.desktop\native-host"
 !macroend

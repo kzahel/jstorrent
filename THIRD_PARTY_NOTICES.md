@@ -18,6 +18,13 @@ Linux desktop dependency.
 
 Source: <https://static.crates.io/crates/glib/glib-0.18.5.crate>
 
+## Windows Installer Template
+
+The production Windows EXE uses a modified Tauri NSIS installer template.
+Its source pin and changes are recorded in
+[`clients/desktop/src-tauri/nsis/README.md`](clients/desktop/src-tauri/nsis/README.md).
+The Tauri Apps Contributors’ MIT license is retained with the template.
+
 ## Gradle Wrapper
 
 The Android experiments include the official Gradle 8.11.1 wrapper scripts

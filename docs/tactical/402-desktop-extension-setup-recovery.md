@@ -17,7 +17,7 @@ with its production ID. Windows ran the x64 product packages via emulation.
 | Clean EXE, files installed, before Desktop first starts | Chrome reports that the native messaging host is missing. The popup reports `native_host_unavailable` and disables Open torrent library. A manual first launch registers the host and the extension opens an authenticated empty library. The finish page checks Run JSTorrent by default. The clean wizard’s automatic launch was unverified. |
 | Legacy EXE → current EXE, Do not uninstall | The new EXE installs alongside the old helper and daemon files. A live old helper blocks startup before catalog creation. The extension reports Desktop is ready even while Start times out and Desktop shows a separate migration dialog. An elevated helper also exercises the process-inventory refusal. |
 | Retry after old helper exits | The extension starts Desktop 0.3.12 and opens the imported library. The generated torrent remains paused, independently verifies as present, and retains its infohash. The old logical database rows and the payload SHA-256 are unchanged. |
-| Legacy MSI → current EXE, Do not uninstall | Selecting Do not uninstall launches the old MSI’s uninstall prompt. This repeated twice. Declining returns to the upgrade screen. Locked Tauri CLI 2.11.5 routes the detected WiX install to uninstall ahead of the radio selection branch. |
+| Legacy MSI → current EXE, Do not uninstall | Selecting Do not uninstall launches the old MSI’s uninstall prompt. This repeated twice. Declining returns to the upgrade screen. The Tauri template routes the detected WiX install to uninstall ahead of the radio selection branch. The locked 2.11.4 and inspected 2.11.5 templates are byte-identical. |
 | Current EXE uninstall | Chrome, Chromium and Edge keep the old native host registration pointing at the removed per-user refusal manifest. The current Chrome host registration is removed. This inspection did not include Brave, which shares the legacy registration code. |
 
 The Windows feedback provides the symptom and version of the extension.
@@ -33,8 +33,8 @@ installer, account setup or Desktop version.
   for a successful attach. Keep the existing toolbar launch intent on a
   healthy stopped install and preserve attach-only tab/reload behavior.
 - Put recovery next to the failure. If the host is unavailable, explain
-  how to quit and relaunch an installed Desktop on the user’s OS, link to the current
-  installer for users who need it, and provide a manual Retry. Let the
+  how to quit and relaunch an installed Desktop on the user’s OS, link
+  to the current installer, and provide a manual Retry. Let the
   native helper classify owned launch config, missing targets and the
   product’s migration guard without delivering paths or exposing local
   process information. Give the matching failure and recovery in the
@@ -50,7 +50,7 @@ installer, account setup or Desktop version.
   keeps the old install and library. Remove Windows native messaging
   registry entries only while they point at the app’s own manifests. The
   existing NSIS hook runs after the stock reinstall page. The MSI wording
-  and cancel flow therefore need an override from locked Tauri CLI 2.11.5.
+  and cancel flow therefore need an override from locked Tauri CLI 2.11.4.
   Keep the override limited to that path and preserve publisher matching.
 - Qualify the shared browser and startup behavior on macOS. Copying an
   app from a DMG cannot register Chrome for a user who has never opened

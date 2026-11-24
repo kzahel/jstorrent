@@ -25,11 +25,18 @@ class HandlerHooks(unittest.TestCase):
             inno = str(directory / 'Legacy App') + '\\'
             command = f'"{current}\\jstorrent-client.exe" "%1"'
             source = HOOK.read_text(encoding='utf-8').replace('Software\\', prefix + '\\')
-            source = source.replace('$APPDATA\\com.jstorrent.desktop\\native-host', str(directory / 'native-host'))
+            both_hosts = HOOK.with_name('native-host-ownership.nsh').read_text(encoding='utf-8')
+            both_hosts = both_hosts.replace('Software\\', prefix + '\\').replace('$APPDATA', str(directory))
+            (directory / 'native-host-ownership.nsh').write_text(both_hosts, encoding='utf-8-sig')
+            source = source.replace('$APPDATA\\com.jstorrent.desktop\\native-host', str(directory / 'com.jstorrent.desktop' / 'native-host'))
             (directory / 'hooks.nsh').write_text(source, encoding='utf-8-sig')
+            preview = HOOK.with_name('hooks.nsh').read_text(encoding='utf-8')
+            preview = preview.replace('Software\\', prefix + '\\').replace('$APPDATA', str(directory))
+            (directory / 'preview-hooks.nsh').write_text(preview, encoding='utf-8-sig')
             compiler = Path(os.environ['LOCALAPPDATA']) / 'tauri/NSIS/makensis.exe'
-            for phase in ('POSTINSTALL', 'POSTUNINSTALL'):
+            for phase in ('POSTINSTALL', 'POSTUNINSTALL', 'PREVIEW-POSTUNINSTALL'):
                 script = directory / (phase + '.nsi')
+                hook_source = directory / ('preview-hooks.nsh' if phase.startswith('PREVIEW-') else 'hooks.nsh')
                 generated = ''
                 if phase == 'POSTINSTALL':
                     generated = f'''!insertmacro NSIS_HOOK_PREINSTALL
@@ -44,13 +51,13 @@ RequestExecutionLevel user
 SilentInstall silent
 !include LogicLib.nsh
 !define MAINBINARYNAME "jstorrent-client"
-!include "{directory / 'hooks.nsh'}"
+!include "{hook_source}"
 OutFile "{directory / (phase + '.exe')}"
 Section
 SetShellVarContext current
 StrCpy $INSTDIR "{current}"
 {generated}
-!insertmacro NSIS_HOOK_{phase}
+!insertmacro NSIS_HOOK_{phase.removeprefix('PREVIEW-')}
 SectionEnd
 ''', encoding='utf-8-sig')
                 subprocess.run([str(compiler), '/V2', str(script)], check=True, capture_output=True)
@@ -105,6 +112,35 @@ SectionEnd
                 self.assertIsNone(get(torrent))
                 self.assertEqual(get(magnet), foreign)
                 self.assertIsNone(get(r'RegisteredApplications', 'JSTorrentDesktop'))
+                browsers = (r'Google\Chrome', 'Chromium', r'BraveSoftware\Brave-Browser', r'Microsoft\Edge')
+                current_host, legacy_host = 'com.jstorrent.rstorrent.native', 'com.jstorrent.native'
+                production, preview = 'com.jstorrent.desktop', 'com.jstorrent.rstorrent'
+
+                def registration(browser, host):
+                    return rf'{browser}\NativeMessagingHosts\{host}'
+
+                def manifest(identity, host):
+                    return str(directory / identity / 'native-host' / f'{host}.json')
+
+                chrome = registration(browsers[0], current_host)
+                chromium = registration(browsers[1], current_host)
+                put(chrome, manifest(preview, current_host))
+                put(chromium, manifest(production, current_host))
+                for browser in browsers:
+                    put(registration(browser, legacy_host), manifest(production, legacy_host))
+                run('POSTUNINSTALL')
+                self.assertEqual(get(chrome), manifest(preview, current_host))
+                self.assertIsNone(get(chromium))
+                for browser in browsers:
+                    self.assertIsNone(get(registration(browser, legacy_host)))
+                foreign_legacy = str(directory / 'Other manifest' / f'{legacy_host}.json')
+                put(registration(browsers[0], legacy_host), foreign_legacy)
+                run('POSTUNINSTALL')
+                self.assertEqual(get(registration(browsers[0], legacy_host)), foreign_legacy)
+                put(chromium, manifest(production, current_host))
+                run('PREVIEW-POSTUNINSTALL')
+                self.assertIsNone(get(chrome))
+                self.assertEqual(get(chromium), manifest(production, current_host))
                 for binary in ('JSTorrent Link Handler.exe', 'jstorrent-desktop.exe'):
                     put(magnet, f'"{current}\\{binary}" "%1"')
                     run('POSTINSTALL')

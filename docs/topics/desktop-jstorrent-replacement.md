@@ -1,5 +1,12 @@
 # Desktop JSTorrent Replacement
 
+Tactical [402](../tactical/402-desktop-extension-setup-recovery.md) gives
+interactive Windows EXE upgrades from a detected MSI a required-removal
+page. The page preserves confirmation, cancellation and administrator
+approval. EXE uninstall removes the current or legacy native messaging
+keys only while they point to that build’s per-user manifests. Both
+product identities protect the other identity’s current registration.
+
 Tactical [398](../tactical/398-desktop-handler-release.md) publishes desktop
 0.3.12 on Stable and Latest from exact source `2feb7d1a`, including Tactical
 394's native `jstorrent://launch`, owned legacy aliases and website recovery.

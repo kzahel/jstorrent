@@ -236,6 +236,9 @@ def main():
             'MPL-covered source is available from the exact source-package URLs below.\n'
             'Dependencies with local adaptations identify them in their package section.\n\n'
             + branding_notice() + '\n\n' + '\n\n'.join(rust + npm) + '\n')
+    if target.endswith('-windows-msvc'):
+        license_path = ROOT / 'clients/desktop/src-tauri/nsis/LICENSE-MIT-tauri'
+        text += '\n## Tauri Windows EXE installer template\n\n' + license_path.read_text(encoding='utf-8')
     if len(text.encode()) > 16 * 1024 * 1024:
         raise ValueError('notice bundle exceeds 16 MiB')
     manifest = {'schema': 1, 'target': target, 'generator': version,
