@@ -74,6 +74,21 @@ dedicated **Replace existing JSTorrent** page with the subtitle
 >
 > Select Next to open the uninstall prompt, or Cancel to keep the existing installation.
 
+![Live Windows installer at the MSI replacement page](10-windows-msi-replacement-live.png)
+
+**Next** opens Windows Installer’s “Are you sure you want to uninstall
+this product?” confirmation. **No** returns to the replacement page. The
+signed 0.2.1 MSI remained installed and the fixture’s legacy rows and
+downloaded payload matched their pre-install hashes. **Cancel** closed
+the wizard and preserved the same installation and data. When the
+administrator approval prompt went unanswered, Setup returned to the
+replacement page with the MSI and fixture intact. On retry, granting
+approval removed the MSI. Finishing the install launched Desktop, which
+imported the fixture torrent as paused with its download folder available.
+The source rows and downloaded payload still matched the pre-install hashes.
+
+![Live Windows Installer confirmation with Yes and No](11-windows-msi-confirmation-live.png)
+
 The regular EXE maintenance choices still apply to existing EXE installs.
 Production and Preview EXE uninstall remove native messaging registry
 entries that point at their own per-user manifests. Production also checks
@@ -89,20 +104,39 @@ runs used Chrome for Testing 158.0.8127.88.
 
 ### Windows 11 Pro ARM64, build 26300
 
-The x64 candidate wizard opened in the guest. A clean `/S` install
-returned success and registered version 0.3.1 at the per-user install
-location. Running the installed Desktop binary from the guest shell
-wrote the Chrome native messaging registration. The native Windows
-tests exercised that platform’s control pipe and registry ownership.
+The x64 candidate installed in a guest with no existing JSTorrent app,
+profile, or browser native messaging keys. Before first launch, Chrome
+for Testing showed **Desktop setup needed** and the Windows Start menu
+instruction. The installer opened the **Completing JSTorrent Setup** page
+with **Run JSTorrent** checked by default. Clicking **Finish** started
+Desktop 0.3.1 in the interactive session, wrote the Chrome native
+messaging registration, and created the catalog.
 
-The guest lost its desktop resident and SSH before the candidate could
-complete a browser attach or replay the signed 0.2.1 installer cohorts.
+![Live Windows installer with Run JSTorrent checked](09-windows-finish-live.png)
+
+The first attach while the registered app was still starting reported
+**JSTorrent is closed** and offered **Start JSTorrent**. A fresh check
+after startup showed **JSTorrent Desktop is ready**. Choosing
+**Open torrent library** opened the authenticated companion library.
+An earlier clean `/S` install also succeeded. The native Windows tests
+exercised the control pipe and registration ownership.
+
 The released MSI prompt and released EXE keep-install path were
-reproduced in the baseline. Candidate testing of the new MSI page,
-declining the uninstall prompt, EXE maintenance choices, administrator
-denial, and Finish-page auto-launch still needs a ready Windows guest.
-Silent and passive runs retain the pinned Tauri behavior. Only the
-clean silent install was exercised for the candidate.
+reproduced in the baseline. The first candidate run lost its desktop
+resident and SSH before interactive checks could finish. The clean
+wizard, first launch, and browser checks above ran after the guest
+recovered. The candidate uninstaller removed its live registrations.
+
+Windows checks still pending include both signed 0.2.1 EXE maintenance
+choices, a live legacy-blocked popup, `/P /R` and `/S /R`, a foreign
+registration in a live uninstall, and a standard account without
+administrator credentials. The 0.3.1 build is older than 0.3.12. An
+upgrade from 0.3.12 requires a higher-versioned candidate. The new
+MSI page is interactive, and unattended runs retain Tauri’s behavior.
+
+After the MSI upgrade, **Open torrent library** focused the existing
+companion tab while it still showed the earlier setup failure. **Retry
+connection** restored the authenticated view in that tab.
 
 ### macOS 26.6.2, Apple silicon
 
@@ -118,9 +152,9 @@ With the moved copy closed, the actual 0.2.1 helper from the older DMG
 produced **Close older JSTorrent** with **Retry**. The helper exited, the
 popup showed **JSTorrent is closed**, and an explicit extension start
 launched the relocated app and returned an authenticated desktop session.
-The macOS run used a clean catalog. The populated legacy catalog import
-was verified in the released Windows 0.3.12 mixed-install run. Candidate
-qualification did not include import of a populated legacy catalog.
+The macOS run used a clean catalog. A populated legacy catalog import
+was verified separately on Windows with the released 0.3.12 desktop
+and the 0.3.1 candidate.
 
 ### Automated checks
 

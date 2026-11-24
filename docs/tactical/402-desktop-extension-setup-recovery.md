@@ -1,7 +1,7 @@
 # 402 — Desktop extension setup and upgrade recovery
 
 Status: implemented locally, November 24, 2026. Live macOS verification
-and partial Windows candidate verification are recorded in the
+and Windows first-launch and MSI replacement results are recorded in the
 [report and screenshot gallery](../evidence/402-desktop-setup/README.md).
 
 Owners: `client-surfaces`, `desktop-jstorrent-replacement`,
@@ -110,8 +110,16 @@ qualification is local or in the claimed guests. Production publication is
 outside this change.
 
 The Windows candidate built and installed cleanly with `/S`. The native
-helper and ownership fixtures passed on the guest. The Windows guest
-then lost its desktop resident and SSH. The report lists the remaining
-interactive candidate upgrade and first-launch checks. The macOS
-candidate verified missing registration, first launch, moved bundle,
-an active released legacy helper, and an explicit Start after it exited.
+helper and ownership fixtures passed on the guest. After the guest
+recovered from a desktop and SSH outage, the interactive Finish page
+launched Desktop and the browser opened the authenticated library. The
+signed legacy MSI stayed installed on Cancel, on declining the uninstall
+prompt, and when administrator approval went unanswered. Approved
+replacement imported a paused torrent while preserving the original
+rows and payload. The macOS candidate verified missing registration,
+first launch, moved bundle, an active released legacy helper, and an
+explicit Start after it exited.
+
+The report still tracks the pending EXE and passive verification. Live
+MSI replacement also found a stale companion tab that needed a manual
+Retry after the recovered popup focused it.
