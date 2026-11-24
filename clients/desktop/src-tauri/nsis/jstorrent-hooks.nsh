@@ -1,7 +1,8 @@
 ; Preserve the native page heading on the left, with brand artwork on
 ; the right. The pinned Tauri template includes this before MUI pages.
 !define MUI_HEADERIMAGE_RIGHT
-!include "${__FILEDIR__}/native-host-ownership.nsh"
+!addincludedir "${__FILEDIR__}"
+!include "native-host-ownership.nsh"
 
 !macro JSTorrentMsiReplacementPage
   !insertmacro MUI_HEADER_TEXT "Replace existing JSTorrent" "Windows Installer removal is required."

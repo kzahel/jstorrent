@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import uuid
 if sys.platform == 'win32':
@@ -19,19 +20,22 @@ HOOK = Path(__file__).resolve().parents[1] / 'clients/desktop/src-tauri/nsis/jst
 class HandlerHooks(unittest.TestCase):
     def test_owned_cohorts_other_client_idempotence_and_uninstall(self):
         prefix = 'Software\\JSTorrentHandlerTest-' + uuid.uuid4().hex
-        with tempfile.TemporaryDirectory(prefix='jstorrent-handler-test-') as temporary:
-            directory = Path(temporary)
+        temporary = tempfile.TemporaryDirectory(prefix='jstorrent-handler-test-')
+        try:
+            directory = Path(temporary.name)
             current = str(directory / 'Current App ☃')
             inno = str(directory / 'Legacy App') + '\\'
             command = f'"{current}\\jstorrent-client.exe" "%1"'
-            source = HOOK.read_text(encoding='utf-8').replace('Software\\', prefix + '\\')
+            registry_root = '"Software\\'
+            fixture_root = '"' + prefix + '\\'
+            source = HOOK.read_text(encoding='utf-8').replace(registry_root, fixture_root)
             both_hosts = HOOK.with_name('native-host-ownership.nsh').read_text(encoding='utf-8')
-            both_hosts = both_hosts.replace('Software\\', prefix + '\\').replace('$APPDATA', str(directory))
+            both_hosts = both_hosts.replace(registry_root, fixture_root).replace('$APPDATA', str(directory))
             (directory / 'native-host-ownership.nsh').write_text(both_hosts, encoding='utf-8-sig')
             source = source.replace('$APPDATA\\com.jstorrent.desktop\\native-host', str(directory / 'com.jstorrent.desktop' / 'native-host'))
             (directory / 'hooks.nsh').write_text(source, encoding='utf-8-sig')
             preview = HOOK.with_name('hooks.nsh').read_text(encoding='utf-8')
-            preview = preview.replace('Software\\', prefix + '\\').replace('$APPDATA', str(directory))
+            preview = preview.replace(registry_root, fixture_root).replace('$APPDATA', str(directory))
             (directory / 'preview-hooks.nsh').write_text(preview, encoding='utf-8-sig')
             compiler = Path(os.environ['LOCALAPPDATA']) / 'tauri/NSIS/makensis.exe'
             for phase in ('POSTINSTALL', 'POSTUNINSTALL', 'PREVIEW-POSTUNINSTALL'):
@@ -60,7 +64,7 @@ StrCpy $INSTDIR "{current}"
 !insertmacro NSIS_HOOK_{phase.removeprefix('PREVIEW-')}
 SectionEnd
 ''', encoding='utf-8-sig')
-                subprocess.run([str(compiler), '/V2', str(script)], check=True, capture_output=True)
+                subprocess.run([str(compiler), '/V2', str(script)], check=True)
 
             def put(path, data, name=''):
                 with w.CreateKey(w.HKEY_CURRENT_USER, prefix + '\\' + path) as key:
@@ -132,7 +136,7 @@ SectionEnd
                 self.assertEqual(get(chrome), manifest(preview, current_host))
                 self.assertIsNone(get(chromium))
                 for browser in browsers:
-                    self.assertIsNone(get(registration(browser, legacy_host)))
+                    self.assertIsNone(get(registration(browser, legacy_host)), browser)
                 foreign_legacy = str(directory / 'Other manifest' / f'{legacy_host}.json')
                 put(registration(browsers[0], legacy_host), foreign_legacy)
                 run('POSTUNINSTALL')
@@ -164,6 +168,16 @@ SectionEnd
                 # The only recursive deletion target is this generated test key.
                 assert prefix.startswith('Software\\JSTorrentHandlerTest-')
                 remove(prefix)
+        finally:
+            # Windows can briefly hold a generated installer after it exits.
+            for attempt in range(6):
+                try:
+                    temporary.cleanup()
+                    break
+                except PermissionError:
+                    if attempt == 5:
+                        raise
+                    time.sleep(0.5)
 
 
 if __name__ == '__main__':
