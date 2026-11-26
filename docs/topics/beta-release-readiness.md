@@ -1446,7 +1446,7 @@ Store review, and mobile beta is not implied by a desktop tag:
 | Linux headless | signed non-latest `headless-v*` GitHub Release plus pinned website bootstrap and explicit CLI apply | strict native x86_64/ARM64 workflow, signed manifest/bootstrap/check/apply source gates, and an exact enabled x86_64 trusted-LAN install pass; no public candidate or stable manifest is promoted, and native ARM64 install/update evidence is absent |
 | Android, including ChromeOS | signed Android App Bundle through a closed testing channel | maintained Compose/in-process Rust/SAF app and hosted dual-ABI debug/test APK gates pass; release identity, signed AAB, emulator/store, and upgrade evidence absent |
 | ChromeOS Linux | signed non-latest `crostini-v*` GitHub Release selected by the pinned website bootstrap | public `crostini-v0.1.0`, the deployed pinned bootstrap, production-key manifest, native x86_64/ARM64 packages, independent exact-asset validation, and physical x86_64 website install/Launcher/relaunch pass; physical native ARM64, full reboot, suspend, and installed update/rollback evidence remain absent |
-| iOS/iPadOS | Apple notarization and AltStore PAL | maintained SwiftUI app and a signed export under the existing JSTorrent identity; PAL install and upgrade qualification tracked in Tactical 403 |
+| iOS/iPadOS | Apple notarization and AltStore PAL | maintained SwiftUI app and a signed export under the existing JSTorrent identity. Tactical 403 tracks PAL install and upgrade qualification |
 
 The first external lane may ship when its own blockers and the shared product
 blockers pass. Unsupported lanes must remain labelled development preview; the

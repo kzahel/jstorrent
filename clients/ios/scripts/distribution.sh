@@ -126,6 +126,8 @@ assert info['CFBundleVersion'] == build and info['BGTaskSchedulerPermittedIdenti
 assert profile['UUID'] == profile_id and entitlements['application-identifier'] == f'{team}.{bundle}'
 assert entitlements.get('get-task-allow') is not True
 assert (app / 'PrivacyInfo.xcprivacy').is_file()
+for framework in ('RSTorrentIOS', 'RSTorrentSession'):
+    assert not (app / 'Frameworks' / f'{framework}.framework').exists(), f'embedded static binding {framework}'
 PY
 mv "${files[0]}" "$output/JSTorrent.ipa"
 echo "Verified signed JSTorrent $version ($build) at $output/JSTorrent.ipa"

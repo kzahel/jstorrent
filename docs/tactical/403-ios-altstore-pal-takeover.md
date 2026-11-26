@@ -7,9 +7,10 @@ Status: In progress, 2026-11-26.
 Move the `com.jstorrent.ios` release to the Rust repository while retaining the
 JSTorrent App Store Connect record (Apple ID `6760584856`), signing team and
 `https://jstorrent.com/altstore-source.json`. Keep the existing development
-identity for simulator and local testing. The first Rust candidate is 1.0.8,
-following the notarized TypeScript 1.0.7 build 9. App Store review, TestFlight,
-new signing identities and discovery service registration are outside scope.
+identity for simulator and local testing. Rust candidate 1.0.9 build 11 follows
+the two 1.0.8 build 10 upload attempts and notarized TypeScript 1.0.7 build 9.
+App Store review, TestFlight, new signing identities and discovery service
+registration are outside scope.
 
 ## References and invariants
 
@@ -70,3 +71,9 @@ tested build and serves immutable package bytes after deployment.
   imported the signing identity and stopped before upload because the runner
   lacked `rg`. Use system `grep` and let `upload` on `main` run the signing
   script against the unchanged release tag.
+- [Upload attempt 45871747729](https://github.com/kzahel/jstorrent/actions/runs/45871747729)
+  signed and exported build 10. Apple upload rejected the two embedded static
+  Swift binding frameworks with error 90057. The binding targets contain only
+  generated Swift code linked into the executable, so the app target now
+  links them without embedding them. The distribution script checks the
+  exported IPA for these bundles. Preserve the 1.0.8 tag and retry on 1.0.9.

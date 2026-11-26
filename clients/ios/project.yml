@@ -54,7 +54,9 @@ targets:
       - path: App
     dependencies:
       - target: RSTorrentIOSBindings
+        embed: false
       - target: RSTorrentSessionBindings
+        embed: false
     resources:
       - path: App/Assets.xcassets
       - path: App/Localization
