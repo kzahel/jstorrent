@@ -15,6 +15,12 @@ export function assertRelease(version, build) {
   assert(/^[1-9]\d*$/.test(build ?? ''), 'expected positive integer build number');
 }
 
+export function describeAppleErrors(value) {
+  if (value === null || typeof value !== 'object') return [];
+  const message = typeof value.code === 'string' ? [`${value.code}: ${value.detail ?? value.title ?? ''}`] : [];
+  return [...message, ...Object.values(value).flatMap(describeAppleErrors)];
+}
+
 export function appleClient(env = process.env) {
   const { ASC_API_KEY_ID: keyId, ASC_API_ISSUER_ID: issuer, ASC_API_KEY_PATH: path } = env;
   assert(keyId && issuer && path, 'App Store Connect credentials are required');
@@ -37,7 +43,7 @@ export function appleClient(env = process.env) {
     if (response.status === 204) return undefined;
     const body = await response.json();
     if (!response.ok) {
-      const details = body.errors?.map(error => `${error.code}: ${error.detail ?? error.title}`).join('\n');
+      const details = describeAppleErrors(body.errors).join('\n');
       throw new Error(`Apple ${method} ${path} returned ${response.status}${details ? `\n${details}` : ''}`);
     }
     assert(!body.links?.next, `Apple ${path} returned incomplete results`);

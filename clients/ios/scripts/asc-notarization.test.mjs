@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { APP_ID, BUNDLE_ID, getPackageId, submitNotarization } from './asc-notarization.mjs';
+import { APP_ID, BUNDLE_ID, describeAppleErrors, getPackageId, submitNotarization } from './asc-notarization.mjs';
 
 function apple({ reviewType = 'NOTARIZATION', attached, build = '10', existingReview, packageId } = {}) {
   const writes = [];
@@ -82,4 +82,12 @@ test('only yields package IDs for the requested notarized build', async () => {
   await assert.rejects(getPackageId(pending.api, '1.0.8', '10'), /package is unavailable/);
   const wrong = apple({ attached: 'another-build', packageId: 'package' });
   await assert.rejects(getPackageId(wrong.api, '1.0.8', '10'), /another build is attached/);
+});
+
+test('shows associated Apple validation errors', () => {
+  assert.deepEqual(describeAppleErrors([{
+    code: 'STATE_ERROR.ENTITY_STATE_INVALID', detail: 'Cannot review', meta: {
+      associatedErrors: { reviewDetail: [{ code: 'ENTITY_ERROR.ATTRIBUTE.REQUIRED', detail: 'contactEmail is required' }] },
+    },
+  }]), ['STATE_ERROR.ENTITY_STATE_INVALID: Cannot review', 'ENTITY_ERROR.ATTRIBUTE.REQUIRED: contactEmail is required']);
 });

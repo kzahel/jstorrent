@@ -44,12 +44,14 @@ gh workflow run ios-pal-release.yml --repo kzahel/jstorrent --ref main \
 ```
 
 1. Run `upload`. It exports and sends the signed IPA to App Store Connect.
-2. Run `status` until the exact build is `VALID`. If Apple asks for export
-   compliance details or other account information, resolve that in App Store
-   Connect before going on.
-3. Run `notarize` from the release tag with the same version and build. CI
-   checks the attached build and review type immediately before submitting.
+2. Run `status` until the exact build is `VALID`. In App Store Connect, save
+   the build's export-compliance answers and the iOS version's App Review
+   contact. Apple's age-rating questions must be complete as well.
+3. Run `notarize` on `main` with the same version and build. CI checks the
+   release tag, attached build and review type immediately before submitting.
    It stops on an incompatible existing version or another active submission.
+   If Apple rejects the submission, address the associated errors in the
+   workflow log and rerun this operation without uploading the build again.
 4. Run `stage` from the release tag after notarization. It fetches the original
    package from AltStore, preserves the signed manifest and assets, and
    publishes them with an install-test source on a GitHub prerelease. The

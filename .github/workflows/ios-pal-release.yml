@@ -125,6 +125,11 @@ jobs:
             test "$GITHUB_REF" = refs/heads/main || test "$GITHUB_REF" = refs/tags/ios-pal-baseline-v1.0.7
           elif [[ "$OPERATION" = status ]]; then
             test "$GITHUB_REF" = refs/heads/main || test "$GITHUB_REF" = "refs/tags/ios-v$IOS_VERSION"
+          elif [[ "$OPERATION" = notarize ]]; then
+            test "$IOS_VERSION" != 1.0.7
+            test "$GITHUB_REF" = refs/heads/main || test "$GITHUB_REF" = "refs/tags/ios-v$IOS_VERSION"
+            commit=$(git rev-parse --verify "refs/tags/ios-v$IOS_VERSION^{commit}")
+            git merge-base --is-ancestor "$commit" origin/main
           else
             test "$IOS_VERSION" != 1.0.7
             test "$GITHUB_REF" = "refs/tags/ios-v$IOS_VERSION"

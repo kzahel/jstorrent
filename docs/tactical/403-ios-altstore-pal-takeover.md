@@ -77,3 +77,15 @@ tested build and serves immutable package bytes after deployment.
   generated Swift code linked into the executable, so the app target now
   links them without embedding them. The distribution script checks the
   exported IPA for these bundles. Preserve the 1.0.8 tag and retry on 1.0.9.
+- The corrected 1.0.9 build 11 signed and exported locally, with 30 unit and
+  five UI tests passing after the packaging change. [Hosted upload 45874159193](https://github.com/kzahel/jstorrent/actions/runs/45874159193)
+  succeeded for tagged source `7ff8f80a`. App Store Connect marks the build
+  `VALID`.
+- [Notarization run 45876885507](https://github.com/kzahel/jstorrent/actions/runs/45876885507)
+  created 1.0.9 with `NOTARIZATION` and attached exact build 11. Apple refused
+  the review submission item because the build had no export-compliance
+  answer, the version had no review contact, and the draft age rating lacked
+  a social-media answer. The app has no social-media feature. The draft's
+  field was saved and reread through Apple's API. The export-compliance answer
+  and review contact remain owner inputs. The workflow reports nested Apple
+  validation errors and can retry the same reviewed tag and build from main.
