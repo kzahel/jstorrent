@@ -12,9 +12,11 @@ WebKit UI. This is bounded packaging work, not a new Linux compatibility promise
 or comprehensive license/security clearance. Linux remains best effort.
 
 `sources.json` binds the exact Ubuntu descriptors, upstream archives and Debian
-changes by size and SHA-256. Verify all files before extraction. `dpkg-source`
-applies the original Debian patches, including TIFF's sixteen fixes through
-CVE-2025-61144. Descriptor signatures are retained; independent OpenPGP
+changes by size and SHA-256. The library build uses dated Ubuntu Snapshot URLs
+after Launchpad returned 502 or timed out in hosted Linux builds. All seven
+replacement URLs match the existing pins. Verify all files before extraction.
+`dpkg-source` applies the original Debian patches, including TIFF's sixteen
+fixes through CVE-2025-61144. Descriptor signatures are retained; independent OpenPGP
 authentication is not claimed. Review security updates before changing pins.
 
 The small, independently authored appindicator patch adds an upstream-default

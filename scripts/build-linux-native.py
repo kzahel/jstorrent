@@ -51,10 +51,14 @@ def obtain(item, directory, download):
             except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
                 # Retry only transient transport/status failures. A bad pin or
                 # permanent HTTP failure requires inspection, not another URL.
-                if (attempt == 2 or isinstance(error, urllib.error.HTTPError)
-                        and error.code not in {429, 500, 502, 503, 504}):
+                retryable = True
+                if isinstance(error, urllib.error.HTTPError):
+                    error.close()
+                    retryable = error.code in {429, 500, 502, 503, 504}
+                if attempt == 2 or not retryable:
+                    error.add_note(f"Native source input: {item['url']}")
                     raise
-                print(f"Transient native download failure; retry {attempt + 1}/2", flush=True)
+                print(f"Native source input {item['url']}: {error}; retry {attempt + 1}/2", flush=True)
                 time.sleep(2 ** attempt)
             finally:
                 temporary.unlink(missing_ok=True)

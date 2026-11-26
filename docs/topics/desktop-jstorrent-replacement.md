@@ -3,7 +3,9 @@
 The November 25 and 26 Latest runs signed all five targets and stopped at
 the AppImage corresponding-source gate. The November 26 repair moves
 existing native input pins to dated Ubuntu snapshots, supplies the newly
-bundled source revisions and retries transient downloads. The
+bundled source revisions and retries transient downloads. Fresh hosted Linux
+builds also exposed Launchpad failures in the native library recipe. Its exact
+libayatana-appindicator and TIFF inputs now use snapshots as well. The
 [native source guide](../../distribution/linux-native/README.md#current-release-source-carriers)
 records the Ubuntu archive and license checks.
 
