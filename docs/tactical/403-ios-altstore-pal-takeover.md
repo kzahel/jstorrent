@@ -101,3 +101,7 @@ tested build and serves immutable package bytes after deployment.
   checks now request that relationship explicitly, and the mock reproduces
   its omission. A live read confirmed the draft has exactly one item, attached
   to 1.0.9 build 11.
+- [Notarization retry 45880630315](https://github.com/kzahel/jstorrent/actions/runs/45880630315)
+  succeeded. App Store Connect reports 1.0.9 build 11 as `WAITING_FOR_REVIEW`
+  with `NOTARIZATION`. CI can wait for the package and publish the verified
+  test source from the selected tag after Apple accepts the build.

@@ -52,13 +52,13 @@ gh workflow run ios-pal-release.yml --repo kzahel/jstorrent --ref main \
    It stops on an incompatible existing version or another active submission.
    If Apple rejects the submission, address the associated errors in the
    workflow log and rerun this operation without uploading the build again.
-4. Run `stage` from the release tag after notarization. It fetches the original
-   package from AltStore, preserves the signed manifest and assets, and
-   publishes them with an install-test source on a GitHub prerelease. The
-   workflow verifies the public bytes against their release receipt. A repeat
-   staging run can resume the same draft or verify the identical published
-   assets. If Apple review or AltStore processing is still pending, retry
-   `stage` later.
+4. Run `stage` on `main` after submitting for notarization. Set
+   `wait_for_apple=true` to wait up to three hours for Apple's package.
+   Staging checks out the exact tag, fetches the original package from
+   AltStore, preserves its manifest and assets, and publishes a test source
+   on a GitHub prerelease. CI verifies the public bytes against the release
+   receipt. A repeat staging run can resume the same draft or verify the
+   identical published assets.
 
 The one-time upgrade baseline is the old 1.0.7 build 9, notarized in the
 TypeScript campaign. `stage` with `version=1.0.7` and `build=9` on `main`
