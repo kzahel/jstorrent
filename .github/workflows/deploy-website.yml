@@ -36,6 +36,8 @@ jobs:
       - run: npm run check --prefix website
       - run: npm run build --prefix website
       - run: node scripts/assemble-pages-site.mjs
+      - name: Validate the generated sitemap
+        run: python3 website/scripts/check-sitemap.py website/dist
       - name: Record canonical website source provenance
         env:
           SOURCE_REPOSITORY: ${{ github.repository }}

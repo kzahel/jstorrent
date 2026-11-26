@@ -13,6 +13,7 @@ npm ci --prefix website
 npm run check --prefix website
 npm test --prefix website
 npm run build --prefix website
+python3 website/scripts/check-sitemap.py website/dist
 node --test scripts/assemble-pages-site.test.mjs
 node scripts/website-capture.mjs /absolute/ignored/evidence/path
 ```
@@ -47,6 +48,11 @@ nonfunctional placeholder analytics configuration is removed.
 The Website workflow builds marketing independently. Its only controller
 input is the verified frozen legacy asset manifest, retained for open tabs.
 It never rebuilds or advances the hosted controller.
+
+The Website workflow checks that the built `robots.txt` advertises the sitemap
+index and that sitemap entries resolve to indexable, canonical pages in the
+build. Submit the sitemap index URL in Search Console once. Astro regenerates
+its contents on each build.
 
 ## Provenance
 
