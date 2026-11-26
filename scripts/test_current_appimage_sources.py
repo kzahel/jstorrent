@@ -1,10 +1,14 @@
 """Admission checks for reused and newly pinned source inputs."""
+import base64
 import copy
 import hashlib
 import importlib.util
+import io
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
+from urllib.error import HTTPError
 
 spec = importlib.util.spec_from_file_location("current_sources", Path(__file__).with_name("package-current-appimage-sources.py"))
 module = importlib.util.module_from_spec(spec)
@@ -13,7 +17,6 @@ spec.loader.exec_module(module)
 
 class CurrentSources(unittest.TestCase):
     def test_missing_extractor_fails_before_fetching_source_inputs(self):
-        from unittest.mock import patch
         with tempfile.TemporaryDirectory() as temporary:
             arguments = ["package-current-appimage-sources.py", "--source-sha", "a" * 40,
                          "--release-dir", temporary, "--cache", temporary,
@@ -40,8 +43,6 @@ class CurrentSources(unittest.TestCase):
         self.assertNotEqual(module.web_identity(left), module.web_identity({**right, "resolved": right["resolved"] + "other"}))
 
     def test_downloads_are_bounded_authenticated_and_failed_partials_are_removed(self):
-        import io
-        from unittest.mock import patch
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "source"
             with self.assertRaisesRegex(ValueError, "exact integrity"):
@@ -51,17 +52,51 @@ class CurrentSources(unittest.TestCase):
                     module.fetched("https://source.test/archive", path, 4, "a" * 64)
             self.assertFalse(path.exists())
             self.assertFalse(path.with_suffix(".partial").exists())
-            with patch.object(module.urllib.request, "urlopen", return_value=io.BytesIO(b"wrong")):
+            with patch.object(module.urllib.request, "urlopen", return_value=io.BytesIO(b"wrong")) as download:
                 with self.assertRaisesRegex(ValueError, "digest differs"):
                     module.fetched("https://source.test/archive", path, 10, "a" * 64)
+                download.assert_called_once()
             self.assertFalse(path.exists())
             path.write_bytes(b"cache")
-            import base64
             integrity = "sha512-" + base64.b64encode(hashlib.sha512(b"cache").digest()).decode()
             module.fetched("https://source.test/archive", path, 10, integrity=integrity)
             path.write_bytes(b"changed")
             with self.assertRaisesRegex(ValueError, "changed"):
                 module.fetched("https://source.test/archive", path, 10, integrity=integrity)
+
+    def test_transient_download_restarts_from_empty_partial(self):
+        class InterruptedDownload(io.BytesIO):
+            def read(self, size):
+                if self.tell():
+                    raise ConnectionResetError("interrupted")
+                return super().read(size)
+
+        url = "https://source.test/archive"
+        attempts = [HTTPError(url, 502, "Bad Gateway", {}, None),
+                    InterruptedDownload(b"truncated"), io.BytesIO(b"verified")]
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "source"
+            with (patch.object(module.urllib.request, "urlopen", side_effect=attempts) as download,
+                  patch.object(module.time, "sleep"), patch("builtins.print")):
+                module.fetched(url, path, 20, hashlib.sha256(b"verified").hexdigest())
+            self.assertEqual(download.call_count, 3)
+            self.assertEqual(path.read_bytes(), b"verified")
+            self.assertFalse(path.with_suffix(".partial").exists())
+
+    def test_download_failures_report_input_and_bound_retries(self):
+        url = "https://source.test/archive"
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "source"
+            for status, expected_attempts in ((502, 3), (404, 1)):
+                with self.subTest(status=status):
+                    error = HTTPError(url, status, "Unavailable", {}, None)
+                    with (patch.object(module.urllib.request, "urlopen", side_effect=error) as download,
+                          patch.object(module.time, "sleep"), patch("builtins.print")):
+                        with self.assertRaisesRegex(RuntimeError, f"{url}: HTTP Error {status}"):
+                            module.fetched(url, path, 20, "a" * 64)
+                    self.assertEqual(download.call_count, expected_attempts)
+                    self.assertFalse(path.exists())
+                    self.assertFalse(path.with_suffix(".partial").exists())
 
     def test_outer_runtime_allows_only_the_named_payload_digest_field(self):
         with tempfile.TemporaryDirectory() as temporary:

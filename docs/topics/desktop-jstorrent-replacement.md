@@ -1,5 +1,12 @@
 # Desktop JSTorrent Replacement
 
+The November 25 and 26 Latest runs signed all five targets and stopped at
+the AppImage corresponding-source gate. The November 26 repair moves
+existing native input pins to dated Ubuntu snapshots, supplies the newly
+bundled source revisions and retries transient downloads. The
+[native source guide](../../distribution/linux-native/README.md#current-release-source-carriers)
+records the Ubuntu archive and license checks.
+
 Tactical [402](../tactical/402-desktop-extension-setup-recovery.md) gives
 interactive Windows EXE upgrades from a detected MSI a required-removal
 page. The page preserves confirmation, cancellation and administrator

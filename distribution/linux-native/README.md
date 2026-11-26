@@ -158,3 +158,27 @@ build-tool licenses and Ubuntu patches preserved. These unmodified materials
 supply the existing corresponding-source/relink offer; no upstream code is
 imported into first-party source. Tactical 397 records the unchanged native
 capsule, source-input review and final publication checks.
+
+The November 26 collector recovery uses dated Ubuntu Snapshot URLs for the
+existing Ubuntu pins. Launchpad redirects returned HTTP 502 in the release
+collector, and the live pools had already dropped some older SQLite and
+libsoup3 files. Every replacement URL was checked against the existing byte
+count and SHA-256. The collector retries transient download errors and
+reports the input URL when a download fails.
+
+The exact 0.3.15 draft AppImages add GStreamer core `1.24.2-1ubuntu0.2`,
+libXrender `1:0.9.10-1.1ubuntu0.1`, systemd `255.4-1ubuntu8.19` and
+WebKitGTK `2.52.6-0ubuntu0.24.04.2`. The Ubuntu indexes for both build
+architectures also list newer elfutils `0.190-1.1ubuntu0.2`, Kerberos
+`1.20.1-6ubuntu2.12` and SQLite `3.45.1-1ubuntu2.11` for fresh builds.
+The seven descriptors and all referenced files match the signed Ubuntu
+archive indexes and the descriptors' SHA-256 inventories.
+
+The corresponding-source archive retains the original descriptors and
+signatures, upstream terms and Ubuntu packaging and patches. Review covered
+the upstream terms and Debian copyright, including libXrender's Debian
+diff. GStreamer, systemd and elfutils retain their LGPL library terms,
+WebKitGTK its component-specific LGPL and BSD terms, libXrender its X11
+terms, Kerberos its MIT and component terms, and SQLite its public-domain
+dedication. The source archive supplies these materials for rebuilding
+and relinking.

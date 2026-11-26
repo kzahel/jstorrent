@@ -175,19 +175,19 @@
       "files": [
         {
           "filename": "libxml2_2.9.14+dfsg-1.3ubuntu3.10.dsc",
-          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libxml2/2.9.14+dfsg-1.3ubuntu3.10/libxml2_2.9.14+dfsg-1.3ubuntu3.10.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/libx/libxml2/libxml2_2.9.14+dfsg-1.3ubuntu3.10.dsc",
           "sha256": "1e2a56b4ae292abd2715b1f411cfa30f1b31ef9013c60d2f906d4a68b165cd4c",
           "bytes": 3083
         },
         {
           "filename": "libxml2_2.9.14+dfsg.orig.tar.xz",
-          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libxml2/2.9.14+dfsg-1.3ubuntu3.10/libxml2_2.9.14+dfsg.orig.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/libx/libxml2/libxml2_2.9.14+dfsg.orig.tar.xz",
           "sha256": "4fe913dec8b1ab89d13b489b419a8203176ea39e931eaa0d25b17eafb9c279e9",
           "bytes": 2351200
         },
         {
           "filename": "libxml2_2.9.14+dfsg-1.3ubuntu3.10.debian.tar.xz",
-          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libxml2/2.9.14+dfsg-1.3ubuntu3.10/libxml2_2.9.14+dfsg-1.3ubuntu3.10.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/libx/libxml2/libxml2_2.9.14+dfsg-1.3ubuntu3.10.debian.tar.xz",
           "sha256": "d2d821830eb60edbcfcbe30e2827420e9e439e98c85c812352969cdda764d60b",
           "bytes": 61552
         }
@@ -200,25 +200,25 @@
       "files": [
         {
           "filename": "glib2.0_2.80.0-6ubuntu3.10.dsc",
-          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/glib2.0/2.80.0-6ubuntu3.10/glib2.0_2.80.0-6ubuntu3.10.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/g/glib2.0/glib2.0_2.80.0-6ubuntu3.10.dsc",
           "sha256": "0ee18e055f5fba9a33763f94823b44ab38e4f677f625ba7540486fe03b436136",
           "bytes": 4080
         },
         {
           "filename": "glib2.0_2.80.0.orig-unicode-data.tar.xz",
-          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/glib2.0/2.80.0-6ubuntu3.10/glib2.0_2.80.0.orig-unicode-data.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/g/glib2.0/glib2.0_2.80.0.orig-unicode-data.tar.xz",
           "sha256": "38680f78a0ae6258826418cb5096c19ae3566ba8fee0a2112a0ec40056e58729",
           "bytes": 263364
         },
         {
           "filename": "glib2.0_2.80.0.orig.tar.xz",
-          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/glib2.0/2.80.0-6ubuntu3.10/glib2.0_2.80.0.orig.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/g/glib2.0/glib2.0_2.80.0.orig.tar.xz",
           "sha256": "8228a92f92a412160b139ae68b6345bd28f24434a7b5af150ebe21ff587a561d",
           "bytes": 5510536
         },
         {
           "filename": "glib2.0_2.80.0-6ubuntu3.10.debian.tar.xz",
-          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/glib2.0/2.80.0-6ubuntu3.10/glib2.0_2.80.0-6ubuntu3.10.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/g/glib2.0/glib2.0_2.80.0-6ubuntu3.10.debian.tar.xz",
           "sha256": "9790a8bbf6d775f8a482f3862a64b2127330a1866ceaf04c85be34fbd2698254",
           "bytes": 178808
         }
@@ -231,19 +231,19 @@
       "files": [
         {
           "filename": "xz-utils_5.6.1+really5.4.5-1ubuntu0.4.dsc",
-          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/xz-utils/5.6.1+really5.4.5-1ubuntu0.4/xz-utils_5.6.1+really5.4.5-1ubuntu0.4.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/x/xz-utils/xz-utils_5.6.1+really5.4.5-1ubuntu0.4.dsc",
           "sha256": "a9d6c2e7561c928d75594277a3b9f2ffe3b61293d272e282aab5110de18d0109",
           "bytes": 2684
         },
         {
           "filename": "xz-utils_5.6.1+really5.4.5.orig.tar.xz",
-          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/xz-utils/5.6.1+really5.4.5-1ubuntu0.4/xz-utils_5.6.1+really5.4.5.orig.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/x/xz-utils/xz-utils_5.6.1+really5.4.5.orig.tar.xz",
           "sha256": "da9dec6c12cf2ecf269c31ab65b5de18e8e52b96f35d5bcd08c12b43e6878803",
           "bytes": 1680520
         },
         {
           "filename": "xz-utils_5.6.1+really5.4.5-1ubuntu0.4.debian.tar.xz",
-          "url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/xz-utils/5.6.1+really5.4.5-1ubuntu0.4/xz-utils_5.6.1+really5.4.5-1ubuntu0.4.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/x/xz-utils/xz-utils_5.6.1+really5.4.5-1ubuntu0.4.debian.tar.xz",
           "sha256": "b11106c2e0e0898d87cf186d14073770c1ff8999e7c8c4cb02b55bfc0cc8b424",
           "bytes": 33844
         }
@@ -256,19 +256,19 @@
       "files": [
         {
           "filename": "brotli_1.1.0-2ubuntu0.1.dsc",
-          "url": "https://security.ubuntu.com/ubuntu/pool/main/b/brotli/brotli_1.1.0-2ubuntu0.1.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/b/brotli/brotli_1.1.0-2ubuntu0.1.dsc",
           "sha256": "20d71900a6ed7f7edf6ef3b0084892510aae1b3b72ed7b99f38919f802c2a779",
           "bytes": 2376
         },
         {
           "filename": "brotli_1.1.0.orig.tar.gz",
-          "url": "https://security.ubuntu.com/ubuntu/pool/main/b/brotli/brotli_1.1.0.orig.tar.gz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/b/brotli/brotli_1.1.0.orig.tar.gz",
           "sha256": "10973f4b4199eafa1d5735ef661ddb2ec2f97319ee9fd1824d4aabe08cff5265",
           "bytes": 512036
         },
         {
           "filename": "brotli_1.1.0-2ubuntu0.1.debian.tar.xz",
-          "url": "https://security.ubuntu.com/ubuntu/pool/main/b/brotli/brotli_1.1.0-2ubuntu0.1.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/b/brotli/brotli_1.1.0-2ubuntu0.1.debian.tar.xz",
           "sha256": "744230cae71f1ba9fbef6b897195393dca0f94641b286a3a183898fe6a77ef59",
           "bytes": 7892
         }
@@ -281,19 +281,19 @@
       "files": [
         {
           "filename": "systemd_255.4-1ubuntu8.18.dsc",
-          "url": "https://security.ubuntu.com/ubuntu/pool/main/s/systemd/systemd_255.4-1ubuntu8.18.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/s/systemd/systemd_255.4-1ubuntu8.18.dsc",
           "sha256": "04154737afced0898fc7966b85e88505fb3a17f46c8c7079576d022cdeb67304",
           "bytes": 7324
         },
         {
           "filename": "systemd_255.4.orig.tar.gz",
-          "url": "https://security.ubuntu.com/ubuntu/pool/main/s/systemd/systemd_255.4.orig.tar.gz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/s/systemd/systemd_255.4.orig.tar.gz",
           "sha256": "96e75bd08c57ad401677456fb88ef54a9f05bb1695693013bc6ecce839640fd5",
           "bytes": 14952427
         },
         {
           "filename": "systemd_255.4-1ubuntu8.18.debian.tar.xz",
-          "url": "https://security.ubuntu.com/ubuntu/pool/main/s/systemd/systemd_255.4-1ubuntu8.18.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/s/systemd/systemd_255.4-1ubuntu8.18.debian.tar.xz",
           "sha256": "ec3ce620c3e072d34bbeaf9a4155cd91b5bee94eb412071bf81182f230ae2657",
           "bytes": 273272
         }
@@ -306,19 +306,19 @@
       "files": [
         {
           "filename": "libsoup3_3.4.4-5ubuntu0.10.dsc",
-          "url": "https://security.ubuntu.com/ubuntu/pool/main/libs/libsoup3/libsoup3_3.4.4-5ubuntu0.10.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261108T120000Z/pool/main/libs/libsoup3/libsoup3_3.4.4-5ubuntu0.10.dsc",
           "sha256": "693ba0b4a812ffd64bb9df2fd783445521ec952cbcdd8b810a26c7ce16748de3",
           "bytes": 3227
         },
         {
           "filename": "libsoup3_3.4.4.orig.tar.xz",
-          "url": "https://security.ubuntu.com/ubuntu/pool/main/libs/libsoup3/libsoup3_3.4.4.orig.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261108T120000Z/pool/main/libs/libsoup3/libsoup3_3.4.4.orig.tar.xz",
           "sha256": "291c67725f36ed90ea43efff25064b69c5a2d1981488477c05c481a3b4b0c5aa",
           "bytes": 1536268
         },
         {
           "filename": "libsoup3_3.4.4-5ubuntu0.10.debian.tar.xz",
-          "url": "https://security.ubuntu.com/ubuntu/pool/main/libs/libsoup3/libsoup3_3.4.4-5ubuntu0.10.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261108T120000Z/pool/main/libs/libsoup3/libsoup3_3.4.4-5ubuntu0.10.debian.tar.xz",
           "sha256": "50663b2f377762b2efab7ebcb2440ac979553b03cb27169b5a835a57f80f48b7",
           "bytes": 80048
         }
@@ -331,25 +331,25 @@
       "files": [
         {
           "filename": "gst-plugins-base1.0_1.24.2-1ubuntu0.7.dsc",
-          "url": "https://archive.ubuntu.com/ubuntu/pool/main/g/gst-plugins-base1.0/gst-plugins-base1.0_1.24.2-1ubuntu0.7.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/g/gst-plugins-base1.0/gst-plugins-base1.0_1.24.2-1ubuntu0.7.dsc",
           "bytes": 4150,
           "sha256": "fd76f4f773826868490fda76c5ba8374a25b41092896355bb254d41051d0e8c7"
         },
         {
           "filename": "gst-plugins-base1.0_1.24.2.orig.tar.xz",
-          "url": "https://archive.ubuntu.com/ubuntu/pool/main/g/gst-plugins-base1.0/gst-plugins-base1.0_1.24.2.orig.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/g/gst-plugins-base1.0/gst-plugins-base1.0_1.24.2.orig.tar.xz",
           "bytes": 2421032,
           "sha256": "282f1cc8065c9b62eb6a0a20fb9e8328f8e5296df2458b7236daa729c41ae769"
         },
         {
           "filename": "gst-plugins-base1.0_1.24.2.orig.tar.xz.asc",
-          "url": "https://archive.ubuntu.com/ubuntu/pool/main/g/gst-plugins-base1.0/gst-plugins-base1.0_1.24.2.orig.tar.xz.asc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/g/gst-plugins-base1.0/gst-plugins-base1.0_1.24.2.orig.tar.xz.asc",
           "bytes": 833,
           "sha256": "b8e22b9ecab549c22cee596f88f29da9112d56665fe42b12490fa33b2e4aa8d0"
         },
         {
           "filename": "gst-plugins-base1.0_1.24.2-1ubuntu0.7.debian.tar.xz",
-          "url": "https://archive.ubuntu.com/ubuntu/pool/main/g/gst-plugins-base1.0/gst-plugins-base1.0_1.24.2-1ubuntu0.7.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/g/gst-plugins-base1.0/gst-plugins-base1.0_1.24.2-1ubuntu0.7.debian.tar.xz",
           "bytes": 64136,
           "sha256": "149d7c97badd7dfeccb0186fe4b593c00dfc2885c8b33048728abdce8642c5b2"
         }
@@ -362,19 +362,19 @@
       "files": [
         {
           "filename": "libsoup3_3.4.4-5ubuntu0.11.dsc",
-          "url": "https://archive.ubuntu.com/ubuntu/pool/main/libs/libsoup3/libsoup3_3.4.4-5ubuntu0.11.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/libs/libsoup3/libsoup3_3.4.4-5ubuntu0.11.dsc",
           "sha256": "cf8bcfb01c0c8cc8fc69080886a480ec0334b7b52e9c295b51d5c1e198dd5468",
           "bytes": 3227
         },
         {
           "filename": "libsoup3_3.4.4.orig.tar.xz",
-          "url": "https://archive.ubuntu.com/ubuntu/pool/main/libs/libsoup3/libsoup3_3.4.4.orig.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/libs/libsoup3/libsoup3_3.4.4.orig.tar.xz",
           "sha256": "291c67725f36ed90ea43efff25064b69c5a2d1981488477c05c481a3b4b0c5aa",
           "bytes": 1536268
         },
         {
           "filename": "libsoup3_3.4.4-5ubuntu0.11.debian.tar.xz",
-          "url": "https://archive.ubuntu.com/ubuntu/pool/main/libs/libsoup3/libsoup3_3.4.4-5ubuntu0.11.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/libs/libsoup3/libsoup3_3.4.4-5ubuntu0.11.debian.tar.xz",
           "sha256": "9e3dd71eb12e34e19cc72a59b3c466c29a8da3f987278ee6d9de9af002b0f664",
           "bytes": 81012
         }
@@ -387,19 +387,19 @@
       "files": [
         {
           "filename": "pcre2_10.42-4ubuntu2.2.dsc",
-          "url": "https://archive.ubuntu.com/ubuntu/pool/main/p/pcre2/pcre2_10.42-4ubuntu2.2.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/p/pcre2/pcre2_10.42-4ubuntu2.2.dsc",
           "sha256": "cea847918ed4fed0230215255f3aaf97676b9751f6da0ea78515731f8589ea60",
           "bytes": 2317
         },
         {
           "filename": "pcre2_10.42.orig.tar.gz",
-          "url": "https://archive.ubuntu.com/ubuntu/pool/main/p/pcre2/pcre2_10.42.orig.tar.gz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/p/pcre2/pcre2_10.42.orig.tar.gz",
           "sha256": "c33b418e3b936ee3153de2c61cc638e7e4fe3156022a5c77d0711bcbb9d64f1f",
           "bytes": 2397194
         },
         {
           "filename": "pcre2_10.42-4ubuntu2.2.diff.gz",
-          "url": "https://archive.ubuntu.com/ubuntu/pool/main/p/pcre2/pcre2_10.42-4ubuntu2.2.diff.gz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/p/pcre2/pcre2_10.42-4ubuntu2.2.diff.gz",
           "sha256": "45fcc50b0a7ad9e479d572ca02e3b7847718f9c4f79d6f89e115cc37cbf6fea5",
           "bytes": 16312
         }
@@ -412,27 +412,214 @@
       "files": [
         {
           "filename": "sqlite3_3.45.1-1ubuntu2.9.dsc",
-          "url": "https://archive.ubuntu.com/ubuntu/pool/main/s/sqlite3/sqlite3_3.45.1-1ubuntu2.9.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/s/sqlite3/sqlite3_3.45.1-1ubuntu2.9.dsc",
           "sha256": "26aa983a2fcf981df7ff7e1042b78b7e09f7dbc66a40bccd5eed2a112828a35d",
           "bytes": 2601
         },
         {
           "filename": "sqlite3_3.45.1.orig-www.tar.xz",
-          "url": "https://archive.ubuntu.com/ubuntu/pool/main/s/sqlite3/sqlite3_3.45.1.orig-www.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/s/sqlite3/sqlite3_3.45.1.orig-www.tar.xz",
           "sha256": "79b60798195a024d447e661e5bbc1eb40af50387ebf840e6f581190cc02064b6",
           "bytes": 5693812
         },
         {
           "filename": "sqlite3_3.45.1.orig.tar.xz",
-          "url": "https://archive.ubuntu.com/ubuntu/pool/main/s/sqlite3/sqlite3_3.45.1.orig.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/s/sqlite3/sqlite3_3.45.1.orig.tar.xz",
           "sha256": "e32e817f7b4166a301f60b14a711871bfab7d35c1d7e29b585dfc479ae150aa4",
           "bytes": 8257884
         },
         {
           "filename": "sqlite3_3.45.1-1ubuntu2.9.debian.tar.xz",
-          "url": "https://archive.ubuntu.com/ubuntu/pool/main/s/sqlite3/sqlite3_3.45.1-1ubuntu2.9.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261117T120000Z/pool/main/s/sqlite3/sqlite3_3.45.1-1ubuntu2.9.debian.tar.xz",
           "sha256": "0d5c2b03160a06abba18bc6e41117ee76141aeca3542b6ffbd8dfd2b19dadf4b",
           "bytes": 41668
+        }
+      ]
+    },
+    "gstreamer1.0@1.24.2-1ubuntu0.2": {
+      "sourcePackage": "gstreamer1.0",
+      "sourceVersion": "1.24.2-1ubuntu0.2",
+      "authentication": "Ubuntu archive-signed Sources index; original descriptor OpenPGP retained",
+      "files": [
+        {
+          "filename": "gstreamer1.0_1.24.2-1ubuntu0.2.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/g/gstreamer1.0/gstreamer1.0_1.24.2-1ubuntu0.2.dsc",
+          "sha256": "d6544d35085a79a85b22052304b37e95f7b477d9d992783734d15d64fe563dea",
+          "bytes": 3198
+        },
+        {
+          "filename": "gstreamer1.0_1.24.2.orig.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/g/gstreamer1.0/gstreamer1.0_1.24.2.orig.tar.xz",
+          "sha256": "9cafdd23bd180f1681c56cd3a6879a8497ccf24da6f422a6b6f356fa074a8481",
+          "bytes": 1850672
+        },
+        {
+          "filename": "gstreamer1.0_1.24.2.orig.tar.xz.asc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/g/gstreamer1.0/gstreamer1.0_1.24.2.orig.tar.xz.asc",
+          "sha256": "360f2173830a1624f6eb09fae72d5487f2cbd99b2cf83174890607e1eda96ec4",
+          "bytes": 833
+        },
+        {
+          "filename": "gstreamer1.0_1.24.2-1ubuntu0.2.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/g/gstreamer1.0/gstreamer1.0_1.24.2-1ubuntu0.2.debian.tar.xz",
+          "sha256": "e5ee59471f4e7796552ccb360cbbf7b754d2ee5883e79df663c50b3ddadfb1ab",
+          "bytes": 51360
+        }
+      ]
+    },
+    "libxrender@1:0.9.10-1.1ubuntu0.1": {
+      "sourcePackage": "libxrender",
+      "sourceVersion": "1:0.9.10-1.1ubuntu0.1",
+      "authentication": "Ubuntu archive-signed Sources index; original descriptor OpenPGP retained",
+      "files": [
+        {
+          "filename": "libxrender_0.9.10-1.1ubuntu0.1.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/libx/libxrender/libxrender_0.9.10-1.1ubuntu0.1.dsc",
+          "sha256": "0a10104549d299d1245835d03a148b6e96e51a432e88877fe1b0d754a8808ff0",
+          "bytes": 2216
+        },
+        {
+          "filename": "libxrender_0.9.10.orig.tar.gz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/libx/libxrender/libxrender_0.9.10.orig.tar.gz",
+          "sha256": "770527cce42500790433df84ec3521e8bf095dfe5079454a92236494ab296adf",
+          "bytes": 373717
+        },
+        {
+          "filename": "libxrender_0.9.10-1.1ubuntu0.1.diff.gz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/libx/libxrender/libxrender_0.9.10-1.1ubuntu0.1.diff.gz",
+          "sha256": "4036033796481d85dcb6c66b4c1b1339727964fa4ed7a0ac0d33f901f9dd2ef7",
+          "bytes": 16029
+        }
+      ]
+    },
+    "systemd@255.4-1ubuntu8.19": {
+      "sourcePackage": "systemd",
+      "sourceVersion": "255.4-1ubuntu8.19",
+      "authentication": "Ubuntu archive-signed Sources index; original descriptor OpenPGP retained",
+      "files": [
+        {
+          "filename": "systemd_255.4-1ubuntu8.19.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/s/systemd/systemd_255.4-1ubuntu8.19.dsc",
+          "sha256": "4a6620bfc005468d25887e815a9a4396ba9c43c0af0857d47304d2e73f779d3f",
+          "bytes": 7536
+        },
+        {
+          "filename": "systemd_255.4.orig.tar.gz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/s/systemd/systemd_255.4.orig.tar.gz",
+          "sha256": "96e75bd08c57ad401677456fb88ef54a9f05bb1695693013bc6ecce839640fd5",
+          "bytes": 14952427
+        },
+        {
+          "filename": "systemd_255.4-1ubuntu8.19.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/s/systemd/systemd_255.4-1ubuntu8.19.debian.tar.xz",
+          "sha256": "4bfea4f297fa948369cba99a371fc104062be1f9145c822a9bc7bcc36b997e96",
+          "bytes": 285192
+        }
+      ]
+    },
+    "webkit2gtk@2.52.6-0ubuntu0.24.04.2": {
+      "sourcePackage": "webkit2gtk",
+      "sourceVersion": "2.52.6-0ubuntu0.24.04.2",
+      "authentication": "Ubuntu archive-signed Sources index; original descriptor OpenPGP retained",
+      "files": [
+        {
+          "filename": "webkit2gtk_2.52.6-0ubuntu0.24.04.2.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/w/webkit2gtk/webkit2gtk_2.52.6-0ubuntu0.24.04.2.dsc",
+          "sha256": "056d410816485cd285bb88922f44bb66c58215d4e7548637eb2d6f1a6fa6c44c",
+          "bytes": 4264
+        },
+        {
+          "filename": "webkit2gtk_2.52.6.orig.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/w/webkit2gtk/webkit2gtk_2.52.6.orig.tar.xz",
+          "sha256": "179a2ea3f8f6edd4be7f31fdc55afc57bd0729f1fba648c61d4181539ac116fc",
+          "bytes": 65746000
+        },
+        {
+          "filename": "webkit2gtk_2.52.6-0ubuntu0.24.04.2.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/w/webkit2gtk/webkit2gtk_2.52.6-0ubuntu0.24.04.2.debian.tar.xz",
+          "sha256": "45f21a67a77e4b24ebecc770405829358f6b3b37533270d6537895555ca64add",
+          "bytes": 94600
+        }
+      ]
+    },
+    "sqlite3@3.45.1-1ubuntu2.11": {
+      "sourcePackage": "sqlite3",
+      "sourceVersion": "3.45.1-1ubuntu2.11",
+      "authentication": "Ubuntu archive-signed Sources index; original descriptor OpenPGP retained",
+      "files": [
+        {
+          "filename": "sqlite3_3.45.1-1ubuntu2.11.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/s/sqlite3/sqlite3_3.45.1-1ubuntu2.11.dsc",
+          "sha256": "84ec6e5cddabfe82bc8bb7d7014162a3c604669cf45105fd2846d22279f31bfe",
+          "bytes": 2000
+        },
+        {
+          "filename": "sqlite3_3.45.1.orig-www.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/s/sqlite3/sqlite3_3.45.1.orig-www.tar.xz",
+          "sha256": "79b60798195a024d447e661e5bbc1eb40af50387ebf840e6f581190cc02064b6",
+          "bytes": 5693812
+        },
+        {
+          "filename": "sqlite3_3.45.1.orig.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/s/sqlite3/sqlite3_3.45.1.orig.tar.xz",
+          "sha256": "e32e817f7b4166a301f60b14a711871bfab7d35c1d7e29b585dfc479ae150aa4",
+          "bytes": 8257884
+        },
+        {
+          "filename": "sqlite3_3.45.1-1ubuntu2.11.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/s/sqlite3/sqlite3_3.45.1-1ubuntu2.11.debian.tar.xz",
+          "sha256": "b29e1cae92336c9370b1817b59f9bd83432139d939922a6328161bbeb685744f",
+          "bytes": 37596
+        }
+      ]
+    },
+    "elfutils@0.190-1.1ubuntu0.2": {
+      "sourcePackage": "elfutils",
+      "sourceVersion": "0.190-1.1ubuntu0.2",
+      "authentication": "Ubuntu archive-signed Sources index; original descriptor OpenPGP retained",
+      "files": [
+        {
+          "filename": "elfutils_0.190.orig.tar.bz2",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/e/elfutils/elfutils_0.190.orig.tar.bz2",
+          "sha256": "8e00a3a9b5f04bc1dc273ae86281d2d26ed412020b391ffcc23198f10231d692",
+          "bytes": 9162766
+        },
+        {
+          "filename": "elfutils_0.190-1.1ubuntu0.2.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/e/elfutils/elfutils_0.190-1.1ubuntu0.2.debian.tar.xz",
+          "sha256": "7910aa758903c2d702a32b4b63ddc563e95a0024b5f21551e917bd2034c91a2f",
+          "bytes": 49520
+        },
+        {
+          "filename": "elfutils_0.190-1.1ubuntu0.2.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/e/elfutils/elfutils_0.190-1.1ubuntu0.2.dsc",
+          "sha256": "e99a910dce4a8852a54007deed21d3b622849001771c4c128dc168751eec318c",
+          "bytes": 3369
+        }
+      ]
+    },
+    "krb5@1.20.1-6ubuntu2.12": {
+      "sourcePackage": "krb5",
+      "sourceVersion": "1.20.1-6ubuntu2.12",
+      "authentication": "Ubuntu archive-signed Sources index; original descriptor OpenPGP retained",
+      "files": [
+        {
+          "filename": "krb5_1.20.1.orig.tar.gz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/k/krb5/krb5_1.20.1.orig.tar.gz",
+          "sha256": "704aed49b19eb5a7178b34b2873620ec299db08752d6a8574f95d41879ab8851",
+          "bytes": 8661660
+        },
+        {
+          "filename": "krb5_1.20.1-6ubuntu2.12.debian.tar.xz",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/k/krb5/krb5_1.20.1-6ubuntu2.12.debian.tar.xz",
+          "sha256": "c4c73827fcfa5216706f961d8c644afe822629c322bf6d15baac3767fbda0b3e",
+          "bytes": 150340
+        },
+        {
+          "filename": "krb5_1.20.1-6ubuntu2.12.dsc",
+          "url": "https://snapshot.ubuntu.com/ubuntu/20261126T120000Z/pool/main/k/krb5/krb5_1.20.1-6ubuntu2.12.dsc",
+          "sha256": "77b14fb3160e5cebfb5b97188301715f412a90262d7b70f53a03cad322b0909b",
+          "bytes": 3846
         }
       ]
     }

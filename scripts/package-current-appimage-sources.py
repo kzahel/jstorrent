@@ -7,6 +7,7 @@ New source identities require explicit reviewed integrity pins. Never publishes.
 import argparse
 import base64
 import hashlib
+import http.client
 import importlib.util
 import io
 import json
@@ -17,6 +18,8 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import time
+import urllib.error
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -45,26 +48,37 @@ def fetched(url, destination, maximum, expected=None, integrity=None):
                 return
         raise ValueError("Source cache input already exists or changed")
     partial = destination.with_suffix(destination.suffix + ".partial")
-    digest = hashlib.sha256()
-    integrity_hash = hashlib.sha512() if integrity else None
-    size = 0
-    try:
-        with urllib.request.urlopen(url, timeout=120) as response, partial.open("xb") as output:
-            while chunk := response.read(1024 * 1024):
-                size += len(chunk)
-                if size > maximum:
-                    raise ValueError("Oversized source input")
-                digest.update(chunk)
-                if integrity_hash:
-                    integrity_hash.update(chunk)
-                output.write(chunk)
-        if expected and digest.hexdigest() != expected:
-            raise ValueError("Source input digest differs from reviewed pin")
-        if integrity and "sha512-" + base64.b64encode(integrity_hash.digest()).decode() != integrity:
-            raise ValueError("Distribution input differs from package-lock integrity")
-        partial.rename(destination)
-    finally:
-        partial.unlink(missing_ok=True)
+    for attempt in range(3):
+        digest = hashlib.sha256()
+        integrity_hash = hashlib.sha512() if integrity else None
+        size = 0
+        try:
+            with urllib.request.urlopen(url, timeout=120) as response, partial.open("xb") as output:
+                while chunk := response.read(1024 * 1024):
+                    size += len(chunk)
+                    if size > maximum:
+                        raise ValueError(f"Oversized source input: {url}")
+                    digest.update(chunk)
+                    if integrity_hash:
+                        integrity_hash.update(chunk)
+                    output.write(chunk)
+            if expected and digest.hexdigest() != expected:
+                raise ValueError(f"Source input digest differs from reviewed pin: {url}")
+            if integrity and "sha512-" + base64.b64encode(integrity_hash.digest()).decode() != integrity:
+                raise ValueError(f"Distribution input differs from package-lock integrity: {url}")
+            partial.rename(destination)
+            return
+        except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.IncompleteRead) as error:
+            retryable = True
+            if isinstance(error, urllib.error.HTTPError):
+                error.close()
+                retryable = error.code in {408, 429, 500, 502, 503, 504}
+            if attempt == 2 or not retryable:
+                raise RuntimeError(f"Could not download source input {url}: {error}") from error
+            print(f"Source input {url}: {error}; retry {attempt + 1}/2", flush=True)
+        finally:
+            partial.unlink(missing_ok=True)
+        time.sleep(2 ** attempt)
 
 
 def web_identity(row):
