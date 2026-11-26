@@ -81,6 +81,13 @@ function verifySelection(version, build) {
   return attached;
 }
 
+function reviewItems(api, submissionId) {
+  return api(`reviewSubmissions/${submissionId}/items`, { query: {
+    include: 'appStoreVersion', 'fields[reviewSubmissionItems]': 'appStoreVersion',
+    'fields[appStoreVersions]': 'versionString', limit: '10',
+  } });
+}
+
 export async function submitNotarization(api, number, buildNumber) {
   let { version, build } = await releaseState(api, number, buildNumber);
   assert(build?.attributes.processingState === 'VALID' && !build.attributes.expired, 'exact build must finish Apple processing before submission');
@@ -104,9 +111,7 @@ export async function submitNotarization(api, number, buildNumber) {
     const state = submission.attributes.state;
     assert(!reviewConflicted.has(state), `Apple review is ${state} and requires inspection`);
     if (state !== 'READY_FOR_REVIEW' && !reviewInProgress.has(state)) continue;
-    const items = await api(`reviewSubmissions/${submission.id}/items`, { query: {
-      'fields[reviewSubmissionItems]': 'appStoreVersion', limit: '10',
-    } });
+    const items = await reviewItems(api, submission.id);
     const matches = items.length === 1 && items[0].relationships?.appStoreVersion?.data?.id === version.id;
     if (matches && attached && reviewInProgress.has(state)) return `Apple review is already ${state}.`;
     assert(state === 'READY_FOR_REVIEW' && (matches || items.length === 0) && !draft,
@@ -134,7 +139,7 @@ export async function submitNotarization(api, number, buildNumber) {
   const current = await releaseState(api, number, buildNumber);
   assert.equal(current.version?.id, version.id, 'Apple version changed before submission');
   assert.equal(verifySelection(current.version, build), build.id, 'Apple build attachment changed before submission');
-  const items = await api(`reviewSubmissions/${submission.id}/items`);
+  const items = await reviewItems(api, submission.id);
   assert(items.length === 1 && items[0].relationships?.appStoreVersion?.data?.id === version.id,
     'Apple submission includes another item');
   await api(`reviewSubmissions/${submission.id}`, { method: 'PATCH', data: {

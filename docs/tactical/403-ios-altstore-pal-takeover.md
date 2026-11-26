@@ -89,3 +89,15 @@ tested build and serves immutable package bytes after deployment.
   field was saved and reread through Apple's API. The export-compliance answer
   and review contact remain owner inputs. The workflow reports nested Apple
   validation errors and can retry the same reviewed tag and build from main.
+- App Store Connect verified the saved review contact and accepted the
+  export-compliance answer on build 11. The iOS binary uses standard
+  encryption outside the operating system. This version's review type limits
+  it to alternative distribution, so Apple's French App Store documentation
+  requirement does not apply to this submission.
+  [Apple's encryption documentation requirements](https://developer.apple.com/help/app-store-connect/reference/app-information/export-compliance-documentation-for-encryption/)
+- The [first complete review retry](https://github.com/kzahel/jstorrent/actions/runs/45880152346)
+  added the version to its Notarization submission. Apple's item response
+  omitted the linked app version by default. Both draft recovery and final
+  checks now request that relationship explicitly, and the mock reproduces
+  its omission. A live read confirmed the draft has exactly one item, attached
+  to 1.0.9 build 11.

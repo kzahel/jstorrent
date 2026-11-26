@@ -23,7 +23,9 @@ function apple({ reviewType = 'NOTARIZATION', attached, build = '10', existingRe
           return [{ id: 'exact-build', attributes: { version: build, processingState: 'VALID' } }];
         case `apps/${APP_ID}/reviewSubmissions`:
           return existingReview ? [{ id: 'submission', attributes: { state: existingReview } }] : [];
-        case 'reviewSubmissions/submission/items': return items;
+        case 'reviewSubmissions/submission/items':
+          // Apple only supplies the linked version when explicitly included.
+          return query.include === 'appStoreVersion' ? items : items.map(() => ({}));
         default: throw new Error(`unexpected Apple read ${path}`);
       }
     }
