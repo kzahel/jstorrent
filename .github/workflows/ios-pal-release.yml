@@ -50,11 +50,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Verify tagged source and Xcode
+        id: source
         run: |
           [[ "$IOS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$IOS_BUILD" =~ ^[1-9][0-9]*$ ]]
-          test "$GITHUB_REF" = "refs/tags/ios-v$IOS_VERSION"
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          test "$GITHUB_REF" = refs/heads/main
+          test "$IOS_VERSION" != 1.0.7
+          commit=$(git rev-parse --verify "refs/tags/ios-v$IOS_VERSION^{commit}")
+          git merge-base --is-ancestor "$commit" "$GITHUB_SHA"
           test "$(xcodebuild -version | sed -n '1p')" = 'Xcode 26.6'
+          cp clients/ios/scripts/distribution.sh "$RUNNER_TEMP/distribution.sh"
+          git switch --detach "$commit"
+          printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
       - name: Install Apple Rust target
         uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613
         with:
@@ -70,7 +76,7 @@ jobs:
           IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
           IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-        run: clients/ios/scripts/distribution.sh "$IOS_VERSION" "$IOS_BUILD" "$RUNNER_TEMP/ios-release"
+        run: bash "$RUNNER_TEMP/distribution.sh" "$IOS_VERSION" "$IOS_BUILD" "$RUNNER_TEMP/ios-release" "$GITHUB_WORKSPACE"
       - name: Upload the verified IPA to App Store Connect
         env:
           ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
@@ -89,9 +95,11 @@ jobs:
           xcrun altool --upload-app --type ios --file "$RUNNER_TEMP/ios-release/JSTorrent.ipa" \
             --apiKey "$ASC_API_KEY_ID" --apiIssuer "$ASC_API_ISSUER_ID"
       - name: Write upload summary
+        env:
+          RELEASE_COMMIT: ${{ steps.source.outputs.commit }}
         run: |
           printf 'Uploaded JSTorrent **%s (%s)** from %s to App Store Connect.\n' \
-            "$IOS_VERSION" "$IOS_BUILD" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+            "$IOS_VERSION" "$IOS_BUILD" "$RELEASE_COMMIT" >> "$GITHUB_STEP_SUMMARY"
 
   apple:
     if: github.repository == 'kzahel/jstorrent' && (inputs.operation == 'status' || inputs.operation == 'notarize' || inputs.operation == 'stage')

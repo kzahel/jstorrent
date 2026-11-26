@@ -1,24 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-script_root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-client_root=$(cd "${script_root}/.." && pwd)
 bundle_id=com.jstorrent.ios
 
-if [[ $# -ne 3 || ! "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ || ! "$2" =~ ^[1-9][0-9]*$ || "$3" != /* || -e "$3" ]]; then
-  echo "usage: $0 VERSION BUILD ABSOLUTE_NEW_OUTPUT_DIRECTORY" >&2
+if [[ $# -lt 3 || $# -gt 4 || ! "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ || ! "$2" =~ ^[1-9][0-9]*$ || "$3" != /* || -e "$3" ]]; then
+  echo "usage: $0 VERSION BUILD ABSOLUTE_NEW_OUTPUT_DIRECTORY [REPOSITORY_ROOT]" >&2
   exit 2
 fi
 version=$1
 build=$2
 output=$3
+source_root=${4:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}
+client_root="$source_root/clients/ios"
 : "${IOS_CERTIFICATE_P12_BASE64:?Missing distribution certificate}"
 : "${IOS_CERTIFICATE_PASSWORD:?Missing distribution certificate password}"
 : "${IOS_PROVISIONING_PROFILE_BASE64:?Missing JSTorrent distribution profile}"
 
 # shellcheck source=/dev/null
-source "${client_root}/../../scripts/dev-env.sh"
-"${script_root}/generate-project.sh"
+source "$source_root/scripts/dev-env.sh"
 
 umask 077
 work=$(mktemp -d "${TMPDIR:-/tmp}/jstorrent-ios-signing.XXXXXXXX")
@@ -70,7 +69,7 @@ security unlock-keychain -p "$keychain_password" "$keychain"
 security list-keychains -d user -s "$keychain" "${prior_keychains[@]}"
 security import "$work/certificate.p12" -k "$keychain" -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
-security find-identity -v -p codesigning "$keychain" | rg -q "$certificate_hash.*Apple Distribution"
+security find-identity -v -p codesigning "$keychain" | grep "$certificate_hash.*Apple Distribution" >/dev/null
 
 profile_directory="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
 mkdir -p "$profile_directory"
@@ -84,6 +83,7 @@ fi
 
 mkdir "$output"
 archive="$output/JSTorrent.xcarchive"
+"$client_root/scripts/generate-project.sh"
 xcodebuild -quiet -project "$client_root/RSTorrent.xcodeproj" -scheme RSTorrent \
   -configuration Distribution -destination 'generic/platform=iOS' -archivePath "$archive" \
   JSTORRENT_IOS_VERSION="$version" JSTORRENT_IOS_BUILD="$build" \

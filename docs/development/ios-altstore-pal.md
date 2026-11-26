@@ -32,13 +32,14 @@ or restore that connection. [Apple's marketplace setup](https://developer.apple.
 
 ## Upload, review and stage
 
-Create and push `ios-vX.Y.Z` at the reviewed main commit. Dispatch the workflow
-against that tag with the version and exact build number. The first Rust
-candidate follows TypeScript 1.0.7 build 9. Use `status` on main for a read-only
-lookup before uploading.
+Create and push `ios-vX.Y.Z` at the reviewed main commit. Dispatch `upload` on
+`main` with the version and exact build number. It checks out the tagged app
+source and uses the current signing script so CI repairs need no tag changes.
+The first Rust candidate follows TypeScript 1.0.7 build 9. Use `status` on main
+for a read-only lookup before uploading.
 
 ```bash
-gh workflow run ios-pal-release.yml --repo kzahel/jstorrent --ref ios-v1.0.8 \
+gh workflow run ios-pal-release.yml --repo kzahel/jstorrent --ref main \
   -f operation=upload -f version=1.0.8 -f build=10
 ```
 
@@ -46,10 +47,10 @@ gh workflow run ios-pal-release.yml --repo kzahel/jstorrent --ref ios-v1.0.8 \
 2. Run `status` until the exact build is `VALID`. If Apple asks for export
    compliance details or other account information, resolve that in App Store
    Connect before going on.
-3. Run `notarize` with the same tag, version and build. CI checks the attached
+3. Run `notarize` from the release tag with the same version and build. CI checks the attached
    build and review type immediately before submitting. It stops on an
    incompatible existing version or another active submission.
-4. Run `stage` after notarization. It fetches the original package from
+4. Run `stage` from the release tag after notarization. It fetches the original package from
    AltStore, preserves the signed manifest and assets, and publishes them with
    an install-test source on a GitHub prerelease. The workflow verifies the
    public bytes against their release receipt. A repeat staging run can

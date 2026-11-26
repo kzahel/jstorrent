@@ -59,5 +59,14 @@ tested build and serves immutable package bytes after deployment.
   signed and exported local Rust 1.0.8 build 10. CI signing credentials are
   configured in the canonical repository's Actions settings.
 - The public feed currently links to a legacy tarball and its artwork URLs
-  return 404. The staged baseline uses the actual PAL package, separate from
-  the production feed. A device install is still needed.
+  return 404. [Hosted staging run 45870236469](https://github.com/kzahel/jstorrent/actions/runs/45870236469)
+  published the [1.0.7 test source](https://github.com/kzahel/jstorrent/releases/download/ios-pal-baseline-v1.0.7/altstore-source.json)
+  and verified the public package files byte for byte. A device install is
+  still needed.
+- The eight focused release-tool tests, workflow and signing-script lint,
+  and the iPhone 17 simulator's 30 unit and five UI tests pass. Signing
+  uses the tagged source `ade54cb7` for `ios-v1.0.8`.
+- The [first hosted upload attempt](https://github.com/kzahel/jstorrent/actions/runs/45870240430)
+  imported the signing identity and stopped before upload because the runner
+  lacked `rg`. Use system `grep` and let `upload` on `main` run the signing
+  script against the unchanged release tag.
