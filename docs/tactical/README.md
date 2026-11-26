@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [403 — iOS AltStore PAL release takeover](403-ios-altstore-pal-takeover.md):
+  original app identity, Rust signing and notarization, staged PAL package,
+  physical upgrade qualification and canonical source promotion.
+
 - [402 — Desktop extension setup and upgrade recovery](402-desktop-extension-setup-recovery.md):
   Windows feedback reproduction, shared extension and Desktop recovery,
   Windows installer ownership, and Windows/macOS installed qualification.

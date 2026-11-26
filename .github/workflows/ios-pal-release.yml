@@ -1,0 +1,192 @@
+name: iOS AltStore PAL release
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Release operation (stage creates a public test source)
+        required: true
+        type: choice
+        options: [status, upload, notarize, stage, promote]
+        default: status
+      version:
+        description: Version matching the ios-vX.Y.Z release tag
+        required: true
+        type: string
+      build:
+        description: Exact CFBundleVersion uploaded to Apple
+        required: true
+        type: string
+      device_verified:
+        description: The staged package passed physical install and upgrade (promote only)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: jstorrent-ios-pal
+  cancel-in-progress: false
+
+env:
+  IOS_VERSION: ${{ inputs.version }}
+  IOS_BUILD: ${{ inputs.build }}
+
+jobs:
+  upload:
+    if: github.repository == 'kzahel/jstorrent' && inputs.operation == 'upload'
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify tagged source and Xcode
+        run: |
+          [[ "$IOS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$IOS_BUILD" =~ ^[1-9][0-9]*$ ]]
+          test "$GITHUB_REF" = "refs/tags/ios-v$IOS_VERSION"
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          test "$(xcodebuild -version | sed -n '1p')" = 'Xcode 26.6'
+      - name: Install Apple Rust target
+        uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613
+        with:
+          targets: aarch64-apple-ios
+      - name: Cache iOS Rust builds
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          shared-key: ci-ios-macos-26
+      - name: Install XcodeGen
+        run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Sign, export and verify the IPA
+        env:
+          IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: clients/ios/scripts/distribution.sh "$IOS_VERSION" "$IOS_BUILD" "$RUNNER_TEMP/ios-release"
+      - name: Upload the verified IPA to App Store Connect
+        env:
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+        run: |
+          : "${ASC_API_KEY_P8_BASE64:?Missing App Store Connect key}"
+          : "${ASC_API_ISSUER_ID:?Missing App Store Connect issuer}"
+          [[ "${ASC_API_KEY_ID:?Missing App Store Connect key ID}" =~ ^[A-Z0-9]+$ ]]
+          umask 077
+          export API_PRIVATE_KEYS_DIR="$RUNNER_TEMP/ios-upload-key"
+          mkdir "$API_PRIVATE_KEYS_DIR"
+          key="$API_PRIVATE_KEYS_DIR/AuthKey_${ASC_API_KEY_ID}.p8"
+          trap 'rm -f "$key"' EXIT
+          printf '%s' "$ASC_API_KEY_P8_BASE64" | base64 -D > "$key"
+          xcrun altool --upload-app --type ios --file "$RUNNER_TEMP/ios-release/JSTorrent.ipa" \
+            --apiKey "$ASC_API_KEY_ID" --apiIssuer "$ASC_API_ISSUER_ID"
+      - name: Write upload summary
+        run: |
+          printf 'Uploaded JSTorrent **%s (%s)** from %s to App Store Connect.\n' \
+            "$IOS_VERSION" "$IOS_BUILD" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+  apple:
+    if: github.repository == 'kzahel/jstorrent' && (inputs.operation == 'status' || inputs.operation == 'notarize' || inputs.operation == 'stage')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+      - name: Check the release reference
+        env:
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          [[ "$IOS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$IOS_BUILD" =~ ^[1-9][0-9]*$ ]]
+          if [[ "$OPERATION" = stage && "$IOS_VERSION" = 1.0.7 && "$IOS_BUILD" = 9 ]]; then
+            test "$GITHUB_REF" = refs/heads/main || test "$GITHUB_REF" = refs/tags/ios-pal-baseline-v1.0.7
+          elif [[ "$OPERATION" = status ]]; then
+            test "$GITHUB_REF" = refs/heads/main || test "$GITHUB_REF" = "refs/tags/ios-v$IOS_VERSION"
+          else
+            test "$IOS_VERSION" != 1.0.7
+            test "$GITHUB_REF" = "refs/tags/ios-v$IOS_VERSION"
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          fi
+      - name: Check Apple status or submit notarization
+        id: apple
+        env:
+          OPERATION: ${{ inputs.operation }}
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+        run: |
+          : "${ASC_API_KEY_P8_BASE64:?Missing App Store Connect key}"
+          umask 077
+          export ASC_API_KEY_PATH="$RUNNER_TEMP/ios-asc.p8"
+          trap 'rm -f "$ASC_API_KEY_PATH"' EXIT
+          printf '%s' "$ASC_API_KEY_P8_BASE64" | base64 --decode > "$ASC_API_KEY_PATH"
+          case "$OPERATION" in
+            status) node clients/ios/scripts/asc-notarization.mjs status "$IOS_VERSION" "$IOS_BUILD" ;;
+            notarize) node clients/ios/scripts/asc-notarization.mjs submit "$IOS_VERSION" "$IOS_BUILD" | tee -a "$GITHUB_STEP_SUMMARY" ;;
+            stage)
+              package_id=$(node clients/ios/scripts/asc-notarization.mjs package-id "$IOS_VERSION" "$IOS_BUILD")
+              printf 'package_id=%s\n' "$package_id" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+      - name: Stage the PAL package and verify hosted assets
+        if: inputs.operation == 'stage'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_ID: ${{ steps.apple.outputs.package_id }}
+        run: |
+          python3 clients/ios/scripts/pal-package.py stage "$IOS_VERSION" "$IOS_BUILD" "$GITHUB_SHA" \
+            "$RUNNER_TEMP/pal-assets" --package-id "$PACKAGE_ID" | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 clients/ios/scripts/pal-package.py verify "$IOS_VERSION" "$IOS_BUILD" "$GITHUB_SHA" \
+            "$RUNNER_TEMP/pal-verified"
+
+  promote:
+    if: github.repository == 'kzahel/jstorrent' && inputs.operation == 'promote'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+      - name: Verify and promote the tested PAL source
+        env:
+          DEVICE_VERIFIED: ${{ inputs.device_verified }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          [[ "$IOS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$IOS_BUILD" =~ ^[1-9][0-9]*$ ]]
+          test "$GITHUB_REF" = refs/heads/main
+          test "$DEVICE_VERIFIED" = true
+          test "$IOS_VERSION" != 1.0.7
+          tag="ios-v$IOS_VERSION"
+          commit=$(git rev-parse --verify "refs/tags/$tag^{commit}")
+          git merge-base --is-ancestor "$commit" HEAD
+          source=website/public/altstore-source.json
+          python3 clients/ios/scripts/pal-package.py promote "$IOS_VERSION" "$IOS_BUILD" "$commit" \
+            "$RUNNER_TEMP/pal-verified" --production-source "$source"
+          if ! git diff --quiet -- "$source"; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add "$source"
+            git commit -m "Publish JSTorrent iOS $IOS_VERSION on AltStore PAL" \
+              -m 'Topic: ios-altstore-pal-distribution'
+            git push origin HEAD:refs/heads/main
+          fi
+          gh workflow run deploy-website.yml --repo "$GITHUB_REPOSITORY" --ref main
+          printf 'Dispatched canonical website deployment for JSTorrent iOS **%s (%s)**.\n' \
+            "$IOS_VERSION" "$IOS_BUILD" >> "$GITHUB_STEP_SUMMARY"

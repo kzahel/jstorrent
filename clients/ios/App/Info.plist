@@ -22,7 +22,7 @@
   <string>$(CURRENT_PROJECT_VERSION)</string>
   <key>BGTaskSchedulerPermittedIdentifiers</key>
   <array>
-    <string>org.rstorrent.ios.dev.continued-processing.*</string>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER).continued-processing.*</string>
   </array>
   <key>CFBundleURLTypes</key>
   <array>

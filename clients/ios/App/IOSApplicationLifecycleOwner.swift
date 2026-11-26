@@ -19,7 +19,8 @@ private enum IOSExternalInput {
 
 @MainActor
 final class IOSApplicationLifecycleOwner: ObservableObject {
-    static let continuedTaskPrefix = "org.rstorrent.ios.dev.continued-processing"
+    static let continuedTaskPrefix =
+        "\(Bundle.main.bundleIdentifier ?? "org.rstorrent.ios.dev").continued-processing"
     static let continuedTaskWildcard = "\(continuedTaskPrefix).*"
     private static let maximumMagnetBytes = 16 * 1024
 

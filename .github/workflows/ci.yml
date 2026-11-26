@@ -212,6 +212,11 @@ jobs:
           bash scripts/test-crostini-installer.sh
           node --test .github/scripts/write-crostini-release-manifest.test.mjs
 
+      - name: Validate iOS AltStore PAL release tools
+        run: |
+          node --test clients/ios/scripts/asc-notarization.test.mjs
+          python3 -m unittest discover -s clients/ios/scripts -p test_pal_package.py
+
       - name: Validate headless bootstrap release tools
         run: |
           bash scripts/test-headless-installer.sh

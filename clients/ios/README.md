@@ -68,3 +68,7 @@ indefinite background downloading or seeding.
 
 Search, iCloud and identified File Provider roots, legacy JSTorrent migration,
 TestFlight, and App Store publication are outside the current campaign.
+
+The `Distribution` configuration uses the existing JSTorrent bundle ID for
+Apple notarization and AltStore PAL. See the [PAL release
+runbook](../../docs/development/ios-altstore-pal.md) for signing and delivery.

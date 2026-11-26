@@ -1446,7 +1446,7 @@ Store review, and mobile beta is not implied by a desktop tag:
 | Linux headless | signed non-latest `headless-v*` GitHub Release plus pinned website bootstrap and explicit CLI apply | strict native x86_64/ARM64 workflow, signed manifest/bootstrap/check/apply source gates, and an exact enabled x86_64 trusted-LAN install pass; no public candidate or stable manifest is promoted, and native ARM64 install/update evidence is absent |
 | Android, including ChromeOS | signed Android App Bundle through a closed testing channel | maintained Compose/in-process Rust/SAF app and hosted dual-ABI debug/test APK gates pass; release identity, signed AAB, emulator/store, and upgrade evidence absent |
 | ChromeOS Linux | signed non-latest `crostini-v*` GitHub Release selected by the pinned website bootstrap | public `crostini-v0.1.0`, the deployed pinned bootstrap, production-key manifest, native x86_64/ARM64 packages, independent exact-asset validation, and physical x86_64 website install/Launcher/relaunch pass; physical native ARM64, full reboot, suspend, and installed update/rollback evidence remain absent |
-| iOS/iPadOS | signed TestFlight build | maintained SwiftUI app plus hosted simulator tests and unsigned device archive pass; distribution identity, signing, TestFlight, and upgrade evidence absent |
+| iOS/iPadOS | Apple notarization and AltStore PAL | maintained SwiftUI app and a signed export under the existing JSTorrent identity; PAL install and upgrade qualification tracked in Tactical 403 |
 
 The first external lane may ship when its own blockers and the shared product
 blockers pass. Unsupported lanes must remain labelled development preview; the
@@ -2057,21 +2057,20 @@ disposition of current JSTorrent Android features.
   in-process Rust/UniFFI, app Documents and qualified selected roots,
   simulator/physical lifecycle evidence, system preview, and reproducible
   unsigned/development archives exist.
-- [ ] **IOS-002 — Freeze the distribution bundle identity.** Replace the
-  `.dev` identifiers with a durable RSTorrent namespace while preserving the
-  explicit independent-product and later-migration posture.
+- [x] **IOS-002 — Retain the JSTorrent distribution bundle identity.** Use the
+  original `com.jstorrent.ios` App Store Connect record in the Distribution
+  configuration. Keep development and simulator installs under the `.dev` ID.
 - [ ] **IOS-003 — Add complete app artwork and metadata.** Tactical `157`
   supplies provisional buildable artwork; final App Store icon, display copy,
   screenshots, privacy manifest review, support/privacy links, and localization
   review remain open.
-- [ ] **IOS-004 — Automate a signed archive/export.** Use protected Apple
-  credentials/profiles outside the repository, validate archive contents, and
-  upload the exact reviewed build to TestFlight.
-- [ ] **IOS-005 — Prove TestFlight replacement and lifecycle.** Install a
-  disposable older fixture, replace it through TestFlight without requiring
-  state retention, validate clean current state or bounded reset plus payload
-  safety, run phone/iPad cohort cases, and record finite-background
-  limitations. Compatibility begins only with the explicitly supported build.
+- [ ] **IOS-004 — Qualify hosted signing, upload and notarization.** The local
+  signed export is verified. Complete the hosted upload and alternative
+  marketplace processing using the [PAL workflow](../development/ios-altstore-pal.md).
+- [ ] **IOS-005 — Prove PAL install and upgrade.** Install the recovered
+  TypeScript release through the staged source on a physical device, then
+  qualify the Rust update with downloaded files and legacy library state
+  present. Record the durable-data outcome before advancing the public feed.
 - [ ] **IOS-006 — Make storage bridging Swift 6 concurrency-clean.** Current
   archives warn that asynchronous `NSLock` and `DispatchGroup.wait` calls in
   `PlatformStorageBridge` become errors in Swift 6 language mode. Replace them
