@@ -1,6 +1,10 @@
 name: RSTorrent
 options:
   minimumXcodeGenVersion: 2.45.0
+configs:
+  Debug: debug
+  Release: release
+  Distribution: release
 targets:
   RSTorrentSessionBindings:
     type: framework
@@ -86,6 +90,15 @@ targets:
           ONLY_ACTIVE_ARCH: YES
         Release:
           ONLY_ACTIVE_ARCH: NO
+        Distribution:
+          ONLY_ACTIVE_ARCH: NO
+          PRODUCT_BUNDLE_IDENTIFIER: com.jstorrent.ios
+          MARKETING_VERSION: $(JSTORRENT_IOS_VERSION)
+          CURRENT_PROJECT_VERSION: $(JSTORRENT_IOS_BUILD)
+          DEVELOPMENT_TEAM: $(JSTORRENT_IOS_TEAM)
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: Apple Distribution
+          PROVISIONING_PROFILE_SPECIFIER: $(JSTORRENT_IOS_PROFILE)
   RSTorrentTests:
     type: bundle.unit-test
     platform: iOS

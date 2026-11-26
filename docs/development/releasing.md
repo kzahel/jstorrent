@@ -28,6 +28,12 @@ cutover qualification and old release receipts belong in the
 [migration stream](../migration/README.md). Commands below run from the
 repository root and do not themselves authorize publication.
 
+## iOS alternative marketplace
+
+The [AltStore PAL runbook](ios-altstore-pal.md) owns signing, Apple
+notarization, staged install testing and promotion of the existing JSTorrent
+iOS app. Simulator and development archives remain available separately.
+
 ## Local production candidates
 
 ```bash
